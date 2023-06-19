@@ -1,21 +1,16 @@
 """
 Module to run tests on FlatField class
 """
-import os
-
-import pytest
+from pathlib import Path
 
 from IPython import embed
 
 import numpy as np
 
-
 from pypeit import flatfield
 from pypeit import bspline
 from pypeit.spectrographs.util import load_spectrograph
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import data_path
 
 
 def test_flatimages():
@@ -38,34 +33,38 @@ def test_flatimages():
     assert flatImages.pixelflat_model is None
     assert flatImages.pixelflat_spec_illum is None
     assert flatImages.pixelflat_spat_bsplines is not None
+    flatImages.set_paths(data_path(''), 'A', '1', 'DET01')
 
     # I/O
-    outfile = data_path('tst_flatimages.fits')
-    flatImages.to_master_file(outfile)
-    _flatImages = flatfield.FlatImages.from_file(outfile)
+    ofile = Path(flatImages.get_path()).resolve()
+    flatImages.to_file(overwrite=True)
+    assert ofile.exists(), 'File not written'
+
+    _flatImages = flatfield.FlatImages.from_file(ofile)
 
     # Test
     for key in instant_dict.keys():
         if key == 'pixelflat_spat_bsplines':
-            np.array_equal(flatImages[key][0].breakpoints,
-                           _flatImages[key][0].breakpoints)
+            assert np.array_equal(flatImages[key][0].breakpoints,
+                                  _flatImages[key][0].breakpoints), 'pixelflat breakpoints changed'
             continue
         if key == 'illumflat_spat_bsplines':
-            np.array_equal(flatImages[key][0].breakpoints,
-                           _flatImages[key][0].breakpoints)
+            assert np.array_equal(flatImages[key][0].breakpoints,
+                                  _flatImages[key][0].breakpoints), 'illumflat breakpoints changed'
             continue
         if isinstance(instant_dict[key], np.ndarray):
             assert np.array_equal(flatImages[key],_flatImages[key])
         else:
             assert flatImages[key] == _flatImages[key]
 
-    os.remove(outfile)
+    ofile.unlink()
+
 
 def test_fit_det_response():
     spec = load_spectrograph('keck_kcwi')
     # Generate a good pixel mask
     frsize = 4100
-    gpm = np.ones((frsize,frsize), dtype=np.bool)
+    gpm = np.ones((frsize,frsize), dtype=bool)
     # Generate a fake image
     sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
                 2 * np.pi * (xx * np.cos(angle*np.pi / 180.0) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)
@@ -76,3 +75,5 @@ def test_fit_det_response():
     img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
     model = spec.fit_2d_det_response(img, gpm)
     assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'
+
+

@@ -23,6 +23,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     name = 'tng_dolores'
     telescope = telescopes.TNGTelescopePar()
     camera = 'DOLORES'
+    url = 'https://oapd.inaf.it/mos/'
     comment = 'DOLORES (LRS) spectrograph; LR-R'
 
 
@@ -72,7 +73,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -119,7 +120,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
         else:
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            msg.warn('Check wavelength calibration file.')
+            msgs.warn('Check wavelength calibration file.')
 
         # Return
         return par
@@ -129,7 +130,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -189,6 +190,25 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRM_ID', 'SLT_ID']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

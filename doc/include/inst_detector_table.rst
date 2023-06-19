@@ -17,8 +17,14 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ...                           2    1         False     False     4         1.83, 1.83, 1.83, 1.83      3.98, 3.98, 3.98, 3.98  0.0       -1.0e+10  123000.0      0.9500     0.0800    
 ...                           3    1         False     False     4         1.83, 1.83, 1.83, 1.83      3.98, 3.98, 3.98, 3.98  0.0       -1.0e+10  125000.0      0.9500     0.0800    
 ``gemini_gnirs``              1    0         True      True      1         13.5                        7.0                     0.15      -1.0e+10  150000.0      0.7100     0.1500    
+``gtc_maat``                  1    1         True      False     1         1.9                         4.3                     5.0       0.0e+00   65535.0       0.9500     0.1250    
 ``gtc_osiris``                1    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
 ...                           2    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
+``gtc_osiris_plus``           1    1         True      False     1         1.9                         4.3                     5.0       0.0e+00   65535.0       0.9500     0.1250    
+``jwst_nircam``               1    1         False     False     1         1.84                        8.55                    0.0335    -1.0e+10  59200.0       0.9500     0.0630    
+...                           2    1         False     False     1         1.8                         8.57                    0.035     -1.0e+10  58500.0       0.9500     0.0630    
+``jwst_nirspec``              1    1         False     False     1         0.996                       5.17                    0.0092    -1.0e+10  55100.0       0.9500     0.1000    
+...                           2    1         False     False     1         1.137                       6.6                     0.0057    -1.0e+10  60400.0       0.9500     0.1000    
 ``keck_deimos``               1    0         False     False     1         1.226                       2.57                    3.3       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           2    0         False     False     1         1.188                       2.491                   3.6       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           3    0         False     False     1         1.248                       2.618                   3.5       -1.0e+10  65535.0       0.9500     0.1185    
@@ -27,6 +33,9 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ...                           6    0         False     False     1         1.177                       2.469                   3.8       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           7    0         False     False     1         1.201                       2.518                   3.3       -1.0e+10  65535.0       0.9500     0.1185    
 ...                           8    0         False     False     1         1.23                        2.58                    3.7       -1.0e+10  65535.0       0.9500     0.1185    
+``keck_hires``                1    0         False     False     1         1.9                         2.8                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
+...                           2    0         False     False     1         2.1                         3.1                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
+...                           3    0         False     False     1         2.1                         3.1                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
 ``keck_kcwi``                 1    0         None      False     ``None``  ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.1457    
 ``keck_lris_blue``            1    0         False     False     2         1.55, 1.56                  3.9, 4.2                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ...                           2    0         False     False     2         1.63, 1.7                   3.6, 3.6                0.0       -1.0e+10  65535.0       0.8600     0.1350    
@@ -55,6 +64,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``mmt_bluechannel``           1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.3000    
 ``mmt_mmirs``                 1    0         False     False     1         0.95                        3.14                    0.01      -1.0e+10  700000.0      1.0000     0.2012    
 ``not_alfosc``                1    0         True      False     1         ``None``                    ``None``                1.3       -1.0e+10  700000.0      0.8600     0.2138    
+``not_alfosc_vert``           1    1         False     False     1         ``None``                    ``None``                1.3       -1.0e+10  700000.0      0.8600     0.2138    
 ``ntt_efosc2``                1    0         False     False     1         0.91                        10.0                    0.0       -1.0e+10  65535         0.8000     0.1200    
 ``p200_dbsp_blue``            1    0         True      False     1         0.72                        2.5                     0.0       -1.0e+10  65000.0       0.9538     0.3890    
 ``p200_dbsp_red``             1    1         False     False     1         2.8                         8.5                     0.0       -1.0e+10  45000.0       0.8889     0.2930    
@@ -62,6 +72,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``shane_kast_blue``           1    1         False     False     2         1.2, 1.2                    3.7, 3.7                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red``            1    0         False     False     2         1.9, 1.9                    3.8, 3.8                0.0       -1.0e+10  65535.0       0.7600     0.4300    
 ``shane_kast_red_ret``        1    1         False     False     1         3.0                         12.5                    0.0       -1.0e+10  120000.0      0.7600     0.7740    
+``soar_goodman_blue``         1    1         False     False     1         ``None``                    ``None``                8e-05     -1.0e+10  65535.0       1.0000     0.1500    
 ``soar_goodman_red``          1    1         False     False     1         ``None``                    ``None``                8e-05     -1.0e+10  65535.0       1.0000     0.1500    
 ``tng_dolores``               1    1         False     False     1         0.97                        9.0                     0.0       -1.0e+10  65500.0       0.9900     0.2520    
 ``vlt_fors2``                 1    1         False     False     1         0.7                         2.9                     2.1       -1.0e+10  200000.0      0.8000     0.1260    

@@ -79,6 +79,10 @@ class SpecObjs:
         slf.header = hdul[0].header
         # Keep track of HDUList for closing later
 
+        # Catch common error of trying to read a OneSpec file
+        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
@@ -192,7 +196,7 @@ class SpecObjs:
                   True=Good
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
-                  spectrograph.header_cards_from_spec()
+                  spectrograph.parse_spec_header()
                 - header (astropy.io.header object): header from
                   spec1d file
         """
@@ -642,15 +646,15 @@ class SpecObjs:
         if os.path.isfile(outfile) and (update_det is not None or slitspatnum is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
             mask = np.ones(_specobjs.nobj, dtype=bool)
-            # Update_det
-            if update_det is not None:
-                # Pop out those with this detector (and slit if slit_spat_num is provided)
-                for det in np.atleast_1d(update_det):
-                    mask[_specobjs.DET == det] = False
-            elif slitspatnum is not None: # slitspatnum
+            # Update
+            if slitspatnum is not None: # slitspatnum
                 dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
                 for det, spat_id in zip(dets, spat_ids):
                     mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
+            elif update_det is not None:
+                # Pop out those with this detector (and slit if slit_spat_num is provided)
+                for det in np.atleast_1d(update_det):
+                    mask[_specobjs.DET == det] = False
             _specobjs = _specobjs[mask]
             # Add in the new
             # TODO: Is the loop necessary? add_sobj can take many SpecObj objects.
@@ -660,7 +664,7 @@ class SpecObjs:
             _specobjs = self.specobjs
 
         # Build up the Header
-        header = io.initialize_header(primary=True)
+        header = io.initialize_header()
         for key in subheader.keys():
             if key.upper() == 'HISTORY':
                 if history is None:
@@ -670,9 +674,8 @@ class SpecObjs:
                 header[key.upper()] = subheader[key]
 
         # Init
-        prihdu = fits.PrimaryHDU()
+        prihdu = fits.PrimaryHDU(header=header)
         hdus = [prihdu]
-        prihdu.header = header
 
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
@@ -728,9 +731,6 @@ class SpecObjs:
         # A few more for the header
         prihdu.header['NSPEC'] = nspec
 
-        # Code versions
-        io.initialize_header(hdr=prihdu.header)
-
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
@@ -738,8 +738,7 @@ class SpecObjs:
              #embed()
              #exit()
         hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
-        return
+        msgs.info(f'Wrote 1D spectra to {outfile}')
 
     def write_info(self, outfile, pypeline):
         """
@@ -798,18 +797,12 @@ class SpecObjs:
             # S2N -- default to boxcar
             if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-                # S2N -- optimal
-                ivar = specobj.OPT_COUNTS_IVAR
-                is2n = np.median(specobj.OPT_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
-                if specobj.BOX_COUNTS is None:
-                    is2n = 0.
-                else:
-                    ivar = specobj.BOX_COUNTS_IVAR
-                    is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
+            # NOTE: Below requires that S2N not be None, otherwise the code will
+            # fault.  If the code gets here and S2N is None, check that 1D
+            # extractions have been performed.
+            s2n.append(specobj.S2N)
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info

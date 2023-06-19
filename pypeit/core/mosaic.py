@@ -99,7 +99,7 @@ def build_image_mosaic_transform(shape, shift, rotation=0., binning=(1.,1.)):
         # Undo the offset to the image center
         tform += [dict(translation=((shape[0]-1)/2, (shape[1]-1)/2))]
     # Apply the shift
-    tform += [dict(translation=(shift[1]/binning[1], shift[0]/binning[0]))]
+    tform += [dict(translation=(shift[1] / binning[1], shift[0] / binning[0]))]
     # Compile into a single transformation and return
     return transform.affine_transform_series(tform)
 
@@ -192,13 +192,13 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         frames lead to image drifts.
 
     Args:
-        imgs (:obj:`list`, `numpy.ndarray`_):
+        imgs (:obj:`list` of `numpy.ndarray`_):
             List of `numpy.ndarray`_ images to include in the mosaic.  If arrays
             do not contain floating-point values, they will be cast as
             ``np.float64`` before passing them to
             `scipy.ndimage.affine_transform`_.  The shape of all the input images
             must be identical if ``mosaic_shape`` is None.
-        tforms (:obj:`list`, `numpy.ndarray`_):
+        tforms (:obj:`list` of `numpy.ndarray`_):
             List of `numpy.ndarray`_ objects with the transformation matrices
             necessary to convert between image and mosaic coordinates.  See
             :func:`pypeit.core.mosaic.build_image_mosaic_transform`.  The number
@@ -211,12 +211,12 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
             :func:`~pypeit.core.mosaic.prepare_mosaic`.  If ``mosaic_shape`` is
             *not* None, these transforms are expected to map directly to the
             output mosaic coordinates.
-        ivar (:obj:`list`, `numpy.ndarray`_, optional):
+        ivar (:obj:`list` of `numpy.ndarray`_, optional):
             List of `numpy.ndarray`_ images with the inverse variance of the
             image data.  The number of inverse-variance images must match the
             number of images in the mosaic.  If None, inverse variance is
             returned as None.
-        bpm (:obj:`list`, `numpy.ndarray`_, optional):
+        bpm (:obj:`list` of `numpy.ndarray`_, optional):
             List of boolean `numpy.ndarray`_ objects with the bad-pixel mask for
             each image in the mosaic.  The number of bad-pixel masks must match
             the number of images in the mosaic.  If None, all input pixels are

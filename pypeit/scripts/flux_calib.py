@@ -4,11 +4,7 @@ Script for fluxing PYPEIT 1d spectra
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
 from IPython import embed
-
-import numpy as np
 
 from astropy.io import fits
 
@@ -65,6 +61,10 @@ class FluxCalib(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename flux_calib_YYYYMMDD-HHMM.log')
+
 #        parser.add_argument("--plot", default=False, action="store_true",
 #                            help="Show the sensitivity function?")
         return parser
@@ -73,6 +73,9 @@ class FluxCalib(scriptbase.ScriptBase):
     def main(args):
         """ Runs fluxing steps
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
+
         # Load the file
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
 
@@ -83,7 +86,7 @@ class FluxCalib(scriptbase.ScriptBase):
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                 merge_with=fluxFile.cfg_lines)
+                                                 merge_with=(fluxFile.cfg_lines,))
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)

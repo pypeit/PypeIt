@@ -1,0 +1,35 @@
+
+Version 1.12.0
+==============
+
+Functionality Improvements / User-level Updates
+-----------------------------------------------
+
+- Refactor quicklook scripts
+- Added spectral flexure and reference frame corrections for IFU data
+- Allow separate sky frame to be used for sky subtraction with IFU data
+- Limit the images written to the Edges file to only the trace
+  image, mask, and detector.
+
+Instrument-specific Updates
+---------------------------
+
+- Limit LRISr header crashes
+- Parse Keck/NIRES dither patterns, similar to MOSFIRE
+- Started modifications and support for JWST NIRSpec
+
+Minor / Under-the-hood Updates and Bug Fixes
+--------------------------------------------
+
+- Fixed bug that allowed science frames to be assigned to multiple
+  instrument configurations
+- Fixed typo related to GitHub download for offline processing
+- OpenMP link fix
+- Enable boxcar_radius for manual extraction
+- Prevent flexure crash
+- Fixed error with deprecated numpy types
+- Improved optimization of bspline c code
+- Introduce BitMaskArray class to ease use of bitmasks
+- Fixed memory hogging by matplotlib when using version >= 3.6.1
+
+

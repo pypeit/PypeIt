@@ -1,10 +1,23 @@
 """
 Module for LDT/DeVeny specific methods.
 
+The DeVeny spectrograph was built at Kitt Peak National Observatory (KPNO)
+and known as the White Spectrograph. It had a long career at the #1 36-inch
+and 84-inch telescopes there before being retired; Lowell Observatory acquired
+the spectrograph from KPNO on indefinite loan in 1998. A new CCD camera was
+built for it, and the instrument was further modified for installation on the
+72-inch Perkins telescope in 2005. Following 8 years of service there, it was
+removed in 2013 for upgrades for installation on the Lowell Discovery Telescope
+(LDT) instrument cube. It has been in service since February 2015. The
+spectrograph was designed for f/7.5 telescope optics, and new re-imaging
+optics were designed and fabricated to match the spectrograph with LDT's
+f/6.1 beam.
+
 .. include:: ../include/links.rst
 """
 import numpy as np
 
+from astropy.table import Table
 from astropy.time import Time
 
 from pypeit import io
@@ -23,9 +36,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
+    telescope.fratio = 7.5  # The corrector optics for DeVeny reshape the beam to f/7.5
     camera = 'DeVeny'
+    url = 'https://lowell.edu/research/telescopes-and-facilities/ldt/deveny-optical-spectrograph/'
     header_name = 'Deveny'
-    comment = 'LDT DeVeny Optical Spectrograph'
+    comment = 'LDT DeVeny Optical Spectrograph, 2015 - present'
     supported = True
 
     # Parameters equal to the PypeIt defaults, shown here for completeness
@@ -53,25 +68,28 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
+            dataext = 0                     # Raw data
             binning = '1,1'                 # Most common use mode
             gain = np.atleast_1d(1.52)      # Hardcoded in the header
             ronoise = np.atleast_1d(4.9)    # Hardcoded in the header
             datasec = np.atleast_1d('[5:512,53:2095]')   # For 1x1 binning
             oscansec = np.atleast_1d('[5:512,5:48]')     # For 1x1 binning
         else:
+            # If file is post-processed, data extension is specified.  Raw is 0.
+            dataext = hdu[0].header.get('POST_EXT', 0)
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
             datasec = self.rotate_trimsections(hdu[0].header['TRIMSEC'],
-                                               hdu[0].header['NAXIS1'])
+                                               hdu[dataext].header['NAXIS1'])
             oscansec = self.rotate_trimsections(hdu[0].header['BIASSEC'],
-                                               hdu[0].header['NAXIS1'])
+                                               hdu[dataext].header['NAXIS1'])
 
         # Detector
         detector_dict = dict(
             binning         = binning,
-            det             = 1,
-            dataext         = 0,
+            det             = 1,        # DeVeny has but one detector
+            dataext         = dataext,
             specaxis        = 1,        # Native spectrum is along the x-axis
             specflip        = True,     # DeVeny CCD has blue at the right
             spatflip        = False,
@@ -93,7 +111,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -118,7 +136,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
 
-    def compound_meta(self, headarr, meta_key):
+    def compound_meta(self, headarr:list, meta_key:str) -> object:
         """
         Methods to generate metadata requiring interpretation of the header
         data, instead of simply reading the value of a header card.
@@ -130,16 +148,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 Metadata keyword to construct.
 
         Returns:
-            object: Metadata value read from the header(s).
+            :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # Binning in lois headers is space-separated (like Gemini).
+            # Binning in lois headers is space-separated
             binspec, binspatial = parse.parse_binning(headarr[0]['CCDSUM'])
             return parse.binning2string(binspec, binspatial)
 
         if meta_key == 'mjd':
-            # Use astropy to convert 'DATE-OBS' into a mjd.
-            ttime = Time(headarr[0]['DATE-OBS'], format='isot')
+            # Use custom scrubber + AstroPy to convert 'DATE-OBS' into a mjd.
+            ttime = self.scrub_isot_dateobs(headarr[0]['DATE-OBS'])
             return ttime.mjd
 
         if meta_key == 'lampstat01':
@@ -157,9 +175,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                         "400/8500":"DV4", "500/5500":"DV5", "600/4900":"DV6",
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
                         "2160/5000":"DV10", "UNKNOWN":"DVxx"}
-            if headarr[0]['GRATING'] not in gratings:
-                raise ValueError(f"Grating value {headarr[0]['GRATING']} not recognized.")
-            return f"{gratings[headarr[0]['GRATING']]} ({headarr[0]['GRATING']})"
+            if (grating_kwd := headarr[0]['GRATING']) not in gratings:
+                msgs.error(f"Grating value {grating_kwd} not recognized.")
+            if grating_kwd == "UNKNOWN":
+                msgs.warn(f"Grating not selected in the LOUI; {msgs.newline()}"
+                          "Fix the header keyword GRATING before proceeding.")
+            return f"{gratings[grating_kwd]} ({grating_kwd})"
 
         if meta_key == 'decker':
             # Provide a stub for future inclusion of a decker on LDT/DeVeny.
@@ -175,20 +196,21 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  return the central wavelength of the configuration.
 
             # Extract lines/mm, catch 'UNKNOWN' grating
-            lpmm = (
-                np.inf
-                if headarr[0]["GRATING"] == "UNKNOWN"
-                else float(headarr[0]["GRATING"].split("/")[0])
-            )
+            if (grating_kwd := headarr[0]["GRATING"]) == "UNKNOWN":
+                lpmm = np.inf
+                msgs.warn(f"Grating angle not selected in the LOUI; {msgs.newline()}"
+                          "Fix the header keyword GRANGLE before proceeding.")
+            else:
+                lpmm = float(grating_kwd.split("/")[0])
 
             # DeVeny Fixed Optical Angles in radians
-            CAMCOL = np.deg2rad(55.00)  # Camera-to-Collimator Angle
-            COLL = np.deg2rad(10.00)    # Collimator-to-Grating Angle
+            col_grat = np.deg2rad(10.00)  # Collimator-to-Grating Angle
+            cam_col = np.deg2rad(55.00)   # Camera-to-Collimator Angle
             # Grating angle in radians
             theta = np.deg2rad(float(headarr[0]['GRANGLE']))
             # Wavelength in Angstroms
             wavelen = (
-                (np.sin(COLL + theta) + np.sin(COLL + theta - CAMCOL))  # Angles
+                (np.sin(col_grat + theta) + np.sin(col_grat + theta - cam_col))  # Angles
                 * 1.0e7                                                 # Angstroms/mm
                 / lpmm                                                  # lines / mm
             )
@@ -196,63 +218,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return np.around(wavelen / 5, decimals=0) * 5
 
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Turn off illumflat unless/until we can deal properly with flexure in
-        #   the spatial direction.  All other defaults OK (as of v1.7.0)
-        set_use = dict(use_illumflat=False)
-        par.reset_all_processimages_par(**set_use)
-
-        # Make a bad pixel mask
-        par['calibrations']['bpm_usebias'] = True
-
-        # Wavelength Calibration Parameters
-        # Arc lamps list from header -- instead of defining the full list here
-        par['calibrations']['wavelengths']['lamps'] = ['use_header']
-        #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
-        # Set this as default... but use `holy-grail` for DV4, DV8
-        par['calibrations']['wavelengths']['method'] = 'full_template'
-        # The DeVeny arc line FWHM varies based on slitwidth used
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
-        par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
-        # Because of the wide wavelength range, solution more non-linear; user higher orders
-        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-
-        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
-        par['calibrations']['slitedges']['bound_detector'] = True
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
-
-        # For the tilts, our lines are not as well-behaved as others',
-        #   possibly due to the Wynne type E camera.
-        par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
-        par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
-
-        # Cosmic ray rejection parameters for science frames
-        par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
-        par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
-
-        # Reduction and Extraction Parameters -- Look for fainter objects
-        par['reduce']['findobj']['snr_thresh'] = 5.0   # Default: 10.0
-
-        # Flexure Correction Parameters
-        par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
-
-        # Sensitivity Function Parameters
-        par['sensfunc']['polyorder'] = 7  # Default: 5
-
-        return par
 
     def configuration_keys(self):
         """
@@ -270,7 +235,107 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'cenwave', 'filter1', 'binning']
 
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATING', 'GRANGLE', 'FILTREAR', 'CCDSUM']
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Turn off illumflat unless/until we can deal properly with flexure in
+        #   the spatial direction.  All other defaults OK (as of v1.7.0)
+        set_use = dict(use_illumflat=False)
+        par.reset_all_processimages_par(**set_use)
+
+        # For processing the arc frame, these settings allow for the combination of
+        #   of frames from different lamps into a comprehensible Master
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
+        # Make a bad pixel mask
+        par['calibrations']['bpm_usebias'] = True
+
+        # Wavelength Calibration Parameters
+        # Arc lamps list from header -- instead of defining the full list here
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
+        # Set this as default... but use `holy-grail` for DV4, DV8
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        # The DeVeny arc line FWHM varies based on slitwidth used
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
+        # Because of the wide wavelength range, solution more non-linear; user higher orders
+        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+
+        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
+        par['calibrations']['slitedges']['bound_detector'] = True
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
+
+        # Flat-field parameter modification
+        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.  # Default: None
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Default: True
+        par['calibrations']['flatfield']['spec_samp_fine'] = 30  # Default: 1.2
+
+        # For the tilts, our lines are not as well-behaved as others',
+        #   possibly due to the Wynne type E camera.
+        par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
+        par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+
+        # Cosmic ray rejection parameters for science frames
+        par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
+        par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
+
+        # Object Finding, Extraction, and Sky Subtraction Parameters
+        assumed_seeing = 1.2  # arcsec
+        par['reduce']['findobj']['trace_npoly'] = 3   # Default: 5
+        par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
+        par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
+        par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
+        par['reduce']['findobj']['find_fwhm'] = np.round(assumed_seeing / 0.34, 1)   # Default: 5.0 pix
+        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.5, 1)  # Default: 1.5"
+        par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
+        par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
+
+        # Flexure Correction Parameters
+        par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
+        par['flexure']['spec_maxshift'] = 30  # Default: 20
+
+        # Sensitivity Function Parameters
+        par['sensfunc']['UVIS']['nresln'] = 15  # Default: 20
+        par['sensfunc']['UVIS']['polycorrect'] = False  # Default: True
+
+        return par
+
+    def check_frame_type(self, ftype:str, fitstbl:Table, exprng=None):
         """
         Check for frames of the provided type.
 
@@ -283,7 +348,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             exprng (:obj:`list`, optional):
                 Range in the allowed exposure time for a frame of type
                 ``ftype``. See
-                :func:`pypeit.core.framematch.check_frame_exptime`.
+                :func:`~pypeit.core.framematch.check_frame_exptime`.
 
         Returns:
             `numpy.ndarray`_: Boolean array with the flags selecting the
@@ -306,17 +371,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DOME FLAT')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['illumflat','sky']:
+        if ftype == 'illumflat':
             return (
                 good_exp
                 & (fitstbl['idname'] == 'SKY FLAT')
                 & (fitstbl['lampstat01'] == 'off')
             )
         if ftype == 'science':
-            # Both OBJECT and STANDARD frames should be processed as science frames
             return (
                 good_exp
-                & ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))
+                & (fitstbl['idname'] == 'OBJECT')
                 & (fitstbl['lampstat01'] == 'off')
             )
         if ftype == 'standard':
@@ -331,24 +395,24 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 & (fitstbl['idname'] == 'DARK')
                 & (fitstbl['lampstat01'] == 'off')
             )
-        if ftype in ['pinhole','align']:
-            # Don't types pinhole or align frames
+        if ftype in ['pinhole', 'align', 'sky', 'lampoffflats']:
+            # DeVeny doesn't have any of these types of frames
             return np.zeros(len(fitstbl), dtype=bool)
         msgs.warn(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
-            :obj:`list`: The list of keywords in the relevant
+            :obj:`list` : The list of keywords in the relevant
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['dispangle','slitwid','lampstat01']
 
-    def get_lamps(self, fitstbl):
+    def get_lamps(self, fitstbl:Table) -> list:
         """
         Extract the list of arc lamps used from header
 
@@ -357,15 +421,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             There are some faint Cd and Hg lines in the DV9 spectra that are
             helpful for nailing down the wavelength calibration for that
             grating, but these lines are too faint / close to other lines for
-            use with other gratings.  Therefore, use a grating-specific line
-            list for Cd and Hg with DV9, but use the usual ion lists for
-            everything else.
+            use with other gratings.  This method loads the more detailed
+            lists for DV9, but loads the usual line lists for all other
+            gratings.
 
         Args:
             fitstbl (`astropy.table.Table`_):
                 The table with the metadata for one or more arc frames.
         Returns:
-            lamps (:obj:`list`) : List used arc lamps
+            :obj:`list` : List of the used arc lamps
         """
         grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
         return [
@@ -379,7 +443,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -394,39 +458,69 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
+        # Start with instrument-wide parameters
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        # Set parameters based on grating used:
+        # Adjust parameters based on DeVeny grating used
         grating = self.get_meta_value(scifile, 'dispname')
+
+        # TODO: Compute resolving power on the fly  (e.g., from p200_dbsp)
+        # par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
         if grating == 'DV1 (150/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par['calibrations']['wavelengths']['nsnippet'] = 2
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 400
 
-        elif grating in ['DV2 (300/4000)', 'DV3 (300/6750)']:
+        elif grating == 'DV2 (300/4000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 800
 
-        elif grating == 'DV4 (400/8000)':
+        elif grating == 'DV3 (300/6750)':
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1200
+
+        elif grating == 'DV4 (400/8500)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+             # Start with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1800
 
         elif grating == 'DV5 (500/5500)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
+            # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1450
 
-        elif grating in ['DV6 (600/4900)', 'DV7 (600/6750)']:
+        elif grating == 'DV6 (600/4900)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Given the narrow range of wavelengths, use a lower initial order of the fit
+            # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 1500
+
+        elif grating == 'DV7 (600/6750)':
+            # Use this `reid_arxiv` with the `full-template` method:
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
+            # Start with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 2000
 
         elif grating == 'DV8 (831/8000)':
             # We don't have a good `reid_arxiv`` for this grating yet; use `holy-grail`
@@ -434,16 +528,20 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
-            # Given the narrow range of wavelengths, use a lower final order of the fit
+            # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 3200
 
         elif grating == 'DV9 (1200/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
-            # Given the narrow range of wavelengths, use a lower final order of the fit
+            # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+            # The approximate resolution of this grating
+            par['sensfunc']['UVIS']['resolution'] = 3000
 
         elif grating == 'DV10 (2160/5000)':
             # Presently unsupported; no parameter changes
@@ -451,6 +549,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         else:
             pass
+
+        # Adjust parameters based on CCD binning
+        binspec, binspat = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['reduce']['findobj']['find_fwhm'] /= binspat  # Specified in pixels and not arcsec
+        par['flexure']['spec_maxshift'] //= binspec  # Must be an integer
+        par['sensfunc']['UVIS']['resolution'] /= binspec
+
+        # SlitEdges Exclusion Regions (30 pixels at each edge) -- adjust based on binning
+        excl_l, excl_r, last = np.array([30, 485, 515], dtype=int) // binspat
+        par['calibrations']['slitedges']['exclude_regions'] = f"1:0:{excl_l},1:{excl_r}:{last}"
 
         return par
 
@@ -460,13 +568,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         that are key for image processing.
 
         For LDT/DeVeny, the LOIS control system automatically adjusts the
-        DATASEC and OSCANSEC regions if the CCD is used in a binning other
-        than 1x1.  The get_rawimage() method in the base class assumes these
-        sections are fixed and adjusts them based on the binning -- incorrect
-        for this instrument.
+        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning other
+        than 1x1.  The :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`
+        method in the base class assumes these sections are fixed and adjusts
+        them based on the binning -- an incorrect assumption for this instrument.
 
         This method is a stripped-down version of the base class method and
-        additionally does NOT send the binning to parse.sec2slice().
+        additionally does *NOT* send the binning to :func:`~pypeit.core.parse.sec2slice`.
 
         Parameters
         ----------
@@ -477,7 +585,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`
             Detector metadata parameters.
         raw_img : `numpy.ndarray`_
             Raw image for this detector.
@@ -530,19 +638,92 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def rotate_trimsections(self, section_string, nspecpix):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
+        This routine is for performing instrument- and/or disperser-specific
+        tweaks to standard stars so that sensitivity function fits will be
+        well behaved.
+
+        These are tweaks needed by LDT/DeVeny for smooth sensfunc sailing.
+
+        Parameters
+        ----------
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
+
+        Returns
+        -------
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        """
+        # First, simply chop off the wavelengths outside physical limits:
+        valid_wave = (wave_in >= 2900.0) & (wave_in <= 11000.0)
+        wave_out = wave_in[valid_wave]
+        counts_out = counts_in[valid_wave]
+        counts_ivar_out = counts_ivar_in[valid_wave]
+        gpm_out = gpm_in[valid_wave]
+
+        # Next, build a gpm based on other reasonable wavelengths and filters
+        edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
+        neg_counts = counts_out <= 0
+
+        # If an order-blocking filter was in use, mask blocked region
+        #  at "nominal" cutoff value
+        if 'FILTER1' in meta_table.keys():
+            rearfilt = meta_table['FILTER1'].strip()
+            if rearfilt == "OG570":
+                block_region = wave_out < 5700.0
+            elif rearfilt == 'GG495':
+                block_region = wave_out < 4950.0
+            elif rearfilt == 'GG420':
+                block_region = wave_out < 4200.0
+            elif rearfilt == 'WG360':
+                block_region = wave_out < 3600.0
+            else:
+                block_region = wave_out < 0
+        # In case the filter didn't make it into the header
+        else: block_region = wave_out < 0
+
+        # Build up the OUTPUT GOOD PIXEL MASK
+        gpm_out = (
+            gpm_out
+            & np.logical_not(edge_region)
+            & np.logical_not(neg_counts)
+            & np.logical_not(block_region)
+        )
+
+        return wave_out, counts_out, counts_ivar_out, gpm_out
+
+    @staticmethod
+    def rotate_trimsections(section_string: str, nspecpix: int):
         """
         In order to orient LDT/DeVeny images into the PypeIt-standard
         configuration, frames are essentially rotated 90º clockwise.  As such,
-        x' = y and y' = -x.
+        :math:`x' = y` and :math:`y' = -x`.
 
-        The TRIMSEC / BIASSEC FITS keywords in LDT/DeVeny data specify the
-        proper regions to be trimmed for the data and overscan arrays,
+        The ``TRIMSEC`` / ``BIASSEC`` FITS keywords in LDT/DeVeny data specify
+        the proper regions to be trimmed for the data and overscan arrays,
         respectively, in the native orientation.  This method performs the
-        rotation and returns the section in the Numpy image section required
+        rotation and returns the slices for the Numpy image section required
         by the PypeIt processing routines.
 
-        The LDT/DeVeny FITS header lists the sections as '[SPEC_SEC,SPAT_SEC]'.
+        The LDT/DeVeny FITS header lists the sections as ``'[SPEC_SEC,SPAT_SEC]'``.
 
         Args:
             section_string (:obj:`str`):
@@ -550,14 +731,79 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             nspecpix (:obj:`int`):
                 The total number of pixels in the spectral direction
         Returns:
-            section (:obj:`numpy.ndarray`): Numpy image section needed by PypeIt
+            section (`numpy.ndarray`_):
+                Numpy image section needed by PypeIt
         """
         # Split out the input section into spectral and spatial pieces
         spec_sec, spat_sec = section_string.strip('[]').split(',')
 
         # The spatial section is unchanged, but the spectral section flips
         #  Add 1 because the pixels are 1-indexed (FITS standard)
-        y2p, y1p = nspecpix - np.int32(spec_sec.split(':')) + 1
+        y2p, y1p = nspecpix - np.array(spec_sec.split(':'), dtype=int) + 1
 
         # Return the PypeIt-standard Numpy array
         return np.atleast_1d(f"[{spat_sec},{y1p}:{y2p}]")
+
+    @staticmethod
+    def scrub_isot_dateobs(dt_str: str):
+        """Scrub the input ``DATE-OBS`` for ingestion by AstroPy Time
+
+        The main issue this method addresses is that sometimes the LOIS
+        software at LDT has roundoff abnormalities in the time string written
+        to the ``DATE-OBS`` header keyword.  For example, in one header
+        ``2020-01-30T13:17:010.0`` was written, where the seconds has 3 digits
+        -- presumably the seconds field was constructed with a leading zero
+        because ``sec`` was < 10, but when rounded for printing
+        yielded "10.00", producing a complete seconds field of ``010.00``.
+
+        This abnormality, along with a seconds field equaling ``60.00``, causes
+        AstroPy's Time parser to freak out with a ``ValueError``.  This
+        method attempts to return the `astropy.time.Time`_ object directly, but
+        then scrubs any values that cause a ``ValueError``.
+
+        The scrubbing consists of deconstructing the string into its components,
+        then carefully reconstructing it into proper ISO 8601 format.  Also,
+        some recursive edge-case catching is done, but at some point you just
+        have to give up and go buy a lottery ticket.
+
+        If you have a truly bizarre ``DATE-OBS`` string, simply edit that keyword
+        in the FITS header and then re-run PypeIt.
+
+        Parameters
+        ----------
+        dt_str : :obj:`str`
+            Input datetime string from the ``DATE-OBS`` header keyword
+
+        Returns
+        -------
+        `astropy.time.Time`_
+            The AstroPy Time object corresponding to the ``DATE-OBS`` input string
+        """
+        # Clean all leading / trailing whitespace
+        dt_str = dt_str.strip()
+
+        # Attempt to directly return the AstroPy Time object
+        try:
+            return Time(dt_str, format='isot')
+        except ValueError:
+            # Split out all pieces of the datetime, and recompile
+            date, time = dt_str.split("T")
+            yea, mon, day = date.split("-")
+            hou, mnt, sec = time.split(":")
+            # Check if the seconds is exactly equal to 60... increment minute
+            if sec == "60.00":
+                sec = "00.00"
+                if mnt != "59":
+                    mnt = int(mnt) + 1
+                else:
+                    mnt = "00"
+                    if hou != "23":
+                        hou = int(hou) + 1
+                    else:
+                        hou = "00"
+                        # If the edge cases go past here, go buy a lottery ticket!
+                        day = int(day) + 1
+            # Reconstitute the DATE-OBS string, and return the Time() object
+            date = f"{int(yea):04d}-{int(mon):02d}-{int(day):02d}"
+            time = f"{int(hou):02d}:{int(mnt):02d}:{float(sec):09.6f}"
+            return Time(f"{date}T{time}", format='isot')

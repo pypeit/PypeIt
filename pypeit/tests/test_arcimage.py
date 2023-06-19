@@ -1,51 +1,60 @@
 """
-Module to run tests on ArcImage as a test
-of master frame functionality
+Module to test ArcImage.
 """
-import os
-
-import pytest
-import glob
+from pathlib import Path
 
 from IPython import embed
 
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit.images import pypeitimage
 from pypeit.images import buildimage
-from pypeit import masterframe
-from pypeit.tests import test_detector
+from pypeit.images import detector_container
+from pypeit.tests.test_detector import def_det
+from pypeit.tests.tstutils import data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 def test_init():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
-    pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
+    pypeitImage.detector = detector_container.DetectorContainer(**def_det)
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
 
-def test_master_io():
+
+def test_io():
     # Instantiate a simple pypeitImage
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
-    pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
+    pypeitImage.detector = detector_container.DetectorContainer(**def_det)
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
-    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
+    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage, calib_dir=data_path(''),
+                                                    setup='A', calib_id=['1'],
+                                                    detname='DET01')
+    # Set paths and check name
+    ofile = Path(arcImage.get_path()).resolve()
+    assert str(ofile) == str(Path(data_path('Arc_A_1_DET01.fits')).resolve()), \
+            'Calibration file name changed'
     # Write
-    master_filename = masterframe.construct_file_name(arcImage, 'A_01_22', master_dir=data_path(''))
-    assert master_filename == data_path('MasterArc_A_01_22.fits'), 'Master filename changed'
-    arcImage.to_master_file(master_filename)
+    arcImage.to_file(overwrite=True)
     # Read
-    _arcImage = buildimage.ArcImage.from_file(master_filename)
-    assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
+    _arcImage = buildimage.ArcImage.from_file(str(ofile))
+    # Random set of checks to make sure the written and read versions of
+    # arcImage are identical
+    assert isinstance(_arcImage.detector, detector_container.DetectorContainer), \
+            'detector has wrong type'
+    assert arcImage.detector.version == detector_container.DetectorContainer.version, \
+            'detector version changed'
+    assert np.array_equal(arcImage.detector.gain, _arcImage.detector.gain), \
+            'Detector properties changed'
+    # Check that the image data itself did not change
+    assert np.array_equal(_arcImage.image, arcImage.image), 'image data changed'
+    assert np.array_equal(_arcImage.fullmask.mask, arcImage.fullmask.mask), 'mask changed'
+
     # Cleanup
-    os.remove(master_filename)
+    ofile.unlink()
+
 
 

@@ -12,23 +12,23 @@ from pypeit.utils import string_table
 from pypeit.spectrographs import spectrograph_classes
 from pypeit.images.detector_container import DetectorContainer
 
-def write_detector_datamodel(ofile):
-    det_dm = DetectorContainer.datamodel
-    keys = numpy.sort(list(det_dm.keys()))
-    nkeys = len(keys)
-    data_table = numpy.empty((nkeys+1, 3), dtype=object)
-    data_table[0,:] = ['Key', 'Type', 'Description']
-    for i,key in enumerate(keys):
-        data_table[i+1,0] = f'``{key}``'
-        if isinstance(det_dm[key]['otype'], tuple):
-            data_table[i+1,1] = ','.join([t.__name__ for t in det_dm[key]['otype']])
-        else:
-            data_table[i+1,1] = det_dm[key]['otype'].__name__
-        data_table[i+1,2] = det_dm[key]['descr']
-    lines = string_table(data_table, delimeter='rst')
-    with open(ofile, 'w') as f:
-        f.write(lines)
-    print('Wrote: {}'.format(ofile))
+#def write_detector_datamodel(ofile):
+#    det_dm = DetectorContainer.datamodel
+#    keys = numpy.sort(list(det_dm.keys()))
+#    nkeys = len(keys)
+#    data_table = numpy.empty((nkeys+1, 3), dtype=object)
+#    data_table[0,:] = ['Key', 'Type', 'Description']
+#    for i,key in enumerate(keys):
+#        data_table[i+1,0] = f'``{key}``'
+#        if isinstance(det_dm[key]['otype'], tuple):
+#            data_table[i+1,1] = ','.join([t.__name__ for t in det_dm[key]['otype']])
+#        else:
+#            data_table[i+1,1] = det_dm[key]['otype'].__name__
+#        data_table[i+1,2] = det_dm[key]['descr']
+#    lines = string_table(data_table, delimeter='rst')
+#    with open(ofile, 'w') as f:
+#        f.write(lines)
+#    print('Wrote: {}'.format(ofile))
 
 
 def write_detector_table(ofile):
@@ -77,8 +77,8 @@ def main():
     if not os.path.isdir(output_root):
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-    ofile = os.path.join(output_root, 'datamodel_detector.rst')
-    write_detector_datamodel(ofile)
+#    ofile = os.path.join(output_root, 'datamodel_detector.rst')
+#    write_detector_datamodel(ofile)
 
     ofile = os.path.join(output_root, 'inst_detector_table.rst')
     write_detector_table(ofile)

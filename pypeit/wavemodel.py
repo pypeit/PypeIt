@@ -89,11 +89,11 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         wavelength vector of the input spectrum
     wl_line, fl_line : np.arrays
         wavelength and flux of each individual line
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. In other words, the lines
         will have a FWHM equal to:
         fwhm_line = wl_line / resolution
-    scale_spec : np.float
+    scale_spec : float
         rescale all the  normalization of the final spectrum.
         Default scale_spec=1.
     debug : boolean
@@ -268,7 +268,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. The OH and H2O lines will have a 
         FWHM equal to:
         fwhm_line = wl_line / resolution
@@ -427,7 +427,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. The ThAr lines will have a 
         FWHM equal to:
         fwhm_line = wl_line / resolution
@@ -547,7 +547,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         wavelength
     flux : np.array
         flux
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     central_wl 
         if 'midpt' the central pixel of wavelength is used, otherwise
@@ -568,7 +568,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
     if central_wl == 'midpt':
         wl_cent = np.median(wavelength)
     else:
-        wl_cent = np.float(central_wl)
+        wl_cent = float(central_wl)
     wl_sigma =  wl_cent / resolution / 2.355
     wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
     msgs.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
@@ -632,7 +632,7 @@ def iraf_datareader(database_dir, id_file):
             lines_database.append(line.split())
             feat_line = re.search(r'features\t(\d+)', line)
             if feat_line is not None:
-                N_lines = np.int(feat_line.group(1))
+                N_lines = int(feat_line.group(1))
 
     msgs.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
 
@@ -724,7 +724,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     waveminmax : tuple
         wavelength range in microns to be covered by the model.
@@ -798,7 +798,7 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     waveminmax : tuple
         wavelength range in ang. to be covered by the model.

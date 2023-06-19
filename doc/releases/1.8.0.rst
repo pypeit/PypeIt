@@ -1,0 +1,43 @@
+
+Version 1.8.0
+=============
+
+Significant changes
+-------------------
+
+- Code to allow for mosaicing multiple detectors into a single
+  reduction. This is now the default for Gemini GMOS and improves
+  stability of wavelength calibration.
+- Introduces pypeit_parse_calib_id script
+- Refactored manual extraction
+- Update for LDT/DeVeny including support for binned data, use_header
+  for reading arc lamps used from frames, and reid_arxiv templates for
+  three additional gratings.
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage)
+- Significant improvements in 2D coadding.
+- Scripts to explore the noise residuals in PypeIt
+
+Datamodel changes and algorithmic improvements
+----------------------------------------------
+
+- Improved performance of L.A. Cosmic implementation
+- Now uses stars in alignment boxes for default calculation of slitmask
+  offsets in DEIMOS reductions.
+- 2D wavelength calibration image now added to Flat output
+- Improved treatment of saturation.
+- Dark counts used for calculating the shot noise now includes measured
+  dark images if provided.
+- Include sky model in 2nd pass of global sky subtraction (not for IR
+  redux).
+- Skymask is now computed also for the maskdef_extract objects.
+- Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
+- Added pypeit_version to the pypeit file header.
+- Set DEIMOS find_fwhm default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation for KCWI
+
+Bug fixes
+---------
+
+- Fixed a bug about how maskdef_offset is assigned to each detector
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+

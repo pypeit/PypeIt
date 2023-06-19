@@ -4,6 +4,13 @@ Module for Gemini GMOS specific methods.
 .. include:: ../include/links.rst
 """
 import numpy as np
+import os
+
+from astropy.table import Table
+from astropy.coordinates import SkyCoord
+from astropy import units
+from astropy.wcs import wcs
+from astropy.io import fits 
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -14,6 +21,7 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
+from pypeit.spectrographs.slitmask import SlitMask
 
 from IPython import embed
 
@@ -33,7 +41,7 @@ class GeminiGMOSMosaicLookUp:
         from geminidr.gmos.lookups.geometry_conf import geometry
     
     Updating to any changes made to the DRAGONS version requires by-hand editing
-    of the ``PypeIt`` code.
+    of the PypeIt code.
     """
     geometry = {
         # GMOS-N
@@ -91,12 +99,13 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 3
     detid = None
+    url = 'http://www.gemini.edu/instrumentation/gmos'
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -145,6 +154,42 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 msgs.error('Binning not found')
             return binning
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return super().configuration_keys() + ['dispangle', 'datasec']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATING', 'FILTER1', 'MASKNAME', 'CENTWAVE', 'CCDSUM', 'OBSEPOCH', 'NODPIX']
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -186,7 +231,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -235,7 +280,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -263,22 +308,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
-
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return super().configuration_keys() + ['dispangle', 'datasec']
 
     def hdu_read_order(self):
         """
@@ -359,7 +388,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         order = self.hdu_read_order()
         for ii in range(nimg):
 
-            # insert extensions into master image...
+            # insert extensions into calibration image...
             for kk, jj in enumerate(order[_det[ii]-1]):
                 # grab complete extension...
                 data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
@@ -398,7 +427,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         from unbinned images.
 
         The parameters expect the images to be trimmed and oriented to follow
-        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
         lists, the length of the list is the same as the number of detectors in
         the mosaic, and they are ordered by the detector number.
 
@@ -477,14 +506,244 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list`: List of tuples, where each tuple provides the 1-indexed
             detector numbers that can be combined into a mosaic and processed by
-            ``PypeIt``.
+            PypeIt.
         """
         return [(1,2,3)]
+
+    def list_detectors(self, mosaic=False):
+        """
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
+
+        Args:
+            mosaic (:obj:`bool`, optional):
+                Is this a mosaic reduction?
+                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+
+        Returns:
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
+        """
+        if mosaic:
+            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
+
+        return np.array([detector_container.DetectorContainer.get_name(i+1)
+                             for i in range(self.ndet)]).reshape(2,-1)
 
     @property
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
+    
+    def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        This can be used for multi-object slitmask, but it it's not good
+        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
+        binTable where the slitmask data are stored.
+
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        # Open the file
+        mask_tbl = Table.read(filename, format='fits')
+
+        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
+        topdist = np.round(slit_length/2. - 
+                           mask_tbl['slitpos_y'].to('arcsec').value, 3)
+        botdist = np.round(slit_length/2. + 
+                           mask_tbl['slitpos_y'].to('arcsec').value, 3)
+
+        # Coordinates
+        # WARNING -- GMOS TABLE IS ONLY IN FLOAT32!!!
+        obj_ra = mask_tbl['RA'].value * 15.  
+        obj_dec = mask_tbl['DEC'].value 
+        objname = mask_tbl['ID'].value.astype(str)
+
+        slitID = mask_tbl['ID'].value # Slit and objects are the same
+
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([np.array(slitID, dtype=int),
+                           np.zeros(slitID.size, dtype=int),   # no object ID
+                           obj_ra,
+                           obj_dec,
+                           objname,
+                           np.array(mask_tbl['MAG'].value, dtype=float),
+                           ['None']*slitID.size,       # no magnitude band
+                           topdist,
+                           botdist]).T
+        # Mask pointing
+        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'], 
+                              unit=("hourangle", "deg"))
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = mask_tbl.meta['MASK_PA'] - 180. # deg
+        if posx_pa < 0.:
+            posx_pa += 360.
+
+        # Slit positions
+        obj_coord = SkyCoord(ra=obj_ra, dec=obj_dec, unit='deg')
+        offsets = np.sqrt(
+                mask_tbl['slitpos_x'].to('arcsec').value**2 + 
+                mask_tbl['slitpos_y'].to('arcsec').value**2) 
+        # NOT READY FOR TILTS
+        if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
+            msgs.error('NOT READY FOR TILTED SLITS')
+        # NOT SURE WE HAVE THE TILT SIGN CORRECT
+        slit_pas = posx_pa + mask_tbl['slittilt'].to('deg').value
+        off_signs = np.ones_like(slit_pas)
+        negy = mask_tbl['slitpos_y'] < 0.
+        off_signs[negy] = -1.
+
+        slit_ra, slit_dec = [], []
+        for offset, coord, slit_pa, off_sign in zip(offsets, obj_coord, slit_pas, off_signs):
+            slit_coord = coord.directional_offset_by(
+                slit_pa*units.deg, off_sign*offset*units.arcsec)
+            slit_ra.append(slit_coord.ra.deg)
+            slit_dec.append(slit_coord.dec.deg)
+            
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(
+            np.array(
+            [np.zeros(slitID.size),   # gemini_gmos maskdef has not slit corners
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size),
+             np.zeros(slitID.size)]).T.reshape(-1,4,2), 
+            slitid=np.array(slitID, dtype=int),
+            align=mask_tbl['priority'].value == b'0',
+            science=mask_tbl['priority'].value != b'0',
+            onsky=np.array([
+                slit_ra, slit_dec, 
+                np.array(mask_tbl['slitsize_y'].to('arcsec').value, dtype=float),
+                np.array(mask_tbl['slitsize_x'].to('arcsec').value, dtype=float),
+                slit_pas]).T,
+           objects=objects,
+           mask_radec=(mask_coord.ra.deg, mask_coord.dec.deg),
+           posx_pa=posx_pa)
+        return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None,
+                              trc_path:str=None, binning=None):
+        """ Determine the slit edges from the mask file
+
+        Here, we take advantage of the WCS solution from the input
+        `wcs_file`, which should be an alighment image from the observations.
+
+        Args:
+            binning (_type_, optional): _description_. Defaults to None.
+            binning(str, optional): spec,spat binning of the flat field image
+            filename (:obj:`list`, optional): Names 
+                the mask design info and wcs_file in that order
+            debug (:obj:`bool`, optional): Debug
+            ccdnum (:obj:`int`, optional): detector number
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+        """
+        if not isinstance(filename, list):
+            msgs.error('The mask design file input should be a comma separated list of two files')
+
+        # Parse
+        maskfile = filename[0]
+        wcs_file = filename[1]
+        # Add path?
+        if not os.path.isfile(maskfile):
+            maskfile = os.path.join(trc_path, maskfile)
+        if not os.path.isfile(wcs_file):
+            wcs_file = os.path.join(trc_path, wcs_file)
+
+        # Slurp in the slitmask info
+        self.get_slitmask(maskfile)
+
+        # Binning of flat
+        _, bin_spat= parse.parse_binning(binning) 
+
+        # Slit center
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+                               dec=self.slitmask.onsky[:,1], unit='deg')
+        mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
+                              dec=self.slitmask.mask_radec[1], unit='deg')
+
+        # Load up the acquisition image (usually a sciframe)
+        hdul_acq = fits.open(wcs_file)
+        acq_binning = self.get_meta_value(self.get_headarr(hdul_acq), 'binning')
+        _, bin_spat_acq = parse.parse_binning(acq_binning) 
+        wcss = [wcs.WCS(hdul_acq[i].header) for i in range(1, len(hdul_acq))]
+
+        left_edges = []
+        right_edges = []
+        for islit in range(self.slitmask.nslits):
+            # DEBUGGING
+            #islit = 14  # 10043
+            # Left coord
+            left_coord = slit_coords[islit].directional_offset_by(
+                self.slitmask.onsky[islit,4]*units.deg - 180.*units.deg,
+                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+            right_coord = slit_coords[islit].directional_offset_by(
+                self.slitmask.onsky[islit,4]*units.deg,
+                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+                
+            got_it = False
+            for kk, iwcs in enumerate(wcss):
+                pix_xy = iwcs.world_to_pixel(left_coord)
+                # Do we have the right WCS?
+                if 0 < float(pix_xy[0]) < hdul_acq[kk+1].header['NAXIS1']-1:
+                    left_edges.append(float(pix_xy[1])*bin_spat_acq/bin_spat)
+                    # Right
+                    pix_xy2 = iwcs.world_to_pixel(right_coord)
+                    right_edges.append(float(pix_xy2[1])*bin_spat_acq/bin_spat)
+                    # Occasionally a slit thinks it is on 2 detectors -- this avoids that
+                    print(f'matched to {kk}, {pix_xy}, {pix_xy2}')
+                    break
+
+
+#        DEBUGGING
+#        tbl = Table()
+#        tbl['left'] = left_edges                
+#        tbl['right'] = right_edges                
+#        tbl['ID'] = self.slitmask.slitid
+#        tbl.sort('left')
+#        embed(header='641 of gemini_gmos')
+
+        # Recast as floats
+        left_edges = np.array(left_edges).astype(float)
+        right_edges = np.array(right_edges).astype(float)
+        sortindx = np.argsort(left_edges)
+        return left_edges, right_edges, sortindx, self.slitmask
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -590,7 +849,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
@@ -611,8 +870,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         Args:
             filename (:obj:`str`):
-                An example file to use to get the image shape.  **Cannot** be
-                None.
+                An example file to use to get the image shape.  **Cannot** be None.
             det (:obj:`int`, :obj:`tuple`):
                 1-indexed detector(s) to read.  An image mosaic is selected
                 using a :obj:`tuple` with the detectors in the mosaic, which
@@ -622,7 +880,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 
@@ -640,43 +898,46 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
         # Get the binning
-        # TODO: By definition this line means that filename cannot be None.
         # TODO: We're opening the file too many times...
-        hdu = io.fits_open(filename)
-        # TODO: Why aren't we usig get_meta_value for this?
-        binning = hdu[1].header['CCDSUM']
-        xbin = int(binning.split(' ')[0])
-        hdu.close()
+        hdrs = self.get_headarr(filename)
+        binning = self.get_meta_value(hdrs, 'binning')
+        obs_epoch = self.get_meta_value(hdrs, 'mjd')
+        bin_spec, bin_spat= parse.parse_binning(binning) 
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
             i = _det.index(1)
             # Apply the mask
-            badc = 616//xbin
+            badc = 616//bin_spec
             _bpm_img[i,badc,:] = 1
         if 2 in _det:
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
             i = _det.index(2)
             # Apply the mask
             # Up high
-            badr = (902*2)//xbin # Transposed
-            _bpm_img[i,badr:badr+(3*2)//xbin,:] = 1
+            badr = (902*2)//bin_spec # Transposed
+            _bpm_img[i,badr:badr+(3*2)//bin_spec,:] = 1
             # Down low
-            badr = (161*2)//xbin # Transposed
+            badr = (161*2)//bin_spec # Transposed
             _bpm_img[i,badr,:] = 1
+            # Bad amp as of January 28, 2022
+            # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
+            if obs_epoch > 2022.07:
+                badr = (768*2)//bin_spec 
+                _bpm_img[i,badr:,:] = 1
         if 3 in _det:
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
             i = _det.index(3)
             # Apply the mask
-            badr = (281*2)//xbin # Transposed
-            _bpm_img[i,badr:badr+(2*2)//xbin,:] = 1
+            badr = (281*2)//bin_spec # Transposed
+            _bpm_img[i,badr:badr+(2*2)//bin_spec,:] = 1
         # Done
         return _bpm_img[0] if nimg == 1 else _bpm_img
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -698,6 +959,13 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
+
+        # The bad amp needs a larger follow_span for slit edge tracing
+        obs_epoch = self.get_meta_value(scifile, 'mjd')
+        binning = self.get_meta_value(scifile, 'binning')
+        bin_spec, bin_spat= parse.parse_binning(binning) 
+        if obs_epoch > 2022.07:
+            par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
 
@@ -809,7 +1077,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -852,7 +1120,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -1040,7 +1308,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:

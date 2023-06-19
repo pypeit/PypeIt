@@ -237,7 +237,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 msgs.error('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
 
             # Build the mask
-            input_mask = spec2DObj.bpmmask == 0
+            input_mask = spec2DObj.bpmmask.mask == 0
             if args.wavemin is not None:
                 input_mask *= spec2DObj.waveimg > args.wavemin
             if args.wavemax is not None:

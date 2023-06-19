@@ -110,7 +110,7 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(
             cfg_lines=spectrograph_def_par.to_config(), 
-            merge_with=flexFile.cfg_lines)
+            merge_with=(flexFile.cfg_lines,))
 
         # Loop to my loop
         for filename in flexFile.filenames:
