@@ -531,6 +531,7 @@ class BuildWaveCalib:
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet']) 
                                              #debug=True, debug_reid=True, debug_xcorr=True)  ### Pypeit people said to uncomment this line 
+
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 

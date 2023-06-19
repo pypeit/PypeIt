@@ -3,6 +3,8 @@ Module for MDM/Modspec specific methods.
 
 .. include:: ../include/links.rst
 """
+
+import array as arr
 import numpy as np
 
 from pypeit import msgs
@@ -18,12 +20,16 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     name = 'mdm_modspec_echelle'
+
     telescope = telescopes.HiltnerTelescopePar()
+
     camera = 'Echelle'
     header_name = 'Modspec'
     pypeline = 'MultiSlit'
     supported = True
     comment = 'MDM Modspec spectrometer'
+
+    pypeline='MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -52,6 +58,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         ])
         oscansec = np.atleast_1d([
             '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 308, lenSpat)
+
         ])
         if hdu is None:
             binning = '1,1'                 # Most common use mode
@@ -125,6 +132,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+
         
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -153,6 +161,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         
         #self.meta['datasec'] = dict(ext=0, card='DATASEC') # possibly use local variable for this
         self.meta['filter1'] = dict(ext=0, card='FILTER') 
+
         
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -160,9 +169,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         
         # Extras for config and frametyping
         self.meta['dispname'] = dict(card=None, compound=True) 
-        #self.meta['dispangle'] = dict(card=None, compound=True) 
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['cenwave'] = dict(card=None, compound=True, rtol=2.0)
+
        
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
@@ -265,6 +274,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'OUT')
         
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+
         return np.zeros(len(fitstbl), dtype=bool)
     
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -294,9 +304,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         return bpm_img
         
+
