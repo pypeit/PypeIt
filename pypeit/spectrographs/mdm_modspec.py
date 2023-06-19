@@ -7,6 +7,8 @@ Module for MDM/Modspec specific methods.
 import array as arr
 import numpy as np
 
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -117,7 +119,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
         par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_1200_5100.fits'
         par['calibrations']['wavelengths']['sigdetect'] = 5.0 # Sigma threshold above fluctuations for arc-line detection
-        par['calibrations']['wavelengths']['ech_fix_format'] = False
+        #par['calibrations']['wavelengths']['ech_fix_format'] = False
         par['calibrations']['wavelengths']['n_final'] = 9
         
         # Bias method
@@ -199,7 +201,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             binspec = headarr[0]['CCDBIN2']
             return parse.binning2string(binspec, binspatial)
         if meta_key == 'mjd':
-            return parse.Time(headarr[0]['JD'], format='jd').mjd
+            return Time(headarr[0]['JD'], format='jd').mjd
         if meta_key == 'decker':
             return 'none'
         if meta_key == 'dispname':
