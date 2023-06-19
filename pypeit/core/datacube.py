@@ -460,30 +460,6 @@ def fitGaussian2D(image, norm=False):
     return popt, pcov
 
 
-def rebinND(img, shape):
-    """
-    Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
-    then shape=(10,10) would take the mean of the first 10x10 pixels into a
-    single output pixel, then the mean of the next 10x10 pixels will be output
-    into the next pixel
-
-    Args:
-        img (`numpy.ndarray`_):
-            A 2D input image
-        shape (:obj:`tuple`):
-            The desired shape to be returned. The elements of img.shape
-            should be an integer multiple of the elements of shape.
-
-    Returns:
-        img_out (`numpy.ndarray`_): The input image rebinned to shape
-    """
-    # Convert input 2D image into a 4D array to make the rebinning easier
-    sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
-    # Rebin to the 4D array and then average over the second and last elements.
-    img_out = img.reshape(sh).mean(-1).mean(1)
-    return img_out
-
-
 def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     """ Extract a spectrum of a standard star from a datacube
 
@@ -528,7 +504,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
     mask[ww] = 1
-    mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+    mask = utils.rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
 
     # Generate a sky mask
     newshape = (flxcube.shape[0] * subpixel, flxcube.shape[1] * subpixel)
@@ -536,7 +512,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     nsig = 8  # 8 sigma should be far enough
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
     smask[ww] = 1
-    smask = rebinND(smask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+    smask = utils.rebinND(smask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
     smask -= mask
 
     # Subtract the residual sky

@@ -472,7 +472,7 @@ def index_of_x_eq_y(x, y, strict=False):
     return x2y
 
 
-def rebin(a, newshape):
+def rebin_slice(a, newshape):
     """
 
     Rebin an array to a new shape using slicing. This routine is taken
@@ -501,20 +501,36 @@ def rebin(a, newshape):
     indices = coordinates.astype('i')  # choose the biggest smaller integer index
     return a[tuple(indices)]
 
-# TODO This function is only used by procimg.lacosmic. Can it be replaced by above?
-def rebin_evlist(frame, newshape):
-    # This appears to be from
-    # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
-    shape = frame.shape
-    lenShape = len(shape)
-    factor = (np.asarray(shape)/np.asarray(newshape)).astype(int)
-    evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),factor[%d],'% (i, i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
-             ['/factor[%d]' % i for i in range(lenShape)]
-    return eval(''.join(evList))
 
+def rebinND(img, shape):
+    """
+    Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
+    then shape=(10,10) would take the mean of the first 10x10 pixels into a
+    single output pixel, then the mean of the next 10x10 pixels will be output
+    into the next pixel. Note that img.shape must be an integer multiple of the
+    elements in the new shape.
 
+    Args:
+        img (`numpy.ndarray`_):
+            A 2D input image
+        shape (:obj:`tuple`):
+            The desired shape to be returned. The elements of img.shape
+            should be an integer multiple of the elements of shape.
+
+    Returns:
+        img_out (`numpy.ndarray`_): The input image rebinned to shape
+    """
+    # First check that the old shape is an integer multiple of the new shape
+    rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
+    if rem0 != 0 or rem1 != 0:
+        # In this case, the shapes are not an integer multiple... need to slice
+        msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
+        return rebin_slice(img, shape)
+    # Convert input 2D image into a 4D array to make the rebinning easier
+    sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
+    # Rebin to the 4D array and then average over the second and last elements.
+    img_out = img.reshape(sh).mean(-1).mean(1)
+    return img_out
 
 
 def pyplot_rcparams():

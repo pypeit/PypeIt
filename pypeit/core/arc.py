@@ -350,7 +350,7 @@ def resize_mask2arc(shape_arc, slitmask_orig):
             msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
         else:
             msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
-        slitmask = utils.rebin(slitmask_orig, (nspec, nspat))
+        slitmask = utils.rebinND(slitmask_orig, (nspec, nspat))
         # Previous line using skimage
         #slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
     else:
