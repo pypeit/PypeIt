@@ -12,7 +12,7 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-from pkg_resources import resource_filename
+from IPython import embed
 
 class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
     """
@@ -253,7 +253,10 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             0.
         """
         # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        try:
+            bpm_img = self.empty_bpm(filename, det, shape=shape)
+        except:
+            embed(header='259 of magellan_ldss3')
 
         # Fill in bad pixels if a master bias frame is provided
         if msbias is not None:
@@ -342,14 +345,23 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil2 = glob.glob(raw_file2 + '*')
         if len(fil2) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil2), raw_file))
+            msgs.warn("Found {:d} files matching {:s}".format(len(fil2), raw_file))
+            msgs.warn("Proceeding without the second amplifier")
+            have_file2 = False
+        else:
+            have_file2 = True
+
 
         # detector par
         hdu = io.fits_open(fil[0])
         detector_par = self.get_detector_par(hdu, det if det is None else 1)
 
         data1, overscan1, datasec1, biassec1, x1_1, x2_1, nxb1 = ldss3_read_amp(fil[0])
-        data2, overscan2, datasec2, biassec2, x1_2, x2_2, nxb2 = ldss3_read_amp(fil2[0])
+        if have_file2:
+            data2, overscan2, datasec2, biassec2, x1_2, x2_2, nxb2 = ldss3_read_amp(fil2[0])
+        else:
+            nxb2 = nxb1
+            x2_2 = x2_1
 
         nx, ny = x2_1 + x2_2 + nxb1 + nxb2, data1.shape[1]
 
@@ -365,8 +377,9 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         oscansec_img[:nxb1,:] = 1 # exclude the first pixel since it always has problem
 
         ## For amplifier 2
-        array[x2_1+nxb1+x2_2:x2_1+nxb1+x2_2+nxb2,:] = np.flipud(overscan2)
-        array[x2_1+nxb1:x2_1+nxb1+x2_2,:] = np.flipud(data2)
+        if have_file2:
+            array[x2_1+nxb1+x2_2:x2_1+nxb1+x2_2+nxb2,:] = np.flipud(overscan2)
+            array[x2_1+nxb1:x2_1+nxb1+x2_2,:] = np.flipud(data2)
         rawdatasec_img[x2_1+nxb1:x2_1+nxb1+x2_2, :] = 2
         oscansec_img[x2_1+nxb1+x2_2:x2_1+nxb1+x2_2+nxb2,:] = 2 # exclude the first pixel since it always has problem
 
@@ -380,7 +393,15 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         # Return, transposing array back to orient the overscan properly
         return detector_par,array, hdu, exptime, rawdatasec_img, oscansec_img
 
-def ldss3_read_amp(fil):
+def ldss3_read_amp(fil:str):
+    """ Read a single amp of LDSS3 data
+
+    Args:
+        fil (str): filename
+
+    Returns:
+        tuple: data, overscan, datasec, biassec, x1, x2, nxb
+    """
 
     msgs.info("Reading LDSS3 file: {:s}".format(fil))
     hdu = io.fits_open(fil)
@@ -406,18 +427,6 @@ def ldss3_read_amp(fil):
     array = hdu[0].data.T[:, :ny] * 1.0
     data = array[:nx-nxb,:]
     overscan = array[nx-nxb:,:]
-
-    '''
-    rawdatasec_img = np.zeros_like(array, dtype=int)
-    oscansec_img = np.zeros_like(array, dtype=int)
-    rawdatasec_img[:nx - nxb, :] = 1
-    oscansec_img[nx - nxb:, :] = 1  # exclude the first pixel since it always has problem
-
-    # Transpose now (helps with debuggin)
-    array = array.T
-    rawdatasec_img = rawdatasec_img.T
-    oscansec_img = oscansec_img.T
-    '''
 
     return data, overscan, datasec, biassec, x1, x2, nxb
 
