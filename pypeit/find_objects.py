@@ -1479,7 +1479,10 @@ class IFUFindObjects(MultiSlitFindObjects):
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
                                             method="slitcen")
-        this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
+        this_slitshift = np.zeros(self.slits.nslits)
+        if flex_dict_ref is not None:
+            msgs.warn("Only a relative spectral flexure correction will be performed")
+            this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         flex_list = []
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
