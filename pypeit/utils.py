@@ -472,12 +472,43 @@ def index_of_x_eq_y(x, y, strict=False):
     return x2y
 
 
+def rebin_slice(a, newshape):
+    """
+
+    Rebin an array to a new shape using slicing. This routine is taken
+    from: https://scipy-cookbook.readthedocs.io/items/Rebinning.html.
+    The image shapes need not be integer multiples of each other, but in
+    this regime the transformation will not be reversible, i.e. if
+    a_orig = rebin(rebin(a,newshape), a.shape) then a_orig will not be
+    everywhere equal to a (but it will be equal in most places).
+
+    Args:
+        a (ndarray, any dtype):
+            Image of any dimensionality and data type
+        newshape (tuple):
+            Shape of the new image desired. Dimensionality must be the
+            same as a.
+
+    Returns:
+        ndarray: same dtype as input Image with same values as a
+        rebinning to shape newshape
+    """
+    if not len(a.shape) == len(newshape):
+        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+
+    slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')  # choose the biggest smaller integer index
+    return a[tuple(indices)]
+
+
 def rebinND(img, shape):
     """
     Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
     then shape=(10,10) would take the mean of the first 10x10 pixels into a
     single output pixel, then the mean of the next 10x10 pixels will be output
-    into the next pixel
+    into the next pixel. Note that img.shape must be an integer multiple of the
+    elements in the new shape.
 
     Args:
         img (`numpy.ndarray`_):
@@ -489,6 +520,12 @@ def rebinND(img, shape):
     Returns:
         img_out (`numpy.ndarray`_): The input image rebinned to shape
     """
+    # First check that the old shape is an integer multiple of the new shape
+    rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
+    if rem0 != 0 or rem1 != 0:
+        # In this case, the shapes are not an integer multiple... need to slice
+        msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
+        return rebin_slice(img, shape)
     # Convert input 2D image into a 4D array to make the rebinning easier
     sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
     # Rebin to the 4D array and then average over the second and last elements.
