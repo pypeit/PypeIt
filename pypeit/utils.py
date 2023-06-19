@@ -472,49 +472,28 @@ def index_of_x_eq_y(x, y, strict=False):
     return x2y
 
 
-def rebin(a, newshape):
+def rebinND(img, shape):
     """
-
-    Rebin an array to a new shape using slicing. This routine is taken
-    from: https://scipy-cookbook.readthedocs.io/items/Rebinning.html.
-    The image shapes need not be integer multiples of each other, but in
-    this regime the transformation will not be reversible, i.e. if
-    a_orig = rebin(rebin(a,newshape), a.shape) then a_orig will not be
-    everywhere equal to a (but it will be equal in most places).
+    Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
+    then shape=(10,10) would take the mean of the first 10x10 pixels into a
+    single output pixel, then the mean of the next 10x10 pixels will be output
+    into the next pixel
 
     Args:
-        a (ndarray, any dtype):
-            Image of any dimensionality and data type
-        newshape (tuple):
-            Shape of the new image desired. Dimensionality must be the
-            same as a.
+        img (`numpy.ndarray`_):
+            A 2D input image
+        shape (:obj:`tuple`):
+            The desired shape to be returned. The elements of img.shape
+            should be an integer multiple of the elements of shape.
 
     Returns:
-        ndarray: same dtype as input Image with same values as a
-        rebinning to shape newshape
+        img_out (`numpy.ndarray`_): The input image rebinned to shape
     """
-    if not len(a.shape) == len(newshape):
-        msgs.error('Dimension of a image does not match dimension of new requested image shape')
-
-    slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
-    coordinates = np.mgrid[slices]
-    indices = coordinates.astype('i')  # choose the biggest smaller integer index
-    return a[tuple(indices)]
-
-# TODO This function is only used by procimg.lacosmic. Can it be replaced by above?
-def rebin_evlist(frame, newshape):
-    # This appears to be from
-    # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
-    shape = frame.shape
-    lenShape = len(shape)
-    factor = (np.asarray(shape)/np.asarray(newshape)).astype(int)
-    evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),factor[%d],'% (i, i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
-             ['/factor[%d]' % i for i in range(lenShape)]
-    return eval(''.join(evList))
-
-
+    # Convert input 2D image into a 4D array to make the rebinning easier
+    sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
+    # Rebin to the 4D array and then average over the second and last elements.
+    img_out = img.reshape(sh).mean(-1).mean(1)
+    return img_out
 
 
 def pyplot_rcparams():
