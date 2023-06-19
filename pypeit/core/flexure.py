@@ -112,7 +112,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20, excess_shft="crash"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -125,6 +125,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         mxshft (float, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
+        excess_shft (str, optional):
+            Behavior of the code when a measured flexure exceeds ``mxshft``.
+            Options are "crash", "set_to_zero", and "continue", where
+            "set_to_zero" sets the shift to zero and moves on, and
+            "continue" simply uses the large flexure shift value.
 
     Returns:
         dict: Contains flexure info
@@ -273,10 +278,33 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                                 func='polynomial', order=np.atleast_1d(2))
         fit.fit()
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
-        # This will make sure that the shift is not > than mxshft
-        if float(max_fit)-lag0 > mxshft:
-            msgs.warn('Flexure compensation failed for one of your objects')
-            return None
+
+        # Deal with the case of shifts greater than ``mxshft``
+        if (shift := float(max_fit)-lag0) > mxshft:
+            msgs.warn(f"Computed shift {shift:.1f} pix is "
+                      f"larger than specified maximum {mxshft} pix.")
+
+            if excess_shft == "crash":
+                msgs.error(f"Flexure compensation failed for one of your{msgs.newline()}"
+                           f"objects.  Either adjust the \"spec_maxshift\"{msgs.newline()}"
+                           f"FlexurePar Keyword, or see the flexure documentation{msgs.newline()}"
+                           f"for information on how to bypass this error using the{msgs.newline()}"
+                           f"\"excessive_shift\" keyword.{msgs.newline()}"
+                           "https://pypeit.readthedocs.io/en/release/flexure.html")
+
+            elif excess_shft == "set_to_zero":
+                msgs.warn("Flexure compensation failed for one of your objects.")
+                msgs.warn("Setting the flexure correction shift to 0 pixels.")
+                # Return the usual dictionary, but with a shift == 0
+                shift = 0.0
+
+            elif excess_shft == "continue":
+                msgs.warn("Applying flexure shift larger than specified max!")
+
+            else:
+                msgs.error(f"FlexurePar Keyword excessive_shift = \"{excess_shft}\" "
+                           "not recognized.")
+
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 func='polynomial', order=np.atleast_1d(2))
@@ -285,8 +313,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         return None
 
     #Calculate and apply shift in wavelength
-    shift = float(max_fit)-lag0
-    msgs.info("Flexure correction of {:g} pixels".format(shift))
+    # shift = float(max_fit)-lag0
+    msgs.info(f"Flexure correction of {shift:.3f} pixels")
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
@@ -317,7 +345,7 @@ def flexure_interp(shift, wave):
 
 
 def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None,
-                      slit_specs=None, mxshft=None):
+                      slit_specs=None, mxshft=None, excess_shft="crash"):
     """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
@@ -344,7 +372,9 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
             this list are sky spectra, extracted from the center of each slit.
         mxshft (int, optional):
-            Passed to flex_shift()
+            Passed to spec_flex_shift()
+        excess_shft (str, optional):
+            Passed to spec_flex_shift()
 
     Returns:
         :obj:`list`: A list of :obj:`dict` objects containing flexure
@@ -385,12 +415,14 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             flex_list.append(flex_dict.copy())
             continue
 
+        # Down the center of the slit (spec_method = slitcen)
         if slit_cen:
             sky_wave = slit_specs[islit].wavelength.value
             sky_flux = slit_specs[islit].flux.value
 
             # Calculate the shift
-            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines, mxshft=mxshft)
+            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines,
+                                    mxshft=mxshft, excess_shft=excess_shft)
             # Failed?
             if fdict is not None:
                 # Update dict
@@ -400,6 +432,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 sky_wave_new = flexure_interp(fdict['shift'], sky_wave)
                 flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 flex_dict['method'].append("slitcen")
+
+        # Along the boxcar extraction (spec_method = boxcar)
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)
@@ -410,7 +444,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                     continue
                 if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                     continue
-                msgs.info("Working on flexure for object # {:d}".format(sobj.OBJID) + "in slit # {:d}".format(islit))
+                msgs.info(f"Working on flexure for object # {sobj.OBJID} in slit # {islit}")
 
                 # Using boxcar
                 sky_wave = sobj.BOX_WAVE
@@ -420,7 +454,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
                 # Calculate the shift
-                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
+                fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines,
+                                        mxshft=mxshft, excess_shft=excess_shft)
                 punt = False
                 if fdict is None:
                     msgs.warn("Flexure shift calculation failed for this spectrum.")

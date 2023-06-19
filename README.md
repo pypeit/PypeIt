@@ -125,6 +125,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * MMT/MMIRS (HK_zJ, J_zJ, and K_K tested)
 * MMT/Blue Channel (300 tested)
 * MDM/OSMOS
+* MDM/Modspec (beta)
 * Keck/DEIMOS (600ZD, 830G, 1200G)
 * Keck/KCWI
 * Keck/LRIS

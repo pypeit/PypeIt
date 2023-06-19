@@ -3,6 +3,7 @@ Module for MDM/Modspec specific methods.
 
 .. include:: ../include/links.rst
 """
+
 import array as arr
 import numpy as np
 
@@ -19,12 +20,15 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     name = 'mdm_modspec_echelle'
-    telescope = telescopes.KPNOTelescopePar()
+
+    telescope = telescopes.HiltnerTelescopePar()
+
     camera = 'Echelle'
     header_name = 'Modspec'
     pypeline = 'MultiSlit'
     supported = True
     comment = 'MDM Modspec spectrometer'
+
     pypeline='MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
@@ -43,17 +47,18 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         # Detector 1
-        # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html 
+        # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html
         gain = np.atleast_1d([1.3])      # Hardcoded in the header 
         ronoise = np.atleast_1d([7.90])    # Hardcoded in the header
-        len1 = hdu[0].header['NAXIS1']     ## switched with len1
-        len2 = hdu[0].header['NAXIS2']      ## switched with len2
+        lenSpat = hdu[0].header['NAXIS1']     # length of spatial axis, including overscan. Horizontal axis of original .fits files
+        lenSpec = hdu[0].header['NAXIS2']      # length of spectral axis. Vertical axis of original .fits files
     
         datasec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, len2, 1, 300)])
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 1, 300)
+        ])
         oscansec = np.atleast_1d([
-        ##    '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, 1+5, 1, len2),
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, len2, 308, len1) ## accounts for overscan now
+            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 308, lenSpat)
+
         ])
         if hdu is None:
             binning = '1,1'                 # Most common use mode
@@ -66,9 +71,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             binning         = binning,
             det             = 1,
             dataext         = 0,
-            specaxis        = 0,        # Native spectrum is along the x-axis
-            specflip        = False,     ## ADD COMMENT
-            spatflip        = False,
+            specaxis        = 0,        # Native spectrum is along the x-axis 
+            specflip        = True,     # Wavelength decreases as pixel number increases
+            spatflip        = False,    # Spatial position increases as pixel number increases
             platescale      = 0.28,     # Arcsec / pixel
             darkcurr        = 0.0,      # Electrons per hour
             saturation      = 65535.,   # 16-bit ADC
@@ -96,39 +101,45 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Ignore PCA
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        # Edges of slit fall off the detector, so assign the edges of the detector as the edges of the slit
-        par['calibrations']['slitedges']['bound_detector'] = True
+        # Slit edge method
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest' # Ignore PCA
+        par['calibrations']['slitedges']['bound_detector'] = True # Edges of slit fall off the detector, so assign edges of detector as the edges of the slit
 
-        # Set pixel flat combination method
+        # Pixel flat method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
         par['calibrations']['pixelflatframe']['process']['clip'] = True
         par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 3.0 
-        par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] #[nlow, nhigh]
-        par['calibrations']['pixelflatframe']['process']['use_overscan'] = True ## maybe <<<<<< 
+        par['calibrations']['pixelflatframe']['process']['n_lohi'] = [1, 1] 
+        par['calibrations']['pixelflatframe']['process']['use_overscan'] = True  
         
-        # Wavelength calibration methods
-        par['calibrations']['wavelengths']['method'] = 'holy-grail' #more reliable than 'holy-grail', but requires an archived wavelength solution for the specific instrument/grating combination. See https://pypeit.readthedocs.io/en/latest/pypeit_par.html#wavelengthsolutionpar-keywords, also https://pypeit.readthedocs.io/en/latest/wave_calib.html#identify and https://pypeit.readthedocs.io/en/latest/master_edges.html and https://pypeit.readthedocs.io/en/latest/master_arc.html
+        # Wavelength calibration method
+        par['calibrations']['wavelengths']['method'] = 'full_template' 
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI', 'NeI']
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_echelle_NeXeAr.fits'
-        ###par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_echelle_Ar_REAL.fits'
-        ###|||||| do this one below ||||||###
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0 #Sigma threshold above fluctuations for arc-line detection
-        par['calibrations']['wavelengths']['ech_fix_format'] = False ## a TEST
-        par['calibrations']['wavelengths']['n_final'] = 15
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_modspec_1200_5100.fits'
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0 # Sigma threshold above fluctuations for arc-line detection
+        par['calibrations']['wavelengths']['ech_fix_format'] = False
+        par['calibrations']['wavelengths']['n_final'] = 9
+        
+        # Bias method
+        par['calibrations']['biasframe']['process']['overscan_method'] = 'median'
+        
+        # Arc method
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        
+        # Tilt method
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+
         
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
-        par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = False
-        par['calibrations']['tiltframe']['process']['subtract_continuum'] = False
-        ###|||||| do the above two lines for when you attempt to construct a solution from all 3 arc lamps at once ||||||
-        par['calibrations']['standardframe']['exprng'] = [10, 60]
-        par['scienceframe']['exprng'] = [120, 600]
+        par['scienceframe']['exprng'] = [10, 600]
 
         return par
 
@@ -145,25 +156,22 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(card=None, compound=True) # str -- ie long_1.0 -- Name of the decker or slit mask 
+        self.meta['decker'] = dict(card=None, compound=True)
         self.meta['binning'] = dict(card=None, compound=True)
         
-        ##self.meta['amp'] = '' # str -- ie SINGLE:B -- Name of the amplifier used to read the detector
-        ##self.meta['arm'] = '' # str -- ie VIS -- Name of the spectrograph arm used to collect the data
-        self.meta['datasec'] = dict(ext=0, card='DATASEC') # str -- ie [1:256,1:512] -- The science region of the detector
-        ##self.meta['detector'] = '' # str -- ie CHIP1 -- Name of the detector
-        ##self.meta['dichroic'] = '' # str -- ie 560 -- Name of the dichroic
-        self.meta['filter1'] = dict(ext=0, card='FILTER') # str -- ie J -- Name of the order-sorting filter
+        #self.meta['datasec'] = dict(ext=0, card='DATASEC') # possibly use local variable for this
+        self.meta['filter1'] = dict(ext=0, card='FILTER') 
+
         
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         
         # Extras for config and frametyping
-        # in an example of what this code generates, see https://pypeit.readthedocs.io/en/latest/pypeit_file.html#pypeit-file
-        self.meta['dispname'] = dict(card=None, compound=True) # str -- ie 830G -- Name of the dispersing element
-        self.meta['dispangle'] = dict(card=None, compound=True) # float -- ie 7500.0 -- Central wavelength for the dispersing element at the observed angle
+        self.meta['dispname'] = dict(card=None, compound=True) 
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=2.0)
+
        
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
@@ -187,7 +195,6 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            ## double-check the bin1 vs bin2 assignment
             binspatial = headarr[0]['CCDBIN1']
             binspec = headarr[0]['CCDBIN2']
             return parse.binning2string(binspec, binspatial)
@@ -196,8 +203,8 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'decker':
             return 'none'
         if meta_key == 'dispname':
-            return '1200/5100'
-        if meta_key == 'dispangle':
+            return '1200 l/mm'
+        if meta_key == 'cenwave':
             return 5100.0
         else:
             msgs.error("Not ready for this compound meta")
@@ -216,10 +223,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning']
-        ## since there is no 'decker' card, maybe replace this with a different parameter
-        ## return ['dispname', 'dispangle', 'binning']
-        ## for why 'dispangle' was chosen, see https://pypeit.readthedocs.io/en/latest/setup.html?highlight=decker#overview
+        return ['dispname', 'cenwave', 'filter1','binning']
 
     def pypeit_file_keys(self):
         """
@@ -254,18 +258,23 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype in ['science']:                # Standards and Sciences lumped together under 'science'
+            return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['mirror'] == 'OUT')
+        
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
-        if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'Comp')
-        if ftype in ['pixelflat']: #Internal Flats
+        
+        if ftype in ['arc','tilt']:             # Lamps and Arcs
+            return good_exp & np.array([target in ['Comp','Object'] for target in fitstbl['idname']]) & (fitstbl['mirror'] == 'IN')
+        
+        if ftype in ['pixelflat']:              # Internal Flats
             return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'IN')
-        if ftype in ['illumflat', 'trace']: #Twilight Flats
+                
+        if ftype in ['illumflat', 'trace']:     # Twilight Flats
             return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['mirror'] == 'OUT')
+        
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        #msgs.warn('Cannot determine if frames are of type {0}. Frame idname and target are: {1}, {2}'.format(ftype, fitstbl['idname'], fitstbl['target']))
+
         return np.zeros(len(fitstbl), dtype=bool)
     
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -295,62 +304,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        # Validate the entered (list of) detector(s)
-        nimg, _det = self.validate_det(det)
-        _det = list(_det)
-
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-        # NOTE: expand_dims does *not* copy the array.  We can edit it directly
-        # because we've created it inside this function.
-        _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
-        if 1 in _det:
-            i = _det.index(1)
-            _bpm_img[i,:,1052:1054] = 1
-        if 2 in _det:
-            i = _det.index(2)
-            _bpm_img[i,:,0:4] = 1
-            _bpm_img[i,:,376:381] = 1
-            _bpm_img[i,:,489] = 1
-            _bpm_img[i,:,1333:1335] = 1
-            _bpm_img[i,:,2047] = 1
-        if 3 in _det:
-            i = _det.index(3)
-            _bpm_img[i,:,0:4] = 1
-            _bpm_img[i,:,221] = 1
-            _bpm_img[i,:,260] = 1
-            _bpm_img[i,:,366] = 1
-            _bpm_img[i,:,816:819] = 1
-            _bpm_img[i,:,851] = 1
-            _bpm_img[i,:,940] = 1
-            _bpm_img[i,:,1167] = 1
-            _bpm_img[i,:,1280] = 1
-            _bpm_img[i,:,1301:1303] = 1
-            _bpm_img[i,:,1744:1747] = 1
-            _bpm_img[i,:,-4:] = 1
-        if 4 in _det:
-            i = _det.index(4)
-            _bpm_img[i,:,0:4] = 1
-            _bpm_img[i,:,47] = 1
-            _bpm_img[i,:,744] = 1
-            _bpm_img[i,:,790:792] = 1
-            _bpm_img[i,:,997:999] = 1
-        if 5 in _det:
-            i = _det.index(5)
-            _bpm_img[i,:,25:27] = 1
-            _bpm_img[i,:,128:130] = 1
-            _bpm_img[i,:,1535:1539] = 1
-        if 7 in _det:
-            i = _det.index(7)
-            _bpm_img[i,:,426:428] = 1
-            _bpm_img[i,:,676] = 1
-            _bpm_img[i,:,1176:1178] = 1
-        if 8 in _det:
-            i = _det.index(8)
-            _bpm_img[i,:,440] = 1
-            _bpm_img[i,:,509:513] = 1
-            _bpm_img[i,:,806] = 1
-            _bpm_img[i,:,931:934] = 1
+        return bpm_img
+        
 
-        return _bpm_img[0] if nimg == 1 else _bpm_img

@@ -797,7 +797,7 @@ class FlexurePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
-                 multi_min_SN=None):
+                 multi_min_SN=None, excessive_shift=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -834,6 +834,16 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
+        defaults['excessive_shift'] = 'crash'
+        options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
+        dtypes['excessive_shift'] = str
+        descr['excessive_shift'] = 'Behavior when the measured spectral flexure shift is ' \
+                                   'larger than ``spec_maxshift``.  The options are: ' \
+                                   '\'crash\' - Raise an error and halt the data reduction; ' \
+                                   '\'set_to_zero\' - Set the flexure shift to zero and continue ' \
+                                   'with the reduction; and \'continue\' - Use the large ' \
+                                   'flexure value whilst issuing a warning.'
+
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -848,7 +858,7 @@ class FlexurePar(ParSet):
 
         k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
-                   'multi_min_SN']
+                   'multi_min_SN', 'excessive_shift']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -866,6 +876,13 @@ class FlexurePar(ParSet):
         Return the valid flat-field methods
         """
         return ['boxcar', 'slitcen', 'skip']
+
+    @staticmethod
+    def valid_excessive_shift_methods():
+        """
+        Return the valid options for dealing with excessive flexure shift.
+        """
+        return ['crash', 'set_to_zero', 'continue']
 
     def validate(self):
         """
@@ -4624,7 +4641,7 @@ class TelescopePar(ParSet):
         Return the valid telescopes.
         """
         return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
-                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT']
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'HILTNER']
 
     def validate(self):
         pass

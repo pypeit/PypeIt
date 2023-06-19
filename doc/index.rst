@@ -122,6 +122,7 @@ What this version provides
   * LBT/MODS
   * LDT/DeVeny
   * MDM/OSMOS
+  * MDM/Modspec
   * MMT/MMIRS
   * MMT/binospec
   * MMT/bluechannel
@@ -283,6 +284,8 @@ development of ``PypeIt``.
 * Emanuele Paolo Farina
 * Debora Pelliccia
 * James Reichwein
+* Gregory Simonian
+* Heather Martin
 
 ----
 
