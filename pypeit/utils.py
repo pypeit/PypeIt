@@ -477,7 +477,8 @@ def rebinND(img, shape):
     Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
     then shape=(10,10) would take the mean of the first 10x10 pixels into a
     single output pixel, then the mean of the next 10x10 pixels will be output
-    into the next pixel
+    into the next pixel. Note that img.shape must be an integer multiple of the
+    elements in the new shape.
 
     Args:
         img (`numpy.ndarray`_):
