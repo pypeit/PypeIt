@@ -1180,10 +1180,13 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
-    numfr = 1 if combine else np.unique(_all_idx).size
-    if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
-        msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
-                   + msgs.newline() + "tilts, slits, astrom_trans")
+    if combine:
+        numfr = 1
+    else:
+        numfr = np.unique(_all_idx).size
+        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
+            msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
+                       + msgs.newline() + "tilts, slits, astrom_trans")
     # Prepare the array of white light images to be stored
     numra = bins[0].size-1
     numdec = bins[1].size-1
