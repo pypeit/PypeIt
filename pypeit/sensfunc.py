@@ -282,6 +282,31 @@ class SensFunc(datamodel.DataContainer):
                                                          ra=star_ra, dec=star_dec)
 
     def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, min_blaze_value=1e-3, debug=False):
+        """
+        Compute the blaze function from a flat field image.
+
+        Args:
+            wave (`numpy.ndarray`_):
+                Wavelength array. Shape = (nspec, norddet)
+            trace_spec (`numpy.ndarray`_):
+                Spectral pixels for the trace of the spectrum. Shape = (nspec, norddet)
+            trace_spat (`numpy.ndarray`_):
+                Spatial pixels for the trace of the spectrum. Shape = (nspec, norddet)
+            flatfile (:obj:`str`):
+                Filename for the flat field calibration image
+            box_radius (:obj:`float`, optional):
+                Radius of the boxcar extraction region used to extract the blaze function in pixels
+            min_blaze_value (:obj:`float`, optional):
+                Minimum value of the blaze function. Values below this are clipped and set to this value. Default=1e-3
+            debug (:obj:`bool`, optional):
+                Show plots useful for debugging. Default=False
+
+
+        Returns:
+            log10_blaze_function (`numpy.ndarray`_):
+                The log10 blaze function. Shape = (nspec, norddet) if norddet > 1, else shape = (nspec,)
+
+        """
 
 
         flatImages = flatfield.FlatImages.from_file(flatfile)
@@ -302,7 +327,6 @@ class SensFunc(datamodel.DataContainer):
         wave_debug = wave.reshape(-1,1) if wave.ndim == 1 else wave
         log10_blaze_function = np.zeros_like(blaze_function)
         norddet = log10_blaze_function.shape[1]
-        debug=True
         for iorddet in range(norddet):
             blaze_function_smooth = utils.fast_running_median(blaze_function[:, iorddet], 5)
             blaze_function_norm = blaze_function_smooth/blaze_function_smooth.max()
@@ -312,6 +336,9 @@ class SensFunc(datamodel.DataContainer):
         if debug:
             plt.show()
 
+
+        # TODO It would probably better to just return an array of shape (nspec, norddet) even if norddet = 1, i.e.
+        # to get rid of this .squeeze()
         return log10_blaze_function.squeeze()
 
 

@@ -821,5 +821,5 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     # Write
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
-    print("Wrote: {}".format(outfile))
+    msgs.info("Wrote: {}".format(outfile))
 

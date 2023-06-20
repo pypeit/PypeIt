@@ -1682,7 +1682,7 @@ class SensFuncPar(ParSet):
 
         defaults['flatfile'] = None
         dtypes['flatfile'] = str
-        descr['flatfile'] = 'Flat field file to be used if the senstivity function model will utilize the blaze ' \
+        descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
                             'function computed from a flat field file in the Calibrations directory, e.g.' \
                             'Calibrations/Flat_A_0_DET01.fits'
 
