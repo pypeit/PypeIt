@@ -136,7 +136,8 @@ def setup_list_to_concat(lst):
         lst (list):
 
     Returns:
-        list:
+        list (list):
+          A list of the elements of the input list, unraveled.
 
     """
     return list(itertools.chain.from_iterable(lst))

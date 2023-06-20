@@ -938,6 +938,7 @@ class BuildWaveCalib:
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
+            # TODO This is work in progress by ProfX
             # Try a second attempt with 1D, if needed
             #if np.any(bad_rms):
                 #for bad_slit in np.where(bad_rms)[0]:

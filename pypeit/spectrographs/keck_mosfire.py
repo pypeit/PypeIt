@@ -779,6 +779,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
 
         Returns
         -------
@@ -790,6 +793,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
