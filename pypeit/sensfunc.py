@@ -247,28 +247,15 @@ class SensFunc(datamodel.DataContainer):
 
         # Compute the blaze function
         # TODO Make the blaze function optional
-        if par['flatfile'] is not None:
-            log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile'])
+        log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) if par['flatfile'] is not None else None
 
-            # Perform any instrument tweaks
-            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
-                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec,
-                                                 log10_blaze_function=log10_blaze_function)
-
-            # Reshape to 2d arrays
-            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
-                self.norderdet = \
-                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
-                                      log10_blaze_function=log10_blaze_function_twk)
-        else:
-            # Perform any instrument tweaks
-            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk = \
-                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec)
-
-            # Reshape to 2d arrays
-            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, self.norderdet = \
-                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
-            self.log10_blaze_function = None
+        # Perform any instrument tweaks
+        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
+            self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec, log10_blaze_function=log10_blaze_function)
+        # Reshape to 2d arrays
+        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
+            self.norderdet = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
+                                                   log10_blaze_function=log10_blaze_function_twk)
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -482,7 +469,7 @@ class SensFunc(datamodel.DataContainer):
         # Unpack the fluxed standard
         _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ = self.sobjs_std.unpack_object(ret_flam=True)
         # Reshape to 2d arrays
-        wave, flam, flam_ivar, flam_mask, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
+        wave, flam, flam_ivar, flam_mask, _, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
         # Store in the sens table
         self.sens['SENS_FLUXED_STD_WAVE'] = wave.T
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T

@@ -854,9 +854,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if log10_blaze_function is not None:
             log10_blaze_function_out = log10_blaze_function.copy()
             log10_blaze_function_out[second_order_region] = 0.0
-            return wave, counts, counts_ivar, gpm, log10_blaze_function_out
         else:
-            return wave, counts, counts_ivar, gpm
+            log10_blaze_function_out = None
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out
 
         #if debug:
         #    from matplotlib import pyplot as plt

@@ -479,9 +479,9 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
     _gpm = gpm.copy() if copy else gpm
     if log10_blaze_function is not None:
         _log10_blaze_function = log10_blaze_function.copy() if copy else log10_blaze_function
-        return _wave, _flux, _ivar, _gpm, _log10_blaze_function, nspec, norders
     else:
-        return _wave, _flux, _ivar, _gpm, nspec, norders
+        _log10_blaze_function = None
+    return _wave, _flux, _ivar, _gpm, _log10_blaze_function, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
