@@ -1100,8 +1100,7 @@ class RawImage:
         for ii in range(self.nimg):
             cont = np.zeros((self.image.shape[1], self.image.shape[2]))
             for rr in range(self.image.shape[2]):
-                cont_now, cont_mask = arc.iter_continuum(self.image[ii, :, rr],
-                                                        debug=True)
+                cont_now, cont_mask = arc.iter_continuum(self.image[ii, :, rr])
                 cont[:,rr] = cont_now
             self.image[ii,:,:] -= cont
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')

@@ -121,6 +121,9 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0 # Sigma threshold above fluctuations for arc-line detection
         #par['calibrations']['wavelengths']['ech_fix_format'] = False
         par['calibrations']['wavelengths']['n_final'] = 9
+
+        # Flat fielding
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
         
         # Bias method
         par['calibrations']['biasframe']['process']['overscan_method'] = 'median'
