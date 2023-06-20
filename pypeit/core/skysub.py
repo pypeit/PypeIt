@@ -1230,15 +1230,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     norders = (np.unique(sobjs.ECH_ORDER)).size
 
     # Find the spat IDs
-    # TODO JFH Relaxing this requirement for now since it would require that we regenerate the slitmask image.
-    # each time slits are masked, which is probably not necessary. Do we want to enforce this on the slitmask image?
-
-    #gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
-
-    #if not np.array_equal(gdslit_spat, slitids):
-    #    msgs.error('The slitmask image and the sobjs object do not have the same number of good orders! '
-    #               'There is a problem with the object/slitmask masking. This routine requires that all '
-    #               'masking is performed in the calling routine.')
     if norders != len(slitids):
         msgs.error('The number of orders in the sobjs object does not match the number of good slits in the '
                    'slitmask image! There is a problem with the object/slitmask masking. This routine '

@@ -295,7 +295,7 @@ class Extract:
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
         bpm = self.slits.mask.astype(bool)
-        bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
+        bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
         gpm = np.logical_not(bpm)
         self.slits_left = slits_left[:, gpm]
         self.slits_right = slits_right[:, gpm]
@@ -308,9 +308,6 @@ class Extract:
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
 
-
-#        # For echelle
-#        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
 
     def extract(self, global_sky, model_noise=None, spat_pix=None):

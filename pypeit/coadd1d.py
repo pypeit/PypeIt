@@ -91,13 +91,13 @@ class CoAdd1D:
 
     def load(self):
         """
-        Load the arrays we need for performing coadds. Dummy method overloaded by children
+        Load the arrays we need for performing coadds. Dummy method overloaded by children.
 
         Returns:
-
+            None
         """
 
-        pass
+        return None
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
@@ -293,13 +293,22 @@ class EchelleCoAdd1D(CoAdd1D):
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
 
 
-    def load_ech_arrays(self, spec1dfiles, objids, sensfuncfile):
+    def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
         """
-        Load the arrays we need for performing coadds.
+        Load the arrays we need for performing coadds for a single setup.
+
+        Args:
+            spec1dfiles (list):
+                List of spec1d files for this setup.
+            objids (list):
+                List of objids. This is aligned with spec1dfiles
+            sensfuncfile (list):
+                List of sensfuncfiles. This is aligned with spec1dfiles and objids
 
         Returns:
             tuple:
-               - waves, fluxes, ivars, gpms, header
+               - waves, fluxes, ivars, gpms, header. Each array has shape = (nspec, norders, nexp)
+
         """
         nexp = len(spec1dfiles)
         for iexp in range(nexp):
@@ -309,7 +318,7 @@ class EchelleCoAdd1D(CoAdd1D):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
-            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfile[iexp], wave_iexp, debug=self.debug)
+            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp, debug=self.debug)
             # Allocate arrays on first iteration
             # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
             if iexp == 0:
@@ -328,8 +337,31 @@ class EchelleCoAdd1D(CoAdd1D):
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
         return waves, fluxes, ivars, gpms, weights_sens, header_out
 
-    # Hack right now to use the original load
+
     def load(self):
+        """
+        Load the arrays we need for performing echelle coadds.
+
+        Returns:
+            waves (list):
+               List of arrays with the wavelength arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            fluxes (list):
+               List of arrays with the flux arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            ivars (list):
+               List of arrays with the ivar arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            gpms (list):
+               List of arrays with the gpm arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            weights_sens (list):
+               List of arrays with the sensfunc weights for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            headers (list):
+               List of headers for each setup. The length of the list is the number of unique setups.
+
+        """
 
         waves, fluxes, ivars, gpms, weights_sens, setup_ids, headers = [], [], [], [], [], [], []
         for uniq_setup in self.unique_setups:

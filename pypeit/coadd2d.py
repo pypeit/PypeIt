@@ -408,10 +408,6 @@ class CoAdd2D:
         nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
         # Grab the traces, flux, wavelength and noise for this slit and objid.
         waves, fluxes, ivars, gpms = [], [], [], []
-        #flux_stack = np.zeros((nspec, nexp), dtype=float)
-        #ivar_stack = np.zeros((nspec, nexp), dtype=float)
-        #wave_stack = np.zeros((nspec, nexp), dtype=float)
-        #mask_stack = np.zeros((nspec, nexp), dtype=bool)
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
@@ -482,10 +478,6 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            #if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
-            #    weights = self.use_weights[slit_idx]
-            #else:
-            #    weights = self.use_weights
             if not isinstance(self.use_weights, str):
                 weights = self.use_weights[slit_idx]
             else:
@@ -854,8 +846,6 @@ class CoAdd2D:
         #  This all seems a bit hacky
         if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
-            #waves = np.zeros((self.nspec_max, nslits_tot*3))
-            #gpm = np.zeros_like(waves, dtype=bool)
             waves, gpms = [], []
             box_radius = 3.
             #indx = 0
@@ -877,15 +867,9 @@ class CoAdd2D:
                     gpm_box = box_denom > 0.
                     waves += [wave for wave in wave_box.T]
                     gpms  += [(wave > 0.) & gpm for (wave, gpm) in zip(wave_box.T, gpm_box.T)]
-                    #waves[:self.nspec_array[iexp], indx:indx+3] = wave_box
-                    # TODO -- This looks a bit risky
-                    #gpm[:self.nspec_array[iexp], indx: indx+3] = wave_box > 0.
-                    #indx += 3
+
         else:
             waves, gpms = [], []
-            #waves = np.zeros((self.nspec_max, nobjs_tot))
-            #gpm = np.zeros_like(waves, dtype=bool)
-            #indx = 0
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
                     # NOTE: BOX extraction usage needed for quicklook
@@ -1334,11 +1318,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
                     waves, fluxes, ivars, gpms = [], [], [], []
-                    #flux = np.zeros((nspec_now, nobj_slit))
-                    #ivar = np.zeros((nspec_now, nobj_slit))
-                    #wave = np.zeros((nspec_now, nobj_slit))
-                    #mask = np.zeros((nspec_now, nobj_slit), dtype=bool)
-                    #remove_indx = []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
                         if spec.has_opt_ext():
@@ -1363,11 +1342,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                             #remove_indx.append(iobj)
                     # if there are objects on this slit left, we can proceed with computing rms_sn
                     if len(waves) > 0:
-                        #len(remove_indx) < nobj_slit:
-                        #flux = np.delete(flux, remove_indx,1)
-                        #ivar = np.delete(ivar, remove_indx,1)
-                        #wave = np.delete(wave, remove_indx,1)
-                        #mask = np.delete(mask, remove_indx,1)
                         rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, None, const_weights=True)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]

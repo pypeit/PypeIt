@@ -285,7 +285,9 @@ def conv_telluric(tell_model, dloglam, res):
         # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
         x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
         # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
-        g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*(x)**2)*sig2pix
+        #g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*np.square(x))*sig2pix
+        g=np.exp(-0.5*np.square(x))
+        g /= g.sum()
         conv_model = scipy.signal.convolve(tell_model,g,mode='same')
         return conv_model
 
@@ -764,18 +766,6 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
         telluric model fit.
     """
 
-    #debug_blaze=True
-    #if debug_blaze:
-    #    counts_per_ang_norm = counts_per_ang/utils.fast_running_median(counts_per_ang, 7).max()
-    #    blaze_norm = blaze_func_per_ang/utils.fast_running_median(blaze_func_per_ang, 7).max()
-    #    std_by_blaze = counts_per_ang*utils.inverse(np.clip(blaze_norm,0.01, None))
-    #    std_by_blaze_norm = std_by_blaze/utils.fast_running_median(std_by_blaze, 7).max()
-    #    plt.plot(wave, blaze_norm, color='b', label='blaze')
-    #    plt.plot(wave, counts_per_ang_norm, color='r', label='std')
-    #    plt.plot(wave, std_by_blaze_norm, color='g', label='std/blaze')
-    #    plt.legend()
-    #    plt.show()
-
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
@@ -806,15 +796,6 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
     zeropoint_fit_gpm = pypeitFit.bool_gpm
 
 
-    #if obj_params['debug']:
-    #    polyfit = pypeitFit.eval(wave)
-    #    title = 'Polyfit Initialization Guess for order/det={:d}'.format(iord + 1)
-    #    flux_calib.zeropoint_qa_plot(wave, zeropoint_poly, zeropoint_data_gpm, polyfit,
-    #                                 zeropoint_fit_gpm, title=title, show=True)
-
-
-
-
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0],
                   obj_params['minmax_coeff_bounds'][0]),
@@ -834,14 +815,6 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
         title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord + 1)  # +1 to account 0-index starting
         flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit,
                                     zeropoint_fit_gpm, title=title, show=True)
-        #s_lam = flux_calib.Nlam_to_Flam(wave, zeropoint_fit)
-        #plt.plot(wave, s_lam*N_lam, color='r', label='F_lam from fit')
-        #plt.plot(wave, flam_true, color='g', label='F_lam from fit')
-        #plt.show()
-
-        #embed()
-        # TESTING
-        #sens_factor = flux_calib.get_sensfunc_factor(, wave, zeropoint_fit, obj_params['exptime'], tellmodel=tellmodel)
 
 
     return obj_dict, bounds_obj
@@ -879,8 +852,6 @@ def eval_sensfunc_model(theta, obj_dict):
     zeropoint = flux_calib.eval_zeropoint(theta, obj_dict['func'], obj_dict['wave'],
                                           obj_dict['wave_min'], obj_dict['wave_max'],
                                           log10_blaze_func_per_ang=obj_dict['log10_blaze_func_per_ang'])
-    #zeropoint = fitting.evaluate_fit(theta, obj_dict['func'], obj_dict['wave'],
-    #                                 minx=obj_dict['wave_min'], maxx=obj_dict['wave_max'])
     counts_per_angstrom_model = obj_dict['exptime'] \
                                     * flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint) \
                                     * obj_dict['flam_true'] * obj_dict['flam_true_gpm']
