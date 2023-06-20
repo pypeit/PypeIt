@@ -175,19 +175,25 @@ def test_fail_badlevel():
 
 
 def test_lists():
-    test_parset = pypeitpar.AlignPar()
-    test_parset['locations'] = [0.0]
+    # Initialise the parset
+    p = load_spectrograph('keck_kcwi').default_pypeit_par()
 
-    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(),
-                                            merge_with=(cfg_lines,))  # Once as tuple
+    # Test with a single element list
+    p['calibrations']['alignment']['locations'] = [0.5]
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
     assert(isinstance(_p['calibrations']['alignment']['locations'], list))
     assert(len(_p['calibrations']['alignment']['locations']) == 1)
     assert (_p['calibrations']['alignment']['locations'][0] == 0.5)
 
-    cfg_lines = ['[calibrations]', '[[alignment]]', 'locations = [0.0, 1.0]']
-    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(),
-                                            merge_with=(cfg_lines,))  # Once as tuple
+    # Test with a multi-element list
+    p['calibrations']['alignment']['locations'] = [0.0, 1.0]
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
     assert(isinstance(_p['calibrations']['alignment']['locations'], list))
     assert(len(_p['calibrations']['alignment']['locations']) == 2)
     assert (_p['calibrations']['alignment']['locations'][0] == 0.0)
     assert (_p['calibrations']['alignment']['locations'][1] == 1.0)
+
+    # Test something that should fail
+    with pytest.raises(TypeError):
+        p['calibrations']['alignment']['locations'] = 0.0
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
