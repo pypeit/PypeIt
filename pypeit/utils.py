@@ -519,7 +519,7 @@ def rebinND(img, shape):
             should be an integer multiple of the elements of shape.
 
     Returns:
-        img_out (`numpy.ndarray`_): The input image rebinned to shape
+        `numpy.ndarray`_: The input image rebinned to shape
     """
     # First check that the old shape is an integer multiple of the new shape
     rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
