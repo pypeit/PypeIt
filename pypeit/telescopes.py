@@ -147,6 +147,15 @@ class KPNOTelescopePar(TelescopePar):
                                                eff_aperture=11.2)
 # KPNO from https://en.wikipedia.org/wiki/Nicholas_U._Mayall_Telescope
 
+class HiltnerTelescopePar(TelescopePar): 
+    def __init__(self):
+        super(HiltnerTelescopePar, self).__init__(name='HILTNER',
+                                              longitude=111.615556,           # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=31.951389,             # Latitude of the telescope
+                                              elevation=1938.5,               # Elevation of the telescope (in m)
+                                              diameter=2.4)
+# See https://noirlab.edu/public/programs/kitt-peak-national-observatory/the-hiltner-24m-telescope/
+
 class MMTTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Whipple Observatory')

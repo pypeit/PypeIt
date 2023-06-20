@@ -2445,8 +2445,8 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
-                 nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
+                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
@@ -2554,7 +2554,7 @@ class WavelengthSolutionPar(ParSet):
         #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] =  [int, float, list, np.ndarray]
+        dtypes['sigdetect'] = [int, float, list, np.ndarray]
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
@@ -2573,8 +2573,18 @@ class WavelengthSolutionPar(ParSet):
                                   'the determination of the wavelength solution (`i.e.`, not in '\
                                   'WaveTilts).'
 
+        defaults['fwhm_spat_order'] = 0
+        dtypes['fwhm_spat_order'] = int
+        descr['fwhm_spat_order'] = 'This parameter determines the spatial polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.'
+
+        defaults['fwhm_spec_order'] = 1
+        dtypes['fwhm_spec_order'] = int
+        descr['fwhm_spec_order'] = 'This parameter determines the spectral polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
+
         # These are the parameters used for reidentification
-        defaults['reid_arxiv']=None
+        defaults['reid_arxiv'] = None
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
@@ -2701,7 +2711,8 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag',
@@ -3367,8 +3378,8 @@ class WaveTiltsPar(ParSet):
 
         defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, np.ndarray]
-        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines ' \
-                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
+        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the tilt of an arc line. This parameter determines ' \
+                              'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the ' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
@@ -4560,7 +4571,7 @@ class PypeItPar(ParSet):
         Examples:
             To turn off the slit-illumination correction for all frames:
 
-            >>> from pypeit.spectrographs import load_spectrograph
+            >>> from pypeit.spectrographs.util import load_spectrograph
             >>> spec = load_spectrograph('shane_kast_blue')
             >>> par = spec.default_pypeit_par()
             >>> par.reset_all_processimages_par(use_illumflat=False)
@@ -4731,7 +4742,7 @@ class TelescopePar(ParSet):
         Return the valid telescopes.
         """
         return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
-                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST']
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST', 'HILTNER']
 
     def validate(self):
         pass

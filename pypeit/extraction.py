@@ -229,7 +229,14 @@ class Extract:
             self.wv_calib = wv_calib
             self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         elif wv_calib is None and waveimg is not None:
-            self.waveimg=waveimg
+            self.waveimg = waveimg
+
+        msgs.info("Generating spectral FWHM image")
+        self.fwhmimg = None
+        if wv_calib is not None:
+            self.fwhmimg = wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        else:
+            msgs.warn("Spectral FWHM image could not be generated")
 
         # Now apply a global flexure correction to each slit provided it's not a standard star
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -333,7 +340,7 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
@@ -781,7 +788,7 @@ class MultiSlitExtract(Extract):
                                               thismask, self.slits_left[:,slit_idx],
                                               self.slits_right[:, slit_idx],
                                               self.sobjs[thisobj], ingpm=ingpm,
-                                              spat_pix=spat_pix,
+                                              fwhmimg=self.fwhmimg, spat_pix=spat_pix,
                                               model_full_slit=model_full_slit,
                                               sigrej=sigrej, model_noise=model_noise,
                                               std=self.std_redux, bsp=bsp,

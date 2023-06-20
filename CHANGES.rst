@@ -1,6 +1,14 @@
+1.13.1dev (6 June 2023)
+------------------------
 
-1.12.3dev
----------
+- Hotfix for skysub regions GUI that used np.bool
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
+  magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+- Add MDM/Modspec spectrograph
+
+1.13.0 (2 June 2023)
+--------------------
 
 - Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
@@ -113,6 +121,8 @@ better with 2d coadds.
 1.10.0 (11 July 2022)
 ---------------------
 
+1.9.2dev
+--------
 - Modify tweak_standard for Mosfire/J2
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
@@ -1523,7 +1533,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script
