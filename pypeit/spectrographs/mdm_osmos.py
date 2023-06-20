@@ -80,6 +80,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
@@ -240,12 +241,11 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
     """
     ndet = 1
     name = 'mdm_osmos_r4k'
-    telescope = telescopes.KPNOTelescopePar()
     camera = 'R4K'
     url = 'https://www.astronomy.ohio-state.edu/martini.10/osmos/'
     header_name = 'OSMOS'
     supported = True
-    comment = 'MDM OSMOS spectrometer for the red'
+    comment = 'MDM OSMOS spectrometer for the red. Requires calibratoins windowed down to the science frame.'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -288,7 +288,7 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
             datasec         = np.atleast_1d(['[:524,33:2064]', '[524:,33:2064]',
                 '[:524, 2065:4092', '[524:, 2065:4092']),
             oscansec        = np.atleast_1d(['[:524, 1:32]', '[524:, 1:32]',
-                '[:524, 4128:]', '[524:, 4128:]']),
+                '[:524, 4129:]', '[524:, 4129:]']),
         )
         # Return
         return detector_container.DetectorContainer(**detector_dict)
@@ -337,6 +337,10 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
+
+        # Do not require bias frames
+        turn_off = dict(use_biasimage=False, overscan_method='odd_even')
+        par.reset_all_processimages_par(**turn_off)
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'

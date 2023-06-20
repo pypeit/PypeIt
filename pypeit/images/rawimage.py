@@ -1012,6 +1012,8 @@ class RawImage:
         """
         Analyze and subtract the overscan from the image
 
+        If this is a mosaic, loop over the indvidual detectors
+
         Args:
             force (:obj:`bool`, optional):
                 Force the image to be overscan subtracted, even if the step log
@@ -1031,12 +1033,11 @@ class RawImage:
         for i in range(self.nimg):
             # Subtract the overscan.  var is the variance in the overscan
             # subtraction.
-            _os_img[i], var[i] = procimg.subtract_overscan(self.image[i], self.datasec_img[i],
-                                                           self.oscansec_img[i],
-                                                           method=self.par['overscan_method'],
-                                                           params=self.par['overscan_par'],
-                                                           var=None if self.rn2img is None 
-                                                                else self.rn2img[i])
+            _os_img[i], var[i] = procimg.subtract_overscan(
+                self.image[i], self.datasec_img[i], self.oscansec_img[i],
+                method=self.par['overscan_method'],
+                params=self.par['overscan_par'],
+                var=None if self.rn2img is None else self.rn2img[i])
         self.image = np.array(_os_img)
         # Parse the returned value
         if self.rn2img is not None:

@@ -16,7 +16,6 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core import parse
 
 
 # NOTE: This is slower than utils.rebin_evlist by a factor of ~2, but avoids an
@@ -589,7 +588,14 @@ def rect_slice_with_mask(image, mask, mask_val=1):
 def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', params=[5,65],
                       var=None):
     """
-    Subtract overscan.
+    Subtract the overscan
+
+    Possible values of ``method``:
+        - polynomial: Fit a polynomial to the overscan region and subtract it.
+        - savgol: Use a Savitzky-Golay filter to fit the overscan region and
+            subtract it.
+        - median: Use the median of the overscan region to subtract it.
+        - odd_even: Use the median of the odd and even rows/columns to subtract (MDM/OSMOS)
 
     Args:
         rawframe (`numpy.ndarray`_):
@@ -622,11 +628,11 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
     Returns:
         :obj:`tuple`: The input frame with the overscan region subtracted and an
         estimate of the variance in the overscan subtraction; both have the same
-        shape as the input ``rawframe``.  If ``var`` is no provided, the 2nd
+        shape as the input ``rawframe``.  If ``var`` is not provided, the 2nd
         returned object is None.
     """
     # Check input
-    if method.lower() not in ['polynomial', 'savgol', 'median']:
+    if method.lower() not in ['polynomial', 'savgol', 'median', 'odd_even']:
         msgs.error(f'Unrecognized overscan subtraction method: {method}')
     if rawframe.ndim != 2:
         msgs.error('Input raw frame must be 2D.')
@@ -671,6 +677,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             # to the error in the mean
             osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median' 
                              else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
+        # Method time
         if method.lower() == 'polynomial':
             # TODO: Use np.polynomial.polynomial.polyfit instead?
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])
@@ -683,12 +690,26 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             if var is not None:
                 _var[data_slice] = osvar
             continue
+            ossub = np.zeros_like(osfit)
+        elif method.lower() == 'odd_even':
+            ossub = np.zeros_like(osfit)
+            # Odd/even
+            if compress_axis == 1:
+                odd = np.median(overscan[:,1::2], axis=compress_axis)
+                even = np.median(overscan[:,0::2], axis=compress_axis)
+                # Do it
+                no_overscan[data_slice][:,1::2] -= odd[:,None]
+                no_overscan[data_slice][:,0::2] -= even[:,None]
+            else:
+                msgs.error('Not ready for this yet')
+            
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
         if var is not None:
             _var[data_slice] = (osvar[:,None] if compress_axis == 1 else osvar[None,:])
 
+    # Return
     return no_overscan, _var
 
 
