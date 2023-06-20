@@ -1309,6 +1309,8 @@ class Coadd2DPar(ParSet):
                                                  defaults=list(defaults.values()),
                                                  dtypes=list(dtypes.values()),
                                                  descr=list(descr.values()))
+
+
         self.validate()
 
     @classmethod
@@ -1325,11 +1327,15 @@ class Coadd2DPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
+
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        allowed_wave_methods = ['iref', 'velocity', 'log10', 'linear']
+        if self.data['wave_method'] is not None and self.data['wave_method'] not in allowed_wave_methods:
+            raise ValueError("If 'wave_method' is not None it must be one of:\n"+", ".join(allowed_wave_methods))
+
 
 
 class CubePar(ParSet):
