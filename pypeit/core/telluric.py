@@ -2269,14 +2269,14 @@ class Telluric(datamodel.DataContainer):
                                     self.ivar_in_arr, self.mask_in_arr, log10_blaze_function=self.log10_blaze_func_in_arr,
                                     sensfunc=self.sensfunc)
         else:
-            self.flux_arr, self.ivar_arr, self.mask_arr \
+            self.flux_arr, self.ivar_arr, self.mask_arr, _ \
                 = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
                                     self.ivar_in_arr, self.mask_in_arr,
                                     sensfunc=self.sensfunc)
 
         # This is a hack to get an interpolate mask indicating where wavelengths
         # are good on each order
-        _, _, self.wave_mask_arr = coadd.interp_spec(self.wave_grid, self.wave_in_arr,
+        _, _, self.wave_mask_arr, _ = coadd.interp_spec(self.wave_grid, self.wave_in_arr,
                                                      np.ones_like(self.flux_in_arr),
                                                      np.ones_like(self.ivar_in_arr),
                                                      (self.wave_in_arr > 1.0).astype(float))
