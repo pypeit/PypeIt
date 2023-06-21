@@ -1238,7 +1238,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     # Check that the slit edges are masked consistent with the number of orders and the number of unique spatids
     nleft = left.shape[1]
     nrigh = right.shape[1]
-    if (nleft != nrigh) or norders != nleft or norders != nrigh:
+    if nleft != nrigh or norders != nleft or norders != nrigh:
         msgs.error('The number of left and right edges must be the same as the number of orders. '
                    'There is likely a problem with your masking')
 
@@ -1253,10 +1253,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             # Check for a missed order and fault if they exist
             if np.sum(ind) == 0:
                 msgs.error('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
-            else:
-                if iobj == 0:
-                    order_vec[islit] = sobjs[ind].ECH_ORDER
-                order_snr[islit,iobj] = sobjs[ind].ech_snr
+            if iobj == 0:
+                order_vec[islit] = sobjs[ind].ECH_ORDER
+            order_snr[islit,iobj] = sobjs[ind].ech_snr
 
     # Enforce that the number of objects in the sobjs object is an integer multiple of the number of good orders
     if (np.sum(sobjs.sign > 0) % norders) == 0:
@@ -1364,9 +1363,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         # True  = Good, False = Bad for inmask
         inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction
-        try:
-            skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
-                = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
+        skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
+            = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
@@ -1376,8 +1374,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
                                        show_resids=show_resids, show_profile=show_profile,
                                        adderr=adderr, base_var=base_var, count_scale=count_scale)
-        except:
-            embed()
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.SLITID == slitids[iord])
         fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)

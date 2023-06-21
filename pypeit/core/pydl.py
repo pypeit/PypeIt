@@ -904,9 +904,9 @@ def djs_reject(data, model, outmask=None, inmask=None,
                 newmask[np.clip(irejects - k, 0,None)] = False
                 newmask[np.clip(irejects + k, None, data.shape[0]-1)] = False
     if inmask is not None:
-        newmask = newmask & inmask
+        newmask &= inmask
     if sticky:
-        newmask = newmask & outmask
+        newmask &= outmask
     #
     # Set qdone if the input outmask is identical to the output outmask.
     #
