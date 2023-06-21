@@ -1196,14 +1196,18 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     for fr in range(numfr):
         msgs.info(f"Creating image {fr+1}/{numfr}")
         if combine:
-            ww = np.where(_all_idx >= 0)
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra, all_dec, all_wave,
+                                     all_sci, all_ivar, all_wghts, all_spatpos,
+                                     all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, all_idx=_all_idx)
         else:
             ww = np.where(_all_idx == fr)
-        # Subpixellate
-        img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
-                                 all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
-                                 all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
-                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                     all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
+                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
