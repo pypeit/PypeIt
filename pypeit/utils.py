@@ -52,11 +52,11 @@ def arr_setup_to_setup_list(arr_setup):
     """
 
     Args:
-        arr_setup: (list)
+        arr_setup (list):
           A list of length nsetups echelle output arrays of shape=(nspec, norders, nexp)
 
     Returns:
-        setup_list: (list)
+        setup_list (list):
           List of length nsetups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
@@ -72,13 +72,13 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
     Convert a setup_list to arr_setup list
 
     Args:
-        setup_list: (list)
+        setup_list (list):
           List of length nsteups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
           for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
           fastest varying dimension in python array ordering is the exposure number.
-        norders: (list)
+        norders (list):
           List containing the number of orders for each setup
         nexps (list):
           List containing the number of exposures for each setup
@@ -99,16 +99,16 @@ def concat_to_setup_list(concat, norders, nexps):
     """
 
     Args:
-        concat: (list)
+        concat (list):
            List of length = \Sum_i norders_i*nexps_i of numpy arrays describing an echelle spectrum where
            i runs over nsetups
-        norders: (list)
+        norders (list):
            List of length nsetups containing the number of orders for each setup
-        nexps:
+        nexps (list):
            List of length nexp containing the number of exposures for each setup
 
     Returns:
-        setup_list (list)
+        setup_list (list):
            list of length nsteups. Each element of the setup list is a list of length
                           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
                           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
