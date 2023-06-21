@@ -954,10 +954,10 @@ class CoAdd2D:
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
 
         # check if exptime is consistent for all images
-        exptime_coadd = np.mean(exptime_stack)
-        if np.any(np.absolute(np.diff(exptime_stack)) > 0):
-            msgs.warn('Exposure time is not consistent for all images being coadded! '
-                      f'Scaling each image by the mean exposure time ({exptime_coadd} s) before coadding.')
+        exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
+        if not np.all(exptime_stack == exptime_coadd):
+            msgs.warn('Exposure time is not consistent for all frames being coadded! '
+                      f'Scaling each image by the median exposure time ({exptime_coadd} s) before coadding.')
             exp_scale = exptime_coadd / exptime_stack
             for iexp in range(nfiles):
                 sciimg_stack[iexp] *= exp_scale[iexp]
