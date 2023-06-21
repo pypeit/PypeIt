@@ -32,7 +32,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     pypeline = 'Echelle'
     supported = True
-    comment = 'See :doc:`mage`'
+    #comment = 'See :doc:`mage`'
 
     def get_detector_par(self, det, hdu=None):
         """
