@@ -1762,7 +1762,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     debug: bool, optional, default=False
              Show QA plots useful for debugging.
     verbose: bool, optional, default=False
-             Level
+             Level of verbosity.
 
     Returns
     -------
@@ -1882,7 +1882,7 @@ def scale_spec_stack(wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, sns, 
 
     """
     Scales a set of spectra to a common flux scale. This is done by first computing a stack of the spectra and then
-    scaling each spectrum to match the composite with the scale_spec algorithm which performs increasingly
+    scaling each spectrum to match the composite with the :func:`scale_spec` algorithm which performs increasingly
     sophisticated scaling depending on the S/N ratio.
 
     Parameters
@@ -2096,26 +2096,26 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
     '''
 
     # We cast to float64 because of a bug in np.histogram
-    waves = [np.float64(wave) for wave in waves]
-    fluxes = [np.float64(flux) for flux in fluxes]
-    ivars = [np.float64(ivar) for ivar in ivars]
+    _waves = [np.float64(wave) for wave in waves]
+    _fluxes = [np.float64(flux) for flux in fluxes]
+    _ivars = [np.float64(ivar) for ivar in ivars]
 
     # Generate a giant wave_grid
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
-        waves=waves, gpms=gpms, wave_method=wave_method,
+        waves=_waves, gpms=gpms, wave_method=wave_method,
         wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
         wave_grid_input=wave_grid_input,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(fluxes, ivars, gpms, sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+    rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
-        wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
+        wave_grid, wave_grid_mid, _waves, _fluxes, _ivars, gpms, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, gpm_stack, nused, outmask = spec_reject_comb(
-        wave_grid, wave_grid_mid, waves, fluxes_scale, ivars_scale, gpms, weights, sn_clip=sn_clip, lower=lower, upper=upper,
+        wave_grid, wave_grid_mid, _waves, fluxes_scale, ivars_scale, gpms, weights, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug, title=title)
 
     if show:
@@ -2283,20 +2283,24 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
     Parameters
     ----------
-    waves: `numpy.ndarray`_
-        Wavelength arrays for spectra to be stacked.
-        shape=(nspec, norder, nexp)
-    fluxes: `numpy.ndarray`_
-        Flux arrays for spectra to be stacked.
-        shape=(nspec, norder, nexp)
-    ivars: `numpy.ndarray`_
-        ivar arrays for spectra to be stacked.
-        shape=(nspec, norder, nexp)
-    gpms: `numpy.ndarray`_
-        Mask array with shape (nspec, norders, nexp) containing the spectra to be coadded.
-    weights_sens: `numpy.ndarray`_
-        Sensitivity function weights required for relatively weighting of the
-        orders.  Must have the same shape as waves, etc.
+    waves_arr_setup: list of `numpy.ndarray`_
+        List of wavelength arrays for spectra to be stacked. The length of the list is nsetups.
+        Each element of the list corresponds to a distinct setup and each numpy array has shape=(nspec, norder, nexp)
+    fluxes_arr_setup: list of `numpy.ndarray`_
+        List of flux arrays for spectra to be stacked. The length of the list is nsetups.
+        Each element of the list corresponds to a dinstinct setup and each numpy array has shape=(nspec, norder, nexp)
+    ivars_arr_setup: list of `numpy.ndarray`_
+        List of ivar arrays for spectra to be stacked. The length of the list is nsetups.
+        Each element of the list corresponds to a dinstinct setup and each numpy array has shape=(nspec, norder, nexp)
+    gpms_arr_setup: list of `numpy.ndarray`_
+        List of good pixel mask arrays for spectra to be stacked. The length of the list is nsetups.
+        Each element of the list corresponds to a dinstinct setup and each numpy array has shape=(nspec, norder, nexp)
+    weights_sens_arr_setup: list of `numpy.ndarray`_
+        List of sensitivity function weights required for relative weighting of the orders.  The length of the list is nsetups.
+        Each element of the list corresponds to a dinstinct setup and each numpy array has shape=(nspec, norder, nexp)
+    setup_ids: list of strings
+        List of strings indicating the name of each setup. If None uppercase letters A, B, C, etc. will be used
+        Optional, default=None
     nbests: int or list, optional
         Integer or list of integers indicating the number of orders to use for estimating the per exposure weights per
         echelle setup.  Default is nbests=None, which will just use one fourth of the orders for a given setup.
