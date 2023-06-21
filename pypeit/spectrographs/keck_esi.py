@@ -363,7 +363,14 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         """
         norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)
-        return np.full(norders, 0.1542*binspatial)
+        # Plate scales
+        unbinned_pscale = [0.120, #15 
+                           0.127, 0.134, 0.137, 0.144, 0.149, 0.153, 
+                           0.158, 0.163, 
+                           0.168, # 6 
+                           ]
+
+        return np.array(unbinned_pscale)*binspatial
 
 
 
