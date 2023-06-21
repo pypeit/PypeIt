@@ -444,9 +444,10 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
             forces the returned arrays to be copies instead.
 
     Returns:
-        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
-        wavelength, flux, inverse variance, and gpm arrays. The next two
-        give the length of each spectrum and the total number of spectra;
+        :obj:`tuple`: Returns 7 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. Next is the
+        log10_blaze_function, which is None if not provided as an input argument.
+        The next two give the length of each spectrum and the total number of spectra;
         i.e., the last two elements are identical to the shape of the
         returned flux array.
 
@@ -468,7 +469,7 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
                 gpm.reshape(-1, 1), log10_blaze_function.reshape(-1,1), flux.size, 1
         else:
             return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                gpm.reshape(-1, 1), flux.size, 1
+                gpm.reshape(-1, 1), None, flux.size, 1
 
     # Input is 2D
     nspec, norders = flux.shape

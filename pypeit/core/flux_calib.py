@@ -669,7 +669,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     """
 
-    wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
+    wave_arr, counts_arr, ivar_arr, mask_arr, log10_blaze_func, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
     zeropoint_data = np.zeros_like(wave_arr)
     zeropoint_data_gpm = np.zeros_like(wave_arr, dtype=bool)
     zeropoint_fit = np.zeros_like(wave_arr)

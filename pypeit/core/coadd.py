@@ -657,6 +657,10 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
     gpms_inter : `numpy.ndarray`_
         interpolated good-pixel mask with size and shape matching the new
         wavelength grid.
+    log10_blazes_inter : `numpy.ndarray`_ or None
+        interpolated log10 blaze function with size and shape matching the new
+        wavelength grid.  If ``log10_blaze_function`` is not provided as an input,
+        this will be None.
     """
     # Check input
     if wave_new.ndim > 2:
@@ -1096,7 +1100,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
 
     # Interpolate the reference spectrum onto the wavelengths of the spectrum that will be rescaled
-    flux_ref_int, ivar_ref_int, mask_ref_int = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
+    flux_ref_int, ivar_ref_int, mask_ref_int, _ = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
 
     # estimates the SNR of each spectrum and the stacked mean SNR
     #rms_sn, weights = sn_weights(wave, flux, ivar, mask, sn_smooth_npix)
@@ -1819,7 +1823,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
         # since it has no masked values
-        flux_stack_nat, ivar_stack_nat, gpm_stack_nat = interp_spec(
+        flux_stack_nat, ivar_stack_nat, gpm_stack_nat, _ = interp_spec(
             waves, wave_grid_mid, flux_stack, ivar_stack, gpm_stack)
         ## TESTING
         #nused_stack_nat, _, _ = interp_spec(
@@ -2642,7 +2646,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             norig_setup.append(np.sum(norig))
             # Interpolate stack onto native 2d wavelength grids reshaped exposure-wise
             # JFH changed to wave_grid_mid
-            flux_stack_2d_exps, ivar_stack_2d_exps, gpm_stack_2d_exps = interp_spec(
+            flux_stack_2d_exps, ivar_stack_2d_exps, gpm_stack_2d_exps, _ = interp_spec(
                 waves_2d_exps, wave_grid_mid, flux_final_stack, ivar_final_stack, gpm_final_stack)
             if show_exp:
                 # Show QA plots for each exposure

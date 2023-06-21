@@ -57,6 +57,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [1, 61]
         #
         par['scienceframe']['exprng'] = [61, None]
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
         return par
 
     def init_meta(self):
