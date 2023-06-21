@@ -825,7 +825,7 @@ class CoAdd2D:
 
         Args:
             wave_method (str):
-               The method to use to create the wavelength grid passed to wvutils.get_wave_grid.
+               The method to use to create the wavelength grid passed to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`
 
         Returns:
             tuple: Returns the following:
@@ -879,11 +879,8 @@ class CoAdd2D:
                     #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
                     #indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=wave_method,
+        return wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=wave_method,
                                                                 spec_samp_fact=self.spec_samp_fact)
-
-
-        return wave_grid, wave_grid_mid, dsamp
 
     def load_coadd2d_stacks(self, spec2d, chk_version=False):
         """
@@ -1342,7 +1339,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                             #remove_indx.append(iobj)
                     # if there are objects on this slit left, we can proceed with computing rms_sn
                     if len(waves) > 0:
-                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, None, const_weights=True)
+                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, const_weights=True)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
@@ -1614,7 +1611,7 @@ class EchelleCoAdd2D(CoAdd2D):
                                   f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
                         continue
                     if flux is not None:
-                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
+                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, const_weights=True)
                         order_snr[iord, iobj] = rms_sn
                         bpm[iord, iobj] = False
 

@@ -246,14 +246,12 @@ def distinct_colors(num_colors):
     Taken from:  https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
 
     Args:
-        n (int):
+        num_colors (int):
             Number of colors to return.
-        cmap (:obj:`str`, optional):
-            Name of the matplotlib colormap to use.  Default is 'hsv'.
 
     Returns:
         `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
-        the requested number of colors.
+         the requested number of colors.
     """
 
     colors = []

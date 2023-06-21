@@ -219,7 +219,7 @@ def poly_ratio_fitfunc_chi2(theta, gpm, arg_dict):
     # constrain the flux-corrrection vectors from going too small (or negative), or too large.
     ## Schlegel's version here
     vmult = np.fmax(ymult,1e-4)*(ymult <= 1.0) + np.sqrt(ymult)*(ymult > 1.0)
-    ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
+    ivarfit = mask_both/(1.0/(ivar_med + np.logical_not(mask_both)) + np.square(vmult)/(ivar_ref_med + np.logical_not(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
     # Changing the Huber loss parameter from step to step results in instability during optimization --MSR.
     # Robustly characterize the dispersion of this distribution
@@ -525,7 +525,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
         gpm_old (`numpy.ndarray`_):
             Old good-pixel mask (True=Good) on the wave_old grid.  Shape must
             match ``wave_old``.
-       log10_blaze_function: `numpy.ndarray`_ or None, optional
+        log10_blaze_function: `numpy.ndarray`_ or None, optional
             Log10 of the blaze function. Shape must match ``wave_old``. Default=None.
 
         sensfunc (:obj:`bool`, optional):
@@ -535,7 +535,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, log10_blaze_fun
             computation where we need flux*(wavelength bin width). Beacause
             delta_wave is a difference of the wavelength grid, interpolating
             in the presence of masked data requires special care.
-        kind : str or int, optional
+        kind (:obj:`int`, :obj:`str`, optional):
             Specifies the kind of interpolation as a string or as an integer
             specifying the order of the spline interpolator to use following the convention of
             scipy.interpolate.interp1d. The string has to be one of 'linear', 'nearest',
@@ -685,12 +685,13 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
                                   log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc, kind=kind)
-            return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
         else:
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], _ \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc, kind=kind)
-            return fluxes_inter, ivars_inter, gpms_inter, None
+            log10_blazes_inter=None
+
+        return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
 
 
     # Second case: interpolate a single spectrum onto an (nspec, nexp) array of
@@ -703,12 +704,13 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
         for ii in range(wave_new.shape[1]):
             fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:, ii] \
                 = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
-        return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
     else:
         for ii in range(wave_new.shape[1]):
             fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], _ \
                 = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, log10_blaze_function=log10_blaze_function, sensfunc=sensfunc)
-        return fluxes_inter, ivars_inter, gpms_inter, None
+        log10_blazes_inter=None
+
+    return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
 
 
 def smooth_weights(inarr, gdmsk, sn_smooth_npix):
@@ -743,7 +745,7 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
     return sn_conv
 
-def sn_weights(fluxes, ivars, gpms, sn_smooth_npix, const_weights=False,
+def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
                ivar_weights=False, relative_weights=False, verbose=False):
 
     """
@@ -758,7 +760,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix, const_weights=False,
             List of len(nexp) containing the `numpy.ndarray`_ 1d float inverse variances of the spectra.
     gpms : (list)
            List of len(nexp) containing the `numpy.ndarray`_ 1d float boolean good pixel masks of the spectra.
-    sn_smooth_npix : float
+    sn_smooth_npix : float, optional
             Number of pixels used for determining smoothly varying S/N ratio weights. This can be set to None if
             const_weights is True, since then wavelength dependent weights are not used.
     const_weights : bool, optional
@@ -790,6 +792,10 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix, const_weights=False,
     # Check that all the input lists have the same length
     if len(ivars) != nexp or len(gpms) != nexp:
         msgs.error("Input lists of spectra must have the same length")
+
+    # Check sn_smooth_npix is set if const_weights=False
+    if sn_smooth_npix is None and not const_weights:
+        msgs.error('sn_smooth_npix cannot be None if const_weights=False')
 
     # Give preference to ivar_weights
     if ivar_weights and relative_weights:
@@ -980,13 +986,13 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
         # Take the best part of the higher SNR reference spectrum
         sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
 
-        flux_ref_ma = np.ma.MaskedArray(flux_ref, np.invert(calc_mask))
+        flux_ref_ma = np.ma.MaskedArray(flux_ref, np.logical_not(calc_mask))
         flux_ref_clipped, lower, upper = sigclip(flux_ref_ma, masked=True, return_bounds=True)
-        mask_ref_clipped = np.invert(flux_ref_clipped.mask)  # mask_stack = True are good values
+        mask_ref_clipped = np.logical_not(flux_ref_clipped.mask)  # mask_stack = True are good values
 
-        flux_ma = np.ma.MaskedArray(flux_ref, np.invert(calc_mask))
+        flux_ma = np.ma.MaskedArray(flux_ref, np.logical_not(calc_mask))
         flux_clipped, lower, upper = sigclip(flux_ma, masked=True, return_bounds=True)
-        mask_clipped = np.invert(flux_clipped.mask)  # mask_stack = True are good values
+        mask_clipped = np.logical_not(flux_clipped.mask)  # mask_stack = True are good values
 
         new_mask = mask_ref_clipped & mask_clipped
 
@@ -1416,11 +1422,11 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
     ymin, ymax = get_ylim(flux_stack, ivar_stack, mask_stack)
 
     # Plot spectrum
-    rejmask = mask & np.invert(outmask)
+    rejmask = mask & np.logical_not(outmask)
     wave_mask = wave > 1.0
     wave_stack_mask = wave_stack > 1.0
     spec_plot.plot(wave[rejmask], flux[rejmask],'s',zorder=10,mfc='None', mec='r', label='rejected pixels')
-    spec_plot.plot(wave[np.invert(mask)], flux[np.invert(mask)],'v', zorder=10, mfc='None', mec='orange',
+    spec_plot.plot(wave[np.logical_not(mask)], flux[np.logical_not(mask)],'v', zorder=10, mfc='None', mec='orange',
                    label='originally masked')
 
     if norder is None:
@@ -1833,8 +1839,8 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
 
     # print out a summary of how many pixels were rejected
     nexp = waves.shape[1]
-    nrej = np.sum(np.invert(out_gpms) & gpms, axis=0)
-    norig = np.sum((waves > 1.0) & np.invert(gpms), axis=0)
+    nrej = np.sum(np.logical_not(out_gpms) & gpms, axis=0)
+    norig = np.sum((waves > 1.0) & np.logical_not(gpms), axis=0)
 
     if verbose:
         for iexp in range(nexp):
@@ -2102,7 +2108,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(fluxes, ivars, gpms, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+    rms_sn, weights = sn_weights(fluxes, ivars, gpms, sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
@@ -2473,7 +2479,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     colors = []
     for isetup in range(nsetups):
         rms_sn_vec, _ = sn_weights(fluxes_setup_list[isetup], ivars_setup_list[isetup], gpms_setup_list[isetup],
-                                   sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+                                   sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
         rms_sn = rms_sn_vec.reshape(norders[isetup], nexps[isetup])
         mean_sn_ord = np.mean(rms_sn, axis=1)
         best_orders = np.argsort(mean_sn_ord)[::-1][0:nbests[isetup]]
@@ -2526,7 +2532,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
 
     #######################
-    # Global Recaling Computation -- Scale each setup/order/exp to match a preliminary global stack
+    # Global Rescaling Computation -- Scale each setup/order/exp to match a preliminary global stack
     #######################
     #show_order_scale=True
     fluxes_concat = utils.setup_list_to_concat(fluxes_scl_interord_setup_list)
