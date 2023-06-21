@@ -21,7 +21,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
     Child to handle MDM Modspec Echelle instrument+detector
     """
     ndet = 1
-    name = 'mdm_modspec_echelle'
+    name = 'mdm_modspec'
 
     telescope = telescopes.HiltnerTelescopePar()
 
