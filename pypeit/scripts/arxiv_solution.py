@@ -44,8 +44,6 @@ class ArxivSolution(scriptbase.ScriptBase):
 
         # Load the wavelength calibration file
         wv_calib = WaveCalib.from_file(args.file)
-        from IPython import embed
-        embed()
         wave = wv_calib['wv_fits'][args.slit]['wave_soln'].flatten()
         spec = wv_calib['wv_fits'][args.slit]['spec'].flatten()
         outname = args.file.replace(".fits", "_arXiv.fits")
