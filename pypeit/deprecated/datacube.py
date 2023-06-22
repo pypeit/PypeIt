@@ -214,3 +214,77 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+
+def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bins,
+                      overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+                      sensfunc=None, specname="PYP_SPEC", debug=False):
+    """
+    TODO :: Deprecate this routine once subpixellate works for combining cubes
+
+    Save a datacube using the Nearest Grid Point (NGP) algorithm.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        hdr (`astropy.io.fits.header_`):
+            Header of the output datacube (must contain WCS)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        vox_coord (`numpy.ndarray`_):
+            The voxel coordinates of each pixel in the spec2d frames. vox_coord is returned by the
+            function `astropy.wcs.WCS.wcs_world2pix_` once a WCS is setup and every spec2d detector
+            pixel has an RA, DEC, and WAVELENGTH.
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        overwrite (`bool`):
+            If True, the output cube will be overwritten.
+        blaze_wave (`numpy.ndarray`_):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_):
+            Spectral blaze function
+        fluxcal (bool):
+            Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
+        specname (str):
+            Name of the spectrograph
+        debug (bool):
+            Debug the code by writing out a residuals cube?
+    """
+    # Add the unit of flux to the header
+    if fluxcal:
+        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+
+    # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
+    datacube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * all_wghts)
+    normcube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_wghts)
+    nc_inverse = utils.inverse(normcube)
+    datacube *= nc_inverse
+    # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
+    all_var = utils.inverse(all_ivar)
+    var_cube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_var * all_wghts ** 2)
+    var_cube *= nc_inverse**2
+    bpmcube = (normcube == 0).astype(np.uint8)
+
+    # Save the datacube
+    if debug:
+        datacube_resid, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * np.sqrt(all_ivar))
+        normcube, edges = np.histogramdd(vox_coord, bins=bins)
+        nc_inverse = utils.inverse(normcube)
+        outfile_resid = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
+        hdu = fits.PrimaryHDU((datacube_resid*nc_inverse).T, header=hdr)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
+
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
+                          sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
