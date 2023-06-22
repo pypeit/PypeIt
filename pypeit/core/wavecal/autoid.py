@@ -907,7 +907,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
             continue
-        msgs.info("Processing slit {}".format(slit))
+        msgs.info("Processing slit {0:d}/{1:d}".format(slit+1, nslits))
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
