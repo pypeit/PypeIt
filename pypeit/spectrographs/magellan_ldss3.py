@@ -289,15 +289,17 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] == 'Object') #& (fitstbl['amp'] == '1')
         if ftype == 'standard':
-            return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] == 'Object') #& (fitstbl['amp'] == '1')
         if ftype in ['arc', 'tilt']:
             arc1 = good_exp & (fitstbl['idname'] == 'Object')
-            arc2 = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
-            return (arc1 | arc2) & (fitstbl['amp'] == '1')
+            #arc2 = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
+            arc = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
+            #return (arc1 | arc2) #& (fitstbl['amp'] == '1')
+            return arc1
         if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'Flat') & (fitstbl['amp'] == '1')
+            return good_exp & (fitstbl['idname'] == 'Flat') #& (fitstbl['amp'] == '1')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
