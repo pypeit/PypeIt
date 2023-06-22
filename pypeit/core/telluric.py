@@ -2237,7 +2237,7 @@ class Telluric(datamodel.DataContainer):
         self.disp = disp or debug
         self.sensfunc = sensfunc
         self.debug = debug
-
+        self.log10_blaze_func_in_arr = None
 
         # 2) Reshape all spectra to be (nspec, norders)
         if log10_blaze_function is not None:
@@ -2245,7 +2245,7 @@ class Telluric(datamodel.DataContainer):
                 self.nspec_in, self.norders = utils.spec_atleast_2d(
                 wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)
         else:
-            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, \
+            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, _, \
                 self.nspec_in, self.norders = utils.spec_atleast_2d(
                 wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
