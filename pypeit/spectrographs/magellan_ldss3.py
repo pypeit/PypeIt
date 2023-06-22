@@ -215,6 +215,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
             #par['calibrations']['wavelengths']['method'] = 'full_template'
             #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
             par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_ldss3_vphred.fits'
         else:
             #par['calibrations']['wavelengths']['method'] = 'full_template'
             #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
