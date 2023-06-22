@@ -266,6 +266,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Relatively short slit, so keep the spatial tilt order low
+        par['calibrations']['tilts']['spat_order'] = 1
+
         # Reduce parameters
         # par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2, 2]  # Slit is too short to trim 5,5 especially

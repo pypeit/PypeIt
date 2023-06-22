@@ -13,11 +13,11 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
-from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
+from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils, wavecalib
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
@@ -1156,10 +1156,13 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
-    numfr = 1 if combine else np.unique(_all_idx).size
-    if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
-        msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
-                   + msgs.newline() + "tilts, slits, astrom_trans")
+    if combine:
+        numfr = 1
+    else:
+        numfr = np.unique(_all_idx).size
+        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
+            msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
+                       + msgs.newline() + "tilts, slits, astrom_trans")
     # Prepare the array of white light images to be stored
     numra = bins[0].size-1
     numdec = bins[1].size-1
@@ -1169,14 +1172,18 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     for fr in range(numfr):
         msgs.info(f"Creating image {fr+1}/{numfr}")
         if combine:
-            ww = np.where(_all_idx >= 0)
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra, all_dec, all_wave,
+                                     all_sci, all_ivar, all_wghts, all_spatpos,
+                                     all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, all_idx=_all_idx)
         else:
             ww = np.where(_all_idx == fr)
-        # Subpixellate
-        img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
-                                 all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
-                                 all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
-                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                     all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
+                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
@@ -2195,8 +2202,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wl_wvrng = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),
                                             np.min(mnmx_wv[:, :, 1]),
                                             cubepar['whitelight_range'])
-        # TODO :: THIS IS JUST TEMPORARY (probably)... the first bit outputs separate files, the second bit combines all frames.
-        #  Might want to have an option where if reference_image is provided, but not combine, the first option is done.
         if combine:
             generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar,
                                    np.ones(all_wghts.size),  # all_wghts,
@@ -2205,8 +2210,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                    fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
                                    spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         else:
-            # embed()
-            # assert(False)
             for ff in range(numfiles):
                 outfile = get_output_filename("", cubepar['output_filename'], False, ff)
                 ww = np.where(all_idx == ff)

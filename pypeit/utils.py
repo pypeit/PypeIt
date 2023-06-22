@@ -479,8 +479,9 @@ def rebin_slice(a, newshape):
     from: https://scipy-cookbook.readthedocs.io/items/Rebinning.html.
     The image shapes need not be integer multiples of each other, but in
     this regime the transformation will not be reversible, i.e. if
-    a_orig = rebin(rebin(a,newshape), a.shape) then a_orig will not be
-    everywhere equal to a (but it will be equal in most places).
+    a_orig = rebin_slice(rebin_slice(a,newshape), a.shape) then a_orig will not be
+    everywhere equal to a (but it will be equal in most places). To rebin and
+    conserve flux, use the `pypeit.utils.rebinND()` function (see below).
 
     Args:
         a (ndarray, any dtype):
@@ -518,7 +519,7 @@ def rebinND(img, shape):
             should be an integer multiple of the elements of shape.
 
     Returns:
-        img_out (`numpy.ndarray`_): The input image rebinned to shape
+        `numpy.ndarray`_: The input image rebinned to shape
     """
     # First check that the old shape is an integer multiple of the new shape
     rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
