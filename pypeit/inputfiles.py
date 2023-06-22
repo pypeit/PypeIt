@@ -720,7 +720,7 @@ class Coadd3DFile(InputFile):
             msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
 
         # Done
-        msgs.info('.cube file successfully vetted.')
+        msgs.info('.coadd3d file successfully vetted.')
 
     @property
     def options(self):

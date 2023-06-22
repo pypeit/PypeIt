@@ -1,9 +1,11 @@
 1.13.1dev (6 June 2023)
 ------------------------
 
+- Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used np.bool
-- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire, 
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 
 1.13.0 (2 June 2023)
