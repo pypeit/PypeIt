@@ -155,7 +155,7 @@ def test_telescope():
     pypeitpar.TelescopePar()
 
 def test_fail_badpar():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because there's no junk parameter
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
@@ -164,7 +164,7 @@ def test_fail_badpar():
                                                 merge_with=cfg_lines) # Once as list
     
 def test_fail_badlevel():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because process isn't at the right level (i.e., there's no
     # process parameter for CalibrationsPar)

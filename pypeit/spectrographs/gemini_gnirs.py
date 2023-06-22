@@ -28,12 +28,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         super().__init__()
 
-        # TODO :: Might need to change the tolerance of disperser angle in
-        # pypeit setup (two BH2 nights where sufficiently different that this
-        # was important).
-
-        # TODO :: Might consider changing TelescopePar to use the astropy
-        # EarthLocation. KBW: Fine with me!
+        # TODO :: Might consider changing TelescopePar to use the astropy EarthLocation.
         self.location = EarthLocation.of_site('Gemini North')
 
     def get_detector_par(self, det, hdu=None):
