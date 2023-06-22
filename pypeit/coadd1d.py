@@ -232,8 +232,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
             debug=self.debug, show=self.show)
 
 
-        return waves, fluxes, ivars, gpms, header_out
-
 
 class EchelleCoAdd1D(CoAdd1D):
     """

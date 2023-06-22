@@ -92,15 +92,24 @@ class CoAdd2D:
                 spectrograph; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
             offsets (`numpy.ndarray`_, optional):
-                Spatial offsets to be applied to each image before coadding. For
-                the default mode of None, images are registered automatically
-                using the trace of the brightest object. Input offsets are not
-                yet supported.
+                Spatial offsets to be applied to each image before coadding. Here are the possible usage
+                cases:
+
+                    1) offsets = 'auto' -- auto compute offsets from brightest object (if exists)
+                    2) offsets not 'auto' (i.e. a list) - use them
+                    -------------- only for Multislit --------------
+                    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
+                    4) offsets = 'header' - use the dither offsets recorded in the header
+
             weights (:obj:`str`, :obj:`list`, `numpy.ndarray`_):
-                Mode for the weights used to coadd images. Options are
-                ``'auto'`` (default), ``'uniform'``, or a list/array of weights
-                with ``shape = (nexp,)`` to apply to the image. Note ``'auto'``
-                is not allowed if offsets are input.
+                Mode for the weights used to coadd images.
+                Options are:
+                     1) 'auto' =  if brightest object exists auto compute weights,
+                                  otherwise use uniform weights.  'auto' is not allowed if offsets are input.
+                     2) 'uniform' = if brightest object exists auto compute weights,
+                                    otherwise use uniform weights
+                     3) list or array = Input a list of len(nexp) or shape = (nexp,) and
+                                        the routine will use the input weights
             spec_samp_fact (:obj:`float`, optional):
                 Make the wavelength grid sampling finer (``spec_samp_fact`` less
                 than 1.0) or coarser (``spec_samp_fact`` greater than 1.0) by
