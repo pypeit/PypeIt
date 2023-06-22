@@ -191,22 +191,24 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Turn PCA off for long slits
-        if ('center' in self.get_meta_value(headarr, 'decker')) or \
-                ('Center' in self.get_meta_value(headarr, 'decker')) or \
-                ('red' in self.get_meta_value(headarr, 'decker')) or \
-                ('Red' in self.get_meta_value(headarr, 'decker')) or \
-                ('blue' in self.get_meta_value(headarr, 'decker')) or \
-                ('Blue' in self.get_meta_value(headarr, 'decker')) :
+#        if ('center' in self.get_meta_value(headarr, 'decker')) or \
+#                ('Center' in self.get_meta_value(headarr, 'decker')) or \
+#                ('red' in self.get_meta_value(headarr, 'decker')) or \
+#                ('Red' in self.get_meta_value(headarr, 'decker')) or \
+#                ('blue' in self.get_meta_value(headarr, 'decker')) or \
+#                ('Blue' in self.get_meta_value(headarr, 'decker')) :
+        if 'longslit' in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         # Turn on the use of mask design
         else:
-            par['calibrations']['slitedges']['use_maskdesign'] = True
+            pass
+            #par['calibrations']['slitedges']['use_maskdesign'] = False
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
-            par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
+            #par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
             # Sometime the added missing slits at the edge of the detector are to small to be useful.
-            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            #par['calibrations']['slitedges']['minimum_slit_length'] = 2.
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
-            par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
+            #par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == 'VPH-Red':
