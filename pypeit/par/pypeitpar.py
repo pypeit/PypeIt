@@ -939,7 +939,7 @@ class AlignPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['locations'] = [0.0, 0.5, 1.0]
+        defaults['locations'] = [0.0, 1.0]
         dtypes['locations'] = [list, np.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
