@@ -13,11 +13,11 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
-from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
+from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils, wavecalib
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
@@ -2226,8 +2226,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             wl_wvrng = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),
                                             np.min(mnmx_wv[:, :, 1]),
                                             cubepar['whitelight_range'])
-        # TODO :: THIS IS JUST TEMPORARY (probably)... the first bit outputs separate files, the second bit combines all frames.
-        #  Might want to have an option where if reference_image is provided, but not combine, the first option is done.
         if combine:
             generate_cube_subpixel(outfile, cube_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar,
                                    np.ones(all_wghts.size),  # all_wghts,
@@ -2236,8 +2234,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                    fluxcal=fluxcal, sensfunc=sensfunc, specname=specname, whitelight_range=wl_wvrng,
                                    spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         else:
-            # embed()
-            # assert(False)
             for ff in range(numfiles):
                 outfile = get_output_filename("", cubepar['output_filename'], False, ff)
                 ww = np.where(all_idx == ff)
