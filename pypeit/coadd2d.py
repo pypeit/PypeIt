@@ -733,7 +733,7 @@ class CoAdd2D:
                                                   waveimg=pseudo_dict['waveimg'], bkg_redux=self.bkg_redux,
                                                   basename=basename, show=show)
 
-        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _ = exTract.run(
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
 
 

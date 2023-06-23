@@ -184,7 +184,7 @@ class TraceAlignment:
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
                             'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
-            msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
+            msgs.info("Fitting alignment traces in slit {0:d}/{1:d}".format(slit_idx+1, self.slits.nslits))
             align_traces = findobj_skymask.objs_in_slit(
                 self.rawalignimg.image, self.rawalignimg.ivar, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
@@ -195,7 +195,7 @@ class TraceAlignment:
                 nperslit=len(self.alignpar['locations']))
             if len(align_traces) != len(self.alignpar['locations']):
                 # Align tracing has failed for this slit
-                msgs.error("Alignment tracing has failed on slit {0:d}".format(slit_idx))
+                msgs.error("Alignment tracing has failed on slit {0:d}/{1:d}".format(slit_idx+1,self.slits.nslits))
             align_prof['{0:d}'.format(slit_idx)] = align_traces.copy()
 
         # Steps
