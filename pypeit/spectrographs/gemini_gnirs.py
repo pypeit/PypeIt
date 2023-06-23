@@ -82,6 +82,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Relatively short slit, so keep the spatial tilt order low
+        par['calibrations']['tilts']['spat_order'] = 1
+
         # Reduce parameters
         #par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
@@ -164,14 +167,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+            par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
             par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
-
 
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:

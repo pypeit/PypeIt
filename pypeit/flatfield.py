@@ -1471,7 +1471,7 @@ class FlatField:
                                          out_dir=self.qa_path)
             title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
-            spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit,
+            spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
         return
 
