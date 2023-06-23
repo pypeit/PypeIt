@@ -11,6 +11,7 @@ Version History
 - 2022-02-04: Initial Version (tbowers)
 - 2022-09-16: Correct an import error and add module docstring (tbowers)
 - 2023-03-09: Moved into the main pypeit repo and refactored (KBW)
+- 2023-06-23: Added sensible error message for incorrect spec1d loading (tbowers)
 
 """
 
@@ -80,7 +81,8 @@ def identify_pypeit_onespec(origin, *args, **kwargs):
              identifier=identify_pypeit_spec1d,
              extensions=["fits"],
              priority=10,
-             dtype=SpectrumList)
+             dtype=SpectrumList,
+             autogenerate_spectrumlist=False)
 def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
     """
     Load spectra from a PypeIt spec1d file into a SpectrumList.
@@ -109,7 +111,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
         sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=False)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+        msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
                    f'of PypeIt ({__version__}).  The version used to write the file is '
                    f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
                    'your data using your current PypeIt version or install the matching version '
@@ -160,7 +162,7 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
         spec = onespec.OneSpec.from_file(filename)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
-        msgs.error(f'Unable to ingest {filename} using pypeit.specobjs module from your version '
+        msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
                    f'of PypeIt ({__version__}).  The version used to write the file is '
                    f'{file_pypeit_version}.  If these are different, you may need to re-reduce '
                    'your data using your current PypeIt version or install the matching version '
@@ -188,5 +190,39 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
                       velocity_convention="doppler_optical",
                       bin_specification="centers")
 
+# Warning Function ===========================================================#
+@data_loader('PypeIt spec1d nolist',
+             identifier=identify_pypeit_spec1d,
+             extensions=["fits"],
+             priority=10,
+             dtype=Spectrum1D,
+             autogenerate_spectrumlist=False)
+def pypeit_spec1d_loader_nolist(filename, extract=None, fluxed=True, **kwargs):
+    """
+    Sensible error message if a user tries to load spectra from a PypeIt spec1d
+    file into a Spectrum1D.
 
+    This is not allowed because spec1d files may contain mutliple spectra.  This
+    function accepts all arguments as the SpectrumList version, but only outputs
+    a PypeIt Error with a sensible message.
 
+    This avoids receiving unhelpful error messages such as::
+
+        OSError: Could not identify column containing the wavelength, frequency or energy
+
+    Parameters
+    ----------
+    filename : str
+        The path to the FITS file
+    extract : str, optional
+        The extraction used to produce the spectrum.  Must be either None,
+        ``'BOX'`` (for a boxcar extraction), or ``'OPT'`` for optimal
+        extraction.  If None, the optimal extraction will be returned, if it
+        exists, otherwise the boxcar extraction will be returned.
+    fluxed : bool, optional
+        If True, return the flux-calibrated spectrum, if it exists.  If the flux
+        calibration hasn't been performed or ``fluxed=False``, the spectrum is
+        returned in counts.
+    """
+    msgs.error(f'The spec1d file {filename.name} cannot be ingested into a Spectrum1D object.'
+               f'{msgs.newline()}Please use the SpectrumList object for spec1d files.')
