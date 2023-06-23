@@ -4,15 +4,14 @@
     usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--spat_id SPAT_ID]
                               [--maskID MASKID] [--showmask] [--removetrace]
                               [--embed] [--ignore_extract_mask]
-                              [--sensfunc SENSFUNC] [--channels CHANNELS]
-                              [--prefix PREFIX] [--no_clear] [-v VERBOSITY]
+                              [--channels CHANNELS] [--prefix PREFIX] [--no_clear]
+                              [-v VERBOSITY]
                               file
     
-    Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
-    folder
+    Display sky subtracted, spec2d image in a ginga viewer.
     
     positional arguments:
-      file                  PypeIt spec2d file
+      file                  Path to a PypeIt spec2d file
     
     options:
       -h, --help            show this help message and exit
@@ -31,8 +30,6 @@
       --embed               Upon completion embed in ipython shell (default: False)
       --ignore_extract_mask
                             Ignore the extraction mask (default: False)
-      --sensfunc SENSFUNC   Pass in a sensfunc to display the sky-subtracted image
-                            with a flux calibration (default: None)
       --channels CHANNELS   Only show a subset of the channels (0-indexed), e.g. 1,3
                             (default: None)
       --prefix PREFIX       Channel name prefix [lets you display more than one set]

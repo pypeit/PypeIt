@@ -2,7 +2,7 @@
 
 .. include:: ../include/links.rst
 """
-
+from pathlib import Path
 import os
 import glob
 import numpy as np
@@ -17,7 +17,10 @@ from astropy.table import Table, column
 from astropy.io import ascii
 
 from pypeit import utils
+from pypeit.io import files_from_extension
 from pypeit import msgs, __version__
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.par.pypeitpar import PypeItPar
 
 from IPython import embed
 
@@ -59,12 +62,7 @@ class InputFile:
         self.data = data_table
         self.file_paths = file_paths
         self.setup = setup
-
-        # Load up ConfigObj
-        if config is not None:
-            self.config = configobj.ConfigObj(config)
-        else:
-            self.config = None
+        self.config = None if config is None else configobj.ConfigObj(config)
 
         # Vet
         self.vet()
@@ -269,7 +267,9 @@ class InputFile:
         paths = []
         for l in lines:
             # Strip allows for preceding spaces before path
-            prs = l.strip().split(" ")
+            l = l.strip()
+            # Split at only the first space to allow paths that contain spaces
+            prs = [l[:l.find(' ')], l[l.find(' ')+1:]]
             if prs[0] != 'path':
                 break
             paths += [ prs[1] ]
@@ -411,19 +411,28 @@ class InputFile:
         # Return
         return data_files
 
-    def write(self, input_file):
+    def write(self, input_file, version_override=None, date_override=None):
         """
         Write an Input file to disk
 
         Args:
-            input_file (str): Name of PypeIt file to be generated
+            input_file (:obj:`str`):
+                Name of PypeIt file to be generated
+            version_override (:obj:`str`, optional):
+                Override the current version and use this one instead.  **For
+                documentation purposes only!**
+            date_override (:obj:`str`, optional):
+                Override the current date and use this one instead.  **For
+                documentation purposes only!**
         """
+        _version = __version__ if version_override is None else version_override
+        _date = datetime.utcnow().isoformat(timespec='milliseconds') \
+                    if date_override is None else date_override
 
         # Here we go
         with open(input_file, 'w') as f:
-            f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {__version__}\n')
-            #f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
-            f.write('# UTC {0}\n'.format(datetime.utcnow().isoformat(timespec='milliseconds')))
+            f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {_version}\n')
+            f.write(f'# UTC {_date}\n')
             f.write("\n")
 
             # Parameter block
@@ -468,6 +477,55 @@ class InputFile:
 
         msgs.info(f'{self.flavor} input file written to: {input_file}')
 
+    def get_spectrograph(self):
+        """
+        Use the configuration lines to instantiate the relevant
+        :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass.
+
+        Returns:
+            :class:`~pypeit.spectrographs.spectrograph.Spectrograph`:
+            Spectrograph subclass instance using the relevant configuration
+            parameter.
+
+        Raises:
+            :class:`~pypeit.pypmsgs.PypeItError`: Raised if the relevant
+            configuration parameter is not available.
+        """
+        if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
+            msgs.error('Cannot define spectrograph.  Configuration file missing \n'
+                       '    [rdx]\n    spectrograph=\n entry.')
+        return load_spectrograph(self.config['rdx']['spectrograph'])
+
+    def get_pypeitpar(self, config_specific_file=None):
+        """
+        Use the configuration lines and a configuration-specific example file to
+        build the full parameter set.
+
+        Args:
+            config_specific_file (:obj:`str`, `Path`_, optional):
+                The file to use to generate the default, configuration-specific
+                parameters.  If None and instance contains filenames, use the
+                first file.  If None and instance provides no filenames,
+                configuration-specific parameters are not set.
+
+        Returns:
+            :obj:`tuple`: A tuple with the spectrograph instance, the
+            parameters, and the file name used to generate the
+            configuration-specific parameters.  That latter will be None if the
+            no example file was available.
+        """
+        spec = self.get_spectrograph()
+
+        if config_specific_file is None:
+            _files = self.filenames
+            if _files is not None:
+                config_specific_file = _files[0]
+
+        spec_par = spec.default_pypeit_par() if config_specific_file is None \
+                    else spec.config_specific_par(config_specific_file)
+        par = PypeItPar.from_cfg_lines(cfg_lines=spec_par.to_config(),
+                                       merge_with=(self.cfg_lines,))
+        return spec, par, config_specific_file
 
 
 class PypeItFile(InputFile):
@@ -508,6 +566,44 @@ class PypeItFile(InputFile):
             dict: 
         """
         return {row['filename']:row['frametype'] for row in self.data}
+
+    def get_pypeitpar(self):
+        """
+        Override the base class function to use files with specific frametypes
+        for the config-specific parameters.
+
+        Returns:
+            :obj:`tuple`: A tuple with the spectrograph instance, the
+            parameters, and the file name used to generate the
+            configuration-specific parameters.  That latter will be None if the
+            no example file was available.
+        """
+        if 'frametype' not in self.data.keys():
+            msgs.error('PypeIt file must provide the frametype column.')
+
+        # NOTE: self.filenames is a property function that generates the full
+        # set of file names each time they are requested.  However, this should
+        # only be done once in the code below because as soon as a relevant file
+        # is found the loops are discontinued using `break`.
+
+        config_specific_file = None
+        for idx, row in enumerate(self.data):
+            if 'science' in row['frametype'] or 'standard' in row['frametype']:
+                config_specific_file = self.filenames[idx]
+                break
+
+        # If no science/standard frames available, search for an arc/trace
+        # instead.
+        if config_specific_file is None:
+            for idx, row in enumerate(self.data):
+                if 'arc' in row['frametype'] or 'trace' in row['frametype']:
+                    config_specific_file = self.filenames[idx]
+                    break
+
+        if config_specific_file is not None:
+            self.get_spectrograph()._check_extensions(config_specific_file)
+        return super().get_pypeitpar(config_specific_file=config_specific_file)
+
 
 class SensFile(InputFile):
     """Child class for the Sensitivity input file
@@ -760,4 +856,52 @@ class RawFiles(InputFile):
 
         # Done
         msgs.info('.rawfiles file successfully vetted.')
+
+
+# NOTE: I originally had this in pypeit/io.py, but I think it was causing a
+# circular import.  Moving it here solved the issue.
+def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:list=None, 
+                  extension:str='.fits'):
+    """
+    Parse a set of raw files from the input.
+
+    Although all arguments are optional, one of ``file_of_files``,
+    ``list_of_files``, or ``raw_paths`` must be true.  Precedence is given in
+    that order; i.e., if ``file_of_files`` is provided, all other arguments are
+    ignored.
+
+    Args:
+        file_of_files (str, optional): 
+            File with list of raw files.  Format must follow the
+            :ref:`input-files-data-block` of a PypeIt file, and the only
+            required column is the filename.
+        list_of_files (list, optional): 
+            List of raw files (str).  Ignored if ``file_of_files`` is provided.
+            If ``raw_paths`` is None, the path is assumed to be the current
+            working directory.
+        raw_paths (list, optional): 
+            One or more paths with the raw files.  Ignored if ``file_of_files``
+            is provided.  If ``list_of_files`` is None, all files with the
+            provided extension are assumed to be raw files.
+        extension (str, optional): 
+            File extension to search on.  Ignored if ``file_of_files`` or
+            ``list_of_files`` is provided.
+
+    Returns:
+        list: List of raw data filenames with full path
+    """
+    if file_of_files is not None:
+        # PypeIt formatted list of files
+        return RawFiles.from_file(file_of_files).filenames
+
+    _raw_paths = [Path().resolve()] if raw_paths is None \
+                    else [Path(p).resolve() for p in raw_paths]
+
+    if list_of_files is not None:
+        # An actual list
+        return [str(p / f) for p in _raw_paths for f in list_of_files if (p / f).exists()]
+
+    # Find all files that have the correct extension
+    return np.concatenate([files_from_extension(str(p), extension=extension)
+                            for p in _raw_paths]).tolist()
 

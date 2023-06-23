@@ -36,7 +36,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -63,7 +63,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -251,7 +251,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -275,7 +275,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -309,7 +309,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -326,12 +326,12 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -450,7 +450,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -467,7 +467,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -501,12 +501,12 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -564,29 +564,29 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         Parameters
         ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (astropy.table)
-            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
-            for the contents of this table.
+        wave_in: `numpy.ndarray`_
+            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_in: `numpy.ndarray`_
+            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_in: `numpy.ndarray`_
+            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_in: `numpy.ndarray`_
+            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        meta_table: :obj:`dict`
+            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
+            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
+            contents of this table.
 
         Returns
         -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
-
+        wave_out: `numpy.ndarray`_
+            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
+        counts_out: `numpy.ndarray`_
+            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        counts_ivar_out: `numpy.ndarray`_
+            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
+        gpm_out: `numpy.ndarray`_
+            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
@@ -661,7 +661,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -695,7 +695,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -713,12 +713,12 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:

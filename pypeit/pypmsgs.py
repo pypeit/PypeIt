@@ -31,6 +31,9 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
+class PypeItDataModelError(PypeItError):
+    pass
+
 
 class Messages:
     """
@@ -185,7 +188,7 @@ class Messages:
         close_qa(self.pypeit_file, self.qa_path)
         return self.reset_log_file(None)
 
-    def error(self, msg):
+    def error(self, msg, cls='PypeItError'):
         """
         Print an error message
         """
@@ -196,7 +199,7 @@ class Messages:
         # TODO: This no longer "closes" the QA plots
         close_qa(self.pypeit_file, self.qa_path)
 
-        raise PypeItError(msg)
+        raise eval(cls)(msg)
 
 
     def info(self, msg):

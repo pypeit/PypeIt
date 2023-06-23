@@ -60,6 +60,7 @@ assuming you want it to be accessed throughout the code.
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import os
 import warnings
 import inspect
@@ -144,7 +145,7 @@ class FrameGroupPar(ParSet):
         # TODO: JFH This is not documented. What are the options for useframe and what the  does it do?
         defaults['useframe'] = None
         dtypes['useframe'] = str
-        descr['useframe'] = 'A master calibrations file to use if it exists.'
+        descr['useframe'] = 'A calibrations file to use if it exists.'
 
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
@@ -214,7 +215,7 @@ class ProcessImagesPar(ParSet):
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
                  comb_sigrej=None,
-                 master_setup_and_bit=None,
+#                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  dark_expscale=None,
@@ -411,9 +412,10 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
-        defaults['master_setup_and_bit'] = None
-        dtypes['master_setup_and_bit'] = str
-        descr['master_setup_and_bit'] = 'Over-ride the master setup and bit, e.g. "A_7".  Only recommended for use with quicklook'
+#        defaults['calib_setup_and_bit'] = None
+#        dtypes['calib_setup_and_bit'] = str
+#        descr['calib_setup_and_bit'] = 'Over-ride the calibration setup and bit, e.g. "A_7".  ' \
+#                                       'Only recommended for use with quicklook.'
 
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
@@ -433,7 +435,7 @@ class ProcessImagesPar(ParSet):
                    'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', 'master_setup_and_bit',
+                   'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
@@ -834,7 +836,7 @@ class FlexurePar(ParSet):
                           'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
         defaults['spec_maxshift'] = 20
-        dtypes['spec_maxshift'] = [int, float]
+        dtypes['spec_maxshift'] = int
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = 'paranal_sky.fits'
@@ -1238,7 +1240,7 @@ class Coadd2DPar(ParSet):
                               'I.e., only this/these slit/s will be coadded.'
 
         defaults['offsets'] = 'auto'
-        dtypes['offsets'] = [list, str]
+        dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
                            'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
@@ -2443,11 +2445,11 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
-                 nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
+                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
+                 nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None):
 
@@ -2552,7 +2554,7 @@ class WavelengthSolutionPar(ParSet):
         #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] =  [int, float, list, np.ndarray]
+        dtypes['sigdetect'] = [int, float, list, np.ndarray]
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
@@ -2571,8 +2573,18 @@ class WavelengthSolutionPar(ParSet):
                                   'the determination of the wavelength solution (`i.e.`, not in '\
                                   'WaveTilts).'
 
+        defaults['fwhm_spat_order'] = 0
+        dtypes['fwhm_spat_order'] = int
+        descr['fwhm_spat_order'] = 'This parameter determines the spatial polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.'
+
+        defaults['fwhm_spec_order'] = 1
+        dtypes['fwhm_spec_order'] = int
+        descr['fwhm_spec_order'] = 'This parameter determines the spectral polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
+
         # These are the parameters used for reidentification
-        defaults['reid_arxiv']=None
+        defaults['reid_arxiv'] = None
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
@@ -2678,12 +2690,6 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, float, list]
-        descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
-
-        dtypes['IDwaves'] = [int, float, list]
-        descr['IDwaves'] = 'Wavelengths of the manually identified lines'
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -2705,10 +2711,11 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
+                   'refframe', 'nsnippet', 'use_instr_flag',
                    'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -3371,8 +3378,8 @@ class WaveTiltsPar(ParSet):
 
         defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, np.ndarray]
-        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines ' \
-                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
+        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the tilt of an arc line. This parameter determines ' \
+                              'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the ' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
@@ -3476,19 +3483,6 @@ class WaveTiltsPar(ParSet):
                 raise ValueError('Continuum rejection threshold must be a single number or a '
                                  'two-element list/array.')
 
-    #@staticmethod
-    #def valid_methods():
-    #    """
-    #    Return the valid methods to use for tilt tracing.
-    #    """
-    #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
-
-#    def validate(self):
-#        # Convert param to list
-#        if isinstance(self.data['params'], int):
-#            self.data['params'] = [self.data['params']]
-#        pass
-
 
 class ReducePar(ParSet):
     """
@@ -3589,8 +3583,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, snr_thresh=None, find_trim_edge=None,
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, skip_skysub=None,
-                 find_negative=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3709,6 +3703,14 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        defaults['std_spec1d'] = None
+        dtypes['std_spec1d'] = str
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
+                              'trace of the standard star spectrum is used as a crutch for ' \
+                              'tracing the object spectra, when a direct trace is not possible ' \
+                              '(i.e., faint sources).  If provided, this overrides use of any ' \
+                              'standards included in your pypeit file; the standard exposures ' \
+                              'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3727,8 +3729,9 @@ class FindObjPar(ParSet):
         parkeys = ['trace_npoly', 'snr_thresh', 'find_trim_edge',
                    'find_extrap_npoly', 'maxnumber_sci', 'maxnumber_std',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global',
-                   'skip_skysub', 'find_negative', 'find_min_max']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
+                   'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
+                   'std_spec1d']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3740,7 +3743,9 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self.data['std_spec1d'] is not None \
+                and not Path(self.data['std_spec1d']).resolve().exists():
+            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
@@ -3797,14 +3802,14 @@ class SkySubPar(ParSet):
         # Masking
         defaults['user_regions'] = None
         dtypes['user_regions'] = [str, list]
-        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow ' \
-                                'the code to identify the sky regions automatically, set this variable to ' \
-                                'an empty string. If you wish to set the sky regions, The text should be ' \
-                                'a comma separated list of percentages to apply to _all_ slits ' \
-                                ' For example: The following string   :10,35:65,80:   would select the ' \
-                                'first 10%, the inner 30%, and the final 20% of _all_ slits. Alternatively, you ' \
-                                'can also set the argument to be "master", which will load a MasterSkyRegions ' \
-                                'file that the user has generated with the pypeit_skysub_regions tool.'
+        descr['user_regions'] = 'Provides a user-defined mask defining sky regions.  By ' \
+                                'default, the sky regions are identified automatically.  To ' \
+                                'specify sky regions for *all* slits, provide a comma separated ' \
+                                'list of percentages.  For example, setting user_regions = ' \
+                                ':10,35:65,80: selects the first 10%, the inner 30%, and the ' \
+                                'final 20% of *all* slits as containing sky.  Setting ' \
+                                'user_regions = user will attempt to load any SkyRegions ' \
+                                'files generated by the user via the pypeit_skysub_regions tool.'
 
         defaults['mask_by_boxcar'] = False
         dtypes['mask_by_boxcar'] = bool
@@ -3899,7 +3904,8 @@ class ExtractionPar(ParSet):
 
         defaults['std_prof_nsigma'] = 30.
         dtypes['std_prof_nsigma'] = float
-        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
+        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
+                                   'NOTE: Not consumed by the code at present.'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
@@ -3970,12 +3976,11 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
-                 darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None, lampoffflatsframe=None, skyframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
-                 raise_chk_error=None):
+    def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
+                 arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
+                 alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
+                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -3992,15 +3997,12 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['master_dir'] = 'Masters'
-        dtypes['master_dir'] = str
-        descr['master_dir'] = 'If provided, it should be the name of the folder to ' \
-                          'write master files. NOT A PATH. '
-
-        dtypes['setup'] = str
-        descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
-                         'C_02_aa .  The detector number is ignored but the other information ' \
-                         'must match the Master Frames in the master frame folder.'
+        defaults['calib_dir'] = 'Calibrations'
+        dtypes['calib_dir'] = str
+        descr['calib_dir'] = 'The name of the directory for the processed calibration frames.  ' \
+                             'The host path for the directory is set by the redux_path (see ' \
+                             ':class:`ReduxPar`).  Beware that success when changing the ' \
+                             'default value is not well tested!'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
@@ -4138,7 +4140,7 @@ class CalibrationsPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
+        parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe',
@@ -4194,13 +4196,6 @@ class CalibrationsPar(ParSet):
     # the Calibrations class.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
-
-    # JFH I'm not sure what to do about this function? Commentingo out for now.
-    #def validate(self):
-    #    if self.data['masters'] == 'force' \
-    #            and (self.data['setup'] is None or len(self.data['setup']) == 0):
-    #        raise ValueError('When forcing use of master frames, you must specify the setup to '
-    #                         'be used using the \'setup\' keyword.')
 
 #-----------------------------------------------------------------------------
 # Parameters superset
@@ -4576,7 +4571,7 @@ class PypeItPar(ParSet):
         Examples:
             To turn off the slit-illumination correction for all frames:
 
-            >>> from pypeit.spectrographs import load_spectrograph
+            >>> from pypeit.spectrographs.util import load_spectrograph
             >>> spec = load_spectrograph('shane_kast_blue')
             >>> par = spec.default_pypeit_par()
             >>> par.reset_all_processimages_par(use_illumflat=False)
@@ -4888,18 +4883,3 @@ class Collate1DPar(ParSet):
         """
         pass
 
-
-def ql_is_on(config:ConfigObj):
-    """ Check whether QL is set to "on"
-
-    Args:
-        config (configobj.ConfigObj): 
-            parameters
-
-    Returns:
-        bool: True if QL is on
-    """
-    try: 
-        return config['rdx']['quicklook']
-    except:
-        return False

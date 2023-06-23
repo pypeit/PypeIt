@@ -41,7 +41,7 @@ class GeminiGMOSMosaicLookUp:
         from geminidr.gmos.lookups.geometry_conf import geometry
     
     Updating to any changes made to the DRAGONS version requires by-hand editing
-    of the ``PypeIt`` code.
+    of the PypeIt code.
     """
     geometry = {
         # GMOS-N
@@ -105,7 +105,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -176,12 +176,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -231,7 +231,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -280,7 +280,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -388,7 +388,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         order = self.hdu_read_order()
         for ii in range(nimg):
 
-            # insert extensions into master image...
+            # insert extensions into calibration image...
             for kk, jj in enumerate(order[_det[ii]-1]):
                 # grab complete extension...
                 data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
@@ -427,7 +427,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         from unbinned images.
 
         The parameters expect the images to be trimmed and oriented to follow
-        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
         lists, the length of the list is the same as the number of detectors in
         the mosaic, and they are ordered by the detector number.
 
@@ -506,7 +506,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list`: List of tuples, where each tuple provides the 1-indexed
             detector numbers that can be combined into a mosaic and processed by
-            ``PypeIt``.
+            PypeIt.
         """
         return [(1,2,3)]
 
@@ -849,7 +849,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
@@ -880,7 +880,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 Processed image shape.  If ``filename`` is None, this *must* be
                 provided; otherwise, this is ignored.
             msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                Master bias frame.  If provided, it is used by
+                Processed bias frame.  If provided, it is used by
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
                 to identify bad pixels.
 
@@ -937,7 +937,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -1077,7 +1077,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -1120,7 +1120,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -1308,7 +1308,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:

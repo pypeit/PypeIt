@@ -53,7 +53,7 @@ or `conda`_:
 
 .. code-block:: console
 
-    conda create -n pypeit python=3.9
+    conda create -n pypeit python=3.11
     conda activate pypeit
 
 See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
@@ -69,29 +69,11 @@ creates an environment for you.
 Install via ``pip``
 -------------------
 
-To install the latest release of PypeIt and its required dependencies, execute
-either
+To install the latest release of PypeIt and its required dependencies, execute:
 
 .. code-block:: console
 
-    pip install "pypeit[pyqt5]"
-
-to select the ``PyQT5`` QT bindings or
-
-.. code-block:: console
-
-    pip install "pypeit[pyside2]"
-
-to select ``PySide2``; see :ref:`interactive`.
-
-.. note::
-
-    Whether or not it is correct syntax to use the quotes in the commands above
-    depends on your shell.  The above commands are specific to ZShell, whereas
-    you don't need the quotes in Bash.  But, in any case, you should avoid
-    copying these commands from your browser since the unicode for quotation
-    marks may not be correct, leading to errors when they are directly pasted
-    into a terminal window.
+    pip install pypeit
 
 .. _optional-dependencies:
 
@@ -106,16 +88,25 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
       .. code-block:: console
 
-        pip install "pypeit[pyside2,scikit-image]"
+        pip install "pypeit[scikit-image]"
 
     - To take advantage of an interface that allows you to ingest PypeIt outputs
       into its ``Spectrum1D`` and ``SpectrumList`` objects (see
       :ref:`spec-1d-output`), you can include `specutils`_ in the installation
       like so:
-    
+
       .. code-block:: console
 
-        pip install "pypeit[pyqt5,specutils]"
+        pip install "pypeit[specutils]"
+
+.. note::
+
+    Whether or not it is correct syntax to use the quotes in the commands above
+    depends on your shell.  The above commands are specific to ZShell, whereas
+    you don't need the quotes in Bash.  But, in any case, you should avoid
+    copying these commands from your browser since the unicode for quotation
+    marks may not be correct, leading to errors when they are directly pasted
+    into a terminal window.
 
 Upgrading to a new version via ``pip``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -129,6 +120,15 @@ Upgrading PypeIt should simply be a matter of executing:
 If this causes problems (e.g., a new PypeIt script is unavailable or
 you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
 and then reinstalling.
+
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
 
 Install via ``conda`` (recommended overall)
 -------------------------------------------
@@ -175,6 +175,15 @@ matter of executing:
 If this causes problems (e.g., a new PypeIt script is unavailable or
 you encounter script errors), simply remove the conda environment
 (e.g., ``conda env remove pypeit``) and reinstall as above.
+
+.. warning::
+
+    Whenever you upgrade PypeIt, beware that this may include changes to the
+    output file data models.  These changes are not required to be
+    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    when trying to view ``spec2d*`` files produced with your existing PypeIt
+    version after upgrading to a new version.  **The best approach is to always
+    re-reduce data you're still working with anytime you update PypeIt.**
 
 .. _m1_macs:
 
@@ -285,40 +294,40 @@ includes a :doc:`pypeit_file` for each instrument and setup used during
 development testing.
 
 
-Quick-Look Master Files
------------------------
+Quick-Look Calibration Files
+----------------------------
 
 .. note::
 
     We continue to work on cleaner installation solutions for these data
-    products, particularly for the quick-look master files.  In the meantime,
-    note that you will likely need to re-run the data-specific installation
-    scripts described below every time you upgrade your installation (via
-    `pip`_ or `conda`_).
+    products, particularly for the quick-look calibration files.  In the
+    meantime, note that you will likely need to re-run the data-specific
+    installation scripts described below every time you upgrade your
+    installation (via `pip`_ or `conda`_).
 
-Some of the quick-look reductions provided by PypeIt require canned master
+Some of the quick-look reductions provided by PypeIt require canned calibration
 files to speed up the data-reduction process, as appropriate for a quick-look
-result.  These files are hosted in the ``QL_MASTERS`` directory in the `PypeIt
+result.  These files are hosted in the ``QL_CALIB`` directory in the `PypeIt
 dev-suite Google Drive`_.
 
-To install the quick-look master files:
+To install the quick-look calibration files:
 
-    #. Right-click on the ``QL_MASTERS`` folder in the `PypeIt dev-suite
+    #. Right-click on the ``QL_CALIB`` folder in the `PypeIt dev-suite
        Google Drive`_ and select the "Download" option from the drop-down menu.
        This will download a zip file containing the full directory contents.
        Its current size (as of 22 July 2021) is about 35 MB.
 
-    #. Run the ``pypeit_install_ql_masters`` script.  E.g.:
+    #. Run the ``pypeit_install_ql_calibs`` script.  E.g.:
 
         .. code-block:: console
 
-            $ pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
+            $ pypeit_install_ql_calibs --zip ~/Downloads/QL_CALIB-20210722T162355Z-001.zip --odir my_path
 
-The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
+The ``pypeit_install_ql_calibs`` script will unzip the downloaded file in the
 ``my_path`` directory and create a symlink to the extracted directory in the
 ``pypeit/data/`` directory of your PypeIt installation.  The script can
 automatically delete the zip file using the ``--rmzip`` option.  If you already
-have the ``QL_MASTERS`` directory, you can also use the script to simply create
+have the ``QL_CALIB`` directory, you can also use the script to simply create
 the symlink using the ``--ql_path`` option.
 
 .. warning::
@@ -344,16 +353,14 @@ Interactive tools in PypeIt are built using the `QT
 provide an abstract interface to the two most widely used QT bindings for
 Python (see :ref:`dependencies`):
 
-* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_
+* `pyqt <https://riverbankcomputing.com/software/pyqt/intro>`_
+* `PySide <https://wiki.qt.io/Qt_for_Python>`_
 
 At least one of those bindings must be installed for the interative GUIs to
-work. **Do not install both!**  These two packages do not play nicely together.
-We strongly recommend that you use ``pyqt5``, unless you are attracted to the
-more flexible licensing that ``PySide2`` provides.  ``PySide2`` can occasionally
-cause GUIs to crash because of conflicts with other packages in your environment
-that use ``pyqt5`` (all the more reason to isolate your PypeIt installation
-in its own environment).
+work. By default ``pypeit`` will install ``pyqt6``. Other backends can be used
+by installing them manually via ``pip`` or ``conda`` and then setting the ``QT_API``
+environment variable. See the `QtPy documentation <https://github.com/spyder-ide/qtpy>`_
+for more details.
 
 C code
 ------
@@ -392,7 +399,7 @@ GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for exam
 
 .. code-block:: console
 
-    CC=gcc-12 pip install "pypeit[pyqt5]"
+    CC=gcc-12 pip install pypeit
 
 Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
 that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
@@ -437,8 +444,7 @@ PypeIt dependencies.  If you run into any more, please `submit an issue
 
 .. TODO: IS THIS FIRST ITEM STILL TRUE?
 
-- At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
-  PySide2) because of our dependence on ``linetools``.
+- At the moment, an implicit dependency on QT bindings remains because of our dependence on ``linetools``.
 
 ----
 
@@ -466,14 +472,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
@@ -500,16 +506,14 @@ Then install the code, include the development dependencies:
 .. code-block:: console
 
     cd PypeIt
-    pip install -e ".[dev,pyqt5]"
+    pip install -e ".[dev]"
 
 An "editable" install means that any changes you make in the repository
 directory tree will become immediately available the next time the code is
 imported. Including the ``[dev]`` set of optional dependencies ensures that all
-of the tools you need to test and build PypeIt are installed. The ``pyqt5``
-installation option instructs the script to use the PyQt5 Qt backend.  You may
-also want to include the ``bottleneck`` option. (Again, note that you may or may
-not need the quotes above depending on your shell, and that you should avoid
-cutting and pasting these commands into a terminal window.)
+of the tools you need to test and build PypeIt are installed. (Again, note that
+you may or may not need the quotes above depending on your shell, and that you
+should avoid cutting and pasting these commands into a terminal window.)
 
 Finally, you may want to add lines to your relevant shell configuration file
 (e.g., ``.zshrc`` or ``.bashrc``) that activate the relevant environment
@@ -551,7 +555,7 @@ For example:
     python
     >>> import pypeit
 
-**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+**To ensure that your installation of ``pyqt6`` works**,
 you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
 with the package.  Below is a zshell command-line incantation (it's likely the
 same in bash) that will locate a test spec1D file and attempt to use
@@ -561,7 +565,7 @@ same in bash) that will locate a test spec1D file and attempt to use
 
     python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
 
-If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+If ``pyqt6`` or another Qt backend is correctly installed, this should show a test
 spectrum from the Shane/KAST spectrograph.
 
 Developer Tests

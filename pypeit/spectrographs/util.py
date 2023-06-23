@@ -33,7 +33,7 @@ def load_spectrograph(spec):
     Raises:
         PypeItError:
             Raised if the input is a string that does not select a recognized
-            ``PypeIt`` spectrograph.
+            PypeIt spectrograph.
     """
     if spec is None or isinstance(spec, spectrographs.spectrograph.Spectrograph):
         return spec

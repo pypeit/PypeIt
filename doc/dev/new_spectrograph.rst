@@ -127,7 +127,7 @@ of tests.  These are:
 
     - A simple unit test that check an image can be loaded.  This needs to be
       added to the `PypeIt Development Suite`_; see `here
-      <https://github.com/pypeit/PypeIt-development-suite/blob/master/unit_tests/test_load_images.py>`__.
+      <https://github.com/pypeit/PypeIt-development-suite/blob/main/unit_tests/test_load_images.py>`__.
 
 Docs
 ++++

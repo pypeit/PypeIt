@@ -54,7 +54,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.8'
+    version = '1.1.9'
     """
     Current datamodel version number.
     """
@@ -87,6 +87,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
+                 'OPT_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -118,6 +120,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
+                 'BOX_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the boxcar extracted flux.'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -162,7 +166,7 @@ class SpecObj(datamodel.DataContainer):
                  'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
                                       descr='Array of pixels along the spectral direction'),
                  'maskwidth': dict(otype=(float, np.floating),
-                                      descr='Size (in units of fwhm) of the region used for local sky subtraction'),
+                                      descr='Size (in units of spatial fwhm) of the region used for local sky subtraction'),
                  # Slit and Object
                  'WAVE_RMS': dict(otype=(float, np.floating),
                                      descr='RMS (pix) for the wavelength solution for this slit.'),
@@ -204,12 +208,35 @@ class SpecObj(datamodel.DataContainer):
     Defines the current datmodel.
     """
 
+    internals = [# Object finding
+                 'smash_peakflux',
+                 'smash_snr',
+                 # Hand
+                 'hand_extract_flag',
+                 'hand_extract_spec',
+                 'hand_extract_spat',
+                 'hand_extract_det',
+                 'hand_extract_fwhm',
+                 # Object profile
+                 'prof_nsigma',
+                 'sign',
+                 'min_spat',
+                 'max_spat',
+                 # Echelle
+                 'ech_frac_was_fit',
+                 'ech_snr'
+                ]
+
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         super().__init__(d=_d)
+
+        # Initialize internal values that are not None
+        self.hand_extract_flag = False
+        self.sign = 1.
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
@@ -229,28 +256,6 @@ class SpecObj(datamodel.DataContainer):
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
         return slf
-
-    def _init_internals(self):
-        # Object finding
-        self.smash_peakflux = None
-        self.smash_snr = None
-
-        # Hand
-        self.hand_extract_flag = False
-        self.hand_extract_spec = None
-        self.hand_extract_spat = None
-        self.hand_extract_det = None
-        self.hand_extract_fwhm = None
-
-        # Object profile
-        self.prof_nsigma = None
-        self.sign = 1.0
-        self.min_spat = None
-        self.max_spat = None
-
-        # Echelle
-        self.ech_frac_was_fit = None #
-        self.ech_snr = None #
 
     def _validate(self):
         """

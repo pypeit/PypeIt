@@ -19,6 +19,7 @@ from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from pypeit import msgs
 from pypeit import datamodel
+from pypeit import calibframe
 from pypeit import specobj
 from pypeit.bitmask import BitMask
 from pypeit.core import parse
@@ -45,7 +46,7 @@ class SlitTraceBitMask(BitMask):
             ('BADSKYSUB', 'Skysub failed for this slit'),
             ('BADEXTRACT', 'Extraction failed for this slit'),
         ])
-        super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+        super().__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
     def exclude_for_reducing(self):
@@ -60,54 +61,38 @@ class SlitTraceBitMask(BitMask):
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
-class SlitTraceSet(datamodel.DataContainer):
+
+class SlitTraceSet(calibframe.CalibFrame):
     """
     Defines a generic class for holding and manipulating image traces
     organized into left-right slit pairs.
-
-    Instantiation arguments map directly to the object
-    :attr:`datamodel`. The only additional argument is ``load``,
-    described below.
-
-    :class:`SlitTraceSet` objects can be instantiated with only the
-    master-frame arguments. If this is done, it's expected that
-    you'll attempt to load an existing master frame, either using
-    ``load=True`` on instantiation or by a call to :func:`load`.
-    Otherwise, all the elements of the data model will be empty.
 
     The datamodel attributes are:
 
     .. include:: ../include/class_datamodel_slittraceset.rst
 
-    Args:
-        load (:obj:`bool`, optional):
-            Attempt to load an existing master frame with the slit
-            trace data. WARNING: If ``load`` is True, all of the slit
-            information provided to the initialization is ignored!
-            Only the arguments relevant to the
-            :class:`pypeit.masterframe.MasterFrame` components of
-            :class:`SlitTraceSet` are used.
-
     Attributes:
         left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
         right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
-        master_key (:obj:`str`):
-        master_dir (:obj:`str`):
-
     """
-    frametype = 'slits'
-    master_type = 'Slits'
-    """Name for type of master frame."""
-    master_file_format = 'fits.gz'
-    """File format for the master frame file."""
-    minimum_version = '1.1.0'
+    calib_type = 'Slits'
+    """Name for type of calibration frame."""
+
+    calib_file_format = 'fits.gz'
+    """File format for the calibration frame file."""
+
     version = '1.1.4'
     """SlitTraceSet data model version."""
 
-    hdu_prefix = None
-    output_to_disk = None
-
     bitmask = SlitTraceBitMask()
+    """
+    Bit interpreter for slit masks.
+    """
+
+    internals = calibframe.CalibFrame.internals + ['left_flexure', 'right_flexure']
+    """
+    Attributes kept separate from the datamodel.
+    """
 
     # Define the data model
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
@@ -187,9 +172,9 @@ class SlitTraceSet(datamodel.DataContainer):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
-        # contain self or the MasterFrame arguments.
+        # contain self.
         # TODO: Does it matter if the calling function passes the
-        # keyword arguments in a different order?
+        # keyword arguments in a different order? No.
         datamodel.DataContainer.__init__(self, d=_d)
 
     def _validate(self):
@@ -268,13 +253,6 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.mask is None:
             self.mask = self.mask_init.copy()
 
-    def _init_internals(self):
-        self.left_flexure = None
-        self.right_flexure = None
-        # Master stuff
-        self.master_key = None
-        self.master_dir = None
-
     def _bundle(self):
         """
         Bundle the data in preparation for writing to a fits file.
@@ -282,7 +260,7 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
         always written to a 'SLITS' extension.
         """
-        bndl = super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+        bndl = super()._bundle(ext='SLITS', transpose_arrays=True)
         if self.maskdef_designtab is not None:
             # save the table
             tab_detached = bndl[0]['SLITS']['maskdef_designtab']
@@ -291,8 +269,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # create a dict for the `tab_detached`
             tab_dict = {'maskdef_designtab': tab_detached}
             return [bndl[0], tab_dict]
-        else:
-            return bndl
+        return bndl
 
     # TODO: Although I don't like doing it, kwargs is here to catch the
     # extraneous keywords that can be passed to _parse from the base class but
@@ -306,7 +283,7 @@ class SlitTraceSet(datamodel.DataContainer):
         always read from the 'SLITS' extension.
         """
         if not hasattr(hdu, '__len__'):
-            return super(SlitTraceSet, cls)._parse(hdu, transpose_table_arrays=True)
+            return super()._parse(hdu, transpose_table_arrays=True)
 
         # TODO: My edit to the code causes the code below to fault in some cases
         # because of a consistency limitation that I put on the values that ext
@@ -314,11 +291,10 @@ class SlitTraceSet(datamodel.DataContainer):
         # code in the except block will always fault now, and I don't remember
         # why we needed this try/except block in the first place.
         try:
-            return super(SlitTraceSet, cls)._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
-                                                   transpose_table_arrays=True)
+            return super()._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
+                                  transpose_table_arrays=True)
         except KeyError:
-            return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS',
-                                                   transpose_table_arrays=True)
+            return super()._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
     def init_tweaked(self):
         """
@@ -360,10 +336,9 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if self.pypeline in ['MultiSlit', 'IFU']:
             return self.spat_id
-        elif self.pypeline == 'Echelle':
+        if self.pypeline == 'Echelle':
             return self.ech_order
-        else:
-            msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+        msgs.error(f'Unrecognized Pypeline {self.pypeline}')
 
     def spatid_to_zero(self, spat_id):
         """

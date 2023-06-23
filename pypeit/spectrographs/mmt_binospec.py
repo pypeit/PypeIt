@@ -83,7 +83,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -149,12 +149,12 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -170,7 +170,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -221,7 +221,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -271,7 +271,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -384,7 +384,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)), raw_file)
 
         # Read
         msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
@@ -422,7 +422,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         elif det == 2:  # B DETECTOR
             order = range(5, 9, 1)
 
-        # insert extensions into master image...
+        # insert extensions into calibration image...
         for kk, jj in enumerate(order):
             # grab complete extension...
             data, overscan, datasec, biassec = binospec_read_amp(hdu, jj)

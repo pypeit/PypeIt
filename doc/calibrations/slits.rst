@@ -1,35 +1,35 @@
 .. include:: ../include/links.rst
 
-.. _master_slits:
+.. _slits:
 
-===========
-MasterSlits
-===========
+=====
+Slits
+=====
 
 
 Overview
 ========
 
-This file describes the ``MasterSlits`` object.
+This file describes the ``Slits`` object.
 It contains the main information on the traced slit edges, organized into left-right slit pairs.
 
 
 This is written to disk as a multi-extension FITS file prefixed by
-``MasterSlits`` in the ``Masters/`` folder.
-See :ref:`master-naming` for the naming convention.
+``Slits`` in the ``Calibrations/`` folder.
+See :ref:`calib-naming` for the naming convention.
 
 
 Viewing
 =======
 
-The preferred way to view the slit edges information contained in ``MasterSlits`` is as follows:
+The preferred way to view the slit edges information contained in ``Slits`` is as follows:
 
 .. code-block:: python
 
     from astropy.io import fits
     from astropy.table import Table
 
-    hdu = fits.open('MasterSlits_A_1_DET01.fits')
+    hdu = fits.open('Slits_A_1_DET01.fits')
     Table(hdu['SLITS'].data)
 
 This will show a table that looks like this:
@@ -70,7 +70,7 @@ See :ref:`slittrace-datamodel` for a description of the columns.
 Current SlitTrace Data Model
 ============================
 
-Internally, the ``MasterSlits`` object is held in :class:`~pypeit.slittrace.SlitTraceSet`,
+Internally, the ``Slits`` object is held in :class:`~pypeit.slittrace.SlitTraceSet`,
 which subclasses from :class:`~pypeit.datamodel.DataContainer`.
 
 Here is its datamodel, which is written as an `astropy.io.fits.BinTableHDU`_.

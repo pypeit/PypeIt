@@ -254,7 +254,7 @@ class Identify:
                 msgs.warn("Wavelength calibration slits did not match!")
                 msgs.info("Best-fitting wavelength solution will not be loaded.")
                 wv_calib = None
-            msgs.info(f"Loading lamps from master wavelength solution: {wv_calib_all.lamps}")
+            msgs.info(f"Loading lamps from wavelength solution: {wv_calib_all.lamps}")
             lamps = wv_calib_all.lamps.split(",")
         # Must specify `wv_calib = None` otherwise
         else:
@@ -757,7 +757,6 @@ class Identify:
                 ans = 'y'
             if ans == 'y':
                 # Arxiv solution
-                #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
 

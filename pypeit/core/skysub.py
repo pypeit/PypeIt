@@ -537,7 +537,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, slit_left,
-                         slit_righ, sobjs, ingpm=None, spat_pix=None, adderr=0.01, bsp=0.6,
+                         slit_righ, sobjs, ingpm=None, fwhmimg=None, spat_pix=None, adderr=0.01, bsp=0.6,
                          trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
                          extract_good_frac=0.005, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
@@ -579,6 +579,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         Input mask with any non-zero item flagged as False using
         :class:`pypeit.images.imagebitmask.ImageBitMask`
         shape=(nspec, nspat)
+    fwhmimg : `numpy.ndarray`_, None, optional:
+        Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
+        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     spat_pix: `numpy.ndarray`_, optional
         Image containing the spatial location of pixels. If not
         input, it will be computed from ``spat_img =
@@ -825,7 +828,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
                     extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage,
-                                           sobjs[iobj], base_var=base_var, count_scale=count_scale,
+                                           sobjs[iobj], fwhmimg=fwhmimg, base_var=base_var, count_scale=count_scale,
                                            noise_floor=adderr)
                     flux = sobjs[iobj].BOX_COUNTS
                     fluxivar = sobjs[iobj].BOX_COUNTS_IVAR * sobjs[iobj].BOX_MASK
@@ -837,12 +840,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask), waveimg,
-                                           skyimage, sobjs[iobj], base_var=base_var,
+                                           skyimage, sobjs[iobj], fwhmimg=fwhmimg, base_var=base_var,
                                            count_scale=count_scale, noise_floor=adderr)
                     # Optimal
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg,
                                             skyimage, thismask, last_profile, sobjs[iobj],
-                                            base_var=base_var, count_scale=count_scale,
+                                            fwhmimg=fwhmimg, base_var=base_var, count_scale=count_scale,
                                             noise_floor=adderr)
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
@@ -969,11 +972,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
                                     waveimg, skyimage, thismask, this_profile, sobjs[iobj],
-                                    base_var=base_var, count_scale=count_scale,
+                                    fwhmimg=fwhmimg, base_var=base_var, count_scale=count_scale,
                                     noise_floor=adderr)
             # Boxcar
             extract.extract_boxcar(sciimg, modelivar*thismask, (outmask_extract & objmask),
-                                   waveimg, skyimage, sobjs[iobj], base_var=base_var,
+                                   waveimg, skyimage, sobjs[iobj], fwhmimg=fwhmimg, base_var=base_var,
                                    count_scale=count_scale, noise_floor=adderr)
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
@@ -1495,9 +1498,10 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
     # does this internally.
     slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
-    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
-                                     mask=slmsk, specmin=spec_min, specmax=spec_max,
-                                     binspec=slits.binspec, binspat=slits.binspat, pad=0)
+    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec,
+                                     nspat=slits.nspat, mask=slmsk, specmin=spec_min,
+                                     specmax=spec_max, binspec=slits.binspec,
+                                     binspat=slits.binspat, pad=0)
     # Generate the mask, and return
     return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(bool)
 

@@ -30,7 +30,6 @@ from pypeit import datamodel
 
 # TODO Add the data model up here as a standard thing using DataContainer.
 
-# TODO Should this be a master frame? I think not.
 # TODO Standard output location for sensfunc?
 
 # TODO Add some QA plots, and plots to the screen if show is set.
@@ -98,6 +97,27 @@ class SensFunc(datamodel.DataContainer):
 #                                           descr='Spliced-together spectrograph throughput '
 #                                                 'measurements')}
     """DataContainer datamodel."""
+
+    internals = ['sensfile',
+                 'spectrograph',
+                 'par',
+                 'qafile',
+                 'thrufile',
+                 'debug',
+                 'wave_cnts',
+                 'counts',
+                 'counts_ivar',
+                 'counts_mask',
+                 'nspec_in',
+                 'norderdet',
+                 'wave_splice',
+                 'zeropoint_splice',
+                 'throughput_splice',
+                 'steps',
+                 'splice_multi_det',
+                 'meta_spec',
+                 'std_dict'
+                ]
 
     _algorithm = None
     """Algorithm used for the sensitivity calculation."""
@@ -219,29 +239,6 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
-
-    def _init_internals(self):
-        """Add any attributes that are *not* part of the datamodel."""
-
-        self.sensfile = None
-        self.spectrograph = None
-        self.par = None
-        self.qafile = None
-        self.thrufile = None
-        self.debug = None
-        self.wave_cnts = None
-        self.counts = None
-        self.counts_ivar = None
-        self.counts_mask = None
-        self.nspec_in = None
-        self.norderdet = None
-        self.wave_splice = None
-        self.zeropoint_splice = None
-        self.throughput_splice = None
-        self.steps = None
-        self.splice_multi_det = None
-        self.meta_spec = None
-        self.std_dict = None
 
     def _bundle(self):
         """

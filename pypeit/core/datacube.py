@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d, RegularGridInterpolator, RBFInterpolator
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, masterframe, specobj, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
 from pypeit.core.procimg import grow_mask
@@ -76,18 +76,18 @@ class DataCube(datamodel.DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
+    internals = ['head0',
+                 'filename',
+                 'spectrograph',
+                 'spect_meta'
+                ]
+
     def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
 
     def _bundle(self):
         """
@@ -133,7 +133,7 @@ class DataCube(datamodel.DataContainer):
 
         """
         if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
+            primary_hdr = io.initialize_header()
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
@@ -155,17 +155,16 @@ class DataCube(datamodel.DataContainer):
         Args:
             ifile (str):  Filename holding the object
         """
-        # Load the file as usual
-        slf = super(DataCube, cls).from_file(ifile)
-
-        # Set the internals
-        hdul = fits.open(ifile)
-        slf.filename = ifile
-        slf.head0 = hdul[1].header  # Actually use the first extension here, since it contains the WCS
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(hdul[0].header)
-        return slf
+        with io.fits_open(ifile) as hdu:
+            # Read using the base class
+            self = super().from_hdu(hdu)
+            # Internals
+            self.filename = ifile
+            self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
+            # Meta
+            self.spectrograph = load_spectrograph(self.PYP_SPEC)
+            self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
+        return self
 
     @property
     def ivar(self):
@@ -627,7 +626,7 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
 
         # Prepare for optimal
         msgs.info("Starting optimal extraction")
-        thismask = np.ones(box_sciimg.shape, dtype=np.bool)
+        thismask = np.ones(box_sciimg.shape, dtype=bool)
         nspec, nspat = thismask.shape[0], thismask.shape[1]
         slit_left = np.zeros(nspec)
         slit_right = np.ones(nspec)*(nspat-1)
@@ -770,7 +769,7 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
     coord_dlt = refwcs.wcs.cdelt
     coord_min[2] = np.min(all_wave)
     coord_dlt[2] = np.max(all_wave) - np.min(all_wave)  # For white light, we want to bin all wavelength pixels
-    wlwcs = generate_masterWCS(coord_min, coord_dlt)
+    wlwcs = generate_WCS(coord_min, coord_dlt)
 
     # Generate white light images
     whitelight_imgs, _, _ = make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
@@ -824,10 +823,10 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     numfiles = np.unique(all_idx).size
 
     if whitelightWCS is None:
-        # Generate a master 2D WCS to register all frames
+        # Generate a 2D WCS to register all frames
         coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
         coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
-        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+        whitelightWCS = generate_WCS(coord_min, coord_dlt)
 
         # Generate coordinates
         cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -873,7 +872,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
+def generate_WCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     """
     Generate a WCS that will cover all input spec2D files
 
@@ -891,7 +890,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
         `astropy.wcs.wcs.WCS`_ : astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
-    msgs.info("Generating Master WCS")
+    msgs.info("Generating WCS")
     w = wcs.WCS(naxis=3)
     w.wcs.equinox = equinox
     w.wcs.name = name
@@ -954,10 +953,10 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
     msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
 
-    # Generate a master 2D WCS to register all frames
+    # Generate a 2D WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
     coord_dlt = [dspat, dspat, dwv]
-    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+    whitelightWCS = generate_WCS(coord_min, coord_dlt)
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((np.max(all_wave) - np.min(all_wave)) / dwv)
     xbins = np.array([idx_max[0]-1, idx_max[0]+2]) - 0.5
@@ -1020,7 +1019,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
     and better looking cubes, versus no sampling and better behaved errors.
 
     Args:
-        outfile (`str`):
+        outfile (str):
             Filename to be used to save the datacube
         output_wcs (`astropy.wcs.wcs.WCS`_):
             Output world coordinate system.
@@ -1030,28 +1029,28 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_wave (`numpy.ndarray`_)
+        all_wave (`numpy.ndarray`_):
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
-        tilts (`numpy.ndarray`_)
+        tilts (`numpy.ndarray`_):
             2D wavelength tilts frame
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Information stored about the slits
-        slitid_img_gpm (`numpy.ndarray`_)
+        slitid_img_gpm (`numpy.ndarray`_):
             An image indicating which pixels belong to a slit (0 = not on a slit or a masked pixel).
             Any positive value indicates the spatial ID of the pixel.
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_):
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`):
             A Class containing the transformation between detector pixel coordinates and WCS pixel coordinates
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        spec_subpixel (`int`, optional):
+        spec_subpixel (int, optional):
             What is the subpixellation factor in the spectral direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spectral direction.
-        spat_subpixel (`int`, optional):
+        spat_subpixel (int, optional):
             What is the subpixellation factor in the spatial direction. Higher values give more reliable results,
             but note that the time required goes as (spec_subpixel * spat_subpixel). The default value is 5,
             which divides each detector pixel into 5 subpixels in the spatial direction.
-        overwrite (`bool`, optional):
+        overwrite (bool, optional):
             If True, the output cube will be overwritten.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
@@ -1064,7 +1063,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_sci, all_ivar, all_wghts, al
             Sensitivity function that has been applied to the datacube
         specname (str, optional):
             Name of the spectrograph
-        debug (bool):
+        debug (bool, optional):
             If True, a residuals cube will be output. If the datacube generation is correct, the
             distribution of pixels in the residual cube with no flux should have mean=0 and std=1.
     """
@@ -1276,6 +1275,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Grab the parset, if not provided
     if parset is None:
+        # TODO: Use config_specific_par instead?
         parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
@@ -1362,6 +1362,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                                          star_mag=senspar['star_mag'],
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
+        # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
+        msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
             flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                           mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
@@ -1431,7 +1433,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         flexure = None  #spec2DObj.sci_spat_flexure
 
         # Load the header
-        hdr = fits.open(fil)[0].header
+        hdr = spec2DObj.head0 #fits.open(fil)[0].header
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -1559,16 +1561,17 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         # Loading the alignments frame for these data
         alignments = None
         if cubepar['astrometric']:
-            alignfile = masterframe.construct_file_name(alignframe.Alignments, hdr['TRACMKEY'],
-                                                        master_dir=hdr['PYPMFDIR'])
-            if os.path.exists(alignfile) and cubepar['astrometric']:
-                msgs.info("Loading alignments")
-                alignments = alignframe.Alignments.from_file(alignfile)
+            key = alignframe.Alignments.calib_type.upper()
+            if key in spec2DObj.calibs:
+                alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+                if os.path.exists(alignfile) and cubepar['astrometric']:
+                    msgs.info("Loading alignments")
+                    alignments = alignframe.Alignments.from_file(alignfile)
             else:
-                msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
-                msgs.warn("Astrometric correction will not be performed")
+                msgs.warn(f'Processed alignment frame not recorded or not found!')
+                msgs.info("Using slit edges for astrometric transform")
         else:
-            msgs.info("Astrometric correction will not be performed")
+            msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
             left, right, _ = slits.select_edges(initial=True, flexure=flexure)
@@ -1615,7 +1618,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-        flatfile = masterframe.construct_file_name(flatfield.FlatImages, hdr['FLATMKEY'], master_dir=hdr['PYPMFDIR'])
+        key = flatfield.FlatImages.calib_type.upper()
+        if key not in spec2DObj.calibs:
+            msgs.error('Processed flat calibration file not recorded by spec2d file!')
+        flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+        # TODO: Check that the file exists?
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
@@ -1842,11 +1849,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
 
-    # Generate a master WCS to register all frames
+    # Generate a WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwv]
-    masterwcs = generate_masterWCS(coord_min, coord_dlt, name=specname)
-    msgs.info(msgs.newline() + "-" * 40 +
+    coord_wcs = generate_WCS(coord_min, coord_dlt, name=specname)
+    msgs.info(msgs.newline() + "-"*40 +
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
               msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
@@ -1866,12 +1873,12 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Make the cube
     msgs.info("Generating pixel coordinates")
-    pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
-    hdr = masterwcs.to_header()
+    pix_coord = coord_wcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
+    hdr = coord_wcs.to_header()
 
     sensfunc = None
     if flux_spline is not None:
-        wcs_wav = masterwcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+        wcs_wav = coord_wcs.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
         senswave = wcs_wav[:, 2] * 1.0E10
         sensfunc = flux_spline(senswave)
 
@@ -1880,3 +1887,5 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
                       blaze_wave=blaze_wave, blaze_spec=blaze_spec, sensfunc=sensfunc, fluxcal=fluxcal,
                       specname=specname)
+
+

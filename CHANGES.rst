@@ -1,6 +1,13 @@
+1.13.1dev (6 June 2023)
+------------------------
 
-1.12.3dev
----------
+- Hotfix for skysub regions GUI that used np.bool
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
+  magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+
+1.13.0 (2 June 2023)
+--------------------
 
 - Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
@@ -13,6 +20,25 @@
 - Fixed a bug in the `variance_model` calculation for combined images.
 - Added the possibility to use dither offsets saved in the header of the science frames for
   coadding 2D spectra (``dithoff`` must be part of the spectrograph metadata).
+- Calibration group numbers can now be anything, as long as there are no more
+  than 63 unique integers.
+- Removed use of the term "master", renamed to calibration frames/files.
+  Default output directory for calibration frames is now ``Calibrations``.
+  Calibration frames renamed; e.g., ``MasterArc`` is now ``Arc``.
+- Calibration frame naming now done via ``calibframe.CalibFrame`` class.
+- Start to deprecate use of ``os.path`` in favor of ``pathlib``
+- Deprecated ``pypeit_parse_calib_id`` script, but improved the ``.calib`` file
+  provided by ``pypeit_setup``.  The ``.calib`` file is now always written, and
+  provides a direct association between input raw files and output calibration
+  files.  Discussed in new docs.
+- The ``'calib'`` column is now always added to the pypeit file, regardless of
+  whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
+- Names of associated calibration frames now written to ``spec2d`` file headers.
+- Major quicklook updates.  ql_multislit.py deprecated.
+- Improve speed in ginga visualization of traces and added
+  `pypeit_chk_tilts`. Note that this script uses an update
+  of the tilts datamodel, so it will not work on older reductions.
+- Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)
 --------------------

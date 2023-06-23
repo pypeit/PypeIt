@@ -29,7 +29,7 @@ operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    })
 
 
-class SkySubGUI(object):
+class SkySubGUI:
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
@@ -97,7 +97,7 @@ class SkySubGUI(object):
         self._nslits = slits.nslits
         self._maxslitlength = np.max(self.slits.get_slitlengths(initial=initial))
         self._resolution = int(10.0 * self._maxslitlength) if resolution is None else int(resolution)
-        self._allreg = np.zeros(int(self._resolution), dtype=np.bool)
+        self._allreg = np.zeros(int(self._resolution), dtype=bool)
         self._specx = np.arange(int(self._resolution))
         self._start = [0, 0]
         self._end = [0, 0]
@@ -232,7 +232,7 @@ class SkySubGUI(object):
         print("mouse button to click and drag over the sky background region.")
         print("Use the right mouse button (click and drag) to delete a region.")
         print("If you click 'Continue (and save changes)' the sky background")
-        print("regions file will be saved to the Masters directory.")
+        print("regions file will be saved to the Calibrations directory.")
         print("")
         print("To assign regions to all slits simultaneously, click and drag")
         print("over the gray regions on the right toolbar. Alternatively,")
@@ -579,11 +579,11 @@ class SkySubGUI(object):
             outfil = self._outname
             if os.path.exists(self._outname) and not self._overwrite:
                 outfil = 'temp.fits'
-                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
+                msgs.warn(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
+                msgs.info(f"Saving regions to: {outfil}")
                 self._overwrite = True
             msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
-            msskyreg.to_master_file(master_filename=outfil)
-        return
+            msskyreg.to_file(file_path=outfil)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -677,5 +677,6 @@ class SkySubGUI(object):
     def reset_regions(self):
         """ Reset the sky regions for all slits simultaneously
         """
-        self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
+        self._skyreg = [np.zeros(self._resolution, dtype=bool) for all in range(self._nslits)]
         self._allreg[:] = False
+
