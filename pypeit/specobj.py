@@ -391,7 +391,10 @@ class SpecObj(datamodel.DataContainer):
             ech_name += f'-{self.DET}'
             # Order number
             name += '-'+naming_model['order']
-            name += '{:04d}'.format(self.ECH_ORDER)
+            if self.ECH_ORDER is None:
+                name += '----'
+            else:
+                name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
         elif self.PYPELINE in ['MultiSlit', 'IFU']:
