@@ -7,6 +7,7 @@
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
 - Adds Keck/ESI to PypeIt
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+- Adds Keck/ESI to PypeIt
 - Improvements to wavelength grids and masking in coadd routines.
 - Fixed a bug in echelle coadding where the wrong coadded spectra were being
   used in final stacks.

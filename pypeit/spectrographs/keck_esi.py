@@ -32,7 +32,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     pypeline = 'Echelle'
     supported = True
-    comment = 'See :doc:`mage`'
+    #comment = 'See :doc:`mage`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -133,10 +133,10 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
-        par['scienceframe']['exprng'] = [20, None]
+        par['calibrations']['standardframe']['exprng'] = [None, 60]
+        par['calibrations']['arcframe']['exprng'] = [300, None] # Allow for CuAr which can be quite long
+        par['calibrations']['darkframe']['exprng'] = [1, None]
+        par['scienceframe']['exprng'] = [60, None]
         return par
 
     def init_meta(self):
@@ -235,6 +235,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'dark']:
             # No pinhole or pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -249,11 +250,9 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return fitstbl['idname'] == 'Line'
         if ftype == 'science':
-            return (fitstbl['idname'] == 'Object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], (60., None)) 
+            return good_exp & (fitstbl['idname'] == 'Object') 
         if ftype == 'standard':
-            return (fitstbl['idname'] == 'Object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], (0., 60.)) 
+            return good_exp & (fitstbl['idname'] == 'Object') 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
@@ -364,7 +363,14 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         """
         norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)
-        return np.full(norders, 0.30*binspatial)
+        # Plate scales
+        unbinned_pscale = [0.120, #15 
+                           0.127, 0.134, 0.137, 0.144, 0.149, 0.153, 
+                           0.158, 0.163, 
+                           0.168, # 6 
+                           ]
+
+        return np.array(unbinned_pscale)*binspatial
 
 
 
