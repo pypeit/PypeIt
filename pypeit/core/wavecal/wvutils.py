@@ -120,6 +120,9 @@ def get_sampling(waves, pix_per_R=3.0):
         else:
             msgs.error('Array inputs can only be 1D or 2D')
     elif isinstance(waves, list):
+        ndim = np.array([wave.ndim for wave in waves], dtype=int)
+        if np.any(ndim > 1):
+            msgs.error('Input list can only contain 1D arrays')
         waves_out = waves
     else:
         msgs.error('Input must be a list or numpy.ndarray')

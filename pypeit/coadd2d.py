@@ -192,7 +192,7 @@ class CoAdd2D:
         self.objid_bri = None
         self.slitidx_bri = None
         self.snr_bar_bri = None
-        self.use_weights = None
+        self.use_weights = None # This is a list of length self.nexp that is assigned by the compute_weights method
         self.wave_grid = None
         self.good_slits = None
         self.maskdef_offset = None
@@ -487,10 +487,12 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            if not isinstance(self.use_weights, str):
-                weights = self.use_weights[slit_idx]
-            else:
-                weights = self.use_weights
+            ## JFH I do not understand why this is here and am removing it.
+            #if not isinstance(self.use_weights, str):
+            #    weights = self.use_weights[slit_idx]
+            #else:
+            #    weights = self.use_weights
+
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
             # compute_coadd2d, and outmask in coadd_dict is also a gpm
@@ -499,12 +501,11 @@ class CoAdd2D:
                                                self.stack_dict['sciivar_stack'],
                                                self.stack_dict['skymodel_stack'],
                                                mask_stack,
-#                                               self.stack_dict['tilts_stack'],
                                                thismask_stack,
                                                self.stack_dict['waveimg_stack'],
                                                self.wave_grid, self.spat_samp_fact,
                                                maskdef_dict=maskdef_dict,
-                                               weights=weights, interp_dspat=interp_dspat)
+                                               weights=self.use_weights, interp_dspat=interp_dspat)
             coadd_list.append(coadd_dict)
 
         return coadd_list
@@ -963,7 +964,7 @@ class CoAdd2D:
                     spat_flexure_list=spat_flexure_list)
     #                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
 
-    def check_input(self, input, type='weights'):
+    def check_input(self, input, type):
         """
         Check that the number of input values (weights or offsets) is the same as the number of exposures
         Args:
@@ -973,10 +974,12 @@ class CoAdd2D:
         Returns:
             :obj:`list` or `numpy.ndarray`_: User input values
         """
+        if type != 'weights' and type != 'offsets':
+            msgs.error('Unrecognized type for check_input')
         if isinstance(input, (list, np.ndarray)):
             if len(input) != self.nexp:
                 msgs.error(f'If {type} are input it must be a list/array with same number of elements as exposures')
-            return np.atleast_1d(input)
+            return np.atleast_1d(input).tolist() if type == 'weights' else np.atleast_1d(input)
         msgs.error(f'Unrecognized format for {type}')
 
     def compute_offsets(self, offsets):
@@ -1011,7 +1014,7 @@ class CoAdd2D:
         elif isinstance(offsets, (list, np.ndarray)):
             msgs.info('Using user input offsets')
             # use them
-            self.offsets = self.check_input(offsets, type='offsets')
+            self.offsets = self.check_input(offsets, 'offsets')
             self.offsets_report(self.offsets, 'user input')
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
@@ -1042,6 +1045,9 @@ class CoAdd2D:
                 Value that guides the determination of the weights.
                 It could be a list of weights or a string. If 'auto' the weight will be computed using
                 the brightest trace, if 'uniform' uniform weights will be used.
+        Returns:
+            Assigns the internal self.use_weights. Documentation on the form of self.use_weights needs to be wwrittten.
+
 
         """
         msgs.info('Get Weights')
@@ -1049,21 +1055,23 @@ class CoAdd2D:
         # 1) User input weight
         if isinstance(weights, (list, np.ndarray)):
             # use those inputs
-            self.use_weights = self.check_input(weights, type='weights')
+            self.use_weights = self.check_input(weights, 'weights')
             msgs.info('Using user input weights')
 
         # 2) No bright object and parset `weights` is 'auto' or 'uniform',
         # or Yes bright object but the user wants still to use uniform weights
         elif ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
                 ((self.objid_bri is not None) and (weights == 'uniform')):
-            # use uniform weights
-            self.use_weights = 'uniform'
             if weights == 'auto':
                 # warn if the user had put `auto` in the parset
                 msgs.warn('Weights cannot be computed because no unique reference object '
                           'with the highest S/N was found. Using uniform weights instead.')
             elif weights == 'uniform':
                 msgs.info('Using uniform weights')
+            # use uniform weights
+            self.use_weights = (np.ones(self.nexp) / float(self.nexp)).tolist()
+            #self.use_weights = 'uniform'
+
 
         # 3) Bright object exists and parset `weights` is equal to 'auto'
         elif (self.objid_bri is not None) and (weights == 'auto'):
@@ -1071,6 +1079,7 @@ class CoAdd2D:
             pass
         else:
             msgs.error('Invalid value for `weights`')
+
 
     def get_brightest_object(self, specobjs_list, spat_ids):
         """
@@ -1271,6 +1280,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 Value that guides the determination of the weights.
                 It could be a list of weights or a string. If equal to 'auto', the weight will be computed
                 using the brightest trace, if 'uniform' uniform weights will be used.
+        Returns:
+            Assigns the internal self.use_weights. Documentation on the form of self.use_weights needs to be wwrittten.
 
         """
 
@@ -1567,7 +1578,8 @@ class EchelleCoAdd2D(CoAdd2D):
             for id in slitord_ids:
                 _, iweights = self.optimal_weights(id, self.objid_bri)
                 use_weights.append(iweights)
-            self.use_weights = np.array(use_weights)
+            # Commenting this out since self.use_weights needs to be a list or a string
+            #self.use_weights = np.array(use_weights)
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info('Weights computed using a unique reference object provided by the user')
             else:

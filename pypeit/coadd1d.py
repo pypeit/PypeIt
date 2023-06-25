@@ -194,6 +194,10 @@ class MultiSlitCoAdd1D(CoAdd1D):
             if not np.any(indx):
                 msgs.error(
                     "No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
+            if np.sum(indx) > 1:
+                msgs.error("Error in spec1d file for exposure {:d}: "
+                           "More than one object was identified with the OBJID={:s} in file={:s}".format(
+                    iexp, self.objids[iexp], self.spec1dfiles[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
                 sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             waves.append(wave_iexp)
@@ -205,6 +209,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 header_out['RA_OBJ'] = sobjs[indx][0]['RA']
                 header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
             headers.append(header_out)
+
 
         return waves, fluxes, ivars, gpms, headers
 

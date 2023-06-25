@@ -2859,7 +2859,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, thismask_stack, waveimg_stack,
                     wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
-                    weights='uniform', interp_dspat=True):
+                    weights=None, interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2906,17 +2906,14 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
             are (nspec, nspat),  but each image can have a different shape.
-        weights (list or str, optional):
+        weights (list, optional):
             The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If weights is set to 'uniform' then a
-            uniform weighting is used.  Weights are broadast to the correct size
-            of the image stacks (see :func:`broadcast_weights`), as necessary.
-            If a list is passed it must have a length of nimgs. The individual elements
-            of the list can either be floats, indiciating the weight to be used for each image, or
+            :func:`weighted_combine`).  If weights is None a
+            uniform weighting is used.  If weights is not None then it must be a list of length nimgs.
+            The individual elements of the list can either be floats, indiciating the weight to be used for each image, or
             arrays with  shape = (nspec,) or shape = (nspec, nspat), indicating pixel weights
             for the individual images. Weights are broadast to the correct size
             of the image stacks (see :func:`broadcast_weights`), as necessary.
-            (TODO: JFH I think the str option should be changed here, but am leaving it for now.)
         spat_samp_fact (float, optional):
             Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
             (i.e. bigger pixels) will downsample the images spatially, whereas <
@@ -2981,9 +2978,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     #   Maybe the doc string above is inaccurate?
 
     nimgs =len(sciimg_stack)
-    if isinstance(weights,str) and weights == 'uniform':
+    if weights is None:
         msgs.info('No weights were provided. Using uniform weights.')
-        weights = np.ones(nimgs)/float(nimgs)
+        weights = (np.ones(nimgs)/float(nimgs)).tolist()
 
     shape_list = [sciimg.shape for sciimg in sciimg_stack]
     weights_stack = combine.broadcast_lists_of_weights(weights, shape_list)
