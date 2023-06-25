@@ -1072,10 +1072,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Global sky model produced by global_skysub
     left : `numpy.ndarray`_
         Spatial-pixel coordinates for the left edges of each
-        order.
+        order. Shape = (nspec, norders)
     right : `numpy.ndarray`_
         Spatial-pixel coordinates for the right edges of each
-        order.
+        order. Shape = (nspec, norders)
     slitmask : `numpy.ndarray`_
         Image identifying the 0-indexed order associated with
         each pixel. Pixels with -1 are not associatead with any
@@ -1090,7 +1090,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         should generally not be used unless one is extracting 2d
         coadds for which a rectified image contains sub-pixel
         spatial information.
-        shape (nspec, nspat)
+        shape=(nspec, nspat)
     fit_fwhm: bool, optional
         if True, perform a fit to the FWHM of the object profiles
         to use for non-detected sources

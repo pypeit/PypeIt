@@ -164,7 +164,7 @@ class Extract:
         self.initialize_slits(slits)
 
         # Internal bpm mask
-        self.extract_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
+        self.extract_bpm = (self.slits.mask > 0) & (np.logical_not(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.extract_bpm_init = self.extract_bpm.copy()
 
@@ -448,7 +448,7 @@ class Extract:
 
         # Update the mask
         # TODO: change slits.mask > 2 to use named flags.
-        reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
+        reduce_masked = np.where(np.logical_not(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADEXTRACT')
@@ -695,7 +695,7 @@ class MultiSlitExtract(Extract):
         self.global_sky = global_sky
 
         # get the good slits
-        gdslits = np.where(np.invert(self.extract_bpm))[0]
+        gdslits = np.where(np.logical_not(self.extract_bpm))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -838,18 +838,20 @@ class EchelleExtract(Extract):
         """
         self.global_sky = global_sky
 
+        # get the good slits
+        gdorders = np.logical_not(self.extract_bpm)
+
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
-
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
             = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
-                                              self.global_sky, self.slits_left,
-                                              self.slits_right, self.slitmask, sobjs,
+                                              self.global_sky, self.slits_left[:, gdorders],
+                                              self.slits_right[:, gdorders], self.slitmask, sobjs,
                                               spat_pix=spat_pix,
                                               std=self.std_redux, fit_fwhm=fit_fwhm,
                                               min_snr=min_snr, bsp=bsp, sigrej=sigrej,
