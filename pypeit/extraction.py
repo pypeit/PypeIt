@@ -159,9 +159,9 @@ class Extract:
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
 
-        # Initialise the slits
-        msgs.info("Initialising slits")
-        self.initialise_slits(slits)
+        # Initialize the slits
+        msgs.info("Initializing slits")
+        self.initialize_slits(slits)
 
         # Internal bpm mask
         self.extract_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
@@ -272,7 +272,7 @@ class Extract:
             return 0
 
     # TODO Make this a method possibly in slittrace.py. Almost identical code is in find_objects.py
-    def initialise_slits(self, slits, initial=False):
+    def initialize_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`Extract`
@@ -289,16 +289,16 @@ class Extract:
         # Select the edges to use
 
         # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
-        slits_left, slits_right, _ \
+        self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
-        bpm = self.slits.mask.astype(bool)
-        bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
-        gpm = np.logical_not(bpm)
-        self.slits_left = slits_left[:, gpm]
-        self.slits_right = slits_right[:, gpm]
+        #bpm = self.slits.mask.astype(bool)
+        #bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
+        #gpm = np.logical_not(bpm)
+        #self.slits_left = slits_left[:, gpm]
+        #self.slits_right = slits_right[:, gpm]
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
