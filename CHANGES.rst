@@ -123,8 +123,6 @@ better with 2d coadds.
 1.10.0 (11 July 2022)
 ---------------------
 
-1.9.2dev
---------
 - Modify tweak_standard for Mosfire/J2
 - Apply find_min_max when clipping the image for object finding
 - Mask bad detector regions for global sky flexure calculation
