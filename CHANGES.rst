@@ -7,6 +7,7 @@
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
 
 1.13.0 (2 June 2023)
 --------------------
@@ -1532,7 +1533,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script
