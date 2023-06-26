@@ -690,11 +690,11 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
-                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx+1, self.slits.nslits))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             #msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.slits.nslits-1))
-            msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+            msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx+1, self.slits.nslits))
             # Identify lines for tracing tilts
             msgs.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat \

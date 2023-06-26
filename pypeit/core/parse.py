@@ -115,7 +115,7 @@ def binning2string(binspectral, binspatial):
     return '{0},{1}'.format(binspectral, binspatial)
 
 
-def parse_binning(binning):
+def parse_binning(binning:str):
     """
     Parse input binning into binspectral, binspatial
 
