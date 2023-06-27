@@ -810,7 +810,4 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        # TODO :: Think about this... do we even need these extra file keys if skysub is done during the reduction
-        #pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
+        return super().pypeit_file_keys() + ['filter']
