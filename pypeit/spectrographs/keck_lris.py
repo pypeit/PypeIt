@@ -65,9 +65,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
-        par['calibrations']['traceframe']['exprng'] = [None, 60]
-        par['calibrations']['standardframe']['exprng'] = [None, 30]
+        par['calibrations']['pixelflatframe']['exprng'] = [1, 60]
+        par['calibrations']['traceframe']['exprng'] = [1, 60]
+        par['calibrations']['standardframe']['exprng'] = [1, 61]
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
@@ -78,14 +78,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
-        par['scienceframe']['exprng'] = [60, None]
+        par['scienceframe']['exprng'] = [61, None]
 
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
-
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -146,7 +145,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
-        self.meta['cenwave'] = dict(ext=0, card='WAVELEN', rtol=2.0)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=1e-3)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -179,6 +178,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'cenwave':
+            # it may happen that cenwave is zero in the header
+            return headarr[0]['WAVELEN'] if headarr[0]['WAVELEN'] > 0. else 0.1
         elif meta_key == 'mjd':
             if headarr[0].get('MJD-OBS') is not None:
                 return headarr[0]['MJD-OBS']
@@ -223,10 +225,16 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
             # dome flat header keywords changed over time, but it's not clear-cut the date of the change.
             # We check if the latest keyword is present, and if not, we assume it's the old one.
-            elif headarr[0].get('FLAMP1') == 'on' or headarr[0].get('FLAMP2') == 'on':
-                return 'on'
-            elif headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
-                return 'on'
+            elif headarr[0].get('FLAMP1') is not None or headarr[0].get('FLAMP2') is not None:
+                if headarr[0].get('FLAMP1') == 'on' or headarr[0].get('FLAMP2') == 'on':
+                    return 'on'
+                else:
+                    return 'off'
+            elif headarr[0].get('FLIMAGIN') is not None or headarr[0].get('FLSPECTR') is not None:
+                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
+                    return 'on'
+                else:
+                    return 'off'
             else:
                 return 'off'
         else:
@@ -278,23 +286,23 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         return super().configuration_keys() + ['binning']
 
-    # def config_independent_frames(self):
-    #     """
-    #     Define frame types that are independent of the fully defined
-    #     instrument configuration.
-    #
-    #     Bias and dark frames are considered independent of a configuration,
-    #     but the DATE-OBS keyword is used to assign each to the most-relevant
-    #     configuration frame group. See
-    #     :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
-    #
-    #     Returns:
-    #         :obj:`dict`: Dictionary where the keys are the frame types that
-    #         are configuration independent and the values are the metadata
-    #         keywords that can be used to assign the frames to a configuration
-    #         group.
-    #     """
-    #     return {'bias': 'dateobs', 'dark': 'dateobs'}
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': 'dateobs', 'dark': 'dateobs'}
 
     def pypeit_file_keys(self):
         """

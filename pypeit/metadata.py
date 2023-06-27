@@ -634,7 +634,7 @@ class PypeItMetaData:
                        'unique_configurations first.')
         return len(list(self.configs.keys()))
 
-    def unique_configurations(self, force=False, copy=False, rm_none=False):
+    def  unique_configurations(self, force=False, copy=False, rm_none=False):
         """
         Return the unique instrument configurations.
 
@@ -816,12 +816,20 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
+        # get the frame types that are ignored, if any
+        ignore_frames = self.spectrograph.config_independent_frames()
+        if ignore_frames is not None:
+            ignored_filename = self.table[self.find_frames(list(ignore_frames.keys()))]['filename'].value
+
         # define the column 'setup' in self.table
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
+            # Check if this frame is ignored
+            if ignore_frames is not None and self.table['filename'][i] in ignored_filename:
+                continue
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
                 mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
@@ -841,7 +849,6 @@ class PypeItMetaData:
             return
 
         # Some frame types may have been ignored
-        ignore_frames = self.spectrograph.config_independent_frames()
         if ignore_frames is None:
             # Nope, we're still done
             return
@@ -896,6 +903,16 @@ class PypeItMetaData:
                     else:
                         new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
                 self.table['setup'][indx] = new_cfg_key
+
+        # Check if still any of the configurations are not set. If yes, we want
+        # these frames to still be present in the .sorted file
+        not_setup = self.table['setup'] == 'None'
+        if np.any(not_setup):
+            cfg_gen = self.configuration_generator(start=len(np.unique(self.table['setup'][np.logical_not(not_setup)])))
+            nw_setup = next(cfg_gen)
+            self.configs[nw_setup] = {}
+            msgs.warn('All files that did not match any setup are grouped into a single configuration.')
+            self.table['setup'][not_setup] = nw_setup
 
     def clean_configurations(self):
         """
