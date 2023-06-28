@@ -12,7 +12,7 @@
     positional arguments:
       coadd2d_file          File to guide 2d coadds
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --show                Show the reduction steps. Equivalent to the -s option
                             when running pypeit. (default: False)

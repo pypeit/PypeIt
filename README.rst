@@ -170,4 +170,5 @@ development of PypeIt.
 * Milan Roberson
 * Timothy Pickering
 * Timothy Ellsworth-Bowers
-
+* Gregory Simonian
+* Heather Martin

@@ -10,7 +10,7 @@
     positional arguments:
       root                  File path+root, e.g. /data/Kast/b
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: bok_bc,
