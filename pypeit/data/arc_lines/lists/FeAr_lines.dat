@@ -1,6 +1,8 @@
 # Creation Date: 2023-06-27
 # taken from https://www2.keck.hawaii.edu/inst/lris/arc_calibrations.html
-# converted to vacuum, and matched to NIST
+# converted to vacuum, and matched to NIST,
+# see dev_algorithms/wavelengths/lris_FeAr_linelist/create_lris_FeAr_list.py in PypeIt-development-suite
+# NOTE: even if it is called FeAr (from lris header keyword), it is actually FeI, NeI, and NeII lines
 |  ion |       wave | NIST | Instr | amplitude | Source |
 |  FeI |  3021.5186 |    1 |     0 |         0 |   NIST |
 |  FeI |  3024.9130 |    1 |     0 |    123000 |   NIST |
