@@ -1399,7 +1399,7 @@ class PypeItMetaData:
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
             else:
-                msgs.warn("These files are commented out and will be ignored.")
+                msgs.warn("These files are commented out and will be ignored during the reduction.")
                 # Comment out the frames that could not be identified
                 # first change the dtype of the filename column to be able to add a #
                 self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
