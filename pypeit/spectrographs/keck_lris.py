@@ -221,7 +221,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             new_lamp_status = np.array([headarr[0].get(k) == 'on' for k in lamp_keys])
             where_on = np.where(new_lamp_status)[0] if old_lamp_status is None else np.where(old_lamp_status)[0]
             if where_on.size > 0:
-                return lamp_names[where_on][0]
+                return ' '.join(lamp_names[where_on])
 
             # dome flat header keywords changed over time, but it's not clear-cut the date of the change.
             # We check if the latest keyword is present, and if not, we assume it's the old one.
