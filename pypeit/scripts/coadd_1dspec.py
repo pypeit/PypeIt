@@ -124,8 +124,10 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                     width=width, formatter=scriptbase.SmartFormatter)
 
         parser.add_argument('coadd1d_file', type=str,
-                            help="R|File to guide coadding process. For coadding MultiSlit spectra the file must have the "
-                                 "following format (see docs for further details including the use of paths): \n\n"
+                            help="R|File to guide coadding process.\n\n"
+                                 "------------------------  MultiSlit ------------------------\n\n" 
+                                 "For coadding Multislit spectra the file must have the following format " \
+                                 "(see docs for further details including the use of paths): \n\n"
                                  "F|[coadd1d]\n"
                                  "F|   coaddfile='output_filename.fits' # Optional\n"
                                  "\n"
@@ -145,7 +147,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "F|     ...    \n"
                                  "F|  coadd1d end\n"
                                  "\n"
-                                 "That is the coadd1d block must be a two column list of "
+                                 "That is the coadd1d block must be a two column list of\n"
                                  "spec1dfiles and objids, but you can specify only a single objid for "
                                  "all spec1dfiles on the first line\n\n"
                                  "Where: \n"
@@ -154,6 +156,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "objid: the object identifier. To determine the objids inspect "
                                  "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
                                  "--list\n\n"
+                                 "------------------------  Echelle ------------------------\n\n" 
                                  "For coadding Echelle spectra the file must have the following format (see docs for "
                                  "further details): \n\n"
                                  "F|[coadd1d]\n"
@@ -175,18 +178,16 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "F|        ...    \n"
                                  "F|   coadd1d end\n"
                                  "\n"
-                                 "That is the coadd1d block is a four column list of "
+                                 "That is the coadd1d block is a four column list of\n"
                                  "spec1dfiles, objids, sensitivity function files, and setup_ids, "
                                  "but you can specify only a single objid, sensfuncfile, and setup_id for "
                                  "all spec1dfiles on the first line\n\n"
                                  "Here: \n"
                                  "\n"
+                                 "spec1dfile: full path to a PypeIt spec1dfile\n\n"
+                                 "objid: the object identifier (see details above)\n\n"
                                  "sensfuncfile: full path to a PypeIt sensfuncfile for the echelle setup in question\n\n"
-                                 "setup_id: is a string identifier for the echelle setup in question, i.e. 'VIS', 'NIR', or ' "
-                                 
-
-
-                                 
+                                 "setup_id: string identifier for the echelle setup in question, i.e. 'VIS', 'NIR', or '\n\n"
                                  "If the coaddfile is not given the output file will be placed "
                                  "in the same directory as the first spec1d file.\n\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
