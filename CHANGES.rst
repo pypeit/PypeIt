@@ -8,6 +8,7 @@
 - Adds Keck/ESI to PypeIt
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
 - Improvements to wavelength grids and masking in coadd routines.
 - Fixed a bug in echelle coadding where the wrong coadded spectra were being
   used in final stacks.
@@ -1545,7 +1546,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script
