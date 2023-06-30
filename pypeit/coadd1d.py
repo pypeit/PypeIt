@@ -390,8 +390,8 @@ class EchelleCoAdd1D(CoAdd1D):
         _sensfuncfiles = np.asarray(self.sensfuncfile)
         _spec1dfiles = np.asarray(self.spec1dfiles)
         _objids = np.asarray(self.objids)
-        waves, fluxes, ivars, gpms, weight_sens, headers = [], [], [], [], [], []
-        combined = [waves, fluxes, ivars, gpms, weight_sens, headers]
+        waves, fluxes, ivars, gpms, weights_sens, headers = [], [], [], [], [], []
+        combined = [waves, fluxes, ivars, gpms, weights_sens, headers]
         for uniq_setup in self.unique_setups:
             setup_indx = _setup == uniq_setup
             loaded = self.load_ech_arrays(_spec1dfiles[setup_indx], _objids[setup_indx], _sensfuncfiles[setup_indx])
