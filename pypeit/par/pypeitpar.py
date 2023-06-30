@@ -1266,13 +1266,14 @@ class Coadd2DPar(ParSet):
         defaults['user_obj'] = None
         dtypes['user_obj'] = [int, list]
         descr['user_obj'] = 'Object that the user wants to use to compute the weights and/or the ' \
-                            'offsets for coadding images. For slit spectroscopy, provide the ' \
+                            'offsets for coadding images. For longslit/multislit spectroscopy, provide the ' \
                             '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
                             'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
                             'See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
                             'If this parameter is not ``None``, it will be used to compute the offsets ' \
                             'only if ``offsets = auto``, and it will used to compute ' \
                             'the weights only if ``weights = auto``.'
+        # TODO For echelle coadds this should just default to 1
 
         # manual extraction
         defaults['manual'] = None
