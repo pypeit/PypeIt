@@ -8,6 +8,7 @@ from IPython import embed
 import pytest
 
 from pypeit.par import pypeitpar
+from pypeit.par import parset
 from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import data_path
@@ -154,7 +155,7 @@ def test_telescope():
     pypeitpar.TelescopePar()
 
 def test_fail_badpar():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because there's no junk parameter
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
@@ -163,7 +164,7 @@ def test_fail_badpar():
                                                 merge_with=cfg_lines) # Once as list
     
 def test_fail_badlevel():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because process isn't at the right level (i.e., there's no
     # process parameter for CalibrationsPar)
@@ -173,3 +174,26 @@ def test_fail_badlevel():
                                                 merge_with=(cfg_lines,))  #Once as tuple
 
 
+def test_lists():
+    # Initialise the parset
+    p = load_spectrograph('keck_kcwi').default_pypeit_par()
+
+    # Test with a single element list
+    p['calibrations']['alignment']['locations'] = [0.5]
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+    assert(isinstance(_p['calibrations']['alignment']['locations'], list))
+    assert(len(_p['calibrations']['alignment']['locations']) == 1)
+    assert (_p['calibrations']['alignment']['locations'][0] == 0.5)
+
+    # Test with a multi-element list
+    p['calibrations']['alignment']['locations'] = [0.0, 1.0]
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple
+    assert(isinstance(_p['calibrations']['alignment']['locations'], list))
+    assert(len(_p['calibrations']['alignment']['locations']) == 2)
+    assert (_p['calibrations']['alignment']['locations'][0] == 0.0)
+    assert (_p['calibrations']['alignment']['locations'][1] == 1.0)
+
+    # Test something that should fail
+    with pytest.raises(TypeError):
+        p['calibrations']['alignment']['locations'] = 0.0
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config())  # Once as tuple

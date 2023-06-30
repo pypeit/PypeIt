@@ -1,11 +1,15 @@
 1.13.1dev (6 June 2023)
 ------------------------
 
+- Add support for Gemini/GNIRS (IFU)
+- Added a script to convert a wavelength solution into something that can be placed in the reid archive.
 - Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used np.bool
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+- Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
 
 1.13.0 (2 June 2023)
 --------------------
@@ -1531,7 +1535,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script
