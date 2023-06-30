@@ -759,7 +759,7 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
-        # Plot throughput curve(s) for all orders/det
+        # Plot fluxed standard star for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         axis.plot(self.std_dict['wave'].value, self.std_dict['flux'].value, color='green',linewidth=3.0,
@@ -792,9 +792,6 @@ class SensFunc(datamodel.DataContainer):
         fig.savefig(self.fstdfile)
 
 
-
-
-        # Plot the fluxed standard star spectrum
 
 
     @classmethod
