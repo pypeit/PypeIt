@@ -1087,14 +1087,14 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
-    rms_sn, weights = coadd.sn_weights(wave_spec, flux_stack, ivar_stack, mask_stack, sn_smooth_npix=sn_smooth_npix,
-                                       relative_weights=relative_weights)
+    rms_sn, weights = coadd.sn_weights(utils.array_to_explist(flux_stack), utils.array_to_explist(ivar_stack), utils.array_to_explist(mask_stack),
+                                       sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = np.ones(all_idx.size)
     for ff in range(numfiles):
         ww = (all_idx == ff)
-        all_wghts[ww] = interp1d(wave_spec, weights[:, ff], kind='cubic',
+        all_wghts[ww] = interp1d(wave_spec, weights[ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
     msgs.info("Optimal weighting complete")
     return all_wghts
