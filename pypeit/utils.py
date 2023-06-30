@@ -148,10 +148,11 @@ def echarr_to_echlist(echarr):
 
     Args:
         echarr: `np.ndarray`_
-            An echelle array of shape (nspec, norder)
+            An echelle array of shape (nspec, norder, nexp)
 
     Returns:
-        list: A list of 1d arrays of shape (nspec,)
+        list: A unraveled list of 1d arrays of shape (nspec,) where the norder dimension is the fastest
+        varying dimension and the nexp dimension is the slowest varying dimension.
 
     """
     shape = echarr.shape

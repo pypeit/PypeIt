@@ -310,7 +310,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxiter_reject=self.par['maxiter_reject'],
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-                                     debug=self.debug, show=self.show)
+                                     debug=self.debug, show=self.show, show_exp=self.show)
 
 
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd

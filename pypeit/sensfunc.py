@@ -838,7 +838,8 @@ class SensFunc(datamodel.DataContainer):
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 
         if debug:
-            coadd.weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+            coadd.weights_qa(utils.echarr_to_echlist(waves_stack)[0], utils.echarr_to_echlist(weights_stack)[0],
+                             utils.echarr_to_echlist(waves_stack > 1.0)[0], title='sensfunc_weights')
 
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))

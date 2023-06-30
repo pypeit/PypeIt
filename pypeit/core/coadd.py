@@ -1485,13 +1485,15 @@ def weights_qa(waves, weights, gpms, title='', colors=None):
     Parameters
     ----------
     wave: list
-       List of `numpy.ndarray`_ float wavelength array for spectra that went into a stack.
+       List of `numpy.ndarray`_ float 1d wavelength arrays for spectra that went into a stack.
 
     weights: list
-       List of `numpy.ndarray`_ float (S/N)^2 weights for the exposures that went into a stack. This would have been computed by sn_weights
+       List of `numpy.ndarray`_ float 1d (S/N)^2 weight arrays
+       for the exposures that went into a stack. This would have been computed by sn_weights
 
     gpm : list
-       List of `numpy.ndarray`_ boolean good-pixel mask for the exposures that went into a stack.  Good=True.
+       List of `numpy.ndarray`_ boolean 1d good-pixel mask arrays
+       for the exposures that went into a stack.  Good=True.
     title: str, optional
             Title for the plot.
     '''
@@ -1982,8 +1984,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
              sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0,
              lower=3.0, upper=3.0, maxrej=None, qafile=None, title='', debug=False,
-             debug_scale=False, show_scale=False, show=False,
-             verbose=True):
+             debug_scale=False, debug_order_stack=False,
+             debug_global_stack=False, show_scale=False, show=False, verbose=True):
 
     '''
     Main driver routine for coadding longslit/multi-slit spectra.
@@ -2060,7 +2062,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
     title: str, optional
         Title for QA plots
     debug: bool, default=False
-            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want
+            to inspect them all.
     debug_scale: bool, default=False
             show interactive QA plots for the rescaling of the spectra
     show: bool, default=False
@@ -2274,7 +2277,8 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5,
                  sn_clip=30.0, lower=3.0, upper=3.0,
-                 maxrej=None, qafile=None, debug_scale=False, debug=False,
+                 maxrej=None, qafile=None, debug_scale=False, debug_order_stack=False,
+                 debug_global_stack=False, debug=False,
                  show_order_stacks=False, show_order_scale=False,
                  show_exp=False, show=False, verbose=False):
     """
@@ -2355,6 +2359,21 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             upper rejection threshold for djs_reject
     maxrej: int, optional
             maximum number of pixels to reject in each iteration for djs_reject.
+    debug_order_stack: bool, default=False
+            show interactive QA plots for the order stacking
+    debug_global_stack: bool, default=False
+            show interactive QA plots for the global stacking of all the setups/orders/exposures
+    debug (bool, optional): optinoal, default=False,
+            show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+    debug_scale (bool, optional): optional, default=False
+            show interactive QA plots for the rescaling of the spectra
+    show_order_scale (bool, optional): optional, default=False
+            show interactive QA plots for the order scaling
+    show (bool, optional): optional, default=False,
+            show coadded spectra QA plot or not
+    show_exp (bool, optional): optional, default=False,
+            show individual exposure spectra QA plot or not
+
 
     Returns
     -------
@@ -2412,12 +2431,21 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #                     utils.concat_to_setup_list convert between waves_setup_lists and waves_concat
 
 
-    debug=True
-    show=True
-    show_exp=True
-    debug_global_stack=False
-    debug_order_stack=False
-    show_order_scale=False
+    if debug:
+        show=True
+        show_exp=True
+        show_order_scale=True
+        debug_order_stack=True
+        debug_global_stack=True
+        debug_scale=True
+
+    #show_exp=True
+    #debug=True
+    #show=True
+    #show_exp=True
+    #debug_global_stack=False
+    #debug_order_stack=False
+    #show_order_scale=False
     #debug_scale=True
 
 
