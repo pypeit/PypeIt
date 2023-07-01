@@ -99,7 +99,7 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (list or `numpy.ndarray`_
+        waves (list or `numpy.ndarray`_):
             List of `numpy.ndarray`_ wavelength arrays or a single 1d 'numpy.ndarray'_
         pix_per_R (float):  default=3.0
             Number of pixels per resolution element used for the
@@ -131,11 +131,9 @@ def get_sampling(waves, pix_per_R=3.0):
     dloglam_flat = []
     for wave in waves_out:
         wave_good = wave[wave > 1.0]
-        loglam_good = np.log10(wave_good)
-        wave_diff = np.diff(wave_good)
-        loglam_diff = np.diff(loglam_good)
-        wave_diff_flat += wave_diff.tolist()
-        dloglam_flat += loglam_diff.tolist()
+        wave_diff_flat += np.diff(wave_good).tolist()
+        dloglam_flat += np.diff(np.log10(wave_good)).tolist()
+
 
     dwave = np.median(wave_diff_flat)
     dloglam = np.median(dloglam_flat)

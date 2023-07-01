@@ -1218,6 +1218,10 @@ def report_final(nslits, all_patt_dict, detections,
             Mask of indices of good slits
         bad_slits (ndarray, bool):
             List of slits that are bad
+        redo_slit (int, optional):
+            Slit or order that was redone.
+        orders (ndarray, optional):
+            Array of echelle orders to be printed out during the report.
     """
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
