@@ -30,7 +30,6 @@ from pypeit.core.moment import moment1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
 from pypeit import flatfield
-from pypeit.fluxcalibrate import apply_flux_calib
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -463,7 +462,7 @@ class SensFunc(datamodel.DataContainer):
 
         """
         # Now flux the standard star
-        apply_flux_calib(self.par_fluxcalib, self.spectrograph, self.sobjs_std, self)
+        self.sobjs_std.apply_flux_calib(self.par_fluxcalib, self.spectrograph, self)
         # TODO assign this to the data model
 
         # Unpack the fluxed standard
