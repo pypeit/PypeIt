@@ -1188,7 +1188,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         # Add the patt_dict and wv_calib to the output dicts
         wv_calib[str(iord)] = copy.deepcopy(final_fit)
         if (debug_fits or debug_all):
-            arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)))
+            arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)), log=par['qa_log'])
 
     # Print the final report of all lines
     report_final(norders, all_patt_dict, detections, 
@@ -1490,8 +1490,9 @@ class ArchiveReid:
                 continue
             # Is the RMS below the threshold?
             if final_fit['rms'] > rms_threshold:
+                order_str = '' if orders is None else ', order={}'.format(orders[slit])
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                               final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')

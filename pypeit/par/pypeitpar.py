@@ -2489,7 +2489,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slit=None):
+                 ech_separate_2d=None, redo_slit=None, qa_log=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2738,6 +2738,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['redo_slit'] = int
         descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
 
+        defaults['qa_log'] = True
+        dtypes['qa_log'] = bool
+        descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
+                          'If True, the scaling will be log, if False linear'
+
+
+
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
@@ -2758,7 +2765,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv', 'redo_slit']
+                   'wvrng_arxiv', 'redo_slit', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
