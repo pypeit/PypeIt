@@ -153,7 +153,7 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
         waves (list):
             List of the `numpy.ndarray`_ N original 1d wavelength arrays.  Shapes of the input arrays are arbitrary.
             Required unless wave_method='user_input' in which case it need not be passed in.
-        gpms (list)
+        gpms (list):
             Good-pixel mask for wavelengths.  Same format as waves and shapes of the individual arrays must match.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
