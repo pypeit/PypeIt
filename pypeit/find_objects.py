@@ -1109,7 +1109,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
-    def convolve_skymodel(self, input_img, fwhm_map, thismask, subpixel=10, nsample=10, snr=None):
+    def convolve_skymodel(self, input_img, fwhm_map, thismask, subpixel=5, nsample=5, snr=None):
         """
         TODO :: docstring
         """
@@ -1118,11 +1118,11 @@ class IFUFindObjects(MultiSlitFindObjects):
         from scipy.sparse import dok_array, linalg
         from skimage import restoration
         deconvolve = False if snr is None else True
-        embed()
         imgmsg = "deconvolution" if deconvolve else "convolution"
         fwhm_to_sig = 2 * np.sqrt(2 * np.log(2))
         # Make a subpixellated input science image
         _input_img = np.repeat(input_img, subpixel, axis=0)
+        _input_msk = np.repeat(thismask, subpixel, axis=0)
         if deconvolve:
             _input_snr = np.repeat(snr, subpixel, axis=0)
         # Calculate the excess sigma (in subpixel coordinates)
@@ -1144,9 +1144,27 @@ class IFUFindObjects(MultiSlitFindObjects):
             midp = (kernsize-1) // 2
             xkern = np.arange(kernsize, dtype=int) - midp
             kern = np.exp(-0.5 * (xkern/kernwids[kk])**2)
+            kern = kern/np.sum(kern)
+            conv_allkern[:, :, kk] = utils.rebinND(convolve_fft(_input_img, _input_msk, kern), input_img.shape)
+            continue
 
-            psf = kern[:,None]
-            psf = psf/np.sum(psf)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             # conv_allkern[:, :, kk] = rebinND(restoration.unsupervised_wiener(_input_img, psf, clip=False)[0], input_img.shape)
             # a=time.time()
             conv_allkern[:, :, kk] = rebinND(restoration.wiener(_input_img, psf, balance=0.1, clip=False), input_img.shape)
@@ -1261,6 +1279,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
                                              input_img.shape)
             del conv
+        embed()
         msgs.info(f"Collating all {imgmsg} steps")
         conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
         msgs.info(f"Applying the {imgmsg} solution")
@@ -1306,8 +1325,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
-        sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask,
-                                        snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
+        sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)#, snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
 
         # Iterate to use a model variance image
         numiter = 10  # This is more than enough, and will probably break earlier than this
@@ -1521,3 +1539,55 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
         return
+
+
+
+def convolve_fft(_input_img, msk, kern):
+    nspec = _input_img.shape[0]
+    kernsize = kern.size
+    hwid = (kernsize-1) // 2
+    harr = np.arange(-hwid,+hwid+1)
+    fullsize = nspec + kernsize - 1
+    fsize = 2 ** int(np.ceil(np.log2(fullsize)))  # Use this size for a more efficient computation
+    conv = np.fft.fft(_input_img, fsize, axis=0)
+    conv *= np.fft.fft(kern/np.sum(kern), fsize)[:, None]
+    img_conv = np.fft.ifft(conv, axis=0).real[hwid:hwid+nspec,:]
+    del conv
+    # Find the slit edge pixels in the spectral direction
+    rmsk = (msk != np.roll(msk, 1, axis=0))
+    # Remove the edges of the detector
+    rmsk[0,:] = False
+    rmsk[-1,:] = False
+    # Separate into up edges and down edges
+    wup = np.where(rmsk & msk)
+    wdn = np.where(rmsk & np.logical_not(msk))
+    # Create an inner function that deals with the convolution
+    def inner_conv(ii, jj):
+        slc = ii+harr
+        slc = slc[(slc >= 0) & (slc < nspec)]
+        wsl = np.where(msk[slc,jj])
+        return np.sum(_input_img[slc[wsl],jj]*kern[wsl]) / np.sum(kern[wsl])
+    # Now calculate the convolution directly for these pixels
+    for ee in range(wup[0].size):
+        ii, jj = wup[0][ee], wup[1][ee]
+        for cc in range(ii, min(nspec-1, ii+hwid+1)):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    for ee in range(wdn[0].size):
+        ii, jj = wdn[0][ee], wdn[1][ee]
+        for cc in range(max(0,ii-hwid-1), ii+1):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    # Now recalculate the convolution near the spectral edges
+    rmsk = np.zeros(msk.shape, dtype=bool)
+    rmsk[:hwid+1,:] = True
+    wlo = np.where(msk & rmsk)
+    rmsk[:hwid+1,:] = False
+    rmsk[-hwid-1:,:] = True
+    whi = np.where(msk & rmsk)
+    for ee in range(wlo[0].size):
+        ii, jj = wlo[0][ee], wlo[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    for ee in range(whi[0].size):
+        ii, jj = whi[0][ee], whi[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    # Return the convolved image
+    return img_conv
