@@ -2764,9 +2764,8 @@ class WavelengthSolutionPar(ParSet):
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 
-                   'use_instr_flag', 'wvrng_arxiv', 'redo_slits',
-                   'qa_log']
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
+                   'redo_slits', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

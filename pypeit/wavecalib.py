@@ -659,7 +659,7 @@ class BuildWaveCalib:
                 self.lamps, self.par, ok_mask=ok_mask_idx,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, 
-                redo_slits=np.atleast_1d(self.par['redo_slits']))
+                redo_slits=np.atleast_1d(self.par['redo_slits']) if self.par['redo_slits'] is not None else None)
 
             # Save as internals in case we need to redo
             self.wave_soln_arxiv = wave_soln_arxiv
@@ -922,11 +922,9 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-<<<<<<< HEAD
         #skip_QA = True  # for debugging
         #msgs.warn("TURN QA BACK ON!!!")
-=======
->>>>>>> origin/sensfunc_blaze_jwst_lists
+
         self.wv_calib = self.build_wv_calib(
             self.arccen, self.par['method'],
             skip_QA=skip_QA,
@@ -935,7 +933,10 @@ class BuildWaveCalib:
         # Fit 2D?
         if self.par['echelle']:
             # Assess the fits
-            rms = np.array([wvfit.rms for wvfit in self.wv_calib.wv_fits])
+            rms = []
+            for wvfit in self.wv_calib.wv_fits:
+                rms.append(wvfit.rms if wvfit.rms is not None else 999.)
+            rms = np.array(rms)
             bad_rms = rms > self.par['rms_threshold']
             self.wvc_bpm[bad_rms] = True
             if np.any(bad_rms):
@@ -950,20 +951,35 @@ class BuildWaveCalib:
 
             # TODO This is work in progress by ProfX
             # Try a second attempt with 1D, if needed
-            if np.any(bad_rms):
-                embed(header='877 of wavecalib')
-                # TODO -- just run solve_xcorr
-                # Generate a better guess at wavelengths
-                patt_dict, final_fit = autoid.echelle_wvcalib(
-                    self.arccen, self.slits.ech_order, 
-                    self.arcspec_arxiv, self.wave_soln_arxiv,
-                    self.lamps, self.par, 
-                    #ok_mask=ok_mask_idx,
-                    nonlinear_counts=self.nonlinear_counts,
-                    debug_all=False, 
-                    redo_slits=self.slits.ech_order[bad_rms],
-                    debug_reid=True)
-                embed(header='893 of wavecalib')
+            embed(header='953 of wavecalib')
+            # Make this outside the for loop..
+            if self.par['ech_separate_2d']:
+                slit_img = self.slits.slit_img()
+            for idx in np.where(bad_rms)[0]:
+                idx = 16
+                order = self.slits.ech_order[idx]
+                # Which detector?
+                if self.par['ech_separate_2d']:
+                    spat_id = self.wv_calib.spat_ids[idx]
+                    ordr_det = self.slits.det_of_slit(
+                        spat_id, self.msarc.det_img,
+                        slit_img=slit_img)
+                else:
+                    ordr_det = 1
+                # Predict the wavelengths
+                nspec = self.arccen.shape[0]
+                spec_vec_norm = np.arange(nspec)/float(nspec-1)
+                wv_order_mod = fit2ds[ordr_det-1].eval(spec_vec_norm, 
+                                           x2=np.ones_like(spec_vec_norm)*order)
+
+                # Link me
+
+                # Score me
+
+            embed(header='893 of wavecalib')
+
+            # Do another 2D
+            fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
 
         # Deal with mask
         self.update_wvmask()

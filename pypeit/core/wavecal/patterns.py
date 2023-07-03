@@ -626,14 +626,17 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc,
 
     Parameters
     ----------
-    detlines : ndarray
+    detlines : `numpy.ndarray`_
         list of detected lines in pixels (sorted, increasing)
-    linelist : ndarray
+    linelist : `numpy.ndarray`_
         list of lines that should be detected (sorted, increasing)
-    dindex : ndarray
+    dindex : `numpy.ndarray`_
         Index array of all detlines (pixels) used in each triangle
-    lindex : ndarray
+    lindex : `numpy.ndarray`_
         Index array of the assigned line (wavelengths)to each index in dindex
+    line_cc : `numpy.ndarray`_
+        ??
+    cc_local_thresh : float, default = 0.8, optional
 
     Returns
     -------
@@ -713,6 +716,8 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
     nmin_match: int, default = 4, optional
         Minimum number of slits/solutions that have to have been matched
         to receive a score of 'Perfect' or 'Very Good'
+    cc_local_thresh: float, default = -1.0, optional
+        What does this do??
 
     Returns
     -------

@@ -373,9 +373,6 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
     return
 
 
-
-
-
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, 
                nreid_min, det_arxiv=None, 
                detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
@@ -646,9 +643,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         patt_dict_slit['sigdetect'] = sigdetect
         return detections, spec_cont_sub, patt_dict_slit
 
-    #if debug_reid:
-    #    embed(header='557 of autoid.py')
-
     # Finalize the best guess of each line
     patt_dict_slit = patterns.solve_xcorr(
         detections, wvdata, det_indx, line_indx, line_cc,
@@ -691,105 +685,98 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     return detections, spec_cont_sub, patt_dict_slit
 
 
-# TODO -- Move this to wvutils?
-def match_to_arxiv(spec_arxiv:np.ndarray):
+def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
+                   spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_imin:int,
+                   match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
+                   debug_peaks:bool=False, use_unknowns:bool=False):
 
-    nspec_arxiv, narxiv = spec_arxiv.shape
+    # TODO -- This code is duplicated from echelle_wvcalib
+    # Load the line lists
+    if 'ThAr' in lamps:
+        line_lists_all = waveio.load_line_lists(lamps)
+        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+    else:
+        line_lists = waveio.load_line_lists(lamps)
+        unknwns = waveio.load_unknown_list(lamps)
 
-    # Cross-correlate with each arxiv spectrum to identify lines
+    tot_line_list = astropy.table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
+
+    # Generate the wavelengths from the line list and sort
+    wvdata = np.array(tot_line_list['wave'].data)  # Removes mask if any
+    wvdata.sort()
+
+    # Search for lines in the input arc
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        spec, sigdetect=sigdetect,
+        nonlinear_counts=nonlinear_counts, 
+        fwhm=fwhm, debug = debug_peaks)
+    # If there are no lines in the input arc, return
+    if tcent.size == 0:
+        return None
+
+    # Search for lines in the arxiv arc
+    tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
+            spec_arxiv, sigdetect=sigdetect,
+            nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+    # If there are no lines in the arxiv arc, return
+    if tcent_arxiv.size == 0:
+        return None
+
+    # Interpolate the input wavelengths
+    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess, 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    # Interpolate the axiv both ways
+    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)), 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv, 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    # Find the wavelengths of the input arc lines and then the pixels
+    wv_cent = fwv_guess(tcent)
+    pix_arxiv = fpix_arxiv(wv_cent)
+
+    # Other bits
+    wvc_arxiv = wave_arxiv[wave_arxiv.size//2]
+    igood = wave_arxiv > 1.0
+    disp_arxiv = np.median(wave_arxiv[igood] - np.roll(wave_arxiv[igood], 1))
+
     line_indx = np.array([], dtype=int)
     det_indx = np.array([], dtype=int)
     line_cc = np.array([], dtype=float)
-    line_iarxiv = np.array([], dtype=int)
-    wcen = np.zeros(narxiv)
-    disp = np.zeros(narxiv)
-    shift_vec = np.zeros(narxiv)
-    stretch_vec = np.zeros(narxiv)
-    ccorr_vec = np.zeros(narxiv)
-    for iarxiv in range(narxiv):
-        msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
-        this_det_arxiv = det_arxiv[str(iarxiv)]
-        # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
-        success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
-                                        cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
-                                        debug=debug_xcorr)
-        # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
-        if success != 1:
-            continue
-        # Estimate wcen and disp for this slit based on its shift/stretch relative to the archive slit
-        disp[iarxiv] = disp_arxiv[iarxiv] / stretch_vec[iarxiv]
-        wcen[iarxiv] = wvc_arxiv[iarxiv] - shift_vec[iarxiv]*disp[iarxiv]
-        # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
-        # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
-        det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
-        spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
+    #line_iarxiv = np.array([], dtype=int)
 
-        if debug_xcorr:
-            plt.figure(figsize=(14, 6))
-            tampl_slit = np.interp(detections, xrng, spec_cont_sub)
-            plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
-            plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
-            tampl_arxiv = np.interp(this_det_arxiv, xrng, spec_arxiv[:, iarxiv])
-            plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
-                     label='arxiv arc', linewidth=0.5)
-            plt.plot(this_det_arxiv, tampl_arxiv, 'k+', markersize=8.0, label='arxiv arc lines')
-            # tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
-            for iline in range(det_arxiv_ss.size):
-                plt.plot([this_det_arxiv[iline], det_arxiv_ss[iline]], [tampl_arxiv[iline], tampl_arxiv[iline]],
-                         color='cornflowerblue', linewidth=1.0)
-            plt.plot(xrng, spec_arxiv_ss, color='black', drawstyle='steps-mid', label='arxiv arc shift/stretch',linewidth=1.0)
-            plt.plot(det_arxiv_ss, tampl_arxiv, 'k.', markersize=10.0, label='predicted arxiv arc lines')
-            plt.title(
-                'Cross-correlation of input slit and arxiv slit # {:d}'.format(iarxiv + 1) +
-                ': ccor = {:5.3f}'.format(ccorr_vec[iarxiv]) +
-                ', shift = {:6.1f}'.format(shift_vec[iarxiv]) +
-                ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
-                ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
-                ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*spec_cont_sub.min(), 1.5 *spec_cont_sub.max())
-            plt.legend()
-            plt.show()
+    # Match with tolerance
+    for ss, ipix_arxiv in enumerate(pix_arxiv):
+        pdiff = np.abs(pix_arxiv - tcent_arxiv)
+        bstpx = np.argmin(pdiff)
+        # If a match is found within 2 pixels, consider this a successful match
+        if pdiff[bstpx] < match_toler:
+            # Using the arxiv arc wavelength solution, search for the nearest line in the line list
+            bstwv = np.abs(wvdata - fwv_arxiv(tcent_arxiv[bstpx]))
+            # This is a good wavelength match if it is within match_toler disperion elements
+            if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv:
+                line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
+                det_indx = np.append(det_indx, ss)     # index of this line in the detected line array detections
+                #line_iarxiv = np.append(line_iarxiv,iarxiv)
+                line_cc = np.append(line_cc,1.) # Fakery
 
+    # Initialise the patterns dictionary, sigdetect not used anywhere
+    if (len(np.unique(line_indx)) < 3):
+        patt_dict_slit = patterns.empty_patt_dict(pix_arxiv.size)
+        patt_dict_slit['sigdetect'] = sigdetect
+    else:
+        # Finalize the best guess of each line
+        patt_dict_slit = patterns.solve_xcorr(
+            tcent, wvdata, det_indx, line_indx, line_cc,
+            nreid_min=nreid_min,cc_local_thresh=-1)
+        patt_dict_slit['bwv'] = wvc_arxiv
+        patt_dict_slit['bdisp'] = disp_arxiv
+        patt_dict_slit['sigdetect'] = sigdetect
 
-        # Calculate wavelengths for all of the this_det_arxiv detections. This step could in principle be done more accurately
-        # with the polynomial solution itself, but the differences are 1e-12 of a pixel, and this interpolate of the tabulated
-        # solution makes the code more general.
-        wvval_arxiv = (scipy.interpolate.interp1d(xrng, wave_soln_arxiv[:, iarxiv], kind='cubic'))(this_det_arxiv)
-
-        # Compute a "local" zero lag correlation of the slit spectrum and the shifted and stretch arxiv spectrum over a
-        # a nlocal_cc_odd long segment of spectrum. We will then uses spectral similarity as a further criteria to
-        # decide which lines are good matches
-        prod_smooth = scipy.ndimage.convolve1d(spec_cont_sub*spec_arxiv_ss, window)
-        spec2_smooth = scipy.ndimage.convolve1d(spec_cont_sub**2, window)
-        arxiv2_smooth = scipy.ndimage.convolve1d(spec_arxiv_ss**2, window)
-        denom = np.sqrt(spec2_smooth*arxiv2_smooth)
-        corr_local = np.zeros_like(denom)
-        corr_local[denom > 0] = prod_smooth[denom > 0]/denom[denom > 0]
-        corr_local[denom == 0.0] = -1.0
-
-        # Loop over the current slit line pixel detections and find the nearest arxiv spectrum line
-        # JFH added this if statement to prevent crashes for cases where no arc lines where found. This is because
-        # full_template keeps passing in tiny snippets of mostly junk padded spectra that cause all kind of crashes.
-        # A better approach would be to fix full_template so as to not enter reidentify unless the "arxiv_arcs"
-        # are not almost entirely zero padded snippets.
-        if det_arxiv_ss.size > 0:
-            for iline in range(detections.size):
-                # match to pixel in shifted/stretch arxiv spectrum
-                pdiff = np.abs(detections[iline] - det_arxiv_ss)
-                bstpx = np.argmin(pdiff)
-                # If a match is found within 2 pixels, consider this a successful match
-                if pdiff[bstpx] < match_toler:
-                    # Using the arxiv arc wavelength solution, search for the nearest line in the line list
-                    bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
-                    # This is a good wavelength match if it is within match_toler disperion elements
-                    if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
-                        line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
-                        det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
-                        line_cc = np.append(line_cc,np.interp(detections[iline],xrng,corr_local)) # local cross-correlation at this match
-                        line_iarxiv = np.append(line_iarxiv,iarxiv)
-
-    narxiv_used = np.sum(wcen != 0.0)
+    return tcent, spec_cont_sub, patt_dict_slit
 
 def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., specord=1, spatord=0, fwhm=5.):
     """
