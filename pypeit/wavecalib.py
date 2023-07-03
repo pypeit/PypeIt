@@ -924,7 +924,10 @@ class BuildWaveCalib:
         if self.par['echelle']:
             # Assess the fits
             rms = np.array([wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            bad_rms = rms > self.par['rms_threshold']
+            try:
+                bad_rms = rms > self.par['rms_threshold']
+            except:
+                embed()
             self.wvc_bpm[bad_rms] = True
             if np.any(bad_rms):
                 msgs.warn("Masking one or more bad orders (RMS)")

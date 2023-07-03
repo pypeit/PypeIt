@@ -482,6 +482,10 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     if trace.ndim == 1:
         trace = trace.reshape(-1,1)
 
+    ntrace = trace.shape[1]
+    _maskdef_extr = ntrace*[False] if maskdef_extr is None else maskdef_extr
+    _manual_extr = ntrace*[False] if manual_extr is None else manual_extr
+
     # Show
     if yval is None:
         y = np.repeat(np.arange(trace.shape[0]).astype(float)[:, None], trace.shape[1], axis=1)
@@ -490,9 +494,9 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
 
     canvas_list = []
     for i in range(trace.shape[1]):
-        if maskdef_extr[i]:
+        if _maskdef_extr[i]:
             _color = '#f0e442' if color is not None else color
-        elif manual_extr[i]:
+        elif _manual_extr[i]:
             _color = '#33ccff' if color is not None else color
         else:
             _color = 'orange' if color is not None else color
