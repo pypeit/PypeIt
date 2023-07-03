@@ -994,11 +994,29 @@ class BuildWaveCalib:
                     match_toler=self.par['match_toler'], 
                     func=self.par['func'], 
                     n_first=self.par['n_first'],
+                    #n_first=3,
                     sigrej_first=self.par['sigrej_first'], 
+                    #sigrej_first=1.5,
                     n_final=n_final, 
-                    sigrej_final=self.par['sigrej_final'])
+                    sigrej_final=2.)
+                    #sigrej_final=self.par['sigrej_final'])
+                print(final_fit['rms'])
 
-            embed(header='893 of wavecalib')
+                # Keep?
+                if final_fit['rms'] < self.par['rms_threshold']:
+                    # TODO -- This is repeated from lines 718-725
+                    # QA
+                    outfile = qa.set_qa_filename(
+                        self.wv_calib.calib_key, 'arc_fit_qa', 
+                        slit=order,
+                        out_dir=self.qa_path)
+                    autoid.arc_fit_qa(final_fit,
+                                    title=f'Arc Fit QA for slit/order: {order}',
+                                    outfile=outfile)
+                    # Save the wavelength solution fits
+                    self.wv_calib.wv_fits[iord] = final_fit
+                    self.wvc_bpm[iord] = False
+
 
             # Do another 2D
             fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
