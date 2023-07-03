@@ -52,11 +52,11 @@ def arr_setup_to_setup_list(arr_setup):
     """
 
     Args:
-        arr_setup: (list)
+        arr_setup (list):
           A list of length nsetups echelle output arrays of shape=(nspec, norders, nexp)
 
     Returns:
-        setup_list: (list)
+        setup_list (list):
           List of length nsetups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
@@ -72,13 +72,13 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
     Convert a setup_list to arr_setup list
 
     Args:
-        setup_list: (list)
+        setup_list (list):
           List of length nsteups. Each element of the setup list is a list of length
           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
           for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
           fastest varying dimension in python array ordering is the exposure number.
-        norders: (list)
+        norders (list):
           List containing the number of orders for each setup
         nexps (list):
           List containing the number of exposures for each setup
@@ -99,16 +99,16 @@ def concat_to_setup_list(concat, norders, nexps):
     """
 
     Args:
-        concat: (list)
+        concat (list):
            List of length = \Sum_i norders_i*nexps_i of numpy arrays describing an echelle spectrum where
            i runs over nsetups
-        norders: (list)
+        norders (list):
            List of length nsetups containing the number of orders for each setup
-        nexps:
+        nexps (list):
            List of length nexp containing the number of exposures for each setup
 
     Returns:
-        setup_list (list)
+        setup_list (list):
            list of length nsteups. Each element of the setup list is a list of length
                           norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
                           for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
@@ -136,7 +136,8 @@ def setup_list_to_concat(lst):
         lst (list):
 
     Returns:
-        list:
+        list (list):
+          A list of the elements of the input list, unraveled.
 
     """
     return list(itertools.chain.from_iterable(lst))
@@ -147,10 +148,11 @@ def echarr_to_echlist(echarr):
 
     Args:
         echarr: `np.ndarray`_
-            An echelle array of shape (nspec, norder)
+            An echelle array of shape (nspec, norder, nexp)
 
     Returns:
-        list: A list of 1d arrays of shape (nspec,)
+        list: A unraveled list of 1d arrays of shape (nspec,) where the norder dimension is the fastest
+        varying dimension and the nexp dimension is the slowest varying dimension.
 
     """
     shape = echarr.shape
@@ -245,14 +247,12 @@ def distinct_colors(num_colors):
     Taken from:  https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
 
     Args:
-        n (int):
+        num_colors (int):
             Number of colors to return.
-        cmap (:obj:`str`, optional):
-            Name of the matplotlib colormap to use.  Default is 'hsv'.
 
     Returns:
         `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
-        the requested number of colors.
+         the requested number of colors.
     """
 
     colors = []
@@ -445,9 +445,10 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
             forces the returned arrays to be copies instead.
 
     Returns:
-        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
-        wavelength, flux, inverse variance, and gpm arrays. The next two
-        give the length of each spectrum and the total number of spectra;
+        :obj:`tuple`: Returns 7 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. Next is the
+        log10_blaze_function, which is None if not provided as an input argument.
+        The next two give the length of each spectrum and the total number of spectra;
         i.e., the last two elements are identical to the shape of the
         returned flux array.
 
@@ -469,7 +470,7 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
                 gpm.reshape(-1, 1), log10_blaze_function.reshape(-1,1), flux.size, 1
         else:
             return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                gpm.reshape(-1, 1), flux.size, 1
+                gpm.reshape(-1, 1), None, flux.size, 1
 
     # Input is 2D
     nspec, norders = flux.shape
@@ -479,9 +480,9 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
     _gpm = gpm.copy() if copy else gpm
     if log10_blaze_function is not None:
         _log10_blaze_function = log10_blaze_function.copy() if copy else log10_blaze_function
-        return _wave, _flux, _ivar, _gpm, _log10_blaze_function, nspec, norders
     else:
-        return _wave, _flux, _ivar, _gpm, nspec, norders
+        _log10_blaze_function = None
+    return _wave, _flux, _ivar, _gpm, _log10_blaze_function, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
@@ -1389,7 +1390,7 @@ def load_pickle(fname):
 
 ## Python version taken from https://pythonhosted.org/pyDOE/randomized.html by JFH
 
-def lhs(n, samples=None, criterion=None, iterations=None):
+def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
     """
     Generate a latin-hypercube design
 
@@ -1459,6 +1460,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
         >>> lhs(4, samples=5, criterion='correlate', iterations=10)
 
     """
+    rng = np.random.default_rng(seed_or_rng)
     H = None
 
     if samples is None:
@@ -1469,7 +1471,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
                                      'centermaximin', 'cm', 'correlation',
                                      'corr'), 'Invalid value for "criterion": {}'.format(criterion)
     else:
-        H = _lhsclassic(n, samples)
+        H = _lhsclassic(rng, n, samples)
 
     if criterion is None:
         criterion = 'center'
@@ -1479,24 +1481,25 @@ def lhs(n, samples=None, criterion=None, iterations=None):
 
     if H is None:
         if criterion.lower() in ('center', 'c'):
-            H = _lhscentered(n, samples)
+            H = _lhscentered(rng, n, samples)
         elif criterion.lower() in ('maximin', 'm'):
-            H = _lhsmaximin(n, samples, iterations, 'maximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'maximin')
         elif criterion.lower() in ('centermaximin', 'cm'):
-            H = _lhsmaximin(n, samples, iterations, 'centermaximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'centermaximin')
         elif criterion.lower() in ('correlate', 'corr'):
-            H = _lhscorrelate(n, samples, iterations)
+            H = _lhscorrelate(rng, n, samples, iterations)
 
     return H
 
 ################################################################################
 
-def _lhsclassic(n, samples):
+def _lhsclassic(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    #u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     rdpoints = np.zeros_like(u)
@@ -1506,19 +1509,21 @@ def _lhsclassic(n, samples):
     # Make the random pairings
     H = np.zeros_like(rdpoints)
     for j in range(n):
-        order = np.random.permutation(range(samples))
+        order = rng.permutation(range(samples))
+        #order = np.random.permutation(range(samples))
         H[:, j] = rdpoints[order, j]
 
     return H
 
 ################################################################################
 
-def _lhscentered(n, samples):
+def _lhscentered(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    #u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     _center = (a + b ) /2
@@ -1526,21 +1531,22 @@ def _lhscentered(n, samples):
     # Make the random pairings
     H = np.zeros_like(u)
     for j in range(n):
-        H[:, j] = np.random.permutation(_center)
+        H[:, j] = rng.permutation(_center)
+        #H[:, j] = np.random.permutation(_center)
 
     return H
 
 ################################################################################
 
-def _lhsmaximin(n, samples, iterations, lhstype):
+def _lhsmaximin(rng, n, samples, iterations, lhstype):
     maxdist = 0
 
     # Maximize the minimum distance between points
     for i in range(iterations):
         if lhstype=='maximin':
-            Hcandidate = _lhsclassic(n, samples)
+            Hcandidate = _lhsclassic(rng, n, samples)
         else:
-            Hcandidate = _lhscentered(n, samples)
+            Hcandidate = _lhscentered(rng, n, samples)
 
         d = _pdist(Hcandidate)
         if maxdist <np.min(d):
@@ -1551,13 +1557,13 @@ def _lhsmaximin(n, samples, iterations, lhstype):
 
 ################################################################################
 
-def _lhscorrelate(n, samples, iterations):
+def _lhscorrelate(rng, n, samples, iterations):
     mincorr = np.inf
 
     # Minimize the components correlation coefficients
     for i in range(iterations):
         # Generate a random LHS
-        Hcandidate = _lhsclassic(n, samples)
+        Hcandidate = _lhsclassic(rng, n, samples)
         R = np.corrcoef(Hcandidate)
         if np.max(np.abs(R[ R!=1]) ) <mincorr:
             mincorr = np.max(np.abs( R -np.eye(R.shape[0])))

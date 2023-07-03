@@ -1271,7 +1271,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
     if len(sobjs_in_orders) == 0: 
         return sobjs_in_orders
 
-    # Additional work for slits with sources (found or input manually)
+    # Perform some additional work for slits with sources (found or input manually)
 
     # Friend of friend algorithm to group objects
     obj_id = ech_fof_sobjs(sobjs_in_orders, slit_left, slit_righ, order_vec, plate_scale, fof_link=fof_link)

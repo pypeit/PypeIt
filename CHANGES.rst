@@ -5,9 +5,22 @@
 - Hotfix for skysub regions GUI that used np.bool
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Adds Keck/ESI to PypeIt
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
+- Improvements to wavelength grids and masking in coadd routines.
+- Fixed a bug in echelle coadding where the wrong coadded spectra were being
+  used in final stacks.
+- Sensitivity function models can now be computed relative to the blaze
+  spectrum.
+- Refactored coadding routines to work with lists to support coadding data from
+  different setups.
+- Changes to how masking is dealt with in extraction to fix a bug in how masks
+  were being treated for echelle data
+- Various fixes and changes required to add more support for Keck/HIRES and JWST
+
+
 
 1.13.0 (2 June 2023)
 --------------------
@@ -17,7 +30,6 @@
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
-- Added the option to disable strict version checking for 1d coadds.
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Sensitivity function masking and output updates
 - Fixed a bug in the `variance_model` calculation for combined images.

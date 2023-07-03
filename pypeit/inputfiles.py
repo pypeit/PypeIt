@@ -92,8 +92,7 @@ class InputFile:
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
-            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                    for l in f.readlines()])
+            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() for l in f.readlines()])
         # Remove empty or fully commented lines
         lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
         # Remove appended comments and return

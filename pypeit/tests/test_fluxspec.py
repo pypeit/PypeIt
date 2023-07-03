@@ -203,7 +203,7 @@ def extinction_correction_tester(algorithm):
 
     # now flux our N_lam = 1 specobj
     par['fluxcalib']['extinct_correct'] = None
-    fluxCalibrate = fluxcalibrate.MultiSlitFC([spec1d_file], [sens_file], par=par['fluxcalib'])
+    fluxCalibrate = fluxcalibrate.FluxCalibrate([spec1d_file], [sens_file], par=par['fluxcalib'])
     # without extinction correction, we should get constant F_lam
     # with extinction correction, the spectrum will be blue
 

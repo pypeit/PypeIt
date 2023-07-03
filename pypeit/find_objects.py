@@ -37,7 +37,7 @@ class FindObjects:
         slits (:class:`~pypeit.slittrace.SlitTracSet`):
             Object providing slit traces for the image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            PypeIt Sspectrograph class
+            PypeIt Spectrograph class
         par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
             Reduction parameters class
         objtype (:obj:`str`):
@@ -162,8 +162,8 @@ class FindObjects:
             self.spat_flexure_shift = None
 
         # Initialise the slits
-        msgs.info("Initialising slits")
-        self.initialise_slits(slits)
+        msgs.info("Initializing slits")
+        self.initialize_slits(slits)
 
         # Internal bpm mask
         # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
@@ -270,7 +270,7 @@ class FindObjects:
         return skymask
 
     # TODO Make this a method possibly in slittrace.py. Almost identical code is in extraction.py
-    def initialise_slits(self, slits, initial=False):
+    def initialize_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`FindObjects`
@@ -954,7 +954,7 @@ class IFUFindObjects(MultiSlitFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-        self.initialise_slits(slits, initial=True)
+        self.initialize_slits(slits, initial=True)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,

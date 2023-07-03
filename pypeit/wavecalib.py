@@ -455,7 +455,7 @@ class BuildWaveCalib:
     # TODO: Is this used anywhere?
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, lamps, 
+    def __init__(self, msarc, slits, spectrograph, par, lamps,
                  meta_dict=None, det=1, qa_path=None, msbpm=None):
 
         # TODO: This should be a stop-gap to avoid instantiation of this with
@@ -571,7 +571,7 @@ class BuildWaveCalib:
               'identify' -- wavecal.identify.Identify
               'full_template' -- wavecal.auotid.full_template
             skip_QA (bool, optional)
-            prev_wvcalib (WaveCalib, optional):  
+            prev_wvcalib (WaveCalib, optional):
                 Previous wavelength calibration
 
         Returns:
@@ -642,17 +642,17 @@ class BuildWaveCalib:
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
-                    arccen, self.meta_dict['echangle'], 
-                    self.meta_dict['xdangle'], 
+                    arccen, self.meta_dict['echangle'],
+                    self.meta_dict['xdangle'],
                     self.meta_dict['dispname'],
-                    angle_fits_file, 
-                    composite_arc_file, 
+                    angle_fits_file,
+                    composite_arc_file,
                     pad=3, debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
-            
+
             #ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
@@ -695,12 +695,12 @@ class BuildWaveCalib:
                     item['fwhm'] = measured_fwhms[idx]
                     tmp.append(item)
             self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
-                                    fwhm_map=fwhm_map,
-                                    arc_spectra=arccen,
-                                    nslits=self.slits.nslits,
-                                    spat_ids=self.slits.spat_id,
-                                    PYP_SPEC=self.spectrograph.name,
-                                    lamps=','.join(self.lamps))
+                                      fwhm_map=fwhm_map,
+                                      arc_spectra=arccen,
+                                      nslits=self.slits.nslits,
+                                      spat_ids=self.slits.spat_id,
+                                      PYP_SPEC=self.spectrograph.name,
+                                      lamps=','.join(self.lamps))
         # Inherit the calibration frame naming from self.msarc
         # TODO: Should throw an error here if these calibration frame naming
         # elements are not defined by self.msarc...
@@ -869,8 +869,8 @@ class BuildWaveCalib:
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, 
-            gpm=self.gpm, slit_bpm=self.wvc_bpm, 
+            self.slitcen, self.slitmask, self.msarc.image,
+            gpm=self.gpm, slit_bpm=self.wvc_bpm,
             slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -922,10 +922,13 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
+<<<<<<< HEAD
         #skip_QA = True  # for debugging
         #msgs.warn("TURN QA BACK ON!!!")
+=======
+>>>>>>> origin/sensfunc_blaze_jwst_lists
         self.wv_calib = self.build_wv_calib(
-            self.arccen, self.par['method'], 
+            self.arccen, self.par['method'],
             skip_QA=skip_QA,
             prev_wvcalib=prev_wvcalib)
 
@@ -945,6 +948,7 @@ class BuildWaveCalib:
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
 
+            # TODO This is work in progress by ProfX
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
                 embed(header='877 of wavecalib')

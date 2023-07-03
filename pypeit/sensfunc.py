@@ -30,7 +30,6 @@ from pypeit.core.moment import moment1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
 from pypeit import flatfield
-from pypeit.fluxcalibrate import apply_flux_calib
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -247,28 +246,15 @@ class SensFunc(datamodel.DataContainer):
 
         # Compute the blaze function
         # TODO Make the blaze function optional
-        if par['flatfile'] is not None:
-            log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile'])
+        log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) if par['flatfile'] is not None else None
 
-            # Perform any instrument tweaks
-            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
-                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec,
-                                                 log10_blaze_function=log10_blaze_function)
-
-            # Reshape to 2d arrays
-            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
-                self.norderdet = \
-                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
-                                      log10_blaze_function=log10_blaze_function_twk)
-        else:
-            # Perform any instrument tweaks
-            wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk = \
-                self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec)
-
-            # Reshape to 2d arrays
-            self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, self.norderdet = \
-                utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
-            self.log10_blaze_function = None
+        # Perform any instrument tweaks
+        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
+            self.spectrograph.tweak_standard(wave, counts, counts_ivar, counts_mask, self.meta_spec, log10_blaze_function=log10_blaze_function)
+        # Reshape to 2d arrays
+        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.log10_blaze_function, self.nspec_in, \
+            self.norderdet = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk,
+                                                   log10_blaze_function=log10_blaze_function_twk)
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -282,6 +268,31 @@ class SensFunc(datamodel.DataContainer):
                                                          ra=star_ra, dec=star_dec)
 
     def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, min_blaze_value=1e-3, debug=False):
+        """
+        Compute the blaze function from a flat field image.
+
+        Args:
+            wave (`numpy.ndarray`_):
+                Wavelength array. Shape = (nspec, norddet)
+            trace_spec (`numpy.ndarray`_):
+                Spectral pixels for the trace of the spectrum. Shape = (nspec, norddet)
+            trace_spat (`numpy.ndarray`_):
+                Spatial pixels for the trace of the spectrum. Shape = (nspec, norddet)
+            flatfile (:obj:`str`):
+                Filename for the flat field calibration image
+            box_radius (:obj:`float`, optional):
+                Radius of the boxcar extraction region used to extract the blaze function in pixels
+            min_blaze_value (:obj:`float`, optional):
+                Minimum value of the blaze function. Values below this are clipped and set to this value. Default=1e-3
+            debug (:obj:`bool`, optional):
+                Show plots useful for debugging. Default=False
+
+
+        Returns:
+            log10_blaze_function (`numpy.ndarray`_):
+                The log10 blaze function. Shape = (nspec, norddet) if norddet > 1, else shape = (nspec,)
+
+        """
 
 
         flatImages = flatfield.FlatImages.from_file(flatfile)
@@ -302,7 +313,6 @@ class SensFunc(datamodel.DataContainer):
         wave_debug = wave.reshape(-1,1) if wave.ndim == 1 else wave
         log10_blaze_function = np.zeros_like(blaze_function)
         norddet = log10_blaze_function.shape[1]
-        debug=True
         for iorddet in range(norddet):
             blaze_function_smooth = utils.fast_running_median(blaze_function[:, iorddet], 5)
             blaze_function_norm = blaze_function_smooth/blaze_function_smooth.max()
@@ -312,6 +322,9 @@ class SensFunc(datamodel.DataContainer):
         if debug:
             plt.show()
 
+
+        # TODO It would probably better to just return an array of shape (nspec, norddet) even if norddet = 1, i.e.
+        # to get rid of this .squeeze()
         return log10_blaze_function.squeeze()
 
 
@@ -449,13 +462,13 @@ class SensFunc(datamodel.DataContainer):
 
         """
         # Now flux the standard star
-        apply_flux_calib(self.par_fluxcalib, self.spectrograph, self.sobjs_std, self)
+        self.sobjs_std.apply_flux_calib(self.par_fluxcalib, self.spectrograph, self)
         # TODO assign this to the data model
 
         # Unpack the fluxed standard
         _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ = self.sobjs_std.unpack_object(ret_flam=True)
         # Reshape to 2d arrays
-        wave, flam, flam_ivar, flam_mask, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
+        wave, flam, flam_ivar, flam_mask, _, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
         # Store in the sens table
         self.sens['SENS_FLUXED_STD_WAVE'] = wave.T
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
@@ -745,7 +758,7 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
-        # Plot throughput curve(s) for all orders/det
+        # Plot fluxed standard star for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         axis.plot(self.std_dict['wave'].value, self.std_dict['flux'].value, color='green',linewidth=3.0,
@@ -778,9 +791,6 @@ class SensFunc(datamodel.DataContainer):
         fig.savefig(self.fstdfile)
 
 
-
-
-        # Plot the fluxed standard star spectrum
 
 
     @classmethod
@@ -827,7 +837,8 @@ class SensFunc(datamodel.DataContainer):
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 
         if debug:
-            coadd.weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+            coadd.weights_qa(utils.echarr_to_echlist(waves_stack)[0], utils.echarr_to_echlist(weights_stack)[0],
+                             utils.echarr_to_echlist(waves_stack > 1.0)[0], title='sensfunc_weights')
 
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))

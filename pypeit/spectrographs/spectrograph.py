@@ -1841,6 +1841,8 @@ class Spectrograph:
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
 
         Returns
         -------
@@ -1852,11 +1854,10 @@ class Spectrograph:
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
-        if log10_blaze_function is not None:
-            return wave_in, counts_in, counts_ivar_in, gpm_in, log10_blaze_function
-        else:
-            return wave_in, counts_in, counts_ivar_in, gpm_in
+        return wave_in, counts_in, counts_ivar_in, gpm_in, log10_blaze_function
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

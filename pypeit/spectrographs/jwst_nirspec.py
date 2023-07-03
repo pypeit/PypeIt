@@ -81,34 +81,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dicts = [detector_dict1, detector_dict2]
         return detector_container.DetectorContainer(**detector_dicts[det-1])
 
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        self.meta = {}
-        # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card='APERTURE')
-        self.meta['dichroic'] = dict(ext=0, card='INSFILTE')
-        self.meta['binning'] = dict(ext=0, card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-
-        # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='DISPERSE')
-        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
-
-        # used for arc and continuum lamps
-        self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
-        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-
-
     @classmethod
     def default_pypeit_par(cls):
         """
