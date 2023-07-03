@@ -319,11 +319,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
         plt.show()
 
 
-# JFH CAn we replace reasize with this simpler function:  rebin_factor
-# https://scipy-cookbook.readthedocs.io/items/Rebinning.html
 def resize_mask2arc(shape_arc, slitmask_orig):
     """
-    Resizes the input slitmask to a new shape.  Generally used
+    Rebin the input slitmask to a new shape.  Generally used
     for cases where the arc image has a different binning than 
     the science image. 
 
@@ -350,9 +348,7 @@ def resize_mask2arc(shape_arc, slitmask_orig):
             msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
         else:
             msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
-        slitmask = utils.rebin(slitmask_orig, (nspec, nspat))
-        # Previous line using skimage
-        #slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
+        slitmask = utils.rebin_slice(slitmask_orig, (nspec, nspat))
     else:
         slitmask = slitmask_orig
 

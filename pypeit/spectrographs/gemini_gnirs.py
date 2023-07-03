@@ -69,7 +69,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -81,6 +81,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Relatively short slit, so keep the spatial tilt order low
+        par['calibrations']['tilts']['spat_order'] = 1
 
         # Reduce parameters
         #par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
@@ -116,7 +119,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -164,14 +167,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+            par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
             par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
-
 
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
@@ -216,7 +218,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -286,12 +288,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -302,7 +304,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant

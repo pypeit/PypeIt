@@ -1,6 +1,16 @@
+1.13.1dev (6 June 2023)
+------------------------
 
-1.12.3dev
----------
+- Hotfix for rebin (speed-up and conserves flux)
+- Hotfix for skysub regions GUI that used np.bool
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
+  magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+- Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
+
+1.13.0 (2 June 2023)
+--------------------
 
 - Implemented a resample algorithm when generating datacubes
 - Hotfix to docs to ensure pypeit_loaders api doc is generated
@@ -32,6 +42,7 @@
 - Improve speed in ginga visualization of traces and added
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
+- Updates to reduction parameters for LDT/DeVeny
 
 1.12.2 (29 Mar 2023)
 --------------------
@@ -1523,7 +1534,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script

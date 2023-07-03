@@ -8,7 +8,7 @@
     positional arguments:
       file             PypeIt Alignment file [e.g. Alignment_A_1_DET01.fits]
     
-    optional arguments:
+    options:
       -h, --help       show this help message and exit
       --chname CHNAME  Channel name for image in Ginga (default: Alignments)
     

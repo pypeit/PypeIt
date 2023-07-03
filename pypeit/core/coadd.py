@@ -3279,7 +3279,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
         spec_rebin_this = waveimg[thismask]
         spat_rebin_this = spatimg[thismask]
 
-        # This fist image is purely for bookeeping purposes to determine the number of times each pixel
+        # This first image is purely for bookkeeping purposes to determine the number of times each pixel
         # could have been sampled
         nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
                                                                bins=[spec_bins, spat_bins], density=False)
