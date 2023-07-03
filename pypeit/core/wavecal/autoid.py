@@ -686,7 +686,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
 
 def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
-                   spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_imin:int,
+                   spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_min:int,
                    match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
                    debug_peaks:bool=False, use_unknowns:bool=False):
 
@@ -750,7 +750,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
 
     # Match with tolerance
     for ss, ipix_arxiv in enumerate(pix_arxiv):
-        pdiff = np.abs(pix_arxiv - tcent_arxiv)
+        pdiff = np.abs(ipix_arxiv - tcent_arxiv)
         bstpx = np.argmin(pdiff)
         # If a match is found within 2 pixels, consider this a successful match
         if pdiff[bstpx] < match_toler:
@@ -776,7 +776,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         patt_dict_slit['bdisp'] = disp_arxiv
         patt_dict_slit['sigdetect'] = sigdetect
 
-    return tcent, spec_cont_sub, patt_dict_slit
+    return tcent, spec_cont_sub, patt_dict_slit, tot_line_list
 
 def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., specord=1, spatord=0, fwhm=5.):
     """

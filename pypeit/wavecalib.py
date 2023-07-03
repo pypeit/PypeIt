@@ -17,7 +17,7 @@ from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
 from pypeit.core import parse
-from pypeit.core.wavecal import autoid, wv_fitting
+from pypeit.core.wavecal import autoid, wv_fitting, wvutils
 from pypeit.core.gui.identify import Identify
 from pypeit import datamodel
 from pypeit import calibframe
@@ -955,12 +955,11 @@ class BuildWaveCalib:
             # Make this outside the for loop..
             if self.par['ech_separate_2d']:
                 slit_img = self.slits.slit_img()
-            for idx in np.where(bad_rms)[0]:
-                idx = 16
-                order = self.slits.ech_order[idx]
+            for iord in np.where(bad_rms)[0]:
+                order = self.slits.ech_order[iord]
                 # Which detector?
                 if self.par['ech_separate_2d']:
-                    spat_id = self.wv_calib.spat_ids[idx]
+                    spat_id = self.wv_calib.spat_ids[iord]
                     ordr_det = self.slits.det_of_slit(
                         spat_id, self.msarc.det_img,
                         slit_img=slit_img)
@@ -970,11 +969,34 @@ class BuildWaveCalib:
                 nspec = self.arccen.shape[0]
                 spec_vec_norm = np.arange(nspec)/float(nspec-1)
                 wv_order_mod = fit2ds[ordr_det-1].eval(spec_vec_norm, 
-                                           x2=np.ones_like(spec_vec_norm)*order)
+                                           x2=np.ones_like(spec_vec_norm)*order)/order
 
                 # Link me
+                from importlib import reload
+                reload(autoid)
+                tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
+                    self.lamps, self.arccen[:,iord], wv_order_mod, 
+                    self.arcspec_arxiv[:, iord],  self.wave_soln_arxiv[:,iord],
+                    self.par['nreid_min'], 
+                   match_toler=self.par['match_toler'], 
+                   nonlinear_counts=self.nonlinear_counts, 
+                   sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
+                   fwhm=self.par['fwhm'])
 
-                # Score me
+                if not patt_dict_slit['acceptable']:
+                    msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
+                    continue
+
+                # Fit me -- RMS may be too high again
+                n_final = wvutils.parse_param(self.par, 'n_final', iord)
+                final_fit = wv_fitting.fit_slit(
+                    spec_cont_sub, patt_dict_slit, tcent, tot_llist, 
+                    match_toler=self.par['match_toler'], 
+                    func=self.par['func'], 
+                    n_first=self.par['n_first'],
+                    sigrej_first=self.par['sigrej_first'], 
+                    n_final=n_final, 
+                    sigrej_final=self.par['sigrej_final'])
 
             embed(header='893 of wavecalib')
 
