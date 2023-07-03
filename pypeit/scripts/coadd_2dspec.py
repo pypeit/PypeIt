@@ -221,7 +221,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           vel_type=None,
                                                           maskdef_designtab=maskdef_designtab)
 
-        all_spec2d['meta']['exptime'] = coadd.exptime_coadd
+        all_spec2d['meta']['effective_exptime'] = coadd.exptime_coadd
 
         # SAVE TO DISK
 

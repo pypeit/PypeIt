@@ -30,7 +30,7 @@ during reductions (see :ref:`2d_combine`).
 
         .. code-block:: ini
 
-            coadd_exptime = np.percentile([1800,1800,1800,1200],50, interpolation='higher')
+            coadd_exptime = np.percentile([1800,1800,1800,1200],50, method='higher')
 
         and the flux of the individual frames will be rescaled by:
 
@@ -39,7 +39,7 @@ during reductions (see :ref:`2d_combine`).
             rescale_factor = coadd_exptime / exptime
 
         where ``exptime`` is the exposure time of the individual frames. ``coadd_exptime`` is saved
-        in the header of the coadded frame as ``HIERARCH ALLSPEC2D_EXPTIME``, so that the user can
+        in the header of the coadded frame as ``ALLSPEC2D_EFFECTIVE_EXPTIME``, so that the user can
         easily convert the flux of the coadded frame from ``counts`` to ``counts/s``.
 
         Note, also, that the combination (without weighting) of multiple exposures during main reduction

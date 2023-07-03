@@ -7,7 +7,7 @@ dependencies:
   - pyyaml>=5.4
   - requests>=2.26
   - packaging>=21.0
-  - numpy>=1.21
+  - numpy>=1.22
   - scipy>=1.7
   - scikit-learn>=1.0
   - astropy>=4.3
