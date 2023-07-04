@@ -924,6 +924,16 @@ class BuildWaveCalib:
             skip_QA=skip_QA,
             prev_wvcalib=prev_wvcalib)
 
+        # Fit 2D?
+        if self.par['echelle']:
+            # Fit
+            fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+            # Save
+            self.wv_calib.wv_fit2d = np.array(fit2ds)
+            # Save det_img?
+            if self.par['ech_separate_2d']:
+                self.wv_calib.det_img = self.msarc.det_img.copy()
+
         # Deal with mask
         self.update_wvmask()
 
