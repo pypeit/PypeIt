@@ -47,6 +47,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        # REMOVE THIS Do not require bias frames
+        turn_off = dict(use_biasimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['fit_order'] = 3
@@ -216,6 +220,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             # lamps header keywords changed over time. We know when the change happened ("2014-02-15"),
             # but will try to not use the date and instead look for the latest keyword.
             # old keyword looks like LAMPS = '0,0,0,0,0,1', which refers to 'MERCURY,NEON,ARGON,CADMIUM,ZINC,HALOGEN'
+            # from https://www2.keck.hawaii.edu/inst/lris/instrument_key_list.html
             old_lamp_status = np.array(headarr[0].get('LAMPS').split(','), dtype=int).astype(bool) \
                 if headarr[0].get('LAMPS') is not None else None
             new_lamp_status = np.array([headarr[0].get(k) == 'on' for k in lamp_keys])
@@ -830,7 +835,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
@@ -1228,7 +1232,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Tilts
@@ -1311,6 +1314,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['sigdetect'] = 20.0
             par['calibrations']['wavelengths']['nsnippet'] = 1
+        elif self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '600/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_5000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -1637,9 +1643,6 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'KrI', 'XeI', 'HgI']
 
         return par
 
