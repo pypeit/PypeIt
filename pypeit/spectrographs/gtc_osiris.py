@@ -3,6 +3,7 @@ Module for GTC OSIRIS specific methods.
 
 .. include:: ../include/links.rst
 """
+import copy
 import numpy as np
 
 from pypeit import msgs
@@ -271,6 +272,50 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def modify_config(self, row, cfg):
+        """
+        Modify the configuration dictionary for a given frame. This method is
+        used in :func:`~pypeit.metadata.PypeItMetaData.set_configurations` to
+        modify in place the configuration requirement to assign a specific frame
+        to the current setup.
+
+        This is needed for the reduction of 'LONGSLIT' and 'long2pos' data,
+        which often use calibrations taken with a different decker (MASKNAME).
+
+            - For the 'LONGSLIT' masks, when we are assigning a configuration to
+              a calibration file that was taken with the longest slit available
+              (46 CSUs), since these calibrations are generally used for the
+              reduction of science frames with shorter slits, we remove the
+              configuration requirement on the slit length for the current file.
+
+            - For the 'long2pos' masks, when we are assigning a configuration to
+              a calibration file that was taken with the 'long2pos' mask, since
+              these calibrations are generally used for the reduction of science
+              frames taken with 'long2pos_specphot' masks, we modify the
+              configuration requirement on the decker_secondary for the current
+              file.
+
+        Args:
+            row (`astropy.table.Row`_):
+                The table row with the metadata for one frame.
+            cfg (:obj:`dict`):
+                Dictionary with metadata associated to a specific configuration.
+
+        Returns:
+            :obj:`dict`: modified dictionary with metadata associated to a
+            specific configuration.
+        """
+        if 'bias' in row['frametype']:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2.pop('dispname')
+            cfg2.pop('decker')
+            return cfg2
+        if 'arc' in row['frametype'] or 'tilt' in row['frametype']:
+            cfg2 = copy.deepcopy(cfg)
+            cfg2.pop('decker')
+            return cfg2
+        return cfg
 
     def config_independent_frames(self):
         """
