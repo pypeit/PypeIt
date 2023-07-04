@@ -1109,7 +1109,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
-    def convolve_skymodel(self, input_img, fwhm_map, thismask, subpixel=5, nsample=5, snr=None):
+    def convolve_skymodel(self, input_img, fwhm_map, thismask, subpixel=5, nsample=10, snr=None):
         """
         TODO :: docstring
         """
@@ -1126,7 +1126,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         if deconvolve:
             _input_snr = np.repeat(snr, subpixel, axis=0)
         # Calculate the excess sigma (in subpixel coordinates)
-        sig_exc = subpixel * np.sqrt(fwhm_map[thismask]**2 - np.min(fwhm_map[thismask])**2)/fwhm_to_sig
+        # sig_exc = subpixel * np.sqrt(fwhm_map[thismask]**2 - np.min(fwhm_map[thismask])**2)/fwhm_to_sig
+        sig_exc = subpixel * np.sqrt(np.max(fwhm_map[thismask])**2 - fwhm_map[thismask]**2)/fwhm_to_sig
         nspec, nspat = _input_img.shape
         # We need to loop over a range of kernel widths, and then interpolate. This assumes that the FWHM
         # locally around every pixel is roughly constant to within +/-5 sigma of the profile width
@@ -1190,7 +1191,6 @@ class IFUFindObjects(MultiSlitFindObjects):
                 conv *= np.fft.fft(kern, fsize)[:, None]
             # Inverse transform and rebin onto the shape of the science image
             # third index is offset by one because the zeroth index is the input
-            # TODO :: need to move rebinND from datacube.py to utils.py
             conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
                                              input_img.shape)
             tmp = restoration.wiener(input_img, psf, balance=0.02**2, clip=False)
@@ -1275,11 +1275,9 @@ class IFUFindObjects(MultiSlitFindObjects):
                 conv *= np.fft.fft(kern, fsize)[:, None]
             # Inverse transform and rebin onto the shape of the science image
             # third index is offset by one because the zeroth index is the input
-            # TODO :: need to move rebinND from datacube.py to utils.py
             conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
                                              input_img.shape)
             del conv
-        # embed()
         msgs.info(f"Collating all {imgmsg} steps")
         conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
         msgs.info(f"Applying the {imgmsg} solution")
@@ -1326,9 +1324,9 @@ class IFUFindObjects(MultiSlitFindObjects):
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
         sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)#, snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
-
+        # sciimg = self.sciImg.image.copy()
         # Iterate to use a model variance image
-        numiter = 10  # This is more than enough, and will probably break earlier than this
+        numiter = 4  # This is more than enough, and will probably break earlier than this
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         for nn in range(numiter):
@@ -1363,7 +1361,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                     scale_bin[bb] = np.median(scale_all[cond])
                     scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
                 wgd = np.where(scale_err > 0)
-                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=3)
+                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=5)
                 scaleImg[this_slit] *= np.polyval(coeff, self.waveimg[this_slit])
                 if sl == sl_ref:
                     scaleImg[thismask] /= np.polyval(coeff, self.waveimg[thismask])
@@ -1400,6 +1398,7 @@ class IFUFindObjects(MultiSlitFindObjects):
 
         # We now have a joint global sky fit to the modified science image (i.e. the one with the effective resolution)
         # Invert the correction here so the global sky has the appropriate spectral resolution at each pixel.
+        embed()
         global_sky = self.convolve_skymodel(_global_sky)
 
         # Update the ivar image used in the sky fit
