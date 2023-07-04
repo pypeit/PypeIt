@@ -1279,19 +1279,19 @@ class IFUFindObjects(MultiSlitFindObjects):
             conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
                                              input_img.shape)
             del conv
-        embed()
+        # embed()
         msgs.info(f"Collating all {imgmsg} steps")
         conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
         msgs.info(f"Applying the {imgmsg} solution")
         eval_spec, eval_spat = np.where(thismask)
         sciimg_deconv = np.copy(input_img)
         sciimg_deconv[thismask] = conv_interp((eval_spec, eval_spat, sig_exc))
-        plt.subplot(121)
-        plt.imshow(input_img, vmin=400, vmax=1500)
-        plt.subplot(122)
-        plt.imshow(conv_allkern[:,:,-1], vmin=400, vmax=1500)
-        # plt.imshow(sciimg_deconv, vmin=0, vmax=1000)
-        plt.show()
+        # plt.subplot(121)
+        # plt.imshow(input_img, vmin=400, vmax=1500)
+        # plt.subplot(122)
+        # # plt.imshow(conv_allkern[:,:,-1], vmin=400, vmax=1500)
+        # plt.imshow(sciimg_deconv-input_img, vmin=-100, vmax=100)
+        # plt.show()
 
         return sciimg_deconv
 
