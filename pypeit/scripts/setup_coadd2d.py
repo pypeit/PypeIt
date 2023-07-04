@@ -18,8 +18,9 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         input_group = parser.add_mutually_exclusive_group(required=True)
         input_group.add_argument('-f', '--pypeit_file', type=str, default=None,
                                  help='PypeIt reduction file')
-        input_group.add_argument('-d', '--science_dir', type=str, default=None,
-                                 help='Directory with spec2d files to stack')
+        input_group.add_argument('-d', '--science_dir', type=str, nargs='*', default=None,
+                                 help='One or more directories with spec2d files to stack '
+                                      '(use wildcard to specify multiple directories).')
 
         parser.add_argument('--keep_par', dest='clean_par', default=True, action='store_false',
                             help='Propagate all parameters from the pypeit file to the coadd2d '
@@ -82,7 +83,8 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             pypeitFile = None
             par = None
             spec_name = None
-            sci_dir = Path(args.science_dir).resolve()
+            # sci_dir = Path(args.science_dir).resolve()
+            sci_dirs = [Path(sc).resolve() for sc in args.science_dir]
         else:
             # Read the pypeit file
             pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
@@ -97,15 +99,20 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             # based on the parameter value, then try to base it on the parent
             # directory of the provided pypeit file.  The latter is critical to the
             # vet_test in the dev-suite.
-            sci_dir = Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']
-            if not sci_dir.exists():
-                sci_dir = Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']
+            sci_dirs = [Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']]
+            if not sci_dirs[0].exists():
+                sci_dirs = [Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']]
 
-        if not sci_dir.exists():
-            msgs.error(f'Science directory not found: {sci_dir}\n')
+        sci_dirs_exist = [sc.exists() for sc in sci_dirs]
+        if not np.all(sci_dirs_exist):
+            msgs.error(f'One or more Science directories not found.\n')
 
         # Find all the spec2d files:
-        spec2d_files = sorted(sci_dir.glob('spec2d*'))
+        spec2d_files = []
+        for sci_dir in sci_dirs:
+            for sci_file in sorted(sci_dir.glob('spec2d*')):
+                spec2d_files.append(sci_file)
+
         if len(spec2d_files) == 0:
             msgs.error(f'No spec2d files found in {sci_dir}.')
 
@@ -172,6 +179,6 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             tbl['filename'] = [f.name for f in files]
             ofile = args.pypeit_file.replace('.pypeit', f'_{obj}.coadd2d') if args.pypeit_file is not None \
                 else f'{spec_name}_{obj}.coadd2d'
-            inputfiles.Coadd2DFile(config=cfg, file_paths=[str(sci_dir)],
+            inputfiles.Coadd2DFile(config=cfg, file_paths=[str(sc) for sc in sci_dirs],
                                    data_table=tbl).write(ofile)
 
