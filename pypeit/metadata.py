@@ -1401,9 +1401,9 @@ class PypeItMetaData:
             table>
         """
         # Columns for output
-        columns = self.spectrograph.pypeit_file_keys() + ['calib']
+        columns = self.spectrograph.pypeit_file_keys()
 
-        extras = []
+        extras = ['calib']
 
         # comb, bkg columns
         if write_bkg_pairs:

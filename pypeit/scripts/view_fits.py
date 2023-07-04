@@ -40,6 +40,8 @@ class ViewFits(scriptbase.ScriptBase):
                                  'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
                                  'keck_lris will show the mosaic of all detectors.')
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
+        parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
+                            action='store_true')
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
         return parser
@@ -115,6 +117,8 @@ class ViewFits(scriptbase.ScriptBase):
                     except Exception as e:
                         msgs.error(bad_read_message
                                    + f'  Original exception -- {type(e).__name__}: {str(e)}')
+
+
                     Img = Img.sub(bkgImg)
 
                 img = Img.image
@@ -129,6 +133,11 @@ class ViewFits(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
         display.show_image(img, chname=args.chname)
 
+        if args.showmask:
+            if not args.proc:
+                msgs.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
+            else:
+                viewer, ch_mask = display.show_image(Img.bpm, chname="BPM")
 
         if args.embed:
             embed(header=utils.embed_header())

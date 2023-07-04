@@ -14,7 +14,7 @@ class SkySubRegions(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Display a Raw science image and interactively '
+        parser = super().get_parser(description='Display a spec2d frame and interactively '
                                                 'define the sky regions using a GUI. Run in the '
                                                 'same folder as your .pypeit file',
                                     width=width)
