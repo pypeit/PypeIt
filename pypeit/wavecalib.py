@@ -920,38 +920,6 @@ class BuildWaveCalib:
             skip_QA=skip_QA,
             prev_wvcalib=prev_wvcalib)
 
-        # Fit 2D?
-        if self.par['echelle']:
-            # Assess the fits
-            rms = np.array([wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            try:
-                bad_rms = rms > self.par['rms_threshold']
-            except:
-                embed()
-            self.wvc_bpm[bad_rms] = True
-            if np.any(bad_rms):
-                msgs.warn("Masking one or more bad orders (RMS)")
-            # Fit
-            fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
-            # Save
-            self.wv_calib.wv_fit2d = np.array(fit2ds)
-            # Save det_img?
-            if self.par['ech_separate_2d']:
-                self.wv_calib.det_img = self.msarc.det_img.copy()
-
-            # TODO This is work in progress by ProfX
-            # Try a second attempt with 1D, if needed
-            #if np.any(bad_rms):
-                #for bad_slit in np.where(bad_rms)[0]:
-                    #embed(header='877 of wavecalib')
-                    # TODO -- just run solve_xcorr
-                    # Generate a better guess at wavelengths
-                    #patt_dict, final_fit = autoid.echelle_wvcalib(
-                    #    arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                    #    self.lamps, self.par, ok_mask=ok_mask_idx,
-                    #    nonlinear_counts=self.nonlinear_counts,
-                    #    debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
-
         # Deal with mask
         self.update_wvmask()
 
