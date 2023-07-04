@@ -311,10 +311,6 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             cfg2.pop('dispname')
             cfg2.pop('decker')
             return cfg2
-        if 'arc' in row['frametype'] or 'tilt' in row['frametype']:
-            cfg2 = copy.deepcopy(cfg)
-            cfg2.pop('decker')
-            return cfg2
         return cfg
 
     def config_independent_frames(self):
