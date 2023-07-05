@@ -726,8 +726,9 @@ class BuildWaveCalib:
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm,
-                                   spat_id=self.slits.slitord_id[slit_idx])
+                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
+                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
+                                   outfile=outfile_fwhm)
 
 
         # Return

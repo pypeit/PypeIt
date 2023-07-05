@@ -203,7 +203,7 @@ def arc_fit_qa(waveFit,
     return
 
 
-def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
+def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
     """
     QA for spectral FWHM fitting
 
@@ -213,6 +213,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
         spat_id (int):
             The spatial ID of the slit. It is the spatial midpoint of the slit,
             halfway along the spectral direction.
+        slit_txt (:obj:`str`, optional):
+            String indicating if the QA should use "slit" (MultiSlit, IFU) or "order" (Echelle)
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         show_QA (bool, optional):
@@ -259,7 +261,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     ax.set_ylim((ymin, ymax))
     ax.set_xlabel('Spectral coordinate (pixels)', fontsize=12)
     ax.set_ylabel('Spectral FWHM (pixels)', fontsize=12)
-    titletxt = f'Spectral FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}:\n' \
+    titletxt = f'Spectral FWHM residual map for {slit_txt} {spat_id}\n' \
+               f'spat_order, spec_order = {spat_order}, {spec_order}\n' \
                f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}\n' \
                f'filled (unfilled) symbols = included (excluded) in fit'
     ax.set_title(titletxt, fontsize=12)
@@ -731,9 +734,9 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution for slit {sl+1}/{nslits}")
+        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM  map computaiton for masked slit {0:d}'.format(sl+1))
+            msgs.warn('Skipping FWHM  map computation for masked slit {0:d}'.format(sl+1))
             continue
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
@@ -1148,7 +1151,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         if iord not in ok_mask:
             wv_calib[str(iord)] = None
             continue
-        msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord, norders - 1))
+        msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
         rms_threshold = wvutils.parse_param(par, 'rms_threshold', iord)
@@ -1184,7 +1187,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         # Is the RMS below the threshold?
         if final_fit['rms'] > rms_threshold:
             msgs.warn('---------------------------------------------------' + msgs.newline() +
-                      'Reidentify report for slit {0:d}/{1:d}:'.format(iord, norders - 1) + msgs.newline() +
+                      'Reidentify report for slit {0:d}/{1:d}:'.format(iord+1, norders) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                           final_fit['rms']) + msgs.newline() +
                       '---------------------------------------------------')
@@ -1232,7 +1235,7 @@ def report_final(nslits, all_patt_dict, detections,
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
         badmsg = '---------------------------------------------------' + msgs.newline() + \
-            'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline()
+            'Final report for slit {0:d}/{1:d}:'.format(slit+1, nslits) + msgs.newline()
         if orders is not None:
             badmsg += f'    Order: {orders[slit]}' + msgs.newline()
         badmsg +=  '  Wavelength calibration not performed!'
@@ -1254,7 +1257,7 @@ def report_final(nslits, all_patt_dict, detections,
         cen_wave = wv_calib[st]['cen_wave']
         cen_disp = wv_calib[st]['cen_disp']
         sreport = str('---------------------------------------------------' + msgs.newline() +
-                  'Final report for slit {0:d}/{1:d}:'.format(slit, nslits - 1) + msgs.newline() +
+                  'Final report for slit {0:d}/{1:d}:'.format(slit+1, nslits) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines detected      = {:d}'.format(detections[st].size) + msgs.newline() +
                   '  Number of lines that were fit = {:d}'.format(
@@ -1456,7 +1459,7 @@ class ArchiveReid:
             if slit not in self.ok_mask:
                 self.wv_calib[str(slit)] = None
                 continue
-            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
+            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit+1,self.nslits))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             ind_sp = arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv

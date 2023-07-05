@@ -958,7 +958,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
       The centroids of the line detections
     twid : `numpy.ndarray`_
       The 1sigma Gaussian widths of the line detections
-    centerr : `numpy.ndarray`_
+    center : `numpy.ndarray`_
       The variance on tcent
     w : `numpy.ndarray`_
       An index array indicating which detections are the most reliable.
