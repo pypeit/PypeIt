@@ -1164,8 +1164,6 @@ class IFUFindObjects(MultiSlitFindObjects):
 
 
 
-
-
             # conv_allkern[:, :, kk] = rebinND(restoration.unsupervised_wiener(_input_img, psf, clip=False)[0], input_img.shape)
             # a=time.time()
             conv_allkern[:, :, kk] = rebinND(restoration.wiener(_input_img, psf, balance=0.1, clip=False), input_img.shape)
@@ -1399,6 +1397,20 @@ class IFUFindObjects(MultiSlitFindObjects):
         # We now have a joint global sky fit to the modified science image (i.e. the one with the effective resolution)
         # Invert the correction here so the global sky has the appropriate spectral resolution at each pixel.
         embed()
+        from matplotlib import pyplot as plt
+        from pypeit.core import arc
+        unq = np.arange(30,161,10)
+        colors = plt.cm.Spectral(unq)
+        for ii, idx in enumerate(unq):
+            plt.subplot(121)
+            plt.plot(self.waveimg[1260:1300, idx], sciimg[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
+            plt.subplot(122)
+            plt.plot(self.waveimg[1260:1300, idx], self.sciImg.image[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
+            _, _, cent, wdth_orig, _, best, _, nsig = arc.detect_lines(self.sciImg.image[1260:1300, idx], fwhm=3)
+            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(sciimg[1260:1300, idx], fwhm=3)
+            print(wdth[0], wdth_orig[0], fwhm_map[1280, idx], sigexc_map[1280, idx], np.sqrt(sigexc_map[1280, idx]**2 + wdth_orig[0]**2))
+        plt.show()
+
         global_sky = self.convolve_skymodel(_global_sky)
 
         # Update the ivar image used in the sky fit
