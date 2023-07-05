@@ -734,9 +734,9 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution for slit {sl+1}/{nslits}")
+        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM  map computaiton for masked slit {0:d}'.format(sl+1))
+            msgs.warn('Skipping FWHM  map computation for masked slit {0:d}'.format(sl+1))
             continue
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
