@@ -651,9 +651,9 @@ class BuildWaveTilts:
         self.arccen, self.arccen_bpm = self.extract_arcs()
 
         # TODO: Leave for now.  Used for debugging
-#        self.par['rm_continuum'] = True
-#        debug = True
-#        show = True
+        #self.par['rm_continuum'] = True
+        #debug = True
+        #show = True
 
         # Subtract arc continuum
         _mstilt = self.mstilt.image.copy()

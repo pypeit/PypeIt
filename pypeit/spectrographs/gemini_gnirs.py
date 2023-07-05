@@ -28,12 +28,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         super().__init__()
 
-        # TODO :: Might need to change the tolerance of disperser angle in
-        # pypeit setup (two BH2 nights where sufficiently different that this
-        # was important).
-
-        # TODO :: Might consider changing TelescopePar to use the astropy
-        # EarthLocation. KBW: Fine with me!
+        # TODO :: Might consider changing TelescopePar to use the astropy EarthLocation.
         self.location = EarthLocation.of_site('Gemini North')
 
     def get_detector_par(self, det, hdu=None):
@@ -265,6 +260,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Relatively short slit, so keep the spatial tilt order low
+        par['calibrations']['tilts']['spat_order'] = 1
 
         # Reduce parameters
         # par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
@@ -812,7 +810,4 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        # TODO :: Think about this... do we even need these extra file keys if skysub is done during the reduction
-        #pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
+        return super().pypeit_file_keys() + ['filter']

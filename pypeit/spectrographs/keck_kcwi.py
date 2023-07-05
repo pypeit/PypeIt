@@ -31,7 +31,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     Child to handle Keck/KCWI specific code
 
     .. todo::
-        Need to apply spectral flexure and heliocentric correction to waveimg
+        * Need to apply spectral flexure and heliocentric correction to waveimg -- done?
+        * Copy fast_histogram code into PypeIt?
+        * Re-write flexure code with datamodel + implement spectral flexure QA in find_objects.py
+        * When making the datacube, add an option to apply a spectral flexure correction from a different frame?
+        * Write some detailed docs about the corrections that can be used when making a datacube
+        * Consider introducing a new method (par['flexure']['spec_method']) for IFU flexure corrections (see find-objects.py)
 
     """
     ndet = 1
