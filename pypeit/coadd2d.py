@@ -297,7 +297,7 @@ class CoAdd2D:
                 f"{io.remove_suffix(lasthdr['FILENAME'])}-{frsthdr['TARGET']}"
 
     @staticmethod
-    def output_paths(spec2d_files, par):
+    def output_paths(spec2d_files, par, coadd_dir=None):
         """
         Construct the names and ensure the existence of the science and QA output directories.
 
@@ -314,6 +314,9 @@ class CoAdd2D:
                 Full set of parameters.  The only used parameters are
                 ``par['rdx']['scidir']`` and ``par['rdx']['qadir']``.  WARNING:
                 This also *alters* the value of ``par['rdx']['qadir']``!!
+            coadd_dir (:obj:`str`, optional):
+                Path to the directory to use for the coadd2d output.
+                If None, the parent of the science directory is used.
 
         Returns:
             :obj:`tuple`: Two strings with the names of (1) the science output
@@ -321,7 +324,10 @@ class CoAdd2D:
             creates both directories if they do not exist.
         """
         # Science output directory
-        pypeit_scidir = Path(spec2d_files[0]).parent
+        if coadd_dir is not None:
+            pypeit_scidir = Path(coadd_dir).resolve() / 'Science'
+        else:
+            pypeit_scidir = Path(spec2d_files[0]).parent
         coadd_scidir = pypeit_scidir.parent / f"{par['rdx']['scidir']}_coadd"
         if not coadd_scidir.exists():
             coadd_scidir.mkdir(parents=True)

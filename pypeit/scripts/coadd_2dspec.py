@@ -16,6 +16,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parser.add_argument('coadd2d_file', type=str, default=None,
                             help='File to guide 2d coadds')
 
+        parser.add_argument("--coadd_dir", type=str, default=None,
+                            help="Path to the directory to use for the coadd2d output. "
+                                 "If None, the parent of the science directory is used.")
         parser.add_argument("--show", default=False, action="store_true",
                             help="Show the reduction steps. Equivalent to the -s option when "
                                  "running pypeit.")
@@ -103,7 +106,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
-                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par))
+                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=args.coadd_dir))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
