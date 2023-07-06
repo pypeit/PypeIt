@@ -613,7 +613,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = max_spat + 30//bin_spat
             elif self.name == 'keck_lris_red_mark4':
                 xstart = 2073//bin_spat
-                good = centers < np.inf # All good
+                good = centers < max_spat # No chip gap
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
