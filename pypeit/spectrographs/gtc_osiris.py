@@ -3,7 +3,6 @@ Module for GTC OSIRIS specific methods.
 
 .. include:: ../include/links.rst
 """
-import copy
 import numpy as np
 
 from pypeit import msgs
