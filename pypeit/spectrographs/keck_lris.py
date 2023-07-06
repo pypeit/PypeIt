@@ -583,7 +583,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             sep = mask_coord.separation(slit_coords[islit])
             PA = mask_coord.position_angle(slit_coords[islit])
             #
-            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg-180*units.deg)
+            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
             #delta = sep.to('arcsec') * np.sin(PA-self.slitmask.posx_pa*units.deg)
             dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
             # target is the slit number
