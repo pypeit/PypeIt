@@ -107,6 +107,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
                                     coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=args.coadd_dir))
+        # update redux_path
+        par['rdx']['redux_path'] = str(coadd_scidir.parent)
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
@@ -115,6 +117,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Write the par to disk
         par_outfile = coadd_scidir.parent / f'{basename}_coadd2d.par'
+
         print(f'Writing full parameter set to {par_outfile}.')
         par.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
