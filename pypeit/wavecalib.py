@@ -195,6 +195,7 @@ class WaveCalib(calibframe.CalibFrame):
                 parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
+            embed(header="198 of wavecalib.py")
             msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
@@ -596,6 +597,9 @@ class BuildWaveCalib:
             # Measure the spectral FWHM (in pixels) at the midpoint of the slit
             # (i.e. the midpoint in both the spectral and spatial directions)
             measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
+
+        # Save for redo's
+        self.measured_fwhms = measured_fwhms
 
         # Obtain calibration for all slits
         if method == 'holy-grail':
@@ -1040,6 +1044,9 @@ class BuildWaveCalib:
                             autoid.arc_fit_qa(final_fit,
                                             title=f'Arc Fit QA for slit/order: {order}',
                                             outfile=outfile)
+                            # This is for I/O naming
+                            final_fit.spat_id = self.slits.spat_id[iord]
+                            final_fit.fwhm = self.measured_fwhms[iord]
                             # Save the wavelength solution fits
                             self.wv_calib.wv_fits[iord] = final_fit
                             self.wvc_bpm[iord] = False
@@ -1065,6 +1072,8 @@ class BuildWaveCalib:
         sv_par = self.par.data.copy()
         j_par = jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
+
+        embed(header='end of run 1070 wavecalib')
 
         return self.wv_calib
 
