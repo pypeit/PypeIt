@@ -414,6 +414,12 @@ class CoAdd2D:
             signal-to-noise squared weights.
         """
 
+        # check that all the objid are >0, i.e, that the reference object is available
+        # in all the exposures. If objid ==0, the reference object was not found in the exposure.
+        if np.any(objid == 0):
+            msgs.error('Reference object not found in all the exposures. Optimal weights cannot be determined. '
+                       'Try increase the parameter `spat_tol` or select `uniform` weights.')
+
         nexp = len(self.stack_dict['specobjs_list'])
         nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
         # Grab the traces, flux, wavelength and noise for this slit and objid.
@@ -423,7 +429,7 @@ class CoAdd2D:
         mask_stack = np.zeros((nspec, nexp), dtype=bool)
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
-            ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
+            ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp], toler=self.par['coadd2d']['spat_toler'])
             if not np.any(ithis):
                 msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
             # check if OPT_COUNTS is available
@@ -1165,13 +1171,14 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # does it exists?
                 user_obj_exist = []
                 for sobjs in self.stack_dict['specobjs_list']:
-                    user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(user_slit, user_objid)))
+                    user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(user_slit, user_objid,
+                                                                               toler=self.par['coadd2d']['spat_toler'])))
                 if not np.all(user_obj_exist):
                     msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
 
         # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
-            _slitidx_bri = np.where(self.spat_ids == user_slit)[0][0]
+            _slitidx_bri = np.where(np.abs(self.spat_ids - user_slit) <= self.par['coadd2d']['spat_toler'])[0][0]
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 np.repeat(user_objid, self.nexp), _slitidx_bri, user_slit, None
         elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
@@ -1319,7 +1326,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         slit_snr_max = np.zeros((nslits, nexp), dtype=float)
         bpm = np.ones(slit_snr_max.shape, dtype=bool)
         objid_max = np.zeros((nslits, nexp), dtype=int)
-        # Loop over each exposure, slit, find the brighest object on that slit for every exposure
+        # Loop over each exposure, slit, find the brightest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
             nspec_now = self.nspec_array[iexp]

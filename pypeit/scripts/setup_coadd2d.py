@@ -18,7 +18,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         input_group = parser.add_mutually_exclusive_group(required=True)
         input_group.add_argument('-f', '--pypeit_file', type=str, default=None,
                                  help='PypeIt reduction file')
-        input_group.add_argument('-d', '--science_dir', type=str, nargs='*', default=None,
+        input_group.add_argument('-d', '--science_dir', type=str, nargs='+', default=None,
                                  help='One or more directories with spec2d files to stack '
                                       '(use wildcard to specify multiple directories).')
 
@@ -46,6 +46,10 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         parser.add_argument('--only_slits', type=str, nargs='+',
                             help='A space-separated set of slits to coadd.  If not provided, all '
                                  'slits are coadded.')
+        parser.add_argument('--spat_toler', type=int, default=None,
+                            help='Desired tolerance in spatial pixel used to identify '
+                                 'slits in different exposures. If not provided, the default '
+                                 'value for the specific instrument/configuration is used.')
         parser.add_argument('--offsets', type=str, default=None,
                             help='Spatial offsets to apply to each image; see the '
                                  '[coadd2d][offsets] parameter.  Options are restricted here to '
@@ -83,7 +87,6 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             pypeitFile = None
             par = None
             spec_name = None
-            # sci_dir = Path(args.science_dir).resolve()
             sci_dirs = [Path(sc).resolve() for sc in args.science_dir]
         else:
             # Read the pypeit file
@@ -105,16 +108,16 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
 
         sci_dirs_exist = [sc.exists() for sc in sci_dirs]
         if not np.all(sci_dirs_exist):
-            msgs.error(f'One or more Science directories not found.\n')
+            msgs_string = 'The following science directories do not exist:' + msgs.newline()
+            for s in np.array(sci_dirs)[np.logical_not(sci_dirs_exist)]:
+                msgs_string += f'{s}' + msgs.newline()
+            msgs.error(msgs_string)
 
         # Find all the spec2d files:
-        spec2d_files = []
-        for sci_dir in sci_dirs:
-            for sci_file in sorted(sci_dir.glob('spec2d*')):
-                spec2d_files.append(sci_file)
+        spec2d_files = np.concatenate([sorted(sci_dir.glob('spec2d*')) for sci_dir in sci_dirs]).tolist()
 
         if len(spec2d_files) == 0:
-            msgs.error(f'No spec2d files found in {sci_dir}.')
+            msgs.error(f'No spec2d files.')
 
         if spec_name is None:
             with io.fits_open(spec2d_files[0]) as hdu:
@@ -155,7 +158,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             # This is only used to get the default offsets and weights (see below)
             par = load_spectrograph(spec_name).config_specific_par(spec2d_files[0])
             utils.add_sub_dict(cfg, 'rdx')
-            cfg['rdx']['scidir'] = sci_dir.name
+            cfg['rdx']['scidir'] = 'Science'
         else:
             utils.add_sub_dict(cfg, 'rdx')
             cfg['rdx']['redux_path'] = par['rdx']['redux_path']
@@ -168,6 +171,8 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                 if args.offsets is None else args.offsets
         cfg['coadd2d']['weights'] = par['coadd2d']['weights'] \
                 if args.weights is None else args.weights
+        cfg['coadd2d']['spat_toler'] = par['coadd2d']['spat_toler'] \
+                if args.spat_toler is None else args.spat_toler
 
         # Build the default parameters
         cfg = CoAdd2D.default_par(spec_name, inp_cfg=cfg, det=args.det, slits=args.only_slits)
