@@ -1322,7 +1322,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
         sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)#, snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
-        # sciimg = self.sciImg.image.copy()
+        sciImgcopy = sciimg.copy()
+        sciimg = sciImgcopy.copy()
         # Iterate to use a model variance image
         numiter = 4  # This is more than enough, and will probably break earlier than this
         model_ivar = self.sciImg.ivar
@@ -1351,7 +1352,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                 this_ivar = model_ivar[this_slit_mask]
                 wavedg = np.linspace(np.min(this_wave), np.max(this_wave), nbins+1)
                 wavcen = 0.5*(wavedg[1:]+wavedg[:-1])
-                scale_all = self.sciImg.image[this_slit_mask] * utils.inverse(_global_sky[this_slit_mask])
+                scale_all = sciimg[this_slit_mask] * utils.inverse(_global_sky[this_slit_mask])
                 scale_bin = np.zeros(nbins)
                 scale_err = np.zeros(nbins)
                 for bb in range(nbins):
@@ -1359,13 +1360,21 @@ class IFUFindObjects(MultiSlitFindObjects):
                     scale_bin[bb] = np.median(scale_all[cond])
                     scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
                 wgd = np.where(scale_err > 0)
-                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=5)
+                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=2)
                 scaleImg[this_slit] *= np.polyval(coeff, self.waveimg[this_slit])
                 if sl == sl_ref:
                     scaleImg[thismask] /= np.polyval(coeff, self.waveimg[thismask])
-            minv, maxv = np.min(scaleImg), np.max(scaleImg)
+                if nn == 0 and False:
+                    from matplotlib import pyplot as plt
+                    plt.imshow(scaleImg)
+                    plt.show()
+                    plt.plot(wavcen[wgd], scale_bin[wgd], 'bx')
+                    plt.plot(wavcen[wgd], np.polyval(coeff, wavcen[wgd]), 'r-')
+                    plt.show()
+            minv, maxv = np.min(scaleImg[thismask]), np.max(scaleImg[thismask])
             msgs.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
-            self.apply_relative_scale(scaleImg)
+            sciimg /= scaleImg
+            # self.apply_relative_scale(scaleImg)
 
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
@@ -1379,10 +1388,10 @@ class IFUFindObjects(MultiSlitFindObjects):
 
             # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
             # Recalculate the sky on each individual slit and redetermine the spectral flexure
-            # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-            #                                        trim_edg=trim_edg, show_fit=show_fit, show=show,
-            #                                        show_objs=show_objs)
-            # self.calculate_flexure(global_sky_sep)
+            global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+                                                   trim_edg=trim_edg, show_fit=show_fit, show=show,
+                                                   show_objs=show_objs)
+            self.calculate_flexure(global_sky_sep)
 
             # Check if the relative scaling isn't changing much after at least 4 iterations
             if nn >= 3 and max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
@@ -1408,7 +1417,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             plt.plot(self.waveimg[1260:1300, idx], self.sciImg.image[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
             _, _, cent, wdth_orig, _, best, _, nsig = arc.detect_lines(self.sciImg.image[1260:1300, idx], fwhm=3)
             _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(sciimg[1260:1300, idx], fwhm=3)
-            print(wdth[0], wdth_orig[0], fwhm_map[1280, idx], sigexc_map[1280, idx], np.sqrt(sigexc_map[1280, idx]**2 + wdth_orig[0]**2))
+            # print(wdth[0], wdth_orig[0], fwhm_map[1280, idx], sigexc_map[1280, idx], np.sqrt(sigexc_map[1280, idx]**2 + wdth_orig[0]**2))
         plt.show()
 
         global_sky = self.convolve_skymodel(_global_sky)
