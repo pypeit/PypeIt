@@ -563,7 +563,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
                   f'object(s) in slit {slits.spat_id[islit]}')
         # get the median shift among all objects in this slit
         idx_med_shift = np.where(flex_dict['shift'] == np.percentile(flex_dict['shift'], 50,
-                                                                     interpolation='nearest'))[0][0]
+                                                                     method='nearest'))[0][0]
         msgs.info(f"Median value of the measured flexure shifts in this slit, equal to "
                   f"{flex_dict['shift'][idx_med_shift]:.3f} pixels, will be used")
 
@@ -684,7 +684,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     if len(return_later_slits) > 0:
         msgs.warn(f'Flexure shift calculation failed for {len(return_later_slits)} slits')
         # take the median value to deal with the cases when there are more than one shift per slit (e.g., local flexure)
-        saved_shifts = np.array([np.percentile(flex['shift'], 50, interpolation='nearest')
+        saved_shifts = np.array([np.percentile(flex['shift'], 50, method='nearest')
                                  if len(flex['shift']) > 0 else None for flex in flex_list])
         if np.all(saved_shifts == None):
             # If all the elements in saved_shifts are None means that there are no saved shifts available
@@ -695,7 +695,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 flex_list.append(empty_flex_dict.copy())
         else:
             # get the median shift value among all slit
-            med_shift = np.percentile(saved_shifts[saved_shifts!= None], 50, interpolation='nearest')
+            med_shift = np.percentile(saved_shifts[saved_shifts!= None], 50, method='nearest')
             # in which slit the median is?
             islit_med_shift = np.where(saved_shifts == med_shift)[0][0]
             msgs.info(f"Median value of all the measured flexure shifts, equal to "
