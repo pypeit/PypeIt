@@ -571,8 +571,8 @@ class BuildWaveCalib:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # Generate a map of the instrumental spectral FWHM
-        fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits, nsample=10,
-                                   specord=self.par['fwhm_spec_order'],
+        fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
+                                   nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)

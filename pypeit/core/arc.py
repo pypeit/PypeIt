@@ -484,7 +484,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             # TODO -- Avoid using NaNs
             arc_spec[:,islit] = np.nan
             continue
-        msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))
+        msgs.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
         # Create a mask for the pixels that will contribue to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
