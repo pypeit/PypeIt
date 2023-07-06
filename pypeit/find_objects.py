@@ -1420,6 +1420,10 @@ class IFUFindObjects(MultiSlitFindObjects):
             # print(wdth[0], wdth_orig[0], fwhm_map[1280, idx], sigexc_map[1280, idx], np.sqrt(sigexc_map[1280, idx]**2 + wdth_orig[0]**2))
         plt.show()
 
+        # TODO :: consider doing a shift and stretch spectral flexure
+        # TODO :: deconvolve global sky model to construct a sky model for the original science image
+        # TODO :: apply the scaleImg (calculated for the convolved science image) to the original science image
+        assert False
         global_sky = self.convolve_skymodel(_global_sky)
 
         # Update the ivar image used in the sky fit
