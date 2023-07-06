@@ -821,6 +821,12 @@ class BuildWaveCalib:
                                                             float(iorder)))
 
             # Fit
+            if len(all_orders) < 2:
+                msgs.warn(f"Fewer than 2 orders to fit for detector {idet}.  Skipping")
+                save_order_dets.append([])
+                fit2ds.append(None)
+                continue
+
             fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                     nspec_coeff=self.par['ech_nspec_coeff'],
                                     norder_coeff=self.par['ech_norder_coeff'],
@@ -1038,7 +1044,6 @@ class BuildWaveCalib:
 
 
                 # Do another full 2D
-                embed(header='1035 of wavecalib')
                 fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
 
         # Deal with mask
