@@ -583,7 +583,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             sep = mask_coord.separation(slit_coords[islit])
             PA = mask_coord.position_angle(slit_coords[islit])
             #
-            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
+            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg-180*units.deg)
             #delta = sep.to('arcsec') * np.sin(PA-self.slitmask.posx_pa*units.deg)
             dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
             # target is the slit number
@@ -599,7 +599,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Trim down by detector
         # TODO -- Deal with Mark4
-        max_spat = 2048//bin_spat
+        if self.name == 'keck_lris_red_mark4':
+            max_spat = 4112//bin_spat
+        else:
+            max_spat = 2048//bin_spat
+        #import pdb; pdb.set_trace()
         if ccdnum == 1:
             if self.name == 'keck_lris_red':
                 good = centers < 0.
@@ -608,7 +612,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 good = centers < 0.
                 xstart = max_spat + 30//bin_spat
             elif self.name == 'keck_lris_red_mark4':
-                xstart = 2046//bin_spat
+                xstart = 2073//bin_spat
                 good = centers < np.inf # All good
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
@@ -618,6 +622,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = -48//bin_spat
             else:             
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+        #import pdb; pdb.set_trace()
         left_edges += xstart
         right_edges += xstart
         left_edges[~good] = -1
@@ -1385,7 +1390,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             specaxis=0,
             specflip=True,  
             spatflip=False,
-            platescale=0.128,  # From the web page
+            platescale=0.135,  # From the web page
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
