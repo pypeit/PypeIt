@@ -871,7 +871,7 @@ class PypeItMetaData:
                     for c in range(len(self.table['setup'][indx])):
                         if cfg_key in self.table['setup'][indx][c]:
                             new_cfg_key[c] = self.table['setup'][indx][c]
-                        if self.table['setup'][indx][c] == 'None':
+                        elif self.table['setup'][indx][c] == 'None':
                             new_cfg_key[c] = cfg_key
                         else:
                             new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
@@ -894,7 +894,7 @@ class PypeItMetaData:
                 for c in range(len(self.table['setup'][indx])):
                     if cfg_key in self.table['setup'][indx][c]:
                         new_cfg_key[c] = self.table['setup'][indx][c]
-                    if self.table['setup'][indx][c] == 'None':
+                    elif self.table['setup'][indx][c] == 'None':
                         new_cfg_key[c] = cfg_key
                     else:
                         new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
