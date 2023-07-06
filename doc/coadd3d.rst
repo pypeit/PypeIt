@@ -179,7 +179,9 @@ frames, but add the following keyword arguments at the top of your
     [reduce]
         [[skysub]]
             joint_fit = True
-            user_regions = :50,50:
+            user_regions = :
+    [flexure]
+        spec_method = slitcen
 
 This ensures that all pixels in the slit are used to generate a
 complete model of the sky.
