@@ -606,7 +606,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
             elif self.name == 'keck_lris_blue':
                 good = centers < 0.
-                xstart = max_spat + 30//bin_spat  
+                xstart = max_spat + 30//bin_spat
+            elif self.name == 'keck_lris_red_mark4':
+                xstart = 2046//bin_spat
+                good = centers < np.inf # All good
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
@@ -1382,7 +1385,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             specaxis=0,
             specflip=True,  
             spatflip=False,
-            platescale=0.123,  # From the web page
+            platescale=0.128,  # From the web page
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
