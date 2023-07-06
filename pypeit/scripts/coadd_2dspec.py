@@ -221,6 +221,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                           vel_type=None,
                                                           maskdef_designtab=maskdef_designtab)
 
+        all_spec2d['meta']['effective_exptime'] = coadd.exptime_coadd
+
         # SAVE TO DISK
 
         # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
