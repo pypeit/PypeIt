@@ -603,7 +603,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             max_spat = 4112//bin_spat
         else:
             max_spat = 2048//bin_spat
-        #import pdb; pdb.set_trace()
         if ccdnum == 1:
             if self.name == 'keck_lris_red':
                 good = centers < 0.
@@ -622,7 +621,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = -48//bin_spat
             else:             
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
-        #import pdb; pdb.set_trace()
         left_edges += xstart
         right_edges += xstart
         left_edges[~good] = -1
