@@ -821,10 +821,11 @@ class BuildWaveCalib:
                                                             float(iorder)))
 
             # Fit
-            if len(all_orders) < 2:
+            if len(all_order) < 2:
                 msgs.warn(f"Fewer than 2 orders to fit for detector {idet}.  Skipping")
                 save_order_dets.append([])
-                fit2ds.append(None)
+                # Add a dummy fit
+                fit2ds.append(fitting.PypeItFit())
                 continue
 
             fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
@@ -974,6 +975,7 @@ class BuildWaveCalib:
             if np.any(bad_rms):
                 # Make this outside the for loop..
                 bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
+                fixed = False
                 for idet in range(len(dets)):
                     in_det = np.in1d(bad_orders, order_dets[idet])
                     if np.sum(in_det) == 0:
@@ -1041,10 +1043,14 @@ class BuildWaveCalib:
                             # Save the wavelength solution fits
                             self.wv_calib.wv_fits[iord] = final_fit
                             self.wvc_bpm[iord] = False
+                            fixed = True
 
 
                 # Do another full 2D
-                fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+                if fixed:
+                    fit2ds, _, _ = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+                    # Save
+                    self.wv_calib.wv_fit2d = np.array(fit2ds)
 
         # Deal with mask
         self.update_wvmask()
