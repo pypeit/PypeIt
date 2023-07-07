@@ -736,7 +736,9 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     for sl in range(nslits):
         msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM  map computation for masked slit {0:d}'.format(sl+1))
+            msgs.warn('Skipping FWHM map computation for masked slit {0:d}'.format(sl+1))
+            # Assign it an empty PypeItFit object so that we can still write to file
+            resmap[sl] = fitting.PypeItFit()
             continue
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
@@ -747,14 +749,16 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             arc_spec, arc_spec_bpm, bpm_mask = arc.get_censpec(spat_vec, slitmask, image, gpm=gpm, box_rad=box_rad,
                                                                slit_bpm=np.array([_slit_bpm[sl]]), verbose=False)
             if bpm_mask[0]:
+                msgs.warn('Failed to extract the arc at fractional location {0:.2f} along slit {1:d}'.format(slitsamp[ss], sl+1))
                 continue
             # Detect lines and store the spectral FWHM
             _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec.squeeze(), sigdetect=sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze())
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
-            # Perform a 2D robust fit on the measures for this slit
-            resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
+        # Perform a 2D robust fit on the measures for this slit
+        resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
+
 
     # Return an array containing the PypeIt fits
     return np.array(resmap)
