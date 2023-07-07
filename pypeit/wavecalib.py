@@ -1073,8 +1073,6 @@ class BuildWaveCalib:
         j_par = jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
-        embed(header='end of run 1070 wavecalib')
-
         return self.wv_calib
 
 
