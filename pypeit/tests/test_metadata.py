@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import os
 
 from IPython import embed
 
@@ -8,7 +9,7 @@ import pytest
 import numpy as np
 
 #from pypeit.par.util import parse_pypeit_file
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_path, make_fake_fits_files
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
@@ -95,3 +96,21 @@ def test_setup_iter():
                 == PypeItMetaData.maximum_number_of_configurations(), \
                 'Number of configuration identifiers changed'
 
+
+def test_multiple_setups():
+    filelist = make_fake_fits_files()
+    spectrograph = load_spectrograph("shane_kast_blue")
+    # Set the metadata
+    fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), files=filelist, strict=True)
+    fitstbl.get_frame_types()
+    cfgs = fitstbl.unique_configurations()
+    fitstbl.set_configurations(configs=cfgs)
+    # Now do some checks
+    for ff in range(len(fitstbl)):
+        if fitstbl[ff]['frametype'] == 'bias':
+            assert(len(fitstbl[ff]['setup'].split(",")) == 2)  # Two configurations for the bias frames
+        else:
+            assert (len(fitstbl[ff]['setup'].split(",")) == 1)  # One configuration for everything else
+    # Remove the created files
+    for fil in filelist:
+        os.remove(fil)
