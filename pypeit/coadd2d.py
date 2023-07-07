@@ -65,7 +65,7 @@ class CoAdd2D:
             :class:`CoAdd2D` as its base.
         """
 
-        return next(c for c in cls.__subclasses__() 
+        return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
@@ -416,12 +416,6 @@ class CoAdd2D:
             signal-to-noise squared weights.
         """
 
-        # check that all the objid are >0, i.e, that the reference object is available
-        # in all the exposures. If objid ==0, the reference object was not found in the exposure.
-        if np.any(objid == 0):
-            msgs.error('Reference object not found in all the exposures. Optimal weights cannot be determined. '
-                       'Try increase the parameter `spat_tol` or select `uniform` weights.')
-
         nexp = len(self.stack_dict['specobjs_list'])
         nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
         # Grab the traces, flux, wavelength and noise for this slit and objid.
@@ -483,11 +477,20 @@ class CoAdd2D:
 
         coadd_list = []
         for slit_idx in self.good_slits:
-            msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits_single - 1))
-            ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
-                                                         objid=self.objid_bri)
+            msgs.info(f'Performing 2D coadd for slit {self.spat_ids[slit_idx]} ({slit_idx + 1}/{self.nslits_single})')
 
-            thismask_stack = [np.abs(slitmask - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
+            # mask identifying the current slit in each exposure
+            thismask_stack = [np.abs(slitmask - self.spat_ids[slit_idx]) <= self.par['coadd2d']['spat_toler']
+                              for slitmask in self.stack_dict['slitmask_stack']]
+
+            # check if the slit is found in every exposure
+            if not np.all([np.any(thismask) for thismask in thismask_stack]):
+                msgs.warn(f'Slit {self.spat_ids[slit_idx]} was not found in every exposures. '
+                          f'2D coadd cannot be performed on this slit. Try increasing the parameter spat_toler')
+                continue
+
+            # reference trace
+            ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets, objid=self.objid_bri)
             # maskdef info
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
@@ -511,6 +514,9 @@ class CoAdd2D:
                                                maskdef_dict=maskdef_dict,
                                                weights=weights, interp_dspat=interp_dspat)
             coadd_list.append(coadd_dict)
+
+        if len(coadd_list) == 0:
+            msgs.error("All the slits were missing in one or more exposures. 2D coadd cannot be performed")
 
         return coadd_list
 
@@ -824,7 +830,7 @@ class CoAdd2D:
             :obj:`list`: A list of reference traces for the 2d coadding that
             have been offset.
         """
-        return [slits.center[:,slitid] - offsets[iexp] 
+        return [slits.center[:,slitid] - offsets[iexp]
                     for iexp, slits in enumerate(self.stack_dict['slits_list'])]
 #        ref_trace_stack = []
 #        for iexp, slits in enumerate(self.stack_dict['slits_list']):
@@ -1243,7 +1249,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             thismask_stack = [np.abs(slitmask - self.spatid_bri) <= self.par['coadd2d']['spat_toler'] for slitmask in self.stack_dict['slitmask_stack']]
 
             # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
-            trace_stack_bri = [slits.center[:, self.slitidx_bri] 
+            trace_stack_bri = [slits.center[:, self.slitidx_bri]
                                     for slits in self.stack_dict['slits_list']]
 #            trace_stack_bri = []
 #            for slits in self.stack_dict['slits_list']:
@@ -1388,10 +1394,19 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         objid_max[islit, iexp] = objid_this[imax]
                         bpm[islit, iexp] = False
 
+        # If there are slits that have bpm = True for some exposures and not for others, set them to True as well
+        # get the slits that have bpm = True for any exposures
+        bmp_true_idx = np.array([np.any(b == True) for b in bpm])
+        if np.any(bmp_true_idx):
+            bpm_true = bpm[bmp_true_idx, :]
+            # If these slits have bpm = False for some exposures, then set them to True as well
+            bpm_true[bpm_true == False] = True
+            bpm[bmp_true_idx, :] = bpm_true
+
         # Find the highest snr object among all the slits
         if np.all(bpm):
             msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
-                      'ratio on the same slit of every exposure')
+                      'ratio on the same slit of every exposure. Try increasing the parameter `spat_toler`')
             return None, None, None, None
         else:
             # mask the bpm
@@ -1401,6 +1416,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             snr_bar_mean = slit_snr[slitid]
             snr_bar = slit_snr_max[slitid, :]
             objid = objid_max[slitid, :]
+
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
@@ -1441,7 +1457,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 self.stack_dict['slits_list'][0].maskdef_objpos is not None and \
                 self.stack_dict['maskdef_designtab_list'][0] is not None:
             # maskdef_designtab info for only this slit
-            this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
+            this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.spat_ids[slit_idx]
             this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
             # remove columns that that are irrelevant in the coadd2d frames
             this_maskdef_designtab.remove_columns(['TRACEID', 'TRACESROW', 'TRACELPIX', 'TRACERPIX',
@@ -1658,6 +1674,15 @@ class EchelleCoAdd2D(CoAdd2D):
                         rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                         order_snr[iord, iobj] = rms_sn
                         bpm[iord, iobj] = False
+
+            # If there are orders that have bpm = True for some objs and not for others, set them to True as well
+            # get the orders that have bpm = True for any objs
+            bmp_true_idx = np.array([np.any(b == True) for b in bpm])
+            if np.any(bmp_true_idx):
+                bpm_true = bpm[bmp_true_idx, :]
+                # If these slits have bpm = False for some obj, then set them to True as well
+                bpm_true[bpm_true == False] = True
+                bpm[bmp_true_idx, :] = bpm_true
 
             # Compute the average SNR and find the brightest object
             if not np.all(bpm):
