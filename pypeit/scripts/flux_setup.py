@@ -98,7 +98,6 @@ class FluxSetup(scriptbase.ScriptBase):
             ## coadd1d pypeit file
             cfg_lines = ['[coadd1d]']
             cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-            cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name. Only required for Echelle']
             if pypeline == 'Echelle':
                 cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
             else:
@@ -106,6 +105,8 @@ class FluxSetup(scriptbase.ScriptBase):
 
             cfg_lines += ['# This file includes all extracted objects. You need to figure out which object you want to \n'+\
                           '# coadd before running pypeit_coadd_1dspec!!!']
+            if pypeline == 'Echelle':
+                cfg_lines += ['# For Echelle spectrographs, please set the appropriate sensfunc file and setup id\n']
 
 
             all_specfiles, all_obj = [], []
@@ -120,6 +121,9 @@ class FluxSetup(scriptbase.ScriptBase):
             data = Table()
             data['filename'] = all_specfiles
             data['obj_id'] = all_obj
+            if pypeline == 'Echelle':
+                data['sensfile'] = ['SENFUNC FILE'] + ([''] * (len(all_obj)-1))
+                data['setup_id'] = ['A'] + ([''] * (len(all_obj)-1))
             # Instantiate
             coadd1dFile = inputfiles.Coadd1DFile(
                 config=cfg_lines,
