@@ -124,7 +124,7 @@ def find_slits_to_exclude(spec2d_files, par):
     exclude_map = dict()
     for spec2d_file in spec2d_files:
 
-        allspec2d = AllSpec2DObj.from_fits(spec2d_file)
+        allspec2d = AllSpec2DObj.from_fits(spec2d_file, chk_version=False)
         for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
             for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
                 for flag in exclude_flags:
@@ -251,7 +251,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
         # Flux calibrate the spec1d file
         try:
             msgs.info(f"Running flux calibrate on {spec1d_file}")
-            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'])
+            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'], chk_version=False)
             flux_calibrated_files.append(spec1d_file)
 
         except Exception:
@@ -374,6 +374,9 @@ def coadd(par, coaddfile, source):
     # Set destination file for coadding
     par['coadd1d']['coaddfile'] = coaddfile
     
+    # Be forgiving of data model versions
+    par['coadd1d']['chk_version'] = False
+
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
@@ -735,7 +738,8 @@ class Collate1D(scriptbase.ScriptBase):
 
         # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(spec1d_files,
-                                                           par['collate1d']['match_using'])
+                                                           par['collate1d']['match_using'],
+                                                           chk_version=False)
 
         # Filter based on the coadding ex_value, and the exclude_serendip 
         # boolean
