@@ -623,7 +623,7 @@ class CoAdd2D:
             if None not in all_maskdef_ids:
                 maskdef_id[islit] = coadd_dict['maskdef_id']
                 maskdef_objpos[islit] = coadd_dict['maskdef_objpos']
-                maskdef_slitcen[:, islit] = np.full(nspec_pseudo, coadd_dict['maskdef_slitcen'])
+                maskdef_slitcen[:, islit] = np.full(nspec_pseudo, coadd_dict['maskdef_slitcen'] + slit_left[:,islit])
                 if coadd_dict['maskdef_designtab'] is not None:
                     maskdef_designtab = vstack([maskdef_designtab, coadd_dict['maskdef_designtab']])
 
@@ -1459,7 +1459,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # maskdef_designtab info for only this slit
             this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.spat_ids[slit_idx]
             this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
-            # remove columns that that are irrelevant in the coadd2d frames
+            # remove columns that are irrelevant in the coadd2d frames
             this_maskdef_designtab.remove_columns(['TRACEID', 'TRACESROW', 'TRACELPIX', 'TRACERPIX',
                                                    'SLITLMASKDEF', 'SLITRMASKDEF'])
             this_maskdef_designtab.meta['MASKRMSL'] = 0.
@@ -1468,36 +1468,36 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # maskdef_id for this slit
             imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx]
 
-            # maskdef_slitcenters. This trace the slit center along the spectral direction.
-            # But here we take only the value at the mid point
+            # maskdef_slitcen (slit center along the spectral direction) and
+            # maskdef_objpos (expected position of the target, as distance from left slit edge) for this slit
 
-            maskdef_slitcen_pixpos = self.stack_dict['slits_list'][0].maskdef_slitcen[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset
-            # binned maskdef_slitcenters position with respect to the center of the slit in ref_trace_stack
-            # this value should be the same for each exposure, but in case there are differences we take the mean value
-
+            # These are the binned maskdef_slitcen positions w.r.t. the center of the slit in ref_trace_stack
             slit_cen_dspat_vec = np.zeros(self.nexp)
-            for iexp, (ref_trace, maskdef_slitcen) in enumerate(zip(ref_trace_stack, maskdef_slitcen_pixpos)):
+            # These are the binned maskdef_objpos positions w.r.t. the center of the slit in ref_trace_stack
+            objpos_dspat_vec = np.zeros(self.nexp)
+            for iexp in range(self.nexp):
+                # get maskdef_slitcen
+                maskdef_slitcen_pixpos = \
+                    self.stack_dict['slits_list'][iexp].maskdef_slitcen[self.nspec_array[0]//2, slit_idx] \
+                    + self.maskdef_offset[iexp]
+
+                # get maskdef_objpos
+                # find left edge
+                slits_left, _, _ = \
+                    self.stack_dict['slits_list'][iexp].select_edges(flexure=self.stack_dict['spat_flexure_list'][iexp])
+                # targeted object spat pix
+                maskdef_obj_pixpos = \
+                    self.stack_dict['slits_list'][iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \
+                    + slits_left[slits_left.shape[0]//2, slit_idx]
+
+                # change reference system
+                ref_trace = ref_trace_stack[iexp]
                 nspec_this = ref_trace.shape[0]
-                slit_cen_dspat_vec[iexp] = (maskdef_slitcen - ref_trace[nspec_this//2])/self.spat_samp_fact
+                slit_cen_dspat_vec[iexp] = (maskdef_slitcen_pixpos - ref_trace[nspec_this // 2]) / self.spat_samp_fact
+
+                objpos_dspat_vec[iexp] = (maskdef_obj_pixpos - ref_trace[nspec_this // 2]) / self.spat_samp_fact
 
             imaskdef_slitcen_dspat = np.mean(slit_cen_dspat_vec)
-
-            # expected position of the targeted object from slitmask design (as distance from left slit edge)
-            imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx]
-
-            # find left edge
-            slits_left, _, _ = self.stack_dict['slits_list'][0].select_edges(flexure=self.stack_dict['spat_flexure_list'][0])
-            # targeted object spat pix
-            nspec_this = slits_left.shape[0]
-            maskdef_obj_pixpos = imaskdef_objpos + self.maskdef_offset + slits_left[nspec_this//2, slit_idx]
-            # binned expected object position with respect to the center of the slit in ref_trace_stack
-            # this value should be the same for each exposure, but in case there are differences we take the mean value
-
-            objpos_dspat_vec = np.zeros(self.nexp)
-            for iexp, (ref_trace, maskdef_obj) in enumerate(zip(ref_trace_stack, maskdef_obj_pixpos)):
-                nspec_this = ref_trace.shape[0]
-                objpos_dspat_vec[iexp] = (maskdef_obj - ref_trace[nspec_this//2])/self.spat_samp_fact
-
             imaskdef_objpos_dspat = np.mean(objpos_dspat_vec)
 
         else:
