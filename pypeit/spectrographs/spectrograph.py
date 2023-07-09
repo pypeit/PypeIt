@@ -828,18 +828,10 @@ class Spectrograph:
                           f'expected one! Found {instr_names[0]}, expected {self.header_name}.  '
                           'You may have chosen the wrong PypeIt spectrograph name!')
 
-
     def config_independent_frames(self):
         """
         Define frame types that are independent of the fully defined
         instrument configuration.
-
-        By default, bias and dark frames are considered independent of a
-        configuration; however, at the moment, these frames can only be
-        associated with a *single* configuration. That is, you cannot take
-        afternoon biases, change the instrument configuration during the
-        night, and then use the same biases for both configurations. See
-        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
 
         This method returns a dictionary where the keys of the dictionary are
         the list of configuration-independent frame types. The value of each
@@ -854,7 +846,7 @@ class Spectrograph:
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': None, 'dark': None}
+        return {}
 
     def get_comb_group(self, fitstbl):
         """
