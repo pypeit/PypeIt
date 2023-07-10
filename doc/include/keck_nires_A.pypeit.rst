@@ -15,7 +15,7 @@
     
     # Data block 
     data read
-     path /Volumes/GoogleDrive/.shortcut-targets-by-id/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard
              filename |        frametype |               ra |              dec |     target | dispname |    decker | binning |              mjd |          airmass | exptime | dithpat | dithpos | dithoff | frameno | calib | comb_id | bkg_id
     s190519_0059.fits | arc,science,tilt | 194.259151362434 | 22.0313494322493 |      GD153 |     spec | 0.55 slit |     1,1 | 58622.3598610573 | 1.03675819208546 |   200.0 |    ABBA |       A |     2.0 |      59 |     0 |       1 |      2
     s190519_0060.fits | arc,science,tilt | 194.260349844733 | 22.0313316699865 |      GD153 |     spec | 0.55 slit |     1,1 |  58622.362605849 | 1.04142552296712 |   200.0 |    ABBA |       B |    -2.0 |      60 |     0 |       2 |      1

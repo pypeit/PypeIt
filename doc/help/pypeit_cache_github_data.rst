@@ -25,7 +25,7 @@
                       vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                       wht_isis_red
     
-    optional arguments:
+    options:
       -h, --help      show this help message and exit
       --force_update  Force download of GitHub file (default: False)
     
