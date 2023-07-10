@@ -447,7 +447,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     sigdetect: float, default = 5.0
         Threshold for detecting arcliens
 
-    fwfm: float, default = 4.0
+    fwhm: float, default = 4.0
         Full width at half maximum for the arc lines
 
     Returns
@@ -1323,15 +1323,6 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             sigrej_first=par['sigrej_first'], 
             n_final=n_final, 
             sigrej_final=par['sigrej_final'])
-
-        #final_fit = wv_fitting.fit_slit(
-        #    spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
-        #    detections[str(iord)], tot_line_list, 
-        #    match_toler=par['match_toler'], 
-        #    func=par['func'], n_first=3,
-        #    sigrej_first=2.0,
-        #    n_final=n_final, 
-        #    sigrej_final=2.5)
 
         # Did the fit succeed?
         if final_fit is None:
