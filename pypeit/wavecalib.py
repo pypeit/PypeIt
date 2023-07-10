@@ -514,7 +514,7 @@ class BuildWaveCalib:
 
             # Load up slits
             # TODO -- Allow for flexure
-            self.slits_left, self.slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
@@ -531,7 +531,10 @@ class BuildWaveCalib:
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
             # slitcen is padded to include slits that may be masked, for convenience in coding downstream
-            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (self.slits_left+self.slits_right)/2)
+            self.slits_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, slits_left)
+            self.slits_right = arc.resize_slits2arc(self.shape_arc, self.shape_science, slits_right)
+            self.slitcen = (self.slits_left+self.slits_right)/2
+            #self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (self.slits_left+self.slits_right)/2)
             self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             # Mask
             # TODO: The bpm defined above is already a boolean and cannot be None.
@@ -586,8 +589,9 @@ class BuildWaveCalib:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # Generate a map of the instrumental spectral FWHM
-        fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits, nsample=10,
-                                   specord=self.par['fwhm_spec_order'],
+        # TODO nsample should be a parameter
+        fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
+                                   nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
@@ -733,8 +737,9 @@ class BuildWaveCalib:
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm,
-                                   spat_id=self.slits.slitord_id[slit_idx])
+                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
+                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
+                                   outfile=outfile_fwhm)
 
 
         # Return
