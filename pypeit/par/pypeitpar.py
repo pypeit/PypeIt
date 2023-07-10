@@ -2679,8 +2679,8 @@ class WavelengthSolutionPar(ParSet):
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = [float, list, np.ndarray]
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
-                                 'single number or a list/array providing the value for each slit. ' \
-                                 'Only used if ``method`` is either \'holy-grail\' or \'reidentify\''
+                                 'single number or a list/array providing the value for each order. ' \
+                                 'Only used if ``method`` for \'reidentify\' and echelle spectrographs'
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float

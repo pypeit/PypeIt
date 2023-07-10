@@ -94,7 +94,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # The following is for 1x1 binning
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30  
+        par['calibrations']['wavelengths']['fwhm'] = 3.0  
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
 
