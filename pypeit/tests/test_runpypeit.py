@@ -75,6 +75,7 @@ def test_run_pypeit():
     sf = sensfunc.SensFunc.from_file(str(sens_file))
     assert len(sf.wave) > 0
     assert len(sf.zeropoint) > 0
+    sf = None
 
     # Flux calibrate
     with open(outdir / "fluxfile", "w") as f:
@@ -112,6 +113,7 @@ def test_run_pypeit():
     assert len(specObjs[0].BOX_FLAM[mask]) != 0
     assert len(specObjs[0].BOX_FLAM_IVAR[mask]) != 0
     assert len(specObjs[0].BOX_FLAM_SIG[mask]) != 0
+    specObjs = None
 
     # Clean-up
     shutil.rmtree(outdir)
