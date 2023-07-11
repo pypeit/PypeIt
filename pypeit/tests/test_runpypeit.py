@@ -113,6 +113,7 @@ def test_run_pypeit():
     assert len(specObjs[0].BOX_FLAM[mask]) != 0
     assert len(specObjs[0].BOX_FLAM_IVAR[mask]) != 0
     assert len(specObjs[0].BOX_FLAM_SIG[mask]) != 0
+    specObjs = None
 
     # Clean-up
     shutil.rmtree(outdir)
