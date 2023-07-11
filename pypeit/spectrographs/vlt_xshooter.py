@@ -990,7 +990,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
         # This is a hack until we we have a Paranal file generated that covers the UVB wavelength range.
 
-
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
 
