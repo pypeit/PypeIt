@@ -170,6 +170,8 @@ class WaveCalib(calibframe.CalibFrame):
             if 'WAVEFIT' in ihdu.name:
                 # Allow for empty
                 if len(ihdu.data) == 0:
+                    # TODO: This is a hack.  We shouldn't be writing empty HDUs,
+                    # except for the primary HDU.
                     iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
@@ -190,7 +192,10 @@ class WaveCalib(calibframe.CalibFrame):
                 list_of_wave2d_fits.append(iwave2dfit)
                 parsed_hdus += ihdu.name
             elif 'FWHMFIT' in ihdu.name:
-                ifwhmfit = fitting.PypeItFit.from_hdu(ihdu)
+                # TODO: This is a hack.  We shouldn't be writing empty HDUs,
+                # except for the primary HDU.
+                ifwhmfit = fitting.PypeItFit() if len(ihdu.data) == 0 \
+                                else fitting.PypeItFit.from_hdu(ihdu)
                 list_of_fwhm_fits.append(ifwhmfit)
                 parsed_hdus += ihdu.name
         # Check
