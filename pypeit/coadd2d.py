@@ -49,6 +49,7 @@ class CoAdd2D:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec2dfiles, spectrograph, par, det=1, offsets=None, weights='auto',
+                     only_slits=None, exclude_slits=None,
                      spec_samp_fact=1.0, spat_samp_fact=1.0,
                      sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
                      show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
@@ -68,13 +69,14 @@ class CoAdd2D:
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
+                        only_slits=only_slits, exclude_slits=exclude_slits,
                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                         **kwargs_wave)
 
     def __init__(self, spec2d, spectrograph, par, det=1, offsets=None, weights='auto',
-                 spec_samp_fact=1.0, spat_samp_fact=1.0,
+                 only_slits=None, exclude_slits=None, spec_samp_fact=1.0, spat_samp_fact=1.0,
                  sn_smooth_npix=None, bkg_redux=False, find_negative=False, show=False,
                  show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
@@ -102,6 +104,10 @@ class CoAdd2D:
                 ``'auto'`` (default), ``'uniform'``, or a list/array of weights
                 with ``shape = (nexp,)`` to apply to the image. Note ``'auto'``
                 is not allowed if offsets are input.
+            only_slits (:obj:`list`, optional):
+                List of slits to coadd. It must be `slitord_id`.
+            exclude_slits (:obj:`list`, optional):
+                List of slits to exclude from coaddition. It must be `slitord_id`.
             spec_samp_fact (:obj:`float`, optional):
                 Make the wavelength grid sampling finer (``spec_samp_fact`` less
                 than 1.0) or coarser (``spec_samp_fact`` greater than 1.0) by
@@ -192,14 +198,11 @@ class CoAdd2D:
         self.good_slits = None
         self.maskdef_offset = None
 
-
         # Load the stack_dict
         self.stack_dict = self.load_coadd2d_stacks(self.spec2d)
         self.pypeline = self.spectrograph.pypeline
 
         self.nexp = len(self.spec2d)
-
-        self.exptime_coadd = self.stack_dict['exptime_coadd']
 
         # Check that there are the same number of slits on every exposure
         nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
@@ -227,8 +230,18 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the maximum spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec_max
 
+        # coadded frame parameters
+
+        # get slit index that indicates which slits are good for coadding
+        self.good_slits = self.good_slitindx(only_slits=only_slits, exclude_slits=exclude_slits)
+        # get the number of slits that are going to be coadded
+        self.nslits_coadded = self.good_slits.size
+
+        # effective exposure time
+        self.exptime_coadd = self.stack_dict['exptime_coadd']
+
     @staticmethod
-    def default_par(spectrograph, inp_cfg=None, det=None, slits=None):
+    def default_par(spectrograph, inp_cfg=None, det=None, only_slits=None, exclude_slits=None):
         """
         Get the default 2D coadding parameters.
 
@@ -240,8 +253,12 @@ class CoAdd2D:
                 An existing set of parameters to add to.
             det (:obj:`list`, :obj:`str`, :obj:`tuple`, optional):
                 Limit the coadding to this (set of) detector(s)/detector mosaic(s)
-            slits (:obj:`list`, :obj:`str`, optional):
-                Limit the coadding to this (set of) slit(s)
+            only_slits (:obj:`list`, :obj:`str`, optional):
+                Limit the coadding to this (set of) slit(s). Only_slits and exclude_slits
+                are mutually exclusive. If both are set, only_slits takes precedence.
+            exclude_slits (:obj:`list`, :obj:`str`, optional):
+                Exclude this (set of) slit(s) from the coadding. Only_slits and exclude_slits
+                are mutually exclusive. If both are set, only_slits takes precedence.
 
         Returns:
             :obj:`dict`: The default set of parameters.
@@ -251,9 +268,17 @@ class CoAdd2D:
             cfg = utils.recursive_update(cfg, dict(inp_cfg))
         if det is not None:
             cfg['rdx']['detnum'] = det
-        if slits is not None:
+
+        if only_slits is not None and exclude_slits is not None:
+            msgs.warn('only_slits and exclude_slits are mutually exclusive. '
+                      'If both are set, only_slits takes precedence.')
+            exclude_slits = None
+        if only_slits is not None:
             utils.add_sub_dict(cfg, 'coadd2d')
-            cfg['coadd2d']['only_slits'] = slits
+            cfg['coadd2d']['only_slits'] = only_slits
+        if exclude_slits is not None:
+            utils.add_sub_dict(cfg, 'coadd2d')
+            cfg['coadd2d']['exclude_slits'] = exclude_slits
         # TODO: Heliocentric for coadd2d needs to be thought through. Currently
         # turning it off.
         utils.add_sub_dict(cfg, 'calibrations')
@@ -340,7 +365,7 @@ class CoAdd2D:
             qa_path.mkdir(parents=True)
         return str(coadd_scidir), str(qa_path)
 
-    def good_slitindx(self, only_slits=None):
+    def good_slitindx(self, only_slits=None, exclude_slits=None):
         """
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
         A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
@@ -349,13 +374,17 @@ class CoAdd2D:
         Args:
             only_slits (:obj:`list`, optional):
                 List of slits to combine. It must be `slitord_id`
+            exclude_slits (:obj:`list`, optional):
+                List of slits to exclude. It must be `slitord_id`
 
         Returns:
             `numpy.ndarray`_: array of index of good slits in the un-coadded frames
         """
 
-        only_slits = [only_slits] if (only_slits is not None and
-                                      isinstance(only_slits, (int, np.integer))) else only_slits
+        if exclude_slits is not None and only_slits is not None:
+            msgs.warn('Both `only_slits` and `exclude_slits` are provided. They are mutually exclusive. '
+                      'Using `only_slits` and ignoring `exclude_slits`')
+            exclude_slits = None
 
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
@@ -367,26 +396,45 @@ class CoAdd2D:
             slits = self.stack_dict['slits_list'][i]
             reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
                                                                               flag=slits.bitmask.exclude_for_reducing)))
-        # this are the good slit index according to the bpm mask
+        # these are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
         # If we want to coadd all the good slits
-        if only_slits is None:
+        if only_slits is None and exclude_slits is None:
             return good_slitindx
 
         # If instead we want to coadd only a selected (by the user) number of slits
-        # this are the `slitord_id` of the slits that we want to coadd
-        only_slits = np.atleast_1d(only_slits)
-        # create an array of slit index that are selected by the user and are also good slits
-        good_onlyslits = np.array([], dtype=int)
-        for islit in only_slits:
-            if islit not in slits0.slitord_id[good_slitindx]:
-                # Warnings for the slits that are selected by the user but NOT good slits
-                msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
-            else:
-                indx = np.where(slits0.slitord_id[good_slitindx] == islit)[0]
-                good_onlyslits = np.append(good_onlyslits, good_slitindx[indx])
-        return good_onlyslits
+        elif only_slits is not None:
+            # these are the `slitord_id` of the slits that we want to coadd
+            only_slits = np.atleast_1d(only_slits)
+            # create an array of slit index that are selected by the user and are also good slits
+            good_onlyslits = np.array([], dtype=int)
+            msgs.info('Coadding only the following slits:')
+            for islit in only_slits:
+                if islit not in slits0.slitord_id[good_slitindx]:
+                    # Warnings for the slits that are selected by the user but NOT good slits
+                    msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
+                else:
+                    msgs.info(f'Slit {islit}')
+                    indx = np.where(slits0.slitord_id[good_slitindx] == islit)[0]
+                    good_onlyslits = np.append(good_onlyslits, good_slitindx[indx])
+            return good_onlyslits
+
+        # if we want to exclude some slits (selected by the user) from coadding
+        else:
+            # these are the `slitord_id` of the slits that we want to exclude
+            exclude_slits = np.atleast_1d(exclude_slits)
+            # create an array of slit index that are excluded by the user
+            exclude_slitindx = np.array([], dtype=int)
+            msgs.info('Excluding the following slits:')
+            for islit in exclude_slits:
+                if islit in slits0.slitord_id[good_slitindx]:
+                    msgs.info(f'Slit {islit}')
+                    exclude_slitindx = np.append(exclude_slitindx,
+                                                 np.where(slits0.slitord_id[good_slitindx] == islit)[0][0])
+            # these are the good slit index excluding the slits that are selected by the user
+            good_onlyslits = np.delete(good_slitindx, exclude_slitindx)
+            return good_onlyslits
 
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
@@ -445,7 +493,7 @@ class CoAdd2D:
                                            const_weights=const_weights)
         return rms_sn, weights.T
 
-    def coadd(self, only_slits=None, interp_dspat=True):
+    def coadd(self, interp_dspat=True):
         """
         Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
         This method calls loops over slits/orders and performs the 2d-coadd by
@@ -454,10 +502,6 @@ class CoAdd2D:
 
         Parameters
         ----------
-        only_slits : list, optional
-           List of slits to operate on. Not currently supported, i.e. the code
-           can currently only stack everything because the slit/reduction
-           bitmask checking is not yet implemented. Default = None
         interp_dspat : bool, optional
            Interpolate in the spatial coordinate image to faciliate running
            through core.extract.local_skysub_extract.  Default=True
@@ -470,10 +514,6 @@ class CoAdd2D:
             # TODO Make this a PypeIt object, with data model yada-yada.
 
         """
-        # get slit index that indicates which slits are good for coadding
-        self.good_slits = self.good_slitindx(only_slits=only_slits)
-        # get the number of slits that are going to be coadded
-        self.nslits_coadded = self.good_slits.size
 
         coadd_list = []
         for slit_idx in self.good_slits:
@@ -1173,13 +1213,16 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
+                 only_slits=None, exclude_slits=None,
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
-                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False,
+                 **kwargs_wave):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                               spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
-                                               sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
-                                        show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                        debug=debug, **kwargs_wave)
+                         only_slits=only_slits, exclude_slits=exclude_slits,
+                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
+                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative, par=par,
+                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
+                         debug=debug, **kwargs_wave)
 
         # maskdef offset
         self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
@@ -1394,12 +1437,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         objid_max[islit, iexp] = objid_this[imax]
                         bpm[islit, iexp] = False
 
-        # If there are slits that have bpm = True for some exposures and not for others, set them to True as well
+        # If a slit has bpm = True for some exposures and not for others, set bpm = True for all exposures
         # get the slits that have bpm = True for any exposures
         bmp_true_idx = np.array([np.any(b == True) for b in bpm])
         if np.any(bmp_true_idx):
             bpm_true = bpm[bmp_true_idx, :]
-            # If these slits have bpm = False for some exposures, then set them to True as well
+            # If these slits have also bpm = False for some exposures, then bpm = True for all exposures
             bpm_true[bpm_true == False] = True
             bpm[bmp_true_idx, :] = bpm_true
 
@@ -1529,14 +1572,16 @@ class EchelleCoAdd2D(CoAdd2D):
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
+                 only_slits=None, exclude_slits=None,
                  spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
                  bkg_redux=False, find_negative=False, show=False, show_peaks=False, debug_offsets=False, debug=False,
                  **kwargs_wave):
         super().__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                             spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
-                                             sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
-                                             par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
-                                             debug=debug, **kwargs_wave)
+                         only_slits=only_slits, exclude_slits=exclude_slits,
+                         spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
+                         sn_smooth_npix=sn_smooth_npix, bkg_redux=bkg_redux, find_negative=find_negative,
+                         par=par, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
+                         debug=debug, **kwargs_wave)
 
         # Default wave_method for Echelle is log10
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
@@ -1675,12 +1720,12 @@ class EchelleCoAdd2D(CoAdd2D):
                         order_snr[iord, iobj] = rms_sn
                         bpm[iord, iobj] = False
 
-            # If there are orders that have bpm = True for some objs and not for others, set them to True as well
+            # If there are orders that have bpm = True for some objs and not for others, set bpm = True for all objs
             # get the orders that have bpm = True for any objs
             bmp_true_idx = np.array([np.any(b == True) for b in bpm])
             if np.any(bmp_true_idx):
                 bpm_true = bpm[bmp_true_idx, :]
-                # If these slits have bpm = False for some obj, then set them to True as well
+                # If these slits have also bpm = False for some obj, then bpm = True for all objs
                 bpm_true[bpm_true == False] = True
                 bpm[bmp_true_idx, :] = bpm_true
 

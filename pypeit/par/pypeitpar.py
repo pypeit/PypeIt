@@ -1219,7 +1219,8 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None,
+                 spat_toler=None, weights=None, user_obj=None,
                  use_slits4wvgrid=None, manual=None):
 
         # Grab the parameter names and values from the function
@@ -1233,11 +1234,15 @@ class Coadd2DPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Offsets
         defaults['only_slits'] = None
         dtypes['only_slits'] = [int, list]
         descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to. ' \
                               'I.e., only this/these slit/s will be coadded.'
+
+        defaults['exclude_slits'] = None
+        dtypes['exclude_slits'] = [int, list]
+        descr['exclude_slits'] = 'Slit ID, or list of slit IDs that the user want exclude from the coaddition. ' \
+                                 'I.e., all slits except this/these slit/s will be coadded.'
 
         defaults['offsets'] = 'auto'
         dtypes['offsets'] = [str, list]
@@ -1301,7 +1306,8 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler',
+                   'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

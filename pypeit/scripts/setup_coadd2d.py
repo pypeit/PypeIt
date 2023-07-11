@@ -45,7 +45,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                  '3,7, you would use --det 1,5 3,7')
         parser.add_argument('--only_slits', type=str, nargs='+',
                             help='A space-separated set of slits to coadd.  If not provided, all '
-                                 'slits are coadded.')
+                                 'slits are coadded. This and --exclude_slits are mutually exclusive. '
+                                 'If both are provided, --only_slits takes precedence.')
+        parser.add_argument('--exclude_slits', type=str, nargs='+',
+                            help='A space-separated set of slits to exclude in the coaddition. '
+                                 'This and --only_slits are mutually exclusive. '
+                                 'If both are provided, --only_slits takes precedence.')
         parser.add_argument('--spat_toler', type=int, default=None,
                             help='Desired tolerance in spatial pixel used to identify '
                                  'slits in different exposures. If not provided, the default '
@@ -157,15 +162,12 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         if par is None:
             # This is only used to get the default offsets and weights (see below)
             par = load_spectrograph(spec_name).config_specific_par(spec2d_files[0])
-            utils.add_sub_dict(cfg, 'rdx')
-            cfg['rdx']['scidir'] = 'Science'
-        else:
-            utils.add_sub_dict(cfg, 'rdx')
-            cfg['rdx']['redux_path'] = par['rdx']['redux_path']
-            cfg['rdx']['scidir'] = par['rdx']['scidir']
-            cfg['rdx']['qadir'] = par['rdx']['qadir']
-            utils.add_sub_dict(cfg, 'calibrations')
-            cfg['calibrations']['calib_dir'] = par['calibrations']['calib_dir']
+        utils.add_sub_dict(cfg, 'rdx')
+        cfg['rdx']['redux_path'] = par['rdx']['redux_path']
+        cfg['rdx']['scidir'] = par['rdx']['scidir']
+        cfg['rdx']['qadir'] = par['rdx']['qadir']
+        utils.add_sub_dict(cfg, 'calibrations')
+        cfg['calibrations']['calib_dir'] = par['calibrations']['calib_dir']
         utils.add_sub_dict(cfg, 'coadd2d')
         cfg['coadd2d']['offsets'] = par['coadd2d']['offsets'] \
                 if args.offsets is None else args.offsets
@@ -175,14 +177,15 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                 if args.spat_toler is None else args.spat_toler
 
         # Build the default parameters
-        cfg = CoAdd2D.default_par(spec_name, inp_cfg=cfg, det=args.det, slits=args.only_slits)
+        cfg = CoAdd2D.default_par(spec_name, inp_cfg=cfg, det=args.det, only_slits=args.only_slits,
+                                  exclude_slits=args.exclude_slits)
 
         # Create a coadd2D file for each object
         # NOTE: Below expect all spec2d files have the same path
         for obj, files in object_spec2d_files.items():
             tbl = Table()
             tbl['filename'] = [f.name for f in files]
-            ofile = args.pypeit_file.replace('.pypeit', f'_{obj}.coadd2d') if args.pypeit_file is not None \
+            ofile = Path(args.pypeit_file).name.replace('.pypeit', f'_{obj}.coadd2d') if args.pypeit_file is not None \
                 else f'{spec_name}_{obj}.coadd2d'
             inputfiles.Coadd2DFile(config=cfg, file_paths=[str(sc) for sc in sci_dirs],
                                    data_table=tbl).write(ofile)

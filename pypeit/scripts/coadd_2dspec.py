@@ -5,6 +5,7 @@ Script for performing 2d coadds of PypeIt data.
 .. include:: ../include/links.rst
 """
 from pypeit.scripts import scriptbase
+from pypeit.core import parse
 
 class CoAdd2DSpec(scriptbase.ScriptBase):
 
@@ -16,9 +17,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         parser.add_argument('coadd2d_file', type=str, default=None,
                             help='File to guide 2d coadds')
 
-        parser.add_argument("--coadd_dir", type=str, default=None,
-                            help="Path to the directory to use for the coadd2d output. "
-                                 "If None, the parent of the science directory is used.")
         parser.add_argument("--show", default=False, action="store_true",
                             help="Show the reduction steps. Equivalent to the -s option when "
                                  "running pypeit.")
@@ -106,9 +104,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # Get the paths
         coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
-                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=args.coadd_dir))
-        # update redux_path
-        par['rdx']['redux_path'] = str(coadd_scidir.parent)
+                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])
@@ -143,11 +139,10 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['find_negative'] = find_negative
 
         # Find the detectors to reduce
-        # TODO: Allow slitspatnum to be specified?  E.g.:
-#        detectors = spectrograph.select_detectors(
-#                subset=par['rdx']['detnum'] if par['rdx']['slitspatnum'] is None else
-#                        par['rdx']['slitspatnum'])
-        detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'])
+        detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'] if par['coadd2d']['only_slits'] is None
+                                                  else par['coadd2d']['only_slits'])
+        # detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'])
+
         msgs.info(f'Detectors to work on: {detectors}')
 
         # container for specobjs
@@ -158,14 +153,31 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         all_spec2d['meta']['bkg_redux'] = bkg_redux
         all_spec2d['meta']['find_negative'] = find_negative
 
+        # get only_slits and exclude_slits if they are set
+        only_dets, only_spat_ids, exclude_dets, exclude_spat_ids = None, None, None, None
+        if par['coadd2d']['only_slits'] is not None and par['coadd2d']['exclude_slits'] is not None:
+            msgs.warn('Both `--only_slits` and `--exclude_slits` are set. They are mutually exclusive. '
+                      'Using `--only_slits` and ignoring `--exclude_slits`')
+            par['coadd2d']['exclude_slits'] = None
+        elif par['coadd2d']['only_slits'] is not None:
+            only_dets, only_spat_ids = parse.parse_slitspatnum(par['coadd2d']['only_slits'])
+        elif par['coadd2d']['exclude_slits'] is not None:
+            exclude_dets, exclude_spat_ids = parse.parse_slitspatnum(par['coadd2d']['exclude_slits'])
+
         # Loop on detectors
         for det in detectors:
             msgs.info("Working on detector {0}".format(det))
+
+            detname = spectrograph.get_det_name(det)
+            this_only_slits = only_spat_ids[only_dets == detname] if only_dets is not None else None
+            this_exclude_slits = exclude_spat_ids[exclude_dets == detname] if exclude_dets is not None else None
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,
                                                  offsets=par['coadd2d']['offsets'],
                                                  weights=par['coadd2d']['weights'],
+                                                 only_slits=this_only_slits,
+                                                 exclude_slits=this_exclude_slits,
                                                  spec_samp_fact=args.spec_samp_fact,
                                                  spat_samp_fact=args.spat_samp_fact,
                                                  bkg_redux=bkg_redux, find_negative=find_negative,
@@ -174,7 +186,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # TODO Add this stuff to a run method in coadd2d
             # Coadd the slits
-            coadd_dict_list = coadd.coadd(only_slits=par['coadd2d']['only_slits'])
+            coadd_dict_list = coadd.coadd()
             # Create the pseudo images
             pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
             # Reduce
