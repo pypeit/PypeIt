@@ -288,7 +288,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname', 'bias': None, 'dark': None}
+        return {'standard': 'dispname', 'bias': 'binning', 'dark': 'binning'}
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -874,7 +874,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname','bias': None, 'dark': None}
+        return {'standard': 'dispname','bias': 'binning', 'dark': 'binning'}
 
     def config_specific_par(self, scifile, inp_par=None):
         """
