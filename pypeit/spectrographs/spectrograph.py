@@ -1063,7 +1063,10 @@ class Spectrograph:
             return np.arange(1, self.ndet+1).tolist()
 
         # Parse the subset if it's a string (single slitspatnum) or a list of slitspatnums
-        if isinstance(subset, str) or (isinstance(subset, list) and np.all([':' in ss for ss in subset])):
+        embed()
+        if isinstance(subset, str) or \
+                (isinstance(subset, list) and np.all([isinstance(ss, str) for ss in subset])
+                 and np.all([':' in ss for ss in subset])):
             subset_list = [subset] if isinstance(subset, str) else subset
             # Convert detector to int/tuple
             new_dets = []
