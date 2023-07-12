@@ -1062,8 +1062,7 @@ class Spectrograph:
         if subset is None:
             return np.arange(1, self.ndet+1).tolist()
 
-        # Parse the subset if it's a string (single slitspatnum) or a list of slitspatnums
-        embed()
+        # Parse subset if it's a string (single slitspatnum) or a list of slitspatnums
         if isinstance(subset, str) or \
                 (isinstance(subset, list) and np.all([isinstance(ss, str) for ss in subset])
                  and np.all([':' in ss for ss in subset])):
@@ -1071,14 +1070,13 @@ class Spectrograph:
             # Convert detector to int/tuple
             new_dets = []
             for ss in subset_list:
-                parsed_dets = parse.parse_slitspatnum(ss)[0].tolist()
-                for item in parsed_dets:
-                    if 'DET' in item:
-                        idx = np.where(self.list_detectors() == item)[0][0]
-                        new_dets.append(idx+1)
-                    elif 'MSC' in item:
-                        idx = np.where(self.list_detectors(mosaic=True) == item)[0][0]
-                        new_dets.append(self.allowed_mosaics[idx])
+                parsed_det = parse.parse_slitspatnum(ss)[0][0]
+                if 'DET' in parsed_det:
+                    idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
+                    new_dets.append(idx+1)
+                elif 'MSC' in parsed_det:
+                    idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
+                    new_dets.append(self.allowed_mosaics[idx])
             _subset = new_dets
         elif isinstance(subset, (int, tuple)):
             _subset = [subset]
