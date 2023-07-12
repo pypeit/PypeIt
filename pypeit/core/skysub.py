@@ -1033,7 +1033,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
-                             count_scale=None):
+                             count_scale=None, no_local_sky:bool=False):
     """
     Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -1185,6 +1185,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         array is not positive, modulo the provided ``adderr``.  This is one of
         the components needed to construct the model variance; see
         ``model_noise``.
+    no_local_sky : bool, default = False
+        If True, do not perform local sky subtraction. This is useful for
+        A-B extraction where the sky has already been subtracted.
 
     Returns
     -------
@@ -1344,6 +1347,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
                                        sigrej=sigrej,
+                                       no_local_sky=no_local_sky,
                                        bkpts_optimal=bkpts_optimal, force_gauss=force_gauss,
                                        sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,

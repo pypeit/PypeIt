@@ -833,7 +833,7 @@ class EchelleExtract(Extract):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
-
+        no_local_sky = self.par['reduce']['skysub']['no_local_sky']
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
@@ -847,6 +847,7 @@ class EchelleExtract(Extract):
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,
                                                   show_profile=show_profile,
+                                                  no_local_sky=no_local_sky,
                                                   show_resids=show_resids, show_fwhm=show_fwhm,
                                                   base_var=self.sciImg.base_var,
                                                   count_scale=self.sciImg.img_scale,
