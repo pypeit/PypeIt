@@ -699,7 +699,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 8 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
 
         # Coadding
@@ -952,6 +952,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        par['calibrations']['wavelengths']['qa_log'] = True
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
@@ -979,6 +984,17 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
+
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] =  8
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        # This is a hack until we we have a Paranal file generated that covers the UVB wavelength range.
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
 
 
         return par

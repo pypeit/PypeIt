@@ -120,21 +120,21 @@ class SensFunc(scriptbase.ScriptBase):
                        "              multi_spec_det = 3,7\n"
                        "\n")
 
-        # Determine the spectrograph
-        hdul = io.fits_open(args.spec1dfile)
-        spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
-        spectrograph_config_par = spectrograph.config_specific_par(hdul)
+        # Determine the spectrograph and generate the primary FITS header
+        with io.fits_open(args.spec1dfile) as hdul:
+            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+            spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
-        # Construct a primary FITS header that includes the spectrograph's
-        #   config keys for inclusion in the output sensfunc file
-        primary_hdr = io.initialize_header()
-        add_keys = (
-            ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
-            + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
-        )
-        for key in add_keys:
-            if key.upper() in hdul[0].header.keys():
-                primary_hdr[key.upper()] = hdul[0].header[key.upper()]
+            # Construct a primary FITS header that includes the spectrograph's
+            #   config keys for inclusion in the output sensfunc file
+            primary_hdr = io.initialize_header()
+            add_keys = (
+                ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+                + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
+            )
+            for key in add_keys:
+                if key.upper() in hdul[0].header.keys():
+                    primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 

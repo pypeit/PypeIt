@@ -271,6 +271,8 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
         `numpy.ndarray`_:  Evaluated fit at the x (and x2) locations
 
     """
+    if func is None:
+        return None
     # For two-d fits x = x, y = x2, y = z
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
@@ -285,6 +287,9 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
                     else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
         else:
             msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+        # TODO: Why is this return here?  The code will never reach this point
+        # because of the if/elif/else above.  What should the behavior be, raise
+        # an exception or return None?
         return None
     elif func == "polynomial":
         return np.polynomial.polynomial.polyval(x, fitc)

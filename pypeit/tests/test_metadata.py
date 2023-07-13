@@ -48,9 +48,13 @@ def test_read_combid():
                          files=pypeItFile.filenames,
                          usrdata=pypeItFile.data, strict=False)
 
-    indx = pmd['filename'] == 'b27.fits.gz'
-    assert pmd['comb_id'][indx] == [1], 'Incorrect combination group ID'
-    assert pmd['comb_id'][np.where(~indx)[0]][0] == -1, 'Incorrect combination group ID'
+    b27_indx = pmd['filename'] == 'b27.fits.gz'
+    b24_indx = pmd['filename'] == 'b24.fits.gz'
+    assert pmd['comb_id'][b27_indx] > 0, 'Science file should have a combination group ID'
+    assert pmd['comb_id'][b24_indx] > 0, 'Standard file should have a combination group ID'
+    assert pmd['comb_id'][b27_indx] != pmd['comb_id'][b24_indx], 'Science and standard should not have same combination group ID'
+    no_combid_indx = np.logical_not(b27_indx | b24_indx)
+    assert pmd['comb_id'][np.where(no_combid_indx)[0]][0] == -1, 'Incorrect combination group ID'
 
     shutil.rmtree(config_dir)
 

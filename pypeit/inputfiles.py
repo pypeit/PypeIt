@@ -689,44 +689,33 @@ class Coadd1DFile(InputFile):
             or None if `filename` is not part of the data table
             or there is no data table!
         """
-        if 'sensfile' in self.data.keys():
-            # Grab em
-            sens_files = self.path_and_files('sensfile', skip_blank=True)
-            # Pad out
-            if len(sens_files) == 1 and len(self.filenames) > 1:
-                sens_files = sens_files * len(self.filenames)
-              # Return
-            return sens_files
-        else:
+
+        if 'sensfile' not in self.data.keys():
             return None
 
-    #@property
-    #def sensfuncfile(self):
-    #    # Generate list, scrubbing empty entries
-    #    if 'sensfuncfile' in self.data.keys():
-    #        sfunc = [item for item in self.data['sensfuncfile'] if item.strip() not in ['', 'none', 'None']]
-    #        # Inflate as needed
-    #        if len(sfunc) == 1 and len(sfunc) < len(self.data):
-    #            sfunc = sfunc * len(self.data)
-    #        # Return
-    #        return sfunc
-    #    else:
-    #        return None
+        # Grab em
+        sens_files = self.path_and_files('sensfile', skip_blank=True)
+        # Pad out
+        if len(sens_files) == 1 and len(self.filenames) > 1:
+            sens_files = sens_files * len(self.filenames)
+            # Return
+        return sens_files
 
 
     @property
     def setup_id(self):
-        if 'setup_id' in self.data.keys():
-            # Generate list, scrubbing empty entries
-            sid = [str(item) for item in self.data['setup_id'] if str(item).strip() not in ['', 'none', 'None']]
 
-            # Inflate as needed
-            if len(sid) == 1 and len(sid) < len(self.data):
-                sid = sid * len(self.data)
-            # Return
-            return sid
-        else:
+        if 'setup_id' not in self.data.keys():
             return None
+
+        # Generate list, scrubbing empty entries
+        sid = [str(item) for item in self.data['setup_id'] if str(item).strip() not in ['', 'none', 'None']]
+
+        # Inflate as needed
+        if len(sid) == 1 and len(sid) < len(self.data):
+            sid = sid * len(self.data)
+        # Return
+        return sid
 
 
 
