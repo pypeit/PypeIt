@@ -762,7 +762,7 @@ class SensFunc(datamodel.DataContainer):
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         axis.plot(self.std_dict['wave'].value, self.std_dict['flux'].value, color='green',linewidth=3.0,
-                  label=self.std_dict['name'], zorder=30, alpha=0.8)
+                  label=self.std_dict['name'], zorder=100, alpha=0.7)
         for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
             # define the color
             rr = (np.max(order_or_det) - order_or_det[iorddet]) \
@@ -773,7 +773,7 @@ class SensFunc(datamodel.DataContainer):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             axis.plot(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm], self.sens['SENS_FLUXED_STD_FLAM'][iorddet][wave_gpm],
                       color=(rr, gg, bb), drawstyle='steps-mid', linewidth=1.0,
-                      label=thru_title[iorddet], zorder=5*idet)
+                      label=thru_title[iorddet], zorder=idet, alpha=0.7)
 
 
         wave_gpm_global = self.sens['SENS_FLUXED_STD_WAVE'] > 1.0
