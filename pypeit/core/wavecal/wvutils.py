@@ -783,7 +783,9 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
         binspec (int):
             Binning of the template
         outpath (str):
+            Directory to store the wavelength template file
         outroot (str):
+            Filename to use for the template
         det_cut (bool, optional):
             Cuts in wavelength for detector snippets
             Used primarily for DEIMOS
