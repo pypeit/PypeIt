@@ -1065,6 +1065,9 @@ class BuildWaveCalib:
                     # Save
                     self.wv_calib.wv_fit2d = np.array(fit2ds)
 
+            # Check that we have at least one good 2D fit
+            embed(header='line 1070 of wavecalib.py')
+
         # Deal with mask
         self.update_wvmask()
 
