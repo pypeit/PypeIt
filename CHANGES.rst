@@ -3,6 +3,8 @@
 
 - Add support for Gemini/GNIRS (IFU)
 - Added a script to convert a wavelength solution into something that can be placed in the reid archive.
+- Hotfix for GTC/OSIRIS lamp list
+- Hotfix for Arc1D stats annotations on the QA
 - Hotfix for metadata (correctly set config_independent frames when multiple configurations are being setup)
 - Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used np.bool
