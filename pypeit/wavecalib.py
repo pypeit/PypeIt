@@ -1066,7 +1066,12 @@ class BuildWaveCalib:
                     self.wv_calib.wv_fit2d = np.array(fit2ds)
 
             # Check that we have at least one good 2D fit
-            embed(header='line 1070 of wavecalib.py')
+            chk_fit2d = False
+            for fit2d in self.wv_calib.wv_fit2d:
+                if fit2d.success:
+                    chk_fit2d = True
+            if not chk_fit2d:
+                msgs.error("No successful 2D Wavelength fits.  Cannot proceed.")
 
         # Deal with mask
         self.update_wvmask()
