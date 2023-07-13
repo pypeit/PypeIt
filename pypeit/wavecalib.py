@@ -972,7 +972,7 @@ class BuildWaveCalib:
             rms = np.array(rms)
             # Test and scale by measured_fwhms 
             bad_rms = rms > (self.par['rms_threshold'] * np.median(self.measured_fwhms)/self.par['fwhm'])
-            #embed(header='line 968 of wavecalib.py')
+            embed(header='line 975 of wavecalib.py')
             self.wvc_bpm[bad_rms] = True
             if np.any(bad_rms):
                 msgs.warn("Masking one or more bad orders (RMS)")
