@@ -177,8 +177,8 @@ def arc_fit_qa(waveFit,
 
     # Stats
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small')
-    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small')
+    ax_fit.text(0.1, 0.9, r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small', transform=ax_fit.transAxes)
+    ax_fit.text(0.1, 0.8, 'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small', transform=ax_fit.transAxes)
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
     res = waveFit.wave_fit-wave_soln_fit
