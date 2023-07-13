@@ -181,7 +181,6 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
                                   exclude_slits=args.exclude_slits)
 
         # Create a coadd2D file for each object
-        # NOTE: Below expect all spec2d files have the same path
         for obj, files in object_spec2d_files.items():
             tbl = Table()
             tbl['filename'] = [f.name for f in files]
