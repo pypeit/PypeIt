@@ -42,9 +42,12 @@ class SpecObjs:
     Args:
         specobjs (`numpy.ndarray`_, list, optional):
             One or more :class:`~pypeit.specobj.SpecObj`  objects
+        header (`astropy.io.fits.Header`_, optional):
+            Baseline header to use
 
     Attributes:
         summary (astropy.table.Table):
+            Summary table (?)
     """
     version = '1.0.0'
 
@@ -544,14 +547,15 @@ class SpecObjs:
 
     def apply_flux_calib(self, par, spectrograph, sens):
         """
-        Flux calibrate the  object spectra (``sobjs``) using the provided sensitivity function (``sens``).
+        Flux calibrate the  object spectra (``sobjs``) using the provided
+        sensitivity function (``sens``).
 
         Args:
-        par (pypeit.par.pypeitpar.FluxCalibrate, optional):
+            par (pypeit.par.pypeitpar.FluxCalibrate):
                 Parset object containing parameters governing the flux calibration.
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 PypeIt Spectrograph class
-        sens (:class:`~pypeit.sensfunc.SensFunc`):
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
                 PypeIt Sensitivity function class
         """
 
