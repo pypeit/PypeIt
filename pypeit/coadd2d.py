@@ -1015,7 +1015,7 @@ class CoAdd2D:
                 else:
                     self.offsets = -dithers
             else:
-                self.offsets = dithoffs[0]-dithoffs
+                self.offsets = dithoffs
             self.offsets_report(self.offsets, 'header keyword')
             self.angle_offsets = True
 
