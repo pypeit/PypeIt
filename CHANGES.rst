@@ -1,6 +1,9 @@
 1.13.1dev (6 June 2023)
 ------------------------
 
+- Hotfix for GTC/OSIRIS lamp list
+- Hotfix for Arc1D stats annotations on the QA
+- Hotfix for metadata (correctly set config_independent frames when multiple configurations are being setup)
 - Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used np.bool
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
@@ -8,6 +11,7 @@
 - Adds Keck/ESI to PypeIt
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
 - Improvements to wavelength grids and masking in coadd routines.
 - Fixed a bug in echelle coadding where the wrong coadded spectra were being
   used in final stacks.
@@ -19,6 +23,11 @@
   were being treated for echelle data
 - Various fixes and changes required to add more support for Keck/HIRES and JWST
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> sensfunc_blaze_jwst_lists
 1.13.0 (2 June 2023)
 --------------------
 

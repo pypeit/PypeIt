@@ -170,6 +170,8 @@ class WaveCalib(calibframe.CalibFrame):
             if 'WAVEFIT' in ihdu.name:
                 # Allow for empty
                 if len(ihdu.data) == 0:
+                    # TODO: This is a hack.  We shouldn't be writing empty HDUs,
+                    # except for the primary HDU.
                     iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
@@ -190,7 +192,10 @@ class WaveCalib(calibframe.CalibFrame):
                 list_of_wave2d_fits.append(iwave2dfit)
                 parsed_hdus += ihdu.name
             elif 'FWHMFIT' in ihdu.name:
-                ifwhmfit = fitting.PypeItFit.from_hdu(ihdu)
+                # TODO: This is a hack.  We shouldn't be writing empty HDUs,
+                # except for the primary HDU.
+                ifwhmfit = fitting.PypeItFit() if len(ihdu.data) == 0 \
+                                else fitting.PypeItFit.from_hdu(ihdu)
                 list_of_fwhm_fits.append(ifwhmfit)
                 parsed_hdus += ihdu.name
         # Check
@@ -512,7 +517,7 @@ class BuildWaveCalib:
 
             # Load up slits
             # TODO -- Allow for flexure
-            self.slits_left, self.slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
@@ -529,7 +534,10 @@ class BuildWaveCalib:
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
             # slitcen is padded to include slits that may be masked, for convenience in coding downstream
-            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (self.slits_left+self.slits_right)/2)
+            self.slits_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, slits_left)
+            self.slits_right = arc.resize_slits2arc(self.shape_arc, self.shape_science, slits_right)
+            self.slitcen = (self.slits_left+self.slits_right)/2
+            #self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (self.slits_left+self.slits_right)/2)
             self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             # Mask
             # TODO: The bpm defined above is already a boolean and cannot be None.
@@ -584,8 +592,9 @@ class BuildWaveCalib:
             msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data, 2)))
 
         # Generate a map of the instrumental spectral FWHM
-        fwhm_map = autoid.map_fwhm(self.msarc.image, np.logical_not(self.gpm), self.slits, nsample=10,
-                                   specord=self.par['fwhm_spec_order'],
+        # TODO nsample should be a parameter
+        fwhm_map = autoid.map_fwhm(self.msarc.image, self.gpm, self.slits_left, self.slits_right, self.slitmask,
+                                   nsample=10, slit_bpm=self.wvc_bpm, specord=self.par['fwhm_spec_order'],
                                    spatord=self.par['fwhm_spat_order'])
         # Calculate the typical spectral FWHM down the centre of the slit
         measured_fwhms = np.zeros(arccen.shape[1], dtype=object)
@@ -715,15 +724,16 @@ class BuildWaveCalib:
                                              slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], outfile=outfile)
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], log=self.par['qa_log'], outfile=outfile)
 
                 # Obtain the output QA name for the spectral resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
                                                   slit=self.slits.slitord_id[slit_idx],
                                                   out_dir=self.qa_path)
                 # Save the wavelength solution fits
-                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx], outfile=outfile_fwhm,
-                                   spat_id=self.slits.slitord_id[slit_idx])
+                autoid.arc_fwhm_qa(self.wv_calib.fwhm_map[slit_idx],
+                                   self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
+                                   outfile=outfile_fwhm)
 
 
         # Return
@@ -922,12 +932,6 @@ class BuildWaveCalib:
 
         # Fit 2D?
         if self.par['echelle']:
-            # Assess the fits
-            rms = np.array([wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            bad_rms = rms > self.par['rms_threshold']
-            self.wvc_bpm[bad_rms] = True
-            if np.any(bad_rms):
-                msgs.warn("Masking one or more bad orders (RMS)")
             # Fit
             fit2ds = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             # Save
@@ -935,19 +939,6 @@ class BuildWaveCalib:
             # Save det_img?
             if self.par['ech_separate_2d']:
                 self.wv_calib.det_img = self.msarc.det_img.copy()
-
-            # TODO This is work in progress by ProfX
-            # Try a second attempt with 1D, if needed
-            #if np.any(bad_rms):
-                #for bad_slit in np.where(bad_rms)[0]:
-                    #embed(header='877 of wavecalib')
-                    # TODO -- just run solve_xcorr
-                    # Generate a better guess at wavelengths
-                    #patt_dict, final_fit = autoid.echelle_wvcalib(
-                    #    arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                    #    self.lamps, self.par, ok_mask=ok_mask_idx,
-                    #    nonlinear_counts=self.nonlinear_counts,
-                    #    debug_all=False, redo_slit=self.slits.ech_order[bad_slit])
 
         # Deal with mask
         self.update_wvmask()

@@ -42,9 +42,12 @@ class SpecObjs:
     Args:
         specobjs (`numpy.ndarray`_, list, optional):
             One or more :class:`~pypeit.specobj.SpecObj`  objects
+        header (`astropy.io.fits.Header`_, optional):
+            Baseline header to use
 
     Attributes:
         summary (astropy.table.Table):
+            Summary table (?)
     """
     version = '1.0.0'
 
@@ -541,6 +544,78 @@ class SpecObjs:
                 # chk
                 chk &= (sub_box or sub_opt)
         return chk
+
+    def apply_flux_calib(self, par, spectrograph, sens):
+        """
+        Flux calibrate the  object spectra (``sobjs``) using the provided
+        sensitivity function (``sens``).
+
+        Args:
+            par (pypeit.par.pypeitpar.FluxCalibrate):
+                Parset object containing parameters governing the flux calibration.
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                PypeIt Spectrograph class
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
+                PypeIt Sensitivity function class
+        """
+
+        _extinct_correct = (True if sens.algorithm == 'UVIS' else False) \
+            if par['extinct_correct'] is None else par['extinct_correct']
+
+        if spectrograph.pypeline == 'MultiSlit':
+            for ii, sci_obj in enumerate(self.specobjs):
+                if sens.wave.shape[1] == 1:
+                    sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             extrap_sens=par['extrap_sens'],
+                                             airmass=float(self.header['AIRMASS']))
+                elif sens.wave.shape[1] > 1 and sens.splice_multi_det:
+                    # This deals with the multi detector case where the sensitivity function is spliced. Note that
+                    # the final sensitivity function written to disk is  the spliced one. This functionality is only
+                    # used internal to sensfunc.py for fluxing the standard for the QA plot.
+                    sci_obj.apply_flux_calib(sens.wave[:, ii], sens.zeropoint[:, ii],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             extrap_sens=par['extrap_sens'],
+                                             airmass=float(self.header['AIRMASS']))
+                else:
+                    msgs.error('This should not happen, there is a problem with your sensitivity function.')
+
+
+        elif spectrograph.pypeline == 'Echelle':
+            # Flux calibrate the orders that are mutually in the meta_table and in
+            # the sobjs. This allows flexibility for applying to data for cases
+            # where not all orders are present in the data as in the sensfunc, etc.,
+            # i.e. X-shooter with the K-band blocking filter.
+            ech_orders = np.array(sens.sens['ECH_ORDERS']).flatten()
+            for sci_obj in self.specobjs:
+                # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
+                indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
+                if indx.size == 1:
+                    sci_obj.apply_flux_calib(sens.wave[:, indx[0]], sens.zeropoint[:, indx[0]],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             extrap_sens=par['extrap_sens'],
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             airmass=float(self.header['AIRMASS']))
+                elif indx.size == 0:
+                    msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                              'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
+                else:
+                    msgs.error('This should not happen')
+
+        else:
+            msgs.error('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
+
 
     def copy(self):
         """

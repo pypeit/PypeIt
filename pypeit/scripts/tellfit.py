@@ -16,7 +16,7 @@ class TellFit(scriptbase.ScriptBase):
         parser = super().get_parser(description='Telluric correct a spectrum',
                                     width=width, formatter=scriptbase.SmartFormatter)
         parser.add_argument("spec1dfile", type=str,
-                            help="spec1d file that will be used for telluric correction.")
+                            help="spec1d or coadd file that will be used for telluric correction.")
         parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
                             help='R|science object model used in the fitting. The options are:\n'
                                  '\n'

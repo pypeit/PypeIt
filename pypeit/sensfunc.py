@@ -30,7 +30,6 @@ from pypeit.core.moment import moment1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
 from pypeit import flatfield
-from pypeit.fluxcalibrate import apply_flux_calib
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -58,8 +57,11 @@ class SensFunc(datamodel.DataContainer):
             PypeIt spec1d file for the standard file.
         sensfile (:obj:`str`):
             File name for the sensitivity function data.
-        par (:class:`~pypeit.par.pypeitpar.SensFuncPar`, optional):
+        par (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
             The parameters required for the sensitivity function computation.
+        par_fluxcalib (:class:`~pypeit.par.pypeitpar.FluxCalibPar`, optional):
+            The parameters required for flux calibration. These are only used for
+            flux calibration of the standard star spectrum for the QA plot. If None, defaults will be used.
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
@@ -141,7 +143,9 @@ class SensFunc(datamodel.DataContainer):
             norders (:obj:`int`):
                 The number of slits/orders on the detector.
             nspec (:obj:`int`):
-                The number of spectral pixels on the detector.
+                The number of spectral pixels for the zeropoint arrays.
+            nspec_in (:obj:`int`):
+                The number of spectral pixels on the detector for the input standard star spectrum.
 
         Returns:
             `astropy.table.Table`_: Instance of the empty sensitivity
@@ -173,28 +177,28 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='WAVE_MAX', dtype=float, length=norders,
                          description='Maximum wavelength included in the fit'),
             table.Column(name='SENS_FLUXED_STD_WAVE', dtype=float, length=norders, shape=(nspec_in,),
-                         description='Log10 of the blaze function for each slit/order'),
+                         description='The wavelength array for the fluxed standard star spectrum'),
             table.Column(name='SENS_FLUXED_STD_FLAM', dtype=float, length=norders, shape=(nspec_in,),
-                         description='Log10 of the blaze function for each slit/order'),
+                         description='The F_lambda for the fluxed standard star spectrum'),
             table.Column(name='SENS_FLUXED_STD_FLAM_IVAR', dtype=float, length=norders, shape=(nspec_in,),
-                         description='Log10 of the blaze function for each slit/order'),
+                         description='The inverse variance of F_lambda for the fluxed standard star spectrum'),
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
-                         description='Log10 of the blaze function for each slit/order')])
+                         description='The good pixel mask for the fluxed standard star spectrum ')])
 
 
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfile, sensfile, par, debug=False):
+    def get_instance(cls, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
         """
         Instantiate the relevant subclass based on the algorithm provided in
         ``par``.
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par,
-                                                                    debug=debug)
+                                                                    par_fluxcalib=par_fluxcalib, debug=debug)
 
-    def __init__(self, spec1dfile, sensfile, par, debug=False):
+    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -214,9 +218,9 @@ class SensFunc(datamodel.DataContainer):
         self.spectrograph.dispname = header['DISPNAME']
 
         # Get the algorithm parameters
-        self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
+        #self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO Should we allow the user to pass this in?
-        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib']
+        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
         # TODO: Check the type of the parameter object?
 
         # Set the algorithm in the datamodel
@@ -459,11 +463,9 @@ class SensFunc(datamodel.DataContainer):
         """
         Flux the standard star and add it to the sensitivity function table
 
-        Returns:
-
         """
         # Now flux the standard star
-        apply_flux_calib(self.par_fluxcalib, self.spectrograph, self.sobjs_std, self)
+        self.sobjs_std.apply_flux_calib(self.par_fluxcalib, self.spectrograph, self)
         # TODO assign this to the data model
 
         # Unpack the fluxed standard
@@ -759,11 +761,11 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
-        # Plot throughput curve(s) for all orders/det
+        # Plot fluxed standard star for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         axis.plot(self.std_dict['wave'].value, self.std_dict['flux'].value, color='green',linewidth=3.0,
-                  label=self.std_dict['name'], zorder=30, alpha=0.8)
+                  label=self.std_dict['name'], zorder=100, alpha=0.7)
         for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
             # define the color
             rr = (np.max(order_or_det) - order_or_det[iorddet]) \
@@ -774,7 +776,7 @@ class SensFunc(datamodel.DataContainer):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             axis.plot(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm], self.sens['SENS_FLUXED_STD_FLAM'][iorddet][wave_gpm],
                       color=(rr, gg, bb), drawstyle='steps-mid', linewidth=1.0,
-                      label=thru_title[iorddet], zorder=5*idet)
+                      label=thru_title[iorddet], zorder=idet, alpha=0.7)
 
 
         wave_gpm_global = self.sens['SENS_FLUXED_STD_WAVE'] > 1.0
@@ -792,9 +794,6 @@ class SensFunc(datamodel.DataContainer):
         fig.savefig(self.fstdfile)
 
 
-
-
-        # Plot the fluxed standard star spectrum
 
 
     @classmethod
@@ -841,7 +840,8 @@ class SensFunc(datamodel.DataContainer):
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 
         if debug:
-            coadd.weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+            coadd.weights_qa(utils.echarr_to_echlist(waves_stack)[0], utils.echarr_to_echlist(weights_stack)[0],
+                             utils.echarr_to_echlist(waves_stack > 1.0)[0], title='sensfunc_weights')
 
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))
@@ -1014,8 +1014,8 @@ class UVISSensFunc(SensFunc):
     _algorithm = 'UVIS'
     """Algorithm used for the sensitivity calculation."""
 
-    def __init__(self, spec1dfile, sensfile, par, debug=False):
-        super().__init__(spec1dfile, sensfile, par, debug=debug)
+    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
+        super().__init__(spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug)
 
         # Add some cards to the meta spec. These should maybe just be added
         # already in unpack object

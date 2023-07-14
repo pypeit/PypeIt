@@ -340,6 +340,21 @@ class SlitTraceSet(calibframe.CalibFrame):
             return self.ech_order
         msgs.error(f'Unrecognized Pypeline {self.pypeline}')
 
+    @property
+    def slitord_txt(self):
+        """
+        Return string indicating if the logs/QA should use "slit" (MultiSlit, IFU) or "order" (Echelle)
+
+        Returns:
+            str: Either 'slit' or 'order'
+
+        """
+        if self.pypeline in ['MultiSlit', 'IFU']:
+            return 'slit'
+        if self.pypeline == 'Echelle':
+            return 'order'
+        msgs.error(f'Unrecognized Pypeline {self.pypeline}')
+
     def spatid_to_zero(self, spat_id):
         """
         Convert input spat_id into a zero-based index

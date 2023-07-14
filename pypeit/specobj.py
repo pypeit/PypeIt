@@ -473,31 +473,32 @@ class SpecObj(datamodel.DataContainer):
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None,
+                         extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            wave_zp (float array)
+            wave_zp (float array):
                 Zeropoint wavelength array
             zeropoint (float array):
                 zeropoint array
             exptime (float):
                 Exposure time
-            tellmodel:
+            tellmodel (?):
                 Telluric correction
-            extinct_correct:
+            extinct_correct (?):
                 If True, extinction correct
             airmass (float, optional):
                 Airmass
             longitude (float, optional):
                 longitude in degree for observatory
-            latitude:
+            latitude (float, optional):
                 latitude in degree for observatory
                 Used for extinction correction
-            extinctfilepar (str):
+            extinctfilepar (str, optional):
                 [sensfunc][UVIS][extinct_file] parameter
                 Used for extinction correction
             extrap_sens (bool, optional):

@@ -42,22 +42,27 @@ class CoAdd1D:
 
         Args:
             spec1dfiles (list):
-               List of strings which are the spec1dfiles
+                List of strings which are the spec1dfiles
             objids (list):
-               List of strings which are the objids for the object in each spec1d file that you want to coadd
+                List of strings which are the objids for the object in each
+                spec1d file that you want to coadd.
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+                Spectrograph object.
             par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
-               Pypeit parameter set object for Coadd1D
+                PypeIt parameter set object for Coadd1D
             sensfuncile (str or list of strings, optional):
-               File or list of files holding the sensitivity function. This is required for echelle coadds only.
+                File or list of files holding the sensitivity function. This is
+                required for echelle coadds only.
             setup_id (str or list of strings, optional):
-               A string or list of strings identifiying the setup IDs to coadd. This is only used for echelle coadds where a loop
-               over the different echelle setups is performed.  If None, it will be assumed that all the
-               input files, objids, and sensfuncfiles correspond to the same setup.
+                A string or list of strings identifiying the setup IDs to coadd.
+                This is only used for echelle coadds where a loop over the
+                different echelle setups is performed.  If None, it will be
+                assumed that all the input files, objids, and sensfuncfiles
+                correspond to the same setup.
             debug (bool, optional)
-               Debug. Default = False
+                Debug. Default = False
             show (bool, optional):
-               Debug. Default = True
+                Debug. Default = True
         """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
@@ -97,9 +102,6 @@ class CoAdd1D:
     def load(self):
         """
         Load the arrays we need for performing coadds. Dummy method overloaded by children.
-
-        Returns:
-            None
         """
         msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
 
@@ -110,10 +112,12 @@ class CoAdd1D:
 
         Args:
             coaddfile (str):
-               File to output coadded spectrum to.
-            telluric (`numpy.ndarray`_):
-            obj_model (str):
-            overwrite (bool):
+                File to output coadded spectrum to.
+            telluric (`numpy.ndarray`_, optional):
+                Telluric model.
+            obj_model (str, optional):
+                Name of the object model
+            overwrite (bool, optional):
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
@@ -142,16 +146,8 @@ class CoAdd1D:
     def coadd(self):
         """
         Dummy method overloaded by sub-classes
-
-        Returns:
-            :obj:`tuple`:  four items
-              - wave
-              - flux
-              - ivar
-              - gpm
-
         """
-        return (None,)*4
+        raise NotImplementedError(f'coadding function not defined for {self.__class__.__name__}!')
 
 
 class MultiSlitCoAdd1D(CoAdd1D):
@@ -171,21 +167,22 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         Load the arrays we need for performing coadds.
 
-        Returns:
-            tuple:
-               - waves, fluxes, ivars, gpms, headers
-            waves (list of float `numpy.ndarray`_):
-               List of wavelength arrays. The length of the list is nexp. The arrays can have different shapes.
-            fluxes (list of float `numpy.ndarray`_):
-               List of flux arrays. The arrays can have different shapes, but all are aligned with what is in waves.
-            ivars (list of float `numpy.ndarray`_):
-               List of inverse variance arrays. The arrays can have different shapes, but all are aligned with what is
-               in waves.
-            gpms (list of bool `numpy.ndarray`_):
-               List of good pixel mask variance arrays. The arrays can have different shapes, but all are aligned with what is
-               in waves.
-            headers (list of header objects)
-               List of headers of length nexp
+        Returns
+        -------
+        waves : list of float `numpy.ndarray`_
+            List of wavelength arrays. The length of the list is nexp. The
+            arrays can have different shapes.
+        fluxes : list of float `numpy.ndarray`_
+            List of flux arrays. The arrays can have different shapes, but all
+            are aligned with what is in waves.
+        ivars : list of float `numpy.ndarray`_
+            List of inverse variance arrays. The arrays can have different
+            shapes, but all are aligned with what is in waves.
+        gpms : list of bool `numpy.ndarray`_
+            List of good pixel mask variance arrays. The arrays can have
+            different shapes, but all are aligned with what is in waves.
+        headers : list of header objects
+            List of headers of length nexp
         """
         waves, fluxes, ivars, gpms, headers = [], [], [], [], []
         for iexp in range(self.nexp):
@@ -218,9 +215,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         Perform coadd for for Multi/Longslit data using multi_combspec
 
         Returns:
-            tuple
-              - wave_grid_mid, wave, flux, ivar, gpm
-
+            tuple: see objects returned by
+            :func:`~pypeit.core.coadd.multi_combspec`.
         """
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.headers = self.load()
@@ -286,10 +282,18 @@ class EchelleCoAdd1D(CoAdd1D):
         """
         Perform coadd for echelle data using ech_combspec
 
-        Returns:
-            tuple
-              - wave_grid_mid, wave, flux, ivar, gpm
-
+        Returns
+        -------
+        wave_grid_mid : something
+            describe
+        wave_coadd : something
+            describe
+        flux_coadd : something
+            describe
+        ivar_coadd : something
+            describe
+        gpm_coadd : something
+            describe
         """
 
         # Load the data
@@ -310,7 +314,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxiter_reject=self.par['maxiter_reject'],
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-                                     debug=self.debug, show=self.show)
+                                     debug=self.debug, show=self.show, show_exp=self.show)
 
 
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
@@ -329,8 +333,8 @@ class EchelleCoAdd1D(CoAdd1D):
                 List of sensfuncfiles. This is aligned with spec1dfiles and objids
 
         Returns:
-            tuple:
-               - waves, fluxes, ivars, gpms, header. Each array has shape = (nspec, norders, nexp)
+            tuple: waves, fluxes, ivars, gpms, header. Each array has shape =
+            (nspec, norders, nexp)
 
         """
         nexp = len(spec1dfiles)
@@ -390,8 +394,8 @@ class EchelleCoAdd1D(CoAdd1D):
         _sensfuncfiles = np.asarray(self.sensfuncfile)
         _spec1dfiles = np.asarray(self.spec1dfiles)
         _objids = np.asarray(self.objids)
-        waves, fluxes, ivars, gpms, weight_sens, headers = [], [], [], [], [], []
-        combined = [waves, fluxes, ivars, gpms, weight_sens, headers]
+        waves, fluxes, ivars, gpms, weights_sens, headers = [], [], [], [], [], []
+        combined = [waves, fluxes, ivars, gpms, weights_sens, headers]
         for uniq_setup in self.unique_setups:
             setup_indx = _setup == uniq_setup
             loaded = self.load_ech_arrays(_spec1dfiles[setup_indx], _objids[setup_indx], _sensfuncfiles[setup_indx])

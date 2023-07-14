@@ -204,6 +204,8 @@ class CoAdd2D:
 
         self.nexp = len(self.spec2d)
 
+        self.exptime_coadd = self.stack_dict['exptime_coadd']
+
         # Check that there are the same number of slits on every exposure
         nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
         if not len(set(nslits_list)) == 1:
@@ -839,9 +841,9 @@ class CoAdd2D:
 
         Returns:
             tuple: Returns the following:
-                - wave_grid (np.ndarray): New wavelength grid, not
+                - wave_grid (`numpy.ndarray`_): New wavelength grid, not
                   masked
-                - wave_grid_mid (np.ndarray): New wavelength grid
+                - wave_grid_mid (`numpy.ndarray`_): New wavelength grid
                   evaluated at the centers of the wavelength bins, that
                   is this grid is simply offset from wave_grid by
                   dsamp/2.0, in either linear space or log10 depending
@@ -918,6 +920,7 @@ class CoAdd2D:
         sciivar_stack = []
         mask_stack = []
         slitmask_stack = []
+        exptime_stack = []
         #tilts_stack = []
         # Object stacks
         specobjs_list = []
@@ -945,17 +948,34 @@ class CoAdd2D:
             spat_flexure_list.append(s2dobj.sci_spat_flexure)
 
             sciimg_stack.append(s2dobj.sciimg)
+            exptime_stack.append(s2dobj.head0['EXPTIME'])
             waveimg_stack.append(s2dobj.waveimg)
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask.mask)
             slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
 
+        # check if exptime is consistent for all images
+        exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
+        isclose_exptime = np.isclose(exptime_stack, exptime_coadd, atol=1.)
+        if not np.all(isclose_exptime):
+            msgs.warn('Exposure time is not consistent (within 1 sec) for all frames being coadded! '
+                      f'Scaling each image by the median exposure time ({exptime_coadd} s) before coadding.')
+            exp_scale = exptime_coadd / exptime_stack
+            for iexp in range(nfiles):
+                if not isclose_exptime[iexp]:
+                    sciimg_stack[iexp] *= exp_scale[iexp]
+                    skymodel_stack[iexp] *= exp_scale[iexp]
+                    sciivar_stack[iexp] /= exp_scale[iexp]**2
+
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
-                    sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
+                    sciimg_stack=sciimg_stack,
+                    sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
                     waveimg_stack=waveimg_stack,
+                    exptime_stack=exptime_stack,
+                    exptime_coadd=exptime_coadd,
                     redux_path=redux_path,
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,

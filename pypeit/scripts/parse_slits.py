@@ -17,7 +17,7 @@ from IPython import embed
 def print_slits(slits):
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
-    if slits.pypeline  in ['Mulitslit', 'IFU']:
+    if slits.pypeline  in ['MultiSlit', 'IFU']:
         slitord_id = slits.spat_id
         slit_label = 'SpatID'
     elif slits.pypeline == 'Echelle':

@@ -998,7 +998,7 @@ class Coadd1DPar(ParSet):
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
                  sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, sensfuncfile=None, coaddfile=None,
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
 
         # Grab the parameter names and values from the function
@@ -1153,14 +1153,6 @@ class Coadd1DPar(ParSet):
         descr['filter_mask'] = 'List of wavelength regions to mask when doing the scaling (`i.e.`, occasional junk pixels). '\
                                'Colon and comma separateed, e.g.   5552:5559,6010:6030'
 
-
-        # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
-        # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
-        #defaults['sensfuncfile'] = None
-        #dtypes['sensfuncfile'] = str
-        #descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
-        #                    'This is only used for Echelle'
-
         defaults['coaddfile'] = None
         dtypes['coaddfile'] = str
         descr['coaddfile'] = 'Output filename'
@@ -1186,7 +1178,7 @@ class Coadd1DPar(ParSet):
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbests', 'sensfuncfile', 'coaddfile', 'chk_version',
+                   'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1274,13 +1266,14 @@ class Coadd2DPar(ParSet):
         defaults['user_obj'] = None
         dtypes['user_obj'] = [int, list]
         descr['user_obj'] = 'Object that the user wants to use to compute the weights and/or the ' \
-                            'offsets for coadding images. For slit spectroscopy, provide the ' \
+                            'offsets for coadding images. For longslit/multislit spectroscopy, provide the ' \
                             '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
                             'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
                             'See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
                             'If this parameter is not ``None``, it will be used to compute the offsets ' \
                             'only if ``offsets = auto``, and it will used to compute ' \
                             'the weights only if ``weights = auto``.'
+        # TODO For echelle coadds this should just default to 1
 
         # manual extraction
         defaults['manual'] = None
@@ -2500,7 +2493,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slit=None):
+                 ech_separate_2d=None, redo_slit=None, qa_log=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2749,6 +2742,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['redo_slit'] = int
         descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
 
+        defaults['qa_log'] = True
+        dtypes['qa_log'] = bool
+        descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
+                          'If True, the scaling will be log, if False linear'
+
+
+
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
@@ -2769,7 +2769,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv', 'redo_slit']
+                   'wvrng_arxiv', 'redo_slit', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

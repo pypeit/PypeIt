@@ -1382,13 +1382,15 @@ class FlatField:
         spat_illum : `numpy.ndarray`_
             An image containing the generated spatial illumination profile for all slits.
         onslit_tweak : `numpy.ndarray`_
-            mask indicticating which pixels are on the slit (True = on slit)
+            mask indicating which pixels are on the slit (True = on slit)
         slit_idx : int
             Slit number (0-indexed)
         slit_spat : int
             Spatial ID of the slit
         gpm : `numpy.ndarray`_
             Good pixel mask
+        slit_txt : str
+            if pypeline is "Echelle", then slit_txt should be set to "order", otherwise, use "slit"
         slit_trim : int, optional
             Trim the slit edges by this number of pixels during the fitting. Note that the
             fit will be evaluated on the pixels indicated by onslit_tweak.
@@ -1398,7 +1400,9 @@ class FlatField:
         """
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
-        msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
+        slit_txt = self.slits.slitord_txt
+        slit_ordid = self.slits.slitord_id[slit_idx]
+        msgs.info(f"Performing a fine correction to the spatial illumination ({slit_txt} {slit_ordid})")
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
         # Trim the edges by a few pixels to avoid edge effects
@@ -1459,7 +1463,7 @@ class FlatField:
             self.list_of_finecorr_fits[slit_idx] = fullfit
             illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
-            msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
+            msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
             return
 
         # Prepare QA
@@ -1469,7 +1473,7 @@ class FlatField:
                 prefix += "illumflat_"
             outfile = qa.set_qa_filename(prefix+self.calib_key, 'spatillum_finecorr', slit=slit_spat,
                                          out_dir=self.qa_path)
-            title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
+            title = f"Fine correction to spatial illumination ({slit_txt} {slit_ordid})"
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
             spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
@@ -1651,8 +1655,10 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         # Make the model
         offs = bb * sep
         model += offs
-        minmod = minmod if minmod < np.min(model) else np.min(model)
-        maxmod = maxmod if maxmod > np.max(model) else np.max(model)
+        nonzero = model != offs
+        if np.any(nonzero):
+            minmod = minmod if minmod < np.min(model[nonzero]) else np.min(model[nonzero])
+            maxmod = maxmod if maxmod > np.max(model[nonzero]) else np.max(model[nonzero])
         # Plot it!
         ax_spec.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
         ax_spec.plot(spatmid, model, linestyle='-', color=colors[bb], alpha=0.5, linewidth=3)

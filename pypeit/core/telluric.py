@@ -221,15 +221,15 @@ def conv_telluric(tell_model, dloglam, res):
         msgs.warn('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
                   'Skipping resolution convolution for now. Create a higher resolution telluric model grid')
         return tell_model
-    else:
-        # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
-        x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
-        # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
-        #g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*np.square(x))*sig2pix
-        g=np.exp(-0.5*np.square(x))
-        g /= g.sum()
-        conv_model = scipy.signal.convolve(tell_model,g,mode='same')
-        return conv_model
+
+    # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
+    x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
+    # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
+    #g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*np.square(x))*sig2pix
+    g=np.exp(-0.5*np.square(x))
+    g /= g.sum()
+    conv_model = scipy.signal.convolve(tell_model,g,mode='same')
+    return conv_model
 
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
@@ -1191,6 +1191,10 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     std_dict : :obj:`dict`
         Dictionary containing the information for the true flux of the standard
         star.
+    log10_blaze_function (`numpy.ndarray`_ , optional):
+        The log10 blaze function determined from a flat field image.  If this is passed in the sensitivity function
+        model will be a (parametric) polynomial fit multiplied into the (non-parametric) log10_blaze_function.
+        Shape must match ``wave``, i.e. (nspec,) or (nspec, norddet).
     telgridfile : :obj:`str`
         File containing grid of HITRAN atmosphere models. This file is given by
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.
@@ -1790,6 +1794,7 @@ class Telluric(datamodel.DataContainer):
     .. include:: ../include/class_datamodel_telluric.rst
 
     .. todo::
+
         - List the elements of ``obj_params``.
 
     Args:
@@ -1828,6 +1833,12 @@ class Telluric(datamodel.DataContainer):
             Where ``obj_dict`` is one of the return values from the
             ``init_obj_model`` above. See, e.g., :func:`eval_star_model` for
             a detailed explanation of these paramaters and return values.
+        log10_blaze_function (`numpy.ndarray`_, optional):
+            The log10 blaze function determined from a flat field image.  If
+            this is passed in the sensitivity function model will be a
+            (parametric) polynomial fit multiplied into the (non-parametric)
+            log10_blaze_function.  Shape = (nspec,) or (nspec, norddet), i.e.
+            the same as  ``wave``.
         ech_orders (`numpy.ndarray`_, optional):
             If passed the echelle orders will be included in the output data.
             Must be a numpy array of integers with the shape (norders,)

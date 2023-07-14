@@ -443,7 +443,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
-               rotate=False, pstep=50, yval=None):
+               rotate=False, pstep=50, yval=None, color='blue'):
     r"""
 
     Args:
@@ -470,6 +470,8 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
             Array with spectral position of the object traces. Shape must be :math:`(N_{\rm spec},)`
             or :math:`(N_{\rm spec}, N_{\rm trace})`. If not passed in, the default of
             np.arange(:math:`(N_{\rm spec},)`) will be used.
+        color (str, optional):
+            Color for the trace
 
     """
     # Canvas
@@ -480,6 +482,10 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     if trace.ndim == 1:
         trace = trace.reshape(-1,1)
 
+    ntrace = trace.shape[1]
+    _maskdef_extr = ntrace*[False] if maskdef_extr is None else maskdef_extr
+    _manual_extr = ntrace*[False] if manual_extr is None else manual_extr
+
     # Show
     if yval is None:
         y = np.repeat(np.arange(trace.shape[0]).astype(float)[:, None], trace.shape[1], axis=1)
@@ -488,22 +494,22 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
 
     canvas_list = []
     for i in range(trace.shape[1]):
-        if maskdef_extr[i]:
-            color = '#f0e442'
-        elif manual_extr[i]:
-            color = '#33ccff'
+        if _maskdef_extr[i]:
+            _color = '#f0e442' if color is not None else color
+        elif _manual_extr[i]:
+            _color = '#33ccff' if color is not None else color
         else:
-            color = 'orange'
+            _color = 'orange' if color is not None else color
         canvas_list += [dict(type=str('path'),
                         args=(list(zip(y[::pstep,i].tolist(), trace[::pstep,i].tolist())),) if rotate
                         else (list(zip(trace[::pstep,i].tolist(), y[::pstep,i].tolist())),),
-                        kwargs=dict(color=color))]
+                        kwargs=dict(color=_color))]
         # Text
         ohf = len(trace[:,i])//2
         # Do it
         canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(trc_name[i])) if rotate
                              else (float(trace[ohf,i]), float(y[ohf,i]), str(trc_name[i])),
-                             kwargs=dict(color=color, fontsize=17., rot_deg=90.))]
+                             kwargs=dict(color=_color, fontsize=17., rot_deg=90.))]
 
     canvas.add('constructedcanvas', canvas_list)
 

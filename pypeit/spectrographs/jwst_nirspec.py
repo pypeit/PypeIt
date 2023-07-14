@@ -211,7 +211,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         pypeit_keys.remove('airmass')
         pypeit_keys.remove('binning')
-        return pypeit_keys #+ ['lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
+        return pypeit_keys
 
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -233,23 +233,6 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-#        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-#        # TODO: Allow for 'sky' frame type, for now include sky in
-#        # 'science' category
-#        if ftype == 'science':
-#            return good_exp & (fitstbl['idname'] == 'Object')
-#        if ftype == 'standard':
-#            return good_exp & (fitstbl['idname'] == 'Object')
-#        if ftype == 'bias':
-#            return good_exp & (fitstbl['idname'] == 'Bias')
-#        if ftype == 'dark':
-#            return good_exp & (fitstbl['idname'] == 'Dark')
-#        if ftype in ['pixelflat', 'trace']:
-#            # Flats and trace frames are typed together
-#            return good_exp & (fitstbl['idname'] == 'IntFlat')
-#        if ftype in ['arc', 'tilt']:
-#            # Arc and tilt frames are typed together
-#            return good_exp & (fitstbl['idname'] == 'Line')
 
         if ftype == 'science':
             return np.ones(len(fitstbl), dtype=bool)

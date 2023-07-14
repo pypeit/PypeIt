@@ -37,7 +37,7 @@ class FindObjects:
         slits (:class:`~pypeit.slittrace.SlitTracSet`):
             Object providing slit traces for the image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            PypeIt Sspectrograph class
+            PypeIt Spectrograph class
         par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
             Reduction parameters class
         objtype (:obj:`str`):
