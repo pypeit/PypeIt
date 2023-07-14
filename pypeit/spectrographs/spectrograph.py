@@ -846,7 +846,7 @@ class Spectrograph:
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': None, 'dark': None}
+        return {'bias': 'binning', 'dark': 'binning'}
 
     def get_comb_group(self, fitstbl):
         """
