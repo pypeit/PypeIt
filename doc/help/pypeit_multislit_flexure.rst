@@ -10,6 +10,7 @@
                   file must have the following format:
                    
                   flexure read
+                    filename
                     spec1dfile1
                     spec1dfile2
                        ...    
@@ -18,7 +19,7 @@
                    
       outroot     Output fileroot for the flexure fits saved as FITS.
     
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
       --clobber   Clobber output files
       --debug     show debug plots?

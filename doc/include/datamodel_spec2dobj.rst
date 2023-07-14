@@ -1,14 +1,13 @@
 
 
-Version: 1.0.4
+Version: 1.1.0
 
 =====================  =========================  ==========  ================================================================================================================================================================================
 Obj Key                Obj Type                   Array Type  Description                                                                                                                                                                     
 =====================  =========================  ==========  ================================================================================================================================================================================
-``bpmmask``            ndarray                    integer     2D bad-pixel mask for the image                                                                                                                                                 
+``bpmmask``            ImageBitMaskArray                      2D bad-pixel mask for the image                                                                                                                                                 
 ``det``                int                                    Detector index                                                                                                                                                                  
 ``detector``           DetectorContainer, Mosaic              Detector or Mosaic metadata                                                                                                                                                     
-``imgbitm``            str                                    List of BITMASK keys from ImageBitMask                                                                                                                                          
 ``ivarmodel``          ndarray                    floating    2D ivar model image (float32)                                                                                                                                                   
 ``ivarraw``            ndarray                    floating    2D processed inverse variance image (float32)                                                                                                                                   
 ``maskdef_designtab``  Table                                  Table with slitmask design and object info                                                                                                                                      
@@ -25,4 +24,5 @@ Obj Key                Obj Type                   Array Type  Description
 ``vel_corr``           float                                  Relativistic velocity correction for wavelengths                                                                                                                                
 ``vel_type``           str                                    Type of reference frame correction (if any). Options are listed in the routine: WavelengthSolutionPar.valid_reference_frames() Current list: observed, heliocentric, barycentric
 ``waveimg``            ndarray                    floating    2D wavelength image in vacuum (float64)                                                                                                                                         
+``wavesol``            Table                                  Table with WaveCalib diagnostic info                                                                                                                                            
 =====================  =========================  ==========  ================================================================================================================================================================================

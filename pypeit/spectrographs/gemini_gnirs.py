@@ -19,9 +19,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'gemini_gnirs'
     camera = 'GNIRS'
+    url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -67,7 +69,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -80,15 +82,21 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Relatively short slit, so keep the spatial tilt order low
+        par['calibrations']['tilts']['spat_order'] = 1
+
         # Reduce parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0          # Object finding threshold
+        #par['reduce']['findobj']['snr_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
-        par['reduce']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
-        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
+        # TODO: JFH: Is this the correct behavior?  (Is why we have sky-subtraction problems for GNIRS?)
         par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Slit is narrow so allow one object per order
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
+        # Standards
+        par['calibrations']['standardframe']['process']['mask_cr'] = False # Do not mask_cr standards
 
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
@@ -107,7 +115,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -140,7 +148,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Wavelengths
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['sigdetect'] =  [4.0, 5.0, 5.0, 5.0, 5.0, 5.0] #5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
@@ -150,18 +158,19 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+            par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
             par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
             # Tilts
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
             # Edges
@@ -185,7 +194,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
             par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_10mm_LBSX.fits'
-            par['calibrations']['wavelengths']['ech_fix_format'] = True
+#            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
@@ -205,7 +214,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -219,12 +228,39 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD_OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+
+        # Dithering
+        self.meta['dithpos'] = dict(ext=0, card='QOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
+
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['hatch'] = dict(ext=0, card='COVER')
         self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        if meta_key == 'dithoff':
+            if headarr[0].get('OBSTYPE') == 'OBJECT':
+                return headarr[0].get('QOFFSET')
+            else:
+                return 0.0
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -241,6 +277,37 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return ['decker', 'dispname', 'dispangle']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['SLIT', 'GRATING', 'GRATTILT']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['dithoff']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -388,7 +455,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

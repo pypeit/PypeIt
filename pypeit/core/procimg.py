@@ -6,11 +6,13 @@
 from IPython import embed
 
 import numpy as np
-from scipy import signal, ndimage
-from scipy.optimize import curve_fit
+import scipy.ndimage
+import scipy.optimize
+import scipy.signal
 
 from astropy.convolution import convolve, Box2DKernel
 from astropy.timeseries import LombScargle
+from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -203,7 +205,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
 
         if varframe is None:
             msgs.info("Updating the noise model")
-            m5 = ndimage.filters.median_filter(_sciframe, size=5, mode='mirror')
+            m5 = scipy.ndimage.median_filter(_sciframe, size=5, mode='mirror')
             noise = np.sqrt(np.absolute(m5))
             # NOTE: Inverting the error avoids division by 0 errors
             _inv_err = utils.inverse(noise)
@@ -215,10 +217,10 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         msgs.info("Convolving image with Laplacian kernel")
         deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
                          boundary='extend')
-        s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0 
+        s = utils.rebinND(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0
 
         # Remove the large structures
-        sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
+        sp = s - scipy.ndimage.median_filter(s, size=5, mode='mirror')
 
         # Candidate cosmic rays
         cosmics = sp > sigclip
@@ -233,8 +235,8 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
 
         if remove_compact_obj:
             # Build the fine structure image
-            m3 = ndimage.filters.median_filter(_sciframe, size=3, mode='mirror')
-            m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
+            m3 = scipy.ndimage.median_filter(_sciframe, size=3, mode='mirror')
+            m37 = scipy.ndimage.median_filter(m3, size=7, mode='mirror')
             # TODO: How does clip treat NaNs?
             f = np.clip((m3 - m37) * _inv_err, 0.01, None)
             # Require cosmics to have significant contrast
@@ -247,11 +249,11 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         msgs.info("Finding neighboring pixels affected by cosmic rays")
         # We grow these cosmics a first time to determine the immediate
         # neighborhod, keeping those that also meet the S/N requirement
-        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
         cosmics &= sp > sigclip
 
         # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
-        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics = scipy.ndimage.binary_dilation(cosmics, structure=growkernel)
         cosmics &= sp > sigcliplow
         ncr = np.sum(cosmics)
         msgs.info(f'Changed to {ncr} candidates after evaluating neighboring pixels.')
@@ -282,15 +284,15 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # Additional algorithms (not traditionally implemented by LA cosmic) to
     # remove some false positives.
     #msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
-    filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
+    filt  = scipy.ndimage.sobel(sciframe, axis=1, mode='constant')
     _inv_mad = utils.inverse(np.sqrt(np.abs(sciframe))) # Avoid divisions by 0
-    filty = ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
+    filty = scipy.ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
     # TODO: Can we skip this now that we're not dividing by 0?
     filty[np.isnan(filty)] = 0.0
 
     sigimg = cr_screen(filty)
 
-    sigsmth = ndimage.filters.gaussian_filter(sigimg, 1.5)
+    sigsmth = scipy.ndimage.gaussian_filter(sigimg, 1.5)
     sigsmth[np.isnan(sigsmth)] = 0.0
 
     crmask &= sigsmth > sigclip
@@ -380,14 +382,14 @@ def cr_screen(a, mask_value=0.0, spatial_axis=1):
     function assumes floating point values.
 
     Args:
-        a (numpy.ndarray): Input 2D array
+        a (`numpy.ndarray`_): Input 2D array
         mask_value (float): (**Optional**) Values to ignore during the
             calculation of the median.  Default is 0.0.
         spatial_axis (int): (**Optional**) Axis along which to calculate
             the median.  Default is 1.
 
     Returns:
-        numpy.ndarray: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
+        `numpy.ndarray`_: Returns a map of :math:`|\Delta_{i,j}|/\sigma_j`,
         where :math:`\Delta_{i,j}` is the difference between the pixel
         value and the median along axis :math:`i` and :math:`\sigma_j`
         is robustly determined using the median absolute deviation,
@@ -437,7 +439,7 @@ def grow_mask(mask, radius):
         size += 1
     x, y = np.meshgrid(np.arange(size) - size//2, np.arange(size) - size//2)
     # Dilate the mask
-    return ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
+    return scipy.ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
 
 
 def gain_frame(amp_img, gain):
@@ -657,7 +659,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
         # Shape along at least one axis must match
         if not np.any([dd == do for dd, do in zip(data.shape, overscan.shape)]):
-            msgs.error('Overscan sections do not match amplifier sections for'
+            msgs.error('Overscan sections do not match amplifier sections for '
                        'amplifier {0}'.format(amp))
         compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
@@ -674,7 +676,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])
             ossub = np.polyval(c, np.arange(osfit.size))
         elif method.lower() == 'savgol':
-            ossub = signal.savgol_filter(osfit, params[1], params[0])
+            ossub = scipy.signal.savgol_filter(osfit, params[1], params[0])
         elif method.lower() == 'median':
             # Subtract scalar and continue
             no_overscan[data_slice] -= osfit
@@ -696,7 +698,21 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     calculates the frequency of the signal, generates a model, and subtracts
     this signal from the data. This sinusoidal pattern noise was first
     identified in KCWI, but the source of this pattern noise is not currently
-    known.
+    known. The pattern model is generated with a three step process:
+
+        #. Given a first guess at the frequency, calculate how frequency depends
+           on pixel row (slight linear dependence)
+
+        #. Using the frequency model, calculate the amplitude of the signal
+           (usually a constant for all pixel rows)
+
+        #. Using the model of the frequency and the amplitude, calculate the
+           phase of the signal for each pixel row.  Note that the phase is
+           different for each pixel row.
+
+    A complete detector model is generated for the pattern noise using the
+    frequency+amplitude+phase, and an estimate of the improved effective read
+    noise is provided.
 
     Args:
         rawframe (`numpy.ndarray`_):
@@ -767,6 +783,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
+        # STEP 1 - calculate how frequency depends on pixel row
         # Estimate the frequency at each pixel
         all_rows = np.arange(overscan.shape[0])
         all_freq = np.zeros(overscan.shape[0])
@@ -781,62 +798,89 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
 
         # Convert frequency to the size of the overscan region
-        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
+        msgs.info("Subtracting detector pattern from amplifier {0:d} with frequency = {1:f}".format(amp, use_fr))
 
         # Get a first guess of the amplitude and phase information
-        amp = np.fft.rfft(overscan, axis=1)
-        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(amp), axis=1))
-        # Convert result to amplitude and phase
-        amps = (np.abs(amp))[idx] * (2.0 / overscan.shape[1])
-        phss = np.arctan2(amp.imag, amp.real)[idx]
-
-        # Use the above to as initial guess parameters in chi-squared minimisation
-        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
         xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
-        model_pattern = np.zeros_like(oscandata)
-        val = np.zeros(overscan.shape[0])
-        # Get the best estimate of the amplitude
-        for ii in range(overscan.shape[0]):
-            try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], frq_mod[ii], phss[ii]],
-                                       bounds=([-np.inf, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [+np.inf, frq_mod[ii] * 1.00000001, +np.inf]))
-            except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            val[ii] = popt[0]
-        use_amp = np.median(val)
-        # Get the best estimate of the phase, and generate a model
-        for ii in range(overscan.shape[0]):
-            try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, frq_mod[ii], phss[ii]],
-                                       bounds=([use_amp * 0.99999999, frq_mod[ii] * 0.99999999, -np.inf],
-                                               [use_amp * 1.00000001, frq_mod[ii] * 1.00000001, +np.inf]))
-            except ValueError:
-                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            except RuntimeError:
-                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
-                continue
-            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
-        outframe[osd_slice] -= model_pattern
+        tmpamp = np.fft.rfft(overscan, axis=1)
+        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(tmpamp), axis=1))
+        # Convert result to amplitude and phase
+        amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
-#    debug = False
-#        debug (:obj:`bool`, optional):
-#            Debug the code (True means yes)
-#    if debug:
-#        embed()
-#        import astropy.io.fits as fits
-#        hdu = fits.PrimaryHDU(rawframe)
-#        hdu.writeto("tst_raw.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(outframe)
-#        hdu.writeto("tst_sub.fits", overwrite=True)
-#        hdu = fits.PrimaryHDU(rawframe - outframe)
-#        hdu.writeto("tst_mod.fits", overwrite=True)
+        # STEP 2 - Using th emodel frequency, calculate how amplitude depends on pixel row (usually constant)
+        # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
+        msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
+        nspec = overscan.shape[0]
+        model_pattern = np.zeros_like(oscandata)
+        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * xarr + p[1])
+        nsamp = xdata.size // 10
+        bins = np.linspace(0.0, 1.0, nsamp)
+        cent = 0.5 * (bins[1:] + bins[:-1])
+        amps_fit = np.zeros(nspec)
+        for ii in range(nspec):
+            # Register all values between 0-1
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            # Only use the good pixels
+            wgd = norm != 0
+            try:
+                # Now fit it
+                popt, pcov = scipy.optimize.curve_fit(
+                    cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                    bounds=([0, -np.inf],[np.inf, np.inf])
+                )
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            amps_fit[ii] = popt[0]
+        # Construct a model of the amplitudes as a fucntion of spectral pixel
+        xspec = np.arange(nspec)
+        amp_mod = np.polyval(np.polyfit(xspec, amps_fit, 1), xspec)
+
+        # STEP 3 - Using the model frequency and amplitude, calculate the phase of every pixel row
+        # Now determine the phase, given a prior on the amplitude and frequency
+        msgs.info("Calculating pattern phases of amplifier {0:d}".format(amp))
+        cosfunc = lambda xarr, *p: np.cos(2.0 * np.pi * xarr + p[0])
+        cosfunc_full = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+        for ii in range(nspec):
+            resid = (frq_mod[ii] * xdata) % 1
+            hist, _ = np.histogram(resid, bins=bins, weights=overscan[ii, :])
+            norm, _ = np.histogram(resid, bins=bins)
+            hist *= utils.inverse(norm)
+            hist /= amp_mod[ii]  # Normalise so that the amplitude is ~1
+            # Only use the good pixels
+            wgd = norm != 0
+            try:
+                # Now fit it
+                popt, pcov = scipy.optimize.curve_fit(
+                    cosfunc, cent[wgd], hist[wgd], p0=[0.0],
+                    bounds=([-np.inf], [np.inf])
+                )
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            # Calculate the model pattern, given the amplitude, frequency and phase information
+            model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
+
+        # Estimate the improvement of the effective read noise
+        tmp = outframe.copy()
+        tmp[osd_slice] -= model_pattern
+        mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
+        old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
+        new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
+
+        # Subtract the model pattern from the full datasec
+        outframe[osd_slice] -= model_pattern
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
@@ -869,66 +913,26 @@ def pattern_frequency(frame, axis=1):
     # Calculate the output image dimensions of the model signal
     # Subtract the DC offset
     arr -= np.median(arr, axis=1)[:, np.newaxis]
-    # Find significant deviations and ignore those rows
-    mad = 1.4826*np.median(np.abs(arr))
-    ww = np.where(arr > 10*mad)
-    # Create a mask of these rows
-    msk = np.sort(np.unique(ww[0]))
 
     # Compute the Fourier transform to obtain an estimate of the dominant frequency component
     amp = np.fft.rfft(arr, axis=1)
     idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
 
     # Construct the variables of the sinusoidal waveform
-    amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
-    phss = np.arctan2(amp.imag, amp.real)[idx]
     frqs = idx[1]
 
-    # Use the above to as initial guess parameters in chi-squared minimisation
-    cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
-    xdata = np.linspace(0.0, 1.0, arr.shape[1])
-    # Calculate the amplitude distribution
-    amp_dist = np.zeros(arr.shape[0])
-    frq_dist = np.zeros(arr.shape[0])
-    # Loop over all rows to new independent values that can be averaged
+    min_fr = np.median(frqs-1)/(arr.shape[1]-1)
+    max_fr = np.median(frqs+1)/(arr.shape[1]-1)
+    all_freq = np.zeros(arr.shape[0])
+    pixels = np.arange(arr.shape[1])
     for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
-                                   bounds=([-np.inf, frqs[ii]-1, -np.inf],
-                                           [+np.inf, frqs[ii]+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        amp_dist[ii] = popt[0]
-        frq_dist[ii] = popt[1]
-    ww = np.where(amp_dist > 0.0)
-    use_amp = np.median(amp_dist[ww])
-    use_frq = np.median(frq_dist[ww])
-    # Calculate the frequency distribution with a prior on the amplitude
-    frq_dist = np.zeros(arr.shape[0])
-    for ii in range(arr.shape[0]):
-        if ii in msk:
-            continue
-        try:
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
-                                   bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
-                                           [use_amp * 1.00000001, use_frq+1, +np.inf]))
-        except ValueError:
-            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
-            continue
-        except RuntimeError:
-            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
-            continue
-        frq_dist[ii] = popt[1]
-    # Ignore masked values, and return the best estimate of the frequency
-    ww = np.where(frq_dist > 0.0)
-    medfrq = np.median(frq_dist[ww])
-    return medfrq/(arr.shape[1]-1)
+        sgnl = arr[ii, :]
+        LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=min_fr, maximum_frequency=max_fr, samples_per_peak=10)
+        bst = 2+np.argmax(power[2:-2])  # Ignore edges, and add 2 to get the index of the original array - allows a quadratic function to be fit to the highest power.
+        cc = np.polyfit(LSfreq[bst-2:bst+3], power[bst-2:bst+3], 2)
+        all_freq[ii] = -0.5*cc[1]/cc[0]
+    medfrq = np.median(all_freq)
+    return medfrq
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
@@ -1064,57 +1068,6 @@ def replace_column_linear(img, left, right):
                             * (np.arange(right-left)+1)[None,:] + img[:,left-1][:,None]
 
 
-def old_replace_columns(img, bad_cols, replace_with='mean'):
-    """ Replace bad columns with values from the neighbors
-
-    Parameters
-    ----------
-    img : ndarray
-    bad_cols: ndarray (bool, 1D, shape[1] of img)
-      True = bad column
-      False = ok column
-    replace_with : str, optional
-      Option for replacement
-       mean -- Use the mean of the closest left/right columns
-
-    Returns
-    -------
-    img2 : ndarray
-      Copy of the input image with the bad columns replaced
-    """
-    # Prep
-    img2 = img.copy()
-    # Find the starting/ends of the bad column sets
-    tmp = np.zeros(img.shape[1], dtype=int)
-    tmp[bad_cols] = 1
-    tmp2 = tmp - np.roll(tmp,1)
-    # Deal with first column
-    if bad_cols[0]:
-        tmp2[0]=1
-    # Deal with last column
-    if bad_cols[-1]:
-        tmp2[-1]=-1
-    ledges = np.where(tmp2 == 1)[0]
-    redges = np.where(tmp2 == -1)[0]
-    # Last column?
-    if tmp2[-1] == 1:
-        redges = np.concatenate([redges, np.array([bad_cols.size-1])])
-    # Loop on em
-    for kk, ledge in enumerate(ledges):
-        lval = img[:,redges[kk]+1] if ledge == 0 else img[:,ledge-1]
-        rval = img[:, redges[kk]]
-        # First columns?
-        # Replace
-        if replace_with == 'mean':
-            mval = (lval+rval)/2.
-            for ii in range(ledge, redges[kk]+1):
-                img2[:,ii] = mval
-        else:
-            msgs.error("Bad option to replace_columns")
-    # Return
-    return img2
-
-
 def trim_frame(frame, mask):
     """
     Trim the masked regions from a frame.
@@ -1159,8 +1112,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
 
         - :math:`c=s\ C` are the rescaled observed sky + object counts,
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
@@ -1230,10 +1184,12 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
             array, the shape must match ``rn_var``.
         count_scale (:obj:`float`, `numpy.ndarray`_, optional):
             A scale factor that *has already been applied* to the provided
-            counts.  For example, if the image has been flat-field corrected,
-            this is the inverse of the flat-field counts.  If None, set to 1.
-            If a single float, assumed to be constant across the full image.  If
-            an array, the shape must match ``rn_var``.  The variance will be 0
+            counts. It accounts for the number of frames contributing to
+            the provided counts, and the relative throughput factors that
+            can be measured from flat-field frames. For example, if the image
+            has been flat-field corrected, this is the inverse of the flat-field counts.
+            If None, set to 1. If a single float, assumed to be constant across the full image.
+            If an array, the shape must match ``rn_var``.  The variance will be 0
             wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
 
     Returns:
@@ -1286,8 +1242,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
         - :math:`c=s\ C` are the rescaled observed sky + object counts (see
           ``counts``),
         - :math:`C` is the observed number of sky + object counts,
-        - :math:`s` is a scale factor derived from the (inverse of the)
-          flat-field frames (see ``count_scale``),
+        - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
+          from the (inverse of the) flat-field frames plus the number
+          of frames contributing to the object counts (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour**,
         - :math:`t_{\rm exp}` is the effective exposure time in seconds,
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
@@ -1345,9 +1302,11 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
             ``base``.  Shape must match ``base``.
         count_scale (:obj:`float`, `numpy.ndarray`_, optional):
             A scale factor that *has already been applied* to the provided
-            counts; see :math:`s` in the equations above.  For example, if the
-            image has been flat-field corrected, this is the inverse of the
-            flat-field counts.  If None, no scaling is expected, meaning
+            counts; see :math:`s` in the equations above.  It accounts for
+            the number of frames contributing to  the provided counts, and
+            the relative throughput factors that  can be measured from flat-field frames.
+            For example, if the image has been flat-field corrected, this is the inverse
+            of the flat-field counts.  If None, no scaling is expected, meaning
             ``counts`` are exactly the observed detector counts.  If a single
             float, assumed to be constant across the full image.  If an array,
             the shape must match ``base``.  The variance will be 0 wherever

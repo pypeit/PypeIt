@@ -1,54 +1,17 @@
 """
 Module to run tests on FlatField class
-Requires files in Development suite and an Environmental variable
 """
-import os
-
-import pytest
-import glob
+from pathlib import Path
 
 from IPython import embed
 
 import numpy as np
 
-from astropy.io import fits
-
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
-from pypeit import slittrace
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.images import pypeitimage
 from pypeit import bspline
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
-
-# TODO: Bring this test back in some way?
-#def test_step_by_step():
-#    if skip_test:
-#        assert True
-#        return
-#    # Masters
-#    spectrograph, TSlits, tilts, datasec_img \
-#                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
-#                                         datasec=True)
-#    # Instantiate
-#    flatField = flatfield.FlatField(spectrograph, det=1, tilts=tilts,
-#                                    tslits_dict=TSlits.tslits_dict.copy())
-#    # Use mstrace
-#    flatField.mspixelflat = TSlits.mstrace.copy()
-#    # Normalize a slit
-#    slit=0
-#    flatField._prep_tck()
-#    modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = flatField.slit_profile(slit)
-#    assert np.isclose(iextrap_slit, 0.)
-#    # Apply
-#    word = np.where(flatField.tslits_dict['slitpix'] == slit + 1)
-#    flatField.mspixelflatnrm = flatField.mspixelflat.copy()
-#    flatField.mspixelflatnrm[word] /= nrmvals
-#    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
 def test_flatimages():
     tmp = np.ones((1000, 100)) * 10.
@@ -70,54 +33,47 @@ def test_flatimages():
     assert flatImages.pixelflat_model is None
     assert flatImages.pixelflat_spec_illum is None
     assert flatImages.pixelflat_spat_bsplines is not None
+    flatImages.set_paths(data_path(''), 'A', '1', 'DET01')
 
     # I/O
-    outfile = data_path('tst_flatimages.fits')
-    flatImages.to_master_file(outfile)
-    _flatImages = flatfield.FlatImages.from_file(outfile)
+    ofile = Path(flatImages.get_path()).resolve()
+    flatImages.to_file(overwrite=True)
+    assert ofile.exists(), 'File not written'
+
+    _flatImages = flatfield.FlatImages.from_file(ofile)
 
     # Test
     for key in instant_dict.keys():
         if key == 'pixelflat_spat_bsplines':
-            np.array_equal(flatImages[key][0].breakpoints,
-                           _flatImages[key][0].breakpoints)
+            assert np.array_equal(flatImages[key][0].breakpoints,
+                                  _flatImages[key][0].breakpoints), 'pixelflat breakpoints changed'
             continue
         if key == 'illumflat_spat_bsplines':
-            np.array_equal(flatImages[key][0].breakpoints,
-                           _flatImages[key][0].breakpoints)
+            assert np.array_equal(flatImages[key][0].breakpoints,
+                                  _flatImages[key][0].breakpoints), 'illumflat breakpoints changed'
             continue
         if isinstance(instant_dict[key], np.ndarray):
             assert np.array_equal(flatImages[key],_flatImages[key])
         else:
             assert flatImages[key] == _flatImages[key]
 
-    os.remove(outfile)
-
-    # Illumflat
-#    left = np.full((1000,2), 90, dtype=float)
-#    left[:,1] = 190.
-#    right = np.full((1000,2), 110, dtype=float)
-#    right[:,1] = 210
-#    slits = slittrace.SlitTraceSet(left_init=left, right_init=right,
-#                                   nspat=1000, PYP_SPEC='dummy')
-#    illumflat = flatImages.generate_illumflat(slits)
-#    pytest.set_trace()
+    ofile.unlink()
 
 
-#@cooked_required
-#def test_run():
-#    # Masters
-#    spectrograph = load_spectrograph('shane_kast_blue')
-#    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
-#    # Instantiate
-#    par = spectrograph.default_pypeit_par()
-#    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
-#    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
-#    hdul = fits.HDUList([])
-#    rawflatimg.detector = spectrograph.get_detector_par(1, hdu=hdul)
-#    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
-#                                    wavetilts=waveTilts, slits=edges.get_slits())
-#
-#    # Use the trace image
-#    flatImages = flatField.run()
-#    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
+def test_fit_det_response():
+    spec = load_spectrograph('keck_kcwi')
+    # Generate a good pixel mask
+    frsize = 4100
+    gpm = np.ones((frsize,frsize), dtype=bool)
+    # Generate a fake image
+    sinemodel = lambda xx, yy, amp, scl, phase, wavelength, angle: 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle*np.pi / 180.0) + yy * np.sin(angle*np.pi / 180.0)) / wavelength + phase)
+    x = np.arange(frsize)
+    y = np.arange(frsize)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    amp, scale, wavelength, phase, angle = 0.02, 0.0, 1.41*frsize/31.5, 0.0, -45.34
+    img = sinemodel(xx, yy, amp, scale, phase, wavelength, angle)
+    model = spec.fit_2d_det_response(img, gpm)
+    assert np.allclose(img, model, atol=0.001), 'structure fitting failed.'
+
+

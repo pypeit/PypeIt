@@ -1,11 +1,7 @@
 """
 Module to run tests on fitting
 """
-import sys
-import io
 import os
-import shutil
-import inspect
 
 from IPython import embed
 

@@ -1,5 +1,5 @@
-|  id|                                                file|   num|      date|
-|long|                                                char|double|      char|
-|    |                                                    |      |          |
-|null|                                                null|  null|      null|
-    1 spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits  1.234 2021-01-01 
+|  id|           file|   num|      date|
+|long|           char|double|      char|
+|    |               |      |          |
+|null|           null|  null|      null|
+    1 spec1d_b27.fits  1.234 2021-01-01 

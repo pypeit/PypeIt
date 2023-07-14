@@ -12,34 +12,32 @@ class InstallTelluric(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        import os
 
-        parser = super().get_parser(description='Script to install PypeIt telluric files',
+        parser = super().get_parser(description='Script to download/install PypeIt telluric files',
                                     width=width)
-        parser.add_argument('--path', type=str, default=os.getcwd(),
-                            help='Path to directory with TelFit files downloaded from the PypeIt'
-                                 ' Google Drive Telluric/ folder')
+        parser.add_argument('files', type=str, nargs='+',
+                            help='Filename(s) of the TelFits files to be downloaded '
+                                 'from the Cloud and installed in the PypeIt cache')
+        parser.add_argument('--force_update', action='store_true',
+                            help='Force download of latest version of the telluric grid')
+        parser.add_argument('--local_file', action='store_true',
+                            help='This is a local file (downloaded or created) to be '
+                                 'installed in the cache')
         return parser
 
     @staticmethod
     def main(args):
         import os
-        import glob
 
-        from pypeit.io import create_symlink
+        # Loop through the files passed
+        for file in args.files:
 
-        # Check the input path
-        if not os.path.isdir(args.path):
-            raise NotADirectoryError(f'{args.path} is not a directory!')
-        _path = os.path.abspath(args.path)
+            if args.local_file:
+                # Copy the previously downloaded or power-user-created file to the cache
+                data.write_file_to_cache(file, os.path.basename(file),
+                                         'telluric/atm_grids', remote_host="s3_cloud")
 
-        # Find all the telluric grid files
-        tell_files = glob.glob(os.path.join(_path, 'TelFit*'))
-
-        # Check that files were found
-        if len(tell_files) == 0:
-            raise ValueError(f'No telluric grid files found in {args.path}')
-
-        # Create a symlink for each file
-        for f in tell_files:
-            create_symlink(f, data.Paths.telgrid, overwrite=True)
+            else:
+                # Download the file into the cache if not already there (unless force_update)
+                data.fetch_remote_file(file, 'telluric/atm_grids', remote_host="s3_cloud",
+                                       install_script=True, force_update=args.force_update)

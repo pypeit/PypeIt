@@ -1,0 +1,27 @@
+# logfile = /home/dmoseng/data/gain/gain_check.Spectral.2010-Mar-02.log
+# datestr = Tue Mar  2 12:01:09 2010
+# mode = Spectral
+# flatfile1 = d0303_0033.fits
+# flatfile2 = d0303_0034.fits
+# flatfile3 = d0303_0035.fits
+# flatfile4 = d0303_0036.fits
+# flatfile5 = d0303_0037.fits
+# zerofile1 = d0303_0030.fits
+# zerofile2 = d0303_0031.fits
+# column1 = videoinp
+# column2 = amploc
+# column3 = ccdloc
+# column4 = amptype
+# column5 = gain [e-/DN]
+# column6 = sigma_gain [e-/DN]
+# column7 = readnoise [e-]
+# column8 = sigma_readnoise [e-]
+#----------------------------------------
+   2 1   1   B         1.2467    0.012461      2.6139    0.026127
+   4 3   2   B         1.2081    0.018244      2.5591    0.054043
+   6 5   3   B         1.2934    0.016387      2.7219    0.042894
+   8 7   4   B         1.2306    0.016161      2.5902    0.043320
+  10 10  5   B         1.2044    0.012617      3.7783    0.059937
+  12 12  6   B         1.2497    0.014211      3.9238    0.065839
+  14 14  7   B         1.2667    0.018127      3.9373     0.22865
+  16 16  8   B         1.2442    0.015481      2.6086    0.039652

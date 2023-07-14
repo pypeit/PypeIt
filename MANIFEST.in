@@ -6,6 +6,7 @@ include setup.cfg
 
 recursive-include pypeit *.pyx *.c *.pxd *.h
 recursive-include pypeit/data *
+recursive-include pypeit/tests *
 recursive-include docs *
 recursive-include licenses *
 recursive-include cextern *
@@ -17,3 +18,8 @@ prune docs/api
 prune pypeit/deprecated
 
 global-exclude *.pyc *.o *.so *.DS_Store
+
+# Exclude certain package data for compactness
+recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json
+recursive-exclude pypeit/data/sensfuncs *.fits
+recursive-exclude pypeit/data/skisim *.dat

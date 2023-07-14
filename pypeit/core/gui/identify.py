@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import copy
 import numpy as np
@@ -17,7 +18,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
-from pypeit import utils, msgs
+from pypeit import data, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
 
@@ -43,6 +44,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
+                   'y' : "Toggle the y-axis scale between logarithmic and linear",
                    'z' : "Delete a single line identification",
                    '+/-' : "Raise/Lower the order of the fitting polynomial"
                    })
@@ -57,7 +59,8 @@ class Identify:
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname=""):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname="", y_log=True,
+                 rescale_resid=False):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -89,6 +92,12 @@ class Identify:
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
+        specname : str, optional
+            The name of the spectrograph
+        y_log : bool, optional
+            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+        rescale_resid : bool, optional
+            Rescale the residuals plot to include all points?  (Default: False)
         """
         # Store the axes
         self.axes = axes
@@ -98,6 +107,9 @@ class Identify:
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
         self.plotx = self.specx.copy()
+        self.specname = specname
+        self.y_log = y_log
+        self.rescale_resid = rescale_resid
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
         self._spatid = spatid
@@ -105,8 +117,8 @@ class Identify:
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
         self._lines = np.sort(line_lists['wave'].data)  # Remove mask (if any) and then sort
-        self._lineids = np.zeros(self._detns.size, dtype=np.float)
-        self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        self._lineids = np.zeros(self._detns.size, dtype=float)
+        self._lineflg = np.zeros(self._detns.size, dtype=int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         self._lflag_color = lflag_color
         self.par = par
         # Auto ID
@@ -127,19 +139,11 @@ class Identify:
         self.anntexts = []
 
         # Unset some of the matplotlib keymaps
-        matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
-        matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
-        matplotlib.pyplot.rcParams['keymap.back'] = ''              # forward / backward keys to enable (Default: left, c, backspace)
-        matplotlib.pyplot.rcParams['keymap.forward'] = ''           # left handed quick navigation (Default: right, v)
-        #matplotlib.pyplot.rcParams['keymap.pan'] = ''              # pan mnemonic (Default: p)
-        matplotlib.pyplot.rcParams['keymap.zoom'] = ''              # zoom mnemonic (Default: o)
-        matplotlib.pyplot.rcParams['keymap.save'] = ''              # saving current figure (Default: s)
-        matplotlib.pyplot.rcParams['keymap.quit'] = ''              # close the current figure (Default: ctrl+w, cmd+w)
-        matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
-        matplotlib.pyplot.rcParams['keymap.grid_minor'] = ''        # switching on/off a (minor) grid in current axes (Default: G)
-        matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
-        matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        #matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
+        for key in plt.rcParams.keys():
+            if 'keymap' in key:
+                plt.rcParams[key] = []
+        # Enable some useful ones, though
+        matplotlib.pyplot.rcParams['keymap.pan'] = ['p']
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)
@@ -153,7 +157,7 @@ class Identify:
         # Interaction variables
         self._detns_idx = -1
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
-        self._fitregions = np.zeros(self.specdata.size, dtype=np.int)  # Mask of the pixels to be included in a fit
+        self._fitregions = np.zeros(self.specdata.size, dtype=int)  # Mask of the pixels to be included in a fit
         self._addsub = 0   # Adding a region (1) or removing (0)
         self._msedown = False  # Is the mouse button being held down (i.e. dragged)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
@@ -185,7 +189,8 @@ class Identify:
     @classmethod
     def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
-                   pxtoler=0.1, fwhm=4.):
+                   pxtoler=0.1, fwhm=4., specname="", y_log=True,
+                   sigdetect=None, rescale_resid=False):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -210,16 +215,23 @@ class Identify:
         wavelim : :obj:`list`, None, optional
             A two element list containing the desired minimum and maximum wavelength of the linelist
         test : bool, optional
-            If True, this is a unit test
+            If True, do not show the plots
         nonlinear_counts : float, optional
             Counts where the arc is presumed to go non-linear
             Passed to arc_lines_from_spec()
             Defaults to 1e10 if None is input
         fwhm : float, optional
-            FWHM of arc lines in pixels
+            FWHM of arc lines in pixels for detection
+        sigdetect : float, optional
+            sigma detection limit for arc lines; defaults to par['sigdetect']
         pxtoler : float, optional
             Tolerance in pixels for adding lines with the auto option
-
+        specname : str, optional
+            The name of the spectrograph
+        y_log : bool, optional
+            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
+        rescale_resid : bool, optional
+            Rescale the residuals plot to include all points?  (Default: False)
 
         Returns
         -------
@@ -230,17 +242,32 @@ class Identify:
         # Double check that a WavelengthSolutionPar was input
         par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
-        # If a wavelength calibration has been performed already, load it:
-        msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
-        wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
+        if sigdetect is None:
+            sigdetect = par['sigdetect']
+        print(f"Using {sigdetect} for sigma detection")
 
+        # If a wavelength calibration has been performed already, load it:
+        msgs.info(f"Slit ID = {slit}  (SPAT ID = {slits.spat_id[slit]})")
+        if wv_calib_all is not None:
+            wv_calib = wv_calib_all.wv_fits[slit]
+            if wv_calib.spat_id != slits.spat_id[slit]:
+                msgs.warn("Wavelength calibration slits did not match!")
+                msgs.info("Best-fitting wavelength solution will not be loaded.")
+                wv_calib = None
+            msgs.info(f"Loading lamps from wavelength solution: {wv_calib_all.lamps}")
+            lamps = wv_calib_all.lamps.split(",")
+        # Must specify `wv_calib = None` otherwise
+        else:
+            msgs.warn("No wavelength calibration supplied!")
+            msgs.info("No wavelength solution will be loaded.")
+            wv_calib = None
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
             nonlinear_counts = 1e10
         tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
                                                             fwhm=fwhm,
-                                                            sigdetect=par['sigdetect'],
+                                                            sigdetect=sigdetect,
                                                             nonlinear_counts=nonlinear_counts)
         detns = tdetns[icut]
 
@@ -269,7 +296,15 @@ class Identify:
         fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
         plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
         ax.add_line(spec)
-        ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+        if y_log:
+            ax.set_yscale('log')
+            ax.set_ylim( (max(1., spec.get_ydata().min()),
+                        4.0 * spec.get_ydata().max()))
+        else:
+            ax.set_yscale('linear')
+            ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+        ax.set_xlabel('Pixel')
+        ax.set_ylabel('Flux')
 
         # Add two residual fitting axes
         axfit = fig.add_axes([0.7, .5, .28, 0.35])
@@ -308,10 +343,13 @@ class Identify:
 
         axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
         # Initialise the identify window and display to screen
-        fig.canvas.set_window_title('PypeIt - Identify')
-        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler)
+        fig.canvas.manager.set_window_title('PypeIt - Identify')
+        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par,
+                         lflag_color, slit=slit, y_log=y_log, wv_calib=wv_calib,
+                         spatid=str(slits.spat_id[slit]), pxtoler=pxtoler,
+                         specname=specname, rescale_resid=rescale_resid)
 
+        # For testing, do not show the plots
         if not test:
             plt.show()
 
@@ -410,6 +448,17 @@ class Identify:
         self.spec.set_xdata(self.plotx)
         if toggled:
             self.axes['main'].set_xlim([self.plotx.min(), self.plotx.max()])
+
+    def toggle_yscale(self):
+        self.y_log = not self.y_log
+        # Update the y-axis scale and axis range
+        if self.y_log:
+            self.axes['main'].set_yscale('log')
+            self.axes['main'].set_ylim((max(1., self.spec.get_ydata().min()),
+                                       4.0 * self.spec.get_ydata().max()))
+        else:
+            self.axes['main'].set_yscale('linear')
+            self.axes['main'].set_ylim((0.0, 1.1 * self.spec.get_ydata().max()))
 
     def draw_ghost(self):
         """Draw tick marks at the location of the ghost
@@ -522,9 +571,13 @@ class Identify:
             self.axes['fit'].set_ylim((ymin, ymax))
             self.specres['pixels'].set_color(self.residmap.to_rgba(self._lineflg))
 
-            # Pixel residuals
+            # Pixel residuals -- scaling based on input parameter
             self.specres['resid'].set_offsets(np.c_[pixel_fit, resvals])
-            self.axes['resid'].set_ylim((-1.0, 1.0))
+            if self.rescale_resid:
+                plot_resvals = resvals[np.abs(resvals) < 500]
+                self.axes['resid'].set_ylim((plot_resvals.min(), plot_resvals.max()))
+            else:
+                self.axes['resid'].set_ylim((-1.0, 1.0))
             self.specres['resid'].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Write some statistics on the plot
@@ -673,7 +726,15 @@ class Identify:
         wvcalib : :class:`pypeit.wavecalib.WaveCalib`
             Wavelength solution
 
+        Returns
+        -------
+
+        wvarxiv_name : :obj:`str` or :obj:`None`
+            The name of the wvarxiv file if saved, else None
         """
+        # For return
+        wvarxiv_name = None
+
         # Line IDs
         ans = ''
         if not force_save:
@@ -696,24 +757,38 @@ class Identify:
                 ans = 'y'
             if ans == 'y':
                 # Arxiv solution
-                #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
+
+                # Instead of a generic name, save the wvarxiv with a unique identifier
+                date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
                 wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', 'wvarxiv.fits')
-                msgs.info("\nYour arxiv solution has been written to wvarxiv.fits")
-                #msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
-                #          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
-                #          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
-                #          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
-                #          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
-                #
+                                         './', wvarxiv_name)
+
+                # Also copy the file to the cache for direct use
+                data.write_file_to_cache(wvarxiv_name,
+                                         wvarxiv_name,
+                                         "arc_lines/reid_arxiv")
+
+                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
+                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
+                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                          f" [calibrations]{msgs.newline()}"
+                          f"   [[wavelengths]]{msgs.newline()}"
+                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
+                          f"     method = full_template\n")
+
+                # Write the WVCalib file
                 outfname = "wvcalib.fits"
                 if wvcalib is not None:
                     wvcalib.to_file(outfname, overwrite=True)
-                    msgs.info("\nA WaveCalib container was written to wvcalib.fits")
+                    msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template\n")
+                print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
                 print("You will need the following information:")
                 print("  (1) spectral binning = {0:d}".format(binspec))
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
@@ -732,6 +807,9 @@ class Identify:
                     ans = 'y'
                 if ans == 'y':
                     self.save_IDs()
+
+        # For the cases that need the wvarxiv name, return it
+        return wvarxiv_name
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -938,6 +1016,9 @@ class Identify:
             self.save_IDs()
         elif key == 'w':
             self.toggle_wavepix(toggled=True)
+            self.replot()
+        elif key == 'y':
+            self.toggle_yscale()
             self.replot()
         elif key == 'z':
             self.delete_line_id()
@@ -1216,11 +1297,11 @@ class Identify:
         """Load line IDs
         """
         if wv_calib is not None:
-            for ii in range(wv_calib['pixel_fit'].size):
-                idx = np.argmin(np.abs(self._detns-wv_calib['pixel_fit'][ii]))
-                self._lineids[idx] = wv_calib['wave_fit'][ii]
-                self._lineflg[idx] = int(wv_calib['mask'][ii])
-            self._fitdict['polyorder'] = len(wv_calib['fitc'])-1
+            for ii in range(wv_calib.pixel_fit.size):
+                idx = np.argmin(np.abs(self._detns-wv_calib.pixel_fit[ii]))
+                self._lineids[idx] = wv_calib.wave_fit[ii]
+                self._lineflg[idx] = 2
+            self._fitdict['polyorder'] = wv_calib.pypeitfit.order[0]
             msgs.info("Loaded line IDs")
         elif os.path.exists(fname):
             data = ascii_io.read(fname, format='fixed_width')

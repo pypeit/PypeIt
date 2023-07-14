@@ -15,7 +15,7 @@ from astropy import wcs, units
 from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
-
+from scipy.optimize import curve_fit
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
@@ -31,13 +31,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     Child to handle Keck/KCWI specific code
 
     .. todo::
-        Need to apply spectral flexure and heliocentric correction to waveimg
+        * Need to apply spectral flexure and heliocentric correction to waveimg -- done?
+        * Copy fast_histogram code into PypeIt?
+        * Re-write flexure code with datamodel + implement spectral flexure QA in find_objects.py
+        * When making the datacube, add an option to apply a spectral flexure correction from a different frame?
+        * Write some detailed docs about the corrections that can be used when making a datacube
+        * Consider introducing a new method (par['flexure']['spec_method']) for IFU flexure corrections (see find-objects.py)
 
     """
     ndet = 1
     name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
+    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
     header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True
@@ -120,7 +126,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -160,7 +166,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -204,83 +210,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Add in the dome lamp
         self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Subtract the detector pattern from certain frames.
-        # NOTE: The pattern subtraction is time-consuming, meaning we don't
-        # perform it (by default) for the high S/N pixel flat images but we do
-        # for everything else.
-        par['calibrations']['biasframe']['process']['use_pattern'] = True
-        par['calibrations']['darkframe']['process']['use_pattern'] = True
-        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
-        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
-        par['calibrations']['standardframe']['process']['use_pattern'] = True
-        par['scienceframe']['process']['use_pattern'] = True
-
-        # Make sure the overscan is subtracted from the dark
-        par['calibrations']['darkframe']['process']['use_overscan'] = True
-
-        # Set the slit edge parameters
-        par['calibrations']['slitedges']['fit_order'] = 4
-
-        # Always correct for flexure, starting with default parameters
-        # slitcen must be used, because this is a slit-based IFU where
-        # no objects are extracted.
-        par['flexure']['spec_method'] = 'slitcen'
-
-        # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
-        # Relative illumination correction
-        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
-        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
-        par['calibrations']['darkframe']['exprng'] = [0.01, None]
-#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-#        par['calibrations']['traceframe']['exprng'] = [None, 30]
-#        par['scienceframe']['exprng'] = [30, None]
-
-        # Set the number of alignments in the align frames
-        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
-
-        # LACosmics parameters
-        par['scienceframe']['process']['sigclip'] = 4.0
-        par['scienceframe']['process']['objlim'] = 1.5
-        par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
-        par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
-        par['scienceframe']['process']['use_biasimage'] = False
-        par['scienceframe']['process']['use_darkimage'] = False
-
-        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
-        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
-
-        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
-        par['reduce']['cube']['slit_spec'] = True
-
-        # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.6
-        par['reduce']['skysub']['joint_fit'] = True
-
-        return par
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -365,9 +294,121 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker', 'binning', 'dispangle']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['BGRATNAM', 'IFUNAM', 'BGRANGLE']
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Subtract the detector pattern from certain frames.
+        # NOTE: The pattern subtraction is time-consuming, meaning we don't
+        # perform it (by default) for the high S/N pixel flat images but we do
+        # for everything else.
+        par['calibrations']['biasframe']['process']['use_pattern'] = True
+        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
+        par['calibrations']['standardframe']['process']['use_pattern'] = True
+        par['scienceframe']['process']['use_pattern'] = True
+
+        # Correct the illumflat for pixel-to-pixel sensitivity variations
+        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
+
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
+        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
+        par['calibrations']['darkframe']['exprng'] = [0.01, None]
+#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+#        par['calibrations']['traceframe']['exprng'] = [None, 30]
+#        par['scienceframe']['exprng'] = [30, None]
+
+        # Set the number of alignments in the align frames
+        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
+
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
+        par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_darkimage'] = False
+
+        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
+
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['joint_fit'] = False
+
+        # Don't correct flexure by default, but you should use slitcen,
+        # because this is a slit-based IFU where no objects are extracted.
+        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_maxshift'] = 3  # Just in case someone switches on spectral flexure, this needs to be minimal
+
+        # Flux calibration parameters
+        par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        return par
+
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -612,9 +653,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
-        # Calculate the pattern frequency
-        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
-
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
@@ -653,9 +691,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        hdu : `astropy.io.fits.HDUList`_
-            The input HDUList, with header updated to include the frequency
-            of each amplifier.
+        patt_freqs : :obj:`list`
+            List of pattern frequencies.
         """
         msgs.info("Calculating pattern noise frequency")
 
@@ -667,6 +704,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         num_amps = unq_amps.size
 
         # Loop through amplifiers and calculate the frequency
+        patt_freqs = []
         for amp in unq_amps:
             # Grab the pixels where the amplifier has data
             pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
@@ -674,7 +712,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             # Deal with the different locations of the overscan regions in 2- and 4- amp mode
             if num_amps == 2:
                 cmin = 1+np.max(pixs[0])
-                frame = raw_img[cmin:, rmin:rmax].astype(np.float64)
+                frame = raw_img[cmin:, rmin:rmax].astype(float)
             elif num_amps == 4:
                 if amp in [1, 2]:
                     pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
@@ -684,15 +722,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                     pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
                     cmax = 1+np.min(pixs[0])
                     cmin = (np.max(pixalt[0]) + cmax)//2
-                frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
+                frame = raw_img[cmin:cmax, rmin:rmax].astype(float)
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
+            patt_freqs.append(freq)
             msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
-            # Add the frequency to the zeroth header
-            hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
 
-        # Return the updated HDU
-        return hdu
+        # Return the list of pattern frequencies
+        return patt_freqs
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -714,7 +751,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels. **This is
+                Processed bias frame used to identify bad pixels. **This is
                 ignored for KCWI.**
 
         Returns:
@@ -732,11 +769,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         binning = head0['BINNING']
 
         # Construct a list of the bad columns
-        # Note: These were taken from v1.1.0 (REL) Date: 2018/06/11 of KDERP
+        # Note: These were taken from v1.1.0 (REL) Date: 2018/06/11 of KDERP (updated to be more conservative)
         #       KDERP store values and in the code (stage1) subtract 1 from the badcol data files.
         #       Instead of this, I have already pre-subtracted the values in the following arrays.
         bc = None
         if ampmode == 'ALL':
+            # TODO: There are several bad columns in this mode, but this is typically only used for arcs.
+            #       It's the same set of bad columns seen in the TBO and TUP amplifier modes.
             if binning == '1,1':
                 bc = [[3676, 3676, 2056, 2244]]
             elif binning == '2,2':
@@ -754,11 +793,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                       [1838, 1838, 1122, 2055]]
         if ampmode == 'TUP':
             if binning == '1,1':
-                bc = [[2622, 2622, 3492, 3528],
+#                bc = [[2622, 2622, 3492, 3528],
+                bc = [[2622, 2622, 3492, 4111],   # Extending this BPM, as sometimes the bad column is larger than this.
                       [3295, 3300, 1550, 1555],
                       [3676, 3676, 1866, 4111]]
             elif binning == '2,2':
-                bc = [[1311, 1311, 1745, 1788],
+#                bc = [[1311, 1311, 1745, 1788],
+                bc = [[1311, 1311, 1745, 2055],   # Extending this BPM, as sometimes the bad column is larger than this.
                       [1646, 1650,  775,  777],
                       [1838, 1838,  933, 2055]]
         if bc is None:
@@ -785,7 +826,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         return 'Mask' in hdr['BNASNAM']
 
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
 
@@ -797,22 +838,33 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 Slit traces.
             platescale (:obj:`float`):
                 The platescale of an unbinned pixel in arcsec/pixel (e.g.
-                detector.platescale).
+                detector.platescale). See also 'spatial_scale'
             wave0 (:obj:`float`):
                 The wavelength zeropoint.
             dwv (:obj:`float`):
                 Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
 
         Returns:
             `astropy.wcs.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
-        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        pxscl = platescale * binspat / 3600.0  # 3600 is to convert arcsec to degrees
         slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
@@ -839,7 +891,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl#*(24/23)  # The factor (24/23) is a hack - It is introduced because the centre of 1st and 24th slices are 23 slices apart... TODO :: Need to think of a better way to deal with this
+        cdelt1 = -slscl
         cdelt2 = pxscl
         if coord is None:
             ra = 0.
@@ -854,7 +906,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
         cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
         # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 12.   # i.e. 24 slices/2
+        crpix1 = 24/2   # i.e. 24 slices/2
         crpix2 = slitlength / 2.
         crpix3 = 1.
         # Get the offset
@@ -880,21 +932,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             crpix2 += off2
 
         # Create a new WCS object.
-        msgs.info("Generating KCWI WCS")
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
         w.wcs.radesys = 'FK5'
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
         # Insert the coordinate frame
-        w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
-        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
-        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
-
         return w
 
     def get_datacube_bins(self, slitlength, minmax, num_wave):
@@ -924,4 +974,44 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
 
+    def fit_2d_det_response(self, det_resp, gpmask):
+        r"""
+        Perform a 2D model fit to the KCWI detector response.
+        A few different setups were inspected (BH2 & BM with different
+        grating angles), and a very similar response pattern was found for all
+        setups, indicating that this structure is something to do with
+        the detector. The starting parameters and functional form are
+        assumed to be sufficient for all setups.
 
+        Args:
+            det_resp (`numpy.ndarray`_):
+                An image of the flatfield structure.
+            gpmask (`numpy.ndarray`_):
+                Good pixel mask (True=good), the same shape as ff_struct.
+
+        Returns:
+            `numpy.ndarray`_: A model fit to the flatfield structure.
+        """
+        msgs.info("Performing a 2D fit to the detector response")
+
+        # Define a 2D sine function, which is a good description of KCWI data
+        def sinfunc2d(x, amp, scl, phase, wavelength, angle):
+            """
+            2D Sine function
+            """
+            xx, yy = x
+            angle *= np.pi / 180.0
+            return 1 + (amp + xx * scl) * np.sin(
+                2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle)) / wavelength + phase)
+
+        x = np.arange(det_resp.shape[0])
+        y = np.arange(det_resp.shape[1])
+        xx, yy = np.meshgrid(x, y, indexing='ij')
+        # Prepare the starting parameters
+        amp = 0.02  # Roughly a 2% effect
+        scale = 0.0  # Assume the amplitude is constant over the detector
+        wavelength = np.sqrt(det_resp.shape[0] ** 2 + det_resp.shape[1] ** 2) / 31.5  # 31-32 cycles of the pattern from corner to corner
+        phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
+        p0 = [amp, scale, phase, wavelength, angle]
+        popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
+        return sinfunc2d((xx, yy), *popt)

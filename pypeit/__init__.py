@@ -36,6 +36,7 @@ msgs = pypmsgs.Messages()
 # is requested by the user
 from pypeit.core.qa import close_qa
 
+
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):
     """
@@ -43,9 +44,10 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypeit_file)
+        close_qa(msgs.pypeit_file, msgs.qa_path)
         msgs.close()
         sys.exit()
+
 
 signal.signal(signal.SIGINT, signal_handler)
 

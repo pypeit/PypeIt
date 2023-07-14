@@ -22,6 +22,11 @@ class Mosaic(datamodel.DataContainer):
     """
     Class to hold mosaic parameters and the details of the detectors used to
     construct the mosaic.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_mosaic.rst
+
     """
 
     # Set the version of this class
@@ -47,14 +52,15 @@ class Mosaic(datamodel.DataContainer):
                                    'each unbinned detector'),
                  'tform': dict(otype=np.ndarray, atype=float,
                                descr='The full transformation matrix for each detector used to '
-                                     'construct the mosaic.')}
+                                     'construct the mosaic.'),
+                 'msc_order': dict(otype=int, descr='Order of the interpolation used to construct the mosaic.')}
 
     name_prefix = 'MSC'
     """
     Prefix for the name of the mosaic.
     """
 
-    def __init__(self, id, detectors, shape, shift, rot, tform):
+    def __init__(self, id, detectors, shape, shift, rot, tform, msc_order):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -101,6 +107,8 @@ class Mosaic(datamodel.DataContainer):
             tbl['rot'] = self.rot
         if self.tform is not None:
             tbl['tform'] = self.tform
+        if self.msc_order is not None:
+            tbl.meta['msc_order'] = self.msc_order
         if self.id is not None:
             tbl.meta['id'] = self.id
         if self.shape is not None:

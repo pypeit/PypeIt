@@ -1,0 +1,17 @@
+# Incomplete list of the ING (GTC and NOT preferred) standards
+# http://www.gtc.iac.es/observing/media/specphotstars.html
+# Not all stars in this list are included - most of the standards
+# listed on the above website are already covered elsewhere in PypeIt.
+# Flux column in these files must come in flux units of 10**(-16) ergs/s/cm^2/AA
+#The 'm' files list wavelength ( A ), AB magnitude and bin (A). The file
+#name consists of a prefix 'm' and the star name.
+
+  File           Name        RA_2000     DEC_2000
+mgd190.dat       GD190       15:44:19.45  +18:06:43.2
+mross640.dat     Ross640     16:28:25.03  +36:46:15.4
+mhz15.dat        HZ15        04:40:39.32  +08:40:45.3
+mSP0644p375.dat  SP0644+375  06:47:37.99  +37:30:57.0
+mgrw708.dat      GRW+708247  19:00:10.25  +70:39:51.2
+mSP0305p261.dat  SP0305+261  03:08:25.60  +26:19:51.0
+mSP0946p139.dat  SP0946+139  09:48:56.10  +13:44:39.0
+mSP1446p259.dat  SP1446+259  14:49:02.40  +25:42:09.0

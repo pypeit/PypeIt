@@ -89,11 +89,11 @@ def addlines2spec(wavelength, wl_line, fl_line, resolution,
         wavelength vector of the input spectrum
     wl_line, fl_line : np.arrays
         wavelength and flux of each individual line
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. In other words, the lines
         will have a FWHM equal to:
         fwhm_line = wl_line / resolution
-    scale_spec : np.float
+    scale_spec : float
         rescale all the  normalization of the final spectrum.
         Default scale_spec=1.
     debug : boolean
@@ -147,7 +147,7 @@ def oh_lines():
     """
 
     msgs.info("Reading in the Rousselot (2000) OH line list")
-    oh = np.loadtxt(os.path.join(data.Paths.skisim, 'rousselot2000.dat'),
+    oh = np.loadtxt(data.get_skisim_filepath('rousselot2000.dat'),
                     usecols=(0, 1))
     return oh[:,0]/10000., oh[:,1] # wave converted to microns
 
@@ -171,7 +171,7 @@ def transparency(wavelength, debug=False):
     """
 
     msgs.info("Reading in the atmospheric transmission model")
-    transparency = np.loadtxt(os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat'))
+    transparency = np.loadtxt(data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat'))
     wave_mod = transparency[:,0]
     tran_mod = transparency[:,1]
 
@@ -225,7 +225,7 @@ def h2o_lines():
     """
 
     msgs.info("Reading in the water atmsopheric spectrum")
-    h2o = np.loadtxt(os.path.join(data.Paths.skisim, 'HITRAN.txt'),
+    h2o = np.loadtxt(data.get_skisim_filepath('HITRAN.txt'),
                      usecols=(0, 1))
     h2o_wv = 1./ h2o[:,0] * 1e4 # microns
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL
@@ -268,7 +268,7 @@ def nearIR_modelsky(resolution, waveminmax=(0.8,2.6), dlam=40.0,
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. The OH and H2O lines will have a 
         FWHM equal to:
         fwhm_line = wl_line / resolution
@@ -427,7 +427,7 @@ def optical_modelThAr(resolution, waveminmax=(3000.,10500.), dlam=40.0,
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph. The ThAr lines will have a 
         FWHM equal to:
         fwhm_line = wl_line / resolution
@@ -547,7 +547,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         wavelength
     flux : np.array
         flux
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     central_wl 
         if 'midpt' the central pixel of wavelength is used, otherwise
@@ -568,7 +568,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
     if central_wl == 'midpt':
         wl_cent = np.median(wavelength)
     else:
-        wl_cent = np.float(central_wl)
+        wl_cent = float(central_wl)
     wl_sigma =  wl_cent / resolution / 2.355
     wl_bin = np.abs((wavelength - np.roll(wavelength,1))[np.where( np.abs(wavelength-wl_cent) == np.min(np.abs(wavelength-wl_cent)) )])
     msgs.info("The binning of the wavelength array at {} is: {}".format(wl_cent, wl_bin[0]))
@@ -632,7 +632,7 @@ def iraf_datareader(database_dir, id_file):
             lines_database.append(line.split())
             feat_line = re.search(r'features\t(\d+)', line)
             if feat_line is not None:
-                N_lines = np.int(feat_line.group(1))
+                N_lines = int(feat_line.group(1))
 
     msgs.info("The number of IDs in the IRAF database {} is {}".format(id_file, N_lines))
 
@@ -650,7 +650,7 @@ def iraf_datareader(database_dir, id_file):
 
 def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
                     cont_samp=10., line_name=None, file_root_name=None,
-                    iraf_frmt=False, debug=False, vacuum=True):
+                    iraf_frmt=False, debug=False, convert_air_to_vac=True):
     """ Create list of lines detected in a spectrum in a PypeIt
     compatible format. The name of the output file is
     file_root_name+'_lines.dat'.
@@ -679,8 +679,8 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
-    vacuum (bool):
-        If True, write the wavelengths in vacuum
+    convert_air_to_vac (bool):
+        If True, convert the wavelengths of the created linelist from air to vacuum
     """
 
     msgs.info("Searching for peaks {} sigma above background".format(sigdetec))
@@ -693,9 +693,9 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     # convert from pixel location to wavelength
     pixvec = np.arange(spec.size)
     wave_peak = scipy.interpolate.interp1d(pixvec, wavelength, bounds_error=False, fill_value='extrapolate')(peaks_good)
-    # Vacuum?
-    if vacuum:
-        msgs.info("Writing wavelengths in vacuum")
+    # Convert to vacuum?
+    if convert_air_to_vac:
+        msgs.info("Converting wavelengths from air to vacuum")
         wave_peak = airtovac(wave_peak * units.AA).value
 
     npeak = len(wave_peak)
@@ -716,7 +716,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
 
 
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
-                      fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
+                      fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False,
                       debug=False):
     """Create a synthetic sky spectrum at a given resolution, extract significant lines, and
     store them in a PypeIt compatibile file. The skymodel is built from nearIR_modelsky and
@@ -724,7 +724,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     waveminmax : tuple
         wavelength range in microns to be covered by the model.
@@ -786,19 +786,19 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
         file_root_name = 'OH_SKY'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, convert_air_to_vac=False)
 
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
                         fwhm=None, sigdetec=3., line_name='ThAr', file_root_name=None, iraf_frmt=False,
-                        debug=False, vacuum=True):
+                        debug=False, convert_air_to_vac=True):
     """Create a syntetic ThAr spectrum at a given resolution, extract significant lines, and
     store them in a PypeIt compatibile file. This is based on the Murphy et al. ThAr spectrum.
     Detailed information are here: http://astronomy.swin.edu.au/~mmurphy/thar/index.html
 
     Parameters
     ----------
-    resolution : np.float
+    resolution : float
         resolution of the spectrograph
     waveminmax : tuple
         wavelength range in ang. to be covered by the model.
@@ -834,8 +834,8 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         ion name, amplitude).
     debug : boolean
         If True will show debug plots
-    vacuum (bool):
-        If True, write the wavelengths in vacuum
+    convert_air_to_vac (bool):
+        If True, convert the wavelengths of the created linelist from air to vacuum
     """
 
     wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
@@ -861,5 +861,5 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         file_root_name = 'ThAr'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, vacuum=vacuum)
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, convert_air_to_vac=convert_air_to_vac)
 

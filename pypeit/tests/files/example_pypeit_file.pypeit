@@ -31,8 +31,8 @@ setup end
 # Read in the data
 data read
  path /Users/westfall/Work/packages/PYPIT/pypit/tests/files/
-|    filename |                   date | frametype |     target | exptime | dispname |     decker |
-|  b1.fits.gz | 2015-05-20T01:35:58.10 |       arc |       Arcs |      30 | 600/4310 | 0.5 arcsec |
-| b27.fits.gz | 2015-05-20T04:57:33.56 |   science | J1217p3905 |    1200 | 600/4310 | 2.0 arcsec |
+    filename |                   date | frametype |     target | exptime | dispname |     decker 
+  b1.fits.gz | 2015-05-20T01:35:58.10 |       arc |       Arcs |      30 | 600/4310 | 0.5 arcsec 
+ b27.fits.gz | 2015-05-20T04:57:33.56 |   science | J1217p3905 |    1200 | 600/4310 | 2.0 arcsec 
 data end
 

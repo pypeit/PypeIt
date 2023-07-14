@@ -1,3 +1,7 @@
+
+.. TODO: Is it useful to consolidate these here instead of putting them in the
+   relevant docs?
+
 ==============
 Reduction Tips
 ==============
@@ -16,42 +20,64 @@ It assumes (but does not require):
 2. You have inspected the spectra wish to improve aspects of them.
 
 
+.. _object_finding_tips:
+
 Object Finding
 ==============
 
 Refer to :doc:`object_finding` for full details on the algorithm.
-This process is guided by the :ref:`pypeit_par:FindObjPar Keywords`.
+This process is guided by the :ref:`findobjpar`.
 
-The most common to modify is **sig_thresh** which sets the
-search for any source with *peak* flux in excess of **sig_thresh**
+The most common to modify is ``snr_thresh``, which sets the
+search for any source with *peak* flux in excess of ``snr_thresh``
 times the RMS.  The default is 10 and you may wish to
 reduce this parameter.   Add the following to the
-:ref:`pypeit_file:Parameter Block`::
+:ref:`parameter_block`:
+
+.. code-block:: ini
 
     [reduce]
-      [[findobj]]
-          sig_thresh = 3.
+        [[findobj]]
+            snr_thresh = 3.
 
 This will search for any source with peak flux 3-sigma above the
 estimated RMS in the smashed slit profile.
 
 No 1D Spectra Extracted
 -----------------------
-If you are missing 1D spectra, this means that PypeIt did not find any objects in the corresponding frame.  Here are some common modifications that you can make to your :ref:`pypeit_file:Parameter Block` to remedy this.  It may help to run the reduction on a few of your exposures in -s mode to make sure that your modifications are being implemented the way you intend.
 
--Ensure that the slits are correctly identified.  See :ref:`slit_tracing` for tips on how to adjust your slit edges (for example, modifying ``edge_thresh`` or ``minimum_slit_length``) and add or remove a slit.
--Modify the significance threshold for object finding (see above).
--Modify the maximum number of objects that you expect to see in your frames.  The default is 10, but, for example, if your exposure only contains one object of interest, you will want to change your :ref:`pypeit_file:Parameter Block` to look like this::
+If you are missing 1D spectra, this means that PypeIt did not find any objects
+in the corresponding frame.  Here are some common modifications that you can
+make to your :ref:`parameter_block` to remedy this.  It may help to
+run the reduction on a few of your exposures in ``-s`` mode to make sure that your
+modifications are being implemented the way you intend.
+
+- Ensure that the slits are correctly identified.  See :ref:`slit_tracing` for
+  tips on how to adjust your slit edges (for example, modifying ``edge_thresh``
+  or ``minimum_slit_length``) and add or remove a slit.
+
+- Modify the significance threshold for object finding (see above).
+
+- Modify the maximum number of objects that you expect to see in your frames.
+  The default is 10, but, for example, if your exposure only contains one object
+  of interest, you will want to change your :ref:`parameter_block`
+  to look like this:
+
+  .. code-block:: ini
 	
-	[reduce]
-      [[findobj]]
-          maxnumber = 1
+    [reduce]
+        [[findobj]]
+            maxnumber = 1
 
--Modify the FWHM of your object of interest in pixels.  The default is 10, but you may want to increase or decrease this, depending on number of pixels per spatial PSF::
+- Modify the FWHM of your object of interest in pixels.  The default is 10, but
+  you may want to increase or decrease this, depending on the number of pixels per
+  spatial PSF:
 
-	[reduce]
-      [[findobj]]
-          find\_fwhm = 8.
+  .. code-block:: ini
+
+    [reduce]
+        [[findobj]]
+            find_fwhm = 8.
 
 
 Extraction
@@ -76,11 +102,15 @@ extraction.  This may mean the incurrence of cosmic rays
 in the extraction.
 
 Here is the expert move.  Add the following to the
-:ref:`pypeit_file:Parameter Block`::
+:ref:`parameter_block`:
+
+.. code-block:: ini
 
     [reduce]
-      [[extraction]]
-          use_2dmodel_mask = False
+        [[extraction]]
+            use_2dmodel_mask = False
 
-And it is likely you will want to use the BOXCAR extractions
-instead of OPTIMAL.  But do a comparison.
+And it is likely you will want to use the ``BOXCAR`` extractions
+instead of ``OPTIMAL``.  But do a comparison.
+
+

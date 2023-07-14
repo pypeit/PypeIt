@@ -220,7 +220,7 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
         if invvar.shape != x.shape:
             raise ValueError('Dimensions of X and invvar do not agree!')
     if ia is None:
-        ia = np.ones((ncoeff,), dtype=np.bool)
+        ia = np.ones((ncoeff,), dtype=bool)
     if not ia.all():
         if inputans is None:
             inputans = np.zeros((ncoeff,), dtype=x.dtype)
@@ -403,7 +403,7 @@ class TraceSet(object):
             elif invvar is not None:
                 inmask = (invvar > 0.0)
             else:
-                inmask = np.ones(xpos.shape, dtype=np.bool)
+                inmask = np.ones(xpos.shape, dtype=bool)
             do_jump = False
             if 'xjumplo' in kwargs:
                 do_jump = True
@@ -428,7 +428,7 @@ class TraceSet(object):
                 self.upper = None
 
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
-            self.outmask = np.zeros(xpos.shape, dtype=np.bool)
+            self.outmask = np.zeros(xpos.shape, dtype=bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             self.pypeitFits = []
             for iTrace in range(self.nTrace):

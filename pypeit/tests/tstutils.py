@@ -1,44 +1,42 @@
 """
 Odds and ends in support of tests
 """
+import glob
 import os
-import copy
+import pathlib
 import pytest
 
 from IPython import embed
 
 import numpy as np
 from astropy import time
+from astropy.table import Table 
 from pypeit import data
 
-from pypeit.images import buildimage
-from pypeit import edgetrace
-from pypeit import wavecalib
-from pypeit import flatfield
-from pypeit import wavetilts
-from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
-from pypeit import masterframe
+from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform
 
 # Tests require the PypeIt dev-suite
-dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
-                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
-                                        reason='test requires dev suite')
+#dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
+#                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
+#                                        reason='test requires dev suite')
 
 # Tests require the Cooked data
-cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
-                            not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
-                            reason='no dev-suite cooked directory')
+cooked_required = pytest.mark.skipif(
+    os.getenv('PYPEIT_DEV') is None
+    or not (pathlib.Path(os.getenv('PYPEIT_DEV')) / 'Cooked').is_dir(),
+    reason='no dev-suite cooked directory'
+)
 
 # Tests require the Telluric file (Mauna Kea)
 par = Spectrograph.default_pypeit_par()
-tell_test_grid = os.path.join(data.Paths.telgrid, 'TelFit_MaunaKea_3100_26100_R20000.fits')
-telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
+tell_test_grid = data.Paths.telgrid / 'TelFit_MaunaKea_3100_26100_R20000.fits'
+telluric_required = pytest.mark.skipif(not tell_test_grid.is_file(),
                                        reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
@@ -53,8 +51,11 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 
 
 def data_path(filename):
-    data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'files')
-    return os.path.join(data_dir, filename)
+    data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
+    # TODO: This really should have the `.resolve()`, but it crashes the
+    #       Windows/python3.9 CI test (only that one).  When PypeIt advances
+    #       to python>=3.10, reinstate the last part of the following line:
+    return str(data_dir.joinpath(filename))#.resolve())
 
 
 def get_kastb_detector():
@@ -145,85 +146,22 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             fitstbl.set_frame_types(type_bits)
             # Calibration groups
             cfgs = fitstbl.unique_configurations() #ignore_frames=['bias', 'dark'])
-            fitstbl.set_configurations(cfgs)
+            fitstbl.set_configurations(configs=cfgs)
             fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
 
     return fitstbl
 
 
-# TODO: Need to split this into functions that do and do not require
-# cooked.
-def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
-    """
-    Load up the set of shane_kast_blue master frames
+def make_shane_kast_blue_pypeitfile():
+    """ Generate a PypeItFile class """
+    # Bits needed to generate a PypeIt file
+    confdict = {'rdx': {'spectrograph': 'shane_kast_blue'}}
 
-    Order is Arc, edges, tilts_dict, wv_calib, pixflat
-
-    Args:
-        get_spectrograph:
-        aimg:
-        edges (bool, optional):
-            Load the slit edges
-        tilts:
-        datasec:
-        wvcalib:
-
-    Returns:
-        list: List of calibration items
-
-    """
-
-    spectrograph = load_spectrograph('shane_kast_blue')
-    spectrograph.naxis = (2112,350)     # Image shape with overscan
-
-    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
-
-    reuse_masters = True
-
-    # Load up the Masters
-    ret = []
-
-    master_key = 'A_1_DET01'
-    if aimg:
-        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_file(arc_file)
-
-    if mstilt:
-        # We use an arc
-        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_file(arc_file)
-        # Convert
-        mstilt = buildimage.TiltImage.from_pypeitimage(AImg)
-        ret.append(mstilt)
-
-    if edges:
-        #trace_file = '{0}.gz'.format(os.path.join(master_dir,
-        #                                MasterFrame.construct_file_name('Edges', master_key)))
-        trace_file = masterframe.construct_file_name(edgetrace.EdgeTraceSet, master_key, master_dir=master_dir)
-        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
-
-    if tilts:
-        tilts_file = masterframe.construct_file_name(wavetilts.WaveTilts, master_key, master_dir=master_dir)
-        waveTilts = wavetilts.WaveTilts.from_file(tilts_file)
-        ret.append(waveTilts)
-
-    if wvcalib:
-        #calib_file = os.path.join(master_dir,
-        #                          MasterFrame.construct_file_name('WaveCalib', master_key,
-        #                                                          file_format='json'))
-        calib_file = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
-        wv_calib = waveio.load_wavelength_calibration(calib_file)
-        ret.append(wv_calib)
-
-    # Pixelflat
-    if pixflat:
-        #calib_file = os.path.join(master_dir,
-        #                          MasterFrame.construct_file_name('Flat', master_key))
-        flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
-        flatImages = flatfield.FlatImages.from_file(flat_file)
-        ret.append(flatImages.pixelflat_norm)
+    data = Table()
+    data['filename'] = [os.path.basename(item) for item in glob.glob(data_path('b2*fits.gz'))]
+    data['frametype'] = ['science']*len(data)
+    file_paths = [data_path('')]
+    setup_dict = {'Setup A': ' '}
 
     # Return
-    return ret
-
-
+    return PypeItFile(confdict, file_paths, data, setup_dict)

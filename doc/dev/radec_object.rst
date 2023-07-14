@@ -37,7 +37,7 @@ First, ``Pypeit``, using :func:`pypeit.slittrace.get_maskdef_objpos_offset_allde
 computes for every detectors that the user wants to reduce the offset of the observed
 slitmask from the position expected by the design file (see :ref:`slitmask_ids_report`
 for a description on how the slitmask design matching is performed), and stores it in
-the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see :ref:`master_slits` for a
+the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see :ref:`slits` for a
 description of the provided information and for a way to visualize them). There are four
 different options that the user can choose to compute the offset: using objects with high
 significance detections, using only one bright object in a selected slit, using alignment stars,
@@ -73,15 +73,15 @@ Application
 
 To perform the RA, Dec and object name assignment to extracted spectra, the parameters
 described in the *Application* section of :ref:`slitmask_ids_report` must be set.
-Moreover, the **assign_obj** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
+Moreover, the **assign_obj** flag in :ref:`slitmaskpar` must be **True**.
 This is the default for DEIMOS (except when the *LongMirr* or the *LVM* mask is used) and
 MOSFIRE (except when the *LONGSLIT* mask is used).
 Seven other parameters control this procedure. Six are for the slitmask offset determination
 and one is for the RA, Dec and object name assignment. They are the following.
 
-- **nsig_thrshd**: objects detected above this significance threshold are used to
+- **snr_thrshd**: objects detected above this S/N threshold are used to
   compute the slitmask offset. This is the default behaviour for DEIMOS unless **slitmask_offset**,
-  **bright_maskdef_id** or **use_alignbox** is set. Default value is **nsig_thrshd=50**.
+  **bright_maskdef_id** or **use_alignbox** is set. Default value is **snr_thrshd=50**.
 
 - **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` and ``Slit_Number`` in the DEIMOS
   and MOSFIRE slitmask design, respectively) of a slit containing a bright object that will be used
@@ -93,13 +93,13 @@ and one is for the RA, Dec and object name assignment. They are the following.
 
 - **use_alignbox**: flag to use stars in alignment boxes to compute the slitmask offset. This is
   available only for DEIMOS observations and it is set as the default for this instrument.
-  If **use_alignbox = True** PypeIt will NOT compute the offset using **nsig_thrshd** or
+  If **use_alignbox = True** PypeIt will NOT compute the offset using **snr_thrshd** or
   **bright_maskdef_id**.
 
 - **use_dither_offset**: flag to use the dither offset recorded in the header of science frames as the
   value of the slitmask offset. This is currently only available for MOSFIRE reduction and
   it is set as the default for this instrument. If **use_dither_offset = True** PypeIt will NOT compute the
-  offset using `nsig_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided.
+  offset using `snr_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided.
 
 - **slitmask_offset**: user-provided slitmask offset (pixels) from the position expected
   by the slitmask design. This is optional (default value is **slitmask_offset=None**),
@@ -117,8 +117,8 @@ Access
 
 - Ra, Dec, object name and ``maskdef_id`` are visible in the .txt file with a list of all extracted spectra,
   generated at the end the ``PypeIt`` reduction.
-- Ra, Dec, object name are also visible by running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
-- Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
+- Ra, Dec, object name are also visible by running `pypeit_show_1d --list` (see :ref:`pypeit_show_1dspec`)
+- Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`pypeit_show_2dspec`)
 
 
 Testing
@@ -157,13 +157,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **assign_obj** flag in
-       :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
+       :ref:`slitmaskpar` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
        the slitmask ID assignment is performed (see :ref:`slitmask_ids_report`), and the ``maskdef_id``
@@ -180,7 +180,7 @@ and is as follows:
 
     8. Read  ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` for a selected slit and check if those correspond to
        the expected values. The expected values are taken from the :class:`~pypeit.slittrace.SlitTraceSet`
-       datamodel. See :ref:`master_slits` for a description of the provided information and for a way
+       datamodel. See :ref:`slits` for a description of the provided information and for a way
        to visualize them.
 
 

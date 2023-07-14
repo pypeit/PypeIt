@@ -7,6 +7,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.images.bitmaskarray
    pypeit.images.buildimage
    pypeit.images.combineimage
    pypeit.images.detector_container
@@ -14,7 +15,6 @@ Submodules
    pypeit.images.mosaic
    pypeit.images.pypeitimage
    pypeit.images.rawimage
-   pypeit.images.sciencecube
 
 Module contents
 ---------------

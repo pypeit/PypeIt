@@ -1,4 +1,6 @@
 """ Module for methods related to tracing arc/sky lines across a slit/order
+
+.. include:: ../include/links.rst
 """
 import inspect
 import copy
@@ -30,6 +32,8 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
     """
     I can't believe this method has no docs
 
+    FILL THIS IN
+
     Args:
         arc_spec:
         slit_cen:
@@ -48,13 +52,16 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         debug_peaks:
 
     Returns:
-        Three numpy.ndarray objects are returned with the (1) spatial
-        and (2) spectral locations for the starting point to trace
-        the line centroids and (3) a good value mask. Locations where
-        the good-value mask is False are locations that were rejected
-        either because the detection wasn't significant enough or the
-        line was too close to a more-significant, neighboring line.
+        tuple: Three `numpy.ndarray`_ objects are returned with the (1) spatial
+            and (2) spectral locations for the starting point to trace
+            the line centroids and (3) a good value mask. Locations where
+            the good-value mask is False are locations that were rejected
+            either because the detection wasn't significant enough or the
+            line was too close to a more-significant, neighboring line.
     """
+    # Setup some convenience variables
+    npix_neigh = nfwhm_neigh * fwhm
+
     # Find peaks
     tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot \
         = arc.detect_lines(arc_spec, sigdetect=np.min([sig_neigh, tracethresh]), fwhm=fwhm,
@@ -63,17 +70,10 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
                            niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
                            bpm=bpm, debug=debug_peaks)
 
-    #    good = np.zeros(tampl_tot.size, dtype=bool)
-    #    good[wgood] = True
-    #    arc.find_lines_qa(arc_cont_sub, tcent_tot, tampl_cont_tot, good, bpm=bpm,
-    #                      nonlinear=nonlinear_counts)
-
     # Good lines
     arcdet = tcent_tot[wgood]
     arc_ampl = tampl_cont_tot[wgood]
     nsig = nsig_tot[wgood]
-
-    npix_neigh = nfwhm_neigh * fwhm
 
     # Determine the best lines to use to trace the tilts
     aduse = np.zeros(arcdet.size, dtype=bool)  # Which lines should be used to trace the tilts
@@ -149,23 +149,23 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
     Parameters
     ----------
-    arcimg:  ndarray, float (nspec, nspat)
+    arcimg:  `numpy.ndarray`_ float (nspec, nspat)
         Image of arc or sky that will be used for tracing tilts.
-    lines_spec: ndarray, float (nlines,)
+    lines_spec: `numpy.ndarray`_ float (nlines,)
         Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
         in pixels in image coordinates.
-    lines_spat: ndarray, float (nlines,)
+    lines_spat: `numpy.ndarray`_ float (nlines,)
         Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
         pixels in image coordinates.
-    thismask: ndarray, boolean (nspec, nsapt)
+    thismask: `numpy.ndarray`_ boolean (nspec, nsapt)
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
-    inmask: float ndarray, default = None, optional
+    inmask: float `numpy.ndarray`_ default = None, optional
         Input mask image.
     gauss: bool, default = False, optional
         If true the code will trace the arc lines usign Gaussian weighted centroiding (trace_gweight) instead of the default,
         which is flux weighted centroiding (trace_fweight)
-    tilts_guess: float ndarray, default = None, optional
+    tilts_guess: float `numpy.ndarray`_ default = None, optional
         A guess for the tilts used for running this tilt tracing in an iterative manner. If the tilts_guess is not None, it
         should be an array containing the tilts from a previous iteration which will be used as a crutch for the tracing of
         the tilts. The default is None, which is how this code is run on a first iteration. In that case the crutces are
@@ -195,6 +195,32 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         to improve the tracing.
     show_tracefits: bool, default = False, optional
         If true the fits will be shown to each arc line trace by iterative_fitting
+
+    Returns
+    -------
+        results_dict: dict 
+            with keys
+              - nspec=
+              - nspat=
+              - nsub=
+              - nlines=
+              - nuse=
+              - spat_min=
+              - spat_max=
+              - do_crude=
+              - fwhm=
+              - use_tilt=
+              - tilts_sub_spat=
+              - tilts_sub_fit=
+              - tilts_mad=
+              - tilts_spec=
+              - tilts_spat=
+              - tilts_dspat=
+              - tilts=
+              - tilts_fit=
+              - tilts_err=
+              - tilts_bpm=
+              - tilts_mask=
     """
 
     # TODO: Explain procedure in docstring
@@ -472,11 +498,26 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     # Tighten it up with Gaussian weighted centroiding
     # TODO: Is the above comment a TODO?
     # TODO: Create a class for this stuff
-    return dict(nspec=nspec, nspat=nspat, nsub=nsub, nlines=nlines, nuse=nuse, spat_min=spat_min,
-                spat_max=spat_max, do_crude=do_crude, fwhm=fwhm, use_tilt=use_tilt,
-                tilts_sub_spat=tilts_sub_spat, tilts_sub_fit=tilts_sub_fit, tilts_mad=tilts_mad,
-                tilts_spec=tilts_spec, tilts_spat=tilts_spat, tilts_dspat=tilts_dspat, tilts=tilts,
-                tilts_fit=tilts_fit, tilts_err=tilts_err, tilts_bpm=tilts_bpm,
+    return dict(nspec=nspec, 
+                nspat=nspat, 
+                nsub=nsub, 
+                nlines=nlines, 
+                nuse=nuse, 
+                spat_min=spat_min,
+                spat_max=spat_max, 
+                do_crude=do_crude, 
+                fwhm=fwhm, 
+                use_tilt=use_tilt,
+                tilts_sub_spat=tilts_sub_spat, 
+                tilts_sub_fit=tilts_sub_fit, 
+                tilts_mad=tilts_mad,
+                tilts_spec=tilts_spec, 
+                tilts_spat=tilts_spat, 
+                tilts_dspat=tilts_dspat, 
+                tilts=tilts,
+                tilts_fit=tilts_fit, 
+                tilts_err=tilts_err, 
+                tilts_bpm=tilts_bpm,
                 tilts_mask=tilts_mask)
 
 
@@ -536,6 +577,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
     Returns
     -------
+    trace_tilts_dict : dict
+        See trace_tilts_work for a complete description
 
     """
     #show_tracefits = True
@@ -594,9 +637,10 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
-              doqa=True, master_key='test', slitord_id=0, show_QA=False, out_dir=None,
+              doqa=True, calib_key='test', slitord_id=0, show_QA=False, out_dir=None,
               minmax_extrap=(150.,1000.)):
     """
+    THIS NEEDS A DOC STRING
 
     Parameters
     ----------
@@ -637,7 +681,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # tilts_spat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec']  # line spectral pixel position from legendre fit evaluated at slit center
     tilts_mask = trc_tilt_dict['tilts_mask']  # Reflects if trace is on the slit
-    tilts_mad = trc_tilt_dict['tilts_mad']  # quantitfies aggregate error of this tilt
+    tilts_mad = trc_tilt_dict['tilts_mad']  # quantifies aggregate error of this tilt
 
     use_mask = np.outer(np.ones(nspat, dtype=bool), use_tilt)
     #    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
@@ -649,21 +693,20 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
     # TODO: Make adderr a parameter?  Where does this come from?
     adderr = 0.03
-    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0)) \
-                  * np.sqrt(np.abs(tilts_mad) ** 2 + adderr ** 2)
+    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0)) * np.sqrt(np.abs(tilts_mad) ** 2 + adderr ** 2)
 
     tilts_ivar = utils.inverse((tilts_sigma.flatten() / xnspecmin1) ** 2)
     pypeitFit = fitting.robust_fit(tilts_spec.flatten() / xnspecmin1,
-                                               (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
-                                               fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
-                                               in_gpm=tot_mask.flatten(), invvar=tilts_ivar,
-                                               function=func2d, maxiter=maxiter, lower=sigrej,
-                                               upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
-                                               minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
-                                               use_mad=False, sticky=False)
+                                   (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
+                                   fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
+                                   in_gpm=tot_mask.flatten(), invvar=tilts_ivar,
+                                   function=func2d, maxiter=maxiter, lower=sigrej,
+                                   upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
+                                   minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
+                                   use_mad=False, sticky=False)
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
-    # locations that were fit but were rejectedK
+    # locations that were fit but were rejected
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
     delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
@@ -760,12 +803,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # TODO: I think we should do the QA outside of core functions.
     if doqa:
         arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
-                     rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                     rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
         arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
-                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA,
+                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=calib_key, show_QA=show_QA,
                        out_dir=out_dir)
         arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
-                       slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                       slitord_id=slitord_id, setup=calib_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
 
@@ -864,7 +907,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
 
     """
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfile
     method = inspect.stack()[0][3]
@@ -913,7 +956,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     """
 
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfil
     method = inspect.stack()[0][3]
@@ -991,7 +1034,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
                    fwhm,
                    setup='A', slitord_id=0, outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()
-    plt.rcParams['font.family'] = 'Helvetica'
+    plt.rcParams['font.family'] = 'sans-serif'
 
     # Outfil
     method = inspect.stack()[0][3]
@@ -1048,3 +1091,5 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
 
     plt.close()
     plt.rcdefaults()
+
+

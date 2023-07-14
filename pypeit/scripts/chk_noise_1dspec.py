@@ -72,7 +72,7 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.plot(lbda[sec], np.zeros(lbda[sec].size), ls='--', color='Gray', zorder=-1)
     
     if args.ploterr: 
-        ax.plot(lbda[sec], err[sec], drawstyle=drawstyle, lw=1, color='#ff6666', zorder=0, label='noise')
+        ax.plot(lbda[sec], err[sec], drawstyle=drawstyle, lw=1, color='#ff6666', zorder=2, label='noise')
     if z is not None:
         line_num = 0
         for i in range(line_wav_z.shape[0]):
@@ -96,7 +96,8 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     plt.legend(loc=3)
     ax2 = plt.subplot2grid((1, 4), (0, 3), rowspan=1, colspan=1)
     ax2.minorticks_on()
-    bins = np.arange(np.nanmin(ratio), np.nanmax(ratio), 0.1)
+    bin_step = (np.nanmax(ratio) - np.nanmin(ratio))*0.01
+    bins = np.arange(np.nanmin(ratio), np.nanmax(ratio), bin_step)
     hist_n, hist_bins, _ = ax2.hist(ratio, bins=bins, histtype='stepfilled')
     mod_mods = Gaussian1D(amplitude=hist_n.max(), mean=np.median(ratio), stddev=1.)
     ax2.plot(bins, mod_mods(bins), label=r"$\sigma=1$")

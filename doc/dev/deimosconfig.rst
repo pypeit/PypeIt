@@ -8,11 +8,12 @@ Automated sorting of DEIMOS frames by instrument configuration
 Version History
 ---------------
 
-=========   =============   =========== ===========
-*Version*   *Author*        *Date*      ``PypeIt``
-=========   =============   =========== ===========
-1.0         Kyle Westfall   13 Oct 2020 1.1.2dev
-=========   =============   =========== ===========
+=========   ================   =========== ===========
+*Version*   *Author*           *Date*      ``PypeIt``
+=========   ================   =========== ===========
+1.0         Kyle Westfall      13 Oct 2020 1.1.2dev
+1.1         Debora Pelliccia   12 Jul 2021 1.9.2.dev
+=========   ================   =========== ===========
 
 ----
 
@@ -40,6 +41,7 @@ combination of the following keywords:
 ``decker``          ``SLMSKNAM``
 ``binning``         ``BINNING``
 ``amp``             ``AMPMODE``
+``filter1``         ``DWFILNAM``
 ===============     ====================================================================
 
 as determined by
@@ -62,10 +64,10 @@ that an observer intended for their use; e.g., the frames were taken
 before the instrument was fully configured for the night's
 observations. To match these frames to a specific configuration,
 ``PypeIt`` uses the ``DATE-OBS`` header keyword to match the frames
-to the first configuration with frames taken on the same date.
+to the configurations with frames taken on the same date.
 
-.. warning::
-
+..
+    warning [DP: this is not valid anymore with the new changes. The bias/darks frames are assigned to every configuration taken on the same date]
     The fact that the bias and dark frames are matched by date to a
     *single* configuration leads to a complication if the DEIMOS
     configuration is changed during the night. I.e., any biases/darks
@@ -118,13 +120,13 @@ To test that ``PypeIt`` can successfully identify multiple
 configurations among a set of files, we have added the
 ``test_setup_keck_deimos_multiconfig`` and
 ``test_setup_keck_deimos_multiconfig_clean`` tests to
-``pypeit/tests/test_setups.py``.
+``${PYPEIT_DEV}/unit_tests/test_setups.py``.
 
 To run these tests:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_setup.py::test_setup_keck_deimos_multiconfig -W ignore
     pytest test_setup.py::test_setup_keck_deimos_multiconfig_clean -W ignore
 

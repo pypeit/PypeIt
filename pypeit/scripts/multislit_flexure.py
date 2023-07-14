@@ -10,60 +10,61 @@ from IPython import embed
 
 import numpy as np
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.core import flexure
 from pypeit.scripts import scriptbase
 
 
-def read_flexfile(ifile):
-    """
-    Read a ``PypeIt`` flexure file, akin to a standard ``PypeIt`` file.
-
-    The top is a config block that sets ParSet parameters.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the flexure file
-
-    Returns:
-        :obj:`tuple`:  Two objects are returned: a :obj:`list` with the
-        configuration entries used to modify the relevant
-        :class:`~pypeit.par.parset.ParSet` parameters and a :obj:`list` with the
-        names of spec1d files to be flexure corrected.
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the flexure file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-    # Parse the fluxing block
-    spec1dfiles = []
-    objids_in = []
-    s, e = par.util._find_pypeit_block(lines, 'flexure')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'flexure end' in {0}".format(ifile))
-    elif (s < 0) or (s == e):
-        msgs.error(
-            "Missing flexure read block in {0}. Check the input format for the .flex file".format(ifile))
-    else:
-        for ctr, line in enumerate(lines[s:e]):
-            prs = line.split(' ')
-            spec1dfiles.append(prs[0])
-            if len(prs) > 1:
-                msgs.error('Invalid format for .flex file.' + msgs.newline() +
-                           'You must specify only spec1dfiles in the block ')
-        is_config[s-1:e+1] = False
-
-    # Chck the sizes of the inputs
-    nspec = len(spec1dfiles)
-
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-
-    # Return
-    return cfg_lines, spec1dfiles
+#def read_flexfile(ifile):
+#    """
+#    Read a ``PypeIt`` flexure file, akin to a standard ``PypeIt`` file.
+#
+#    The top is a config block that sets ParSet parameters.
+#
+#    Args:
+#        ifile (:obj:`str`):
+#            Name of the flexure file
+#
+#    Returns:
+#        :obj:`tuple`:  Two objects are returned: a :obj:`list` with the
+#        configuration entries used to modify the relevant
+#        :class:`~pypeit.par.parset.ParSet` parameters and a :obj:`list` with the
+#        names of spec1d files to be flexure corrected.
+#    """
+#    # Read in the pypeit reduction file
+#    msgs.info('Loading the flexure file')
+#    lines = inputfiles.read_pypeit_file_lines(ifile)
+#    is_config = np.ones(len(lines), dtype=bool)
+#
+#    # Parse the fluxing block
+#    spec1dfiles = []
+#    objids_in = []
+#    s, e = inputfiles.InputFile.find_block(lines, 'flexure')
+#    if s >= 0 and e < 0:
+#        msgs.error("Missing 'flexure end' in {0}".format(ifile))
+#    elif (s < 0) or (s == e):
+#        msgs.error(
+#            "Missing flexure read block in {0}. Check the input format for the .flex file".format(ifile))
+#    else:
+#        for ctr, line in enumerate(lines[s:e]):
+#            prs = line.split(' ')
+#            spec1dfiles.append(prs[0])
+#            if len(prs) > 1:
+#                msgs.error('Invalid format for .flex file.' + msgs.newline() +
+#                           'You must specify only spec1dfiles in the block ')
+#        is_config[s-1:e+1] = False
+#
+#    # Chck the sizes of the inputs
+#    nspec = len(spec1dfiles)
+#
+#    # Construct config to get spectrograph
+#    cfg_lines = list(lines[is_config])
+#
+#    # Return
+#    return cfg_lines, spec1dfiles
 
 
 # TODO: Maybe not a good idea to name this script the same as the
@@ -79,6 +80,7 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
                             help="R|File to guide flexure corrections for this multi-slit mode."
                                  "  This file must have the following format: \n\n"
                                  "F|flexure read\n"
+                                 "F|  filename\n"
                                  "F|  spec1dfile1\n"
                                  "F|  spec1dfile2\n"
                                  "F|     ...    \n"
@@ -98,19 +100,20 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
         from astropy.io import fits
 
         # Load the file
-        config_lines, spec1dfiles = read_flexfile(pargs.flex_file)
+        flexFile = inputfiles.FlexureFile.from_file(pargs.flex_file)
 
         # Read in spectrograph from spec1dfile header
-        header = fits.getheader(spec1dfiles[0])
+        header = fits.getheader(flexFile.filenames[0])
         spectrograph = load_spectrograph(header['PYP_SPEC'])
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(
-            cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
+            cfg_lines=spectrograph_def_par.to_config(), 
+            merge_with=(flexFile.cfg_lines,))
 
         # Loop to my loop
-        for filename in spec1dfiles:
+        for filename in flexFile.filenames:
             # Instantiate
             mdFlex = flexure.MultiSlitFlexure(s1dfile=filename)
             # Initalize 

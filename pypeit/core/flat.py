@@ -9,8 +9,9 @@ import copy
 import os
 
 import numpy as np
-from scipy import interpolate, ndimage
-from matplotlib import pyplot as plt
+import scipy.interpolate
+import scipy.ndimage
+import matplotlib.pyplot as plt
 
 from IPython import embed
 
@@ -133,7 +134,7 @@ def illum_filter(spat_flat_data_raw, med_width):
     # Gaussian filter the data with a kernel that is 1/20th of the
     # median-filter width (or at least 0.5 pixels where here a "pixel"
     # is just the index of the data to fit)
-    return ndimage.filters.gaussian_filter1d(spat_flat_data, np.fmax(med_width/20.0, 0.5),
+    return scipy.ndimage.gaussian_filter1d(spat_flat_data, np.fmax(med_width/20.0, 0.5),
                                              mode='nearest')
 
 
@@ -250,7 +251,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         # at either end of the data array would cause the interpolation
         # below to fault, which is why I set bound_error to False. This
         # may be a problem though because I set the fill value to 0...
-        interp = interpolate.interp1d(spat_coo_data[spat_gpm_data_raw], spat_flat_data,
+        interp = scipy.interpolate.interp1d(spat_coo_data[spat_gpm_data_raw], spat_flat_data,
                                       bounds_error=False, fill_value=0.0, assume_sorted=True)
         resid = spat_flat_data_raw - interp(spat_coo_data)
         sigma = np.std(resid)
@@ -486,7 +487,7 @@ def flatfield(sciframe, flatframe, varframe=None):
 
     # New image
     retframe = np.zeros_like(sciframe)
-    gpm = flatframe > 0.
+    gpm = (flatframe > 0.0) & np.isfinite(flatframe)
     retframe[gpm] = sciframe[gpm]/flatframe[gpm]
     if varframe is None:
         return retframe, np.logical_not(gpm)

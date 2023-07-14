@@ -4,66 +4,17 @@ Script for fluxing PYPEIT 1d spectra
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
 from IPython import embed
-
-import numpy as np
 
 from astropy.io import fits
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import fluxcalibrate
 from pypeit.par import pypeitpar
 from pypeit.scripts import scriptbase
 from pypeit.sensfilearchive import SensFileArchive
-
-def read_fluxfile(ifile):
-    """
-    Read a ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
-
-    The top is a config block that sets ParSet parameters.  The name of the
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the flux file
-
-    Returns:
-        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
-        configuration entries used to modify the relevant
-        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` with the
-        names of spec1d files to be flux-calibrated, and a :obj:`list` with the
-        names of the files with the sensitivity function to use.
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the fluxcalib file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-
-    # Parse the fluxing block
-    spec1dfiles = []
-    sensfiles_in = []
-    s, e = par.util._find_pypeit_block(lines, 'flux')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'flux end' in {0}".format(ifile))
-    elif (s < 0) or (s==e):
-        msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
-    else:
-        for ctr, line in enumerate(lines[s:e]):
-            prs = line.split(' ')
-            spec1dfiles.append(prs[0])
-            if len(prs) > 1:
-                sensfiles_in.append(prs[1])
-        is_config[s-1:e+1] = False
-
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-
-    # Return
-    return cfg_lines, spec1dfiles, sensfiles_in
 
 
 class FluxCalib(scriptbase.ScriptBase):
@@ -77,21 +28,24 @@ class FluxCalib(scriptbase.ScriptBase):
                             help="R|File to guide fluxing process.  This file must have the "
                                  "following format: \n\n"
                                  "F|flux read\n"
-                                 "F|  spec1dfile1 sensfile\n"
-                                 "F|  spec1dfile2\n"
+                                 "F|     filename | sensfile\n"
+                                 "F|  spec1dfile1 | sensfile1\n"
+                                 "F|  spec1dfile2 | \n"
                                  "F|     ...    \n"
                                  "F|flux end\n"
                                  "\nOR\n\n"
                                  "F|flux read\n"
-                                 "F|  spec1dfile1 sensfile1\n"
-                                 "F|  spec1dfile2 sensfile2\n"
-                                 "F|  spec1dfile3 sensfile3\n"
+                                 "F|     filename | sensfile\n"
+                                 "F|  spec1dfile1 | sensfile1\n"
+                                 "F|  spec1dfile2 | sensfile2\n"
+                                 "F|  spec1dfile3 | sensfile3\n"
                                  "F|     ...    \n"
                                  "F|flux end\n"
                                  "\nOR\n\n"
                                  "F|[fluxcalib]\n"
                                  "F|  use_archived_sens = True\n"
                                  "F|flux read\n"
+                                 "F|     filename\n"
                                  "F|  spec1dfile1\n"
                                  "F|  spec1dfile2\n"
                                  "F|  spec1dfile3\n"
@@ -107,6 +61,10 @@ class FluxCalib(scriptbase.ScriptBase):
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename flux_calib_YYYYMMDD-HHMM.log')
+
 #        parser.add_argument("--plot", default=False, action="store_true",
 #                            help="Show the sensitivity function?")
         return parser
@@ -115,32 +73,34 @@ class FluxCalib(scriptbase.ScriptBase):
     def main(args):
         """ Runs fluxing steps
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
+
         # Load the file
-        config_lines, spec1dfiles, sensfiles_in = read_fluxfile(args.flux_file)
+        fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
+
         # Read in spectrograph from spec1dfile header
-        header = fits.getheader(spec1dfiles[0])
+        header = fits.getheader(fluxFile.filenames[0])
         spectrograph = load_spectrograph(header['PYP_SPEC'])
 
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                 merge_with=config_lines)
+                                                 merge_with=(fluxFile.cfg_lines,))
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
 
         # Chck the sizes of the inputs
-        nspec = len(spec1dfiles)
-        if len(sensfiles_in) == 1:
-            # Use one sens file for each spec1d
-            sensfiles = nspec*sensfiles_in
-        elif len(sensfiles_in) == nspec:
-            # One sensfile specified / spec1d
-            sensfiles = sensfiles_in
-        elif len(sensfiles_in) == 0 and par['fluxcalib']['use_archived_sens'] == True:
+        nspec = len(fluxFile.filenames)
+
+        # Archived solution?
+        if len(fluxFile.sensfiles) > 0: 
+            sensfiles = fluxFile.sensfiles
+        elif len(fluxFile.sensfiles) == 0 and par['fluxcalib']['use_archived_sens'] == True:
             # No sensfile specified, but an archived sensfunc can be used.
             sf_archive = SensFileArchive.get_instance(spectrograph.name)
-            sensfiles = nspec*[sf_archive.get_archived_sensfile(spec1dfiles[0])]
+            sensfiles = nspec*[sf_archive.get_archived_sensfile(fluxFile.filenames[0])]
         else:
             msgs.error('Invalid format for .flux file.' + msgs.newline() +
                        'You must specify a single sensfile on the first line of the flux block,' + msgs.newline() +
@@ -149,8 +109,9 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles,
-                                                           par=par['fluxcalib'], debug=args.debug)
+        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(
+            fluxFile.filenames, sensfiles, 
+            par=par['fluxcalib'], debug=args.debug)
         msgs.info('Flux calibration complete')
         return 0
 

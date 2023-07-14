@@ -79,6 +79,10 @@ class SpecObjs:
         slf.header = hdul[0].header
         # Keep track of HDUList for closing later
 
+        # Catch common error of trying to read a OneSpec file
+        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
@@ -192,7 +196,7 @@ class SpecObjs:
                   True=Good
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
-                  spectrograph.header_cards_from_spec()
+                  spectrograph.parse_spec_header()
                 - header (astropy.io.header object): header from
                   spec1d file
         """
@@ -263,9 +267,9 @@ class SpecObjs:
         if 'MultiSlit' in pypeline or 'IFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
-                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
             elif self.BOX_COUNTS[0] is not None:
-                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
+                SNR = np.median(self.BOX_COUNTS * np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
 
@@ -642,15 +646,15 @@ class SpecObjs:
         if os.path.isfile(outfile) and (update_det is not None or slitspatnum is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
             mask = np.ones(_specobjs.nobj, dtype=bool)
-            # Update_det
-            if update_det is not None:
-                # Pop out those with this detector (and slit if slit_spat_num is provided)
-                for det in np.atleast_1d(update_det):
-                    mask[_specobjs.DET == det] = False
-            elif slitspatnum is not None: # slitspatnum
+            # Update
+            if slitspatnum is not None: # slitspatnum
                 dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
                 for det, spat_id in zip(dets, spat_ids):
                     mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
+            elif update_det is not None:
+                # Pop out those with this detector (and slit if slit_spat_num is provided)
+                for det in np.atleast_1d(update_det):
+                    mask[_specobjs.DET == det] = False
             _specobjs = _specobjs[mask]
             # Add in the new
             # TODO: Is the loop necessary? add_sobj can take many SpecObj objects.
@@ -660,7 +664,7 @@ class SpecObjs:
             _specobjs = self.specobjs
 
         # Build up the Header
-        header = io.initialize_header(primary=True)
+        header = io.initialize_header()
         for key in subheader.keys():
             if key.upper() == 'HISTORY':
                 if history is None:
@@ -670,9 +674,8 @@ class SpecObjs:
                 header[key.upper()] = subheader[key]
 
         # Init
-        prihdu = fits.PrimaryHDU()
+        prihdu = fits.PrimaryHDU(header=header)
         hdus = [prihdu]
-        prihdu.header = header
 
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
@@ -728,9 +731,6 @@ class SpecObjs:
         # A few more for the header
         prihdu.header['NSPEC'] = nspec
 
-        # Code versions
-        io.initialize_header(hdr=prihdu.header)
-
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
@@ -738,8 +738,7 @@ class SpecObjs:
              #embed()
              #exit()
         hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
-        return
+        msgs.info(f'Wrote 1D spectra to {outfile}')
 
     def write_info(self, outfile, pypeline):
         """
@@ -779,8 +778,7 @@ class SpecObjs:
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
             # Wave RMS
-            if specobj.WAVE_RMS is not None:  # this is needed to print info for coadd2d
-                wave_rms.append(specobj.WAVE_RMS)
+            wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
             if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
@@ -799,30 +797,20 @@ class SpecObjs:
             # S2N -- default to boxcar
             if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-                # S2N -- optimal
-                ivar = specobj.OPT_COUNTS_IVAR
-                is2n = np.median(specobj.OPT_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
-                if specobj.BOX_COUNTS is None:
-                    is2n = 0.
-                else:
-                    ivar = specobj.BOX_COUNTS_IVAR
-                    is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
-                s2n.append(is2n)
+            # NOTE: Below requires that S2N not be None, otherwise the code will
+            # fault.  If the code gets here and S2N is None, check that 1D
+            # extractions have been performed.
+            s2n.append(specobj.S2N)
             # Manual extraction?
             manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info
-            if specobj.MASKDEF_ID is not None:
-                maskdef_id.append(specobj.MASKDEF_ID)
-            if specobj.MASKDEF_OBJNAME is not None:
-                objname.append(specobj.MASKDEF_OBJNAME)
-            if specobj.RA is not None:
-                objra.append(specobj.RA)
-                objdec.append(specobj.DEC)
-            if specobj.MASKDEF_EXTRACT is not None:
-                maskdef_extract.append(specobj.MASKDEF_EXTRACT)
+            maskdef_id.append(specobj.MASKDEF_ID)
+            objname.append(specobj.MASKDEF_OBJNAME)
+            objra.append(specobj.RA)
+            objdec.append(specobj.DEC)
+            maskdef_extract.append(specobj.MASKDEF_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -837,16 +825,17 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
-            if len(maskdef_id) > 0:
+            if not np.all(np.array(maskdef_id) == None):
                 obj_tbl['maskdef_id'] = maskdef_id
-                obj_tbl['maskdef_id'].format = 'd'
-            if len(objname) > 0:
+            if not np.all(np.array(objname) == None):
                 obj_tbl['objname'] = objname
-            if len(objra) > 0:
+            if not np.all(np.array(objra) == None):
                 obj_tbl['objra'] = objra
-                obj_tbl['objra'].format = '.5f'
+                if None not in objra:
+                    obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
-                obj_tbl['objdec'].format = '.5f'
+                if None not in objdec:
+                    obj_tbl['objdec'].format = '.5f'
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos
@@ -860,16 +849,17 @@ class SpecObjs:
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
             # is this a forced extraction at the expected position from slitmask design?
-            if len(maskdef_extract) > 0:
-                obj_tbl['maskdef_extract'] = maskdef_extract
-            # only if manual extractions exist, print this
-            if np.any(manual_extract):
+            if not np.all(np.array(maskdef_extract) == None):
+                    obj_tbl['maskdef_extract'] = maskdef_extract
+            # only if any manual extraction exists, print this
+            if not np.all(np.array(manual_extract) == False):
                 obj_tbl['manual_extract'] = manual_extract
 
             # Wavelengths
-            if len(wave_rms) > 0:
+            if not np.all(np.array(wave_rms) == None):
                 obj_tbl['wv_rms'] = wave_rms
-                obj_tbl['wv_rms'].format = '.3f'
+                if None not in wave_rms:
+                    obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
@@ -917,6 +907,48 @@ class SpecObjs:
 
         return groups
 
+#TODO Should this be a classmethod on specobjs??
+def get_std_trace(detname, std_outfile, chk_version=True):
+    """
+     Returns the trace of the standard.
+
+     Args:
+         det (:obj:`int`, :obj:`tuple`):
+             1-indexed detector(s) to process.
+         std_outfile (:obj:`str`):
+             Filename with the standard star spec1d file.  Can be None.
+     Returns:
+         `numpy.ndarray`_: Trace of the standard star on input detector.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic is not available
+         in the provided spec1d file.
+     """
+
+    sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
+    pypeline = sobjs.PYPELINE
+    # Does the detector match?
+    # TODO: Instrument specific logic here could be implemented with the
+    # parset. For example LRIS-B or LRIS-R we we would use the standard
+    # from another detector.
+
+    this_det = sobjs.DET == detname
+    if np.any(this_det):
+        sobjs_det = sobjs[this_det]
+        sobjs_std = sobjs_det.get_std()
+        # No standard extracted on this detector??
+        if sobjs_std is None:
+            return None
+        std_trace = sobjs_std.TRACE_SPAT
+        # flatten the array if this multislit
+        if 'MultiSlit' in pypeline:
+            std_trace = std_trace.flatten()
+        elif 'Echelle' in pypeline:
+            std_trace = std_trace.T
+        else:
+            msgs.error('Unrecognized pypeline')
+    else:
+        std_trace = None
+
+    return std_trace
 
 def lst_to_array(lst, mask=None):
     """

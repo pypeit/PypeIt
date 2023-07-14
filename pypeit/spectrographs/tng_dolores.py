@@ -23,11 +23,9 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     name = 'tng_dolores'
     telescope = telescopes.TNGTelescopePar()
     camera = 'DOLORES'
+    url = 'https://oapd.inaf.it/mos/'
     comment = 'DOLORES (LRS) spectrograph; LR-R'
 
-#    def __init__(self):
-#        super().__init__()
-#        self.timeunit = 'isot'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -57,14 +55,14 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             ysize           = 1.,
             platescale      = 0.252,
             darkcurr        = 0.0,
-            saturation      = 65535.,
-            nonlinear       = 0.76,
+            saturation      = 65500.,
+            nonlinear       = 0.99,
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.97),
             ronoise         = np.atleast_1d(9.0),
-            datasec         = np.atleast_1d('[51:,1:2045]'),
-            oscansec        = np.atleast_1d('[51:,2054:]'),
+            datasec         = np.atleast_1d('[1:2045,51:]'),
+            oscansec        = np.atleast_1d('[2054:,51:]'),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -75,7 +73,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -84,21 +82,63 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['arcframe']['process']['clip'] = False
+        par['calibrations']['arcframe']['process']['combine'] = 'mean'
+        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        par['calibrations']['tiltframe']['process']['combine'] = 'mean'
+        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+
         return par
+
+    
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        if self.get_meta_value(scifile, 'dispname') == 'LR-B':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'tng_dolores_LR-B_arx_v2.fits'
+            # Add CdI
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI']
+        else:
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            msgs.warn('Check wavelength calibration file.')
+
+        # Return
+        return par
+    
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['ra'] = dict(ext=0, card=None, compound=True)
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJCAT')
-        self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        self.meta['decker'] = dict(ext=0, card='SLT_ID')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
@@ -107,7 +147,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRM_ID')
         #self.meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
-        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['idname'] = dict(ext=0, card='OBS-TYPE')
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LMP_ID')
 
@@ -129,6 +169,9 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        elif meta_key == 'ra':
+            radeg = headarr[0]['RA-RAD']*180.0/np.pi  # Convert radians to decimal degrees
+            return radeg
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
@@ -147,6 +190,25 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRM_ID', 'SLT_ID']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -169,19 +231,20 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lamps'] == 'Parking') \
+            return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lampstat01'] == 'Parking') \
                         & (fitstbl['dispname'] != 'OPEN')
         if ftype == 'bias':
             return good_exp & (fitstbl['dispname'] == 'OPEN')
-        if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['idname'] == 'CALIB') & (fitstbl['lamps'] == 'Halogen') \
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
+            return good_exp & (fitstbl['idname'] == 'CALIB') & (fitstbl['lampstat01'] == 'Halogen') \
                         & (fitstbl['dispname'] != 'OPEN')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'arc') & (fitstbl['lamps'] == 'Ne+Hg') \
+            return good_exp & (fitstbl['idname'] == 'CALIB') & ( (fitstbl['lampstat01'] == 'Ne+Hg') | (fitstbl['lampstat01'] == 'Helium') ) \
                         & (fitstbl['dispname'] != 'OPEN')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
 

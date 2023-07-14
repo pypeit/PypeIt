@@ -1,5 +1,5 @@
 """
-Module to run tests on SlitTraceSet
+Module to run tests on affine transform
 """
 from IPython import embed
 import numpy as np

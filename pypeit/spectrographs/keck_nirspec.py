@@ -18,6 +18,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
+    url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
     def get_detector_par(self, det, hdu=None):
@@ -63,7 +64,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -135,7 +136,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -175,9 +176,29 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['SLITNAME', 'DISPERS']
+
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -187,7 +208,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -210,15 +231,16 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        hatch = fitstbl['hatch'].data.astype(int)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 0) \
                         & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 0) \
                         & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 1) \
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 1) \
                         & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
             # Don't type pinhole frames
@@ -226,9 +248,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 1) \
                             & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 0) \
                         & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -255,15 +277,20 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
-                          axis=0)
+            lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key].data.astype(int) == 0
+            return np.all(retarr, axis=0)
         if status == 'arcs':
             # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
+            lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)))
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key].data.astype(int) == 1
+            return np.any(retarr, axis=0)
         if status == 'dome':
-            return fitstbl['lampstat06'] == 1
+            return fitstbl['lampstat06'].data.astype(int) == 1
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
@@ -287,7 +314,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

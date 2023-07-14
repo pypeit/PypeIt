@@ -75,7 +75,11 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
                                                                            shrink=0.),
                         annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
 
-    if not (lbda_min is None and lbda_max is None):
+    if lbda_min is not None or lbda_max is not None:
+        if lbda_min is None:
+            lbda_min = lbda_1d.min()
+        if lbda_max is None:
+            lbda_max = lbda_1d.max()
         ax.axvspan(lbda_1d.searchsorted(lbda_min), lbda_1d.searchsorted(lbda_max), color='tab:green', alpha=0.2, zorder=2)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -102,6 +106,31 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
              color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
     ax2.legend(loc=2)
     plt.tight_layout()
+
+
+def get_flux_slit(spec2DObj, slitidx, pad=0):
+    """
+    Returns the flux and error of a specific slit.
+    The flux would be sky subtracted and object removed.
+
+    Args:
+        spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`): 2D spectra object
+        slitidx (int): Given slit/order
+        pad (int, optional):  Ignore pixels within pad of edges.
+
+    Returns:
+        :obj:`tuple`: tuple of `numpy.ndarray`_ with flux and error of the 2D spectrum
+
+    """
+    slit_select = spec2DObj.slits.slit_img(pad=pad, slitidx=slitidx)
+
+    flux = spec2DObj.sciimg - spec2DObj.skymodel
+    if spec2DObj.objmodel is not None:
+        flux -= spec2DObj.objmodel
+    flux_slit = flux * (slit_select == spec2DObj.slits.spat_id[slitidx])
+    # Error
+    err_slit = np.sqrt(utils.inverse(spec2DObj.ivarmodel)) * (slit_select == spec2DObj.slits.spat_id[slitidx])
+    return flux_slit, err_slit
 
 
 class ChkNoise2D(scriptbase.ScriptBase):
@@ -208,7 +237,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 msgs.error('This spec2d does not have maskdef_id. Choose a pypeit_id insteed.')
 
             # Build the mask
-            input_mask = spec2DObj.bpmmask == 0
+            input_mask = spec2DObj.bpmmask.mask == 0
             if args.wavemin is not None:
                 input_mask *= spec2DObj.waveimg > args.wavemin
             if args.wavemax is not None:
@@ -227,10 +256,10 @@ class ChkNoise2D(scriptbase.ScriptBase):
             for i in show_slits:
                 pypeit_id = all_pypeit_ids[i]
                 if all_maskdef_ids is not None:
-                    basename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'],
-                                                                        args.det, all_maskdef_ids[i], pypeit_id)
+                    basename = '{}_{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'],
+                                                                        detname, all_maskdef_ids[i], pypeit_id)
                 else:
-                    basename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, pypeit_id)
+                    basename = '{}_{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], detname, pypeit_id)
 
                 # Chi
                 chi_slit, _, _ = spec2DObj.calc_chi_slit(i, pad=args.pad)
@@ -245,12 +274,12 @@ class ChkNoise2D(scriptbase.ScriptBase):
                     continue
 
                 # Flux to show
-                flux_select = spec2DObj.sciimg - spec2DObj.skymodel
-                if spec2DObj.objmodel is not None:
-                    flux_select -= spec2DObj.objmodel
-                flux_select *= input_mask
-                # Error
-                err_select = np.sqrt(utils.inverse(spec2DObj.ivarmodel)) * input_mask
+                # get flux and err from in this slit
+                flux_slit, err_slit = get_flux_slit(spec2DObj, i, pad=args.pad)
+                # flux in the wavelength range
+                flux_select = flux_slit * input_mask
+                # Error in the wavelength range
+                err_select = err_slit * input_mask
 
                 # get edges of the slit to plot
                 left, right, _ = spec2DObj.slits.select_edges()

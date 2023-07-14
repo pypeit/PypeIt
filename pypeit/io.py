@@ -8,6 +8,8 @@ Provides a set of I/O routines.
 
 """
 import os
+from pathlib import Path
+import glob
 import sys
 import warnings
 import gzip
@@ -18,13 +20,12 @@ from IPython import embed
 
 import numpy
 
-from configobj import ConfigObj
-
 from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import par
+#from pypeit import inputfiles
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -33,7 +34,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
 
 # TODO -- Move this module to core/
 
@@ -82,7 +82,7 @@ def rec_to_fits_type(col_element, single_row=False):
     """
     _col_element = col_element if single_row else col_element[0]
     n = 1 if len(_col_element.shape) == 0 else _col_element.size
-    if col_element.dtype.type in [bool, numpy.bool, numpy.bool_]:
+    if col_element.dtype.type in [bool, numpy.bool_]:
         return '{0}L'.format(n)
     if col_element.dtype.type == numpy.uint8:
         return '{0}B'.format(n)
@@ -202,6 +202,37 @@ def compress_file(ifile, overwrite=False, rm_original=True):
         os.remove(ifile)
 
 
+def remove_suffix(file):
+    """
+    Remove the suffix of a file name.
+
+    For normal filenames, this simply returns the file string without its last
+    suffix.  For gzipped files, this removes both the '.gz' suffix, and the one
+    preceding it.
+
+    Args:
+        file (:obj:`str`):
+            File name or full path to use
+
+    Returns:
+        :obj:`str`: The file without its suffix or its input path, if provided.
+
+    Examples:
+
+        >>> remove_suffix('unzipped_file.txt')
+        'unzipped_file'
+        >>> remove_suffix('/path/to/unzipped_file.fits')
+        'unzipped_file'
+        >>> remove_suffix('dot.separated.file.name.txt')
+        'dot.separated.file.name'
+        >>> remove_suffix('gzipped_file.fits.gz')
+        'gzipped_file'
+
+    """
+    _file = Path(file)
+    return (_file.with_suffix('')).stem if _file.suffix == '.gz' else _file.stem
+
+
 def parse_hdr_key_group(hdr, prefix='F'):
     """
     Parse a group of fits header values grouped by a keyword prefix.
@@ -249,32 +280,29 @@ def parse_hdr_key_group(hdr, prefix='F'):
         return []
 
 
-def initialize_header(hdr=None, primary=False):
+def initialize_header(hdr=None):
     """
-    Initialize a FITS header.
+    Initialize FITS header for all PypeIt output fits images.
 
     Args:
         hdr (`astropy.io.fits.Header`, optional):
-            Header object to update with basic summary
-            information. The object is modified in-place and also
-            returned. If None, an empty header is instantiated,
-            edited, and returned.
-        primary (bool, optional):
-            If true and hdr is None, generate a Primary header
+            Header object to update with basic summary information. The object
+            is modified in-place and also returned. If None, an empty header is
+            instantiated, edited, and returned.
 
     Returns:
         `astropy.io.fits.Header`: The initialized (or edited)
         fits header.
     """
-    # Add versioning; this hits the highlights but should it add
-    # the versions of all packages included in the requirements.txt
-    # file?
     if hdr is None:
-        if primary:
-            hdr = fits.PrimaryHDU().header
-        else:
-            hdr = fits.Header()
-    hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+        # NOTE: It's not necessary to distinguish between a generic header and
+        # PrimaryHDU header here.  Astropy takes care of the difference when it
+        # constructs the PrimaryHDU in the HDUList.
+        hdr = fits.Header()
+
+    # Add versioning
+    # TODO: Include additional packages?
+    hdr['VERSPYT'] = ('.'.join([str(v) for v in sys.version_info[:3]]), 'Python version')
     hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
     hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
@@ -283,8 +311,6 @@ def initialize_header(hdr=None, primary=False):
 
     # Save the date of the reduction
     hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
-
-    # TODO: Anything else?
 
     # Return
     return hdr
@@ -295,6 +321,7 @@ def header_version_check(hdr, warning_only=True):
     Check the package versions in the header match the system versions.
 
     .. note::
+
         The header must contain the keywords written by
         :func:`initialize_header`.
 
@@ -526,100 +553,6 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
-def read_spec2d_file(ifile, filetype='coadd2d'):
-    """
-    Read a PypeIt file of type "filetype", akin to a standard PypeIt file.
-
-    .. todo::
-
-        - Need a better description of this.  Probably for the PypeIt
-          file itself, too!
-
-    The top is a config block that sets ParSet parameters.  The
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-          Name of the config file
-        filetype (:obj:`str`):
-          Type of config file being read (e.g. coadd2d, coadd3d).
-          This is only used for printing messages.
-
-    Returns:
-        tuple: Returns three objects: (1) The name of the spectrograph as
-        a string, (2) the list of configuration lines used to modify the
-        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
-        (3) the list of spec2d files to combine.
-    """
-
-    # Read in the pypeit reduction file
-    msgs.info('Loading the {0:s} file'.format(filetype))
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = numpy.ones(len(lines), dtype=bool)
-
-    # Parse the spec2d block
-    spec2d_files = []
-    s, e = par.util._find_pypeit_block(lines, 'spec2d')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
-    for line in lines[s:e]:
-        prs = line.split(' ')
-        # TODO: This needs to allow for the science directory to be
-        # defined by the user.
-        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
-        spec2d_files.append(prs[0])
-    is_config[s-1:e+1] = False
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-
-    # Return
-    return spectrograph_name, cfg_lines, spec2d_files
-
-
-def read_tellfile(ifile):
-    """
-    Read a PypeIt telluric file, akin to a standard PypeIt file
-
-    The top is a config block that sets ParSet parameters.  The spectrograph is
-    not required.
-
-    Parameters
-    ----------
-    ifile: str
-        Name of the telluric file
-
-    Returns
-    -------
-    cfg_lines: list
-        Config lines to modify ParSet values
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the telluric file')
-    return list(par.util._read_pypeit_file_lines(ifile))
-
-
-# TODO: This is identical to the tellfile function
-def read_sensfile(ifile):
-    """
-    Read a PypeIt sens file.
-
-    The format of the file is a configuration (ini) file that can be parsed by
-    `configobj`_.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the flux file
-
-    Returns:
-        :obj:`list`: The list of configuration lines read from the file.
-    """
-    # TODO: If there are only ever going to be configuration style lines in the
-    # input file, we should probably be reading it using ConfigObj.
-    msgs.info('Loading the fluxcalib file')
-    return list(par.util._read_pypeit_file_lines(ifile))
-
 
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
@@ -701,13 +634,14 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
         ofile (:obj:`str`):
             File name (path) for the fits file.
         name (:obj:`str`, optional):
-            Name for the extension with the data. If None, the
-            extension is not given a name. However, if the input
-            object is a dictionary, see :func:`dict_to_hdu` for how
-            the name will overwrite any dictionary keyword associated
-            with the data to write.
+            Name for the extension with the data. If None, the extension is not
+            given a name. However, if the input object is a dictionary, see
+            :func:`dict_to_hdu` for how the name will overwrite any dictionary
+            keyword associated with the data to write.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         hdr (`astropy.io.fits.Header`_, optional):
-            Base-level header to use for *all* HDUs.
+            Base-level header to use for *all* HDUs.  Ignored if ``d`` is an
+            `astropy.io.fits.HDUList`_.
         overwrite (:obj:`bool`, optional):
             Overwrite any existing file.
         checksum (:obj:`bool`, optional):
@@ -832,22 +766,34 @@ def fits_open(filename, **kwargs):
     bytes.
 
     Args:
-        filename (:obj:`str`):
+        filename (:obj:`str`, `Path`_):
             File name for the fits file to open.
         **kwargs:
             Passed directly to `astropy.io.fits.open`_.
 
     Returns:
-        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
+        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file.
+
+    Raises:
+        PypeItError: Raised if the file does not exist.
     """
-    if not os.path.isfile(filename):
+    # TODO: Need to allow for filename to be an _io.FileIO object for use with
+    # specutils loaders.  This simple hack first checks that the filename is a
+    # string before checking that it exists.  There should be a more robust way
+    # to do this!  Is there are more appropriate os.path function that allows
+    # for this different type of object?
+    if isinstance(filename, (str, Path)) and not Path(filename).resolve().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn('Error opening {0}: {1}'.format(filename, str(e))
-                   + '\nTrying again, assuming the error was a header problem.')
-        return fits.open(filename, ignore_missing_end=True, **kwargs)
+        msgs.warn(f'Error opening {filename} ({e}).  Trying again by setting '
+                  'ignore_missing_end=True, assuming the error was a header problem.')
+        try:
+            return fits.open(filename, ignore_missing_end=True, **kwargs)
+        except OSError as e:
+            msgs.error(f'That failed, too!  Astropy is unable to open {filename} and reports the '
+                       f'following error: {e}')
 
 
 def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):
@@ -900,4 +846,37 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
     os.symlink(olink_src, olink_dest)
 
 
+def files_from_extension(raw_path,
+                         extension:str='fits'):
+    """
+    Grab the list of files with a given extension 
 
+    Args:
+        raw_path (str or list):
+            Path(s) to raw files, which may or may not include the prefix of the
+            files to search for.  
+
+            For a string input, for example, this can be the directory
+            ``'/path/to/files/'`` or the directory plus the file prefix
+            ``'/path/to/files/prefix'``, which yeilds the search strings
+            ``'/path/to/files/*fits'`` or ``'/path/to/files/prefix*fits'``,
+            respectively.
+
+            For a list input, this can use wildcards for multiple directories.
+
+        extension (str, optional):
+            File extension to search on.
+
+    Returns:
+        list: List of raw data filenames (sorted) with full path
+    """
+    if isinstance(raw_path, str):
+        # Grab the list of files
+        dfname = os.path.join(raw_path, f'*{extension}*') \
+                    if os.path.isdir(raw_path) else f'{raw_path}*{extension}*'
+        return sorted(glob.glob(dfname))
+    
+    if isinstance(raw_path, list):
+        return numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path]).tolist()
+
+    msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")

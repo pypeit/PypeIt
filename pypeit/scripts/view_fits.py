@@ -8,6 +8,7 @@ This script enables the viewing of a raw FITS file
 from IPython import embed
 
 from pypeit.scripts import scriptbase
+from pypeit import utils
 
 
 class ViewFits(scriptbase.ScriptBase):
@@ -26,15 +27,23 @@ class ViewFits(scriptbase.ScriptBase):
                             help='Process the image (i.e. orient, overscan subtract, multiply by '
                                  'gain) using pypeit.images.buildimage. Note det=mosaic will not '
                                  'work with this option')
+        parser.add_argument('--bkg_file', type=str, default=None, help='FITS file to be subtracted from the image in file.'
+                            '--proc must be set in order for this option to work.')
+
         parser.add_argument('--exten', type=int, default=None,
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
         parser.add_argument('--det', type=str, default='1', nargs='*',
-                            help='Detector(s) to show.  If more than one, the list of detectors '
-                                 'must be one of the allowed mosaics hard-coded for the selected '
+                            help='Detector(s) to show.  If more than one, the list of detectors, i.e. --det 4 8 '
+                                 'to show detectors 4 and 8. This combination must be one of the allowed '
+                                 'mosaics hard-coded for the selected '
                                  'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
                                  'keck_lris will show the mosaic of all detectors.')
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
+        parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
+                            action='store_true')
+        parser.add_argument('--embed', default=False, action='store_true',
+                            help='Upon completion embed in ipython shell')
         return parser
 
     @staticmethod
@@ -95,11 +104,25 @@ class ViewFits(scriptbase.ScriptBase):
                 # perform bias subtraction or flat-fielding)
                 par = spectrograph.default_pypeit_par()['calibrations']['biasframe']
                 try:
-                    img = buildimage.buildimage_fromlist(spectrograph, _det, par,
-                                                         [args.file], mosaic=mosaic).image
+                    Img = buildimage.buildimage_fromlist(spectrograph, _det, par,
+                                                         [args.file], mosaic=mosaic)
                 except Exception as e:
                     msgs.error(bad_read_message 
                                + f'  Original exception -- {type(e).__name__}: {str(e)}')
+
+                if args.bkg_file is not None:
+                    try:
+                        bkgImg = buildimage.buildimage_fromlist(spectrograph, _det, par,
+                                                                [args.bkg_file], mosaic=mosaic)
+                    except Exception as e:
+                        msgs.error(bad_read_message
+                                   + f'  Original exception -- {type(e).__name__}: {str(e)}')
+
+
+                    Img = Img.sub(bkgImg)
+
+                img = Img.image
+
             else:
                 try:
                     img = spectrograph.get_rawimage(args.file, _det)[1]
@@ -110,4 +133,12 @@ class ViewFits(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
         display.show_image(img, chname=args.chname)
 
+        if args.showmask:
+            if not args.proc:
+                msgs.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
+            else:
+                viewer, ch_mask = display.show_image(Img.bpm, chname="BPM")
+
+        if args.embed:
+            embed(header=utils.embed_header())
 

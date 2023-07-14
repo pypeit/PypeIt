@@ -34,8 +34,10 @@ def test_str2list():
     """
     Test the conversion of the string to a list of integers
     """
-    assert np.array_equal(parse.str2list('all', 10), [0,1,2,3,4,5,6,7,8,9])
-    assert np.array_equal(parse.str2list(':4', 10), [0,1,2,3])
-    assert np.array_equal(parse.str2list('3:5,8:', 10), [3,4,8,9])
-    assert np.array_equal(parse.str2list('3,1:5,6', 10), [1,2,3,4,6])
+    assert np.array_equal(parse.str2list('all', length=10), [0,1,2,3,4,5,6,7,8,9])
+    assert np.array_equal(parse.str2list(':4', length=10), [0,1,2,3])
+    assert np.array_equal(parse.str2list('3:5,8:', length=10), [3,4,8,9])
+    assert np.array_equal(parse.str2list('3,1:5,6', length=10), [1,2,3,4,6])
+    assert np.array_equal(parse.str2list('3,1:5,8:', length=10), [1,2,3,4,8,9])
+
     

@@ -1,3 +1,11 @@
+"""
+Convenience functions for plotting.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
+"""
+
 import numpy as np
 
 #from matplotlib import pyplot as plt
@@ -13,13 +21,36 @@ KREJ = 2.5
 MAX_ITERATIONS = 5
 
 
-def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, zmask=None):
+def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, 
+           zmask=None):
     """
     Implement IRAF zscale algorithm
     nsamples=1000 and contrast=0.25 are the IRAF display task defaults
     bpmask and zmask not implemented yet
     image is a 2-d np array
     returns (z1, z2)
+
+    Parameters
+    ----------
+    image : `numpy.ndarray`_
+        Image to scale
+    nsamples : int, optional
+        Number of samples to use in the calculation.
+        Passed to zsc_sample.
+    contrast : float, optional
+        Desired contrast.
+    bpmask : `numpy.ndarray`_, optional
+        Pixel mask for bad pixels. Not implemented yet.
+    zmask : `numpy.ndarray`_, optional
+        Not implemented yet.
+
+    Returns
+    -------
+    z1 : float
+        zscale parameter
+    z2 : float
+        zscale parameter
+    
     """
 
     # Sample the image
@@ -52,10 +83,24 @@ def zscale(image, nsamples=1000, contrast=0.25, bpmask=None, zmask=None):
 
 
 def zsc_sample(image, maxpix, bpmask=None, zmask=None):
-    # Figure out which pixels to use for the zscale algorithm
-    # Returns the 1-d array samples
-    # Don't worry about the bad pixel mask or zmask for the moment
-    # Sample in a square grid, and return the first maxpix in the sample
+    """
+    Figure out which pixels to use for the zscale algorithm
+    Returns the 1-d array samples
+
+    Don't worry about the bad pixel mask or zmask for the moment
+    Sample in a square grid, and return the first maxpix in the sample
+
+    Parameters
+    ----------
+    image : `numpy.ndarray`_
+        Image to scale
+
+    Returns
+    -------
+    samples : `numpy.ndarray`_
+        1-d array of samples
+
+    """
     nc = image.shape[0]
     nl = image.shape[1]
     stride = np.max([1.0, np.sqrt((nc - 1) * (nl - 1) / float(maxpix))])
@@ -65,6 +110,31 @@ def zsc_sample(image, maxpix, bpmask=None, zmask=None):
 
 
 def zsc_fit_line(samples, npix, krej, ngrow, maxiter):
+    """zscale fit line
+
+    Parameters
+    ----------
+    samples : `numpy.ndarray`_
+        1-d array of samples to analyze
+    npix : int
+        Number of pixels in the samples array
+    krej : float
+        Rejection factor
+    ngrow : int
+        Number of pixels to grow around the rejected pixels
+    maxiter : int
+        Maximum number of iterations to perform
+    
+    Returns
+    -------
+    ngoodpix : int
+        Number of good pixels
+    zstart : float
+        zscale parameter
+    zslope : float
+        zscale parameter
+
+    """
     # First re-map indices from -1.0 to 1.0
     xscale = 2.0 / (npix - 1)
     xnorm = np.arange(npix)
@@ -133,6 +203,22 @@ def zsc_compute_sigma(flat, badpix):
     """
     Compute the rms deviation from the mean of a flattened array.
     Ignore rejected pixels
+
+    Parameters
+    ----------
+    flat : `numpy.ndarray`_
+        Image to compute sigma from
+    badpix : `numpy.ndarray`_
+        bad pixel mask; 1=bad, 0=good
+
+    Returns
+    -------
+    ngoodpixels : int
+        Number of good pixels
+    mean : float
+        Mean of the good pixels
+    sigma : float
+        RMS of the good pixels
     """
 
     # Accumulate sum and sum of squares
