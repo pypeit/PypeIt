@@ -1236,13 +1236,15 @@ class Coadd2DPar(ParSet):
 
         defaults['only_slits'] = None
         dtypes['only_slits'] = [int, list]
-        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to. ' \
-                              'I.e., only this/these slit/s will be coadded.'
+        descr['only_slits'] = 'Restrict coaddition to one or more of slits. Example syntax -- ' \
+                              'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` ' \
+                              'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['exclude_slits'] = None
         dtypes['exclude_slits'] = [int, list]
-        descr['exclude_slits'] = 'Slit ID, or list of slit IDs that the user want exclude from the coaddition. ' \
-                                 'I.e., all slits except this/these slit/s will be coadded.'
+        descr['exclude_slits'] = 'Exclude one or more slits from the coaddition. Example syntax -- ' \
+                                 'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` ' \
+                                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['offsets'] = 'auto'
         dtypes['offsets'] = [str, list]

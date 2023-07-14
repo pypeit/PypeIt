@@ -266,13 +266,17 @@ class CoAdd2D:
         cfg = dict(rdx=dict(spectrograph=spectrograph))
         if inp_cfg is not None:
             cfg = utils.recursive_update(cfg, dict(inp_cfg))
+        if only_slits is not None and det is not None:
+            msgs.warn('only_slits and det are mutually exclusive. Ignoring det.')
+            det = None
+
         if det is not None:
             cfg['rdx']['detnum'] = det
 
         if only_slits is not None and exclude_slits is not None:
-            msgs.warn('only_slits and exclude_slits are mutually exclusive. '
-                      'If both are set, only_slits takes precedence.')
+            msgs.warn('only_slits and exclude_slits are mutually exclusive. Ignoring exclude_slits.')
             exclude_slits = None
+
         if only_slits is not None:
             utils.add_sub_dict(cfg, 'coadd2d')
             cfg['coadd2d']['only_slits'] = only_slits
@@ -373,9 +377,13 @@ class CoAdd2D:
 
         Args:
             only_slits (:obj:`list`, optional):
-                List of slits to combine. It must be `slitord_id`
+                List of slits to combine. It must be `slitord_id`.
+                Only_slits and exclude_slits are mutually exclusive.
+                If both are provided, only_slits takes precedence.
             exclude_slits (:obj:`list`, optional):
-                List of slits to exclude. It must be `slitord_id`
+                List of slits to exclude. It must be `slitord_id`.
+                Only_slits and exclude_slits are mutually exclusive.
+                If both are provided, only_slits takes precedence.
 
         Returns:
             `numpy.ndarray`_: array of index of good slits in the un-coadded frames

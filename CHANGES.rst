@@ -13,6 +13,14 @@
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
+- Fix a bug in ``spectrograph.select_detectors``, where a list of ``slitspatnum`` could not be used.
+- Improvements in 2D coaddition
+    - Fix a bug in `pypeit_setup_coadd2d` for the output file name of the .coadd2d file
+    - Added possibility to specify more than one Science folder in `pypeit_setup_coadd2d`
+    - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
+    - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
+    - Fix wrong RA & Dec for 2D coadded serendips
+
 
 1.13.0 (2 June 2023)
 --------------------
