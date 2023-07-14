@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 
 from IPython import embed
 
-from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
 from pypeit.core import fitting
 from pypeit.core import procimg
@@ -136,7 +135,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
-    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
+    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) & np.isfinite(image) & np.isfinite(ivar)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > max_mask_frac:
         msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of {:f}%. '.format(100.0*bad_pixel_frac, 100.0*max_mask_frac)
@@ -395,6 +394,8 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
     Parameters
     ----------
+    bkpts_optimal: bool:
+        If True, then the breakpoints are optimally spaced. If False, then the breakpoints are spaced uniformly.
     bsp_min: float
         Desired B-spline breakpoint spacing in pixels
     piximg: `numpy.ndarray`_
@@ -796,6 +797,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         min_spat_img = min_spat1[:, None]
         max_spat_img = max_spat1[:, None]
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
+        if np.sum(localmask) == 0:
+            msgs.error('There are no pixels on the localmask for group={}. '
+                       'Something is very wrong with either your slit edges or your object traces'.format(group))
         npoly = skysub_npoly(localmask)
 
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
@@ -1026,7 +1030,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              global_sky, left, right,
-                             slitmask, sobjs, order_vec, spat_pix=None,
+                             slitmask, sobjs, spat_pix=None,
                              fit_fwhm=False,
                              min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
                              niter=4, sigrej=3.5, bkpts_optimal=True,
@@ -1035,9 +1039,19 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
                              count_scale=None):
     """
-    Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
+    Perform local sky subtraction, profile fitting, and optimal extraction slit by slit. Objects
+    are sky/subtracted extracted in order of the highest average (across all orders) S/N ratio object first, and then
+    for a given object the highest S/N ratio orders are extracted first. The profile fitting FWHM are stored and
+    progressively fit as the objects are extracted to properly ensure that low S/N orders use Gaussian extracted
+    FWHMs from higher-S/N orders (i.e. in the regime where the data is too noisy for a non-parametric object
+    profile fit. The FWHM of higher S/N ratio objects are used for lower S/N ratio objects
+    (note this assumes point sources with FWHM set by the seeing).
 
-    IMPROVE THIS DOCSTRING
+    Note on masking:  This routine requires that all masking be performed in the upstream calling routine
+    (:func:`pypeit.extraction`) and thus the left and right slit edge arrays must only contain these slits. Similarly,
+    the sobjs object must only include the unmasked (good) objects that are to be extracted. The
+    number of sobjs objects must equal to an integer multiple of the number of good slits/orders.
+    The routine will fault if any of these criteria are not met.
 
     Parameters
     ----------
@@ -1058,10 +1072,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Global sky model produced by global_skysub
     left : `numpy.ndarray`_
         Spatial-pixel coordinates for the left edges of each
-        order.
+        order. Shape = (nspec, norders)
     right : `numpy.ndarray`_
         Spatial-pixel coordinates for the right edges of each
-        order.
+        order. Shape = (nspec, norders)
     slitmask : `numpy.ndarray`_
         Image identifying the 0-indexed order associated with
         each pixel. Pixels with -1 are not associatead with any
@@ -1069,8 +1083,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     sobjs : :class:`~pypeit.specobjs.SpecoObjs` object
         Object containing the information about the objects found on the
         slit/order from objfind or ech_objfind
-    order_vec: `numpy.ndarray`_
-        Vector of order numbers
     spat_pix: `numpy.ndarray`_, optional
         Image containing the spatial location of pixels. If not
         input, it will be computed from ``spat_img =
@@ -1078,7 +1090,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         should generally not be used unless one is extracting 2d
         coadds for which a rectified image contains sub-pixel
         spatial information.
-        shape (nspec, nspat)
+        shape=(nspec, nspat)
     fit_fwhm: bool, optional
         if True, perform a fit to the FWHM of the object profiles
         to use for non-detected sources
@@ -1213,35 +1225,52 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     ivarmodel = np.copy(sciivar)
     sobjs = sobjs.copy()
 
-    norders = order_vec.size
-    slit_vec = np.arange(norders)
+    # Identify the unique SLITIDs and orders in the sobjs object
+    slitids = np.unique(sobjs.SLITID) # This will also sort the slitids
+    norders = (np.unique(sobjs.ECH_ORDER)).size
 
     # Find the spat IDs
-    gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
-    #if gdslit_spat.size != norders:
-    #    msgs.error("You have not dealt with masked orders properly")
+    if norders != len(slitids):
+        msgs.error('The number of orders in the sobjs object does not match the number of good slits in the '
+                   'slitmask image! There is a problem with the object/slitmask masking. This routine '
+                   'requires that all masking is performed in the calling routine.')
 
-    #if (np.sum(sobjs.sign > 0) % norders) == 0:
-    #    nobjs = int((np.sum(sobjs.sign > 0)/norders))
-    #else:
-    #    msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+    # Check that the slit edges are masked consistent with the number of orders and the number of unique spatids
+    nleft = left.shape[1]
+    nrigh = right.shape[1]
+    if nleft != nrigh or norders != nleft or norders != nrigh:
+        msgs.error('The number of left and right edges must be the same as the number of orders. '
+                   'There is likely a problem with your masking')
 
-    # Set bad obj to -nan
+    # Now assign the order_sn, and generate an order_vec aligned with the slitids
     uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
     nobjs = len(uni_objid)
-    order_snr = np.zeros((norders, nobjs))
-    order_snr_gpm = np.ones_like(order_snr) 
-    for iord in range(norders):
+    order_snr = np.full((norders, nobjs), np.nan)
+    order_vec = np.zeros(norders, dtype=int)
+    for islit, slitid in enumerate(slitids):
         for iobj in range(nobjs):
-            ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-            # Allow for missed/bad order
+            ind = (sobjs.SLITID == slitid) & (sobjs.ECH_OBJID == uni_objid[iobj])
+            # Check for a missed order and fault if they exist
             if np.sum(ind) == 0:
-                order_snr_gpm[iord,iobj] = False
-            else:
-                order_snr[iord,iobj] = sobjs[ind].ech_snr
+                msgs.error('There is a missing order for object {0:d} on slit {1:d}!'.format(iobj, slitid))
+            if iobj == 0:
+                order_vec[islit] = sobjs[ind].ECH_ORDER
+            order_snr[islit,iobj] = sobjs[ind].ech_snr
+
+    # Enforce that the number of objects in the sobjs object is an integer multiple of the number of good orders
+    if (np.sum(sobjs.sign > 0) % norders) == 0:
+        nobjs = int((np.sum(sobjs.sign > 0)/norders))
+    else:
+        msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or orders!')
+    # Enforce that every object in sobj has an specobj on every good order
+    if np.any(np.isnan(order_snr)):
+        msgs.error('There are missing orders for one or more objects in sobjs. There is a problem with how you have '
+                   'masked objects in sobjs or slits in slitmask in the calling routine')
+
+
 
     # Compute the average SNR and find the brightest object
-    snr_bar = np.sum(order_snr,axis=0) / np.sum(order_snr_gpm,axis=0)
+    snr_bar = np.mean(order_snr,axis=0)
     srt_obj = snr_bar.argsort()[::-1]
     ibright = srt_obj[0] # index of the brightest object
 
@@ -1253,8 +1282,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     # Print out a status message
     str_out = ''
     for iord in srt_order_snr:
-        if order_snr_gpm[iord,ibright]:
-            str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slitids[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
     dash = '-'*27
     dash_big = '-'*40
     msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
@@ -1262,9 +1290,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
               msgs.newline() + str_out)
     # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
     for iord in srt_order_snr:
-        # Is this a bad slit?
-        if not np.any(order_snr_gpm[iord,:]):
-            continue
         order = order_vec[iord]
         msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
         other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
@@ -1295,13 +1320,13 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         fwhm_this_ord = np.median(fwhm_here[other_orders])
                         fwhm_all = np.full(norders,fwhm_this_ord)
                         fwhm_str = 'median '
-                    indx = (sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.ECH_ORDERINDX == iord)
+                    indx = (sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.SLITID == slitids[iord])
                     for spec in sobjs[indx]:
                         spec.FWHM = fwhm_this_ord
 
                     str_out = ''
                     for slit_now, order_now, snr_now, fwhm_now in zip(
-                        slit_vec[other_orders], order_vec[other_orders],
+                        slitids[other_orders], order_vec[other_orders],
                         order_snr[other_orders,ibright], 
                         fwhm_here[other_orders]):
                         str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
@@ -1328,18 +1353,18 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                         plt.show()
                 else:
                     # If this is not the brightest object then assign it the FWHM of the brightest object
-                    indx     = np.where((sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.ECH_ORDERINDX == iord))[0][0]
-                    indx_bri = np.where((sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord))[0][0]
+                    indx     = np.where((sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.SLITID == slitids[iord]))[0][0]
+                    indx_bri = np.where((sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.SLITID == slitids[iord]))[0][0]
                     spec = sobjs[indx]
                     spec.FWHM = sobjs[indx_bri].FWHM
 
-        thisobj = (sobjs.ECH_ORDERINDX == iord) # indices of objects for this slit
-        thismask = slitmask == gdslit_spat[iord] # pixels for this slit
+        thisobj = (sobjs.SLITID == slitids[iord]) # indices of objects for this slit
+        thismask = slitmask == slitids[iord] # pixels for this slit
         # True  = Good, False = Bad for inmask
         inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
-                = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
+            = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
@@ -1349,9 +1374,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
                                        show_resids=show_resids, show_profile=show_profile,
                                        adderr=adderr, base_var=base_var, count_scale=count_scale)
-
         # update the FWHM fitting vector for the brighest object
-        indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord)
+        indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.SLITID == slitids[iord])
         fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)
         # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
         # for future fits

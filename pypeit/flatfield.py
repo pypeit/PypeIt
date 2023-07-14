@@ -16,6 +16,7 @@ from matplotlib import gridspec
 from IPython import embed
 
 from pypeit import msgs
+from pypeit.pypmsgs import PypeItError
 from pypeit import utils
 from pypeit import bspline
 

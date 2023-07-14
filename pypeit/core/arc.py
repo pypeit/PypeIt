@@ -419,8 +419,8 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
-def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
-                slit_bpm=None, slitIDs=None):
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, 
+                nonlinear_counts=1e10, slit_bpm=None, slitIDs=None):
     """
     Extract a boxcar spectrum with radius `box_rad` (pixels) from the input image using the 
     input trace.  By default, outliers within the box are clipped

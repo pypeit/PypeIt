@@ -111,6 +111,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+
+        # Coadding. Not for longslit data this might be problematic but that is not yet supported.
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

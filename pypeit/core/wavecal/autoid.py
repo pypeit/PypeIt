@@ -40,7 +40,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
+def arc_fit_qa(waveFit, 
+               outfile=None, ids_only=False, title=None,
                log=True):
     """
     QA for Arc spectrum
@@ -51,10 +52,9 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):
+            Add a title to the spectrum plot
         log (:obj:`bool`, optional):
             If True, use log scaling for the spectrum
-
-    Returns:
 
     """
     plt.rcdefaults()
@@ -140,7 +140,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+        ax_spec.text(0.04, 0.93, title, 
+                     transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
@@ -456,6 +457,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
+    # TODO -- Break up this morass into multiple methods
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -1025,8 +1027,11 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Finish
     return wvcalib
 
-def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
-                    debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False, nonlinear_counts=1e10):
+def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, 
+                    ok_mask=None, use_unknowns=True, debug_all=False,
+                    debug_peaks=False, debug_xcorr=False, debug_reid=False, 
+                    debug_fits=False, nonlinear_counts=1e10,
+                    redo_slit:int=None):
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
@@ -1076,6 +1081,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
+    redo_slit: int, optional
+        If provided, only perform the wavelength calibration for the
+        given slit. 
 
     Returns
     -------
@@ -1128,6 +1136,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
+        if redo_slit is not None and orders[iord] != redo_slit:
+            continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
             wv_calib[str(iord)] = None
@@ -1181,12 +1191,17 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
             arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)))
 
     # Print the final report of all lines
-    report_final(norders, all_patt_dict, detections, wv_calib, ok_mask, bad_orders)
+    report_final(norders, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_orders,
+                 redo_slit=redo_slit, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
-def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits):
+def report_final(nslits, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_slits, 
+                 redo_slit:int=None,
+                 orders:np.ndarray=None):
     """
     Print out the final report for wavelength calibration
 
@@ -1207,8 +1222,13 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
         badmsg = '---------------------------------------------------' + msgs.newline() + \
-                 'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline() + \
-                 '  Wavelength calibration not performed!'
+            'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline()
+        if orders is not None:
+            badmsg += f'    Order: {orders[slit]}' + msgs.newline()
+        badmsg +=  '  Wavelength calibration not performed!'
+        # Redo?
+        if redo_slit is not None and orders[slit] != redo_slit:
+            continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
             msgs.warn(badmsg)
             continue
@@ -1223,8 +1243,7 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
         # Report
         cen_wave = wv_calib[st]['cen_wave']
         cen_disp = wv_calib[st]['cen_disp']
-        msgs.info(msgs.newline() +
-                  '---------------------------------------------------' + msgs.newline() +
+        sreport = str('---------------------------------------------------' + msgs.newline() +
                   'Final report for slit {0:d}/{1:d}:'.format(slit, nslits - 1) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines detected      = {:d}'.format(detections[st].size) + msgs.newline() +
@@ -1232,8 +1251,11 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
                       len(wv_calib[st]['pixel_fit'])) + msgs.newline() +
                   '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
-                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
+                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() + 
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
+        if orders is not None:
+            sreport + msgs.newline()+ f'  Echelle order                 = {orders[slit]}'
+        msgs.info(msgs.newline() + sreport)
 
 
 class ArchiveReid:

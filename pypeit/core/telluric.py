@@ -25,7 +25,7 @@ from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import onespec
-from pypeit import datamodel
+
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import datamodel
@@ -33,6 +33,7 @@ from pypeit import datamodel
 ##############################
 #  Telluric model functions  #
 ##############################
+ZP_UNIT_CONST = flux_calib.zp_unit_const()
 
 
 # TODO These codes should probably be in a separate qso_pca module. Also pickle functionality needs to be removed.
@@ -201,7 +202,7 @@ def conv_telluric(tell_model, dloglam, res):
             general  different from the size of the telluric grid (read in by read_telluric_grid above) because it is
             trimmed to relevant wavelenghts using ind_lower, ind_upper. See eval_telluric below.
         dloglam (float):
-            Wavelength spacing of the telluric grid expressed as a a dlog10(lambda), i.e. stored in the
+            Wavelength spacing of the telluric grid expressed as a dlog10(lambda), i.e. stored in the
             tell_dict as tell_dict['dloglam']
         res (float):
             Desired resolution expressed as lambda/dlambda. Note that here dlambda is linear, whereas dloglam is
@@ -213,15 +214,22 @@ def conv_telluric(tell_model, dloglam, res):
 
     """
 
+
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
-    #conv_model = scipy.ndimage.gaussian_filter1d(tell_model, pix)
-    # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
-    x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
-    # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
-    g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*(x)**2)*sig2pix
-    conv_model = scipy.signal.convolve(tell_model,g,mode='same')
-    return conv_model
+    if sig2pix > 2.0:
+        msgs.warn('The telluric model grid is not sampled finely enough to properly convolve to the desired resolution. '
+                  'Skipping resolution convolution for now. Create a higher resolution telluric model grid')
+        return tell_model
+    else:
+        # x = loglam/sigma on the wavelength grid from -4 to 4, symmetric, centered about zero.
+        x = np.hstack([-1*np.flip(np.arange(sig2pix,4,sig2pix)),np.arange(0,4,sig2pix)])
+        # g = Gaussian evaluated at x, sig2pix multiplied in to properly normalize the convolution
+        #g = (1.0/(np.sqrt(2*np.pi)))*np.exp(-0.5*np.square(x))*sig2pix
+        g=np.exp(-0.5*np.square(x))
+        g /= g.sum()
+        conv_model = scipy.signal.convolve(tell_model,g,mode='same')
+        return conv_model
 
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
@@ -712,6 +720,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
         telluric model fit.
     """
 
+
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
@@ -726,14 +735,20 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
             = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true,
                                            tellmodel=tellmodel)
 
+    zeropoint_poly = zeropoint_data + 5.0*np.log10(wave) - ZP_UNIT_CONST
+    if obj_params['log10_blaze_func_per_ang'] is not None:
+        zeropoint_poly -= 2.5*obj_params['log10_blaze_func_per_ang']
     # Perform an initial fit to the sensitivity function to set the starting
     # point for optimization
-    pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord],
-                                   function=obj_params['func'], minx=wave.min(), maxx=wave.max(),
+    wave_min, wave_max = wave.min(), wave.max()
+    pypeitFit = fitting.robust_fit(wave, zeropoint_poly, obj_params['polyorder_vec'][iord],
+                                   function=obj_params['func'], minx=wave_min, maxx=wave_max,
                                    in_gpm=zeropoint_data_gpm, lower=obj_params['sigrej'],
                                    upper=obj_params['sigrej'], use_mad=True)
-    zeropoint_fit = pypeitFit.eval(wave)
+    zeropoint_fit = flux_calib.eval_zeropoint(pypeitFit.fitc, obj_params['func'], wave, wave_min, wave_max,
+                                              log10_blaze_func_per_ang=obj_params['log10_blaze_func_per_ang'])
     zeropoint_fit_gpm = pypeitFit.bool_gpm
+
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0],
@@ -743,15 +758,19 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
 
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
+                    log10_blaze_func_per_ang=obj_params['log10_blaze_func_per_ang'],
                     exptime=obj_params['exptime'], flam_true=flam_true,
                     flam_true_gpm=flam_true_gpm, func=obj_params['func'],
                     polyorder=obj_params['polyorder_vec'][iord], bounds_obj=bounds_obj,
                     init_obj_opt_theta = pypeitFit.fitc)
 
+
     if obj_params['debug']:
         title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord + 1)  # +1 to account 0-index starting
         flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit,
-                                    zeropoint_fit_gpm, title=title, show=True)  
+                                    zeropoint_fit_gpm, title=title, show=True)
+
+
     return obj_dict, bounds_obj
 
 
@@ -784,10 +803,11 @@ def eval_sensfunc_model(theta, obj_dict):
     gpm : `numpy.ndarray`_, bool, shape is the same as obj_dict['wave_star']
         Good pixel mask indicating where the model is valid
     """
-    zeropoint = fitting.evaluate_fit(theta, obj_dict['func'], obj_dict['wave'],
-                                     minx=obj_dict['wave_min'], maxx=obj_dict['wave_max'])
+    zeropoint = flux_calib.eval_zeropoint(theta, obj_dict['func'], obj_dict['wave'],
+                                          obj_dict['wave_min'], obj_dict['wave_max'],
+                                          log10_blaze_func_per_ang=obj_dict['log10_blaze_func_per_ang'])
     counts_per_angstrom_model = obj_dict['exptime'] \
-                                    * flux_calib.Flam_to_Nlam(obj_dict['wave'],zeropoint) \
+                                    * flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint) \
                                     * obj_dict['flam_true'] * obj_dict['flam_true_gpm']
     return counts_per_angstrom_model,  obj_dict['flam_true_gpm']
 
@@ -1134,7 +1154,7 @@ def eval_poly_model(theta, obj_dict):
 
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
-                      telgridfile, ech_orders=None, polyorder=8, ntell=6, mask_hydrogen_lines=True,
+                      telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8, ntell=6, mask_hydrogen_lines=True,
                       mask_helium_lines=False, hydrogen_mask_wid=10., resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
@@ -1258,7 +1278,6 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     TelObj : :class:`Telluric`
         Best-fitting telluric model
     """
-
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
         disp = True
@@ -1294,7 +1313,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model, ntell=ntell, ech_orders=ech_orders,
+                      init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function, ntell=ntell, ech_orders=ech_orders,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
                       maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
@@ -2029,6 +2048,7 @@ class Telluric(datamodel.DataContainer):
                  'flux_in_arr',
                  'ivar_in_arr',
                  'mask_in_arr',
+                 'log10_blaze_func_in_arr',
                  'nspec_in',
                  'norders',
 
@@ -2044,6 +2064,7 @@ class Telluric(datamodel.DataContainer):
                  'flux_arr',
                  'ivar_arr',
                  'mask_arr',
+                 'log10_blaze_func_arr',
                  'wave_mask_arr',
 
                  'ind_lower',
@@ -2122,7 +2143,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model,
-                 eval_obj_model, ech_orders=None, sn_clip=30.0, ntell=4,
+                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=6, airmass_guess=1.5,
                  resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
@@ -2168,11 +2189,17 @@ class Telluric(datamodel.DataContainer):
         self.disp = disp or debug
         self.sensfunc = sensfunc
         self.debug = debug
+        self.log10_blaze_func_in_arr = None
 
         # 2) Reshape all spectra to be (nspec, norders)
-        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, \
-            self.norders = utils.spec_atleast_2d(wave, flux, ivar, gpm)
-
+        if log10_blaze_function is not None:
+            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
+                self.nspec_in, self.norders = utils.spec_atleast_2d(
+                wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)
+        else:
+            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, _, \
+                self.nspec_in, self.norders = utils.spec_atleast_2d(
+                wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
         self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
@@ -2188,13 +2215,20 @@ class Telluric(datamodel.DataContainer):
 
         # 4) Interpolate the input values onto the fixed telluric wavelength
         # grid, clip S/N and process inmask
-        self.flux_arr, self.ivar_arr, self.mask_arr \
+        if log10_blaze_function is not None:
+            self.flux_arr, self.ivar_arr, self.mask_arr, self.log10_blaze_func_arr \
                 = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
-                                    self.ivar_in_arr, self.mask_in_arr, sensfunc=self.sensfunc)
+                                    self.ivar_in_arr, self.mask_in_arr, log10_blaze_function=self.log10_blaze_func_in_arr,
+                                    sensfunc=self.sensfunc)
+        else:
+            self.flux_arr, self.ivar_arr, self.mask_arr, _ \
+                = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
+                                    self.ivar_in_arr, self.mask_in_arr,
+                                    sensfunc=self.sensfunc)
 
         # This is a hack to get an interpolate mask indicating where wavelengths
         # are good on each order
-        _, _, self.wave_mask_arr = coadd.interp_spec(self.wave_grid, self.wave_in_arr,
+        _, _, self.wave_mask_arr, _ = coadd.interp_spec(self.wave_grid, self.wave_in_arr,
                                                      np.ones_like(self.flux_in_arr),
                                                      np.ones_like(self.ivar_in_arr),
                                                      (self.wave_in_arr > 1.0).astype(float))
@@ -2220,6 +2254,12 @@ class Telluric(datamodel.DataContainer):
             tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
                                       ind_lower=self.ind_lower[iord],
                                       ind_upper=self.ind_upper[iord])
+            # TODO This is a pretty ugly way to pass in the blaze function. Particularly since now all the other models
+            #  (star, qso, poly) are going to have this parameter set in their obj_params dictionary.
+            #  Is there something more elegant that can be done with e.g. functools.partial?
+            obj_params['log10_blaze_func_per_ang'] = \
+                self.log10_blaze_func_arr[self.ind_lower[iord]:self.ind_upper[iord] + 1, iord] \
+                    if log10_blaze_function is not None else None
             obj_dict, bounds_obj \
                     = init_obj_model(obj_params, iord,
                                      self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1],
@@ -2323,6 +2363,7 @@ class Telluric(datamodel.DataContainer):
         plt.ylabel('Flux or Counts')
         plt.title('QA plot for order/det: {:d}/{:d}'.format(iord + 1, self.norders))   # +1 to account 0-index starting
         plt.show()
+
 
     def init_output(self):
         """

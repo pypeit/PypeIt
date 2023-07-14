@@ -162,8 +162,8 @@ class FindObjects:
             self.spat_flexure_shift = None
 
         # Initialise the slits
-        msgs.info("Initialising slits")
-        self.initialise_slits(slits)
+        msgs.info("Initializing slits")
+        self.initialize_slits(slits)
 
         # Internal bpm mask
         # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
@@ -269,7 +269,8 @@ class FindObjects:
         # Return
         return skymask
 
-    def initialise_slits(self, slits, initial=False):
+    # TODO Make this a method possibly in slittrace.py. Almost identical code is in extraction.py
+    def initialize_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`FindObjects`
@@ -284,8 +285,18 @@ class FindObjects:
         # Slits
         self.slits = slits
         # Select the edges to use
+        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+        # to return a new slits object with the desired selection criteria which would remove the ambiguity
+        # about whether the slits and the slitmask are in sync.
+        #bpm = self.slits.mask.astype(bool)
+        #bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
+        #gpm = np.logical_not(bpm)
+        #self.slits_left = slits_left[:, gpm]
+        #self.slits_right = slits_right[:, gpm]
+
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -297,6 +308,8 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
+    # TODO There are going to be problems with std_trace not being aligned with whatever orders are getting masked in
+    # this routine.
     def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
         Primary code flow for object finding in PypeIt reductions
@@ -897,16 +910,16 @@ class EchelleFindObjects(FindObjects):
         nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
             else self.par['reduce']['findobj']['maxnumber_sci']
 
+        reduce_gpm = np.logical_not(self.reduce_bpm)
         sobjs_ech = findobj_skymask.ech_objfind(
-            image, ivar, self.slitmask, self.slits_left, self.slits_right,
-            self.order_vec, self.reduce_bpm, 
-            self.slits.spat_id,
-            np.vstack((self.slits.specmin, self.slits.specmax)),
+            image, ivar, self.slitmask, self.slits_left[:, reduce_gpm], self.slits_right[:, reduce_gpm],
+            self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
+            np.vstack((self.slits.specmin, self.slits.specmax))[:, reduce_gpm],
             det=self.det,
             inmask=inmask, 
             ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             manual_extract_dict=manual_extract_dict, 
-            plate_scale=plate_scale,
+            plate_scale=plate_scale[reduce_gpm],
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
@@ -941,7 +954,7 @@ class IFUFindObjects(MultiSlitFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-        self.initialise_slits(slits, initial=True)
+        self.initialize_slits(slits, initial=True)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,

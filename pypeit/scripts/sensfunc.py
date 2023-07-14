@@ -57,6 +57,15 @@ class SensFunc(scriptbase.ScriptBase):
                                  'provided but with .fits trimmed off if it is in the filename.')
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
+        parser.add_argument("-f", "--flatfile", type=str,
+                            help="R|Use the flat file for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --flatfile and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the flatfile there via e.g.:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
+                                 "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
+
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -92,6 +101,14 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n"
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
+                       "\n")
+        if args.flatfile is not None and args.sens_file is not None:
+            msgs.error("It is not possible to set --flatfile and simultaneously use a .sens "
+                       "file via the --sens_file option. If you are using a .sens file set the "
+                       "flatfile there via:\n"
+                       "\n"
+                       "    [sensfunc]\n"
+                       "       flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
@@ -133,6 +150,11 @@ class SensFunc(scriptbase.ScriptBase):
         # file since they cannot both be passed
         if args.algorithm is not None:
             par['sensfunc']['algorithm'] = args.algorithm
+
+        # If flatfile was provided override defaults. Note this does undo .sens
+        # file since they cannot both be passed
+        if args.flatfile is not None:
+            par['sensfunc']['flatfile'] = args.flatfile
 
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed

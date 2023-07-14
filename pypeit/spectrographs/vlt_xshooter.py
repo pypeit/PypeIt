@@ -325,6 +325,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
 
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
 
@@ -695,6 +699,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def init_meta(self):
@@ -962,6 +970,10 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         #par['reduce']['findobj']['find_cont_fit'] = False
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is a max of 2 objects on the slit
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 

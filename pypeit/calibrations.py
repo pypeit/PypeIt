@@ -829,13 +829,16 @@ class Calibrations:
             self.wv_calib = None
             return self.wv_calib
 
-        # If a processed calibration frame exists and we want to reuse it, do
-        # so:
-        if cal_file.exists() and self.reuse_calibs:
+        # If a processed calibration frame exists and 
+        # we want to reuse it, do so (or just load it):
+        if cal_file.exists() and self.reuse_calibs: 
+            # Load the file
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
-            return self.wv_calib
+            # Return
+            if self.par['wavelengths']['redo_slit'] is None:
+                return self.wv_calib
 
         # Determine lamp list to use for wavecalib
         # Find all the arc frames in this calibration group
@@ -857,7 +860,8 @@ class Calibrations:
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)
-        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa))
+        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
+                                      prev_wvcalib=self.wv_calib)
         # If orders were found, save slits to disk
         if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
             self.slits.to_file()

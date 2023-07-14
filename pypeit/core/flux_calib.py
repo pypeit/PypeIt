@@ -669,7 +669,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     """
 
-    wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
+    wave_arr, counts_arr, ivar_arr, mask_arr, log10_blaze_func, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
     zeropoint_data = np.zeros_like(wave_arr)
     zeropoint_data_gpm = np.zeros_like(wave_arr, dtype=bool)
     zeropoint_fit = np.zeros_like(wave_arr)
@@ -1198,6 +1198,37 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
 
 
 # These are physical limits on the allowed values of the zeropoint in magnitudes
+def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_ang=None):
+    """ Evaluate the zeropoint model.
+
+    Parameters:
+    -----------
+    theta: `numpy.ndarray`_
+       Parameter vector for the zeropoint model
+    func: `function`_
+       Function for the zeropoint model from the set of available functions in `pypeit.core.fitting.evaluate_fit`
+    wave: `numpy.ndarray`_
+       Wavelength vector for zeropoint. shape = (nspec,)
+    wave_min: float
+       Minimum wavelength for the zeropoint fit to be passed as an argument to `pypeit.core.fitting.evaluate_fit`
+    wave_max: float
+       Maximum wavelength for the zeropoint fit to be passed as an argument to `pypeit.core.fitting.evaluate_fit`
+    log10_blaze_func_per_ang: `numpy.ndarray`_, optional
+       Log10 blaze function per angstrom. This option is used if the zeropoint model is relative to the non-parametric
+       blaze function determined from flats. The blaze function is defined on the wavelength grid wave. shape = (nspec,)
+
+    Returns:
+    ---------
+    zeropoint: `numpy.ndarray`_
+       Zeropoint evaluated on the wavelength grid wave. shape = (nspec,)
+    """
+    poly_model = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+    zeropoint = poly_model - 5.0 * np.log10(wave) + ZP_UNIT_CONST
+    if log10_blaze_func_per_ang is not None:
+        zeropoint += 2.5*log10_blaze_func_per_ang
+
+    return zeropoint
+
 
 def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     r"""
@@ -1242,7 +1273,7 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     Returns
     -------
     factor: `numpy.ndarray`_
-        Factor that when multiplied into F_lam converts to N_lam
+        Factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam
 
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
@@ -1264,7 +1295,7 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     N_lam_gpm: `numpy.ndarray`_
         N_lam mask, good pixel mask, boolean, shape (nspec,)
     flam_std_star: `numpy.ndarray`_
-        True standard star spectrum units set of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
+        True standard star spectrum in units of PYPEIT_FLUX_SCALE erg/s/cm^2/Angstrom
     tellmodel: `numpy.ndarray`_
         Telluric absorption model, optional, shape (nspec,)
 

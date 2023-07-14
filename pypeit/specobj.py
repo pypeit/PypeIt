@@ -193,6 +193,8 @@ class SpecObj(datamodel.DataContainer):
                                    descr='Object ID for echelle data. Each object is given an '
                                          'index in the order it appears increasing from from left '
                                          'to right. These are one based.'),
+                 # TODO ECH_ORDERINDX should be purged. It is not reliable for anything given masking. Instead
+                 # one needs to use SLITID or ECH_ORDER
                  'ECH_ORDERINDX': dict(otype=(int, np.integer),
                                        descr='Order indx, analogous to SLITID for echelle. '
                                              'Zero based.'),

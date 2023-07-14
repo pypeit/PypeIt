@@ -191,10 +191,14 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=(coadd1dFile.cfg_lines,))
+        # Check that sensfunc column is populated if this is echelle
+        if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfiles is None:
+            msgs.error("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
+
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
-        sensfile = par['coadd1d']['sensfuncfile']
+        # TODO This needs to come out of the parset
         coaddfile = par['coadd1d']['coaddfile']
 
         # Testing?
@@ -203,8 +207,6 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         #        sensfile = os.path.join(args.test_spec_path, sensfile)
         #    coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
-        if spectrograph.pypeline == 'Echelle' and sensfile is None:
-            msgs.error('You must specify the sensfuncfile in the .coadd1d file for Echelle coadds')
 
         if coaddfile is None:
             coaddfile = build_coadd_file_name(coadd1dFile.filenames, spectrograph)
@@ -213,7 +215,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         coAdd1d = coadd1d.CoAdd1D.get_instance(coadd1dFile.filenames, 
                                                coadd1dFile.objids, 
                                                spectrograph=spectrograph,
-                                               par=par['coadd1d'], sensfile=sensfile,
+                                               par=par['coadd1d'],
+                                               sensfuncfile=coadd1dFile.sensfiles,
+                                               setup_id=coadd1dFile.setup_id,
                                                debug=args.debug, show=args.show)
         # Run
         coAdd1d.run()
