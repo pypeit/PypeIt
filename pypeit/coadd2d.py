@@ -268,21 +268,25 @@ class CoAdd2D:
             cfg = utils.recursive_update(cfg, dict(inp_cfg))
         if only_slits is not None and det is not None:
             msgs.warn('only_slits and det are mutually exclusive. Ignoring det.')
-            det = None
+            _det = None
+        else:
+            _det = det
 
         if det is not None:
-            cfg['rdx']['detnum'] = det
+            cfg['rdx']['detnum'] = _det
 
         if only_slits is not None and exclude_slits is not None:
             msgs.warn('only_slits and exclude_slits are mutually exclusive. Ignoring exclude_slits.')
-            exclude_slits = None
+            _exclude_slits = None
+        else:
+            _exclude_slits = exclude_slits
 
         if only_slits is not None:
             utils.add_sub_dict(cfg, 'coadd2d')
             cfg['coadd2d']['only_slits'] = only_slits
-        if exclude_slits is not None:
+        if _exclude_slits is not None:
             utils.add_sub_dict(cfg, 'coadd2d')
-            cfg['coadd2d']['exclude_slits'] = exclude_slits
+            cfg['coadd2d']['exclude_slits'] = _exclude_slits
         # TODO: Heliocentric for coadd2d needs to be thought through. Currently
         # turning it off.
         utils.add_sub_dict(cfg, 'calibrations')
@@ -392,7 +396,9 @@ class CoAdd2D:
         if exclude_slits is not None and only_slits is not None:
             msgs.warn('Both `only_slits` and `exclude_slits` are provided. They are mutually exclusive. '
                       'Using `only_slits` and ignoring `exclude_slits`')
-            exclude_slits = None
+            _exclude_slits = None
+        else:
+            _exclude_slits = exclude_slits
 
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
@@ -408,17 +414,17 @@ class CoAdd2D:
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
         # If we want to coadd all the good slits
-        if only_slits is None and exclude_slits is None:
+        if only_slits is None and _exclude_slits is None:
             return good_slitindx
 
         # If instead we want to coadd only a selected (by the user) number of slits
-        elif only_slits is not None:
+        if only_slits is not None:
             # these are the `slitord_id` of the slits that we want to coadd
-            only_slits = np.atleast_1d(only_slits)
+            _only_slits = np.atleast_1d(only_slits)
             # create an array of slit index that are selected by the user and are also good slits
             good_onlyslits = np.array([], dtype=int)
             msgs.info('Coadding only the following slits:')
-            for islit in only_slits:
+            for islit in _only_slits:
                 if islit not in slits0.slitord_id[good_slitindx]:
                     # Warnings for the slits that are selected by the user but NOT good slits
                     msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
@@ -429,20 +435,18 @@ class CoAdd2D:
             return good_onlyslits
 
         # if we want to exclude some slits (selected by the user) from coadding
-        else:
-            # these are the `slitord_id` of the slits that we want to exclude
-            exclude_slits = np.atleast_1d(exclude_slits)
-            # create an array of slit index that are excluded by the user
-            exclude_slitindx = np.array([], dtype=int)
-            msgs.info('Excluding the following slits:')
-            for islit in exclude_slits:
-                if islit in slits0.slitord_id[good_slitindx]:
-                    msgs.info(f'Slit {islit}')
-                    exclude_slitindx = np.append(exclude_slitindx,
-                                                 np.where(slits0.slitord_id[good_slitindx] == islit)[0][0])
-            # these are the good slit index excluding the slits that are selected by the user
-            good_onlyslits = np.delete(good_slitindx, exclude_slitindx)
-            return good_onlyslits
+        # these are the `slitord_id` of the slits that we want to exclude
+        _exclude_slits = np.atleast_1d(_exclude_slits)
+        # create an array of slit index that are excluded by the user
+        exclude_slitindx = np.array([], dtype=int)
+        msgs.info('Excluding the following slits:')
+        for islit in _exclude_slits:
+            if islit in slits0.slitord_id[good_slitindx]:
+                msgs.info(f'Slit {islit}')
+                exclude_slitindx = np.append(exclude_slitindx,
+                                             np.where(slits0.slitord_id[good_slitindx] == islit)[0][0])
+        # these are the good slit index excluding the slits that are selected by the user
+        return np.delete(good_slitindx, exclude_slitindx)
 
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
@@ -1446,13 +1450,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         bpm[islit, iexp] = False
 
         # If a slit has bpm = True for some exposures and not for others, set bpm = True for all exposures
-        # get the slits that have bpm = True for any exposures
-        bmp_true_idx = np.array([np.any(b == True) for b in bpm])
-        if np.any(bmp_true_idx):
-            bpm_true = bpm[bmp_true_idx, :]
-            # If these slits have also bpm = False for some exposures, then bpm = True for all exposures
-            bpm_true[bpm_true == False] = True
-            bpm[bmp_true_idx, :] = bpm_true
+        # Find the rows where any of the bpm values are True
+        bpm_true_idx = np.array([np.any(b) for b in bpm])
+        if np.any(bpm_true_idx):
+            # Flag all exposures in those rows
+            bpm[bpm_true_idx, :] = True
 
         # Find the highest snr object among all the slits
         if np.all(bpm):
@@ -1729,13 +1731,11 @@ class EchelleCoAdd2D(CoAdd2D):
                         bpm[iord, iobj] = False
 
             # If there are orders that have bpm = True for some objs and not for others, set bpm = True for all objs
-            # get the orders that have bpm = True for any objs
-            bmp_true_idx = np.array([np.any(b == True) for b in bpm])
-            if np.any(bmp_true_idx):
-                bpm_true = bpm[bmp_true_idx, :]
-                # If these slits have also bpm = False for some obj, then bpm = True for all objs
-                bpm_true[bpm_true == False] = True
-                bpm[bmp_true_idx, :] = bpm_true
+            # Find the rows where any of the bpm values are True
+            bpm_true_idx = np.array([np.any(b) for b in bpm])
+            if np.any(bpm_true_idx):
+                # Flag all objs in those rows
+                bpm[bpm_true_idx, :] = True
 
             # Compute the average SNR and find the brightest object
             if not np.all(bpm):

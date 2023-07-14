@@ -139,7 +139,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['find_negative'] = find_negative
 
         # Find the detectors to reduce
-        msgs.warn('Both `detnum` and `only_slits` are provided. Ignoring detnum.')
         detectors = spectrograph.select_detectors(subset=par['rdx']['detnum'] if par['coadd2d']['only_slits'] is None
                                                   else par['coadd2d']['only_slits'])
 
@@ -155,14 +154,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # get only_slits and exclude_slits if they are set
         only_dets, only_spat_ids, exclude_dets, exclude_spat_ids = None, None, None, None
-        if par['coadd2d']['only_slits'] is not None and par['coadd2d']['exclude_slits'] is not None:
-            msgs.warn('Both `only_slits` and `exclude_slits` are set. They are mutually exclusive. '
-                      'Using `only_slits` and ignoring `exclude_slits`')
-            par['coadd2d']['exclude_slits'] = None
-        elif par['coadd2d']['only_slits'] is not None:
+        if par['coadd2d']['only_slits'] is not None:
             only_dets, only_spat_ids = parse.parse_slitspatnum(par['coadd2d']['only_slits'])
-        elif par['coadd2d']['exclude_slits'] is not None:
-            exclude_dets, exclude_spat_ids = parse.parse_slitspatnum(par['coadd2d']['exclude_slits'])
+        if par['coadd2d']['exclude_slits'] is not None:
+            if par['coadd2d']['only_slits'] is not None:
+                msgs.warn('Both `only_slits` and `exclude_slits` are provided. They are mutually exclusive. '
+                          'Using `only_slits` and ignoring `exclude_slits`')
+            else:
+                exclude_dets, exclude_spat_ids = parse.parse_slitspatnum(par['coadd2d']['exclude_slits'])
 
         # Loop on detectors
         for det in detectors:

@@ -1235,13 +1235,13 @@ class Coadd2DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         defaults['only_slits'] = None
-        dtypes['only_slits'] = [int, list]
+        dtypes['only_slits'] = [str, list]
         descr['only_slits'] = 'Restrict coaddition to one or more of slits. Example syntax -- ' \
                               'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` ' \
                               'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['exclude_slits'] = None
-        dtypes['exclude_slits'] = [int, list]
+        dtypes['exclude_slits'] = [str, list]
         descr['exclude_slits'] = 'Exclude one or more slits from the coaddition. Example syntax -- ' \
                                  'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` ' \
                                  'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
