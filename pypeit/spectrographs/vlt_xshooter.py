@@ -101,7 +101,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'arm', 'dark': 'arm'}
+        return {}
 
     def configuration_keys(self):
         """
