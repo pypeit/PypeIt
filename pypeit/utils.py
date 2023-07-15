@@ -30,63 +30,75 @@ from astropy import stats
 from pypeit import msgs
 from pypeit.move_median import move_median
 
+
 def zero_not_finite(array):
     """
     Set the elements of an array to zero which are inf or nan
 
-    Args:
-        array (`np.ndarray`_):
-          An numpy array of arbitrary shape that potentially has nans or infinities
+    Parameters
+    ----------
+    array : `numpy.ndarray`_
+        An numpy array of arbitrary shape that potentially has nans or
+        infinities.
 
-    Returns:
-        new_array (`np.ndarray`_)
-          A copy of the array with the nans and inifinities set to zero
-
+    Returns
+    -------
+    new_array : `numpy.ndarray`_
+        A copy of the array with the nans and infinities set to zero.
     """
     not_finite = np.logical_not(np.isfinite(array))
     new_array = array.copy()
     new_array[not_finite] = 0.0
     return new_array
 
+
+# TODO: Add a description at the top describing what the function does.
 def arr_setup_to_setup_list(arr_setup):
     """
 
-    Args:
-        arr_setup (list):
-          A list of length nsetups echelle output arrays of shape=(nspec, norders, nexp)
+    Parameters
+    ----------
+    arr_setup : :obj:`list`
+        A list of length nsetups echelle output arrays of shape=(nspec, norders,
+        nexp).
 
-    Returns:
-        setup_list (list):
-          List of length nsetups. Each element of the setup list is a list of length
-          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
-          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
-          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
-          fastest varying dimension in python array ordering is the exposure number.
-
-
+    Returns
+    -------
+    setup_list : :obj:`list`
+        List of length nsetups. Each element of the setup list is a list of
+        length norder*nexp elements, each of which contains the shape =
+        (nspec1,) wavelength arrays for the order/exposure in setup1. The list
+        is arranged such that the nexp1 spectra for iorder=0 appear first, then
+        come nexp1 spectra for iorder=1, i.e. the outer or fastest varying
+        dimension in python array ordering is the exposure number.
     """
     return [echarr_to_echlist(arr)[0] for arr in arr_setup]
 
+
+# TODO: What does it mean to convert a setup_list to an arr_setup list?
 def setup_list_to_arr_setup(setup_list, norders, nexps):
     """
     Convert a setup_list to arr_setup list
 
-    Args:
-        setup_list (list):
-          List of length nsteups. Each element of the setup list is a list of length
-          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
-          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
-          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
-          fastest varying dimension in python array ordering is the exposure number.
-        norders (list):
-          List containing the number of orders for each setup
-        nexps (list):
-          List containing the number of exposures for each setup
+    Parameters
+    ----------
+    setup_list : :obj:`list`
+        List of length nsteups. Each element of the setup list is a list of
+        length norder*nexp elements, each of which contains the shape =
+        (nspec1,) wavelength arrays for the order/exposure in setup1. The list
+        is arranged such that the nexp1 spectra for iorder=0 appear first, then
+        come nexp1 spectra for iorder=1, i.e. the outer or fastest varying
+        dimension in python array ordering is the exposure number.
+    norders : :obj:`list`
+        List containing the number of orders for each setup.
+    nexps : :obj:`list`
+        List containing the number of exposures for each setup
 
-    Returns:
-        arr_setup (list):
-          List of length nsetups each element of which is a numpy array of shape=(nspec, norders, nexp)
-          which is the echelle spectra data model.
+    Returns
+    -------
+    arr_setup : :obj:`list`
+        List of length nsetups each element of which is a numpy array of
+        shape=(nspec, norders, nexp) which is the echelle spectra data model.
     """
     nsetups = len(setup_list)
     arr_setup = []
@@ -95,26 +107,31 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
         arr_setup.append(echlist_to_echarr(setup_list[isetup], shape))
     return arr_setup
 
+
+# TODO: Add a description at the top describing what the function does.
 def concat_to_setup_list(concat, norders, nexps):
-    """
+    r"""
 
-    Args:
-        concat (list):
-           List of length = \Sum_i norders_i*nexps_i of numpy arrays describing an echelle spectrum where
-           i runs over nsetups
-        norders (list):
-           List of length nsetups containing the number of orders for each setup
-        nexps (list):
-           List of length nexp containing the number of exposures for each setup
+    Parameters
+    ----------
+    concat : :obj:`list`
+        List of length :math:`\Sum_i N_{{\rm orders},i} N_{{\rm exp},i}` of
+        numpy arrays describing an echelle spectrum where :math:`i` runs over
+        the number of setups.
+    norders : :obj:`list`
+        List of length nsetups containing the number of orders for each setup.
+    nexps : :obj:`list`
+        List of length nexp containing the number of exposures for each setup.
 
-    Returns:
-        setup_list (list):
-           list of length nsteups. Each element of the setup list is a list of length
-                          norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
-                          for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
-                          for iorder=0 appear first, then come nexp1 spectra for iorder=1, i.e. the outer or
-                          fastest varying dimension in python array ordering is the exposure number.
-
+    Parameters
+    ----------
+    setup_list : :obj:`list`, list of length nsetups
+        Each element of the setup list is a list of length norder*nexp elements,
+        each of which contains the shape = (nspec1,) wavelength arrays for the
+        order/exposure in setup1. The list is arranged such that the nexp1
+        spectra for iorder=0 appear first, then come nexp1 spectra for iorder=1,
+        i.e. the outer or fastest varying dimension in python array ordering is
+        the exposure number.
     """
     if len(norders) != len(nexps):
         msgs.error('The number of elements in norders and nexps must match')
@@ -128,48 +145,64 @@ def concat_to_setup_list(concat, norders, nexps):
 
     return setup_list
 
+
 def setup_list_to_concat(lst):
     """
     Unravel a list of lists.
 
-    Args:
-        lst (list):
+    Parameters
+    ----------
+    lst : :obj:`list`
+        List to unravel.
 
-    Returns:
-        list (list):
-          A list of the elements of the input list, unraveled.
-
+    Returns
+    -------
+    concat_list : :obj:`list`
+        A list of the elements of the input list, unraveled.
     """
     return list(itertools.chain.from_iterable(lst))
+
 
 def echarr_to_echlist(echarr):
     """
     Convert an echelle array to a list of 1d arrays.
 
-    Args:
-        echarr: `np.ndarray`_
-            An echelle array of shape (nspec, norder, nexp)
+    Parameters
+    ----------
+    echarr : `numpy.ndarray`_
+        An echelle array of shape (nspec, norder, nexp).
 
-    Returns:
-        list: A unraveled list of 1d arrays of shape (nspec,) where the norder dimension is the fastest
-        varying dimension and the nexp dimension is the slowest varying dimension.
-
+    Returns
+    -------
+    echlist : :obj:`list`
+        A unraveled list of 1d arrays of shape (nspec,) where the norder
+        dimension is the fastest varying dimension and the nexp dimension is the
+        slowest varying dimension.
+    shape : :obj:`tuple`
+        The shape of the provided echelle array (see ``echarr``).
     """
     shape = echarr.shape
     nspec, norder, nexp = shape
     echlist = [echarr[:, i, j] for i in range(norder) for j in range(nexp)]
     return echlist, shape
 
+
+# TODO: Describe the objects
 def echlist_to_echarr(echlist, shape):
     """
     Convert a list of 1d arrays to a 3d echelle array.
 
-    Args:
-        echlist:
+    Parameters
+    ----------
+    echlist : :obj:`list`
+        Add description
+    shape : :obj:`tuple`
+        Add description
 
-    Returns:
-        echarray
-
+    Returns
+    -------
+    echarr : `numpy.ndarray`_
+        Add description
     """
     nspec, norder, nexp = shape
     echarr = np.zeros(shape, dtype=echlist[0].dtype)
@@ -179,24 +212,24 @@ def echlist_to_echarr(echlist, shape):
     return echarr
 
 
-
 def explist_to_array(explist, pad_value=0.0):
     """
     Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
 
-    Args:
-        explist: (list)
-            List of length nexp containing 1d arrays of arbitrary size.
-        pad_value: (scalar)
-            Value to use for padding the missing locations in the 2d array. The data
-            type should match the data type of in the 1d arrays in nexp_list.
+    Parameters
+    ----------
+    explist : :obj:`list`
+        List of length nexp containing 1d arrays of arbitrary size.
+    pad_value : scalar-like
+        Value to use for padding the missing locations in the 2d array. The data
+        type should match the data type of in the 1d arrays in nexp_list.
 
-    Returns:
-        array: `np.ndarray`_
-           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
-           of the members of the input nexp_list. The data type is the same as the data type
-           in the original 1d arrays.
-
+    Returns
+    -------
+    array : `numpy.ndarray`_
+        A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum
+        size of any of the members of the input nexp_list. The data type is the
+        same as the data type in the original 1d arrays.
     """
 
     nexp = len(explist)
@@ -214,20 +247,22 @@ def array_to_explist(array, nspec_list=None):
     """
     Unfold a padded 2D array into a list of length nexp 1d arrays with sizes set by nspec_list
 
-    Args:
-        array: (`numpy.ndarray`_)
-           A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum size of any
-           of the spectra in the array.
-        nspec_list: (list, optional)
-            List containing the size of each of the spectra embedded in the array. If None, the routine
-            will assume that all the spectra are the same size equal to array.shape[0]
+    Parameters
+    ----------
+    array : `numpy.ndarray`_
+        A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum
+        size of any of the spectra in the array.
+    nspec_list : :obj:`list`, optional
+        List containing the size of each of the spectra embedded in the array.
+        If None, the routine will assume that all the spectra are the same size
+        equal to array.shape[0]
 
-    Returns:
-        explist: (list)
-           A list of 1d arrays of shape (nspec_max, nexp) where nspec_max is the maximum size of any
-           of the members of the input nexp_list. The data type is the same as the data type
-           in the original 1d arrays.
-
+    Returns
+    -------
+    explist : :obj:`list`
+        A list of 1d arrays of shape (nspec_max, nexp) where nspec_max is the
+        maximum size of any of the members of the input nexp_list. The data type
+        is the same as the data type in the original 1d arrays.
     """
     nexp = array.shape[1]
     if nspec_list is None:
@@ -241,10 +276,13 @@ def array_to_explist(array, nspec_list=None):
 
     return explist
 
+
 def distinct_colors(num_colors):
     """
-    Return n distinct colors from the specified matplotlib colormap.
-    Taken from:  https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
+    Return n distinct colors from the specified matplotlib colormap.  Taken
+    from:
+
+    https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
 
     Args:
         num_colors (int):
@@ -262,8 +300,6 @@ def distinct_colors(num_colors):
         saturation = (90 + np.random.rand() * 10) / 100.
         colors.append(colorsys.hls_to_rgb(hue, lightness, saturation))
     return colors
-
-
 
 
 def get_time_string(codetime):
@@ -729,14 +765,14 @@ def rebin_slice(a, newshape):
     conserve flux, use the `pypeit.utils.rebinND()` function (see below).
 
     Args:
-        a (ndarray, any dtype):
+        a (`numpy.ndarray`_):
             Image of any dimensionality and data type
         newshape (tuple):
             Shape of the new image desired. Dimensionality must be the
             same as a.
 
     Returns:
-        ndarray: same dtype as input Image with same values as a
+        `numpy.ndarray`_: same dtype as input Image with same values as a
         rebinning to shape newshape
     """
     if not len(a.shape) == len(newshape):
@@ -782,9 +818,6 @@ def rebinND(img, shape):
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots
-
-    Returns:
-
     """
     # set some plotting parameters
     plt.rcParams["xtick.top"] = True
@@ -814,9 +847,6 @@ def pyplot_rcparams():
 def pyplot_rcparams_default():
     """
     restore default rcparams
-
-    Returns:
-
     """
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
@@ -834,13 +864,17 @@ def smooth(x, window_len, window='flat'):
         the window parameter could be the window itself if an array instead of a string
 
     Args:
-        x: the input signal
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing., default is 'flat'
+        x (`numpy.ndarray`_):
+            the input signal
+        window_len (:obj:`int`):
+            the dimension of the smoothing window; should be an odd integer
+        window (:obj:`str`, optional):
+            the type of window from 'flat', 'hanning', 'hamming', 'bartlett',
+            'blackman' flat window will produce a moving average smoothing.
+            Default is 'flat'.
 
     Returns:
-        the smoothed signal, same shape as x
+        `numpy.ndarray`_: the smoothed signal, same shape as x
 
     Examples:
 
@@ -901,7 +935,7 @@ def fast_running_median(seq, window_size):
         window_size (int): size of running window.
 
     Returns:
-        ndarray: median filtered values
+        `numpy.ndarray`_: median filtered values
 
     Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.median_filter by Joe Hennawi.
@@ -942,24 +976,24 @@ def cross_correlate(x, y, maxlag):
 
     Edges are padded with zeros using ``np.pad(mode='constant')``.
 
-    Args:
-        x (ndarray):
-            First vector of the cross-correlation.
-        y (ndarray):
-            Second vector of the cross-correlation. `x` and `y` must be
-            one-dimensional numpy arrays with the same length.
-        maxlag (int):
-            The maximum lag for which to compute the cross-correlation.
-            The cross correlation is computed at integer lags from
-            (-maxlag, maxlag)
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        First vector of the cross-correlation.
+    y : `numpy.ndarray`_
+        Second vector of the cross-correlation. `x` and `y` must be
+        one-dimensional numpy arrays with the same length.
+    maxlag : :obj:`int`
+        The maximum lag for which to compute the cross-correlation.  The cross
+        correlation is computed at integer lags from (-maxlag, maxlag)
 
-    Returns:
-        tuple:  Returns are as follows:
-            - lags (ndarray):  shape = (2*maxlag + 1); Lags for the
-              cross-correlation. Integer spaced values from (-maxlag,
-              maxlag)
-            - xcorr (ndarray): shape = (2*maxlag + 1); Cross-correlation
-              at the lags
+    Returns
+    -------
+    lags : `numpy.ndarray`_, shape = (2*maxlag + 1)
+        Lags for the cross-correlation. Integer spaced values from (-maxlag,
+        maxlag).
+    xcorr : `numpy.ndarray`_, shape = (2*maxlag + 1)
+        Cross-correlation at the lags
     """
 
     x = np.asarray(x)
@@ -1050,15 +1084,13 @@ def calc_ivar(varframe):
     Wrapper to inverse()
 
     Args:
-        varframe (ndarray):  Variance image
+        varframe (`numpy.ndarray`_):  Variance image
 
     Returns:
-        ndarray:  Inverse variance image
+        `numpy.ndarray`_:  Inverse variance image
     """
     # THIS WILL BE DEPRECATED!!
     return inverse(varframe)
-
-
 
 
 def robust_meanstd(array):
@@ -1066,7 +1098,7 @@ def robust_meanstd(array):
     Determine a robust measure of the mean and dispersion of array
 
     Args:
-        array (ndarray): an array of values
+        array (`numpy.ndarray`_): an array of values
 
     Returns:
         tuple: Median of the array and a robust estimate of the standand
@@ -1075,7 +1107,6 @@ def robust_meanstd(array):
     med = np.median(array)
     mad = np.median(np.abs(array-med))
     return med, 1.4826*mad
-
 
 
 def polyfitter2d(data, mask=None, order=2):
@@ -1167,10 +1198,10 @@ def subsample(frame):
     Used by LACosmic
 
     Args:
-        frame (ndarray):
+        frame (`numpy.ndarray`_):
 
     Returns:
-        ndarray: Sliced image
+        `numpy.ndarray`_: Sliced image
 
     """
     newshape = (2*frame.shape[0], 2*frame.shape[1])
@@ -1185,14 +1216,15 @@ def find_nearest(array, values):
 
     Parameters
     ----------
-    array : numpy.ndarray
+    array : `numpy.ndarray`_
         Array of values
-    values : numpy.ndarray
+    values : `numpy.ndarray`_
         Values to be compared with the elements of `array`
 
-    Return
-    ------
-    numpy.ndarray : indices of `array` that are closest to each element of value
+    Returns
+    -------
+    idxs : `numpy.ndarray`_
+        indices of ``array`` that are closest to each element of value
     """
     # Make sure the input is a numpy array
     array = np.array(array)
@@ -1232,7 +1264,7 @@ def yamlify(obj, debug=False):
     -------
     obj: :class:`object`
         An object suitable for yaml serialization.  For example
-        :class:`numpy.ndarray` is converted to :class:`list`,
+        `numpy.ndarray`_ is converted to :class:`list`,
         :class:`numpy.int64` is converted to :class:`int`, etc.
     """
     # TODO: Change to np.floating?
@@ -1665,7 +1697,7 @@ def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
             visited in THIS CALL of DFS. After DFS returns, `group` contains
             all members of the connected component containing v. `i in group`
             is True iff vertex `i` has been visited in THIS CALL of DFS.
-        adj (np.ndarray): Adjacency matrix description of the graph. `adj[i,j]`
+        adj (`numpy.ndarray`_): Adjacency matrix description of the graph. `adj[i,j]`
             is True iff there is a vertex between `i` and `j`.
     """
     stack = []
@@ -1679,11 +1711,12 @@ def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
             for neighbor in neighbors:
                 stack.append(neighbor)
 
+# TODO: Describe returned arrays
 def list_of_spectral_lines():
     """ Generate a list of spectral lines
 
     Returns:
-        tuple: np.ndarray, np.ndarray
+        tuple: Two `numpy.ndarray`_ objects.
     """
     # spectral features
     CIVnam1, CIVwav1='CIV', 1548.

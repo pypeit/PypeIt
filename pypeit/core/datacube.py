@@ -692,19 +692,26 @@ def get_whitelight_pixels(all_wave, min_wl, max_wl):
 
 
 def get_whitelight_range(wavemin, wavemax, wl_range):
-    """ Get the wavelength range to use for the white light images
-    Args:
-        wavemin (float):
-            Automatically determined minimum wavelength to use for making the white light image.
-        wavemax (float):
-            Automatically determined maximum wavelength to use for making the white light image.
-        wl_range (list):
-            Two element list containing the user-specified values to manually override the automated
-            values determined by PypeIt.
+    """
+    Get the wavelength range to use for the white light images
 
-    Returns:
-        wlrng (list): A two element list containing the minimum and maximum wavelength
-        to use for the white light images
+    Parameters
+    ----------
+    wavemin : float
+        Automatically determined minimum wavelength to use for making the white
+        light image.
+    wavemax : float
+        Automatically determined maximum wavelength to use for making the white
+        light image.
+    wl_range : list
+        Two element list containing the user-specified values to manually
+        override the automated values determined by PypeIt.
+
+    Returns
+    -------
+    wlrng : list
+        A two element list containing the minimum and maximum wavelength to use
+        for the white light images
     """
     wlrng = [wavemin, wavemax]
     if wl_range[0] is not None:
@@ -880,39 +887,48 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
+def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0,
+               specname="PYP_SPEC"):
     """
-    Create a WCS and the expected edges of the voxels, based on user-specified parameters
-    or the extremities of the data.
+    Create a WCS and the expected edges of the voxels, based on user-specified
+    parameters or the extremities of the data.
 
+    Parameters
+    ----------
+    cubepar : :class:`~pypeit.par.pypeitpar.CubePar`
+        An instance of the CubePar parameter set, contained parameters of the
+        datacube reduction
+    all_ra : `numpy.ndarray`_
+        1D flattened array containing the RA values of each pixel from all
+        spec2d files
+    all_dec : `numpy.ndarray`_
+        1D flattened array containing the DEC values of each pixel from all
+        spec2d files
+    all_wave : `numpy.ndarray`_
+        1D flattened array containing the wavelength values of each pixel from
+        all spec2d files
+    dspat : float
+        Spatial size of each square voxel (in arcsec). The default is to use the
+        values in cubepar.
+    dwv : float
+        Linear wavelength step of each voxel (in Angstroms)
+    collapse : bool, optional
+        If True, the spectral dimension will be collapsed to a single channel
+        (primarily for white light images)
+    equinox : float, optional
+        Equinox of the WCS
+    specname : str, optional
+        Name of the spectrograph
 
-    Args:
-        cubepar (:class:`~pypeit.par.pypeitpar.CubePar`):
-            An instance of the CubePar parameter set, contained parameters of the datacube reduction
-        all_ra (`numpy.ndarray`_):
-            1D flattened array containing the RA values of each pixel from all spec2d files
-        all_dec (`numpy.ndarray`_):
-            1D flattened array containing the DEC values of each pixel from all spec2d files
-        all_wave (`numpy.ndarray`_):
-            1D flattened array containing the wavelength values of each pixel from all spec2d files
-        dspat (float):
-            Spatial size of each square voxel (in arcsec). The default is to use the values in cubepar.
-        dwv (float):
-            Linear wavelength step of each voxel (in Angstroms)
-        collapse (bool, optional):
-            If True, the spectral dimension will be collapsed to a single channel (primarily for white light images)
-        equinox (float, optional):
-            Equinox of the WCS
-        specname (str, optional):
-            Name of the spectrograph
-
-    Returns:
-        cubewcs (`astropy.wcs.wcs.WCS`_):
-            astropy WCS to be used for the combined cube
-        voxedges (tuple) :
-            A three element tuple containing the bin edges in the x, y (spatial) and z (wavelength) dimensions
-        reference_image (`numpy.ndarray`_, None):
-            The reference image to be used for the cross-correlation
+    Returns
+    -------
+    cubewcs : `astropy.wcs.wcs.WCS`_
+        astropy WCS to be used for the combined cube
+    voxedges : tuple
+        A three element tuple containing the bin edges in the x, y (spatial) and
+        z (wavelength) dimensions
+    reference_image : `numpy.ndarray`_
+        The reference image to be used for the cross-correlation. Can be None.
     """
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)

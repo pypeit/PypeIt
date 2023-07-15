@@ -841,9 +841,9 @@ class CoAdd2D:
 
         Returns:
             tuple: Returns the following:
-                - wave_grid (np.ndarray): New wavelength grid, not
+                - wave_grid (`numpy.ndarray`_): New wavelength grid, not
                   masked
-                - wave_grid_mid (np.ndarray): New wavelength grid
+                - wave_grid_mid (`numpy.ndarray`_): New wavelength grid
                   evaluated at the centers of the wavelength bins, that
                   is this grid is simply offset from wave_grid by
                   dsamp/2.0, in either linear space or log10 depending
