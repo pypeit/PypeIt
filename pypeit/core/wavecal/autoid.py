@@ -2803,14 +2803,14 @@ class HolyGrail:
         # Report on the best preliminary result
         if best_final_fit is None:
             msgs.warn('---------------------------------------------------' + msgs.newline() +
-                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                       '  No matches! Attempting to cross match.' + msgs.newline() +
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = None
             self._all_final_fit[str(slit)] = None
         elif best_final_fit['rms'] > wvutils.parse_param(self._par, 'rms_threshold', slit):
             msgs.warn('---------------------------------------------------' + msgs.newline() +
-                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = None
@@ -2823,7 +2823,7 @@ class HolyGrail:
                 signtxt = 'anitcorrelate'
             # Report
             msgs.info('---------------------------------------------------' + msgs.newline() +
-                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+                      'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of weak lines         = {:d}'.format(self._det_weak[str(slit)][0].size) + msgs.newline() +
                       '  Number of strong lines       = {:d}'.format(self._det_stro[str(slit)][0].size) + msgs.newline() +
@@ -2843,7 +2843,7 @@ class HolyGrail:
         for slit in range(self._nslit):
             # Prepare a message for bad wavelength solutions
             badmsg = '---------------------------------------------------' + msgs.newline() +\
-                     'Final report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +\
+                     'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +\
                      '  Wavelength calibration not performed!'
             if slit not in self._ok_mask:
                 msgs.warn(badmsg)
@@ -2862,7 +2862,7 @@ class HolyGrail:
             centdisp = abs(centwave-tempwave)
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
-                      'Final report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+                      'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of weak lines         = {:d}'.format(self._det_weak[str(slit)][0].size) + msgs.newline() +
                       '  Number of strong lines       = {:d}'.format(self._det_stro[str(slit)][0].size) + msgs.newline() +
