@@ -2309,7 +2309,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     setup_ids: list of strings
         List of strings indicating the name of each setup. If None uppercase letters A, B, C, etc. will be used
         Optional, default=None
-    nbests: int or list, optional
+    nbests: int or list or `numpy.ndarray`_, optional
         Integer or list of integers indicating the number of orders to use for estimating the per exposure weights per
         echelle setup.  Default is nbests=None, which will just use one fourth of the orders for a given setup.
     wave_method: str, optional
@@ -2439,15 +2439,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         debug_global_stack=True
         debug_scale=True
 
-    #show_exp=True
-    #debug=True
-    #show=True
-    #show_exp=True
-    #debug_global_stack=False
-    #debug_order_stack=False
-    #show_order_scale=False
-    #debug_scale=True
-
 
     if qafile is not None:
         qafile_stack = qafile.replace('.pdf', '_stack.pdf')
@@ -2472,11 +2463,10 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         norders.append(wave.shape[1])
         nexps.append(wave.shape[2])
 
-    if nbests is not None:
-        if isinstance(nbests, int):
-            nbests = [nbests]*nsetups
+    if nbests is None:
+        _nbests = [int(np.ceil(norder/4)) for norder in norders]
     else:
-        nbests = [int(np.ceil(norder/4)) for norder in norders]
+        _nbests = nbests if isinstance(nbests, (list, np.ndarray)) else [nbests]*nsetups
 
     #  nspec, norder, nexp = shape
     # Decide how much to smooth the spectra by if this number was not passed in
@@ -2518,7 +2508,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                                    sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
         rms_sn = rms_sn_vec.reshape(norders[isetup], nexps[isetup])
         mean_sn_ord = np.mean(rms_sn, axis=1)
-        best_orders = np.argsort(mean_sn_ord)[::-1][0:nbests[isetup]]
+        best_orders = np.argsort(mean_sn_ord)[::-1][0:_nbests[isetup]]
         rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
         weights_exp = np.tile(np.square(rms_sn_per_exp), (nspecs[isetup], norders[isetup], 1))
         weights_isetup = weights_exp * weights_sens_arr_setup[isetup]

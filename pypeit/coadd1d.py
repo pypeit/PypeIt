@@ -398,21 +398,6 @@ class EchelleCoAdd1D(CoAdd1D):
             for c, l in zip(combined, loaded):
                 c.append(l)
 
-        #Old code
-        #waves, fluxes, ivars, gpms, weights_sens, setup_ids, headers = [], [], [], [], [], [], []
-        #for uniq_setup in self.unique_setups:
-        #    # TODO Is there a more python way to do this?
-        #    setup_indx = np.array(self.setup_id)== uniq_setup
-        #    sensfuncfiles = np.array(self.sensfuncfile)[setup_indx]
-        #    spec1dfiles = np.array(self.spec1dfiles)[setup_indx]
-        #    objids = np.array(self.objids)[setup_indx]
-        #    wave, flux, ivar, gpm, weight_sens, header_out = self.load_ech_arrays(spec1dfiles, objids, sensfuncfiles)
-        #    waves.append(wave)
-        #    fluxes.append(flux)
-        #    ivars.append(ivar)
-        #    gpms.append(gpm)
-        #    weights_sens.append(weight_sens)
-        #    headers.append(header_out)
 
 
         return waves, fluxes, ivars, gpms, weights_sens, headers

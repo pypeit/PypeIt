@@ -91,7 +91,7 @@ class CoAdd2D:
                 must include detectors viable as a mosaic for the provided
                 spectrograph; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
-            offsets (`numpy.ndarray`_, optional):
+            offsets (`numpy.ndarray`_ or string, optional):
                 Spatial offsets to be applied to each image before coadding. Here are the possible usage
                 cases:
 
