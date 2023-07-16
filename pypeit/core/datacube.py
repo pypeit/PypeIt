@@ -1125,11 +1125,11 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     Args:
         image_wcs (`astropy.wcs.wcs.WCS`_):
             World coordinate system to use for the white light images.
-        all_ra (`numpy.ndarray`_)
+        all_ra (`numpy.ndarray`_):
             1D flattened array containing the right ascension of each pixel (units = degrees)
-        all_dec (`numpy.ndarray`_)
+        all_dec (`numpy.ndarray`_):
             1D flattened array containing the declination of each pixel (units = degrees)
-        all_wave (`numpy.ndarray`_)
+        all_wave (`numpy.ndarray`_):
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
@@ -1137,22 +1137,22 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_spatpos (`numpy.ndarray`_)
+        all_spatpos (`numpy.ndarray`_):
             1D flattened array containing the detector pixel location in the spatial direction
-        all_specpos (`numpy.ndarray`_)
+        all_specpos (`numpy.ndarray`_):
             1D flattened array containing the detector pixel location in the spectral direction
-        all_spatid (`numpy.ndarray`_)
+        all_spatid (`numpy.ndarray`_):
             1D flattened array containing the spatid of each pixel
-        tilts (`numpy.ndarray`_, list)
+        tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames (see all_idx)
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_, list)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
             Information stored about the slits, or a list of SlitTraceSet (see all_idx)
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_, list):
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`, list):
             A Class containing the transformation between detector pixel coordinates
             and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        all_idx (`numpy.ndarray`_, optional)
+        all_idx (`numpy.ndarray`_, optional):
             If tilts, slits, and astrom_trans are lists, this should contain a 1D flattened array, of
             the same length as all_sci, containing the index the tilts, slits, and astrom_trans lists
             that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.
@@ -1246,7 +1246,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        all_idx (`numpy.ndarray`_, optional)
+        all_idx (`numpy.ndarray`_, optional):
             If tilts, slits, and astrom_trans are lists, this should contain a 1D flattened array, of
             the same length as all_sci, containing the index the tilts, slits, and astrom_trans lists
             that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.
