@@ -218,7 +218,7 @@ class SensFunc(datamodel.DataContainer):
         self.spectrograph.dispname = header['DISPNAME']
 
         # Get the algorithm parameters
-        #self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
+        self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO Should we allow the user to pass this in?
         self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
         # TODO: Check the type of the parameter object?

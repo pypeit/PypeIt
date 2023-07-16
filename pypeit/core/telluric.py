@@ -315,12 +315,13 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     tellmodel_hires = np.exp(-np.sinh(np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use+1])))
 
-    # PCA model can technically give some unphysical values,
+    # PCA model could technically give some unphysical values,
     # so trim to stay between 0 and 1
-    clip_hi = tellmodel_hires > 1.0
-    tellmodel_hires[clip_hi] = 1.0
-    clip_lo = tellmodel_hires < 0.0
-    tellmodel_hires[clip_lo] = 0.0
+    # This is NOT required for the asinh grid...
+    #    clip_hi = tellmodel_hires > 1.0
+    #    tellmodel_hires[clip_hi] = 1.0
+    #    clip_lo = tellmodel_hires < 0.0
+    #    tellmodel_hires[clip_lo] = 0.0
 
     # Set the wavelength range if not provided
     ind_lower = 0 if ind_lower is None else ind_lower
