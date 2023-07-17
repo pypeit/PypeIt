@@ -207,7 +207,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -222,7 +221,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'echangle', 'xdangle']
+        return ['filter1', 'echangle', 'xdangle', 'binning']
 
     def raw_header_cards(self):
         """
