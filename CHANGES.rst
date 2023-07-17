@@ -13,6 +13,7 @@
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
+- Store user-generated wavelength solution in pypeit cache
 
 1.13.0 (2 June 2023)
 --------------------
