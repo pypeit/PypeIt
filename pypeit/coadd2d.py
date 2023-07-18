@@ -1640,10 +1640,10 @@ class EchelleCoAdd2D(CoAdd2D):
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
                     # check if OPT_COUNTS is available
                     if sobjs[ind][0].has_opt_ext():
-                        wave, flux, ivar, mask = sobjs[ind][0].get_opt_ext()
+                        _, flux, ivar, mask = sobjs[ind][0].get_opt_ext()
                     # check if BOX_COUNTS is available
                     elif sobjs[ind][0].has_box_ext():
-                        wave, flux, ivar, mask = sobjs[ind][0].get_box_ext()
+                        _, flux, ivar, mask = sobjs[ind][0].get_box_ext()
                         msgs.warn(f'Optimal extraction not available for object {sobjs[ind][0].ECH_OBJID} '
                                   f'in order {sobjs[ind][0].ECH_ORDER}. Using box extraction.')
                     else:
@@ -1652,7 +1652,8 @@ class EchelleCoAdd2D(CoAdd2D):
                                   f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
                         continue
                     if flux is not None:
-                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, const_weights=True)
+                        embed()
+                        rms_sn, weights = coadd.sn_weights([flux], [ivar], [mask], const_weights=True)
                         order_snr[iord, iobj] = rms_sn
                         bpm[iord, iobj] = False
 
