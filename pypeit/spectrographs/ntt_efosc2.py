@@ -101,6 +101,26 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['binning', 'datasec'], 'dark': ['binning', 'datasec']}
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument

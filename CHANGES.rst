@@ -14,6 +14,7 @@
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
+- Store user-generated wavelength solution in pypeit cache
 - Improvements to wavelength grids and masking in coadd routines.
 - Fixed a bug in echelle coadding where the wrong coadded spectra were being
   used in final stacks.
@@ -24,6 +25,7 @@
 - Changes to how masking is dealt with in extraction to fix a bug in how masks
   were being treated for echelle data
 - Various fixes and changes required to add more support for Keck/HIRES and JWST
+
 
 
 
