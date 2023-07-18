@@ -1843,8 +1843,6 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
         #embed()
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
-        print("np.sum(wave_stack > 1.0)", np.sum(wave_stack > 1.0), len(wave_stack))
-        print("np.where(nused == 0)", np.where(nused == 0))
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
         # since it has no masked values
         flux_stack_nat, ivar_stack_nat, gpm_stack_nat, _ = interp_spec(
