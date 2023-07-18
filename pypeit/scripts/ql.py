@@ -353,7 +353,10 @@ def generate_sci_pypeitfile(redux_path:str,
                 detname = slitTrace.detname
                 # Mosaic?
                 mosaic = True if detname[0:3] == 'MSC' else False
-                det_id = np.where(ps_sci.spectrograph.list_detectors(mosaic=mosaic) == detname)[0]
+                # if mosaic is False list_detectors() returns a 2D array for some spectrographs, therefore we flatten it
+                spec_list_dets = ps_sci.spectrograph.list_detectors(mosaic=mosaic) if mosaic \
+                    else ps_sci.spectrograph.list_detectors().flatten()
+                det_id = np.where(spec_list_dets == detname)[0]
                 if len(det_id) == 0:
                     detname = None  # Reset
                     continue        # TODO: or fault?
