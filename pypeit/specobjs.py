@@ -133,6 +133,7 @@ class SpecObjs:
 
         self.header = header
         self.hdul = None
+        self.calibs = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -752,6 +753,10 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+        # Add calibration associations to Header
+        if self.calibs is not None:
+            for key, val in self.calibs.items():
+                header[f'CLBS_{key}'] = val
 
         # Init
         prihdu = fits.PrimaryHDU(header=header)
@@ -874,11 +879,8 @@ class SpecObjs:
                 boxsize.append(0.)
 
             # Optimal profile (FWHM)
+            opt_fwhm.append(specobj.SPAT_FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
-                opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-            else:  # Optimal is not required to occur
-                opt_fwhm.append(0.)
             # NOTE: Below requires that S2N not be None, otherwise the code will
             # fault.  If the code gets here and S2N is None, check that 1D
             # extractions have been performed.
