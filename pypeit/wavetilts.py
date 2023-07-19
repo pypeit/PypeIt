@@ -199,23 +199,19 @@ class WaveTilts(calibframe.CalibFrame):
         if (Path(self.calib_dir).resolve() / self.slits_filename).exists():
             slits = slittrace.SlitTraceSet.from_file(Path(self.calib_dir).resolve() / self.slits_filename)
             _slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
-            if tilt_img_dict.image.shape != _slitmask.shape:
-                msgs.warn('Tilt image and other calibration frames have different shapes. '
-                          'Cannot load slits nor Wave image.')
-                # resize slitmask to match tilt_img_dict.image.shape
-                slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
-                # but, still, we cannot really use slits, so we set it to None
-                slits = None
-            else:
-                left, right, mask = slits.select_edges(flexure=self.spat_flexure)
-                gpm = mask == 0
-                slitmask = _slitmask
+            _left, _right, _mask = slits.select_edges(flexure=self.spat_flexure)
+            gpm = _mask == 0
+            # resize
+            slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
+            left = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _left)
+            right = arc.resize_slits2arc(tilt_img_dict.image.shape, _slitmask.shape, _right)
         else:
             slits = None
             msgs.warn('Could not load slits to show with tilts image.')
 
         # get waveimg
-        if waveimg is None and slits is not None and slitmask is not None and in_ginga:
+        same_size = (slits.nspec, slits.nspat) == tilt_img_dict.image.shape
+        if waveimg is None and slits is not None and same_size and in_ginga:
             wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
             if Path(wv_calib_name).resolve().exists():
                 wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name)
