@@ -495,7 +495,7 @@ class CoAdd2D:
             if self.pypeline == 'Echelle' and self.weights == 'auto':
                 _weights = self.use_weights[slit_idx]
             else:
-                _weights = self.weights
+                _weights = self.use_weights
 
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
