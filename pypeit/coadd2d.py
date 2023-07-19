@@ -559,10 +559,8 @@ class CoAdd2D:
             # if this is echelle data and the parset 'weights' is set to 'auto',
             # then the weights are computed per order, i.e., every order has a
             # different set of weights in each exposure (len(self.use_weights[slit_idx]) = nexp)
-            if self.pypeline == 'Echelle' and self.weights == 'auto':
-                _weights = self.use_weights[slit_idx]
-            else:
-                _weights = self.use_weights
+            _weights = self.use_weights[slit_idx] if self.pypeline == 'Echelle' and self.weights == 'auto' else self.use_weights
+            # TODO: Create a method here in the child clases? It is not great to do pypeline specific things in the parent
 
             # Perform the 2d coadd
             # NOTE: mask_stack is a gpm, and this is called inmask_stack in
