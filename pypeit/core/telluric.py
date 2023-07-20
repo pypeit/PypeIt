@@ -263,34 +263,29 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
 
 def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
-    Evaluate the telluric model at an arbitrary location in parameter space.
-    
-    The full atmosphere model parameter space is either 5 or 7 dimensional,
-    which is the size of the ``theta_tell`` input parameter vector.
+    Evaluate the telluric PCA model.
 
-    The parameters provided by ``theta_tell`` must be: pressure, temperature,
-    humidity, airmass, spectral resolution, shift, and stretch. The latter two
-    can be omitted if a shift and stretch of the telluric model are not
-    included.
+    The parameters provided by ``theta_tell`` must be: ntell PCA coefficients,
+    spectral resolution, shift, and stretch. The latter two can be omitted if
+    a shift and stretch of the telluric model are not included.
 
     This routine performs the following steps:
 
-       1. nearest grid point interpolation of the telluric model onto a
-          new location in the 4-d space (pressure, temperature,
-          humidity, airmass)
+       1. summation of telluric PCA components multiplied by coefficients
+       
+       2. transformation of telluric PCA model from arsinh(tau) to transmission
 
-       2. convolution of the atmosphere model to the resolution set by
+       3. convolution of the atmosphere model to the resolution set by
           the spectral resolution.
 
-       3. (Optional) shift and stretch the telluric model.
+       4. (Optional) shift and stretch the telluric model.
 
     Args:
         theta_tell (`numpy.ndarray`_):
-            Vector with the telluric model parameters. Must be 5 or 7
-            elements long. See method description.
+            Vector with the telluric PCA coefficients
         tell_dict (:obj:`dict`):
-            Dictionary containing the telluric grid data. See
-            :func:`read_telluric_grid`.
+            Dictionary containing the telluric PCA data. See
+            :func:`read_telluric_pca`.
         ind_lower (:obj:`int`, optional):
             The index of the first pixel to include in the model. Selecting a
             wavelength region for the modeling makes things faster because we
@@ -313,18 +308,6 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     if ncomp_use > tell_dict['ncomp_tell_pca']:
         msgs.error('Asked for more PCA components than exist in PCA file.')
 
-    #tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use+1])
-    # Asinh model grid, might work slightly better but may be slower?
-    tellmodel_hires = np.exp(-np.sinh(np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use+1])))
-
-    # PCA model could technically give some unphysical values,
-    # so trim to stay between 0 and 1
-    # This is NOT required for the asinh grid...
-#    clip_hi = tellmodel_hires > 1.0
-#    tellmodel_hires[clip_hi] = 1.0
-#    clip_lo = tellmodel_hires < 0.0
-#    tellmodel_hires[clip_lo] = 0.0
-
     # Set the wavelength range if not provided
     ind_lower = 0 if ind_lower is None else ind_lower
     ind_upper = tell_dict['wave_grid'].size - 1 if ind_upper is None else ind_upper
@@ -335,14 +318,20 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
     ind_lower_final = ind_lower_pad if ind_lower_pad == ind_lower else ind_lower - ind_lower_pad
     ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
+    
+    # Evaluate PCA model after truncating the wavelength range
+    tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use][ind_lower_pad:ind_upper_pad+1]),
+                             tell_dict['tell_pca'][:ncomp_use+1])
+    # Transform Arsinh PCA model, works slightly better than transmission components but may be slightly slower?
+    tellmodel_hires = np.exp(-np.sinh(tellmodel_hires))
+    
     # FD: currently assumes shift + stretch is on
-    tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
-                                   tell_dict['dloglam'], theta_tell[-3])
+    tellmodel_conv = conv_telluric(tellmodel_hires,tell_dict['dloglam'], theta_tell[-3])
 
     tellmodel_out = shift_telluric(tellmodel_conv,
                                    np.log10(tell_dict['wave_grid'][ind_lower_pad:ind_upper_pad+1]),
                                    tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
-    return tellmodel_out[ind_lower_final:ind_upper_final]
+    return tellmodel_out[tell_dict['tell_pad_pix']:-tell_dict['tell_pad_pix']+1]
 
 
 ############################
@@ -410,8 +399,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
             This is actually two concatenated paramter vectors, one for
             the object and one for the telluric, i.e::
 
-                theta_obj = theta[:-7]
-                theta_tell = theta[-7:]
+                theta_obj = theta[:-(ntell+3)]
+                theta_tell = theta[-(ntell+3):]
 
             The telluric model theta_tell includes a user-specified number
             of PCA coefficients, spectral resolution, shift, and stretch.
@@ -432,8 +421,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                 - ``arg_dict['flux_ivar']``:  Inverse variance for the
                   flux array
                 - ``arg_dict['tell_dict']``: Dictionary containing the
-                  telluric grid and its parameters read in by
-                  read_telluric_grid
+                  telluric PCA model and its parameters read in by
+                  read_telluric_pca
                 - ``arg_dict['ind_lower']``: Lower index into the
                   telluric model wave_grid to trim down the telluric
                   model.
@@ -481,7 +470,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
     nsamples = arg_dict['popsize']*nparams
     # FD: Currently assumes shift and stretch are turned on.
-    ntheta_tell = arg_dict['ntell']+3
+    ntheta_tell = arg_dict['ntell']+3 # Total number of telluric model parameters
     # Decide how to initialize
     if init_from_last is not None:
         # Use a Gaussian ball about the optimum from a previous iteration
@@ -528,7 +517,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
 
 # TODO This should be a general reader once we get our act together with the data model.
 #  For echelle:  read in all the orders into a (nspec, nporders) array
-#  FOr longslit: read in the stanard into a (nspec, 1) array
+#  For longslit: read in the standard into a (nspec, 1) array
 def unpack_orders(sobjs, ret_flam=False):
     """
     Utility function to unpack the sobjs object and return the 
@@ -845,8 +834,8 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     tellmodel : array shape (nspec,)
         This is a telluric model computed on the wave wavelength grid. Initialization usually requires some initial
-        best guess for the telluric absorption, which is computed from the midpoint of the telluric model grid parameter
-        space using the resolution of the spectrograph and the airmass of the observations.
+        best guess for the telluric absorption, which is computed from the mean of the telluric model grid using
+        the resolution of the spectrograph. (TODO: revisit this for PCA)
 
     Returns
     -------
@@ -862,17 +851,17 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     """
 
-    pca_dict = init_qso_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
-    pca_mean = np.exp(pca_dict['interp'](pca_dict['wave_grid']*(1+pca_dict['z_fid']))[0, :])
+    qso_pca_dict = init_qso_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
+    qso_pca_mean = np.exp(qso_pca_dict['interp'](qso_pca_dict['wave_grid']*(1+qso_pca_dict['z_fid']))[0, :])
     tell_mask = tellmodel > obj_params['tell_norm_thresh']
     # Create a reference model and bogus noise
-    flux_ref = pca_mean * tellmodel
-    ivar_ref = utils.inverse((pca_mean/100.0) ** 2)
+    flux_ref = qso_pca_mean * tellmodel
+    ivar_ref = utils.inverse((qso_pca_mean/100.0) ** 2)
     flam_norm_inv = coadd.robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=tell_mask)
     flam_norm = 1.0/flam_norm_inv
 
     # Set the bounds for the PCA and truncate to the right dimension
-    coeffs = pca_dict['coeffs'][:,1:obj_params['npca']]
+    coeffs = qso_pca_dict['coeffs'][:,1:obj_params['npca']]
     # Compute the min and max arrays of the coefficients which are not the norm, i.e. grab the coeffs that aren't the first one
     coeff_min = np.amin(coeffs, axis=0)  # only
     coeff_max = np.amax(coeffs, axis=0)
@@ -882,7 +871,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     bounds_pca = [(i, j) for i, j in zip(coeff_min, coeff_max)]        # Coefficients:  determined from PCA model
     bounds_obj = bounds_z + bounds_flam + bounds_pca
     # Create the obj_dict
-    obj_dict = dict(npca=obj_params['npca'], pca_dict=pca_dict)
+    obj_dict = dict(npca=obj_params['npca'], pca_dict=qso_pca_dict)
 
     return obj_dict, bounds_obj
 
