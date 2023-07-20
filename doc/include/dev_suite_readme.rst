@@ -459,8 +459,8 @@ Additional Options
     --debug               Debug using only blue setups (default: False)
     -p, --prep_only       Only prepare to execute run_pypeit, but do not
                             actually run it. (default: False)
-    -m, --do_not_reuse_masters
-                            run pypeit without using any existing masters
+    -m, --do_not_reuse_calibs
+                            run pypeit without using any existing calibrations
                             (default: False)
     -t THREADS, --threads THREADS
                             Run THREADS number of parallel tests. (default: 1)

@@ -692,19 +692,26 @@ def get_whitelight_pixels(all_wave, min_wl, max_wl):
 
 
 def get_whitelight_range(wavemin, wavemax, wl_range):
-    """ Get the wavelength range to use for the white light images
-    Args:
-        wavemin (float):
-            Automatically determined minimum wavelength to use for making the white light image.
-        wavemax (float):
-            Automatically determined maximum wavelength to use for making the white light image.
-        wl_range (list):
-            Two element list containing the user-specified values to manually override the automated
-            values determined by PypeIt.
+    """
+    Get the wavelength range to use for the white light images
 
-    Returns:
-        wlrng (list): A two element list containing the minimum and maximum wavelength
-        to use for the white light images
+    Parameters
+    ----------
+    wavemin : float
+        Automatically determined minimum wavelength to use for making the white
+        light image.
+    wavemax : float
+        Automatically determined maximum wavelength to use for making the white
+        light image.
+    wl_range : list
+        Two element list containing the user-specified values to manually
+        override the automated values determined by PypeIt.
+
+    Returns
+    -------
+    wlrng : list
+        A two element list containing the minimum and maximum wavelength to use
+        for the white light images
     """
     wlrng = [wavemin, wavemax]
     if wl_range[0] is not None:
@@ -880,39 +887,48 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
-def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
+def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0,
+               specname="PYP_SPEC"):
     """
-    Create a WCS and the expected edges of the voxels, based on user-specified parameters
-    or the extremities of the data.
+    Create a WCS and the expected edges of the voxels, based on user-specified
+    parameters or the extremities of the data.
 
+    Parameters
+    ----------
+    cubepar : :class:`~pypeit.par.pypeitpar.CubePar`
+        An instance of the CubePar parameter set, contained parameters of the
+        datacube reduction
+    all_ra : `numpy.ndarray`_
+        1D flattened array containing the RA values of each pixel from all
+        spec2d files
+    all_dec : `numpy.ndarray`_
+        1D flattened array containing the DEC values of each pixel from all
+        spec2d files
+    all_wave : `numpy.ndarray`_
+        1D flattened array containing the wavelength values of each pixel from
+        all spec2d files
+    dspat : float
+        Spatial size of each square voxel (in arcsec). The default is to use the
+        values in cubepar.
+    dwv : float
+        Linear wavelength step of each voxel (in Angstroms)
+    collapse : bool, optional
+        If True, the spectral dimension will be collapsed to a single channel
+        (primarily for white light images)
+    equinox : float, optional
+        Equinox of the WCS
+    specname : str, optional
+        Name of the spectrograph
 
-    Args:
-        cubepar (:class:`~pypeit.par.pypeitpar.CubePar`):
-            An instance of the CubePar parameter set, contained parameters of the datacube reduction
-        all_ra (`numpy.ndarray`_):
-            1D flattened array containing the RA values of each pixel from all spec2d files
-        all_dec (`numpy.ndarray`_):
-            1D flattened array containing the DEC values of each pixel from all spec2d files
-        all_wave (`numpy.ndarray`_):
-            1D flattened array containing the wavelength values of each pixel from all spec2d files
-        dspat (float):
-            Spatial size of each square voxel (in arcsec). The default is to use the values in cubepar.
-        dwv (float):
-            Linear wavelength step of each voxel (in Angstroms)
-        collapse (bool, optional):
-            If True, the spectral dimension will be collapsed to a single channel (primarily for white light images)
-        equinox (float, optional):
-            Equinox of the WCS
-        specname (str, optional):
-            Name of the spectrograph
-
-    Returns:
-        cubewcs (`astropy.wcs.wcs.WCS`_):
-            astropy WCS to be used for the combined cube
-        voxedges (tuple) :
-            A three element tuple containing the bin edges in the x, y (spatial) and z (wavelength) dimensions
-        reference_image (`numpy.ndarray`_, None):
-            The reference image to be used for the cross-correlation
+    Returns
+    -------
+    cubewcs : `astropy.wcs.wcs.WCS`_
+        astropy WCS to be used for the combined cube
+    voxedges : tuple
+        A three element tuple containing the bin edges in the x, y (spatial) and
+        z (wavelength) dimensions
+    reference_image : `numpy.ndarray`_
+        The reference image to be used for the cross-correlation. Can be None.
     """
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -1109,11 +1125,11 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     Args:
         image_wcs (`astropy.wcs.wcs.WCS`_):
             World coordinate system to use for the white light images.
-        all_ra (`numpy.ndarray`_)
+        all_ra (`numpy.ndarray`_):
             1D flattened array containing the right ascension of each pixel (units = degrees)
-        all_dec (`numpy.ndarray`_)
+        all_dec (`numpy.ndarray`_):
             1D flattened array containing the declination of each pixel (units = degrees)
-        all_wave (`numpy.ndarray`_)
+        all_wave (`numpy.ndarray`_):
             1D flattened array containing the wavelength of each pixel (units = Angstroms)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
@@ -1121,22 +1137,22 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
             1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
-        all_spatpos (`numpy.ndarray`_)
+        all_spatpos (`numpy.ndarray`_):
             1D flattened array containing the detector pixel location in the spatial direction
-        all_specpos (`numpy.ndarray`_)
+        all_specpos (`numpy.ndarray`_):
             1D flattened array containing the detector pixel location in the spectral direction
-        all_spatid (`numpy.ndarray`_)
+        all_spatid (`numpy.ndarray`_):
             1D flattened array containing the spatid of each pixel
-        tilts (`numpy.ndarray`_, list)
+        tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames (see all_idx)
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_, list)
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
             Information stored about the slits, or a list of SlitTraceSet (see all_idx)
-        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`_, list):
+        astrom_trans (:class:`pypeit.alignframe.AlignmentSplines`, list):
             A Class containing the transformation between detector pixel coordinates
             and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        all_idx (`numpy.ndarray`_, optional)
+        all_idx (`numpy.ndarray`_, optional):
             If tilts, slits, and astrom_trans are lists, this should contain a 1D flattened array, of
             the same length as all_sci, containing the index the tilts, slits, and astrom_trans lists
             that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.
@@ -1230,7 +1246,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             and WCS pixel coordinates, or a list of Alignment Splines (see all_idx)
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
-        all_idx (`numpy.ndarray`_, optional)
+        all_idx (`numpy.ndarray`_, optional):
             If tilts, slits, and astrom_trans are lists, this should contain a 1D flattened array, of
             the same length as all_sci, containing the index the tilts, slits, and astrom_trans lists
             that corresponds to each pixel. Note that, in this case all of these lists need to be the same length.

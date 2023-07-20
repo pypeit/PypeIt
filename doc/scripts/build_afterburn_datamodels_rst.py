@@ -90,7 +90,7 @@ def sens_datamodel(output_root):
     for i,key in enumerate(telluric.keys()):
         tell_table[i+1,:] = [f'``{key}``', column_type(telluric[key]), telluric[key].description]
 
-    sens = SensFunc.empty_sensfunc_table(1, 1)
+    sens = SensFunc.empty_sensfunc_table(1, 1, 1)
     ncol = len(sens.keys())
     sens_table = numpy.empty((ncol+1, 3), dtype=object)
     sens_table[0,:] = ['Column', 'Data Type', 'Description']

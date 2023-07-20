@@ -1211,7 +1211,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
                  use_slits4wvgrid=None, manual=None, wave_method=None):
 
         # Grab the parameter names and values from the function
@@ -1225,11 +1225,17 @@ class Coadd2DPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Offsets
         defaults['only_slits'] = None
-        dtypes['only_slits'] = [int, list]
-        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to. ' \
-                              'I.e., only this/these slit/s will be coadded.'
+        dtypes['only_slits'] = [str, list]
+        descr['only_slits'] = 'Restrict coaddition to one or more of slits. Example syntax -- ' \
+                              'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` ' \
+                              'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
+
+        defaults['exclude_slits'] = None
+        dtypes['exclude_slits'] = [str, list]
+        descr['exclude_slits'] = 'Exclude one or more slits from the coaddition. Example syntax -- ' \
+                                 'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` ' \
+                                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['offsets'] = 'auto'
         dtypes['offsets'] = [str, list]
@@ -1309,7 +1315,8 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid', 'manual', 'wave_method']
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid',
+                   'manual', 'wave_method']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

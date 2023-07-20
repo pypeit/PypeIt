@@ -730,7 +730,7 @@ class Calibrations:
             self.slits = frame['class'].from_file(cal_file)
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
-                self.slits.user_mask(detname, self.user_slits)            
+                self.slits.user_mask(detname, self.user_slits)
             return self.slits
 
         # Slits don't exist or we're not resusing them.  See if the Edges
@@ -744,7 +744,7 @@ class Calibrations:
             # Write the slits calibration file
             self.slits.to_file()
             if self.user_slits is not None:
-                self.slits.user_mask(detname, self.user_slits)            
+                self.slits.user_mask(detname, self.user_slits)
             return self.slits
 
         # Need to build everything from scratch.  Start with the trace image.
@@ -791,7 +791,7 @@ class Calibrations:
         edges = None
         self.slits.to_file()
         if self.user_slits is not None:
-            self.slits.user_mask(detname, self.user_slits)            
+            self.slits.user_mask(detname, self.user_slits)
         return self.slits
 
     def get_wv_calib(self):
@@ -1043,7 +1043,7 @@ class Calibrations:
                               'dark': [buildimage.DarkImage],
                               'pixelflat': [flatfield.FlatImages],
                               'illumflat': [flatfield.FlatImages],
-                              'lampoffflats': [flatfield.FlatImages], 
+                              'lampoffflats': [flatfield.FlatImages],
                               'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
                               'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
                              }

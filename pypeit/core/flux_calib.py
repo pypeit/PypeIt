@@ -1199,28 +1199,35 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
 
 # These are physical limits on the allowed values of the zeropoint in magnitudes
 def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_ang=None):
-    """ Evaluate the zeropoint model.
+    """
+    Evaluate the zeropoint model.
 
-    Parameters:
-    -----------
-    theta: `numpy.ndarray`_
-       Parameter vector for the zeropoint model
-    func: `function`_
-       Function for the zeropoint model from the set of available functions in `pypeit.core.fitting.evaluate_fit`
-    wave: `numpy.ndarray`_
-       Wavelength vector for zeropoint. shape = (nspec,)
-    wave_min: float
-       Minimum wavelength for the zeropoint fit to be passed as an argument to `pypeit.core.fitting.evaluate_fit`
-    wave_max: float
-       Maximum wavelength for the zeropoint fit to be passed as an argument to `pypeit.core.fitting.evaluate_fit`
-    log10_blaze_func_per_ang: `numpy.ndarray`_, optional
-       Log10 blaze function per angstrom. This option is used if the zeropoint model is relative to the non-parametric
-       blaze function determined from flats. The blaze function is defined on the wavelength grid wave. shape = (nspec,)
+    Parameters
+    ----------
 
-    Returns:
-    ---------
-    zeropoint: `numpy.ndarray`_
-       Zeropoint evaluated on the wavelength grid wave. shape = (nspec,)
+    theta : `numpy.ndarray`_
+        Parameter vector for the zeropoint model
+    func : ``__callable__``
+        Function for the zeropoint model from the set of available functions in
+        :func:`~pypeit.core.fitting.evaluate_fit`.
+    wave : `numpy.ndarray`_, shape = (nspec,)
+        Wavelength vector for zeropoint. 
+    wave_min : float
+        Minimum wavelength for the zeropoint fit to be passed as an argument to
+        :func:`~pypeit.core.fitting.evaluate_fit`
+    wave_max : float
+        Maximum wavelength for the zeropoint fit to be passed as an argument to
+        :func:`~pypeit.core.fitting.evaluate_fit`
+    log10_blaze_func_per_ang : `numpy.ndarray`_, optional
+        Log10 blaze function per angstrom. This option is used if the zeropoint
+        model is relative to the non-parametric blaze function determined from
+        flats. The blaze function is defined on the wavelength grid wave. shape
+        = (nspec,)
+
+    Returns
+    -------
+    zeropoint : `numpy.ndarray`_, shape = (nspec,)
+        Zeropoint evaluated on the wavelength grid wave.
     """
     poly_model = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
     zeropoint = poly_model - 5.0 * np.log10(wave) + ZP_UNIT_CONST

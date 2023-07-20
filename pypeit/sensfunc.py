@@ -206,7 +206,7 @@ class SensFunc(datamodel.DataContainer):
         # Input and Output files
         self.spec1df = spec1dfile
         self.sensfile = sensfile
-
+        self.par = par
         # Spectrograph
         header = fits.getheader(self.spec1df)
         self.PYP_SPEC = header['PYP_SPEC']
@@ -216,12 +216,7 @@ class SensFunc(datamodel.DataContainer):
         # spectrograph objects with configuration specific information from
         # spec1d files.
         self.spectrograph.dispname = header['DISPNAME']
-
-        # Get the algorithm parameters
-        #self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
-        # TODO Should we allow the user to pass this in?
         self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
-        # TODO: Check the type of the parameter object?
 
         # Set the algorithm in the datamodel
         self.algorithm = self.__class__._algorithm
@@ -230,7 +225,6 @@ class SensFunc(datamodel.DataContainer):
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
         self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
         self.fstdfile = sensfile.replace('.fits', '') + '_fluxed_std.pdf'
-
 
         # Other
         self.debug = debug
@@ -244,7 +238,6 @@ class SensFunc(datamodel.DataContainer):
 
         if self.sobjs_std is None:
             msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
-
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = self.sobjs_std.unpack_object(ret_flam=False)

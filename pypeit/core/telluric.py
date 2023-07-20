@@ -1838,6 +1838,7 @@ class Telluric(datamodel.DataContainer):
     .. include:: ../include/class_datamodel_telluric.rst
 
     .. todo::
+
         - List the elements of ``obj_params``.
 
     Args:
@@ -1876,10 +1877,12 @@ class Telluric(datamodel.DataContainer):
             Where ``obj_dict`` is one of the return values from the
             ``init_obj_model`` above. See, e.g., :func:`eval_star_model` for
             a detailed explanation of these paramaters and return values.
-    log10_blaze_function (`numpy.ndarray`_, optional):
-        The log10 blaze function determined from a flat field image.  If this is passed in the sensitivity function
-        model will be a (parametric) polynomial fit multiplied into the (non-parametric) log10_blaze_function.
-        Shape = (nspec,) or (nspec, norddet), i.e. the same as  ``wave``.
+        log10_blaze_function (`numpy.ndarray`_, optional):
+            The log10 blaze function determined from a flat field image.  If
+            this is passed in the sensitivity function model will be a
+            (parametric) polynomial fit multiplied into the (non-parametric)
+            log10_blaze_function.  Shape = (nspec,) or (nspec, norddet), i.e.
+            the same as  ``wave``.
         ech_orders (`numpy.ndarray`_, optional):
             If passed the echelle orders will be included in the output data.
             Must be a numpy array of integers with the shape (norders,)
