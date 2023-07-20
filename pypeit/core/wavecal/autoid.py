@@ -699,9 +699,11 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
                    match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
                    debug_peaks:bool=False, use_unknowns:bool=False):
     """ Algorithm to match an input arc spectrum to an archival arc spectrum
-    using a set wavelength guess for the input
+    using a set wavelength guess for the input.  This is an alternative to
+    shifting/stretching to match to the archival arc spectrum as we (hopefully)
+    have a good guess of the wavelength solution for the input spectrum.
 
-    Used only missing orders of echelle spectrographs (so far)
+    Used only for missing orders of echelle spectrographs (so far)
 
     Args:
         lamps (list): List of lamps used in the arc
@@ -732,20 +734,12 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
             If True, use the unknowns in the solution (not recommended)
 
     Returns:
-        _type_: _description_
+        tuple: tcent (np.ndarray; centroid of lines), spec_cont_sub (np.ndarray; subtracted continuum), 
+            patt_dict_slit (dict; dictionary on the lines), tot_line_list (astropy.table.Table; line list)
     """
+    # Load line list
+    tot_line_list, _, _ = waveio.load_line_lists(lamps, include_unknown=use_unknowns)
 
-    # TODO -- The next 10 lines of code is duplicated from echelle_wvcalib
-    # Load the line lists
-    if 'ThAr' in lamps:
-        line_lists_all = waveio.load_line_lists(lamps)
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(lamps)
-        unknwns = waveio.load_unknown_list(lamps)
-
-    tot_line_list = astropy.table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
 
     # Generate the wavelengths from the line list and sort
     wvdata = np.array(tot_line_list['wave'].data)  # Removes mask if any
@@ -772,7 +766,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess, 
                                    kind='cubic', bounds_error=False, 
                                    fill_value='extrapolate')
-    # Interpolate the axiv both ways
+    # Interpolate the arxiv both ways
     fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)), 
                                    kind='cubic', bounds_error=False, 
                                    fill_value='extrapolate')
@@ -1019,11 +1013,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     #debug_xcorr = True
     #debug_reid = True
     # Load line lists
-    if 'ThAr' in lamps:
-        line_lists_all = waveio.load_line_lists(lamps)
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(lamps)
+    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
     # Load template
     if template_dict is None:
@@ -1265,15 +1255,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                    'spec array.')
 
     # Load the line lists
-    if 'ThAr' in lamps:
-        line_lists_all = waveio.load_line_lists(lamps)
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(lamps)
-        unknwns = waveio.load_unknown_list(lamps)
-
-    tot_line_list = astropy.table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
+    tot_line_list, _, _ = waveio.load_line_lists(lamps, include_unknown=use_unknowns)
 
     # Array to hold continuum subtracted arcs
     spec_cont_sub = np.zeros_like(spec)
@@ -1306,8 +1288,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
         # Perform the fit
-        if debug_fits or debug_all:
-            embed(header='1115 of autoid')
+        #if debug_fits or debug_all:
+        #    embed(header='1115 of autoid')
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
             wv_calib[str(iord)] = None
@@ -1547,16 +1529,19 @@ class ArchiveReid:
         self.sigrej_final= self.par['sigrej_final']
 
         # Load the line lists
-        if 'ThAr' in self.lamps:
-            line_lists_all = waveio.load_line_lists(self.lamps)
-            self.line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-            self.unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-        else:
-            self.line_lists = waveio.load_line_lists(self.lamps)
-            self.unknwns = waveio.load_unknown_list(self.lamps)
+        self.tot_line_list, self.line_lists, self.unknwns = waveio.load_line_lists(
+            lamps, include_unknown=self.use_unknowns)
 
-        self.tot_line_list = astropy.table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
-                                else self.line_lists
+        #if 'ThAr' in self.lamps:
+        #    line_lists_all = waveio.load_line_lists(self.lamps)
+        #    self.line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        #    self.unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+        #else:
+        #    self.line_lists = waveio.load_line_lists(self.lamps)
+        #    self.unknwns = waveio.load_unknown_list(self.lamps)
+        
+        #self.tot_line_list = astropy.table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
+        #                        else self.line_lists
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
@@ -1686,7 +1671,7 @@ class HolyGrail:
     ok_mask : ndarray, optional
         Array of good slits
     islinelist : bool, optional
-        Is lines a linelist (True), or a list of ions (False)
+        Is lamps a linelist (True), or a list of ions (False)
     outroot : str, optional
         Name of output file
     debug : bool, optional
@@ -1758,25 +1743,21 @@ class HolyGrail:
         self._debug = debug
         self._verbose = verbose
 
-        # Load the linelist to be used for pattern matching
+        # Line list provided? (not recommended)
         if self._islinelist:
             self._line_lists = self._lamps
             self._unknwns = self._lamps[:0].copy()
-        else:
-            if 'ThAr' in self._lamps:
-                line_lists_all = waveio.load_line_lists(self._lamps)
-                self._line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-                self._unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+            if self._use_unknowns:
+                self._tot_list = astropy.table.vstack([self._line_lists, self._unknwns])
             else:
-                restrict = spectrograph if self._par['use_instr_flag'] else None
-                self._line_lists = waveio.load_line_lists(
-                    self._lamps, restrict_on_instr=restrict)
-                self._unknwns = waveio.load_unknown_list(self._lamps)
-
-        if self._use_unknowns:
-            self._tot_list = astropy.table.vstack([self._line_lists, self._unknwns])
+                self._tot_list = self._line_lists
         else:
-            self._tot_list = self._line_lists
+            # Load the linelist to be used for pattern matching
+            restrict = spectrograph if self._par['use_instr_flag'] else None
+            self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
+                self._lamps, include_unknown=self._use_unknowns, 
+                restrict_on_instr=restrict)
+
 
         # Generate the final linelist and sort
         self._wvdata = np.array(self._tot_list['wave'].data)  # Removes mask if any

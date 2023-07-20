@@ -200,7 +200,7 @@ class WaveCalib(calibframe.CalibFrame):
                 parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
-            embed(header="198 of wavecalib.py")
+            #embed(header="198 of wavecalib.py")
             msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
@@ -514,8 +514,9 @@ class BuildWaveCalib:
                     self.slits.mask[idx] = self.slits.bitmask.turn_off(
                             self.slits.mask[idx], 'BADWVCALIB')
                 else:
-                    embed(header='459 of wavecalib')
-                    raise NotImplementedError("Not ready for multi-slit")
+                    idx = np.in1d(self.slits.spat_id, self.par['redo_slits'])
+                    self.slits.mask[idx] = self.slits.bitmask.turn_off(
+                            self.slits.mask[idx], 'BADWVCALIB')
 
             # Load up slits
             # TODO -- Allow for flexure
@@ -613,7 +614,8 @@ class BuildWaveCalib:
         # Obtain calibration for all slits
         if method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
+            arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, 
+                                         ok_mask=ok_mask_idx,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
@@ -635,7 +637,7 @@ class BuildWaveCalib:
             arcfitter = autoid.ArchiveReid(arccen, self.lamps, self.par,
                                            ech_fixed_format=self.spectrograph.ech_fixed_format, 
                                            ok_mask=ok_mask_idx,
-                                           measured_fwhms=measured_fwhms,
+                                           measured_fwhms=self.measured_fwhms,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
@@ -644,7 +646,8 @@ class BuildWaveCalib:
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, measured_fwhms=measured_fwhms,
+                                             self.binspectral, 
+                                             measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
@@ -693,7 +696,7 @@ class BuildWaveCalib:
                     idx = int(key)
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
-                    self.wv_calib.wv_fits[idx].fwhm = measured_fwhms[idx]
+                    self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
         else:
             # Loop on WaveFit items
             tmp = []
@@ -768,11 +771,13 @@ class BuildWaveCalib:
 
         Returns:
             tuple: 
-                fit2ds -- list of :class:`pypeit.fitting.PypeItFit`: objects containing information from 2-d fit.
-                Frequently a list of 1 fit.  The main exception is for
-                a mosaic when one sets echelle_separate_2d=True
-                dets -- list of int:  List of the detectors
-                order_dets -- list of lists of int:  List of the orders
+                - ``fit2ds``: a list of :class:`pypeit.fitting.PypeItFit`: objects 
+                containing information from 2-d fit.  Frequently a list of 1 fit.  
+                The main exception is for a mosaic when one sets ``echelle_separate_2d=True``.
+    
+                - ``dets``: a list of integers for the detector numbers.
+
+                - ``order_dets``: a list of integer lists providing list of the orders.
         """
         if self.spectrograph.pypeline != 'Echelle':
             msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
@@ -966,15 +971,12 @@ class BuildWaveCalib:
         # Fit 2D?
         if self.par['echelle']:
             # Assess the fits
-            rms = []
-            for wvfit in self.wv_calib.wv_fits:
-                rms.append(wvfit.rms if wvfit.rms is not None else 999.)
-            rms = np.array(rms)
+            rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # Test and scale by measured_fwhms 
             bad_rms = rms > (self.par['rms_threshold'] * np.median(self.measured_fwhms)/self.par['fwhm'])
             #embed(header='line 975 of wavecalib.py')
-            self.wvc_bpm[bad_rms] = True
             if np.any(bad_rms):
+                self.wvc_bpm[bad_rms] = True
                 msgs.warn("Masking one or more bad orders (RMS)")
             # Fit
             fit2ds, dets, order_dets = self.echelle_2dfit(
@@ -993,11 +995,11 @@ class BuildWaveCalib:
                 fixed = False
                 for idet in range(len(dets)):
                     in_det = np.in1d(bad_orders, order_dets[idet])
-                    if np.sum(in_det) == 0:
+                    if not np.any(in_det):
                         continue
                     # Are there few enough?
                     # TODO -- make the scale a parameter
-                    max_bad = int(0.1 * len(order_dets[idet])) + 1
+                    max_bad = len(order_dets[idet])//10 + 1
                     if np.sum(in_det) > max_bad:
                         msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
                         continue
@@ -1006,13 +1008,11 @@ class BuildWaveCalib:
                         iord = np.where(self.slits.ech_order == order)[0][0]
                         # Predict the wavelengths
                         nspec = self.arccen.shape[0]
-                        spec_vec_norm = np.arange(nspec)/float(nspec-1)
+                        spec_vec_norm = np.linspace(0,1,nspec)
                         wv_order_mod = fit2ds[idet].eval(spec_vec_norm, 
                                            x2=np.ones_like(spec_vec_norm)*order)/order
 
                         # Link me
-                        #from importlib import reload
-                        #reload(autoid)
                         tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                             self.lamps, self.arccen[:,iord], wv_order_mod, 
                             self.arcspec_arxiv[:, iord],  self.wave_soln_arxiv[:,iord],
@@ -1036,11 +1036,9 @@ class BuildWaveCalib:
                             n_first=self.par['n_first'],
                             #n_first=3,
                             sigrej_first=self.par['sigrej_first'], 
-                            #sigrej_first=1.5,
                             n_final=n_final, 
                             sigrej_final=2.)
-                            #sigrej_final=self.par['sigrej_final'])
-                        print(final_fit['rms'])
+                        msgs.info(f"New RMS: {final_fit['rms']}")
 
                         # Keep?
                         # TODO -- Make this a parameter?
@@ -1071,11 +1069,7 @@ class BuildWaveCalib:
                     self.wv_calib.wv_fit2d = np.array(fit2ds)
 
             # Check that we have at least one good 2D fit
-            chk_fit2d = False
-            for fit2d in self.wv_calib.wv_fit2d:
-                if fit2d.success:
-                    chk_fit2d = True
-            if not chk_fit2d:
+            if not np.any([fit2d.success for fit2d in self.wv_calib.wv_fit2d]):
                 msgs.error("No successful 2D Wavelength fits.  Cannot proceed.")
 
         # Deal with mask

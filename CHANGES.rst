@@ -32,6 +32,9 @@
     - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
     - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
     - Fix wrong RA & Dec for 2D coadded serendips
+- HIRES wavelength solution improvements galor
+- Added `redo_slits` option
+- Refactored ``load_line_lists()`` yet again!
 
 
 1.13.0 (2 June 2023)

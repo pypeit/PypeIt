@@ -234,8 +234,8 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
     ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 
-    if debug:
-        embed(header='identify_ech_orders 232 of echelle.py')
+    #if debug:
+    #    embed(header='identify_ech_orders 232 of echelle.py')
 
     # Return
     return order_vec, wave_soln_guess_pad[:, ind], arcspec_guess_pad[:, ind]

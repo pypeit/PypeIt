@@ -2743,7 +2743,7 @@ class WavelengthSolutionPar(ParSet):
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
         dtypes['redo_slits'] = [int, list]
-        descr['redo_slits'] = 'Redo the input slit (multslit) or order (echelle)'
+        descr['redo_slits'] = 'Redo the input slit(s) [multslit] or order(s) [echelle]'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool

@@ -635,8 +635,9 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc,
     lindex : `numpy.ndarray`_
         Index array of the assigned line (wavelengths)to each index in dindex
     line_cc : `numpy.ndarray`_
-        ??
+        local cross correlation coefficient computed for each line
     cc_local_thresh : float, default = 0.8, optional
+        Threshold to satisy for local cross-correlation 
 
     Returns
     -------
