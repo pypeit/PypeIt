@@ -599,14 +599,20 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Trim down by detector
         # TODO -- Deal with Mark4
-        max_spat = 2048//bin_spat
+        if self.name == 'keck_lris_red_mark4':
+            max_spat = 4112//bin_spat
+        else:
+            max_spat = 2048//bin_spat
         if ccdnum == 1:
             if self.name == 'keck_lris_red':
                 good = centers < 0.
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
             elif self.name == 'keck_lris_blue':
                 good = centers < 0.
-                xstart = max_spat + 30//bin_spat  
+                xstart = max_spat + 30//bin_spat
+            elif self.name == 'keck_lris_red_mark4':
+                xstart = 2073//bin_spat
+                good = centers < max_spat # No chip gap
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
@@ -1401,8 +1407,8 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             dataext=0,
             specaxis=0,
             specflip=True,  
-            spatflip=False,
-            platescale=0.123,  # From the web page
+            spatflip=True,
+            platescale=0.135,  # From the web page
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
