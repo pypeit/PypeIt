@@ -854,11 +854,21 @@ class PypeItMetaData:
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
-                # metakey is either not set or a string
-                assert metakey is None or isinstance(metakey, str), \
+                # metakey is either not set, or is a string/list
+                assert metakey is None or isinstance(metakey, str) or isinstance(metakey, list), \
                     'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
                     'correctly defined for {0}; values must be None or a string.'.format(
                         self.spectrograph.__class__.__name__)
+                # If a list is input, check all elements of the list are strings
+                if isinstance(metakey, list):
+                    for ll in metakey:
+                        assert isinstance(ll, str), \
+                            'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
+                            'correctly defined for {0}; values must be None or a string.'.format(
+                                self.spectrograph.__class__.__name__)
+                elif isinstance(metakey, str):
+                    # If metakey is a string, convert it to a one-element list
+                    metakey = [metakey]
 
                 # Get the list of frames of this type without a
                 # configuration
@@ -878,17 +888,20 @@ class PypeItMetaData:
                     self.table['setup'][indx] = new_cfg_key
                     continue
 
-                # Find the unique values of meta for this configuration
-                uniq_meta = np.unique(self.table[metakey][in_cfg].data)
-                # Warn the user that the matching meta values are not
-                # unique for this configuration.
-                if uniq_meta.size != 1:
-                    msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
-                              + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                              + '{0} values.' .format(meta))
-                # Find the frames of this type that match any of the
-                # meta data values
-                indx &= np.isin(self.table[metakey], uniq_meta)
+                # Loop through the meta keys
+                for mkey in metakey:
+                    # Find the unique values of meta for this configuration
+                    uniq_meta = np.unique(self.table[mkey][in_cfg].data)
+                    # Warn the user that the matching meta values are not
+                    # unique for this configuration.
+                    if uniq_meta.size != 1:
+                        msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
+                                  + 'frames, configuration {0} does not have unique '.format(cfg_key)
+                                  + '{0} values.' .format(meta))
+                    # Find the frames of this type that match any of the
+                    # meta data values
+                    indx &= np.isin(self.table[mkey], uniq_meta)
+
                 # assign
                 new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
                 for c in range(len(self.table['setup'][indx])):
