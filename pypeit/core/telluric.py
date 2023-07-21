@@ -320,18 +320,20 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
     
     # Evaluate PCA model after truncating the wavelength range
-    tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use][ind_lower_pad:ind_upper_pad+1]),
-                             tell_dict['tell_pca'][:ncomp_use+1])
+    tellmodel_hires = np.zeros_like(tell_dict['tell_pca'][0])
+    tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.dot(np.append(1,theta_tell[:ncomp_use]),
+                             tell_dict['tell_pca'][:ncomp_use+1][:,ind_lower_pad:ind_upper_pad+1])
     # Transform Arsinh PCA model, works slightly better than transmission components but may be slightly slower?
     tellmodel_hires = np.exp(-np.sinh(tellmodel_hires))
     
     # FD: currently assumes shift + stretch is on
-    tellmodel_conv = conv_telluric(tellmodel_hires,tell_dict['dloglam'], theta_tell[-3])
-
+    tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
+                                   tell_dict['dloglam'], theta_tell[-3])
+    embed()
     tellmodel_out = shift_telluric(tellmodel_conv,
                                    np.log10(tell_dict['wave_grid'][ind_lower_pad:ind_upper_pad+1]),
                                    tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
-    return tellmodel_out[tell_dict['tell_pad_pix']:-tell_dict['tell_pad_pix']+1]
+    return tellmodel_out[ind_lower_final:ind_upper_final]
 
 
 ############################
