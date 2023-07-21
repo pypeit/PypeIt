@@ -329,7 +329,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     # FD: currently assumes shift + stretch is on
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
                                    tell_dict['dloglam'], theta_tell[-3])
-    embed()
+
     tellmodel_out = shift_telluric(tellmodel_conv,
                                    np.log10(tell_dict['wave_grid'][ind_lower_pad:ind_upper_pad+1]),
                                    tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
