@@ -1573,9 +1573,9 @@ class ArchiveReid:
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
         # arxiv orders (echelle only)
         if ech_fixed_format:
-            arxiv_orders = []
+            self.arxiv_orders = []
             for iarxiv in range(narxiv):
-                arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
+                self.arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
 #            orders, _ = self.spectrograph.slit2order(slit_spat_pos)
 
         ind_arxiv = np.arange(narxiv, dtype=int)
@@ -1593,7 +1593,7 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit+1,self.nslits))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            ind_sp = arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
+            ind_sp = self.arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
             if ech_fixed_format:
                 msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)

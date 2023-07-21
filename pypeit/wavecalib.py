@@ -634,13 +634,17 @@ class BuildWaveCalib:
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.lamps, self.par,
-                                           ech_fixed_format=self.spectrograph.ech_fixed_format, 
-                                           ok_mask=ok_mask_idx,
-                                           measured_fwhms=self.measured_fwhms,
-                                           orders=self.orders,
-                                           nonlinear_counts=self.nonlinear_counts)
+            arcfitter = autoid.ArchiveReid(
+                arccen, self.lamps, self.par,
+                ech_fixed_format=self.spectrograph.ech_fixed_format, 
+                ok_mask=ok_mask_idx,
+                measured_fwhms=self.measured_fwhms,
+                orders=self.orders,
+                nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
+            # Save orders?
+            if self.par['echelle']: 
+                embed(header='647 of wavecalib.py')
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
