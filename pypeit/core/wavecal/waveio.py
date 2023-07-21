@@ -303,6 +303,10 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     # Otherwise
     msk = np.zeros(len(line_list), dtype=bool)
     for line in lines:
+        # Skip if the lines is not even in the line list
+        if line not in line_dict.keys():
+            continue
+        # Else consider masking
         line_flag = line_dict[line]
         match = line_list['line_flag'] % (2*line_flag) >= line_flag
         msk[match] = True
