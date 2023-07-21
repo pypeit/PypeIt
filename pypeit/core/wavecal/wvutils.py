@@ -172,13 +172,13 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
         wave_grid_max (:obj:`float`, optional):
             max wavelength value for the final grid
         dwave (:obj:`float`, optional):
-            Pixel size in same units as input wavelength array (e.g. Angstroms).
+            Pixel size in same units as input wavelength array (e.g. Angstroms). Used with the 'linear' method.
             If not input, the median pixel size is calculated and used.
         dv (:obj:`float`, optional):
-            Pixel size in km/s for velocity method.  If not input, the median
+            Pixel size in km/s for 'velocity' method.  If not input, the median
             km/s per pixel is calculated and used
         dloglam (:obj:`float`, optional):
-            Pixel size in log10(wave) for the log10 method.
+            Pixel size in log10(wave) for the log10 or velocity method.
         spec_samp_fact (:obj:`float`, optional):
             Make the wavelength grid sampling finer (spec_samp_fact < 1.0) or
             coarser (spec_samp_fact > 1.0) by this sampling factor. This
