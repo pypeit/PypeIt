@@ -996,7 +996,8 @@ class Coadd1DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, wave_grid_min=None,
+                 wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
@@ -1030,7 +1031,6 @@ class Coadd1DPar(ParSet):
         dtypes['nmaskedge'] = int
         descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
 
-        # Offsets
         defaults['sn_smooth_npix'] = None
         dtypes['sn_smooth_npix'] = [int, float]
         descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
@@ -1038,8 +1038,12 @@ class Coadd1DPar(ParSet):
                                   'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
                                   'this neff.'
 
+        defaults['sigrej_exp'] = None
+        dtypes['sigrej_exp'] = [int, float]
+        descr['sigrej_exp'] = 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma ' \
+                              'above the median S/N. If None (the default), no rejection is performed.'
 
-        # Offsets
+
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
@@ -1183,7 +1187,8 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'wave_grid_min', 'wave_grid_max',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'sigrej_exp', 'wave_method',
+                   'dv', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile', 'chk_version',

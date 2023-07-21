@@ -204,7 +204,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
-            sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            sn_smooth_npix=self.par['sn_smooth_npix'], sigrej_exp=self.par['sigrej_exp'], wave_method=self.par['wave_method'],
             dv=self.par['dv'], wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],

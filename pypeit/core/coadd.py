@@ -2038,7 +2038,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights,
     return fluxes_scale, ivars_scale, scales, scale_method_used
 
 
-def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
+def combspec(waves, fluxes, ivars, masks, sn_smooth_npix, sigrej_exp=None,
              wave_method='linear', dwave=None, dv=None, dloglam=None,
              spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
              ref_percentile=70.0, maxiter_scale=5, wave_grid_input=None,
@@ -2066,6 +2066,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         shape=(nspec, nexp)
     sn_smooth_npix: int
         Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
+    sigrej_exp: float, optional, default=None
+        Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma above the median S/N.
+        If None (the default), no rejection is performed.
     wave_method: str, optional
         method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
         space grid in lambda. See docuementation on get_wave_grid for description of the options.
@@ -2165,15 +2168,33 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     fluxes = np.float64(fluxes)
     ivars = np.float64(ivars)
 
+    # Evaluate the sn_weights. This is done once at the beginning
+    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+
+    # TODO: need to make some changes below after PR #1604 is merged and add this for echelle
+    # if the number of exposure is more than 2, let's do some stats
+    if rms_sn.size > 2:
+        mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2.0, sigma_upper=2.0)
+        _sigrej = sigrej_exp if sigrej_exp is not None else 10.0
+        bad_flag = np.array(rms_sn) > med + _sigrej*sigma
+        if np.any(bad_flag):
+            msgs.warn(f'There is/are {np.where(bad_flag)[0].size} exposure(s) with S/N > {med + _sigrej*sigma:.2f} '
+                      f'({_sigrej} sigma above the median S/N) in the stack.')
+            if sigrej_exp is not None:
+                msgs.warn('This/These exposure(s) will be rejected from the stack.')
+                waves = waves[:, np.logical_not(bad_flag)]
+                fluxes = fluxes[:, np.logical_not(bad_flag)]
+                ivars = ivars[:, np.logical_not(bad_flag)]
+                masks = masks[:, np.logical_not(bad_flag)]
+                rms_sn = rms_sn[np.logical_not(bad_flag)]
+                weights = weights[:, np.logical_not(bad_flag)]
+
     # Generate a giant wave_grid
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
         waves=waves, masks = masks, wave_method=wave_method, 
         wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, 
         wave_grid_input=wave_grid_input, 
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
-
-    # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
@@ -2190,7 +2211,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
-def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
+
+def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
@@ -2214,6 +2236,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
            in the stack that is being co-added and use 10% of this neff.
+        sigrej_exp (float, optional):
+            Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma above the median S/N.
+            If None (the default), no rejection is performed.
         wave_method (str, optional):
            method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
            space grid in lambda. See docuementation on get_wave_grid for description of the options.
@@ -2312,7 +2337,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
-        waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
+        waves, fluxes,ivars, masks, sigrej_exp=sigrej_exp, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
