@@ -1053,7 +1053,7 @@ class BuildWaveCalib:
                             sigrej_first=self.par['sigrej_first'], 
                             n_final=n_final, 
                             sigrej_final=2.)
-                        msgs.info(f"New RMS: {final_fit['rms']}")
+                        msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                         # Keep?
                         # TODO -- Make this a parameter?
