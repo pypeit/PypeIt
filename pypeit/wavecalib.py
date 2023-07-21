@@ -642,9 +642,20 @@ class BuildWaveCalib:
                 orders=self.orders,
                 nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
-            # Save orders?
+
+            # Save arxiv for redo later?
             if self.par['echelle']: 
-                embed(header='647 of wavecalib.py')
+                # Collate
+                wave_soln_arxiv = []
+                arcspec_arxiv = []
+                for order in self.orders:
+                    ind_sp = arcfitter.arxiv_orders.index(order) 
+                    wave_soln_arxiv.append(arcfitter.wave_soln_arxiv[:,ind_sp])
+                    arcspec_arxiv.append(arcfitter.spec_arxiv[:,ind_sp])
+                # Save
+                self.wave_soln_arxiv = np.stack(wave_soln_arxiv,axis=-1)
+                self.arcspec_arxiv = np.stack(arcspec_arxiv,axis=-1)
+                self.arccen = arccen
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
