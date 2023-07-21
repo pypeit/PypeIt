@@ -17,7 +17,7 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import msgs
-from pypeit import utils
+from pypeit import utils, data
 from pypeit.core import arc
 from pypeit.pypmsgs import PypeItError
 
@@ -771,7 +771,7 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-                   order=None, overwrite=True):
+                   order=None, overwrite=True, cache=False):
     """
     Write the template spectrum into a binary FITS table
 
@@ -783,7 +783,9 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
         binspec (int):
             Binning of the template
         outpath (str):
+            Directory to store the wavelength template file
         outroot (str):
+            Filename to use for the template
         det_cut (bool, optional):
             Cuts in wavelength for detector snippets
             Used primarily for DEIMOS
@@ -791,6 +793,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
             Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
+        cache (bool, optional):
+            Store the wavelength solution in the pypeit cache?
     """
     tbl = Table()
     tbl['wave'] = nwwv
@@ -809,4 +813,17 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     # Write
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
-    print("Wrote: {}".format(outfile))
+    msgs.info(f"Your arxiv solution has been written to {outfile}\n")
+    if cache:
+        # Also copy the file to the cache for direct use
+        data.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
+
+        msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
+                  f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                  f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                  f" [calibrations]{msgs.newline()}"
+                  f"   [[wavelengths]]{msgs.newline()}"
+                  f"     reid_arxiv = {outroot}{msgs.newline()}"
+                  f"     method = full_template\n")
+    print("")  # Empty line for clarity
+    msgs.info("Please consider sharing your solution with the PypeIt Developers.")

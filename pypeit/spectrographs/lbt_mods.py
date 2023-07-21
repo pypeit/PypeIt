@@ -43,7 +43,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]

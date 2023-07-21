@@ -6,6 +6,7 @@
 - Hotfix for GTC/OSIRIS lamp list
 - Hotfix for Arc1D stats annotations on the QA
 - Hotfix for metadata (correctly set config_independent frames when multiple configurations are being setup)
+- Hotfix for metadata (support lists in ``config_independent_frames()``)
 - Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used np.bool
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
@@ -13,6 +14,14 @@
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
+- Store user-generated wavelength solution in pypeit cache
+- Fix a bug in ``spectrograph.select_detectors``, where a list of ``slitspatnum`` could not be used.
+- Improvements in 2D coaddition
+    - Fix a bug in `pypeit_setup_coadd2d` for the output file name of the .coadd2d file
+    - Added possibility to specify more than one Science folder in `pypeit_setup_coadd2d`
+    - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
+    - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
+    - Fix wrong RA & Dec for 2D coadded serendips
 
 1.13.0 (2 June 2023)
 --------------------
