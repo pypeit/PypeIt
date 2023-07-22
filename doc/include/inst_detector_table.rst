@@ -16,7 +16,8 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``gemini_gmos_south_ham``     1    1         False     False     4         1.83, 1.83, 1.83, 1.83      3.98, 3.98, 3.98, 3.98  0.0       -1.0e+10  129000.0      0.9500     0.0800    
 ...                           2    1         False     False     4         1.83, 1.83, 1.83, 1.83      3.98, 3.98, 3.98, 3.98  0.0       -1.0e+10  123000.0      0.9500     0.0800    
 ...                           3    1         False     False     4         1.83, 1.83, 1.83, 1.83      3.98, 3.98, 3.98, 3.98  0.0       -1.0e+10  125000.0      0.9500     0.0800    
-``gemini_gnirs``              1    0         True      True      1         13.5                        7.0                     0.15      -1.0e+10  150000.0      0.7100     0.1500    
+``gemini_gnirs_echelle``      1    0         True      True      1         13.5                        7.0                     0.15      -1.0e+10  150000.0      0.7100     0.1500    
+``gemini_gnirs_ifu``          1    0         True      True      1         13.5                        7.0                     0.15      -1.0e+10  150000.0      0.7100     0.1500    
 ``gtc_maat``                  1    1         True      False     1         1.9                         4.3                     5.0       0.0e+00   65535.0       0.9500     0.1250    
 ``gtc_osiris``                1    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
 ...                           2    0         False     False     1         0.95                        4.5                     0.0       0.0e+00   65535.0       0.9500     0.1270    
@@ -44,7 +45,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ...                           2    0         True      False     2         1.63, 1.7                   3.6, 3.6                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ``keck_lris_red``             1    0         False     False     2         1.255, 1.18                 4.64, 4.76              0.0       -1.0e+10  65535.0       0.7600     0.1350    
 ...                           2    0         False     False     2         1.191, 1.162                4.54, 4.62              0.0       -1.0e+10  65535.0       0.7600     0.1350    
-``keck_lris_red_mark4``       1    0         True      False     2         1.61, 1.60153               3.65, 3.52              0.0       -1.0e+10  65535.0       0.7600     0.1230    
+``keck_lris_red_mark4``       1    0         True      True      2         1.61, 1.60153               3.65, 3.52              0.0       -1.0e+10  65535.0       0.7600     0.1350    
 ``keck_lris_red_orig``        1    1         False     False     2         1.98, 2.17                  6.1, 6.3                0.0       -1.0e+10  65535.0       0.7600     0.2100    
 ``keck_mosfire``              1    1         False     False     1         2.15                        5.8                     0.8       -1.0e+10  1000000000.0  1.0000     0.1798    
 ``keck_nires``                1    1         True      False     1         3.8                         5.0                     0.01      -1.0e+10  1000000.0     0.7600     0.1500    
