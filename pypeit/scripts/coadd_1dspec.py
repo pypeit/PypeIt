@@ -124,11 +124,12 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                     width=width, formatter=scriptbase.SmartFormatter)
 
         parser.add_argument('coadd1d_file', type=str,
-                            help="R|File to guide coadding process. This file must have the "
-                                 "following format (see docs for further details including the use of paths): \n\n"
+                            help="R|File to guide coadding process.\n\n"
+                                 "------------------------  MultiSlit ------------------------\n\n" 
+                                 "For coadding Multislit spectra the file must have the following format " \
+                                 "(see docs for further details including the use of paths): \n\n"
                                  "F|[coadd1d]\n"
                                  "F|   coaddfile='output_filename.fits' # Optional\n"
-                                 "F|   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
                                  "\n"
                                  "F|   coadd1d read\n"
                                  "F|        filename | obj_id\n"
@@ -146,7 +147,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "F|     ...    \n"
                                  "F|  coadd1d end\n"
                                  "\n"
-                                 "That is the coadd1d block must be a two column list of "
+                                 "That is the coadd1d block must be a two column list of\n"
                                  "spec1dfiles and objids, but you can specify only a single objid for "
                                  "all spec1dfiles on the first line\n\n"
                                  "Where: \n"
@@ -155,6 +156,38 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                  "objid: the object identifier. To determine the objids inspect "
                                  "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
                                  "--list\n\n"
+                                 "------------------------  Echelle ------------------------\n\n" 
+                                 "For coadding Echelle spectra the file must have the following format (see docs for "
+                                 "further details): \n\n"
+                                 "F|[coadd1d]\n"
+                                 "F|   coaddfile='output_filename.fits' # Optional\n"
+                                 "\n"
+                                 "F|   coadd1d read\n"
+                                 "F|        filename | obj_id | sensfile  | setup_id \n"
+                                 "F|     spec1dfile1 | objid1 | sensfile1 | setup_id1\n"
+                                 "F|     spec1dfile2 | objid2 | sensfile2 | setup_id2\n"
+                                 "F|     spec1dfile3 | objid3 | sensfile3 | setup_id3\n"
+                                 "F|        ...    \n"
+                                 "F|   coadd1d end\n"
+                                 "\n OR the coadd1d read/end block can look like \n\n"
+                                 "F|  coadd1d read\n"
+                                 "F|        filename | obj_id | sensfile  | setup_id\n"
+                                 "F|     spec1dfile1 | objid1 | sensfile  | setup_id\n"
+                                 "F|     spec1dfile2 |        |           |         \n"
+                                 "F|     spec1dfile3 |        |           |         \n"
+                                 "F|        ...    \n"
+                                 "F|   coadd1d end\n"
+                                 "\n"
+                                 "That is the coadd1d block is a four column list of\n"
+                                 "spec1dfiles, objids, sensitivity function files, and setup_ids, "
+                                 "but you can specify only a single objid, sensfile, and setup_id for "
+                                 "all spec1dfiles on the first line\n\n"
+                                 "Here: \n"
+                                 "\n"
+                                 "spec1dfile: full path to a PypeIt spec1dfile\n\n"
+                                 "objid: the object identifier (see details above)\n\n"
+                                 "sensfile: full path to a PypeIt sensitivity function file for the echelle setup in question\n\n"
+                                 "setup_id: string identifier for the echelle setup in question, i.e. 'VIS', 'NIR', or '\n\n"
                                  "If the coaddfile is not given the output file will be placed "
                                  "in the same directory as the first spec1d file.\n\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
@@ -191,10 +224,14 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=(coadd1dFile.cfg_lines,))
+        # Check that sensfunc column is populated if this is echelle
+        if spectrograph.pypeline == 'Echelle' and coadd1dFile.sensfiles is None:
+            msgs.error("To coadd echelle spectra, the 'sensfile' column must present in your .coadd1d file")
+
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
-        sensfile = par['coadd1d']['sensfuncfile']
+        # TODO This needs to come out of the parset
         coaddfile = par['coadd1d']['coaddfile']
 
         # Testing?
@@ -203,8 +240,6 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         #        sensfile = os.path.join(args.test_spec_path, sensfile)
         #    coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
-        if spectrograph.pypeline == 'Echelle' and sensfile is None:
-            msgs.error('You must specify the sensfuncfile in the .coadd1d file for Echelle coadds')
 
         if coaddfile is None:
             coaddfile = build_coadd_file_name(coadd1dFile.filenames, spectrograph)
@@ -213,7 +248,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         coAdd1d = coadd1d.CoAdd1D.get_instance(coadd1dFile.filenames, 
                                                coadd1dFile.objids, 
                                                spectrograph=spectrograph,
-                                               par=par['coadd1d'], sensfile=sensfile,
+                                               par=par['coadd1d'],
+                                               sensfuncfile=coadd1dFile.sensfiles,
+                                               setup_id=coadd1dFile.setup_id,
                                                debug=args.debug, show=args.show)
         # Run
         coAdd1d.run()

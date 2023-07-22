@@ -92,8 +92,7 @@ class InputFile:
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
-            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                    for l in f.readlines()])
+            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() for l in f.readlines()])
         # Remove empty or fully commented lines
         lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
         # Remove appended comments and return
@@ -675,6 +674,51 @@ class Coadd1DFile(InputFile):
             oids = oids*len(self.data)
         # Return
         return oids
+
+    # TODO is the correct way to treat optional table entries?
+
+    @property
+    def sensfiles(self):
+        """Generate a list of the sensitivity files with
+        the full path.  The files must exist and be
+        within one of the paths (or the current
+        folder with not other paths specified) for this to succeed.
+
+        Returns:
+            list: List of full path to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+        """
+
+        if 'sensfile' not in self.data.keys():
+            return None
+
+        # Grab em
+        sens_files = self.path_and_files('sensfile', skip_blank=True)
+        # Pad out
+        if len(sens_files) == 1 and len(self.filenames) > 1:
+            sens_files = sens_files * len(self.filenames)
+            # Return
+        return sens_files
+
+
+    @property
+    def setup_id(self):
+
+        if 'setup_id' not in self.data.keys():
+            return None
+
+        # Generate list, scrubbing empty entries
+        sid = [str(item) for item in self.data['setup_id'] if str(item).strip() not in ['', 'none', 'None']]
+
+        # Inflate as needed
+        if len(sid) == 1 and len(sid) < len(self.data):
+            sid = sid * len(self.data)
+        # Return
+        return sid
+
+
+
 
 
 class Coadd2DFile(InputFile):

@@ -757,7 +757,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             offset_arcsec[ifile] = hdr['YOFFSET']
         return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None, debug=False):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -779,6 +779,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
 
         Returns
         -------
@@ -790,6 +793,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
@@ -840,8 +845,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
         wave = wave_in.copy()
         counts = counts_in.copy()
-        gpm = gpm_in.copy()
         counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+
         wave[second_order_region] = 0.0
         counts[second_order_region] = 0.0
         counts_ivar[second_order_region] = 0.0
@@ -849,6 +855,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
         # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
         gpm[second_order_region] = False
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function.copy()
+            log10_blaze_function_out[second_order_region] = 0.0
+        else:
+            log10_blaze_function_out = None
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out
+
         #if debug:
         #    from matplotlib import pyplot as plt
         #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
@@ -859,7 +874,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.axvline(wave_red, color='red')
         #    plt.legend()
         #    plt.show()
-        return wave, counts, counts_ivar, gpm
+
 
     def list_detectors(self, mosaic=False):
         """

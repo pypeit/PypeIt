@@ -25,31 +25,44 @@ from pypeit.history import History
 class CoAdd1D:
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
+                     debug=False, show=False):
         """
-        Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
+        Superclass factory method which generates the subclass instance. See :class:`CoAdd1D` instantiation for
+        argument descriptions.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
+            debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
+                 debug=False, show=False):
         """
 
         Args:
             spec1dfiles (list):
-               List of strings which are the spec1dfiles
+                List of strings which are the spec1dfiles
             objids (list):
-               List of strings which are the objids for the object in each spec1d file that you want to coadd
+                List of strings which are the objids for the object in each
+                spec1d file that you want to coadd.
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+                Spectrograph object.
             par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
-               Pypeit parameter set object for Coadd1D
-            sensfile (str, optional):
-               File holding the sensitivity function. This is required for echelle coadds only.
+                PypeIt parameter set object for Coadd1D
+            sensfuncile (str or list of strings, optional):
+                File or list of files holding the sensitivity function. This is
+                required for echelle coadds only.
+            setup_id (str or list of strings, optional):
+                A string or list of strings identifiying the setup IDs to coadd.
+                This is only used for echelle coadds where a loop over the
+                different echelle setups is performed.  If None, it will be
+                assumed that all the input files, objids, and sensfuncfiles
+                correspond to the same setup.
             debug (bool, optional)
-               Debug. Default = False
+                Debug. Default = False
             show (bool, optional):
-               Debug. Default = True
+                Debug. Default = True
         """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
@@ -66,7 +79,6 @@ class CoAdd1D:
         else:
             self.par = par
         #
-        self.sensfile = sensfile
         self.debug = debug
         self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
@@ -77,8 +89,6 @@ class CoAdd1D:
         Runs the coadding
         """
 
-        # Load the data
-        self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load_arrays()
         # Coadd the data
         self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
         # Scale to a filter magnitude?
@@ -87,50 +97,14 @@ class CoAdd1D:
             self.flux_coadd *= scale
             self.ivar_coadd = self.ivar_coadd / scale**2
 
-    def load_arrays(self):
-        """
-        Load the arrays we need for performing coadds.
 
-        Returns:
-            tuple:
-               - waves, fluxes, ivars, gpms, header
+
+    def load(self):
         """
-        for iexp in range(self.nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
-            indx = sobjs.name_indices(self.objids[iexp])
-            if not np.any(indx):
-                msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, meta_spec, header = \
-                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
-            # Allocate arrays on first iteration
-            # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
-            if iexp == 0:
-                waves = np.zeros(wave_iexp.shape + (self.nexp,))
-                fluxes = np.zeros_like(waves)
-                ivars = np.zeros_like(waves)
-                gpms = np.zeros_like(waves, dtype=bool)
-                header_out = header
-                if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
-                    header_out['RA_OBJ']  = sobjs[indx][0]['RA']
-                    header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
-            # Check if the arrays need to be padded
-            # TODO :: Remove the if/elif statement below once these 2D arrays have been converted to a list of 1D arrays
-            if wave_iexp.shape[0] > waves.shape[0]:
-                padv = [(0, wave_iexp.shape[0]-waves.shape[0]), (0, 0)]
-                waves = np.pad(waves, padv, mode='constant', constant_values=(0, 0))
-                fluxes = np.pad(fluxes, padv, mode='constant', constant_values=(0, 0))
-                ivars = np.pad(ivars, padv, mode='constant', constant_values=(0, 1))
-                gpms = np.pad(gpms, padv, mode='constant', constant_values=(False, False))
-            elif wave_iexp.shape[0] < waves.shape[0]:
-                padv = [0, waves.shape[0]-wave_iexp.shape[0]]
-                wave_iexp = np.pad(wave_iexp, padv, mode='constant', constant_values=(0, 0))
-                flux_iexp = np.pad(flux_iexp, padv, mode='constant', constant_values=(0, 0))
-                ivar_iexp = np.pad(ivar_iexp, padv, mode='constant', constant_values=(0, 1))
-                gpm_iexp = np.pad(gpm_iexp, padv, mode='constant', constant_values=(False, False))
-            # Store the information
-            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp] \
-                = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp
-        return waves, fluxes, ivars, gpms, header_out
+        Load the arrays we need for performing coadds. Dummy method overloaded by children.
+        """
+        msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
+
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
@@ -138,10 +112,12 @@ class CoAdd1D:
 
         Args:
             coaddfile (str):
-               File to output coadded spectrum to.
-            telluric (`numpy.ndarray`_):
-            obj_model (str):
-            overwrite (bool):
+                File to output coadded spectrum to.
+            telluric (`numpy.ndarray`_, optional):
+                Telluric model.
+            obj_model (str, optional):
+                Name of the object model
+            overwrite (bool, optional):
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
@@ -152,7 +128,8 @@ class CoAdd1D:
                           mask=self.gpm_coadd[wave_gpm].astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
-        onespec.head0 = self.header
+        # TODO This is a hack, not sure how to merge the headers at present
+        onespec.head0 = self.headers[0]
 
         # Add history entries for coadding.
         history = History()
@@ -169,39 +146,81 @@ class CoAdd1D:
     def coadd(self):
         """
         Dummy method overloaded by sub-classes
-
-        Returns:
-            :obj:`tuple`:  four items
-              - wave
-              - flux
-              - ivar
-              - gpm
-
         """
-        return (None,)*4
+        raise NotImplementedError(f'coadding function not defined for {self.__class__.__name__}!')
 
 
 class MultiSlitCoAdd1D(CoAdd1D):
     """
-    Child of CoAdd1d for Multislit and Longslit reductions
+    Child of CoAdd1d for Multislit and Longslit reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
         """
-        See `CoAdd1D` doc string
+        See :class:`CoAdd1D` instantiation for argument descriptions.
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
-                         debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
+
+
+    def load(self):
+        """
+        Load the arrays we need for performing coadds.
+
+        Returns
+        -------
+        waves : list of float `numpy.ndarray`_
+            List of wavelength arrays. The length of the list is nexp. The
+            arrays can have different shapes.
+        fluxes : list of float `numpy.ndarray`_
+            List of flux arrays. The arrays can have different shapes, but all
+            are aligned with what is in waves.
+        ivars : list of float `numpy.ndarray`_
+            List of inverse variance arrays. The arrays can have different
+            shapes, but all are aligned with what is in waves.
+        gpms : list of bool `numpy.ndarray`_
+            List of good pixel mask variance arrays. The arrays can have
+            different shapes, but all are aligned with what is in waves.
+        headers : list of header objects
+            List of headers of length nexp
+        """
+        waves, fluxes, ivars, gpms, headers = [], [], [], [], []
+        for iexp in range(self.nexp):
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            indx = sobjs.name_indices(self.objids[iexp])
+            if not np.any(indx):
+                msgs.error(
+                    "No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
+            if np.sum(indx) > 1:
+                msgs.error("Error in spec1d file for exposure {:d}: "
+                           "More than one object was identified with the OBJID={:s} in file={:s}".format(
+                    iexp, self.objids[iexp], self.spec1dfiles[iexp]))
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+                sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
+            waves.append(wave_iexp)
+            fluxes.append(flux_iexp)
+            ivars.append(ivar_iexp)
+            gpms.append(gpm_iexp)
+            header_out = header.copy()
+            if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
+                header_out['RA_OBJ'] = sobjs[indx][0]['RA']
+                header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
+            headers.append(header_out)
+
+
+        return waves, fluxes, ivars, gpms, headers
 
     def coadd(self):
         """
         Perform coadd for for Multi/Longslit data using multi_combspec
 
         Returns:
-            tuple
-              - wave_grid_mid, wave, flux, ivar, gpm
-
+            tuple: see objects returned by
+            :func:`~pypeit.core.coadd.multi_combspec`.
         """
+        # Load the data
+        self.waves, self.fluxes, self.ivars, self.gpms, self.headers = self.load()
+        # Perform and return the coadd
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], sigrej_exp=self.par['sigrej_exp'], wave_method=self.par['wave_method'],
@@ -215,35 +234,74 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
 
 
-
-
 class EchelleCoAdd1D(CoAdd1D):
     """
-    Child of CoAdd1d for Echelle reductions
+    Child of CoAdd1d for Echelle reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
+                 debug=False, show=False):
         """
-        See `CoAdd1D` doc string
+        See :class:`CoAdd1D` instantiation for argument descriptions.
+
 
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
-                         debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
+
+        if sensfuncfile is None:
+            msgs.error('sensfuncfile is a required argument for echelle coadding')
+
+        self.sensfuncfile = self.nexp * [sensfuncfile] if isinstance(sensfuncfile, str) else sensfuncfile
+        nsens = len(self.sensfuncfile)
+        if nsens == 1:
+            self.sensfuncfile = self.nexp * [self.sensfuncfile[0]]
+            nsens = self.nexp
+        if nsens != self.nexp:
+            msgs.error('Must enter either one sensfunc file for all exposures or one sensfunc file for '
+                       f'each exposure.  Entered {nsens} files for {self.nexp} exposures.')
+
+        if setup_id is None:
+            self.setup_id = self.nexp*['A']
+        else:
+            self.setup_id = self.nexp*[setup_id] if isinstance(setup_id, str) else setup_id
+        nsetup = len(self.setup_id)
+        if nsetup == 1:
+            self.setup_id = self.nexp * [self.setup_id[0]]
+            nsetup = self.nexp
+        if nsetup != self.nexp:
+            msgs.error('Must enter either a single setup_id for all exposures or one setup_id for '
+                       f'each exposure.  Entered {nsetup} files for {self.nexp} exposures.')
+
+
+        self.unique_setups = np.unique(self.setup_id).tolist()
+        self.nsetups_unique = len(self.unique_setups)
+
 
     def coadd(self):
         """
-        Perform coadd for for echelle data using ech_combspec
+        Perform coadd for echelle data using ech_combspec
 
-        Returns:
-            tuple
-              - wave_grid_mid, wave, flux, ivar, gpm
-
+        Returns
+        -------
+        wave_grid_mid : something
+            describe
+        wave_coadd : something
+            describe
+        flux_coadd : something
+            describe
+        ivar_coadd : something
+            describe
+        gpm_coadd : something
+            describe
         """
-        weights_sens = sensfunc.SensFunc.sensfunc_weights(self.sensfile, self.waves,
-                                                          debug=self.debug)
+
+        # Load the data
+        self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
         wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
-                = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, weights_sens,
-                                     nbest=self.par['nbest'],
+                = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
+                                     setup_ids=self.unique_setups,
+                                     nbests=self.par['nbests'],
                                      sn_smooth_npix=self.par['sn_smooth_npix'],
                                      wave_method=self.par['wave_method'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
@@ -256,8 +314,96 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxiter_reject=self.par['maxiter_reject'],
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-                                     debug=self.debug, show=self.show)
+                                     debug=self.debug, show=self.show, show_exp=self.show)
+
 
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+
+
+    def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
+        """
+        Load the arrays we need for performing coadds for a single setup.
+
+        Args:
+            spec1dfiles (list):
+                List of spec1d files for this setup.
+            objids (list):
+                List of objids. This is aligned with spec1dfiles
+            sensfuncfile (list):
+                List of sensfuncfiles. This is aligned with spec1dfiles and objids
+
+        Returns:
+            tuple: waves, fluxes, ivars, gpms, header. Each array has shape =
+            (nspec, norders, nexp)
+
+        """
+        nexp = len(spec1dfiles)
+        for iexp in range(nexp):
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            indx = sobjs.name_indices(objids[iexp])
+            if not np.any(indx):
+                msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
+            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp, debug=self.debug)
+            # Allocate arrays on first iteration
+            # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
+            if iexp == 0:
+                waves = np.zeros(wave_iexp.shape + (nexp,))
+                fluxes = np.zeros_like(waves)
+                ivars = np.zeros_like(waves)
+                weights_sens = np.zeros_like(waves)
+                gpms = np.zeros_like(waves, dtype=bool)
+                header_out = header
+                if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
+                    header_out['RA_OBJ']  = sobjs[indx][0]['RA']
+                    header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
+
+            # Store the information
+            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
+                = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+        return waves, fluxes, ivars, gpms, weights_sens, header_out
+
+
+    def load(self):
+        """
+        Load the arrays we need for performing echelle coadds.
+
+        Returns:
+            waves (list):
+               List of arrays with the wavelength arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            fluxes (list):
+               List of arrays with the flux arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            ivars (list):
+               List of arrays with the ivar arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            gpms (list):
+               List of arrays with the gpm arrays for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            weights_sens (list):
+               List of arrays with the sensfunc weights for each setup. The length of the list
+               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
+            headers (list):
+               List of headers for each setup. The length of the list is the number of unique setups.
+
+        """
+
+        _setup = np.asarray(self.setup_id)
+        _sensfuncfiles = np.asarray(self.sensfuncfile)
+        _spec1dfiles = np.asarray(self.spec1dfiles)
+        _objids = np.asarray(self.objids)
+        waves, fluxes, ivars, gpms, weights_sens, headers = [], [], [], [], [], []
+        combined = [waves, fluxes, ivars, gpms, weights_sens, headers]
+        for uniq_setup in self.unique_setups:
+            setup_indx = _setup == uniq_setup
+            loaded = self.load_ech_arrays(_spec1dfiles[setup_indx], _objids[setup_indx], _sensfuncfiles[setup_indx])
+            for c, l in zip(combined, loaded):
+                c.append(l)
+
+
+
+        return waves, fluxes, ivars, gpms, weights_sens, headers
 
 

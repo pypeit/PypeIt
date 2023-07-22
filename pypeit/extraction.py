@@ -159,12 +159,12 @@ class Extract:
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
 
-        # Initialise the slits
-        msgs.info("Initialising slits")
-        self.initialise_slits(slits)
+        # Initialize the slits
+        msgs.info("Initializing slits")
+        self.initialize_slits(slits)
 
         # Internal bpm mask
-        self.extract_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
+        self.extract_bpm = (self.slits.mask > 0) & (np.logical_not(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.extract_bpm_init = self.extract_bpm.copy()
 
@@ -271,7 +271,8 @@ class Extract:
         else:
             return 0
 
-    def initialise_slits(self, slits, initial=False):
+    # TODO Make this a method possibly in slittrace.py. Almost identical code is in find_objects.py
+    def initialize_slits(self, slits, initial=False):
         """
         Gather all the :class:`SlitTraceSet` attributes
         that we'll use here in :class:`Extract`
@@ -286,8 +287,18 @@ class Extract:
         # Slits
         self.slits = slits
         # Select the edges to use
+
+        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+        # to return a new slits object with the desired selection criteria which would remove the ambiguity
+        # about whether the slits and the slitmask are in sync.
+        #bpm = self.slits.mask.astype(bool)
+        #bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing))
+        #gpm = np.logical_not(bpm)
+        #self.slits_left = slits_left[:, gpm]
+        #self.slits_right = slits_right[:, gpm]
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -296,8 +307,8 @@ class Extract:
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-#        # For echelle
-#        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+
+
 
     def extract(self, global_sky, model_noise=None, spat_pix=None):
         """
@@ -437,7 +448,7 @@ class Extract:
 
         # Update the mask
         # TODO: change slits.mask > 2 to use named flags.
-        reduce_masked = np.where(np.invert(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
+        reduce_masked = np.where(np.logical_not(self.extract_bpm_init) & self.extract_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADEXTRACT')
@@ -684,7 +695,7 @@ class MultiSlitExtract(Extract):
         self.global_sky = global_sky
 
         # get the good slits
-        gdslits = np.where(np.invert(self.extract_bpm))[0]
+        gdslits = np.where(np.logical_not(self.extract_bpm))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -778,12 +789,12 @@ class EchelleExtract(Extract):
         super(EchelleExtract, self).__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
-        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
-                            else self.slits.ech_order
-#                            else self.spectrograph.order_vec(self.spatial_coo)
-        if self.order_vec is None:
-            msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
-                       'assigned in the relevant SlitTraceSet.')
+        # TODO Need to test this for 2d coadds
+        #self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
+        #                    else self.slits.ech_order
+        #if self.order_vec is None:
+        #    msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
+        #               'assigned in the relevant SlitTraceSet.')
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
@@ -827,30 +838,31 @@ class EchelleExtract(Extract):
         """
         self.global_sky = global_sky
 
+        # get the good slits
+        gdorders = np.logical_not(self.extract_bpm)
+
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
-
-
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.sciImg.fullmask, self.tilts, self.waveimg,
-                                                  self.global_sky, self.slits_left,
-                                                  self.slits_right, self.slitmask, sobjs,
-                                                  self.order_vec, spat_pix=spat_pix,
-                                                  std=self.std_redux, fit_fwhm=fit_fwhm,
-                                                  min_snr=min_snr, bsp=bsp, sigrej=sigrej,
-                                                  force_gauss=force_gauss, sn_gauss=sn_gauss,
-                                                  model_full_slit=model_full_slit,
-                                                  model_noise=model_noise,
-                                                  show_profile=show_profile,
-                                                  show_resids=show_resids, show_fwhm=show_fwhm,
-                                                  base_var=self.sciImg.base_var,
-                                                  count_scale=self.sciImg.img_scale,
-                                                  adderr=self.sciImg.noise_floor)
+            = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
+                                              self.sciImg.fullmask, self.tilts, self.waveimg,
+                                              self.global_sky, self.slits_left[:, gdorders],
+                                              self.slits_right[:, gdorders], self.slitmask, sobjs,
+                                              spat_pix=spat_pix,
+                                              std=self.std_redux, fit_fwhm=fit_fwhm,
+                                              min_snr=min_snr, bsp=bsp, sigrej=sigrej,
+                                              force_gauss=force_gauss, sn_gauss=sn_gauss,
+                                              model_full_slit=model_full_slit,
+                                              model_noise=model_noise,
+                                              show_profile=show_profile,
+                                              show_resids=show_resids, show_fwhm=show_fwhm,
+                                              base_var=self.sciImg.base_var,
+                                              count_scale=self.sciImg.img_scale,
+                                              adderr=self.sciImg.noise_floor)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

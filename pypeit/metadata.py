@@ -1096,7 +1096,8 @@ class PypeItMetaData:
         # The configuration must be present to determine the calibration
         # group
         if 'setup' not in self.keys():
-            msgs.error('Must have defined \'setup\' column first; try running set_configurations.')
+            msgs.error('CODING ERROR: Must have defined \'setup\' column first; try running '
+                       'set_configurations.')
         configs = np.unique(np.concatenate([_setup.split(',') for _setup in self['setup'].data])).tolist()
         if 'None' in configs:
             configs.remove('None')      # Ignore frames with undefined configurations
@@ -1109,7 +1110,9 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) & (self['framebit'] > 0)
+            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) # & (self['framebit'] > 0)
+            if not any(in_cfg):
+                continue
             icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
             for c in range(len(self['calib'][in_cfg])):
                 if self['calib'][in_cfg][c] == 'None':

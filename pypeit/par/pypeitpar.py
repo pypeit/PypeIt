@@ -999,7 +999,7 @@ class Coadd1DPar(ParSet):
                  sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, wave_grid_min=None,
                  wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
 
         # Grab the parameter names and values from the function
@@ -1134,10 +1134,10 @@ class Coadd1DPar(ParSet):
                            'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ ' \
                            'at a level greater than the formal S/N due to systematics.'
 
-        defaults['nbest'] = None
-        dtypes['nbest'] = int
-        descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
-                         'which will just use one fourth of the total number of orders. This is only used for Echelle.'
+        defaults['nbests'] = None
+        dtypes['nbests'] = [list, int]
+        descr['nbests'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
+                          'which will just use one fourth of the total number of orders. This is only used for Echelle'
 
         # For scaling to an input filter magnitude
         defaults['filter'] = 'none'
@@ -1156,14 +1156,6 @@ class Coadd1DPar(ParSet):
         dtypes['filter_mask'] = [str, list]
         descr['filter_mask'] = 'List of wavelength regions to mask when doing the scaling (`i.e.`, occasional junk pixels). '\
                                'Colon and comma separateed, e.g.   5552:5559,6010:6030'
-
-
-        # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
-        # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
-        defaults['sensfuncfile'] = None
-        dtypes['sensfuncfile'] = str
-        descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
-                            'This is only used for Echelle.'
 
         defaults['coaddfile'] = None
         dtypes['coaddfile'] = str
@@ -1191,7 +1183,7 @@ class Coadd1DPar(ParSet):
                    'dv', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile', 'chk_version',
+                   'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1224,9 +1216,8 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, exclude_slits=None, offsets=None,
-                 spat_toler=None, weights=None, user_obj=None,
-                 use_slits4wvgrid=None, manual=None):
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+                 use_slits4wvgrid=None, manual=None, wave_method=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1286,13 +1277,14 @@ class Coadd2DPar(ParSet):
         defaults['user_obj'] = None
         dtypes['user_obj'] = [int, list]
         descr['user_obj'] = 'Object that the user wants to use to compute the weights and/or the ' \
-                            'offsets for coadding images. For slit spectroscopy, provide the ' \
+                            'offsets for coadding images. For longslit/multislit spectroscopy, provide the ' \
                             '``SLITID`` and the ``OBJID``, separated by comma, of the selected object. ' \
                             'For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. ' \
                             'See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. ' \
                             'If this parameter is not ``None``, it will be used to compute the offsets ' \
                             'only if ``offsets = auto``, and it will used to compute ' \
                             'the weights only if ``weights = auto``.'
+        # TODO For echelle coadds this should just default to 1
 
         # manual extraction
         defaults['manual'] = None
@@ -1302,19 +1294,34 @@ class Coadd2DPar(ParSet):
                           'and spat,spec are in the pseudo-image generated by COADD2D.' \
                               'boxcar_radius is optional and in pixels (not arcsec!).'
 
+        # wave method
+        defaults['wave_method'] = None
+        dtypes['wave_method'] = str
+        descr['wave_method'] = "Argument to `pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how " \
+                               "the 2d coadd wavelength grid is constructed. The default is None, which will use a linear grid" \
+                               "for longslit/multislit coadds and a log10 grid for echelle coadds. " \
+                               "Currently supported options with 2d coadding are:" \
+                                  "* 'iref' -- Use one of the exposures (the first) as the reference for the wavelength grid " \
+                                  "* 'velocity' -- Grid is uniform in velocity" \
+                                  "* 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity." \
+                                  "* 'linear' -- Grid is uniform in wavelength" \
+
+
         # Instantiate the parameter set
         super(Coadd2DPar, self).__init__(list(pars.keys()),
                                                  values=list(pars.values()),
                                                  defaults=list(defaults.values()),
                                                  dtypes=list(dtypes.values()),
                                                  descr=list(descr.values()))
+
+
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler',
-                   'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid',
+                   'manual', 'wave_method']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1325,11 +1332,15 @@ class Coadd2DPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
+
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        allowed_wave_methods = ['iref', 'velocity', 'log10', 'linear']
+        if self.data['wave_method'] is not None and self.data['wave_method'] not in allowed_wave_methods:
+            raise ValueError("If 'wave_method' is not None it must be one of:\n"+", ".join(allowed_wave_methods))
+
 
 
 class CubePar(ParSet):
@@ -1661,7 +1672,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+    def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
@@ -1673,6 +1684,12 @@ class SensFuncPar(ParSet):
         options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['flatfile'] = None
+        dtypes['flatfile'] = str
+        descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
+                            'function computed from a flat field file in the Calibrations directory, e.g.' \
+                            'Calibrations/Flat_A_0_DET01.fits'
 
         defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
@@ -1770,7 +1787,7 @@ class SensFuncPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Single element parameters
-        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
+        parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
                    'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
@@ -2484,7 +2501,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None):
+                 ech_separate_2d=None, redo_slit=None, qa_log=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2730,6 +2747,17 @@ class WavelengthSolutionPar(ParSet):
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        dtypes['redo_slit'] = int
+        descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
+
+        defaults['qa_log'] = True
+        dtypes['qa_log'] = bool
+        descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
+                          'If True, the scaling will be log, if False linear'
+
+
+
+
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -2749,7 +2777,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv']
+                   'wvrng_arxiv', 'redo_slit', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
