@@ -1136,31 +1136,16 @@ class IFUFindObjects(MultiSlitFindObjects):
             if kk == 0:
                 # The first element is the original image
                 continue
-            msgs.info(f"Image spectral {imgmsg} - STEP {kk}/{nsample-1}")
+            print(f"Image spectral {imgmsg} - STEP {kk}/{nsample - 1}")
             # Generate a kernel and normalise
             kernsize = 2 * int(5 * kernwids[kk] + 0.5) + 1  # Use a Gaussian kernel, covering +/-5sigma
-            midp = (kernsize-1) // 2
+            midp = (kernsize - 1) // 2
             xkern = np.arange(kernsize, dtype=int) - midp
-            kern = np.exp(-0.5 * (xkern/kernwids[kk])**2)
-            kern = kern/np.sum(kern)
+            kern = np.exp(-0.5 * (xkern / kernwids[kk]) ** 2)
+            kern = kern / np.sum(kern)
             conv_allkern[:, :, kk] = utils.rebinND(convolve_fft(_input_img, _input_msk, kern), input_img.shape)
-            continue
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            """
             # conv_allkern[:, :, kk] = rebinND(restoration.unsupervised_wiener(_input_img, psf, clip=False)[0], input_img.shape)
             # a=time.time()
             conv_allkern[:, :, kk] = rebinND(restoration.wiener(_input_img, psf, balance=0.1, clip=False), input_img.shape)
@@ -1273,6 +1258,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             conv_allkern[:, :, kk] = rebinND(np.fft.ifft(conv, axis=0).real.copy()[kernsize:kernsize + nspec, :],
                                              input_img.shape)
             del conv
+            """
         msgs.info(f"Collating all {imgmsg} steps")
         conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
         msgs.info(f"Applying the {imgmsg} solution")
@@ -1387,10 +1373,10 @@ class IFUFindObjects(MultiSlitFindObjects):
                 model_ivar[thismask] = self.sciImg.ivar[thismask]
             # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
             # Recalculate the sky on each individual slit and redetermine the spectral flexure
-            global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-                                                   trim_edg=trim_edg, show_fit=show_fit, show=show,
-                                                   show_objs=show_objs)
-            self.calculate_flexure(global_sky_sep)
+            # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+            #                                        trim_edg=trim_edg, show_fit=show_fit, show=show,
+            #                                        show_objs=show_objs)
+            # self.calculate_flexure(global_sky_sep)
 
             # Check if the relative scaling isn't changing much after at least 4 iterations
             if nn >= 3 and max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
@@ -1407,8 +1393,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         embed()
         from matplotlib import pyplot as plt
         from pypeit.core import arc
-        unq = np.arange(30,161,10)
-        colors = plt.cm.Spectral(unq)
+        unq = np.arange(30,161,5)
+        colors = plt.cm.Spectral(np.linspace(0.0,1.0,unq.size))
         for ii, idx in enumerate(unq):
             plt.subplot(121)
             plt.plot(self.waveimg[1260:1300, idx], sciimg[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
@@ -1563,7 +1549,6 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
                                                    spat_flexure=self.spat_flexure_shift)
         return
-
 
 
 def convolve_fft(_input_img, msk, kern):
