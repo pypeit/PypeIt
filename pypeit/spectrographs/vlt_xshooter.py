@@ -295,7 +295,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.35
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.60
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4
