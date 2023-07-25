@@ -2147,6 +2147,9 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
         Boolean mask for stacked
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
+    nocoadd_exp : `numpy.ndarray`_
+        Integer array of exposures that were not coadded. If all exposures were coadded, this will be an empty array.
+
     '''
     #from IPython import embed
     #embed()
@@ -2155,15 +2158,37 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
     _fluxes = [np.float64(flux) for flux in fluxes]
     _ivars = [np.float64(ivar) for ivar in ivars]
 
+    # exposures that will not be coadded
+    nocoadd_exp = np.array([], dtype=int)
+
+    # check if there are exposures that are completely masked out, i.e., gpms = False for all pixels
+    masked_exp = np.where([np.all(gpm == False) for gpm in gpms])[0]
+    if masked_exp.size > 0:
+        msgs.warn(f'The following {masked_exp.size} exposure(s) is/are completely masked out. '
+                  f'It/They will not be coadded.')
+        [msgs.warn(f'Exposure {i}') for i in masked_exp]
+        # update the list of exposures that will be coadded
+        _waves = [_waves[i] for i in range(len(_waves)) if i not in masked_exp]
+        _fluxes = [_fluxes[i] for i in range(len(_fluxes)) if i not in masked_exp]
+        _ivars = [_ivars[i] for i in range(len(_ivars)) if i not in masked_exp]
+        gpms = [gpms[i] for i in range(len(gpms)) if i not in masked_exp]
+        # add to the list of exposures that will not be coadded
+        nocoadd_exp = np.append(nocoadd_exp, masked_exp)
+
+    # check if there are still more than 1 exposures
+    if len(_fluxes) < 2:
+        msgs.error('At least 2 exposures are required for coadding.')
+
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
-    # TODO: need to make some changes below after PR #1604 is merged and add this for echelle
+    # check if there are some bad exposures by comparing the rms_sn with the median rms_sn among all exposures
     # if the number of exposure is more than 2, let's do some stats
     if len(_fluxes) > 2:
-        mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2.0, sigma_upper=2.0)
+        mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
         _sigrej = sigrej_exp if sigrej_exp is not None else 10.0
-        thresh_value = med + _sigrej*sigma
+        # we set thresh_value to never be less than 0.2
+        thresh_value = round(0.2 + med + _sigrej*sigma, 1)
         bad_exp = np.where(rms_sn > thresh_value)[0]
         if bad_exp.size > 0:
             msgs.warn(f'The following {bad_exp.size} exposure(s) has/have S/N > {thresh_value:.2f} '
@@ -2177,6 +2202,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
                 gpms = [gpms[i] for i in range(len(gpms)) if i not in bad_exp]
                 weights = [weights[i] for i in range(len(weights)) if i not in bad_exp]
                 rms_sn = np.delete(rms_sn, bad_exp)
+                # add to the list of exposures that will not be coadded
+                nocoadd_exp = np.append(nocoadd_exp, bad_exp)
 
     # Generate a giant wave_grid
     wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(
@@ -2198,7 +2225,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
         # JFH Use wave_grid_mid for QA plots
         coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, gpm=gpm_stack, title='Stacked spectrum', qafile=qafile)
 
-    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack, nocoadd_exp
 
 
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=None,
@@ -2335,6 +2362,8 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=
         propagated according to weighting and masking.
     mask_stack : `numpy.ndarray`_, bool, (ngrid,)
         Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+    nocoadd_exp : `numpy.ndarray`_, int
+        Integer array of exposures that were not coadded. If all exposures were coadded, this will be an empty array.
     """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
@@ -2344,7 +2373,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
-    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
+    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, nocoadd_exp = combspec(
         waves, fluxes,ivars, masks, sigrej_exp=sigrej_exp, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
@@ -2353,7 +2382,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=
         maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
         show=show)
 
-    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack, nocoadd_exp
 
 
 # TODO: Describe the "b_tuple"

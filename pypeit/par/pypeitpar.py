@@ -1041,7 +1041,8 @@ class Coadd1DPar(ParSet):
         defaults['sigrej_exp'] = None
         dtypes['sigrej_exp'] = [int, float]
         descr['sigrej_exp'] = 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma ' \
-                              'above the median S/N. If None (the default), no rejection is performed.'
+                              'above the median S/N. If None (the default), no rejection is performed. Currently, ' \
+                              'only available for multi-slit observations.' \
 
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str

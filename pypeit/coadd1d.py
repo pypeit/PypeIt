@@ -90,7 +90,7 @@ class CoAdd1D:
         """
 
         # Coadd the data
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.nocoadd_exp = self.coadd()
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -133,7 +133,8 @@ class CoAdd1D:
 
         # Add history entries for coadding.
         history = History()
-        history.add_coadd1d(self.spec1dfiles, self.objids)
+        history.add_coadd1d(self.spec1dfiles, self.objids,
+                            nocoadded=self.nocoadd_exp if self.nocoadd_exp.size > 0 else None)
 
         # Add on others
         if telluric is not None:
@@ -321,7 +322,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      debug=self.debug, show=self.show, show_exp=self.show)
 
 
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, None
 
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):

@@ -6,6 +6,8 @@ Module for managing the history of PypeIt output files.
 """
 
 import os.path
+import numpy as np
+from IPython import embed
 
 from astropy.time import Time
 from astropy.io import fits
@@ -85,7 +87,7 @@ class History:
             for frame in calib_frames:
                 self.append(f'{frame["frametype"]} "{frame["filename"]}"', add_date=False)
 
-    def add_coadd1d(self, spec1d_files, objids):
+    def add_coadd1d(self, spec1d_files, objids, nocoadded=None):
         """
         Add history entries for 1D coadding.
         
@@ -104,27 +106,55 @@ class History:
         Args:
             spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
             objids (:obj:`list`): List of the PypeIt object ids used in coadding.
+            nocoadded (`numpy.ndarray`_, optional): Array of indexes indicating which objects were not coadded.
         """
 
-        combined_files_objids = list(zip(spec1d_files, objids))
-        self.append(f'PypeIt Coadded {len(combined_files_objids)} objects from {len(set(spec1d_files))} spec1d files')
+        if nocoadded is not None:
+            # Not coadded files and objids
+            notcoadded_spec1d_files = [spec1d_files[i] for i in range(len(spec1d_files)) if i in nocoadded]
+            notcoadded_objids = [objids[i] for i in range(len(objids)) if i in nocoadded]
+            combined_notcoadd_files_objids = list(zip(notcoadded_spec1d_files, notcoadded_objids))
 
-        current_spec1d = ""
-        for (spec1d, objid) in combined_files_objids:
-            if spec1d != current_spec1d:
-                current_spec1d = spec1d
+            # Coadded files and objids
+            coadded_spec1d_files = [spec1d_files[i] for i in range(len(spec1d_files)) if i not in nocoadded]
+            coadded_objids = [objids[i] for i in range(len(objids)) if i not in nocoadded]
+            combined_files_objids = list(zip(coadded_spec1d_files, coadded_objids))
+        else:
+            combined_files_objids = list(zip(spec1d_files, objids))
+            combined_notcoadd_files_objids = None
 
-                self.append(f'From "{os.path.basename(spec1d)}"', add_date=False)
-                header = fits.getheader(spec1d)
-                additional_info = None
-                if 'SEMESTER' in header:
-                    additional_info = f"Semester: {header['SEMESTER']}"
-                if 'PROGID' in header:
-                    additional_info += f" Program ID: {header['PROGID']}"
-                if additional_info is not None:
-                    self.append(additional_info, add_date=False)
-            self.append(objid, add_date=False)
+        files_objids = [combined_files_objids, combined_notcoadd_files_objids]
+        # add history
+        for file_objid in files_objids:
+            if file_objid is None:
+                continue
+            elif file_objid == combined_files_objids:
+                self.append(f'PypeIt Coadded {len(file_objid)} objects '
+                            f'from {np.unique([f[0] for f in file_objid]).size} spec1d files')
+            elif file_objid == combined_notcoadd_files_objids:
+                self.append(f'PypeIt DID NOT COADD {len(file_objid)} objects '
+                            f'from {np.unique([f[0] for f in file_objid]).size} spec1d files', add_date=False)
 
+            current_spec1d = ""
+            for (spec1d, objid) in file_objid:
+                if spec1d != current_spec1d:
+                    current_spec1d = spec1d
+
+                    self.append(f'From "{os.path.basename(spec1d)}"', add_date=False)
+                    header = fits.getheader(spec1d)
+                    additional_info = None
+                    if 'SEMESTER' in header:
+                        additional_info = f"Semester: {header['SEMESTER']}"
+                    if 'PROGID' in header:
+                        additional_info += f" Program ID: {header['PROGID']}"
+                    if additional_info is not None:
+                        self.append(additional_info, add_date=False)
+                obj_info = objid
+                if 'MASKDEF_ID' in fits.getheader(spec1d, extname=objid):
+                    obj_info += f" {fits.getheader(spec1d, extname=objid)['MASKDEF_ID']}"
+                if 'MASKDEF_OBJNAME' in fits.getheader(spec1d, extname=objid):
+                    obj_info += f" {fits.getheader(spec1d, extname=objid)['MASKDEF_OBJNAME']}"
+                self.append(obj_info, add_date=False)
 
     def append(self, history, add_date=True):
         """Append a new history entry.
