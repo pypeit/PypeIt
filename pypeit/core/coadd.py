@@ -2259,9 +2259,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=
         how to scale and weight spectra. If set to None, the code will determine
         the effective number of good pixels per spectrum in the stack that is
         being co-added and use 10% of this neff.
-        sigrej_exp (float, optional):
-            Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma above the median S/N.
-            If None (the default), no rejection is performed.
+    sigrej_exp: float, optional
+        Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma above the median S/N.
+        If None (the default), no rejection is performed.
     wave_method : str, optional
         method for generating new wavelength grid with get_wave_grid. Deafult is
         'linear' which creates a uniformly space grid in lambda. See
