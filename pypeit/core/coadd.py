@@ -2148,7 +2148,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
     nocoadd_exp : `numpy.ndarray`_
-        Integer array of exposures that were not coadded. If all exposures were coadded, this will be an empty array.
+        Integer array with the indexes of the exposures that were not coadded.
+        If all exposures were coadded, this will be None.
 
     '''
     #from IPython import embed
@@ -2225,7 +2226,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
         # JFH Use wave_grid_mid for QA plots
         coadd_qa(wave_grid_mid, flux_stack, ivar_stack, nused, gpm=gpm_stack, title='Stacked spectrum', qafile=qafile)
 
-    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack, nocoadd_exp
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, gpm_stack, nocoadd_exp if nocoadd_exp.size > 0 else None
 
 
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=None,
@@ -2363,7 +2364,8 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None, sigrej_exp=
     mask_stack : `numpy.ndarray`_, bool, (ngrid,)
         Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
     nocoadd_exp : `numpy.ndarray`_, int
-        Integer array of exposures that were not coadded. If all exposures were coadded, this will be an empty array.
+        Integer array with the indexes of the exposures that were not coadded.
+        If all exposures were coadded, this will be None.
     """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:

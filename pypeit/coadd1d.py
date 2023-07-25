@@ -133,8 +133,7 @@ class CoAdd1D:
 
         # Add history entries for coadding.
         history = History()
-        history.add_coadd1d(self.spec1dfiles, self.objids,
-                            nocoadded=self.nocoadd_exp if self.nocoadd_exp.size > 0 else None)
+        history.add_coadd1d(self.spec1dfiles, self.objids, nocoadded=self.nocoadd_exp)
 
         # Add on others
         if telluric is not None:
