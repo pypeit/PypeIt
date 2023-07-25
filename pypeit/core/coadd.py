@@ -2189,14 +2189,14 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix, sigrej_exp=None,
         mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
         _sigrej = sigrej_exp if sigrej_exp is not None else 10.0
         # we set thresh_value to never be less than 0.2
-        thresh_value = round(0.2 + med + _sigrej*sigma, 1)
+        thresh_value = round(0.2 + med + _sigrej*sigma, 2)
         bad_exp = np.where(rms_sn > thresh_value)[0]
         if bad_exp.size > 0:
             msgs.warn(f'The following {bad_exp.size} exposure(s) has/have S/N > {thresh_value:.2f} '
                       f'({_sigrej} sigma above the median S/N) in the stack.')
             [msgs.warn(f'Exposure {i}') for i in bad_exp]
             if sigrej_exp is not None:
-                msgs.warn('This/These exposure(s) will be rejected from the stack.')
+                msgs.warn('The above exposure(s) will not be coadded.')
                 _waves = [_waves[i] for i in range(len(_waves)) if i not in bad_exp]
                 _fluxes = [_fluxes[i] for i in range(len(_fluxes)) if i not in bad_exp]
                 _ivars = [_ivars[i] for i in range(len(_ivars)) if i not in bad_exp]
