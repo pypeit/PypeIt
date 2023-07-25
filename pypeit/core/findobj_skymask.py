@@ -1292,6 +1292,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         nabove_min_snr=nabove_min_snr,
         box_radius=box_radius)
 
+    if len(sobjs_pre_final) == 0:
+        return sobjs_pre_final
+
     # PCA
     sobjs_ech = ech_pca_traces(
         sobjs_pre_final, 
