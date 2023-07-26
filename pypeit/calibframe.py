@@ -398,7 +398,6 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`str`: Calibration identifier.
         """
-#        return f'{setup}_{"-".join(CalibFrame.ingest_calib_id(calib_id))}_{detname}'
         return f'{setup}_{CalibFrame.construct_calib_id(calib_id)}_{detname}'
 
     @staticmethod
@@ -415,8 +414,6 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`tuple`: The three components of the calibration key.
         """
-#        setup, calib_id, detname = calib_key.split('_')
-#        return setup, ','.join(calib_id.split('-')), detname
         setup, calib_id_name, detname = calib_key.split('_')
         return setup, CalibFrame.parse_calib_id(calib_id_name), detname
 
