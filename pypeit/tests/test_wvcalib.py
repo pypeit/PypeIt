@@ -71,7 +71,8 @@ def test_wavecalib():
 
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]),
                                     nslits=1, spat_ids=np.asarray([232]),
-                                    wv_fit2d=np.array([pypeitFit2]))
+                                    wv_fit2d=np.array([pypeitFit2]),
+                                    fwhm_map=np.array([pypeitFit2]))
     waveCalib.set_paths(data_path(''), 'A', '1', 'DET01')
 
     ofile = Path(waveCalib.get_path()).resolve()
@@ -88,6 +89,7 @@ def test_wavecalib():
     assert np.array_equal(waveCalib.wv_fits[0].pypeitfit.fitc,
                           waveCalib2.wv_fits[0].pypeitfit.fitc), 'Bad fitc'
     assert np.array_equal(waveCalib.wv_fit2d[0].xval, waveCalib2.wv_fit2d[0].xval)
+    assert np.array_equal(waveCalib.fwhm_map[0].xval, waveCalib2.fwhm_map[0].xval)
 
     # Write again!
     waveCalib2.to_file(overwrite=True)
@@ -95,11 +97,11 @@ def test_wavecalib():
     # Finish
     ofile.unlink()
 
-    # With None (failed wave)
+    # With None (failed wave) and no FWHM mapping
     spat_ids = np.asarray([232, 949])
     waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
-                                    nslits=2, spat_ids=spat_ids,
-                                    wv_fit2d=np.array([pypeitFit2, pypeitFit2]))
+                                     nslits=2, spat_ids=spat_ids,
+                                     wv_fit2d=np.array([pypeitFit2, pypeitFit2]))
     waveCalib3.set_paths(data_path(''), 'A', '1', 'DET01')
     waveCalib3.to_file(overwrite=True)
     waveCalib4 = wavecalib.WaveCalib.from_file(ofile)

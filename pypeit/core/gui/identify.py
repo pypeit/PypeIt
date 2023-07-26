@@ -18,7 +18,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
-from pypeit import data, msgs
+from pypeit import msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
 
@@ -763,22 +763,7 @@ class Identify:
                 # Instead of a generic name, save the wvarxiv with a unique identifier
                 date_str = datetime.now().strftime("%Y%m%dT%H%M")
                 wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', wvarxiv_name)
-
-                # Also copy the file to the cache for direct use
-                data.write_file_to_cache(wvarxiv_name,
-                                         wvarxiv_name,
-                                         "arc_lines/reid_arxiv")
-
-                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
-                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
-                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
-                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
-                          f" [calibrations]{msgs.newline()}"
-                          f"   [[wavelengths]]{msgs.newline()}"
-                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
-                          f"     method = full_template\n")
+                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"

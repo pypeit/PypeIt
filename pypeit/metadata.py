@@ -14,12 +14,10 @@ import datetime
 from IPython import embed
 
 import numpy as np
-import yaml
 
-from astropy import table, coordinates, time, units
+from astropy import table, time
 
 from pypeit import msgs
-from pypeit import utils
 from pypeit import inputfiles
 from pypeit.core import framematch
 from pypeit.core import flux_calib
@@ -714,17 +712,11 @@ class PypeItMetaData:
 
         # If the frame types have been set, ignore anything listed in
         # the ignore_frames
-        indx = np.arange(len(self))
-        ignore_frames = self.spectrograph.config_independent_frames()
-        if ignore_frames is not None:
-            if 'frametype' not in self.keys():
-                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
-            ignore_frames = list(ignore_frames.keys())
-            msgs.info('Unique configurations ignore frames with type: {0}'.format(ignore_frames))
-            use = np.ones(len(self), dtype=bool)
-            for ftype in ignore_frames:
-                use &= np.logical_not(self.find_frames(ftype))
-            indx = indx[use]
+        ignore_frames, ignore_indx = self.ignore_frames()
+        # Find the indices of the frames not to ignore
+        indx = np.arange(len(self.table))
+        indx = indx[np.logical_not(np.in1d(indx, ignore_indx))]
+
         if len(indx) == 0:
             msgs.error('No frames to use to define configurations!')
 
@@ -818,12 +810,16 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
+        # Some frame types need to be ignored
+        ignore_frames, ignore_indx = self.ignore_frames()
         # define the column 'setup' in self.table
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
+            if i in ignore_indx:
+                continue
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
                 mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
@@ -842,10 +838,8 @@ class PypeItMetaData:
             # All are set, so we're done
             return
 
-        # Some frame types may have been ignored
-        ignore_frames = self.spectrograph.config_independent_frames()
+        # If there's no frames to ignore, we can safely return
         if ignore_frames is None:
-            # Nope, we're still done
             return
 
         # At this point, we need the frame type to continue
@@ -860,11 +854,21 @@ class PypeItMetaData:
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
-                # metakey is either not set or a string
-                assert metakey is None or isinstance(metakey, str), \
+                # metakey is either not set, or is a string/list
+                assert metakey is None or isinstance(metakey, str) or isinstance(metakey, list), \
                     'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
                     'correctly defined for {0}; values must be None or a string.'.format(
                         self.spectrograph.__class__.__name__)
+                # If a list is input, check all elements of the list are strings
+                if isinstance(metakey, list):
+                    for ll in metakey:
+                        assert isinstance(ll, str), \
+                            'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
+                            'correctly defined for {0}; values must be None or a string.'.format(
+                                self.spectrograph.__class__.__name__)
+                elif isinstance(metakey, str):
+                    # If metakey is a string, convert it to a one-element list
+                    metakey = [metakey]
 
                 # Get the list of frames of this type without a
                 # configuration
@@ -872,28 +876,38 @@ class PypeItMetaData:
                 if not np.any(indx):
                     continue
                 if metakey is None:
-                    # No matching meta data defined, so just set all
-                    # the frames to this (first) configuration
-                    self.table['setup'][indx] = cfg_key
+                    # No matching meta data defined, so just set all the frames to all of the configurations
+                    new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
+                    for c in range(len(self.table['setup'][indx])):
+                        if cfg_key in self.table['setup'][indx][c]:
+                            new_cfg_key[c] = self.table['setup'][indx][c]
+                        elif self.table['setup'][indx][c] == 'None':
+                            new_cfg_key[c] = cfg_key
+                        else:
+                            new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
+                    self.table['setup'][indx] = new_cfg_key
                     continue
 
-                # Find the unique values of meta for this configuration
-                uniq_meta = np.unique(self.table[metakey][in_cfg].data)
-                # Warn the user that the matching meta values are not
-                # unique for this configuration.
-                if uniq_meta.size != 1:
-                    msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
-                              + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                              + '{0} values.' .format(meta))
-                # Find the frames of this type that match any of the
-                # meta data values
-                indx &= np.isin(self.table[metakey], uniq_meta)
+                # Loop through the meta keys
+                for mkey in metakey:
+                    # Find the unique values of meta for this configuration
+                    uniq_meta = np.unique(self.table[mkey][in_cfg].data)
+                    # Warn the user that the matching meta values are not
+                    # unique for this configuration.
+                    if uniq_meta.size != 1:
+                        msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
+                                  + 'frames, configuration {0} does not have unique '.format(cfg_key)
+                                  + '{0} values.' .format(meta))
+                    # Find the frames of this type that match any of the
+                    # meta data values
+                    indx &= np.isin(self.table[mkey], uniq_meta)
+
                 # assign
                 new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
                 for c in range(len(self.table['setup'][indx])):
                     if cfg_key in self.table['setup'][indx][c]:
                         new_cfg_key[c] = self.table['setup'][indx][c]
-                    if self.table['setup'][indx][c] == 'None':
+                    elif self.table['setup'][indx][c] == 'None':
                         new_cfg_key[c] = cfg_key
                     else:
                         new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
@@ -1135,6 +1149,30 @@ class PypeItMetaData:
         # Check that the groups are valid
         self._check_calib_groups()
 
+    def ignore_frames(self):
+        """
+        Construct a list of frame types to ignore, and the corresponding indices of these frametypes in the table.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that are
+            configuration-independent and the values are the metadata keywords
+            that can be used to assign the frames to a configuration group.
+            numpy.ndarray: An integer array with the table rows that should be ignored when defining the configuration.
+        """
+        ignore_indx = np.arange(len(self.table))
+        ignore_frames = self.spectrograph.config_independent_frames()
+        ignmsk = np.zeros(len(self.table), dtype=bool)
+        if ignore_frames is not None:
+            if 'frametype' not in self.keys():
+                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
+            list_ignore_frames = list(ignore_frames.keys())
+            msgs.info('Unique configurations ignore frames with type: {0}'.format(list_ignore_frames))
+            for ftype in list_ignore_frames:
+                ignmsk |= self.find_frames(ftype)
+        # Isolate the frames to be ignored
+        ignore_indx = ignore_indx[ignmsk]
+        return ignore_frames, ignore_indx
+
     def find_frames(self, ftype, calib_ID=None, index=False):
         """
         Find the rows with the associated frame type.
@@ -1323,13 +1361,18 @@ class PypeItMetaData:
         if user is not None:
             if len(user.keys()) != len(self):
                 if len(np.unique(self['filename'].data)) != len(self):
-                    raise ValueError('Your pypeit file has duplicate filenames which is not allowed.')
+                    msgs.error('Your pypeit file has duplicate filenames which is not allowed.')
                 else:
-                    raise ValueError('The user-provided dictionary does not match table length.')
+                    msgs.error('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
                 indx = self['filename'] == ifile
-                type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+                try:
+                    type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftypes.split(','))
+                except ValueError as err:
+                    msgs.error(f'Improper frame type supplied!{msgs.newline()}'
+                               f'{err}{msgs.newline()}'
+                               'Check your PypeIt Reduction File')
             return self.set_frame_types(type_bits, merge=merge)
     
         # Loop over the frame types
@@ -1398,9 +1441,9 @@ class PypeItMetaData:
             table>
         """
         # Columns for output
-        columns = self.spectrograph.pypeit_file_keys() + ['calib']
+        columns = self.spectrograph.pypeit_file_keys()
 
-        extras = []
+        extras = ['calib']
 
         # comb, bkg columns
         if write_bkg_pairs:

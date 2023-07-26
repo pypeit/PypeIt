@@ -8,6 +8,7 @@ from pypeit.scripts import cache_github_data
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
+from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
 from pypeit.scripts import chk_noise_2dspec

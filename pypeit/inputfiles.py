@@ -267,7 +267,9 @@ class InputFile:
         paths = []
         for l in lines:
             # Strip allows for preceding spaces before path
-            prs = l.strip().split(" ")
+            l = l.strip()
+            # Split at only the first space to allow paths that contain spaces
+            prs = [l[:l.find(' ')], l[l.find(' ')+1:]]
             if prs[0] != 'path':
                 break
             paths += [ prs[1] ]
@@ -718,7 +720,7 @@ class Coadd3DFile(InputFile):
             msgs.error(f"Missing spectrograph in the Parameter block of your .coadd2d file.  Add it!")
 
         # Done
-        msgs.info('.cube file successfully vetted.')
+        msgs.info('.coadd3d file successfully vetted.')
 
     @property
     def options(self):

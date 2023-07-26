@@ -19,7 +19,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     name = 'mdm_osmos_mdm4k'
-    telescope = telescopes.KPNOTelescopePar()
+    telescope = telescopes.HiltnerTelescopePar()
     camera = 'MDM4K'
     url = 'https://www.astronomy.ohio-state.edu/martini.10/osmos/'
     header_name = 'OSMOS'
@@ -76,7 +76,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -91,7 +91,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
@@ -104,7 +104,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -124,6 +124,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        # Mirror
+        self.meta['mirror'] = dict(ext=0, card='MIRROR')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -168,12 +170,12 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -184,7 +186,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -216,9 +218,13 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'zero')
-        if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['lampstat01'] == 'Flat') & (fitstbl['idname'] == 'FLAT')
+            return good_exp & (fitstbl['idname'] == 'Bias')
+            ####return good_exp & (fitstbl['idname'] == 'zero')
+        if ftype == 'pixelflat': #Internal Flats
+            return good_exp & (fitstbl['lampstat01'] == 'Flat') & (fitstbl['idname'] == 'FLAT') & (fitstbl['mirror'] == 'IN')
+        if ftype in ['trace', 'illumflat']: #Twilight Flats
+            return good_exp & (fitstbl['idname'] == 'FLAT') & (fitstbl['mirror'] == 'OUT')
+        
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)

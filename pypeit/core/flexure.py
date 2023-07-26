@@ -130,9 +130,9 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
             Spectral FWHM (in pixels) of the archived sky spectrum.
         spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object/slit.
-        mxshft (:obj:`float`, optional):
+        mxshft (:obj:`int`, optional):
             Maximum allowed shift from flexure;  note there are cases that
-            have been known to exceed even 30 pixels..
+            have been known to exceed even 30 pixels.
         excess_shft (:obj:`str`, optional):
             Behavior of the code when a measured flexure exceeds ``mxshft``.
             Options are "crash", "set_to_zero", and "continue", where
@@ -314,7 +314,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
-                corr_cen=corr.size/2, smooth=smooth_fwhm_pix, method=method)
+                corr_cen=lag0, smooth=smooth_fwhm_pix, method=method)
 
 
 def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=None):
@@ -564,7 +564,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
                   f'object(s) in slit {slits.spat_id[islit]}')
         # get the median shift among all objects in this slit
         idx_med_shift = np.where(flex_dict['shift'] == np.percentile(flex_dict['shift'], 50,
-                                                                     interpolation='nearest'))[0][0]
+                                                                     method='nearest'))[0][0]
         msgs.info(f"Median value of the measured flexure shifts in this slit, equal to "
                   f"{flex_dict['shift'][idx_med_shift]:.3f} pixels, will be used")
 
@@ -665,10 +665,10 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         # get spectral FWHM (in pixels) if available
         spec_fwhm_pix = None
         if wv_calib is not None:
-            iwv = np.where(wv_calib.spat_ids == slits.spat_id[islit])[0][0]
             # Allow for wavelength failures
-            if wv_calib.wv_fits is not None and wv_calib.wv_fits[iwv].fwhm is not None:
-                spec_fwhm_pix = wv_calib.wv_fits[iwv].fwhm
+            if wv_calib.fwhm_map is not None:
+                # Evaluate the spectral FWHM at the centre of the slit (in both the spectral and spatial directions)
+                spec_fwhm_pix = wv_calib.fwhm_map[islit].eval(slits.nspec/2, 0.5)
 
         if slit_cen:
             # global flexure
@@ -685,7 +685,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
     if len(return_later_slits) > 0:
         msgs.warn(f'Flexure shift calculation failed for {len(return_later_slits)} slits')
         # take the median value to deal with the cases when there are more than one shift per slit (e.g., local flexure)
-        saved_shifts = np.array([np.percentile(flex['shift'], 50, interpolation='nearest')
+        saved_shifts = np.array([np.percentile(flex['shift'], 50, method='nearest')
                                  if len(flex['shift']) > 0 else None for flex in flex_list])
         if np.all(saved_shifts == None):
             # If all the elements in saved_shifts are None means that there are no saved shifts available
@@ -696,7 +696,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 flex_list.append(empty_flex_dict.copy())
         else:
             # get the median shift value among all slit
-            med_shift = np.percentile(saved_shifts[saved_shifts!= None], 50, interpolation='nearest')
+            med_shift = np.percentile(saved_shifts[saved_shifts!= None], 50, method='nearest')
             # in which slit the median is?
             islit_med_shift = np.where(saved_shifts == med_shift)[0][0]
             msgs.info(f"Median value of all the measured flexure shifts, equal to "
@@ -980,7 +980,7 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
                 iplt += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=400)
+        plt.savefig(outfile)#, dpi=400)
         plt.close()
 
         # Sky line QA (just one object)
@@ -1047,7 +1047,7 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
 
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=400)
+        plt.savefig(outfile)#, dpi=400)
         plt.close()
         msgs.info("Wrote spectral flexure QA: {}".format(outfile))
 

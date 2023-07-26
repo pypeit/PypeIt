@@ -850,7 +850,7 @@ class FlexurePar(ParSet):
                           'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
         defaults['spec_maxshift'] = 20
-        dtypes['spec_maxshift'] = [int, float]
+        dtypes['spec_maxshift'] = int
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = 'paranal_sky.fits'
@@ -953,7 +953,7 @@ class AlignPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['locations'] = [0.0, 0.5, 1.0]
+        defaults['locations'] = [0.0, 1.0]
         dtypes['locations'] = [list, np.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
@@ -1233,7 +1233,8 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None,
+                 spat_toler=None, weights=None, user_obj=None,
                  use_slits4wvgrid=None, manual=None):
 
         # Grab the parameter names and values from the function
@@ -1247,11 +1248,17 @@ class Coadd2DPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Offsets
         defaults['only_slits'] = None
-        dtypes['only_slits'] = [int, list]
-        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to. ' \
-                              'I.e., only this/these slit/s will be coadded.'
+        dtypes['only_slits'] = [str, list]
+        descr['only_slits'] = 'Restrict coaddition to one or more of slits. Example syntax -- ' \
+                              'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` ' \
+                              'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
+
+        defaults['exclude_slits'] = None
+        dtypes['exclude_slits'] = [str, list]
+        descr['exclude_slits'] = 'Exclude one or more slits from the coaddition. Example syntax -- ' \
+                                 'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` ' \
+                                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['offsets'] = 'auto'
         dtypes['offsets'] = [str, list]
@@ -1315,7 +1322,8 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler',
+                   'weights', 'user_obj', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1342,8 +1350,8 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None, method=None,
+    def __init__(self, slit_spec=None, relative_weights=None, align=None, combine=None, output_filename=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
@@ -1375,6 +1383,12 @@ class CubePar(ParSet):
                                     'This only works well if there is a common continuum source in the field of ' \
                                     'view of all input observations, and is generally only required if high ' \
                                     'relative precision is desired.'
+
+        defaults['align'] = False
+        dtypes['align'] = [bool]
+        descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
+                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'image that is generated using the first spec2d listed in the coadd3d file.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1408,8 +1422,19 @@ class CubePar(ParSet):
                                    'will be given by the "output_filename" variable with a suffix "_whitelight". ' \
                                    'Note that the white light image collapses the flux along the wavelength axis, ' \
                                    'so some spaxels in the 2D white light image may have different wavelength ' \
-                                   'ranges. If combine=False, the individual spec3d files will have a suffix ' \
-                                   '"_whitelight".'
+                                   'ranges. To set the wavelength range, use the "whitelight_range" parameter. ' \
+                                   'If combine=False, the individual spec3d files will have a suffix "_whitelight".'
+
+        defaults['whitelight_range'] = [None, None]
+        dtypes['whitelight_range'] = list
+        descr['whitelight_range'] = 'A two element list specifying the wavelength range over which to generate the ' \
+                                    'white light image. The first (second) element is the minimum (maximum) ' \
+                                    'wavelength to use. If either of these elements are None, PypeIt will ' \
+                                    'automatically use a wavelength range that ensures all spaxels have the ' \
+                                    'same wavelength coverage. Note, if you are using a reference_image to align ' \
+                                    'all frames, it is preferable to use the same white light wavelength range ' \
+                                    'for all white light images. For example, you may wish to use an emission ' \
+                                    'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
         dtypes['method'] = str
@@ -1515,7 +1540,8 @@ class CubePar(ParSet):
                                 'for the sky subtraction, specify the relative path+file to the spec2D file that you ' \
                                 'would like to use for the sky subtraction. The model fit to the sky of the specified ' \
                                 'frame will be used. Note, the sky and science frames do not need to have the same ' \
-                                'exposure time.'
+                                'exposure time; the sky model will be scaled to the science frame based on the ' \
+                                'relative exposure time.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1533,8 +1559,8 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame']
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1549,6 +1575,8 @@ class CubePar(ParSet):
         allowed_methods = ["subpixel", "NGP"]#, "resample"
         if self.data['method'] not in allowed_methods:
             raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        if len(self.data['whitelight_range']) != 2:
+            raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
 
 class FluxCalibratePar(ParSet):
@@ -2368,7 +2396,7 @@ class ReduxPar(ParSet):
                           'Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of ' \
                           'tuples of the detector indices that are mosaiced together. ' \
                           'E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for ' \
-                          'Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``' 
+                          'Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``'
 
         dtypes['slitspatnum'] = [str, list]
         descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \
@@ -2459,11 +2487,11 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
-                 nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
+                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
+                 nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None):
 
@@ -2568,7 +2596,7 @@ class WavelengthSolutionPar(ParSet):
         #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] =  [int, float, list, np.ndarray]
+        dtypes['sigdetect'] = [int, float, list, np.ndarray]
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
@@ -2587,8 +2615,18 @@ class WavelengthSolutionPar(ParSet):
                                   'the determination of the wavelength solution (`i.e.`, not in '\
                                   'WaveTilts).'
 
+        defaults['fwhm_spat_order'] = 0
+        dtypes['fwhm_spat_order'] = int
+        descr['fwhm_spat_order'] = 'This parameter determines the spatial polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spec_order.'
+
+        defaults['fwhm_spec_order'] = 1
+        dtypes['fwhm_spec_order'] = int
+        descr['fwhm_spec_order'] = 'This parameter determines the spectral polynomial order to use in the ' \
+                                   '2D polynomial fit to the FWHM of the arc lines. See also, fwhm_spat_order.'
+
         # These are the parameters used for reidentification
-        defaults['reid_arxiv']=None
+        defaults['reid_arxiv'] = None
         dtypes['reid_arxiv'] = str
         descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
                               'for the wavelength reidentification.  Only used if ``method`` is ' \
@@ -2694,12 +2732,6 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, float, list]
-        descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
-
-        dtypes['IDwaves'] = [int, float, list]
-        descr['IDwaves'] = 'Wavelengths of the manually identified lines'
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -2721,10 +2753,11 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
+                   'refframe', 'nsnippet', 'use_instr_flag',
                    'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -2794,13 +2827,12 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None, 
+                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 order_offset=None, add_missed_orders=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None,
-                 maskdesign_filename=None):
+                 add_predict=None, rm_slits=None,  maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3159,6 +3191,12 @@ class EdgeTracePar(ParSet):
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
+        defaults['add_missed_orders'] = False
+        dtypes['add_missed_orders'] = bool
+        descr['add_missed_orders'] = 'If orders are not detected by the automated edge tracing, ' \
+                                     'attempt to add them based on their expected positions on ' \
+                                     'on the detector.  Echelle spectrographs only.'
+
         defaults['overlap'] = False
         dtypes['overlap'] = bool
         descr['overlap'] = 'Assume slits identified as abnormally short are actually due to ' \
@@ -3270,12 +3308,11 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range', 
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
                    'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
-                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset', 'overlap',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 
-                   'maskdesign_sigrej', 'maskdesign_filename',
-                   'pad', 'add_slits', 'add_predict', 'rm_slits']
+                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset',  'add_missed_orders',
+                   'overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3387,8 +3424,8 @@ class WaveTiltsPar(ParSet):
 
         defaults['spat_order'] = 3
         dtypes['spat_order'] = [int, float, list, np.ndarray]
-        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines ' \
-                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
+        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the tilt of an arc line. This parameter determines ' \
+                              'both the order of the *individual* arc line tilts, as well as the order of the spatial direction of the ' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the ' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
@@ -3913,7 +3950,8 @@ class ExtractionPar(ParSet):
 
         defaults['std_prof_nsigma'] = 30.
         dtypes['std_prof_nsigma'] = float
-        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
+        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection. ' \
+                                   'NOTE: Not consumed by the code at present.'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
@@ -4579,7 +4617,7 @@ class PypeItPar(ParSet):
         Examples:
             To turn off the slit-illumination correction for all frames:
 
-            >>> from pypeit.spectrographs import load_spectrograph
+            >>> from pypeit.spectrographs.util import load_spectrograph
             >>> spec = load_spectrograph('shane_kast_blue')
             >>> par = spec.default_pypeit_par()
             >>> par.reset_all_processimages_par(use_illumflat=False)
@@ -4750,7 +4788,7 @@ class TelescopePar(ParSet):
         Return the valid telescopes.
         """
         return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
-                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST']
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST', 'HILTNER']
 
     def validate(self):
         pass

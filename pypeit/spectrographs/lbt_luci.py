@@ -30,12 +30,41 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.LBTTelescopePar()
     url = 'https://scienceops.lbto.org/luci/'
 
+#    def __init__(self):
+#        super().__init__()
+#        self.timeunit = 'isot'
+
+#    @classmethod
+#    def default_pypeit_par(cls):
+#        """
+#        Return the default parameters to use for this instrument.
+#        
+#        Returns:
+#            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+#            all of PypeIt methods.
+#        """
+#        par = super().default_pypeit_par()
+#
+#        # Processing steps
+#        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+#                        use_darkimage=False)
+#        par.reset_all_processimages_par(**turn_off)
+#
+#        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+#        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+#        par['calibrations']['traceframe']['exprng'] = [0, None]
+#        par['calibrations']['arcframe']['exprng'] = [None, 60]
+#        par['calibrations']['standardframe']['exprng'] = [1, 200]
+#        par['scienceframe']['exprng'] = [200, None]
+#        return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -177,12 +206,12 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -193,7 +222,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -486,7 +515,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -719,7 +748,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 

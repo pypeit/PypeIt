@@ -29,7 +29,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -101,12 +101,12 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         downstream output files for configuration identification.
 
         The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrograph.Spectrograph.config_specific_par`
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
         for a particular spectrograph, if different from the name of the
         PypeIt metadata keyword.
 
-        This list is used by :meth:`~pypeit.spectrograph.Spectrograph.subheader_for_spec`
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
         to include additional FITS keywords in downstream output files.
 
         Returns:
@@ -117,7 +117,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
 
 #    def pypeit_file_keys(self):
 #        """
-#        Define the list of keys to be output into a standard ``PypeIt`` file.
+#        Define the list of keys to be output into a standard PypeIt file.
 #
 #        Returns:
 #            :obj:`list`: The list of keywords in the relevant
@@ -287,7 +287,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -313,6 +313,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
@@ -321,7 +322,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         #par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        #par['calibrations']['biasframe']['exprng'] = [None, 1]
+        #par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         #par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]
@@ -340,7 +341,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -484,7 +485,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
 
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -518,7 +519,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         # par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        # par['calibrations']['biasframe']['exprng'] = [None, 1]
+        # par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         # par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         # par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]
@@ -532,7 +533,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
