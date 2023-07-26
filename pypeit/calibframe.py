@@ -303,6 +303,74 @@ class CalibFrame(datamodel.DataContainer):
         return _calib_id.tolist()
 
     @staticmethod
+    def construct_calib_id(calib_id, ingested=False):
+        """
+        Use the calibration ID to construct a unique identifying string included
+        in output file names.
+
+        Args:
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
+                Identifiers for one or more calibration groups for this
+                calibration frame.  Strings (either as individually entered or
+                as elements of a provided list) can be single or comma-separated
+                integers.  Otherwise, all strings must be convertible to
+                integers; the only exception is the string 'all'.
+            ingested (:obj:`bool`, optional):
+                Indicates that the ``calib_id`` object has already been
+                "ingested" (see :func:`ingest_calib_id`).  If True, this will
+                skip the ingestion step.
+
+        Returns:
+            :obj:`str`: A string identifier to include in output file names.
+        """
+        # Ingest the calibration IDs, if necessary
+        _calib_id = calib_id if ingested else CalibFrame.ingest_calib_id(calib_id)
+        if len(_calib_id) == 1:
+            # There's only one calibration ID, so return it.  This works both
+            # for 'all' and for single-integer calibration groupings.
+            return _calib_id[0]
+
+        # Convert the IDs to integers and sort them
+        calibs = np.sort(np.array(_calib_id).astype(int))
+
+        # Find where the list is non-sequential
+        indx = np.diff(calibs) != 1
+        if not np.any(indx):
+            # The full list is sequential, so give the starting and ending points
+            return f'{calibs[0]}:{calibs[-1]+1}'
+
+        # Split the array into sequential subarrays (or single elements) and
+        # combine them into a single string
+        split_calibs = np.split(calibs, np.where(indx)[0]+1)
+        return '-'.join([f'{s[0]}:{s[-1]+1}' if len(s) > 1 else f'{s[0]}' for s in split_calibs])
+
+    @staticmethod
+    def parse_calib_id(calib_id_name):
+        """
+        Parse the calibration ID(s) from the unique string identifier used in
+        file naming.  I.e., this is the inverse of :func:`construct_calib_id`.
+
+        Args:
+            calib_id_name (:obj:`str`):
+                The string identifier used in file naming constructed from a
+                list of calibration IDs using :func:`construct_calib_id`.
+
+        Returns:
+            :obj:`list`: List of string representations of single calibration
+            group integer identifiers.
+        """
+        # Name is all, so we're done
+        if calib_id_name == 'all':
+            return ['all']
+        # Parse the name into slices and enumerate them
+        calib_id = []
+        for slc in calib_id_name.split('-'):
+            split_slc = slc.split(':')
+            calib_id += split_slc if len(split_slc) == 1 \
+                            else np.arange(*np.array(split_slc).astype(int)).astype(str).tolist()
+        return calib_id
+
+    @staticmethod
     def construct_calib_key(setup, calib_id, detname):
         """
         Construct the identifier used for a given set of calibrations.
@@ -330,7 +398,8 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`str`: Calibration identifier.
         """
-        return f'{setup}_{"-".join(CalibFrame.ingest_calib_id(calib_id))}_{detname}'
+#        return f'{setup}_{"-".join(CalibFrame.ingest_calib_id(calib_id))}_{detname}'
+        return f'{setup}_{CalibFrame.construct_calib_id(calib_id)}_{detname}'
 
     @staticmethod
     def parse_calib_key(calib_key):
@@ -346,8 +415,10 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`tuple`: The three components of the calibration key.
         """
-        setup, calib_id, detname = calib_key.split('_')
-        return setup, ','.join(calib_id.split('-')), detname
+#        setup, calib_id, detname = calib_key.split('_')
+#        return setup, ','.join(calib_id.split('-')), detname
+        setup, calib_id_name, detname = calib_key.split('_')
+        return setup, CalibFrame.parse_calib_id(calib_id_name), detname
 
     @classmethod
     def construct_file_name(cls, calib_key, calib_dir=None):

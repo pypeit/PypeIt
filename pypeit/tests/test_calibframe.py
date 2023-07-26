@@ -5,6 +5,8 @@ from pathlib import Path
 
 from IPython import embed
 
+import numpy as np
+
 import pytest
 
 from pypeit.pypmsgs import PypeItError
@@ -56,7 +58,7 @@ def test_init():
 
     calib.set_paths(odir, 'A', ['1','2'], 'DET01')
     ofile = Path(calib.get_path()).name
-    assert ofile == 'Minimal_A_1-2_DET01.fits', 'Wrong file name'
+    assert ofile == 'Minimal_A_1:3_DET01.fits', 'Wrong file name'
 
 
 def test_io():
@@ -97,7 +99,7 @@ def test_construct_calib_key():
     key = CalibFrame.construct_calib_key('A', '1', 'DET01')
     assert key == 'A_1_DET01', 'Key changed'
     key = CalibFrame.construct_calib_key('A', ['1','2'], 'DET01')
-    assert key == 'A_1-2_DET01', 'Key changed'
+    assert key == 'A_1:3_DET01', 'Key changed'
     key = CalibFrame.construct_calib_key('A', 'all', 'DET01')
     assert key == 'A_all_DET01', 'Key changed'
 
@@ -113,6 +115,31 @@ def test_ingest_calib_id():
     assert CalibFrame.ingest_calib_id(['1', 2]) == ['1', '2'], 'Bad ingest'
     assert CalibFrame.ingest_calib_id(['1', '2']) == CalibFrame.ingest_calib_id([2, 1]), \
             'Bad ingest'
+
+
+def test_construct_calib_id():
+    assert CalibFrame.construct_calib_id(['all']) == 'all', 'Construction should simply return all'
+    assert CalibFrame.construct_calib_id(['1']) == '1', \
+            'Construction with one calib_id should just return it'
+    calib_id = np.arange(10).tolist()
+    assert CalibFrame.construct_calib_id(calib_id) == '0:10', 'Bad simple construction'
+    # rng = np.random.default_rng(99)
+    # calib_id = np.unique(rng.integers(20, size=15)).tolist()
+    calib_id = [3, 5, 6, 10, 11, 12, 15, 18, 19]
+    assert CalibFrame.construct_calib_id(calib_id) == '3-5:7-10:13-15-18:20', \
+            'Bad complex construction'
+
+
+def test_parse_calib_id():
+    assert CalibFrame.parse_calib_id('all') == ['all'], 'Parsing should simply return all'
+    assert CalibFrame.parse_calib_id('1') == ['1'], 'Parsing should simply return all'
+    assert np.array_equal(CalibFrame.parse_calib_id('0:10'), np.arange(10).astype(str).tolist()), \
+            'Bad simple construction'
+    # rng = np.random.default_rng(99)
+    # calib_id = np.unique(rng.integers(20, size=15)).tolist()
+    calib_id = np.sort(np.array([3, 5, 6, 10, 11, 12, 15, 18, 19]).astype(str))
+    assert np.array_equal(np.sort(CalibFrame.parse_calib_id('3-5:7-10:13-15-18:20')), calib_id), \
+            'Bad complex construction'
 
 
 def test_parse_key_dir():

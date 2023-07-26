@@ -1,5 +1,5 @@
-1.13.1dev (6 June 2023)
-------------------------
+1.13.1dev
+---------
 
 - Add support for Gemini/GNIRS (IFU)
 - Added a script to convert a wavelength solution into something that can be placed in the reid archive.
@@ -14,6 +14,10 @@
 - Adds Keck/ESI to PypeIt
 - Add MDM/Modspec spectrograph
 - Store user-generated wavelength solution in pypeit cache
+- Changed calibration frame naming as an attempt to avoid very long names for
+  files with many calibration groups.  Sequential numbers are reduced to a
+  range; e.g., ``'0-1-2-3-4'`` becomes ``'0:5'`` and
+  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5:7-10:13-15-18:20'``
 
 1.13.0 (2 June 2023)
 --------------------
