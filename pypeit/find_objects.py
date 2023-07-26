@@ -334,12 +334,9 @@ class FindObjects:
         initial_sky0 = self.global_skysub(skymask=self.initial_skymask, update_crmask=False,
                                           objs_not_masked=True, show_fit=show_skysub_fit)
         # First pass object finding
-        save_objfindQA = self.par['reduce']['findobj']['skip_second_find'] or self.std_redux \
-                            or self.initial_skymask is not None
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image-initial_sky0, self.sciImg.ivar, std_trace=std_trace,
-                              show_peaks=show_peaks, show=self.findobj_show and not self.std_redux,
-                              save_objfindQA=save_objfindQA)
+                              show_peaks=show_peaks, show=self.findobj_show and not self.std_redux)
 
         if self.nobj == 0 or self.initial_skymask is not None:
             # Either no objects were found, or the initial sky mask was provided by the user.
@@ -1184,10 +1181,12 @@ class IFUFindObjects(MultiSlitFindObjects):
             counts = global_sky
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
-            var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
-                                         count_scale=_scale, noise_floor=adderr)
-            model_ivar[thismask] = utils.inverse(var)
-
+            if not self.bkg_redux:
+                var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
+                                             count_scale=_scale, noise_floor=adderr)
+                model_ivar[thismask] = utils.inverse(var)
+            else:
+                model_ivar[thismask] = self.sciImg.ivar[thismask]
             # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
             # Recalculate the sky on each individual slit and redetermine the spectral flexure
             # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
@@ -1227,7 +1226,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
-        if np.any(global_sky_sep[skymask] == 0):
+        # Check if any slits failed
+        if np.any(global_sky_sep[self.slitmask>=0] == 0) and not self.bkg_redux:
             # Cannot continue without a sky model for all slits
             msgs.error("Global sky subtraction has failed for at least one slit.")
 
@@ -1291,7 +1291,10 @@ class IFUFindObjects(MultiSlitFindObjects):
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
                                             method="slitcen")
-        this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
+        this_slitshift = np.zeros(self.slits.nslits)
+        if flex_dict_ref is not None:
+            msgs.warn("Only a relative spectral flexure correction will be performed")
+            this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
         # Now loop through all slits to calculate the additional shift relative to the reference slit
         flex_list = []
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
