@@ -415,7 +415,7 @@ class CalibFrame(datamodel.DataContainer):
             :obj:`tuple`: The three components of the calibration key.
         """
         setup, calib_id_name, detname = calib_key.split('_')
-        return setup, CalibFrame.parse_calib_id(calib_id_name), detname
+        return setup, ','.join(CalibFrame.parse_calib_id(calib_id_name)), detname
 
     @classmethod
     def construct_file_name(cls, calib_key, calib_dir=None):
