@@ -822,7 +822,7 @@ def set_fwhm(par, measured_fwhm=None):
     return fwhm
 
 
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
@@ -855,6 +855,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
           and input spectrum.
         measured_fwhms: ndarray, optional
             Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
+        slit_ids: ndarray, optional
+            Array of slit/order IDs. Shape (nslit,)
         x_percentile: float, optional
           Passed to reidentify to reduce the dynamic range of arc line amplitudes
         template_dict (dict, optional): Dict containing tempmlate items, largely for development
@@ -907,7 +909,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
             continue
-        msgs.info("Processing slit {0:d}/{1:d}".format(slit+1, nslits))
+        slit_txt = f'slit/order {slit_ids[slit]} ({slit+1}/{nslits})' if slit_ids is not None else f'slit {slit+1}/{nslits}'
+        msgs.info("Processing " + slit_txt)
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
