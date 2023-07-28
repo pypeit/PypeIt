@@ -6,10 +6,10 @@
     # User-defined execution parameters
     [rdx]
     spectrograph = gemini_gnirs_echelle
-    #[calibrations]
-    # [[wavelengths]]
-    #    rms_threshold = 0.8, 0.4, 0.8, 0.8, 0.5, 0.9
-    #    sigdetect = 5.,5.,6.,6.,5.,7.
+    [calibrations]
+     [[wavelengths]]
+        rms_threshold = 0.8, 0.4, 0.8, 0.8, 0.5, 0.9
+        sigdetect = 5.,5.,6.,6.,5.,7.
     
     # Setup
     setup read

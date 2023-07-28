@@ -10,7 +10,8 @@
     positional arguments:
       coadd1d_file          File to guide coadding process.
                              
-                            ------------------------  MultiSlit
+                            ------------------------
+                                   MultiSlit
                             ------------------------
                              
                             For coadding Multislit spectra the file must have the
@@ -50,7 +51,8 @@
                             inspect the spec1d_*.txt files or run pypeit_show_1dspec
                             spec1dfile --list
                              
-                            ------------------------  Echelle
+                            ------------------------
+                                     Echelle
                             ------------------------
                              
                             For coadding Echelle spectra the file must have the
