@@ -47,12 +47,4 @@ class ArxivSolution(scriptbase.ScriptBase):
         wave = wv_calib['wv_fits'][args.slit]['wave_soln'].flatten()
         spec = wv_calib['wv_fits'][args.slit]['spec'].flatten()
         outname = args.file.replace(".fits", "_arXiv.fits")
-        wvutils.write_template(wave, spec, args.binning, './', outname)
-        print("")  # Empty line for clarity
-        msgs.info("To include the newly generated solution in the PypeIt archive," + msgs.newline() +
-                  "move (and appropriately rename) the following file: " + msgs.newline() +
-                  outname + msgs.newline() +
-                  "to the following directory:" + msgs.newline() +
-                  "pypeit/data/arc_lines/reid_arxiv/")
-        print("")  # Empty line for clarity
-        msgs.info("Please also consider sharing your solution with the PypeIt Developers.")
+        wvutils.write_template(wave, spec, args.binning, './', outname, cache=True)

@@ -78,7 +78,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]

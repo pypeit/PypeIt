@@ -996,7 +996,8 @@ class Coadd1DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sn_smooth_npix=None, wave_method=None, dv=None, dwave=None, dloglam=None,
+                 wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
@@ -1055,6 +1056,16 @@ class Coadd1DPar(ParSet):
         dtypes['dv'] = [int, float]
         descr['dv'] = "Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option), " \
                     "otherwise a median value is computed from the data."
+
+        defaults['dwave'] = None
+        dtypes['dwave'] = [int, float]
+        descr['dwave'] = "Dispersion in Angstroms in case you want to specify it in the get_wave_grid  (for the 'linear' option), " \
+                    "otherwise a median value is computed from the data."
+
+        defaults['dloglam'] = None
+        dtypes['dloglam'] = [int, float]
+        descr['dloglam'] = "Dispersion in units of log10(wave) in case you want to specify it in the get_wave_grid  (for the 'velocity' or 'log10' options), " \
+                           "otherwise a median value is computed from the data."
 
         defaults['wave_grid_min'] = None
         dtypes['wave_grid_min'] = [int, float]
@@ -1175,7 +1186,8 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'wave_grid_min', 'wave_grid_max',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'dwave', 'dloglam',
+                   'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
@@ -1211,7 +1223,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, only_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
+    def __init__(self, only_slits=None, exclude_slits=None, offsets=None, spat_toler=None, weights=None, user_obj=None,
                  use_slits4wvgrid=None, manual=None, wave_method=None):
 
         # Grab the parameter names and values from the function
@@ -1225,11 +1237,17 @@ class Coadd2DPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Offsets
         defaults['only_slits'] = None
-        dtypes['only_slits'] = [int, list]
-        descr['only_slits'] = 'Slit ID, or list of slit IDs that the user want to restrict the coadd to. ' \
-                              'I.e., only this/these slit/s will be coadded.'
+        dtypes['only_slits'] = [str, list]
+        descr['only_slits'] = 'Restrict coaddition to one or more of slits. Example syntax -- ' \
+                              'DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` ' \
+                              'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
+
+        defaults['exclude_slits'] = None
+        dtypes['exclude_slits'] = [str, list]
+        descr['exclude_slits'] = 'Exclude one or more slits from the coaddition. Example syntax -- ' \
+                                 'DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` ' \
+                                 'are mutually exclusive. If both are provided, ``only_slits`` takes precedence.'
 
         defaults['offsets'] = 'auto'
         dtypes['offsets'] = [str, list]
@@ -1309,7 +1327,8 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['only_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid', 'manual', 'wave_method']
+        parkeys = ['only_slits', 'exclude_slits', 'offsets', 'spat_toler', 'weights', 'user_obj', 'use_slits4wvgrid',
+                   'manual', 'wave_method']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

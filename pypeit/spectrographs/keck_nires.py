@@ -111,9 +111,17 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-        # Extraction
+
+        # Reduce -- Sky-Subtraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
+        # Reduce -- Extraction
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
+        # Reduce -- Object finding
+        #par['reduce']['findobj']['ech_find_nabove_min_snr'] = 1
+        # Require detection in a single order since given only 5 orders and slitlosses for NIRES, often
+        # things are only detected in the K-band? Decided not to make this the default.
+
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'

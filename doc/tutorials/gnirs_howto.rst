@@ -24,14 +24,14 @@ To setup the pypeit file, first run :ref:`pypeit_setup`:
 
 .. code-block:: bash
 
-    pypeit_setup -r absolute_path -s gemini_gnirs -b -c A 
+    pypeit_setup -r absolute_path -s gemini_gnirs_echelle -b -c A 
 
 where ``-b`` indicates that the data uses background images and includes the
 ``calib``, ``comb_id``, ``bkg_id`` in the pypeit file. 
 
 The resulting pypeit file looks like:
 
-.. include:: ../include/gemini_gnirs_A.pypeit.rst
+.. include:: ../include/gemini_gnirs_echelle_A.pypeit.rst
 
 Reliable image typing and sequence generation based on header cards is not yet implemented for GNIRS.
 Hence, several modifications to the PypeIt file need to be made before executing :ref:`run-pypeit`.
@@ -93,7 +93,7 @@ entire ABBA sequence into set of calibration frames. For this reason, we set the
 The edited pypeit file (exactly the one to reduce our example Gemini/GNIRS data
 set in the `PypeIt Development Suite`_) is:
 
-.. include:: ../include/gemini_gnirs_A_corrected.pypeit.rst
+.. include:: ../include/gemini_gnirs_echelle_A_corrected.pypeit.rst
 
 Note that the telluric standard has its ``calib`` IDs set to all 0s, which
 corresponds to the ``calib`` ID of the nearest science ABBA sequence in time.

@@ -1281,7 +1281,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
 
     # New mask for the stack
     gpm_stack = (weights_total > min_weight) & (nused > 0.0)
-
     return wave_stack, flux_stack, ivar_stack, gpm_stack, nused
 
 def get_ylim(flux, ivar, mask):
@@ -1840,6 +1839,8 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     qdone = False
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
+        #from IPython import embed
+        #embed()
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
@@ -2144,7 +2145,8 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
     '''
-
+    #from IPython import embed
+    #embed()
     # We cast to float64 because of a bug in np.histogram
     _waves = [np.float64(wave) for wave in waves]
     _fluxes = [np.float64(flux) for flux in fluxes]
@@ -2375,7 +2377,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     setup_ids : list of strings, optional, default=None
         List of strings indicating the name of each setup. If None uppercase
         letters A, B, C, etc. will be used
-    nbests : int or list, optional
+    nbests : int or list or  `numpy.ndarray`_, optional
         Integer or list of integers indicating the number of orders to use for
         estimating the per exposure weights per echelle setup.  Default is
         nbests=None, which will just use one fourth of the orders for a given
@@ -2528,15 +2530,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         debug_global_stack=True
         debug_scale=True
 
-    #show_exp=True
-    #debug=True
-    #show=True
-    #show_exp=True
-    #debug_global_stack=False
-    #debug_order_stack=False
-    #show_order_scale=False
-    #debug_scale=True
-
 
     if qafile is not None:
         qafile_stack = qafile.replace('.pdf', '_stack.pdf')
@@ -2561,11 +2554,10 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         norders.append(wave.shape[1])
         nexps.append(wave.shape[2])
 
-    if nbests is not None:
-        if isinstance(nbests, int):
-            nbests = [nbests]*nsetups
+    if nbests is None:
+        _nbests = [int(np.ceil(norder/4)) for norder in norders]
     else:
-        nbests = [int(np.ceil(norder/4)) for norder in norders]
+        _nbests = nbests if isinstance(nbests, (list, np.ndarray)) else [nbests]*nsetups
 
     #  nspec, norder, nexp = shape
     # Decide how much to smooth the spectra by if this number was not passed in
@@ -2607,7 +2599,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                                    sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
         rms_sn = rms_sn_vec.reshape(norders[isetup], nexps[isetup])
         mean_sn_ord = np.mean(rms_sn, axis=1)
-        best_orders = np.argsort(mean_sn_ord)[::-1][0:nbests[isetup]]
+        best_orders = np.argsort(mean_sn_ord)[::-1][0:_nbests[isetup]]
         rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
         weights_exp = np.tile(np.square(rms_sn_per_exp), (nspecs[isetup], norders[isetup], 1))
         weights_isetup = weights_exp * weights_sens_arr_setup[isetup]
@@ -3210,7 +3202,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack,
     Parameters
     ----------
     spec_bins : `numpy.ndarray`_, float, shape = (nspec_rebin)
-        Spectral bins to rebin to.  
+        Spectral bins to rebin to.
 
     spat_bins : `numpy.ndarray`_, float ndarray, shape = (nspat_rebin)
         Spatial bins to rebin to.

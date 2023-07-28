@@ -394,7 +394,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
     Parameters
     ----------
-    bkpts_optimal: bool:
+    bkpts_optimal: bool
         If True, then the breakpoints are optimally spaced. If False, then the breakpoints are spaced uniformly.
     bsp_min: float
         Desired B-spline breakpoint spacing in pixels

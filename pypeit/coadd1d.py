@@ -224,7 +224,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
-            dv=self.par['dv'], wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
+            dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
+            wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
@@ -304,6 +305,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      nbests=self.par['nbests'],
                                      sn_smooth_npix=self.par['sn_smooth_npix'],
                                      wave_method=self.par['wave_method'],
+                                     dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
+                                     wave_grid_min=self.par['wave_grid_min'],
+                                     wave_grid_max=self.par['wave_grid_max'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
                                      ref_percentile=self.par['ref_percentile'],
                                      maxiter_scale=self.par['maxiter_scale'],
@@ -402,21 +406,6 @@ class EchelleCoAdd1D(CoAdd1D):
             for c, l in zip(combined, loaded):
                 c.append(l)
 
-        #Old code
-        #waves, fluxes, ivars, gpms, weights_sens, setup_ids, headers = [], [], [], [], [], [], []
-        #for uniq_setup in self.unique_setups:
-        #    # TODO Is there a more python way to do this?
-        #    setup_indx = np.array(self.setup_id)== uniq_setup
-        #    sensfuncfiles = np.array(self.sensfuncfile)[setup_indx]
-        #    spec1dfiles = np.array(self.spec1dfiles)[setup_indx]
-        #    objids = np.array(self.objids)[setup_indx]
-        #    wave, flux, ivar, gpm, weight_sens, header_out = self.load_ech_arrays(spec1dfiles, objids, sensfuncfiles)
-        #    waves.append(wave)
-        #    fluxes.append(flux)
-        #    ivars.append(ivar)
-        #    gpms.append(gpm)
-        #    weights_sens.append(weight_sens)
-        #    headers.append(header_out)
 
 
         return waves, fluxes, ivars, gpms, weights_sens, headers

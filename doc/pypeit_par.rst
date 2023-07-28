@@ -486,7 +486,9 @@ Key                   Type        Options  Default     Description
 ====================  ==========  =======  ==========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``chk_version``       bool        ..       True        If True enforce strict PypeIt version checking to ensure that spec1d*.fits files were createdwith the current version of PypeIt                                                                                                                                                                                                                                                                                                          
 ``coaddfile``         str         ..       ..          Output filename                                                                                                                                                                                                                                                                                                                                                                                                                          
+``dloglam``           int, float  ..       ..          Dispersion in units of log10(wave) in case you want to specify it in the get_wave_grid  (for the 'velocity' or 'log10' options), otherwise a median value is computed from the data.                                                                                                                                                                                                                                                     
 ``dv``                int, float  ..       ..          Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option), otherwise a median value is computed from the data.                                                                                                                                                                                                                                                                        
+``dwave``             int, float  ..       ..          Dispersion in Angstroms in case you want to specify it in the get_wave_grid  (for the 'linear' option), otherwise a median value is computed from the data.                                                                                                                                                                                                                                                                              
 ``ex_value``          str         ..       ``OPT``     The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'                                                                                                                                                                                                                                                                                                                                                           
 ``filter``            str         ..       ``none``    Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none                                                                                                                                                                                                                                                                                                                                                       
 ``filter_mag``        float       ..       ..          Magnitude of the source in the given filter                                                                                                                                                                                                                                                                                                                                                                                              
@@ -526,9 +528,10 @@ Class Instantiation: :class:`~pypeit.par.pypeitpar.Coadd2DPar`
 ====================  =========  =======  ========  ========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                   Type       Options  Default   Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ====================  =========  =======  ========  ========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``exclude_slits``     str, list  ..       ..        Exclude one or more slits from the coaddition. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``only_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                              
 ``manual``            str        ..       ..        Manual extraction parameters. det:spat:spec:fwhm:boxcar_radius. Multiple manual extractions are semi-colon separated, and spat,spec are in the pseudo-image generated by COADD2D.boxcar_radius is optional and in pixels (not arcsec!).                                                                                                                                                                                                                                                                                                                                                                 
 ``offsets``           str, list  ..       ``auto``  Offsets for the images being combined (spat pixels). Options are: ``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching (currently available for DEIMOS and MOSFIRE only). If equal to ``header``, the dither offsets recorded in the header, when available, will be used. If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object with the highest S/N, or an object selected by the user (see ``user_obj``). If a list of offsets is provided, PypeIt will use it.
-``only_slits``        int, list  ..       ..        Slit ID, or list of slit IDs that the user want to restrict the coadd to. I.e., only this/these slit/s will be coadded.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``only_slits``        str, list  ..       ..        Restrict coaddition to one or more of slits. Example syntax -- DET01:175,DET02:205 or MSC02:2234. This and ``exclude_slits`` are mutually exclusive. If both are provided, ``only_slits`` takes precedence.                                                                                                                                                                                                                                                                                                                                                                                             
 ``spat_toler``        int        ..       5         This parameter provides the desired tolerance in spatial pixel used to identify slits in different exposures                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``use_slits4wvgrid``  bool       ..       False     If True, use the slits to set the trace down the center                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``user_obj``          int, list  ..       ..        Object that the user wants to use to compute the weights and/or the offsets for coadding images. For longslit/multislit spectroscopy, provide the ``SLITID`` and the ``OBJID``, separated by comma, of the selected object. For echelle spectroscopy, provide the ``ECH_OBJID`` of the selected object. See :doc:`out_spec1D` for more info about ``SLITID``, ``OBJID`` and ``ECH_OBJID``. If this parameter is not ``None``, it will be used to compute the offsets only if ``offsets = auto``, and it will used to compute the weights only if ``weights = auto``.                                    
@@ -546,21 +549,21 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.Collate1DPar`
 
-=========================  ==========  =======  ============================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                        Type        Options  Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                       
-=========================  ==========  =======  ============================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-``dry_run``                bool        ..       False                                         If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
-``exclude_serendip``       bool        ..       False                                         Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
-``exclude_slit_trace_bm``  list, str   ..       []                                            A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
-``flux``                   bool        ..       False                                         If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
-``ignore_flux``            bool        ..       False                                         If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                              
-``match_using``            str         ..       ``ra/dec``                                    Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
-``outdir``                 str         ..       ``/Users/westfall/Work/packages/pypeit/doc``  The path where all coadded output files and report files will be placed.                                                                                                                                                                                                                                                                                                                                          
-``refframe``               str         ..       ..                                            Perform reference frame correction prior to coadding. Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                            
-``spec1d_outdir``          str         ..       ..                                            The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
-``tolerance``              str, float  ..       ``1.0``                                       The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
-``wv_rms_thresh``          float       ..       ..                                            If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
-=========================  ==========  =======  ============================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                        Type        Options  Default                          Description                                                                                                                                                                                                                                                                                                                                                                                                       
+=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+``dry_run``                bool        ..       False                            If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
+``exclude_serendip``       bool        ..       False                            Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
+``exclude_slit_trace_bm``  list, str   ..       []                               A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
+``flux``                   bool        ..       False                            If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
+``ignore_flux``            bool        ..       False                            If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                              
+``match_using``            str         ..       ``ra/dec``                       Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
+``outdir``                 str         ..       ``/home/dusty/work/PypeIt/doc``  The path where all coadded output files and report files will be placed.                                                                                                                                                                                                                                                                                                                                          
+``refframe``               str         ..       ..                               Perform reference frame correction prior to coadding. Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                            
+``spec1d_outdir``          str         ..       ..                               The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
+``tolerance``              str, float  ..       ``1.0``                          The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+``wv_rms_thresh``          float       ..       ..                               If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
+=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -611,21 +614,21 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==============  =======  ============================================  ===============================================================================================================================================================================================================================================================================================================================================================
-Key                     Type            Options  Default                                       Description                                                                                                                                                                                                                                                                                                                                                    
-======================  ==============  =======  ============================================  ===============================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float      ..       0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                               
-``detnum``              int, list       ..       ..                                            Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``
-``ignore_bad_headers``  bool            ..       False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                               
-``maskIDs``             str, int, list  ..       ..                                            Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                             
-``qadir``               str             ..       ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                     
-``quicklook``           bool            ..       False                                         Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                
-``redux_path``          str             ..       ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                           
-``scidir``              str             ..       ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                
-``slitspatnum``         str, list       ..       ..                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                            
-``sortroot``            str             ..       ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                         
-``spectrograph``        str             ..       ..                                            Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                  
-======================  ==============  =======  ============================================  ===============================================================================================================================================================================================================================================================================================================================================================
+======================  ==============  =======  ===============================  ===============================================================================================================================================================================================================================================================================================================================================================
+Key                     Type            Options  Default                          Description                                                                                                                                                                                                                                                                                                                                                    
+======================  ==============  =======  ===============================  ===============================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float      ..       0                                The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                               
+``detnum``              int, list       ..       ..                               Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``
+``ignore_bad_headers``  bool            ..       False                            Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                               
+``maskIDs``             str, int, list  ..       ..                               Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                             
+``qadir``               str             ..       ``QA``                           Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                     
+``quicklook``           bool            ..       False                            Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                
+``redux_path``          str             ..       ``/home/dusty/work/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                           
+``scidir``              str             ..       ``Science``                      Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                
+``slitspatnum``         str, list       ..       ..                               Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                            
+``sortroot``            str             ..       ..                               A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                         
+``spectrograph``        str             ..       ..                               Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                  
+======================  ==============  =======  ===============================  ===============================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -992,7 +995,7 @@ Alterations to the default parameters are:
       spectrograph = bok_bc
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -1689,16 +1692,16 @@ Alterations to the default parameters are:
       [[IR]]
           telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
-.. _instr_par-gemini_gnirs:
+.. _instr_par-gemini_gnirs_echelle:
 
-GEMINI-N GNIRS (``gemini_gnirs``)
----------------------------------
+GEMINI-N GNIRS (``gemini_gnirs_echelle``)
+-----------------------------------------
 Alterations to the default parameters are:
 
 .. code-block:: ini
 
   [rdx]
-      spectrograph = gemini_gnirs
+      spectrograph = gemini_gnirs_echelle
   [calibrations]
       [[biasframe]]
           [[[process]]]
@@ -1805,11 +1808,145 @@ Alterations to the default parameters are:
           no_poly = True
       [[extraction]]
           model_full_slit = True
-  [coadd1d]
-      wave_method = log10
   [sensfunc]
       algorithm = IR
       polyorder = 6
+      [[IR]]
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
+
+.. _instr_par-gemini_gnirs_ifu:
+
+GEMINI-N GNIRS (``gemini_gnirs_ifu``)
+-------------------------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = gemini_gnirs_ifu
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 30,
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 30,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 30,
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              noise_floor = 0.01
+              use_illumflat = False
+      [[flatfield]]
+          tweak_slits_thresh = 0.0
+          tweak_slits_maxfrac = 0.0
+          slit_trim = 2
+          slit_illum_finecorr = False
+      [[slitedges]]
+          pad = 2
+      [[tilts]]
+          spat_order = 1
+          spec_order = 1
+  [scienceframe]
+      exprng = 30, None,
+      [[process]]
+          mask_cr = True
+          sigclip = 4.0
+          objlim = 1.5
+          use_biasimage = False
+          use_overscan = False
+          noise_floor = 0.01
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          find_trim_edge = 2, 2,
+          maxnumber_sci = 2
+          maxnumber_std = 1
+      [[skysub]]
+          global_sky_std = False
+          no_poly = True
+      [[extraction]]
+          model_full_slit = True
+          skip_extraction = True
+      [[cube]]
+          grating_corr = False
+  [flexure]
+      spec_maxshift = 0
+  [sensfunc]
+      algorithm = IR
+      polyorder = 6
+      [[UVIS]]
+          extinct_correct = False
       [[IR]]
           telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
@@ -1825,7 +1962,7 @@ Alterations to the default parameters are:
       spectrograph = gtc_maat
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -1933,7 +2070,7 @@ Alterations to the default parameters are:
       spectrograph = gtc_osiris
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -2026,7 +2163,7 @@ Alterations to the default parameters are:
       spectrograph = gtc_osiris_plus
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -2641,7 +2778,7 @@ Alterations to the default parameters are:
       spectrograph = keck_kcwi
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.01,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -2746,7 +2883,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_blue
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -2844,7 +2981,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_blue_orig
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -2942,7 +3079,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3048,7 +3185,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red_mark4
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3154,7 +3291,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red_orig
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3867,7 +4004,7 @@ Alterations to the default parameters are:
       spectrograph = lbt_mods1b
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3959,7 +4096,7 @@ Alterations to the default parameters are:
       spectrograph = lbt_mods1r
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -4053,7 +4190,7 @@ Alterations to the default parameters are:
       spectrograph = lbt_mods2b
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -4145,7 +4282,7 @@ Alterations to the default parameters are:
       spectrograph = lbt_mods2r
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -4717,7 +4854,7 @@ Alterations to the default parameters are:
       spectrograph = mdm_modspec
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               overscan_method = median
               combine = median
@@ -4807,7 +4944,7 @@ Alterations to the default parameters are:
       spectrograph = mdm_osmos_mdm4k
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -5528,7 +5665,7 @@ Alterations to the default parameters are:
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -5616,7 +5753,7 @@ Alterations to the default parameters are:
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -5845,7 +5982,7 @@ Alterations to the default parameters are:
       spectrograph = shane_kast_blue
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -5941,7 +6078,7 @@ Alterations to the default parameters are:
       spectrograph = shane_kast_red
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -6028,7 +6165,7 @@ Alterations to the default parameters are:
       spectrograph = shane_kast_red_ret
   [calibrations]
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -6313,7 +6450,7 @@ Alterations to the default parameters are:
       spectrograph = tng_dolores
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -7045,7 +7182,7 @@ Alterations to the default parameters are:
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -7144,7 +7281,7 @@ Alterations to the default parameters are:
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          exprng = None, 1,
+          exprng = None, 0.001,
           [[[process]]]
               combine = median
               use_biasimage = False
