@@ -1119,7 +1119,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     header_name = 'LRIS'
     supported = True
     ql_supported = True
-    comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
+    comment = 'Red camera;  LBNL detector, 2kx4k; in operation from 2009-05-23 to 2021-04-16, see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -1320,9 +1320,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['sigdetect'] = 20.0
             par['calibrations']['wavelengths']['nsnippet'] = 1
-        elif self.get_meta_value(scifile, 'dispname') == '300/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgNeZn.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
+        # elif self.get_meta_value(scifile, 'dispname') == '300/5000':
+        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgNeZn.fits'
+        #     par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '600/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_5000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -1469,7 +1469,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     ndet = 1
     name = 'keck_lris_red_mark4'
     supported = True
-    comment = 'New Mark4 detector, circa Spring 2021; Supported setups = R400'
+    comment = 'New Mark4 detector, in operation from 2021-04-22; Supported setups = R400'
 
     def init_meta(self):
         super().init_meta()
@@ -1651,13 +1651,13 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """
-    Child to handle the original LRISr detector (pre 01 JUL 2009)
+    Child to handle the original LRISr detector (up to 2009-05-02)
     """
     ndet = 1
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced in 2009; see :doc:`lris`'
+    comment = 'Original detector; replaced after 2009-05-02; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1670,6 +1670,37 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         """
         par = super().default_pypeit_par()
 
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '150/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # Return
         return par
 
     def get_detector_par(self, det, hdu=None):
