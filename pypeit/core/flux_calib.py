@@ -27,6 +27,7 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
+from pypeit.core import wave
 from pypeit import data
 
 
@@ -199,6 +200,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
                                    units.erg / units.s / units.cm ** 2 / units.AA
+                # Xshooter standard files use air wavelengths, convert them to vacuum
+                std_dict['wave'] = wave.airtovac(std_dict['wave'])
             elif sset == 'calspec':
                 std_dict['std_source'] = sset
                 std_spec = io.fits_open(fil)[1].data
