@@ -1312,14 +1312,14 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['scienceframe']['process']['objlim'] = objlim
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
-            if self.name == 'keck_lris_red_mark4':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
-            else:
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['sigdetect'] = 20.0
-            par['calibrations']['wavelengths']['nsnippet'] = 1
+        # if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
+        #     if self.name == 'keck_lris_red_mark4':
+        #         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
+        #     else:
+        #         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
+        #     par['calibrations']['wavelengths']['method'] = 'full_template'
+        #     par['calibrations']['wavelengths']['sigdetect'] = 20.0
+        #     par['calibrations']['wavelengths']['nsnippet'] = 1
         # elif self.get_meta_value(scifile, 'dispname') == '300/5000':
         #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgNeZn.fits'
         #     par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -1693,12 +1693,20 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '300/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == '150/7500':
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.
+        if self.get_meta_value(scifile, 'dispname') == '150/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['nsnippet'] = 1
+            par['calibrations']['wavelengths']['sigdetect'] = 5.
+        elif self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '400/8500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R400_8500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            # par['calibrations']['wavelengths']['match_toler'] = 2.5
+
 
         # Return
         return par
