@@ -280,7 +280,7 @@ def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, 
         return None
 
     if outname is None:
-        outname = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+        outname = data.get_linelist_filepath(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
     outindx = outname.replace('.kdtree', '.index')
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)

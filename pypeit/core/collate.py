@@ -6,6 +6,8 @@
 This module contains code for collating multiple 1d spectra source object.
 """
 
+#TODO -- Consider moving this into the top-level, i.e. out of core
+
 import copy
 import os.path
 
@@ -141,8 +143,7 @@ class SourceObject:
                 Defaults to arcseconds. Igored if match_type is 'pixel'.
 
         Returns:
-            bool: True if the SpecObj matches this group,
-                  False otherwise.
+            bool: True if the SpecObj matches this group, False otherwise.
         """
 
         if not self._config_key_match(spec1d_header):
@@ -160,7 +161,7 @@ class SourceObject:
         same spectrograph and use the same match type.
 
         Args:
-        other_source_object (:obj:`SourceObject`): The other object to combine with.
+            other_source_object (:obj:`SourceObject`): The other object to combine with.
 
         Returns:
             (:obj:`SourceObject`): This SourceObject, now combined with other_source_object.
@@ -193,7 +194,7 @@ def collate_spectra_by_source(source_list, tolerance, unit=u.arcsec):
             Defaults to arcseconds. Ignored if match_type is 'pixel'.
 
     Returns:
-        (list of `obj`:SourceObject): The collated spectra as SourceObjects.
+        list: The collated spectra as SourceObjects.
 
     """
 

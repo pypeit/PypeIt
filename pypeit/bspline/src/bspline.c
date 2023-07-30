@@ -25,7 +25,7 @@ int32_t column_to_row_major_index(int32_t k, int32_t nr, int32_t nc) {
     /*
     Convert a flattened index in a column-major stored array into the
     flattened index in row-major stored array.
-    
+
     Args:
         k:
             Index in the flattened column-major array.
@@ -238,25 +238,8 @@ void solution_arrays(int32_t nn, int32_t npoly, int32_t nord, int32_t nd, double
     int32_t ii, jj, kk;
     int32_t itop;
 
-    // Convenience data
-    // TODO: These are big allocations.  Can we avoid them?
-    double *ierr = (double*) malloc (nd * sizeof(double));
-    double *a2 = (double*) malloc (nd*bw * sizeof(double));
-    for (i = 0; i < nd; ++i) {
-        ierr[i] = sqrt(ivar[i]);
-        for (j = 0; j < bw; ++j)
-            a2[i*bw + j] = action[j*nd + i] * ierr[i];
-    }
-
-    // Zero input arrays
-    // TODO: Just assume this?
-    for (i = 0; i < ar; ++i)
-        for (j = 0; j < bn; ++j) {
-            beta[j] = 0;
-            alpha[i*bn+j] = 0;
-        }
-
     // Construct alpha and beta
+    #pragma omp parallel for private(i,j,k,kk,ii,jj,itop)
     for (k = 0; k < nn-nord+1; ++k) {
         if (!(upper[k]+1 > lower[k]))
             continue;
@@ -266,15 +249,15 @@ void solution_arrays(int32_t nn, int32_t npoly, int32_t nord, int32_t nd, double
             kk = column_to_row_major_index(bo[i]+itop*bw, ar, bn);
             flat_row_major_indices(bi[i], nd, bw, &ii, &jj);
             for (j = lower[k]; j <= upper[k]; ++j)
-                alpha[kk] += a2[j*bw+ii] * a2[j*bw+jj];
+                #pragma omp atomic
+                alpha[kk] += ivar[j] * action[j*bw + ii] * action[j*bw + jj];
         }
         for (i = 0; i < bw; ++i)
             for (j = lower[k]; j <= upper[k]; ++j)
-                beta[itop+i] += ydata[j] * ierr[j] * a2[j*bw + i];
+                #pragma omp atomic
+                beta[itop+i] += ydata[j] * ivar[j] * action[j*bw + i];
     }
     // Free memory
-    free(a2);
-    free(ierr);
     free(bo);
     free(bi);
 }
@@ -285,7 +268,7 @@ int32_t cholesky_band(double *lower, int32_t lr, int32_t lc) {
        Compute the Cholesky decomposition of banded matrix.
 
     Args:
-        lower: 
+        lower:
             The flattened matrix on which to perform the Cholesky
             decomposition.  The input matrix is replaced.
         lr:
@@ -353,7 +336,7 @@ void cholesky_solve(double *a, int32_t ar, int32_t ac, double *b, int32_t bn) {
        Solve the equation Ax=b where A is a Cholesky-banded matrix.
 
     Args:
-        a: 
+        a:
             The flattened array A used in the equation A x = b.  The
             number of columns (2nd axis) in a is given by ``ac``.
         ar:

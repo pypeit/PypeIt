@@ -19,7 +19,7 @@
                    
       outroot     Output fileroot for the flexure fits saved as FITS.
     
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
       --clobber   Clobber output files
       --debug     show debug plots?

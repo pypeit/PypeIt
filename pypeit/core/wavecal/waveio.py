@@ -1,15 +1,10 @@
 """ Module for I/O in arclines
 """
-import glob
-import os
-import datetime
-from collections import OrderedDict
+import pathlib
 
-import numpy as np
-
-from astropy.table import Table, Column, vstack
-
+import astropy.table
 import linetools.utils
+import numpy as np
 
 from pypeit import msgs
 from pypeit.core.wavecal import defs
@@ -19,22 +14,23 @@ from IPython import embed
 
 
 # TODO -- Move this to the WaveCalib object
-def load_wavelength_calibration(filename):
+def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     """
     Load the wavelength calibration data from a file.
 
     Args:
-        filename (:obj:`str`):
+        filename (:obj:`pathlib.Path`):
             Name of the json file.
 
     Returns:
         :obj:`dict`: Returns the wavelength calibration dictionary.
         Lists read from the json file are returnes as numpy arrays.
     """
-    if not os.path.isfile(filename):
-        msgs.error('File does not exist: {0}'.format(filename))
+    if not filename.is_file():
+        msgs.error(f"File does not exist: {filename}")
 
-    wv_calib = linetools.utils.loadjson(filename)
+    # Force any possible pathlib.Path object to string before `loadjson`
+    wv_calib = linetools.utils.loadjson(str(filename))
 
     # Recast a few items as arrays
     for key in wv_calib.keys():
@@ -47,7 +43,6 @@ def load_wavelength_calibration(filename):
         for tkey in wv_calib[key].keys():
             if isinstance(wv_calib[key][tkey], list):
                 wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
-
 
     return wv_calib
 
@@ -70,19 +65,19 @@ def load_template(arxiv_file, det, wvrng=None):
 
     """
     # Path already included?
-    if os.path.basename(arxiv_file) == arxiv_file:
+    if pathlib.Path(arxiv_file).name == arxiv_file:
         calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
     else:
-        calibfile = arxiv_file
+        calibfile = pathlib.Path(arxiv_file)
     # Read me
-    tbl = Table.read(calibfile, format='fits')
+    tbl = astropy.table.Table.read(calibfile, format='fits')
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
     else:
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
-    tbl_fx = tbl['flux'].data[idx] 
+    tbl_fx = tbl['flux'].data[idx]
 
     # Cut down?
     if wvrng is not None:
@@ -106,10 +101,12 @@ def load_reid_arxiv(arxiv_file):
         dict, dict-like:
 
     """
-    # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile, in_cache = data.get_reid_arxiv_filepath(arxiv_file)
+    # This function allows users to specify their own `reid_arxiv`, in
+    #   particular, the output from `pypeit_identify`.
+    calibfile, arxiv_fmt = data.get_reid_arxiv_filepath(arxiv_file)
+
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
-    if calibfile[-4:] == 'json' or in_cache == 'json':
+    if arxiv_fmt == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
         par = wv_calib_arxiv['par'].copy()
         # Pop out par and steps if they were inserted in this calibration dictionary
@@ -121,65 +118,31 @@ def load_reid_arxiv(arxiv_file):
             wv_calib_arxiv.pop('par')
         except KeyError:
             pass
-    elif calibfile[-4:] == 'fits' or in_cache == 'fits':
+    elif arxiv_fmt == 'fits':
         # The following is a bit of a hack too
         par = None
-        wv_tbl = Table.read(calibfile, format='fits')
-        wv_calib_arxiv = OrderedDict()
+        wv_tbl = astropy.table.Table.read(calibfile, format='fits')
+        wv_calib_arxiv = {}
         nrow = wv_tbl['wave'].shape[0]
         for irow in np.arange(nrow):
             wv_calib_arxiv[str(irow)] = {}
             wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][irow,:]
             wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][irow,:]
             wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
+
     else:
-        msgs.error("Not ready for this extension!")
+        msgs.error(f"Not ready for this `reid_arxiv` extension: {arxiv_fmt}")
 
     return wv_calib_arxiv, par
 
-def load_by_hand():
-    """
-    By-hand line list
 
-    Parameters
-    ----------
-    line_file
-    add_path
-
-    Returns
-    -------
-    byhand : Table
-
-    """
-    str_len_dict = defs.str_len()
-
-    src_file = os.path.join(data.Paths.arclines, 'sources', 'by_hand_list.ascii')
-    # Read
-    line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
-    # Add
-    line_list['NIST'] = 1
-    # Deal with Instr and Source
-    ilist, slist = [], []
-    for row in line_list:
-        ilist.append(defs.instruments()[row['sInstr']])  # May need to split
-        slist.append(row['sSource'])
-    line_list['Instr'] = ilist
-    line_list['Source'] = np.array(slist, dtype='S{:d}'.format(str_len_dict['Source']))
-    # Trim
-    return line_list[['ion', 'wave', 'NIST', 'Instr', 'amplitude', 'Source']]
-
-
-def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
+def load_line_list(line_file, use_ion=False):
     """
 
     Parameters
     ----------
     line_file : str
         Full path to line_list or name of ion
-    add_path : bool, optional
-        Not yet implemented
-    NIST : bool, optional
-        NIST formatted table?
     use_ion : bool, optional
         Interpret line_file as an ion, e.g. CuI
 
@@ -188,52 +151,12 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     line_list : Table
 
     """
-    path = data.Paths.nist if NIST else data.Paths.linelist
-    if use_ion:
-        list_type = 'vacuum.ascii' if NIST else 'lines.dat'
-        line_file = os.path.join(path, f'{line_file}_{list_type}')
-    line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
-    #  NIST?
-    if NIST:
-        # Remove unwanted columns
-        tkeys = line_list.keys()
-        for badkey in ['Ritz','Acc.','Type','Ei','Lower','Upper','TP','Line']:
-            for tkey in tkeys:
-                if badkey in tkey:
-                    line_list.remove_column(tkey)
-        # Relative intensity -- Strip junk off the end
-        reli = []
-        for imsk, idat in zip(line_list['Rel.'].mask, line_list['Rel.'].data):
-            if imsk:
-                reli.append(0.)
-            else:
-                try:
-                    reli.append(float(idat))
-                except ValueError:
-                    try:
-                        reli.append(float(idat[:-1]))
-                    except ValueError:
-                        reli.append(0.)
-        line_list.remove_column('Rel.')
-        line_list['RelInt'] = reli
-        #
-        gdrows = line_list['Observed'] > 0.  # Eliminate dummy lines
-        line_list = line_list[gdrows]
-        line_list.rename_column('Observed','wave')
-        # Others
-        # Grab ion name
-        i0 = line_file.rfind('/')
-        i1 = line_file.rfind('_')
-        ion = line_file[i0+1:i1]
-        line_list.add_column(Column([ion]*len(line_list), name='Ion', dtype='U5'))
-        line_list.add_column(Column([1]*len(line_list), name='NIST'))
-
-    # Return
-    return line_list
+    line_file = data.get_linelist_filepath(f'{line_file}_lines.dat') if use_ion else \
+        data.get_linelist_filepath(line_file)
+    return astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
 
 
-def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
-                    restrict_on_instr=None):
+def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     """
     Loads a series of line list files
 
@@ -243,10 +166,7 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
     unknown : bool, optional
-    skip : bool, optional
-        Skip missing line lists (mainly for building)
-    NIST : bool, optional
-        Load the full NIST linelists
+        Load the unknown list
     restrict_on_instr : str, optional
         Restrict according to the input spectrograph
 
@@ -257,7 +177,9 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
     """
     # All?
     if all:
-        line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
+        # Search both in the package directory and the PypeIt cache
+        line_files = list(data.Paths.linelist.glob('*_lines.dat'))
+        line_files.append(data.search_cache('_lines.dat'))
         lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
@@ -266,59 +188,29 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
-    lists = []
-    for lamp in lamps:
-        if NIST:
-            line_file = os.path.join(data.Paths.nist, f'{lamp}_vacuum.ascii')
-        else:
-            line_file = os.path.join(data.Paths.linelist, f'{lamp}_lines.dat')
-        if not os.path.isfile(line_file):
-            if not skip:
-                line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
-                all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
-                msgs.warn("Input line {:s} is not included in arclines".format(lamp))
-                msgs.info("Please choose from the following list:" + msgs.newline() +
-                          ",".join(all_list))
-                import pdb; pdb.set_trace()
-                raise IOError("Cannot continue without list")
-        else:
-            lists.append(load_line_list(line_file, NIST=NIST))
+    # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
+    #       will exit with msgs.error().
+    lists = [load_line_list(data.get_linelist_filepath(f'{lamp}_lines.dat')) for lamp in lamps]
     # Stack
     if len(lists) == 0:
         return None
-    line_lists = vstack(lists, join_type='exact')
+    line_lists = astropy.table.vstack(lists, join_type='exact')
 
     # Restrict on the spectrograph?
     if restrict_on_instr is not None:
         instr_dict = defs.instruments()
         gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
         line_lists = line_lists[gdI]
-        
+
     # Unknown
     if unknown:
         unkn_lines = load_unknown_list(lamps)
         unkn_lines.remove_column('line_flag')  # may wish to have this info
         # Stack
-        line_lists = vstack([line_lists, unkn_lines])
+        line_lists = astropy.table.vstack([line_lists, unkn_lines])
 
     # Return
     return line_lists
-
-
-def load_source_table():
-    """
-    Load table of arcline sources
-
-    Returns
-    -------
-    sources : Table
-
-    """
-    src_file = os.path.join(data.Paths.arclines, 'sources', 'arcline_sources.ascii')
-    # Load
-    sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
-    # Return
-    return sources
 
 
 def load_tree(polygon=4, numsearch=20):
@@ -356,10 +248,13 @@ def load_tree(polygon=4, numsearch=20):
     # TODO: Can we save these as fits files instead?
     # TODO: Please don't use imports within functions
     import pickle
-    filename = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
+    filename = data.get_linelist_filepath(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = data.get_linelist_filepath(
+        f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy'
+    )
     try:
-        file_load = pickle.load(open(filename, 'rb'))
+        with open(filename, "rb", encoding="utf-8") as f_obj:
+            file_load = pickle.load(f_obj)
         index = np.load(fileindx)
     except FileNotFoundError:
         msgs.info('The requested KDTree was not found on disk' + msgs.newline() +
@@ -369,58 +264,6 @@ def load_tree(polygon=4, numsearch=20):
                                                  ret_treeindx=True, outname=filename)
 
     return file_load, index
-
-
-def load_nist(ion):
-    """
-    Parse a NIST ASCII table.  Note that the long ---- should have been
-    commented out and also the few lines at the start.
-
-    Parameters
-    ----------
-    ion : str
-        Name of ion
-
-    Returns
-    -------
-    tbl : Table
-        Table of lines
-
-    """
-    import glob
-    # Find file
-    srch_file = os.path.join(data.Paths.nist, f'{ion}_vacuum.ascii')
-    nist_file = glob.glob(srch_file)
-    if len(nist_file) == 0:
-        raise IOError(f"Cannot find NIST file {srch_file}")
-    # Read
-    nist_tbl = Table.read(nist_file[0], format='ascii.fixed_width')
-    gdrow = nist_tbl['Observed'] > 0.  # Eliminate dummy lines
-    nist_tbl = nist_tbl[gdrow]
-    # Now unique values only (no duplicates)
-    uniq, indices = np.unique(nist_tbl['Observed'],return_index=True)
-    nist_tbl = nist_tbl[indices]
-    # Deal with Rel
-    agdrel = []
-    for row in nist_tbl:
-        try:
-            gdrel = int(row['Rel.'])
-        except:
-            try:
-                gdrel = int(row['Rel.'][:-1])
-            except:
-                gdrel = 0
-        agdrel.append(gdrel)
-    agdrel = np.array(agdrel)
-    # Remove and add
-    nist_tbl.remove_column('Rel.')
-    nist_tbl.remove_column('Ritz')
-    nist_tbl['RelInt'] = agdrel
-    #nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='S5'))
-    nist_tbl.add_column(Column([ion]*len(nist_tbl), name='Ion', dtype='U5'))
-    nist_tbl.rename_column('Observed','wave')
-    # Return
-    return nist_tbl
 
 
 def load_unknown_list(lines, unknwn_file=None, all=False):
@@ -442,74 +285,17 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     line_dict = defs.lines()
     # Load
     if unknwn_file is None:
-        unknwn_file = os.path.join(data.Paths.linelist, 'UNKNWNs.dat')
+        unknwn_file = data.get_linelist_filepath('UNKNWNs.dat')
     line_list = load_line_list(unknwn_file)
     # Cut on input lamps?
     if all:
         return line_list
-    else:
-        msk = np.array([False]*len(line_list))
-        for line in lines:
-            line_flag = line_dict[line]
-            match = line_list['line_flag'] % (2*line_flag) >= line_flag
-            msk[match] = True
-        # Finish
-        return line_list[msk]
 
-
-#def load_spectrum(spec_file, index=0):
-#    """
-#    Load a simple spectrum from input file
-#
-#    Parameters
-#    ----------
-#    spec_file : str
-#        Possible formats are:
-#
-#            - .fits --  Assumes simple ndarray in 0 extension
-#            - .ascii -- Assumes Table.read(format='ascii') will work with single column
-#
-#    Returns
-#    -------
-#
-#    """
-#    import h5py
-#    iext = spec_file.rfind('.')
-#    if 'ascii' in spec_file[iext:]:
-#        tbl = Table.read(spec_file, format='ascii')
-#        key = tbl.keys()[0]
-#        spec = tbl[key].data
-#    elif 'fits' in spec_file[iext:]:
-#        spec = fits.open(spec_file)[0].data
-#    elif 'hdf5' in spec_file[iext:]:
-#        hdf = h5py.File(spec_file, 'r')
-#        if 'arcs' in hdf.keys():
-#            print("Taking arc={:d} in this file".format(index))
-#            spec = hdf['arcs/'+str(index)+'/spec'].value
-#        else:
-#            raise IOError("Not ready for this hdf5 file")
-#    elif 'json' in spec_file[iext:]:
-#        jdict = linetools.utils.loadjson(spec_file)
-#        try:
-#            spec = np.array(jdict['spec'])
-#        except KeyError:
-#            raise IOError("spec not in your JSON dict")
-#    # Return
-#    return spec
-
-
-def write_line_list(tbl, outfile, overwrite=True):
-    """
-    Parameters
-    ----------
-    tbl
-    outfile
-    overwrite (optional), default=True
-    """
-    # Format
-    tbl['wave'].format = '10.4f'
-    # Write
-    with open(outfile,'w') as f:
-        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%m-%d'))))
-        tbl.write(f, format='ascii.fixed_width', overwrite=overwrite)
-
+    # Otherwise
+    msk = np.zeros(len(line_list), dtype=bool)
+    for line in lines:
+        line_flag = line_dict[line]
+        match = line_list['line_flag'] % (2*line_flag) >= line_flag
+        msk[match] = True
+    # Finish
+    return line_list[msk]

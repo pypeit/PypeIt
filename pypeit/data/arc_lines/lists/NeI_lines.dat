@@ -1,15 +1,13 @@
 # Creation Date: 2018-May-03
-# Creation Date: 2018-May-03
-# Creation Date: 2017-Mar-26
-# Creation Date: 2016-Dec-23
-# Creation Date: 2016-Dec-21
+# VACUUM -- MUST BE IN NIST
 | ion |       wave | NIST | Instr | amplitude |                    Source |
 | NeI |  5039.1560 |    1 |    19 |       300 |         gtc_osiris_manual |
+| NeI |  5332.2603 |    1 |    16 |      6000 |           deimos_600.json |
 | NeI |  5342.5794 |    1 |    19 |      3000 |         gtc_osiris_manual |
+| NeI |  5402.0631 |    1 |    16 |      6000 |           deimos_600.json |
 | NeI |  5564.3110 |    1 |    19 |       300 |         gtc_osiris_manual |
 | NeI |  5658.2287 |    1 |    19 |       300 |         gtc_osiris_manual |
-| NeI |  5332.2603 |    1 |    16 |      6000 |           deimos_600.json |
-| NeI |  5402.0631 |    1 |    16 |      6000 |           deimos_600.json |
+| NeI |  5766.0175 |    1 |    19 |      7000 | not_alfosc_linelists      |
 | NeI |  5854.1101 |    1 |     9 |      7489 | lrisr_600_7500_PYPIT.json |
 | NeI |  5883.5252 |    1 |     9 |      5962 | lrisr_600_7500_PYPIT.json |
 | NeI |  5946.4810 |    1 |     9 |     10105 | lrisr_600_7500_PYPIT.json |
@@ -43,10 +41,12 @@
 | NeI |  8497.6932 |    1 |    25 |     21494 | lrisr_400_8500_PYPIT.json |
 | NeI |  8649.4164 |    1 |     9 |       383 | lrisr_600_7500_PYPIT.json |
 | NeI |  8656.7599 |    1 |    25 |     10656 | lrisr_400_8500_PYPIT.json |
+| NeI |  8921.9496 |    1 |    19 |      6400 | not_alfosc_linelists      |
+| NeI |  9151.1829 |    1 |    19 |     12000 | not_alfosc_linelists      |
 | NeI |  9204.2841 |    1 |     9 |      2334 | lrisr_400_8500_PYPIT.json |
-| NeI |  9536.7793 |    1 |    16 |      2334 |  deimos_830g_r_PYPIT.json |
 | NeI |  9329.0663 |    1 |    16 |      6900 | deimos_830g_pypeit_manual |
 | NeI |  9427.9655 |    1 |    16 |      4800 | deimos_830g_pypeit_manual |
 | NeI |  9461.8060 |    1 |    16 |      2800 | deimos_830g_pypeit_manual |
 | NeI |  9489.2849 |    1 |    16 |      5000 | deimos_830g_pypeit_manual |
+| NeI |  9536.7793 |    1 |    16 |      2334 |  deimos_830g_r_PYPIT.json |
 | NeI | 11146.0715 |    1 |    16 |     26000 | deimos_830g_pypeit_manual |

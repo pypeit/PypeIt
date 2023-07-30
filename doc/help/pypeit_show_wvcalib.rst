@@ -7,12 +7,12 @@
     Show the result of wavelength calibration
     
     positional arguments:
-      file                  MasterWaveCalib file
+      file                  WaveCalib file
       slit_order            Slit or Order number
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --slit_file SLIT_FILE
-                            Master Slit file (default: None)
+                            Slit file (default: None)
       --is_order            Input slit/order is an order (default: False)
     

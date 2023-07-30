@@ -1,3 +1,6 @@
+
+.. include:: include/links.rst
+
 .. _coadd2d:
 
 ================
@@ -7,14 +10,14 @@ Coadd 2D Spectra
 Overview
 ========
 
-This document will describe how to combine the 2D spectra
-from multiple exposures.
+This document describes how to combine the 2D spectra from multiple exposures.
+**For a worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
-This must be done outside of the data reduction pipeline,
-i.e. PypeIt will *not* coadd your spectra as
+Coadding must be done outside of the data reduction pipeline (:ref:`run-pypeit`);
+i.e., PypeIt will *not* coadd your spectra as
 part of the data reduction process, although it can
 combine (without weighting) multiple exposures
-during reductions (See :ref:`2d_combine`).
+during reductions (see :ref:`2d_combine`).
 
 .. _coadd2d_file:
 
@@ -27,12 +30,14 @@ The format of this type of :doc:`input_files`
 includes a :ref:`parameter_block` (required)
 and a :ref:`data_block` (required).
 
-Here is an example for `keck_lris_blue`::
+Here is an example for ``keck_lris_blue``:
+
+.. code-block:: ini
 
     # User-defined execution parameters
     [rdx]
-      spectrograph = keck_lris_blue
-      detnum = 2
+        spectrograph = keck_lris_blue
+        detnum = 2
     [reduce]
         [[findobj]]
             snr_thresh=5.0
@@ -47,47 +52,62 @@ Here is an example for `keck_lris_blue`::
     spec2d_b170320_2091-c17_60L._LRISb_2017Mar20T085223.894.fits
     spec2d end
 
-
 The opening :ref:`parameter_block` sets information
 and parameters for the reduction steps.
 The ``spectrograph`` name is **required**.
 
-See :ref:`pypeit_par:Coadd2DPar Keywords` for a list of the
-options specific to coadd2d including :doc:`manual`. 
+See :ref:`coadd2dpar` for a list of the
+options specific to 2D coadds, including :doc:`manual`. 
 
-The :ref:`data_block` always begins/ends with *spec2d read*/*spec2d end*.
+The :ref:`data_block` always begins and ends with ``spec2d read`` and ``spec2d end``, respectively.
 It (optionally) provides the ``path``
 to the :doc:`out_spec2D` files.
 It then includes a (one column) table which
 is a simple list of the :doc:`out_spec2D` files.
 
+.. note::
+    
+    The inclusion of the line ``filename`` in the example above is **required**.
+    This is the line providing the columns names for the data to follow and must
+    be present, even if there is only one column.
+
 You may also include file-specific options in the :ref:`data_block`
 as additional columns.  See :ref:`data_block` for its formatting.
 
-Deprecated Format
------------------
+.. _pypeit_setup_coadd2d:
 
-Prior to version 1.9.2, the :ref:`data_block` did not require 
-the column name ``filename`` (and the ``path`` was not permitted).
-It might have looked like this::
+Setup script
+------------
 
-    # Data block
-    spec2d read
-    spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
-    spec2d end
+Similar to :ref:`pypeit_setup`, we provide a script that helps you construct the
+required input file.  In this case, ``pypeit_setup_coadd2d`` helps you build the
+required ``.coadd2d`` file.
 
-Edit it accordingly to meet the new standard above.
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup_coadd2d.rst
+
+For example, assuming you have already executed :ref:`run-pypeit` on your data
+using a pypeit file, you can construct the default coadd2d file(s) using:
+
+.. code-block:: console
+
+    pypeit_setup_coadd2d -f keck_lris_A.pypeit
+
+This will produce one ``.coadd2d`` file per unique ``target`` in the pypeit file
+with associated ``spec2d`` files in the output science directory.  The script
+provides additional options that allow you to select specific objects/targets,
+specify the method used to set the offsets and/or weights, specify the detectors
+to coadd, and/or specify the slits that should be coadded.
 
 .. _pypeit-coadd-2dspec:
 
 pypeit_coadd_2dspec
 ===================
 
-The primary script is called `pypeit_coadd_2dspec`_ which takes
-an input file or *object name* to guide the process.
-
-usage
------
+Once you have prepared a ``.coadd2d`` file, the primary script to execute is
+``pypeit_coadd_2dspec``.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -103,7 +123,7 @@ Here are commonly used options:
 --show
 ++++++
 
-Show a series of matplotlib plots to the screen.
+Show a series of `matplotlib`_ plots to the screen.
 
 --basename
 ++++++++++
@@ -114,39 +134,32 @@ If not provided, defaults to a portion of the input spec2d filenames.
 --debug
 +++++++
 
-Unclear how this differs from `--show`_.
-
-
+Provides additional debugging diagnostic plots compared to using ``--show``.
 
 run
 ---
 
-Then run the script::
+Then run the script:
 
-    pypeit_coadd_2dspec --file FRB190711_XS_coadd2d.cfg --show
+.. code-block:: console
 
+    pypeit_coadd_2dspec  FRB190711_XS.coadd2d --show
 
+The parameters that guide the coadd process are also written to disk for your
+records.  The default location is ``*_coadd2d.par``, where the wildcard should
+contain the frames included and the target/object name.  You can choose another
+location by modifying `--basename`_.
 
-The parameters that guide the coadd process are also written
-to disk for your records. The default location is *coadd2d.par*.
-You can choose another location by modifying `--basename`_.
+**For worked examples,** see :doc:`tutorials/coadd2d_howto`.
 
-See `Additional Reading`_ for some examples on how to run this script.
-
+.. _coadd2d_datamodel:
 
 Current Coadd2D Data Model
 ==========================
 
-The outputs are identical to the standard run, as
-described in :doc:`out_spec1D` and :doc:`out_spec2D`.
+The outputs produced by :ref:`pypeit-coadd-2dspec` are identical to a standard
+run of :ref:`run-pypeit`, except that the results are places in ``*_coadd``
+directories.  See :doc:`out_spec1D` and :doc:`out_spec2D`.
 
+.. TODO: This needs more detail
 
-Additional Reading
-==================
-
-Here are additional docs related to coadd2d:
-
-.. toctree::
-   :maxdepth: 1
-
-   coadd2d_howto

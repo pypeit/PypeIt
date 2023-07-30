@@ -18,6 +18,11 @@ from pypeit.core import procimg
 class DetectorContainer(datamodel.DataContainer):
     """
     Class to hold a detector properties.
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_detectorcontainer.rst
+
     """
     # Set the version of this class
     version = '1.0.1'

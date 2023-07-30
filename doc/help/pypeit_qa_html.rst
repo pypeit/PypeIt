@@ -9,7 +9,7 @@
       pypeit_file      PYPIT file
       type             QA Type (MF, exp, all)
     
-    optional arguments:
+    options:
       -h, --help       show this help message and exit
       --qapath QAPATH  Path the QA folder including QA/) (default: QA/)
     

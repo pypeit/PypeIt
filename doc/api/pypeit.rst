@@ -16,6 +16,7 @@ Subpackages
    pypeit.par
    pypeit.scripts
    pypeit.spectrographs
+   pypeit.specutils
 
 Submodules
 ----------
@@ -25,12 +26,11 @@ Submodules
 
    pypeit.alignframe
    pypeit.archive
-   pypeit.biasframe
    pypeit.bitmask
+   pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
-   pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction
@@ -41,7 +41,6 @@ Submodules
    pypeit.inputfiles
    pypeit.io
    pypeit.manual_extract
-   pypeit.masterframe
    pypeit.metadata
    pypeit.onespec
    pypeit.pypeit

@@ -1,0 +1,27 @@
+
+Version 1.10.0
+==============
+
+Major Changes
+-------------
+
+- Refactor PypeIt input files. Main pypeit file remains the same, except
+  that inclusion of leading and trailing | characters in the data table
+  (required in previous versions) will now result in
+  DeprecationWarnings. All post-processing scripts (coadding, fluxing,
+  etc) must use the new format. See the main documentation pages.
+
+Minor Changes/Improvements
+--------------------------
+
+- Apply find_min_max when clipping the image for object finding
+- Mask bad detector regions for global sky flexure calculation
+- Added wavelength diagnostics to the spec2d output
+
+Instrument-specific Changes/Improvements
+----------------------------------------
+
+- Modify tweak_standard for Keck-MOSFIRE/J2
+- Detector structure correction included in flatfield calibration
+  (Keck-KCWI only)
+

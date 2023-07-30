@@ -23,8 +23,20 @@ class WaveFit(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be).
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavefit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, the ``pypeitfit`` attribute
+    is written to a separate extension (see
+    :class:`~pypeit.core.fitting.PypeItFit`), and the other elements are written
+    as header keywords.  Any datamodel elements that are None are *not* included
+    in the output.  The two HDU extensions are given names according to their
+    spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
     version = '1.1.0'
@@ -91,33 +103,56 @@ class WaveFit(datamodel.DataContainer):
         # Return
         return _d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
-        """ Over-ride for force_to_bintbl
+    def to_hdu(self, **kwargs):
+        """
+        Over-ride base-class function to force ``force_to_bintbl`` to always be
+        true.
 
-        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
+        See base-class :class:`~pypeit.datamodel.DataContainer.to_hdu` for arguments.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.to_hdu`.  If 
+                ``force_to_bintbl`` is present, it is forced to be True.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
             where the type depends on the value of ``add_primary``.
         """
-        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
-                                           limit_hdus=limit_hdus, force_to_bintbl=True)
+        if 'force_to_bintbl' in kwargs:
+            if not kwargs['force_to_bintbl']:
+                msgs.warn(f'{self.__class__.__name__} objects must always use '
+                          'force_to_bintbl = True!')
+            kwargs.pop('force_to_bintbl')
+        return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True):
+    def from_hdu(cls, hdu, **kwargs):
         """
         Parse the data from the provided HDU.
 
-        See :func:`pypeit.datamodel.DataContainer._parse` for the
-        argument descriptions.
+        See the base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` for
+        the argument descriptions.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.from_hdu`.  Should not
+                include ``hdu_prefix`` because this is set directly by the
+                class, read from the SPAT_ID card in a relevant header.
+
+        Returns:
+            :class:`WaveFit`: Object instantiated from data in the provided HDU.
         """
+        if 'hdu_prefix' in kwargs:
+            kwargs.pop('hdu_prefix')
         # Set hdu_prefix
-        if isinstance(hdu, fits.HDUList):
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu[1].header['SPAT_ID'])
-        else:
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
+        spat_id = hdu[1].header['SPAT_ID'] if isinstance(hdu, fits.HDUList)\
+                    else hdu.header['SPAT_ID']
+        hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
         # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, **kwargs)
 
     @property
     def ions(self):
@@ -202,7 +237,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 
     # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
     # Purge UNKNOWNS from ifit
-    imsk = np.ones(len(ifit), dtype=np.bool)
+    imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False

@@ -4,7 +4,7 @@
 Base class for handling bit masks.
 
 Class usage examples
---------------------
+====================
 
 .. include:: ../include/bitmask_usage.rst
 
@@ -104,14 +104,11 @@ class BitMask:
         # NULL flags not allowed
         if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
-        # Flags should be among the bitmask keys
+        # Flags should be among the bitmask keys, and they need not be strings.
         indx = numpy.array([f not in self.keys() for f in _flag])
         if numpy.any(indx):
             raise ValueError('The following bit names are not recognized: {0}'.format(
-                             ', '.join(_flag[indx])))
-#        # Flags should be strings
-#        if numpy.any([ not isinstance(f, str) for f in _flag ]):
-#            raise TypeError('Provided bit names must be strings!')
+                             ', '.join(_flag[indx].astype(str))))
         return _flag
 
     @staticmethod
@@ -410,9 +407,39 @@ class BitMask:
         _flag = self._prep_flags(flag)
         return tuple([self.flagged(value, flag=f) for f in _flag])
 
-    def to_header(self, hdr, prefix=None, quiet=False):
+    def to_dict(self, prefix=None):
+        """
+        Write the bits to a dictionary.
+
+        The keys of the dictionary are identical to those use to write the
+        bitmask to a FITS header.
+
+        Args:
+            prefix (:obj:`str`, optional):
+                Prefix to use for the dictionary keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keyword is the prefix and the bit
+            number, and the value is the bit flag name.
+        """
+        if prefix is None:
+            prefix = self.prefix
+        maxbit = max(list(self.bits.values()))
+        ndig = int(numpy.log10(maxbit))+1 
+        bits = {}
+        for key, value in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
+            if key == 'NULL':
+                continue
+            bits[f'{prefix}{str(value).zfill(ndig)}'] = key
+        return bits
+
+    def to_header(self, hdr, prefix=None):
         """
         Write the bits to a fits header.
+
+        The header is edited in place!
 
         .. todo::
             - This is very similar to the function in ParSet.  Abstract
@@ -420,23 +447,19 @@ class BitMask:
             - The comment might have a limited length and be truncated.
 
         Args:
-            hdr (`astropy.io.fits.Header`):
+            hdr (`astropy.io.fits.Header`_):
                 Header object for the parameters. Modified in-place.
             prefix (:obj:`str`, optional):
                 Prefix to use for the header keywords, which
                 overwrites the string defined for the class. If None,
                 uses the default for the class.
-            quiet (:obj:`bool`, optional):
-                Suppress print statements.
         """
         if prefix is None:
             prefix = self.prefix
-        maxbit = max(list(self.bits.values()))
-        ndig = int(numpy.log10(maxbit))+1 
-        for key, value in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
-            if key == 'NULL':
-                continue
-            hdr['{0}{1}'.format(prefix, str(value).zfill(ndig))] = (key, self.descr[value])
+        bits = self.to_dict(prefix=prefix)
+        for hdr_key, bit_key in bits.items():
+            i = int(hdr_key.replace(prefix, ''))
+            hdr[hdr_key] = (bit_key, self.descr[i])
 
     @classmethod
     def from_header(cls, hdr, prefix=None):

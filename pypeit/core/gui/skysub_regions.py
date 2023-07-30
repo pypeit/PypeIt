@@ -29,7 +29,7 @@ operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    })
 
 
-class SkySubGUI(object):
+class SkySubGUI:
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
@@ -103,18 +103,12 @@ class SkySubGUI(object):
         self._end = [0, 0]
 
         # Unset some of the matplotlib keymaps
-        matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
-        #matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
-        matplotlib.pyplot.rcParams['keymap.back'] = ''              # forward / backward keys to enable (Default: left, c, backspace)
-        matplotlib.pyplot.rcParams['keymap.forward'] = ''           # left handed quick navigation (Default: right, v)
-        #matplotlib.pyplot.rcParams['keymap.pan'] = ''              # pan mnemonic (Default: p)
-        matplotlib.pyplot.rcParams['keymap.zoom'] = ''              # zoom mnemonic (Default: o)
-        matplotlib.pyplot.rcParams['keymap.save'] = ''              # saving current figure (Default: s)
-        matplotlib.pyplot.rcParams['keymap.quit'] = ''              # close the current figure (Default: ctrl+w, cmd+w)
-        matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
-        matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
-        matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
+        for key in plt.rcParams.keys():
+            if 'keymap' in key:
+                plt.rcParams[key] = []
+        # Enable some useful ones, though
+        matplotlib.pyplot.rcParams['keymap.home'] = ['h', 'r', 'home']
+        matplotlib.pyplot.rcParams['keymap.pan'] = ['p']
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)
@@ -141,13 +135,13 @@ class SkySubGUI(object):
         self._fita = None
 
         self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, flexure=flexure)
+        self.initialize_menu()
         self.reset_regions()
 
         # Draw the spectrum
         self.canvas.draw()
 
-        self.initialize_menu()
-        self.reset_regions()
+#        self.reset_regions()
 
     @classmethod
     def initialize(cls, det, frame, slits, pypeline, spectrograph, outname="skyregions.fits",
@@ -211,12 +205,16 @@ class SkySubGUI(object):
 
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
-        fig.canvas.set_window_title('PypeIt - Sky regions')
+        fig.canvas.manager.set_window_title('PypeIt - Sky regions')
         srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph,
                           printout=printout, runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
         plt.show()
 
         return srgui
+
+    def finalize(self):
+        plt.rcdefaults()
+        plt.close()
 
     def region_help(self):
         print("You can enter the regions in the text box, as a comma separated")
@@ -234,7 +232,7 @@ class SkySubGUI(object):
         print("mouse button to click and drag over the sky background region.")
         print("Use the right mouse button (click and drag) to delete a region.")
         print("If you click 'Continue (and save changes)' the sky background")
-        print("regions file will be saved to the Masters directory.")
+        print("regions file will be saved to the Calibrations directory.")
         print("")
         print("To assign regions to all slits simultaneously, click and drag")
         print("over the gray regions on the right toolbar. Alternatively,")
@@ -583,9 +581,8 @@ class SkySubGUI(object):
                 outfil = 'temp.fits'
                 msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
                 self._overwrite = True
-            msskyreg = buildimage.SkyRegions(image=inmask.astype(np.float), PYP_SPEC=self.spectrograph)
-            msskyreg.to_master_file(master_filename=outfil)
-        return
+            msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
+            msskyreg.to_file(file_path=outfil)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -681,3 +678,4 @@ class SkySubGUI(object):
         """
         self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
         self._allreg[:] = False
+

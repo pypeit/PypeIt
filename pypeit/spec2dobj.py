@@ -5,6 +5,7 @@ Module for the Spec2DObj class
 .. include:: ../include/links.rst
 
 """
+from pathlib import Path
 import os
 import inspect
 import datetime
@@ -15,13 +16,12 @@ import numpy as np
 
 from astropy.io import fits
 from astropy.stats import mad_std
-import astropy
+from astropy import table
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit import wavecalib
 from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
@@ -29,16 +29,17 @@ from pypeit.images.mosaic import Mosaic
 
 from IPython import embed
 
-#def spec2d_hdu_prefix(det):
-#    return 'DET{:02d}-'.format(det)
-
 
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
 
     One generates one of these Objects for each detector in the exposure.
 
-    See datamodel below and at :ref:`spec2dobj_datamodel`
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_spec2dobj.rst
+
+    .. See datamodel below and at :ref:`spec2dobj_datamodel`
 
     Args:
 
@@ -47,7 +48,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.5'
+    version = '1.1.0'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -73,19 +74,19 @@ class Spec2DObj(datamodel.DataContainer):
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
-                 'bpmmask': dict(otype=np.ndarray, atype=np.integer,
+                 'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
                                  descr='2D bad-pixel mask for the image'),
-                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
+#                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
-                 'wavesol': dict(otype=astropy.table.Table,
+                 'wavesol': dict(otype=table.Table,
                                descr='Table with WaveCalib diagnostic info'),
-                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                 'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
-                 'sci_spec_flexure': dict(otype=astropy.table.Table,
+                 'sci_spec_flexure': dict(otype=table.Table,
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
                                                 'the center of each slit'),
@@ -103,11 +104,17 @@ class Spec2DObj(datamodel.DataContainer):
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
+    internals = ['calibs',              # Dictionary containing the processed calibration frames
+                 'process_steps',       # List of image processing steps
+                 'head0'                # Raw header
+                ]
+
+    # TODO: Allow for **kwargs here?
     @classmethod
     def from_file(cls, file, detname, chk_version=True):
         """
-        Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
-        input and to slurp the header
+        Override base-class :func:`~pypeit.datamodel.DataContainer.from_file` to
+        specify detector to read.
 
         Args:
             file (:obj:`str`):
@@ -120,16 +127,66 @@ class Spec2DObj(datamodel.DataContainer):
 
         Returns:
             :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
+        """
+        with io.fits_open(file) as hdu:
+            # Check detname is valid
+            detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
+            if detname not in detnames:
+                msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
+            return cls.from_hdu(hdu, detname, chk_version=chk_version)
+
+    # TODO: Allow for **kwargs here?
+    @classmethod
+    def from_hdu(cls, hdu, detname, chk_version=True):
+        """
+        Override base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` to
+        specify detector to read.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            detname (:obj:`str`):
+                The string identifier for the detector or mosaic used to select
+                the data that is read.
+            chk_version (:obj:`bool`, optional):
+                If False, allow a mismatch in datamodel to proceed
+
+        Returns:
+            :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
 
         """
-        hdul = io.fits_open(file)
-        # Quick check on det
-        if not np.any([detname in hdu.name for hdu in hdul]):
+        # Get list of extensions associated with this detector
+        ext = [h.name for h in hdu if detname in h.name]
+
+        if len(ext) == 0:
+            # No relevant extensions!
             msgs.error(f'{detname} not available in any extension of {file}')
-        slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
-        slf.head0 = hdul[0].header
-        slf.chk_version = chk_version
-        return slf
+
+        mask_ext = f'{detname}-BPMMASK'
+        has_mask = mask_ext in ext
+        if has_mask:
+            ext.remove(mask_ext)
+
+        self = super().from_hdu(hdu, ext=ext, hdu_prefix=f'{detname}-', chk_version=chk_version)
+        if has_mask:
+            self.bpmmask = imagebitmask.ImageBitMaskArray.from_hdu(hdu[mask_ext], ext_pseudo='MASK',
+                                                                   chk_version=chk_version)
+        # Try to fill the internals based on the header of the first parsed
+        # extension
+        hdr = hdu[ext[0]].header
+        if 'CLBS_DIR' in hdr:
+            self.calibs = {}
+            self.calibs['DIR'] = hdr['CLBS_DIR']
+            for key in hdr.keys():
+                if key.startswith('CLBS_') \
+                        and (Path(self.calibs['DIR']).resolve() / hdr[key]).exists():
+                    self.calibs['_'.join(key.split('_')[1:])] = hdr[key]
+
+        if 'PROCSTEP' in hdr:
+            self.process_steps = hdr['PROCSTEP'].split(',')
+
+        self.head0 = hdu[0].header
+        return self
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
@@ -140,27 +197,10 @@ class Spec2DObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
-    def _init_internals(self):
-        self.process_steps = None
-        self.head0 = None
-        self.chk_version = None  # Mainly for viewing/using old versions
-
     def _validate(self):
         """
-        Assert that the detector has been set
-
-        Returns:
-
+        Assert that the detector has been set and that the bitmask is correct.
         """
-        # Check the bitmask is current
-        bitmask = imagebitmask.ImageBitMask()
-        if self.imgbitm is None:
-            self.imgbitm = ','.join(list(bitmask.keys()))
-        else:
-            # Validate
-            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
-                msgs.error("Input BITMASK keys differ from current data model!")
-
         # Check the detector/mosaic identifier has been provided (note this is a
         # property method)
         if self.detname is None:
@@ -190,6 +230,9 @@ class Spec2DObj(datamodel.DataContainer):
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
+            # Mask
+            elif key == 'bpmmask':
+                d.append(dict(bpmmask=self.bpmmask))
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
@@ -209,6 +252,38 @@ class Spec2DObj(datamodel.DataContainer):
                 d[0][key] = self[key]
         # Return
         return d
+
+    def _base_header(self, hdr=None):
+        """
+        Override the base class method to add useful/identifying internals to
+        the header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object to update.  The object is modified in-place and
+                also returned. If None, an empty header is instantiated, edited,
+                and returned.
+
+        Returns:
+            `astropy.io.fits.Header`_: The initialized (or edited) fits header.
+        """
+        # Standard init
+        _hdr = super()._base_header(hdr=hdr)
+        # Add the calibration association info.  Ideally, the association should
+        # only include files that exist.
+        if self.calibs is not None:
+            for key, val in self.calibs.items():
+                # NOTE: Adding 'CLBS_' serves two purposes:  It keeps some
+                # entries from being identical to names given to elements of the
+                # datamodel, and it allows the keywords to be found!  For the
+                # latter, see `from_hdu`.
+                _hdr[f'CLBS_{key}'] = val
+
+        # Add the processing steps
+        if self.process_steps is not None:
+            _hdr['PROCSTEP'] = (','.join(self.process_steps), 'Completed reduction steps')
+
+        return _hdr
 
     @property
     def detname(self):
@@ -254,7 +329,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Slitmask
         slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
-                                                 exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
+                                            exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
@@ -282,8 +357,8 @@ class Spec2DObj(datamodel.DataContainer):
             skysub_img -= self.objmodel
 
         # Chi
-        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
-        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask.mask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask.mask == 0)
 
         # All bad?
         if np.all(chi_slit == 0):
@@ -311,7 +386,45 @@ class Spec2DObj(datamodel.DataContainer):
         # Save
         self.med_chis = np.array(med_chis)
         self.std_chis = np.array(std_chis)
-        return
+
+    def select_flag(self, flag=None, invert=False):
+        """
+        Return a boolean array that selects pixels masked with the specified
+        bits in :attr:`bpmmask`.
+
+        For example, to create a bad-pixel mask based on which pixels have
+        cosmic-ray detections, run:
+
+        .. code-block:: python
+
+            cr_bpm = self.select_flag(flag='CR')
+
+        Or, to create a good-pixel mask for all pixels that are not flagged for
+        any reason, run:
+
+        .. code-block:: python
+
+            gpm = self.select_flag(invert=True)
+
+        Args:
+            flag (:obj:`str`, array-like, optional):
+                One or more flags to select when returning the boolean mask.  If
+                None, pixels flagged for *any* reason are returned as True.
+            invert (:obj:`bool`, optional):
+                If False, the return mask is True for masked pixels, False for
+                good pixels (i.e., a bad-pixel mask).  If True, invert the sense
+                of the mask (i.e., create a good-pixel mask, True for good
+                pixels, False for bad pixels).
+    
+        Returns:
+            `numpy.ndarray`_: Boolean array where pixels with the selected bits
+            flagged are returned as True (if ``invert`` is False); i.e., this is
+            a boolean bad-pixel mask (or a good-pixel mask when ``invert`` is
+            True).  If ``flag`` is not provided, pixels flagged for any reason
+            are returned as True.
+        """
+        return self.bpmmask.flagged(flag=flag, invert=invert)
+
 
 class AllSpec2DObj:
     """
@@ -330,7 +443,7 @@ class AllSpec2DObj:
         """
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str`, `Path`_):
                 Name of the file to read.
             chk_version (:obj:`bool`, optional):
                 If True, demand the on-disk datamodel equals the current one.
@@ -342,19 +455,18 @@ class AllSpec2DObj:
         # Instantiate
         self = cls()
         # Open
-        hdul = io.fits_open(filename)
-        # Meta
-        for key in hdul[0].header.keys():
-            if key == self.hdr_prefix+'DETS':
-                continue
-            if self.hdr_prefix in key:
-                meta_key = key.split(self.hdr_prefix)[-1].lower()
-                self['meta'][meta_key] = hdul[0].header[key]
-        # Detectors included
-        detectors = hdul[0].header[self.hdr_prefix+'DETS']
-        for detname in detectors.split(','):
-            self[detname] = Spec2DObj.from_hdu(hdul, hdu_prefix=f'{detname}-',
-                                               chk_version=chk_version)
+        with io.fits_open(filename) as hdu:
+            # Meta
+            for key in hdu[0].header.keys():
+                if key == self.hdr_prefix+'DETS':
+                    continue
+                if self.hdr_prefix in key:
+                    meta_key = key.split(self.hdr_prefix)[-1].lower()
+                    self['meta'][meta_key] = hdu[0].header[key]
+            # Detectors included
+            detectors = hdu[0].header[self.hdr_prefix+'DETS']
+            for detname in detectors.split(','):
+                self[detname] = Spec2DObj.from_hdu(hdu, detname, chk_version=chk_version)
         return self
 
     def __init__(self):
@@ -416,7 +528,7 @@ class AllSpec2DObj:
         """Get an item directly from the internal dict."""
         return self.__dict__[item]
 
-    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
+    def build_primary_hdr(self, raw_header, spectrograph, calib_dir=None,
                           redux_path=None, subheader=None, history=None):
         """
         Build the primary header for a spec2d file
@@ -426,10 +538,8 @@ class AllSpec2DObj:
                 Header from the raw FITS file (i.e. original header)
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 Spectrograph used to obtain the data.
-            master_key_dict (:obj:`dict`, optional):
-                Dictionary of master keys from :class:`~pypeit.calibrations.Calibrations`.
-            master_dir (:obj:`str`):
-                Path to the ``Masters`` folder
+            calib_dir (:obj:`str`):
+                Path to the folder with processed calibration frames
             redux_path (:obj:`str`, optional):
                 Full path to the reduction output files.
             subheader (:obj:`dict`, optional):
@@ -439,8 +549,11 @@ class AllSpec2DObj:
         Returns:
             `astropy.io.fits.Header`_: The primary header for the output fits file.
         """
-        hdr = io.initialize_header(primary=True)
+        # Instantiate the header
+        hdr = io.initialize_header()
 
+        # Copy most of the information from the raw header
+        # TODO: Does astropy provide a way to intelligently merge headers?
         hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
         for key in raw_header.keys():
@@ -449,11 +562,12 @@ class AllSpec2DObj:
                 continue
             # Update unused ones
             hdr[key] = raw_header[key]
-        # History
+
+        # Add the History
         if history is not None:
             history.write_to_header(hdr)
 
-        # Sub-header
+        # Add the spectrograph-specific sub-header
         if subheader is not None:
             for key in subheader.keys():
                 hdr[key.upper()] = subheader[key]
@@ -465,28 +579,9 @@ class AllSpec2DObj:
         hdr['PYP_SPEC'] = spectrograph.name
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
 
-        # MasterFrame info
-        # TODO -- Should this be in the header of the individual HDUs ?
-        if master_key_dict is not None:
-            if 'bias' in master_key_dict.keys():
-                hdr['BIASMKEY'] = master_key_dict['bias']
-            if 'arc' in master_key_dict.keys():
-                hdr['ARCMKEY'] = master_key_dict['arc']
-            if 'trace' in master_key_dict.keys():
-                hdr['TRACMKEY'] = master_key_dict['trace']
-            if 'flat' in master_key_dict.keys():
-                hdr['FLATMKEY'] = master_key_dict['flat']
-
-        # Processing steps
-        # TODO: Assumes processing steps for all detectors are the same...  Does
-        # this matter?
-        det = self.detectors[0]
-        if self[det].process_steps is not None:
-            hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
-
         # Some paths
-        if master_dir is not None:
-            hdr['PYPMFDIR'] = str(master_dir)
+        if calib_dir is not None:
+            hdr['CALIBDIR'] = str(calib_dir)
         if redux_path is not None:
             hdr['PYPRDXP'] = redux_path
         # Sky sub mode
@@ -508,7 +603,7 @@ class AllSpec2DObj:
         Write the spec2d FITS file
 
         Args:
-            outfile (:obj:`str`):
+            outfile (:obj:`str`, `Path`_):
                 Output filename
             pri_hdr (:class:`astropy.io.fits.Header`, optional):
                 Header to be used in lieu of default
@@ -534,13 +629,14 @@ class AllSpec2DObj:
                 combination of this and ``update_det`` may also alter this
                 object based on the existing file.
         """
-        if os.path.isfile(outfile):
+        _outfile = Path(outfile).resolve()
+        if _outfile.exists():
             # Clobber?
             if not overwrite:
-                msgs.warn("File {} exits.  Use -o to overwrite.".format(outfile))
+                msgs.warn(f'File {_outfile} exits.  Use -o to overwrite.')
                 return
             # Load up the original
-            _allspecobj = AllSpec2DObj.from_fits(outfile)
+            _allspecobj = AllSpec2DObj.from_fits(_outfile)
             # Replace the newly reduced detector?
             if update_det is not None:
                 for det in _allspecobj.detectors:
@@ -580,10 +676,7 @@ class AllSpec2DObj:
                         self[det] = _allspecobj[det]
 
         # Primary HDU for output
-        prihdu = fits.PrimaryHDU()
-        # Header
-        if pri_hdr is not None:
-            prihdu.header = pri_hdr
+        prihdu = fits.PrimaryHDU(header=pri_hdr)
 
         # Add class name
         prihdu.header['PYP_CLS'] = self.__class__.__name__
@@ -597,7 +690,7 @@ class AllSpec2DObj:
                 continue
             if key.lower() != key:
                 msgs.warn('Keywords in the meta dictionary are always read back in as lower case. '
-                          f'Subsequent reads of {outfile} will have converted {key} to '
+                          f'Subsequent reads of {_outfile} will have converted {key} to '
                           f'{key.lower()}!')
 
         # Loop on em (in order of detector)
@@ -619,8 +712,8 @@ class AllSpec2DObj:
 
         # Finish
         hdulist = fits.HDUList(hdus)
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote: {:s}".format(outfile))
+        hdulist.writeto(_outfile, overwrite=overwrite)
+        msgs.info(f'Wrote: {_outfile}')
 
     def __repr__(self):
         # Generate sets string

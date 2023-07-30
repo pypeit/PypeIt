@@ -203,7 +203,7 @@ class RawImage:
 
         """
         if self._bpm is None:
-            # TODO: Pass master bias if there is one?  Only if `bpm_usebias` is
+            # TODO: Pass msbias if there is one?  Only if `bpm_usebias` is
             # true in the calibrations parameter set, but we don't have access
             # to that here.  Add it as a parameter of ProcessImagesPar?
             self._bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape[1:])
@@ -303,8 +303,7 @@ class RawImage:
         return utils.inverse(var)
 
     def estimate_readnoise(self):
-        """
-        Estimate the readnoise (in electrons) based on the overscan regions of
+        """ Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if
@@ -412,10 +411,10 @@ class RawImage:
                coordinates ordered along the second, ``(spec, spat)`` --- with
                blue to red going from small pixel numbers to large.
 
-            #. :func:`subtract_bias`: Subtract the master bias image.  The shape
-               and orientation of the bias image must match the *processed*
-               image.  I.e., if you trim and orient this image, you must also
-               have trimmed and oriented the bias frames.
+            #. :func:`subtract_bias`: Subtract the processed bias image.  The
+               shape and orientation of the bias image must match the
+               *processed* image.  I.e., if you trim and orient this image, you
+               must also have trimmed and oriented the bias frames.
 
             #. :func:`build_dark`: Create dark-current images using both the
                tabulated dark-current value for each detector and any directly
@@ -427,7 +426,7 @@ class RawImage:
                from the image being processed, set the ``dark_expscale``
                parameter to true.
 
-            #. :func:`subtract_dark`: Subtract the master dark image and
+            #. :func:`subtract_dark`: Subtract the processed dark image and
                propagate any error.
 
             #. :func:`build_mosaic`: If data from multiple detectors are being
@@ -528,6 +527,7 @@ class RawImage:
         if self.nimg == 1 and mosaic:
             msgs.warn('Only processing a single detector; mosaicing is ignored.')
 
+        msgs.info(f'Performing basic image processing on {os.path.basename(self.filename)}.')
         # TODO: Checking for bit saturation should be done here.
 
         #   - Convert from ADU to electron counts.
@@ -572,10 +572,10 @@ class RawImage:
 
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
-            # TODO: The logic of whether or not the BPM uses the master bias to
-            # identify bad pixels is difficult to follow.  Where and how the bpm
-            # is created, and whether or not it uses the master bias should be
-            # more clean.
+
+            # TODO: The logic of whether or not the BPM uses msbias to identify
+            # bad pixels is difficult to follow.  Where and how the bpm is
+            # created, and whether or not it uses msbias should be more clear.
 
             # The BPM is the wrong shape.  Assume this is because the
             # calibrations were taken with a different binning than the science
@@ -596,7 +596,7 @@ class RawImage:
                       f'({os.path.basename(self.filename)}) and assuming the difference in the '
                       'binning will be handled later in the code.')
             
-        #   - Subtract master bias
+        #   - Subtract processed bias
         if self.par['use_biasimage']:
             # Bias frame.  Shape and orientation must match *processed* image,.
             # Uncertainty from the bias subtraction is added to the variance.
@@ -651,20 +651,24 @@ class RawImage:
         # img_scale, noise_floor, and shot_noise.
         _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
                 = self._squeeze()
+        # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
                                               det_img=_det_img, rn2img=_rn2img, base_var=_base_var,
-                                              img_scale=_img_scale, bpm=_bpm, detector=_det,
+                                              img_scale=_img_scale, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
                                               units='e-' if self.par['apply_gain'] else 'ADU',
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
-                                              shot_noise=self.par['shot_noise'])
+                                              shot_noise=self.par['shot_noise'],
+                                              bpm=_bpm.astype(bool))
+
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
         # Mask(s)
         if self.par['mask_cr']:
+            # TODO: CR rejection of the darks was failing for HIRES for some reason...
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')
@@ -743,11 +747,8 @@ class RawImage:
                        'mosaic) to determine spatial flexure.')
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits)
         self.steps[step] = True
-        # Return (required!) 
-        return self.spat_flexure_shift
-
         # Return
-        return self.spat_flexure_shift 
+        return self.spat_flexure_shift
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """
@@ -806,7 +807,9 @@ class RawImage:
         # Generate the illumination flat, as needed
         illum_flat = 1.0
         if self.par['use_illumflat']:
-            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            # TODO :: We don't have tilts here yet... might be ever so slightly better, especially on very tilted slits
+            illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
+            illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')

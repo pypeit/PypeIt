@@ -36,12 +36,11 @@ class TraceEdges(scriptbase.ScriptBase):
         parser.add_argument('-b', '--binning', default=None, type=str,
                             help='Image binning in spectral and spatial directions.  Only used if '
                                  'providing files directly; default is 1,1.')
-        parser.add_argument('-p', '--redux_path', default=None,
-                            help='Path to top-level output directory.  '
-                                 'Default is the current working directory.')
-        parser.add_argument('-m', '--master_dir', default='Masters',
-                            help='Name for directory in output path for Master file(s) relative '
-                                 'to the top-level directory.')
+        parser.add_argument('-p', '--redux_path', type=str, default='current working directory',
+                            help='Path to top-level output directory.')
+        parser.add_argument('-c', '--calib_dir', default='Calibrations',
+                            help='Name for directory in output path for calibration file(s) '
+                                 'relative to the top-level directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
 
@@ -49,6 +48,9 @@ class TraceEdges(scriptbase.ScriptBase):
                             help='Run in debug mode.')
         parser.add_argument('--show', default=False, action='store_true',
                             help='Show the stages of trace refinements (only for the new code).')
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename trace_edges_YYYYMMDD-HHMM.log')
 
         return parser
 
@@ -56,38 +58,39 @@ class TraceEdges(scriptbase.ScriptBase):
     def main(args):
 
         import time
-        import os
+        from pathlib import Path
         import numpy as np
+        from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit import edgetrace
-        from pypeit import slittrace
         from pypeit.pypeit import PypeIt
         from pypeit.images import buildimage
-        from pypeit import masterframe
 
         from IPython import embed
 
-        if args.pypeit_file is not None:
-            pypeit_file = args.pypeit_file
-            if not os.path.isfile(pypeit_file):
-                raise FileNotFoundError('File does not exist: {0}'.format(pypeit_file))
-            pypeit_file = os.path.abspath(pypeit_file)
-            redux_path = os.path.abspath(os.path.split(pypeit_file)[0]
-                                         if args.redux_path is None else args.redux_path)
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('trace_edges', args.verbosity)
 
-            rdx = PypeIt(pypeit_file, redux_path=redux_path)
+        if args.pypeit_file is not None:
+            pypeit_file = Path(args.pypeit_file).resolve()
+            if not pypeit_file.exists():
+                msgs.error(f'File does not exist: {pypeit_file}')
+            redux_path = pypeit_file.parent if args.redux_path is None \
+                            else Path(args.redux_path).resolve()
+
+            rdx = PypeIt(str(pypeit_file), redux_path=str(redux_path))
             detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detector
             # Save the spectrograph
             spec = rdx.spectrograph
             # Get the calibration group to use
             group = np.unique(rdx.fitstbl['calib'])[0] if args.group is None else args.group
             if group not in np.unique(rdx.fitstbl['calib']):
-                raise ValueError('Not a valid calibration group: {0}'.format(group))
+                msgs.error(f'Invalid calibration group: {group}')
             # Find the rows in the metadata table with trace frames in the
             # specified calibration group
             tbl_rows = rdx.fitstbl.find_frames('trace', calib_ID=int(group), index=True)
-            # Master keyword
-            master_key_base = '_'.join(rdx.fitstbl.master_key(tbl_rows[0]).split('_')[:2])
+            setup = rdx.fitstbl['setup'][tbl_rows[0]]
+            calib_id = rdx.fitstbl['calib'][tbl_rows[0]]
             # Save the binning
             binning = rdx.fitstbl['binning'][tbl_rows[0]]
             # Save the full file paths
@@ -116,13 +119,15 @@ class TraceEdges(scriptbase.ScriptBase):
         else:
             detectors = args.detector
             spec = load_spectrograph(args.spectrograph)
-            master_key_base = 'A_1'
+            setup = 'A'     # Dummy value
+            calib_id = '1'  # Dummy value
             binning = '1,1' if args.binning is None else args.binning
-            if not os.path.isfile(args.trace_file):
-                raise FileNotFoundError('File does not exist: {0}'.format(args.trace_file))
-            files = [os.path.abspath(args.trace_file)]
-            redux_path = os.path.abspath(os.path.split(files[0])[0]
-                                         if args.redux_path is None else args.redux_path)
+            trace_file = Path(args.trace_file).resolve()
+            if not trace_file.exists():
+                msgs.error(f'File does not exist: {trace_file}')
+            files = [str(trace_file)]
+            redux_path = trace_file.parent if args.redux_path is None \
+                            else Path(args.redux_path).resolve()
             par = spec.default_pypeit_par()
             proc_par = par['calibrations']['traceframe']
             trace_par = par['calibrations']['slitedges']
@@ -133,7 +138,7 @@ class TraceEdges(scriptbase.ScriptBase):
             dark_par = None
 
             # Set the QA path
-            qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
+            qa_path = redux_path / 'QA'
 
         if detectors is None:
             detectors = np.arange(spec.ndet)+1
@@ -142,11 +147,8 @@ class TraceEdges(scriptbase.ScriptBase):
         elif any([isinstance(d,str) for d in detectors]):
             detectors = [eval(d) for d in detectors]
 
-        master_dir = os.path.join(redux_path, args.master_dir)
+        calib_dir = redux_path / args.calib_dir
         for det in detectors:
-            # Master keyword for output file name
-            master_key = f'{master_key_base}_{spec.get_det_name(det)}'
-
             # Get the bias frame if requested
             if bias_files is None:
                 proc_par['process']['use_biasimage'] = False
@@ -165,7 +167,8 @@ class TraceEdges(scriptbase.ScriptBase):
 
             # Build the trace image
             traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, files, bias=msbias,
-                                                        bpm=msbpm, dark=msdark)
+                                                        bpm=msbpm, dark=msdark, setup=setup,
+                                                        calib_id=calib_id, calib_dir=calib_dir)
             # Trace the slit edges
             t = time.perf_counter()
             edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, auto=True,
@@ -173,17 +176,9 @@ class TraceEdges(scriptbase.ScriptBase):
                                            qa_path=qa_path)
 
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-            # Write the MasterEdges file
-            edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                                    master_key,
-                                                                    master_dir=master_dir)
-            edges.to_master_file(edge_masterframe_name)
-
-            # Write the MasterSlits file
-            slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
-                                                                    master_key,
-                                                                    master_dir=master_dir)
-            edges.get_slits().to_master_file(slit_masterframe_name)
+            # Write the two calibration frames
+            edges.to_file()
+            edges.get_slits().to_file()
 
         return 0
 

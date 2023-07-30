@@ -3,7 +3,6 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
-import os
 import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
@@ -24,6 +23,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.VLTTelescopePar()
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/fors.html'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -32,7 +32,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -68,8 +68,8 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
+        par['sensfunc']['polyorder'] = 5
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_9800_25000_R25000.fits'
 
 
 
@@ -79,7 +79,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -294,7 +294,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -352,7 +352,28 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         """
         return ['dispname', 'dispangle', 'decker', 'detector']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS GRIS1 WLEN',
+                'HIERARCH ESO INS SLIT NAME', 'HIERARCH ESO SEQ SPEC TARG']
+
+    # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

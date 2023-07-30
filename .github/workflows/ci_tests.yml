@@ -6,9 +6,6 @@ on:
     - release
     - develop
   pull_request:
-  schedule:
-    # run every Monday at 6am UTC
-    - cron: '0 6 * * 1'
 
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
@@ -20,13 +17,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.8, 3.9]
+        python: ['3.9', '3.10', '3.11']
         toxenv: [test, test-alldeps-cov, test-linetoolsdev, test-gingadev, test-astropydev, conda]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
@@ -37,7 +34,7 @@ jobs:
         tox -e ${{ matrix.toxenv }}
     - name: Upload coverage to codecov
       if: "contains(matrix.toxenv, '-cov')"
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV }}
         file: ./coverage.xml
@@ -51,13 +48,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
-        python: [3.8, 3.9]
+        python: ['3.9', '3.10', '3.11']
         toxenv: [test-alldeps]
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install base dependencies
@@ -67,52 +64,14 @@ jobs:
       run: |
         tox -e ${{ matrix.toxenv }}
 
-  centos:
-    # Some PypeIt users have to run under CentOS and have run into unique issues. GitHub Actions does not
-    # provide CentOS as a runtime environment like it does Ubuntu. However, it can be used by running
-    # it as a container within a provided Ubuntu environment.
-    name: CentOS ${{ matrix.centos_ver }} ${{ matrix.toxenv }}
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        # Test CentOS 7
-        centos_ver: [7]
-        # Test both pip and conda for installing dependencies
-        toxenv: [test-alldeps, conda]
-
-    container:
-      image: "centos:${{ matrix.centos_ver }}"
-
-    steps:
-    - name: Install base CentOS dependencies
-      run: |
-        yum update -y && yum install -y wget git gcc
-    - name: Check out repository
-      uses: actions/checkout@v1
-      with:
-        fetch-depth: 0
-    - name: Install and configure miniconda
-      run: |
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-        bash ./miniconda.sh -b -p /conda
-        /conda/bin/conda update -y --all
-        /conda/bin/conda init
-    - name: Install base dependencies
-      run: |
-        source ~/.bashrc && python -m pip install --upgrade pip tox && python --version
-    - name: Test with tox
-      run: |
-        source ~/.bashrc && tox -e ${{ matrix.toxenv }}
-
   codestyle:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Python codestyle check
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: '3.11'
     - name: Install base dependencies
       run: |
         python -m pip install --upgrade pip

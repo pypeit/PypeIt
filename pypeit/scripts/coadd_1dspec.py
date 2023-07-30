@@ -162,6 +162,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                             help="show QA during coadding process")
         parser.add_argument("--par_outfile", default='coadd1d.par',
                             help="Output to save the parameters")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename coadd_1dspec_YYYYMMDD-HHMM.log')
         #parser.add_argument("--test_spec_path", type=str, help="Path for testing")
         return parser
 
@@ -169,6 +172,9 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Runs the 1d coadding steps
         """
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('coadd_1dspec', args.verbosity)
+
         # Load the file
         #config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
         coadd1dFile = inputfiles.Coadd1DFile.from_file(args.coadd1d_file)
@@ -184,7 +190,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         # Parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                 merge_with=coadd1dFile.cfg_lines)
+                                                 merge_with=(coadd1dFile.cfg_lines,))
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)

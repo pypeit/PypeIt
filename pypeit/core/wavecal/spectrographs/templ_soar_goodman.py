@@ -7,7 +7,7 @@ from IPython import embed
 
 def soar_goodman_400(overwrite=False):
     binspec = 2
-    outroot = 'soar_goodman_400_SYZY.fits'
+    outroot = 'soar_goodman_red_400_SYZY.fits'
     # PypeIt fits
     wpath = os.path.join(templates.template_path, 'SOAR_Goodman', '400_SYZY')
 

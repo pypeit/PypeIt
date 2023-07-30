@@ -1,0 +1,31 @@
+
+Version 1.11.0
+==============
+
+Significant Updates
+-------------------
+
+- Add ability for users to specify custom arc line lists for wavelength
+  calibration, saved in the user's PypeIt cache
+- Allow for the specification of a specific UVIS extinction file for
+  sensitivity function computation and flux calibration.
+- Now more than one setup can be assigned to the same calibration frame,
+  allowing to associate the same calibration frames to different
+  science/standard frames, if desired.
+- Refactor and general update of documentation
+
+Instrument-specific Updates
+---------------------------
+
+- Correctly associate calibrations with science data for MOSFIRE
+  longslit and long2pos masks.
+- Automatically assign `comb_id` and `bkg_id` to MOSFIRE science data,
+  using the information on the dither pattern.
+
+Minor
+-----
+
+- Added Keck/NIRES frame-typing development doc.
+- Allow verbosity specification for various post-processing command-line
+  scripts.
+

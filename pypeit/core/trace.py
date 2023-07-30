@@ -65,15 +65,15 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
             parameter to a number greater than zero to enhance the edge detection.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
-        grow_bpm (:int)
+        grow_bpm (int, optional):
             The sobel_sig and edg_img are masked using the bpm. This is done by convolving the bpm with
             a spatial boxcar of width grow_bpm pixels, ensuring that pixels which touched bad pixels are also masked.
 
     Returns:
-        Returns two `numpy.ndarray`_ objects: (1) The image of the
-        significance of the edge detection in sigma and (2) the array
-        isolating the slit edges. In the latter, left edges have a
-        value of -1 and right edges have a value of 1.
+        tuple: Returns two `numpy.ndarray`_ objects -- (1) The image of the
+            significance of the edge detection in sigma and (2) the array
+            isolating the slit edges. In the latter, left edges have a
+            value of -1 and right edges have a value of 1.
     """
     # Checks
     if flux.ndim != 2:
@@ -114,7 +114,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # TODO: why not match the sign of the Sobel image to the edge it
     # traces? I.e., why is the sign flipped?
     # Answer: I defined left as -1 (i.e. counting from left to right (-1, 0, +1) = (left, middle, right)
-    tedges = np.zeros(flux.shape, dtype=np.float)
+    tedges = np.zeros(flux.shape, dtype=float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
 
@@ -122,7 +122,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == 1))
-    edge_img = np.zeros(sobel_sig.shape, dtype=np.int)
+    edge_img = np.zeros(sobel_sig.shape, dtype=int)
     edge_img[wcl] = -1
     edge_img[wcr] = 1
 
@@ -271,8 +271,9 @@ def count_edge_traces(edge_img):
             and negative numbers follow left slit edges.
     
     Returns:
+        int or tuple:
         Two integers with the number of left and right edges,
-        respectively.
+        respectively.  Or 0 if the minimum input value is 0
     """
     # Avoid returning -0
     nleft = np.amin(edge_img)
@@ -607,9 +608,9 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             uses the DISCONTINUOUS flag.
 
     Returns:
-        Three numpy arrays are returned: the optimized center, an
-        estimate of the error, and a bad-pixel mask (masked values
-        are True).
+        tuple: Three numpy arrays are returned. the optimized center, an
+            estimate of the error, and a bad-pixel mask (masked values
+            are True).
     """
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
@@ -780,9 +781,9 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
             dummy value.
 
     Returns:
-        Returns three `numpy.ndarray`_ objects: the new centers, the
-        center errors, and the measurement flags with a data type
-        depending on `bitmask`.
+        tuple: Returns three `numpy.ndarray`_ objects. the new centers, the
+            center errors, and the measurement flags with a data type
+            depending on `bitmask`.
     """
     # Calculate the moments
     radius = width/2
@@ -1537,7 +1538,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
 def parse_user_slits(add_slits, this_det, rm=False):
     """
-    Parse the parset syntax for adding slits
+    Parse the parset syntax for adding or removing slits
 
     Args:
         add_slits (str, list):
@@ -1549,8 +1550,8 @@ def parse_user_slits(add_slits, this_det, rm=False):
 
     Returns:
         list or None:
-          if list,  [[x0,x1,yrow]] for add with one or more entries
-          if list,  [[xcen,yrow]] for rm with one or more entries
+          if list,  [[x0,x1,yrow]] for add (rm=False) with one or more entries
+          if list,  [[xcen,yrow]] for rm=True with one or more entries
 
     """
     # Might not be a list yet (only a str)
@@ -1559,11 +1560,12 @@ def parse_user_slits(add_slits, this_det, rm=False):
     #
     user_slits = []
     for islit in add_slits:
+        # Add?
         if not rm:
             det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([x0,x1,yrow])
-        else:
+        else: # Remove
             det, xcen, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([xcen,yrow])

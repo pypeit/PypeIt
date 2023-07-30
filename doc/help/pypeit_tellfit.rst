@@ -3,7 +3,7 @@
     $ pypeit_tellfit -h
     usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-r REDSHIFT]
                           [-g TELL_GRID] [-p PCA_FILE] [-t TELL_FILE] [--debug]
-                          [--plot] [--par_outfile PAR_OUTFILE]
+                          [--plot] [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
                           spec1dfile
     
     Telluric correct a spectrum
@@ -11,7 +11,7 @@
     positional arguments:
       spec1dfile            spec1d file that will be used for telluric correction.
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --objmodel {qso,star,poly}
                             science object model used in the fitting. The options
@@ -69,4 +69,8 @@
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
                             fit
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename tellfit_YYYYMMDD-
+                            HHMM.log
     
