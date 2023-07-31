@@ -48,14 +48,15 @@ def arc_fit_qa(waveFit,
 
     Args:
         waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
+            Wavelength solution object
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
+            ??
         title (:obj:`str`, optional):
             Add a title to the spectrum plot
         log (:obj:`bool`, optional):
             If True, use log scaling for the spectrum
-
     """
     plt.rcdefaults()
     plt.rcParams['font.family']= 'serif'

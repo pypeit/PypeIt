@@ -454,6 +454,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             for masked slits.
     verbose : :obj:`bool`, optional
             Print out verbose information?
+
     Returns
     -------
     arc_spec : `numpy.ndarray`_ 

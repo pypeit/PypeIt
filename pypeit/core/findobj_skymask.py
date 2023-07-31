@@ -1037,12 +1037,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
 
         #. A PCA fit to the traces is performed using the routine above pca_fit
 
-
-    Note on masking:  This routine requires that all masking be performed in the upstream calling routine
-    (:func:`pypeit.find_objects`) and thus the slit_left and slit_right slit edge arrays must only contain these slits. The number
-    of orders in order_vec,  spec_min_max,  slit_spat_id, and plate_scale must also match the number of slits in the slit_left
-    and slit_righ arrays.
-
+    **Note on masking**:  This routine requires that all masking be performed in
+    the upstream calling routine (:func:`pypeit.find_objects`) and thus the
+    ``slit_left`` and ``slit_righ`` slit edge arrays must only contain these
+    slits. The number of orders in ``order_vec``,  ``spec_min_max``,
+    ``slit_spat_id``, and ``plate_scale`` must also match the number of slits in
+    the ``slit_left`` and ``slit_righ`` arrays.
 
     Args:
         image (`numpy.ndarray`_):

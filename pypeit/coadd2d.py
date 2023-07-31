@@ -94,24 +94,36 @@ class CoAdd2D:
                 spectrograph; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
             offsets (`numpy.ndarray`_ or string, optional):
-                Spatial offsets to be applied to each image before coadding. Here are the possible usage
-                cases:
+                Spatial offsets to be applied to each image before coadding.
+                Here are the possible usage cases:
 
-                    1) offsets = 'auto' -- auto compute offsets from brightest object (if exists)
-                    2) offsets not 'auto' (i.e. a list) - use them
-                    -------------- only for Multislit --------------
-                    3) offsets = 'maskdef_offsets' - use `maskdef_offset` saved in SlitTraceSet
-                    4) offsets = 'header' - use the dither offsets recorded in the header
+                    #. If ``offsets = 'auto'``, auto-compute offsets from brightest
+                       object (if exists)
+
+                    #. If ``offsets`` is something other than ``'auto'``, such
+                       as a list, these are the offsets applied to each image.
+
+
+                    #. (*for MultiSlit only*) If ``offsets =
+                       'maskdef_offsets'``, use ``maskdef_offset`` saved by the
+                       :class:`~pypeit.slittrace.SlitTraceSet`
+
+                    #. (*for MultiSlit only*) If ``offsets = 'header'``, use the
+                       dither offsets recorded in the header
 
             weights (:obj:`str`, :obj:`list`, `numpy.ndarray`_):
-                Mode for the weights used to coadd images.
-                Options are:
-                     1) 'auto' =  if brightest object exists auto compute weights,
-                                  otherwise use uniform weights.  'auto' is not allowed if offsets are input.
-                     2) 'uniform' = if brightest object exists auto compute weights,
-                                    otherwise use uniform weights
-                     3) list or array = Input a list of len(nexp) or shape = (nexp,) and
-                                        the routine will use the input weights
+                Mode for the weights used to coadd images.  Options are:
+
+                    #. ``'auto'``: If brightest object exists, auto-compute the
+                       weights, otherwise use uniform weights.  ``'auto'`` is
+                       not allowed if offsets are input.
+
+                    #. ``'uniform'``: If brightest object exists, auto-compute
+                       the weights, otherwise use uniform weights.
+
+                    #. :obj:`list`, `numpy.ndarray`_:  This provides a set of
+                       ``nexp`` weights to use for each exposure.
+
             only_slits (:obj:`list`, optional):
                 List of slits to coadd. It must be `slitord_id`.
             exclude_slits (:obj:`list`, optional):
@@ -1127,18 +1139,18 @@ class CoAdd2D:
 
     def compute_weights(self, weights):
         """
-        Determine self.use_weights, the weights to be used in the coadd2d.
+        Determine the weights to be used in the coadd2d.
         This is partially overloaded by the child methods.
 
+        This method sets the internal :attr:`use_weights`.  Documentation on the
+        form of self.use_weights needs to be written.
+
         Args:
-            weights (:obj:`list` or :obj:`str`):
-                Value that guides the determination of the weights.
-                It could be a list of weights or a string. If 'auto' the weight will be computed using
-                the brightest trace, if 'uniform' uniform weights will be used.
-        Returns:
-            Assigns the internal self.use_weights. Documentation on the form of self.use_weights needs to be wwrittten.
-
-
+            weights (:obj:`list`, :obj:`str`):
+                Value that guides the determination of the weights.  It could be
+                a list of weights or a string. If 'auto' the weight will be
+                computed using the brightest trace, if 'uniform' uniform weights
+                will be used.
         """
         msgs.info('Get Weights')
 
@@ -1364,16 +1376,17 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     def compute_weights(self, weights):
         """
-        Determine self.use_weights, the weights to be used in the coadd2d
+        Determine the weights to be used in the coadd2d.
+
+        This method sets the internal :attr:`use_weights`.  Documentation on the
+        form of self.use_weights needs to be written.
 
         Args:
-            weights (:obj:`list` or :obj:`str`):
-                Value that guides the determination of the weights.
-                It could be a list of weights or a string. If equal to 'auto', the weight will be computed
-                using the brightest trace, if 'uniform' uniform weights will be used.
-        Returns:
-            Assigns the internal self.use_weights. Documentation on the form of self.use_weights needs to be wwrittten.
-
+            weights (:obj:`list`, :obj:`str`):
+                Value that guides the determination of the weights.  It could be
+                a list of weights or a string. If equal to 'auto', the weight
+                will be computed using the brightest trace, if 'uniform' uniform
+                weights will be used.
         """
 
         super().compute_weights(weights)

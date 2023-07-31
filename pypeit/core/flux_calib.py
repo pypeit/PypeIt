@@ -1218,11 +1218,10 @@ def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_a
     wave_max : float
         Maximum wavelength for the zeropoint fit to be passed as an argument to
         :func:`~pypeit.core.fitting.evaluate_fit`
-    log10_blaze_func_per_ang : `numpy.ndarray`_, optional
+    log10_blaze_func_per_ang : `numpy.ndarray`_, optional, shape = (nspec,)
         Log10 blaze function per angstrom. This option is used if the zeropoint
         model is relative to the non-parametric blaze function determined from
-        flats. The blaze function is defined on the wavelength grid wave. shape
-        = (nspec,)
+        flats. The blaze function is defined on the wavelength grid wave. 
 
     Returns
     -------

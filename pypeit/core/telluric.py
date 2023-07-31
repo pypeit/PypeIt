@@ -1240,9 +1240,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Dictionary containing the information for the true flux of the standard
         star.
     log10_blaze_function (`numpy.ndarray`_ , optional):
-        The log10 blaze function determined from a flat field image.  If this is passed in the sensitivity function
-        model will be a (parametric) polynomial fit multiplied into the (non-parametric) log10_blaze_function.
-        Shape must match ``wave``, i.e. (nspec,) or (nspec, norddet).
+        The log10 blaze function determined from a flat field image.  If this is
+        passed in the sensitivity function model will be a (parametric)
+        polynomial fit multiplied into the (non-parametric)
+        log10_blaze_function.  Shape must match ``wave``, i.e. (nspec,) or
+        (nspec, norddet).
     telgridfile : :obj:`str`
         File containing grid of HITRAN atmosphere models. This file is given by
         :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.

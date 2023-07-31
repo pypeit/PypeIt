@@ -100,11 +100,12 @@ def get_sampling(waves, pix_per_R=3.0):
 
     Args:
         waves (list or `numpy.ndarray`_):
-            List of `numpy.ndarray`_ wavelength arrays or a single 1d 'numpy.ndarray'_
-        pix_per_R (float):  default=3.0
+            List of `numpy.ndarray`_ wavelength arrays or a single 1d
+            'numpy.ndarray'_
+        pix_per_R (float):
             Number of pixels per resolution element used for the
             resolution guess. The default of 3.0 assumes roughly Nyquist
-            smampling
+            sampling.
 
     Returns:
         tuple: Returns dlam, dloglam, resln_guess, pix_per_sigma.
@@ -151,19 +152,28 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
 
     Args:
         waves (list):
-            List of the `numpy.ndarray`_ N original 1d wavelength arrays.  Shapes of the input arrays are arbitrary.
-            Required unless wave_method='user_input' in which case it need not be passed in.
+            List of the `numpy.ndarray`_ N original 1d wavelength arrays.
+            Shapes of the input arrays are arbitrary.  Required unless
+            wave_method='user_input' in which case it need not be passed in.
         gpms (list):
-            Good-pixel mask for wavelengths.  Same format as waves and shapes of the individual arrays must match.
+            Good-pixel mask for wavelengths.  Same format as waves and shapes of
+            the individual arrays must match.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
 
-                * 'iref' -- Use the first wavelength array (default)
-                * 'velocity' -- Grid is uniform in velocity
-                * 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
-                * 'linear' -- Constant pixel grid
-                * 'concatenate' -- Meld the input wavelength arrays
-                * 'user_input' -- Use a user input wavelength grid. wave_grid_input must be set for this option.
+                - 'iref' -- Use the first wavelength array (default)
+
+                - 'velocity' -- Grid is uniform in velocity
+
+                - 'log10'  -- Grid is uniform in log10(wave). This is the same
+                  as velocity.
+
+                - 'linear' -- Constant pixel grid
+
+                - 'concatenate' -- Meld the input wavelength arrays
+
+                - 'user_input' -- Use a user input wavelength grid.
+                  wave_grid_input must be set for this option.
 
         iref (:obj:`int`, optional):
             Index in waves array for reference spectrum
@@ -172,8 +182,9 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
         wave_grid_max (:obj:`float`, optional):
             max wavelength value for the final grid
         dwave (:obj:`float`, optional):
-            Pixel size in same units as input wavelength array (e.g. Angstroms). Used with the 'linear' method.
-            If not input, the median pixel size is calculated and used.
+            Pixel size in same units as input wavelength array (e.g. Angstroms).
+            Used with the 'linear' method.  If not input, the median pixel size
+            is calculated and used.
         dv (:obj:`float`, optional):
             Pixel size in km/s for 'velocity' method.  If not input, the median
             km/s per pixel is calculated and used
@@ -190,17 +201,23 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
-              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
-              the wavelength bins, that is this grid is simply offset from
-              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-              depending on whether linear or (log10 or velocity) was requested.
-              Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate, the linear wavelength sampling will be
-              calculated.
+
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not
+              masked.  This is a set of bin edges (rightmost edge for the last
+              bin and leftmost edges for the rest), while wave_grid_mid is a set
+              of bin centers, hence wave_grid has 1 more value than
+              wave_grid_mid.
+
+            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated
+              at the centers of the wavelength bins, that is this grid is simply
+              offset from ``wave_grid`` by ``dsamp/2.0``, in either linear space
+              or log10 depending on whether linear or (log10 or velocity) was
+              requested.  Last bin center is removed since it falls outside
+              wave_grid.  For iref or concatenate, the linear wavelength
+              sampling will be calculated.
+
             - ``dsamp``: The pixel sampling for wavelength grid created.
+
     """
 
     c_kms = constants.c.to('km/s').value
@@ -380,16 +397,16 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     Parameters
     ----------
-    theta (float `numpy.ndarray`_):
+    theta : float `numpy.ndarray`_
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1 (float `numpy.ndarray`_):  shape = (nspec,)
+    y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
-    y2 (float `numpy.ndarray`_):  shape = (nspec,)
+    y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
 
     Returns
     -------
-    corr_norm: float
+    corr_norm : float
         Negative of the zero lag cross-correlation coefficient (since we
         are miniziming with scipy.optimize). scipy.optimize will thus
         determine the shift,stretch that maximize the cross-correlation.

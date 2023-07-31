@@ -786,7 +786,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
         are dealing with highly variable spectra (e.g. emission lines) and
         require a precision better than ~1 per cent.
     verbose : bool, optional
-            Verbosity of print out.
+        Verbosity of print out.
 
     Returns
     -------
@@ -1092,12 +1092,14 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
     Returns
     -------
-    Multiple items: tuple
-        (1) flux_scale: ndarray (nspec,) scaled spectrum; (2)
-        ivar_scale: ndarray (nspec,) inverse variance of scaled
-        spectrum; (3) scale: `numpy.ndarray`_ (nspec,) scale factor applied to
-        the spectrum and inverse variance; (4) scale_method: str, method
-        that was used to scale the spectra.
+    flux_scale : `numpy.ndarray`_, shape is (nspec,)
+        Scaled spectrum
+    ivar_scale : `numpy.ndarray`_, shape is (nspec,)
+        Inverse variance of scaled spectrum 
+    scale : `numpy.ndarray`_, shape is (nspec,)
+        Scale factor applied to the spectrum and inverse variance
+    method_used : :obj:`str`
+        Method that was used to scale the spectra.
     """
 
     if mask is None:
@@ -1168,69 +1170,77 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     return flux_scale, ivar_scale, scale, method_used
 
 def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-8):
-    '''
-    Compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
-    weights and masking. This code uses np.histogram to combine the data using NGP and does not perform any
-    interpolations and thus does not correlate errors. It uses wave_grid to determine the set of wavelength bins that
-    the data are averaged on. The final spectrum will be on an ouptut wavelength grid which is not the same as wave_grid.
-    The ouput wavelength grid is the weighted average of the individual wavelengths used for each exposure that fell into
-    a given wavelength bin in the input wave_grid. This 1d coadding routine thus maintains the independence of the
-    errors for each pixel in the combined spectrum and computes the weighted averaged wavelengths of each pixel
-    in an analogous way to the 2d extraction procedure which also never interpolates to avoid correlating erorrs.
+    """
+    Compute a stacked spectrum from a set of exposures on the specified
+    wave_grid with proper treatment of weights and masking. This code uses
+    np.histogram to combine the data using NGP and does not perform any
+    interpolations and thus does not correlate errors. It uses wave_grid to
+    determine the set of wavelength bins that the data are averaged on. The
+    final spectrum will be on an ouptut wavelength grid which is not the same as
+    wave_grid.  The ouput wavelength grid is the weighted average of the
+    individual wavelengths used for each exposure that fell into a given
+    wavelength bin in the input wave_grid. This 1d coadding routine thus
+    maintains the independence of the errors for each pixel in the combined
+    spectrum and computes the weighted averaged wavelengths of each pixel in an
+    analogous way to the 2d extraction procedure which also never interpolates
+    to avoid correlating erorrs.
 
     Parameters
     ----------
-    wave_grid: `numpy.ndarray`_
-            new wavelength grid desired. This will typically be a reguarly spaced grid created by the get_wave_grid routine.
-            The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
-            bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
-            lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
-            with the sampling of the data in mind. For example, the code will work fine if you choose the sampling to be
-            too fine, but then the number of exposures contributing to any given wavelength bin will be one or zero in the
-            limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
-            to a given bin will be larger.  shape=(ngrid +1,)
-    waves: list
-            List of length nexp `numpy.ndarray`_ float wavelength arrays for spectra to be stacked.
-            Note that the wavelength grids can in general be different for each exposure, irregularly spaced, and
-            can have different sizes.
-    fluxes: list
-            List of length nexp `numpy.ndarray`_ float flux arrays for spectra to be stacked. These are aligned to the
-            wavelength grids in waves.
-    ivars: list
-            List of length nexp `numpy.ndarray`_ float inverse variance arrays for spectra to be stacked. These are aligned to the
-            wavelength grids in waves.
-    gpms:  list
-            List of length nexp `numpy.ndarray`_ boolean good pixel mask arrays for spectra to be stacked. These are aligned to the
-            wavelength grids in waves. True=Good.
-    weights: list
-            List of length nexp `numpy.ndarray`_ float weights to be used for combining the spectra. These
-            are aligned to the wavelength grids in waves and were computed using sn_weights.
-    min_weight: float, optional
-            Minimum allowed weight for any individual spectrum
+    wave_grid : `numpy.ndarray`_
+        new wavelength grid desired. This will typically be a reguarly spaced
+        grid created by the get_wave_grid routine.  The reason for the ngrid+1
+        is that this is the general way to specify a set of  bins if you desire
+        ngrid bin centers, i.e. the output stacked spectra have ngrid elements.
+        The spacing of this grid can be regular in lambda (better for multislit)
+        or log lambda (better for echelle). This new wavelength grid should be
+        designed with the sampling of the data in mind. For example, the code
+        will work fine if you choose the sampling to be too fine, but then the
+        number of exposures contributing to any given wavelength bin will be one
+        or zero in the limiting case of very small wavelength bins. For larger
+        wavelength bins, the number of exposures contributing to a given bin
+        will be larger.  shape=(ngrid +1,)
+    waves : list
+        List of length nexp `numpy.ndarray`_ float wavelength arrays for spectra
+        to be stacked.  Note that the wavelength grids can in general be
+        different for each exposure, irregularly spaced, and can have different
+        sizes.
+    fluxes : list
+        List of length nexp `numpy.ndarray`_ float flux arrays for spectra to be
+        stacked. These are aligned to the wavelength grids in waves.
+    ivars : list
+        List of length nexp `numpy.ndarray`_ float inverse variance arrays for
+        spectra to be stacked. These are aligned to the wavelength grids in
+        waves.
+    gpms : list
+        List of length nexp `numpy.ndarray`_ boolean good pixel mask arrays for
+        spectra to be stacked. These are aligned to the wavelength grids in
+        waves. True=Good.
+    weights : list
+        List of length nexp `numpy.ndarray`_ float weights to be used for
+        combining the spectra. These are aligned to the wavelength grids in
+        waves and were computed using sn_weights.
+    min_weight : float, optional
+        Minimum allowed weight for any individual spectrum
 
     Returns
     -------
-    wave_stack: `numpy.ndarray`_
-        Wavelength grid for stacked
-        spectrum. As discussed above, this is the weighted average
-        of the wavelengths of each spectrum that contriuted to a
-        bin in the input wave_grid wavelength grid. It thus has
-        ngrid elements, whereas wave_grid has ngrid+1 elements to
-        specify the ngrid total number of bins. Note that
-        wave_stack is NOT simply the wave_grid bin centers, since
-        it computes the weighted average. shape=(ngrid,)
-    flux_stack: `numpy.ndarray`_
+    wave_stack : `numpy.ndarray`_
+        Wavelength grid for stacked spectrum. As discussed above, this is the
+        weighted average of the wavelengths of each spectrum that contriuted to
+        a bin in the input wave_grid wavelength grid. It thus has ngrid
+        elements, whereas wave_grid has ngrid+1 elements to specify the ngrid
+        total number of bins. Note that wave_stack is NOT simply the wave_grid
+        bin centers, since it computes the weighted average. shape=(ngrid,)
+    flux_stack : `numpy.ndarray`_, shape=(ngrid,)
         Final stacked spectrum on wave_stack wavelength grid
-        shape=(ngrid,)
-    ivar_stack: `numpy.ndarray`_
+    ivar_stack : `numpy.ndarray`_, shape=(ngrid,)
         Inverse variance spectrum on wave_stack wavelength grid.
         Errors are propagated according to weighting and masking.
-        shape=(ngrid,)
-    gpm_stack: `numpy.ndarray`_
+    gpm_stack : `numpy.ndarray`_, shape=(ngrid,)
         Boolean Mask for stacked
         spectrum on wave_stack wavelength grid. True=Good.
-        shape=(ngrid,)
-    nused: `numpy.ndarray`_
+    nused : `numpy.ndarray`_, shape=(ngrid,)
         Number of exposures which contributed to
         each pixel in the wave_stack. Note that this is in general
         different from nexp because of masking, but also becuse of
@@ -1238,8 +1248,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, gpms, weights, min_weight=1e-
         sometimes more spectral pixels in the irregularly gridded
         input wavelength array waves will land in one bin versus
         another depending on the sampling.
-        shape=(ngrid,)
-    '''
+    """
 
     #mask bad values and extreme values (usually caused by extreme low sensitivity at the edge of detectors)
     #TODO cutting on the value of ivar is dicey for data in different units. This should be removed.
@@ -1485,24 +1494,24 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
     plt.show()
 
 def weights_qa(waves, weights, gpms, title='', colors=None):
-    '''
+    """
     Routine to make a QA plot for the weights used to compute a stacked spectrum.
 
     Parameters
     ----------
-    wave: list
-       List of `numpy.ndarray`_ float 1d wavelength arrays for spectra that went into a stack.
-
-    weights: list
-       List of `numpy.ndarray`_ float 1d (S/N)^2 weight arrays
-       for the exposures that went into a stack. This would have been computed by sn_weights
-
+    wave : list
+        List of `numpy.ndarray`_ float 1d wavelength arrays for spectra that
+        went into a stack.
+    weights : list
+        List of `numpy.ndarray`_ float 1d (S/N)^2 weight arrays for the
+        exposures that went into a stack. This would have been computed by
+        sn_weights
     gpm : list
-       List of `numpy.ndarray`_ boolean 1d good-pixel mask arrays
-       for the exposures that went into a stack.  Good=True.
-    title: str, optional
-            Title for the plot.
-    '''
+        List of `numpy.ndarray`_ boolean 1d good-pixel mask arrays for the
+        exposures that went into a stack.  Good=True.
+    title : str, optional
+        Title for the plot.
+    """
 
     if colors is None:
         colors = utils.distinct_colors(len(waves))
@@ -1523,34 +1532,31 @@ def weights_qa(waves, weights, gpms, title='', colors=None):
 
 def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
              title=None, qafile=None):
-    '''
-    Routine to make QA plot of the final stacked spectrum. It works for both longslit/mulitslit, coadded individual
-    order spectrum of the Echelle data and the final coadd of the Echelle data.
+    """
+    Routine to make QA plot of the final stacked spectrum. It works for both
+    longslit/mulitslit, coadded individual order spectrum of the Echelle data
+    and the final coadd of the Echelle data.
 
     Parameters
     ----------
-    wave: `numpy.ndarray`_
-            one-d wavelength array of your spectrum;
-            shape=(nspec,)
-    flux: `numpy.ndarray`_
-            one-d flux array of your spectrum;
-            shape=(nspec,)
-    ivar: `numpy.ndarray`_
-            one-d ivar array of your spectrum;
-            shape=(nspec,)
-    nused: `numpy.ndarray`_
-            how many exposures used in the stack for each pixel, the same size with flux
-            shape=(nspec,)
-    gpm: `numpy.ndarray`_, optional
-            boolean good pixel mask array for your spectrum. Good=True;
-            shape=(nspec,)
-    tell: `numpy.ndarray`_, optional
-            one-d telluric array for your spectrum; shape=(nspec,)
-    title: str, optional
-            plot title
-    qafile: str, optional
-           QA file name
-    '''
+    wave : `numpy.ndarray`_, shape=(nspec,)
+        one-d wavelength array of your spectrum
+    flux : `numpy.ndarray`_, shape=(nspec,)
+        one-d flux array of your spectrum
+    ivar : `numpy.ndarray`_, shape=(nspec,)
+        one-d ivar array of your spectrum
+    nused : `numpy.ndarray`_, shape=(nspec,)
+        how many exposures used in the stack for each pixel, the same size with
+        flux.
+    gpm : `numpy.ndarray`_, optional, shape=(nspec,)
+        boolean good pixel mask array for your spectrum. Good=True.
+    tell : `numpy.ndarray`_, optional, shape=(nspec,)
+        one-d telluric array for your spectrum
+    title : str, optional
+        plot title
+    qafile : str, optional
+        QA file name
+    """
     #TODO: This routine should take a parset
 
     if gpm is None:
