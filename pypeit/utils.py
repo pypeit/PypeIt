@@ -1112,14 +1112,6 @@ def robust_meanstd(array):
 def polyfitter2d(data, mask=None, order=2):
     """
     2D fitter
-
-    Args:
-        data:
-        mask:
-        order:
-
-    Returns:
-
     """
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
     if isinstance(mask, (float, int)):
@@ -1154,15 +1146,6 @@ def polyfitter2d(data, mask=None, order=2):
 def polyfit2d(x, y, z, order=3):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        z:
-        order:
-
-    Returns:
-
     """
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
@@ -1176,14 +1159,6 @@ def polyfit2d(x, y, z, order=3):
 def polyval2d(x, y, m):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        m:
-
-    Returns:
-
     """
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
@@ -1199,6 +1174,7 @@ def subsample(frame):
 
     Args:
         frame (`numpy.ndarray`_):
+            Array of data to subsample.
 
     Returns:
         `numpy.ndarray`_: Sliced image
@@ -1262,7 +1238,7 @@ def yamlify(obj, debug=False):
 
     Returns
     -------
-    obj: :class:`object`
+    obj : :class:`object`
         An object suitable for yaml serialization.  For example
         `numpy.ndarray`_ is converted to :class:`list`,
         :class:`numpy.int64` is converted to :class:`int`, etc.

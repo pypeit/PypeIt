@@ -99,7 +99,7 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (list or `numpy.ndarray`_):
+        waves (list, `numpy.ndarray`_):
             List of `numpy.ndarray`_ wavelength arrays or a single 1d
             'numpy.ndarray'_
         pix_per_R (float):

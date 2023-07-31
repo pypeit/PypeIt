@@ -551,7 +551,7 @@ class SpecObjs:
         sensitivity function (``sens``).
 
         Args:
-            par (pypeit.par.pypeitpar.FluxCalibrate):
+            par (:class:`~pypeit.par.pypeitpar.FluxCalibratePar`):
                 Parset object containing parameters governing the flux calibration.
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 PypeIt Spectrograph class

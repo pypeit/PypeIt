@@ -95,7 +95,7 @@
                             file for the echelle setup in question
                              
                             setup_id: string identifier for the echelle setup in
-                            question, i.e. 'VIS', 'NIR', or '
+                            question, i.e. 'VIS', 'NIR', or 'UVB'
                              
                             If the coaddfile is not given the output file will be
                             placed in the same directory as the first spec1d file.
