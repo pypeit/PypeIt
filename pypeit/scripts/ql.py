@@ -32,6 +32,7 @@ Notes with JFH:
   #. Consider not writing out but return instead
 
 .. include:: ../include/links.rst
+
 """
 from pathlib import Path
 import time
@@ -143,7 +144,7 @@ def quicklook_regroup(fitstbl):
     **This function directly alters the input object!**
 
     Args:
-        fitstbl (:class:~pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             Metadata table for frames to be processed.
     """
     comb_strt = 0
@@ -228,7 +229,8 @@ def generate_sci_pypeitfile(redux_path:str,
         ref_calib_dir (`Path`_):
             Path with the pre-processed calibration frames.  A symlink will be
             created to this directory from within ``redux_path`` to mimic the
-            location of the calibrations expected by :class:`~pypeit.PypeIt`.
+            location of the calibrations expected by
+            :class:`~pypeit.pypeit.PypeIt`.
         ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
             Setup object for the science frame(s) only.
         det (:obj:`str`, optional):

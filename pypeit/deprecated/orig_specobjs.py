@@ -380,7 +380,7 @@ class SpecObjs(object):
 
     def get_std(self):
         """
-        Return the standard star from this Specobjs. For MultiSlit this
+        Return the standard star from this SpecObjs. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
         will be the standard for all the orders.
 

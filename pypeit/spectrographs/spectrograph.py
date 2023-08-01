@@ -543,11 +543,6 @@ class Spectrograph:
         """
         Generate a default bad-pixel mask.
 
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
         Args:
             filename (:obj:`str`):
                 An example file to use to get the image shape.  Can be None.
@@ -1473,7 +1468,7 @@ class Spectrograph:
                 the platescale will be used.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.name))
         return None

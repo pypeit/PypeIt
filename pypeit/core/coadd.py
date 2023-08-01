@@ -941,42 +941,48 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     Parameters
     ----------
-    flux: `numpy.ndarray`_
-            spectrum that will be rescaled. shape=(nspec,)
-    ivar: `numpy.ndarray`_
-            inverse variance for the spectrum that will be rescaled.
-            Same shape as flux
-    flux_ref: `numpy.ndarray`_
-            reference spectrum. Same shape as flux
-    mask: `numpy.ndarray`_, optional
-            boolean mask for the spectrum that will be rescaled. True=Good.
-            If not input, computed from inverse variance
-    ivar_ref: `numpy.ndarray`_, optional
-            inverse variance of reference spectrum.
-    mask_ref: `numpy.ndarray`_, optional
-            Boolean mask for reference spectrum. True=Good. If not input, computed from inverse variance.
-    ref_percentile: float, optional, default=70.0
-            Percentile fraction used for selecting the minimum SNR cut from the reference spectrum. Pixels above this
-            percentile cut are deemed the "good" pixels and are used to compute the ratio. This must be a number
-            between 0 and 100.
-    min_good: float, optional, default = 0.05
-            Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
-    maxiters: int, optional, default = 5
-            Maximum number of iterations for astropy.stats.SigmaClip
-    sigrej: float, optional, default = 3.0
-            Rejection threshold for astropy.stats.SigmaClip
-    max_factor: float, optional, default = 10.0,
-            Maximum allowed value of the returned ratio
-    snr_do_not_rescale: float, optional default = 1.0
-            If the S/N ratio of the set of pixels (defined by upper ref_percentile in the reference spectrum) in the
-            input spectrum have a median value below snr_do_not_rescale, median rescaling will not be attempted
-            and the code returns ratio = 1.0. We also use this parameter to define the set of pixels (determined from
-            the reference spectrum) to compare for the rescaling.
+    flux : `numpy.ndarray`_
+        spectrum that will be rescaled. shape=(nspec,)
+    ivar : `numpy.ndarray`_
+        inverse variance for the spectrum that will be rescaled.  Same shape as
+        flux
+    flux_ref : `numpy.ndarray`_
+        reference spectrum. Same shape as flux
+    mask : `numpy.ndarray`_, optional
+        boolean mask for the spectrum that will be rescaled. True=Good.  If not
+        input, computed from inverse variance
+    ivar_ref : `numpy.ndarray`_, optional
+        inverse variance of reference spectrum.
+    mask_ref : `numpy.ndarray`_, optional
+        Boolean mask for reference spectrum. True=Good. If not input, computed
+        from inverse variance.
+    ref_percentile : float, optional, default=70.0
+        Percentile fraction used for selecting the minimum SNR cut from the
+        reference spectrum. Pixels above this percentile cut are deemed the
+        "good" pixels and are used to compute the ratio. This must be a number
+        between 0 and 100.
+    min_good : float, optional, default = 0.05
+        Minimum fraction of good pixels determined as a fraction of the total
+        pixels for estimating the median ratio
+    maxiters : int, optional, default = 5
+        Maximum number of iterations for astropy.stats.SigmaClip
+    sigrej : float, optional, default = 3.0
+        Rejection threshold for astropy.stats.SigmaClip
+    max_factor : float, optional, default = 10.0,
+        Maximum allowed value of the returned ratio
+    snr_do_not_rescale : float, optional, default = 1.0
+        If the S/N ratio of the set of pixels (defined by upper ref_percentile
+        in the reference spectrum) in the input spectrum have a median value
+        below snr_do_not_rescale, median rescaling will not be attempted and the
+        code returns ratio = 1.0. We also use this parameter to define the set
+        of pixels (determined from the reference spectrum) to compare for the
+        rescaling.
 
     Returns
     -------
-    ratio: float
-        the number that must be multiplied into flux in order to get it to match up with flux_ref
+    ratio : float
+        the number that must be multiplied into flux in order to get it to match
+        up with flux_ref
     """
 
     ## Mask for reference spectrum and your spectrum
@@ -1970,7 +1976,7 @@ def scale_spec_stack(wave_grid, wave_grid_mid, waves, fluxes, ivars, gpms, sns, 
         array of hand scale factors, not well tested
     sn_min_polyscale : float, optional, default=2.0
         maximum SNR for perforing median scaling
-    sn_min_medscale : float, optional default=0.5
+    sn_min_medscale : float, optional, default=0.5
         minimum SNR for perforing median scaling
     debug : bool, optional, default=False
         show interactive QA plot
@@ -2103,7 +2109,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         S/N due to systematics.
     lower : float, optional, default=3.0
         lower rejection threshold for djs_reject
-    upper : float: optional, default=3.0
+    upper : float, optional, default=3.0
         upper rejection threshold for djs_reject
     maxrej : int, optional
         maximum number of pixels to reject in each iteration for djs_reject.
@@ -2380,7 +2386,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         the orders.  The length of the list is nsetups.  Each element of the
         list corresponds to a dinstinct setup and each numpy array has
         shape=(nspec, norder, nexp)
-    setup_ids : list of strings, optional, default=None
+    setup_ids : list, optional, default=None
         List of strings indicating the name of each setup. If None uppercase
         letters A, B, C, etc. will be used
     nbests : int or list or  `numpy.ndarray`_, optional
@@ -2443,7 +2449,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         S/N due to
     lower : float, optional, default=3.0
         lower rejection threshold for djs_reject
-    upper : float: optional, default=3.0
+    upper : float, optional, default=3.0
         upper rejection threshold for djs_reject
     maxrej : int, optional
         maximum number of pixels to reject in each iteration for djs_reject.
@@ -2865,24 +2871,27 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
     Parameters
     ----------
-    thismask_stack: list
-        List of boolean arrays containing the masks indicating which pixels are on
-        the slit in question.  `True` values are on the slit;
-        `False` values are off the slit.  Length of the list is nimgs.   Shapes of the individual elements in the list
-        are (nspec, nspat),  but each image can have a different shape.
-    waveimg_stack: list
-        List of the wavelength images, each of which is a float `numpy.ndarray`_. Length of the list is nimgs.
-        Shapes of the individual elements in the list are (nspec, nspat),  but each image can have a different shape.
-    wave_grid: array  shape (ngrid)
+    thismask_stack : list
+        List of boolean arrays containing the masks indicating which pixels are
+        on the slit in question.  `True` values are on the slit; `False` values
+        are off the slit.  Length of the list is nimgs.   Shapes of the
+        individual elements in the list are (nspec, nspat),  but each image can
+        have a different shape.
+
+    waveimg_stack : list
+        List of the wavelength images, each of which is a float
+        `numpy.ndarray`_. Length of the list is nimgs.  Shapes of the individual
+        elements in the list are (nspec, nspat),  but each image can have a
+        different shape.
+    wave_grid : `numpy.ndarray`_, shape=(ngrid,)
         The wavelength grid created for the 2d coadd
 
     Returns
     -------
-    wave_bins : `numpy.ndarray`_
-        shape (ind_upper-ind_lower + 1, )
-        Wavelength bins that are relevant given the illuminated pixels (thismask_stack) and
-        wavelength coverage (waveimg_stack) of the image stack
-
+    wave_bins : `numpy.ndarray`_, shape = (ind_upper-ind_lower + 1, )
+        Wavelength bins that are relevant given the illuminated pixels
+        (thismask_stack) and wavelength coverage (waveimg_stack) of the image
+        stack
     """
 
     # Determine the wavelength grid that we will use for the current slit/order
@@ -3023,12 +3032,12 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             are (nspec, nspat),  but each image can have a different shape.
         weights (list, optional):
             The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If weights is None a
+            :func:`~pypeit.core.combine.weighted_combine`).  If weights is None a
             uniform weighting is used.  If weights is not None then it must be a list of length nimgs.
             The individual elements of the list can either be floats, indiciating the weight to be used for each image, or
             arrays with  shape = (nspec,) or shape = (nspec, nspat), indicating pixel weights
             for the individual images. Weights are broadast to the correct size
-            of the image stacks (see :func:`broadcast_weights`), as necessary.
+            of the image stacks (see :func:`~pypeit.core.combine.broadcast_weights`), as necessary.
         spat_samp_fact (float, optional):
             Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
             (i.e. bigger pixels) will downsample the images spatially, whereas <
@@ -3037,7 +3046,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
             subset of this grid encompassing the wavelength coverage of
-            the image stacks provided (see :func:`waveimg_stack`).
+            the image stacks provided (see ``waveimg_stack``).
             Either `loglam_grid` or `wave_grid` must be provided.
         wave_grid (`numpy.ndarray`_, optional):
             Same as `loglam_grid` but in angstroms instead of

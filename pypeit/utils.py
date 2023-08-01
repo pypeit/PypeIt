@@ -531,15 +531,15 @@ def nan_mad_std(data, axis=None, func=None):
     Args:
         data (array-like):
             Data array or object that can be converted to an array.
-        axis (int, sequence of int, None, optional):
+        axis (int, tuple, optional):
             Axis along which the robust standard deviations are
             computed.  The default (`None`) is to compute the robust
             standard deviation of the flattened array.
 
     Returns:
-        float, `numpy.ndarray`: The robust standard deviation of the
+        float, `numpy.ndarray`_: The robust standard deviation of the
         input data.  If ``axis`` is `None` then a scalar will be
-        returned, otherwise a `~numpy.ndarray` will be returned.
+        returned, otherwise a `numpy.ndarray`_ will be returned.
     """
     return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
 
@@ -930,17 +930,19 @@ def fast_running_median(seq, window_size):
     scipy.ndimage.median_filter with the reflect boundary
     condition, but is ~ 100 times faster.
 
-    Args:
-        seq (list or 1-d numpy array of numbers):
-        window_size (int): size of running window.
-
-    Returns:
-        `numpy.ndarray`_: median filtered values
-
     Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.median_filter by Joe Hennawi.
 
     Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
+
+    Args:
+        seq (list, `numpy.ndarray`_):
+            1D array of values
+        window_size (int):
+            size of running window.
+
+    Returns:
+        `numpy.ndarray`_: median filtered values
     """
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
@@ -1241,7 +1243,7 @@ def yamlify(obj, debug=False):
     obj : :class:`object`
         An object suitable for yaml serialization.  For example
         `numpy.ndarray`_ is converted to :class:`list`,
-        :class:`numpy.int64` is converted to :class:`int`, etc.
+        ``numpy.int64`` is converted to :class:`int`, etc.
     """
     # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
@@ -1421,7 +1423,7 @@ def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
 
     Returns
     -------
-    H : 2d-array
+    H : `numpy.ndarray`_
         An n-by-samples design matrix that has been normalized so factor values
         are uniformly spaced between zero and one.
 
@@ -1588,12 +1590,12 @@ def _pdist(x):
 
     Parameters
     ----------
-    x : 2d-array
+    x : `numpy.ndarray`_
         An m-by-n array of scalars, where there are m points in n dimensions.
 
     Returns
     -------
-    d : array
+    d : `numpy.ndarray`_
         A 1-by-b array of scalars, where b = m*(m - 1)/2. This array contains
         all the pair-wise point distances, arranged in the order (1, 0),
         (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).

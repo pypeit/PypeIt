@@ -603,8 +603,7 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             Object used to flag the feature traces. If None,
             assessments use a boolean array to flag traces. If not
             None, errors will be raised if the object cannot
-            interpret the correct flag names defined. In addition to
-            flags used by :func:`_recenter_trace_row`, this function
+            interpret the correct flag names defined. This function
             uses the DISCONTINUOUS flag.
 
     Returns:
@@ -911,10 +910,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         maxdev (:obj:`float`, optional):
             If provided, reject points with `abs(data-model) >
             maxdev` during the fitting. If None, no points are
-            rejected. See :func:`pypeit.utils.robust_polyfit_djs`.
+            rejected. See :func:`~pypeit.core.fitting.robust_fit`.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allowed during the
-            fitting. See :func:`pypeit.utils.robust_polyfit_djs`.
+            fitting. See :func:`~pypeit.core.fitting.robust_fit`.
         niter (:obj:`int`, optional):
             The number of iterations for this method; i.e., the
             number of times the two-step fitting algorithm described
@@ -929,10 +928,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             if `debug` is true for the plotting. Default is just a
             running number.
         xmin (:obj:`float`, optional):
-            Lower reference for robust_polyfit polynomial fitting.
+            Lower reference for robust_fit polynomial fitting.
             Default is to use zero
         xmax (:obj:`float`, optional):
-            Upper reference for robust_polyfit polynomial fitting.
+            Upper reference for robust_fit polynomial fitting.
             Default is to use the image size in nspec direction
         flavor (:obj:`str`, optional):
             Defines the type of fit performed. Only used by QA
@@ -1300,11 +1299,11 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             length of the detector. The tuple gives the minimum and
             maximum in the fraction of the full spectral length
             (nspec). If None, the full image is collapsed.
-        peak_thresh (:obj:`float, optional):
+        peak_thresh (:obj:`float`, optional):
             The threshold for detecting peaks in the image. See the
             ``input_thresh`` parameter for
             :func:`~pypeit.core.arc.detect_lines`.
-        peak_clip (:obj:`float, optional):
+        peak_clip (:obj:`float`, optional):
             Sigma-clipping threshold used to clip peaks with small
             values; no large values are clipped. If None, no clipping
             is performed. Generally, if the peak detection algorithm

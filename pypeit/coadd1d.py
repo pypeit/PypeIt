@@ -108,7 +108,7 @@ class CoAdd1D:
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
-        Generate a :class:`OneSpec` object and write it to disk.
+        Generate a :class:`~pypeit.onespec.OneSpec` object and write it to disk.
 
         Args:
             coaddfile (str):
@@ -373,24 +373,31 @@ class EchelleCoAdd1D(CoAdd1D):
         """
         Load the arrays we need for performing echelle coadds.
 
-        Returns:
-            waves (list):
-               List of arrays with the wavelength arrays for each setup. The length of the list
-               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
-            fluxes (list):
-               List of arrays with the flux arrays for each setup. The length of the list
-               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
-            ivars (list):
-               List of arrays with the ivar arrays for each setup. The length of the list
-               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
-            gpms (list):
-               List of arrays with the gpm arrays for each setup. The length of the list
-               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
-            weights_sens (list):
-               List of arrays with the sensfunc weights for each setup. The length of the list
-               equals the number of unique setups and each arrays in the list has shape = (nspec, norders, nexp)
-            headers (list):
-               List of headers for each setup. The length of the list is the number of unique setups.
+        Returns
+        -------
+        waves : list
+            List of arrays with the wavelength arrays for each setup. The length
+            of the list equals the number of unique setups and each arrays in
+            the list has shape = (nspec, norders, nexp)
+        fluxes : list
+            List of arrays with the flux arrays for each setup. The length of
+            the list equals the number of unique setups and each arrays in the
+            list has shape = (nspec, norders, nexp)
+        ivars : list
+            List of arrays with the ivar arrays for each setup. The length of
+            the list equals the number of unique setups and each arrays in the
+            list has shape = (nspec, norders, nexp)
+        gpms : list
+            List of arrays with the gpm arrays for each setup. The length of the
+            list equals the number of unique setups and each arrays in the list
+            has shape = (nspec, norders, nexp)
+        weights_sens : list
+            List of arrays with the sensfunc weights for each setup. The length
+            of the list equals the number of unique setups and each arrays in
+            the list has shape = (nspec, norders, nexp)
+        headers : list
+            List of headers for each setup. The length of the list is the number
+            of unique setups.
 
         """
 

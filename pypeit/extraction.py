@@ -39,10 +39,10 @@ class Extract:
             Final output mask
         extractmask (`numpy.ndarray`_):
             Extraction mask
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
-        sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+        sobjs_obj (:class:`~pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
-        sobjs (:class:`pypeit.specobjs.SpecObjs`):
+        sobjs (:class:`~pypeit.specobjs.SpecObjs`):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
@@ -66,14 +66,14 @@ class Extract:
                      waveTilts=None, tilts=None, wv_calib=None, waveimg=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
-        Instantiate the Reduce subclass appropriate for the provided
+        Instantiate the Extract subclass appropriate for the provided
         spectrograph.
 
-        The class must be subclassed from Reduce.  See :class:`Reduce` for
+        The class must be subclassed from Extract.  See :class:`Extract` for
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
+            sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Image to reduce.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit trace set object
@@ -94,7 +94,7 @@ class Extract:
                 be provided.
             tilts (`numpy.ndarray`_, optional):
                 Tilts image. Either a tilts image or waveTilts object (above) must be provided.
-            wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
+            wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
                 This is the waveCalib object which is optional, but either wv_calib or waveimg must be provided.
             waveimg (`numpy.ndarray`_, optional):
                 Wave image. Either a wave image or wv_calib object (above) must be provided
@@ -274,7 +274,7 @@ class Extract:
     # TODO Make this a method possibly in slittrace.py. Almost identical code is in find_objects.py
     def initialize_slits(self, slits, initial=False):
         """
-        Gather all the :class:`SlitTraceSet` attributes
+        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes
         that we'll use here in :class:`Extract`
 
         Args
@@ -317,7 +317,7 @@ class Extract:
         Args:
             global_sky (`numpy.ndarray`_):
                 Sky estimate
-            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs_obj (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
             model_noise (bool):
                 If True, construct and iteratively update a model inverse variance image
@@ -474,7 +474,7 @@ class Extract:
             mode (str):
                 "local" - Use sobjs to determine flexure correction
                 "global" - Use waveimg and global_sky to determine flexure correction at the centre of the slit
-            sobjs (:class:`pypeit.specobjs.SpecObjs`, None):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`, None):
                 Spectrally extracted objects
         """
         if self.par['flexure']['spec_method'] == 'skip':
@@ -643,7 +643,7 @@ class Extract:
 
 class MultiSlitExtract(Extract):
     """
-    Child of Reduce for Multislit and Longslit reductions
+    Child of Extract for Multislit and Longslit reductions
 
     See parent doc string for Args and Attributes
 
@@ -780,7 +780,7 @@ class MultiSlitExtract(Extract):
 
 class EchelleExtract(Extract):
     """
-    Child of Reduce for Echelle reductions
+    Child of Extract for Echelle reductions
 
     See parent doc string for Args and Attributes
 

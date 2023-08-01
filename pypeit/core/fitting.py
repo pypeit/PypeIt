@@ -476,7 +476,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     one to fit a more general model using the optimizer of the users
     choice. If you are fitting simple functions like Chebyshev or
     Legednre polynomials using a linear least-squares algorithm, you
-    should use :func:robust_polyfit_djs` instead of this function.
+    should use :func:`robust_fit` instead of this function.
 
     Args:
         ydata (`numpy.ndarray`_):
@@ -838,7 +838,8 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    """ A 2D Gaussian to be used to fit the cross-correlation
+    """
+    A 2D Gaussian to be used to fit the cross-correlation
 
     Args:
         tup (tuple):
@@ -847,7 +848,7 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
             The amplitude of the 2D Gaussian
         xo (float):
             The centre of the Gaussian in the x direction
-        yo (float:
+        yo (float):
             The centre of the Gaussian in the y direction
         sigma_x (float):
             The dispersion of the Gaussian in the x direction

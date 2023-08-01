@@ -1215,11 +1215,11 @@ class CoAdd2D:
         Dummy method to get maskdef info. Overloaded by child methods.
 
         Args:
-            slit_idx:
-            ref_trace_stack:
+            slit_idx (?):
+            ref_trace_stack (?):
 
         Returns:
-
+            dict: ?
         """
 
         return dict(maskdef_id=None, maskdef_objpos=None, maskdef_designtab=None)
@@ -1509,15 +1509,18 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
 
         Args:
-            slit_idx (:obj:`int`): index of a slit in the uncoadded frames
-            ref_trace_stack(`numpy.ndarray`_): Stack of reference traces about
-             which the images are rectified and coadded.  It is the slitcen appropriately
-            shifted according the frames offsets. Shape is (nspec, nimgs).
+            slit_idx (:obj:`int`):
+                index of a slit in the uncoadded frames
+            ref_trace_stack (`numpy.ndarray`_):
+                Stack of reference traces about which the images are rectified
+                and coadded.  It is the slitcen appropriately shifted according
+                the frames offsets. Shape is (nspec, nimgs).
 
         Returns:
-            :obj:`dict`: Dictionary containing all the maskdef info. The quantities saved
-            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
-            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
+            :obj:`dict`: Dictionary containing all the maskdef info. The
+            quantities saved are: maskdef_id, maskdef_objpos, maskdef_slitcen,
+            maskdef_designtab. To learn what they are see
+            :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
         """
         # maskdef info

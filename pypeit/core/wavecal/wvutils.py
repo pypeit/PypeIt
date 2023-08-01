@@ -426,9 +426,9 @@ def zerolag_shift_stretch(theta, y1, y2):
 
 
 def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
-
-    """  Utility routine to create a synthetic arc spectrum for cross-correlation using the location of the peaks in
-    the input spectrum.
+    """
+    Utility routine to create a synthetic arc spectrum for cross-correlation
+    using the location of the peaks in the input spectrum.
 
     Args:
         inspec1 (`numpy.ndarray`_):
@@ -577,12 +577,18 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
                         fwhm = 4.0, debug=False, toler=1e-5, seed = None):
 
-    """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
-    guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
-    by optimizing the zero lag cross-correlation between the inspec1 and the transformed inspec2 (shifted and stretched via
-    wvutils.shift_and_stretch()) in a narrow window about the initial estimated shift. The convention for the shift is that
-    positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
-    that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
+    """
+    Determine the shift and stretch of inspec2 relative to inspec1.  This
+    routine computes an initial guess for the shift via maximimizing the
+    cross-correlation. It then performs a two parameter search for the shift and
+    stretch by optimizing the zero lag cross-correlation between the inspec1 and
+    the transformed inspec2 (shifted and stretched via
+    wvutils.shift_and_stretch()) in a narrow window about the initial estimated
+    shift. The convention for the shift is that positive shift means inspec2 is
+    shifted to the right (higher pixel values) relative to inspec1. The
+    convention for the stretch is that it is float near unity that increases the
+    size of the inspec2 relative to the original size (which is the size of
+    inspec1)
 
     Parameters
     ----------
@@ -630,10 +636,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
-    toler (float):
+    toler : float
         Tolerance for differential evolution optimizaiton.
     debug = False
-       Show plots to the screen useful for debugging.
+        Show plots to the screen useful for debugging.
 
     Returns
     -------
@@ -642,7 +648,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
           - success = 1, shift and stretch performed via sucessful
             optimization
+
           - success = 0, shift and stretch optimization failed
+
           - success = -1, initial x-correlation is below cc_thresh (see
             above), so shift/stretch optimization was not attempted
 
@@ -660,12 +668,12 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         which unity indicating a perfect match between the two spectra.
         If cc_thresh is set, and the initial cross-correlation is <
         cc_thresh, this will be just the initial cross-correlation
-    shift_init:
+    shift_init: float
         The initial shift determined by maximizing the cross-correlation
         coefficient without allowing for a stretch.  If cc_thresh is
         set, and the initial cross-correlation is < cc_thresh, this will
         be just the shift from the initial cross-correlation
-    cross_corr_init:
+    cross_corr_init: float
         The maximum of the initial cross-correlation coefficient
         determined without allowing for a stretch.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh, this will be
