@@ -295,14 +295,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
-        par['calibrations']['slitedges']['bound_detector'] = True
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
+        par['calibrations']['slitedges']['bound_detector'] = True  # Defualt: False
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'  # Default: 'pca'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 170.  # Default: None
+        par['calibrations']['slitedges']['max_nudge'] = 5  # Default: None
 
         # Flat-field parameter modification
         par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.  # Default: None
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Default: True
         par['calibrations']['flatfield']['spec_samp_fine'] = 30  # Default: 1.2
+        par['calibrations']['flatfield']['tweak_slits'] = False  # Default: True
 
         # For the tilts, our lines are not as well-behaved as others',
         #   possibly due to the Wynne type E camera.
@@ -320,6 +322,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
         par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
         par['reduce']['findobj']['find_fwhm'] = np.round(assumed_seeing / 0.34, 1)   # Default: 5.0 pix
+        par['reduce']['findobj']['find_trim_edge'] = [0, 0]  # Default: [5, 5]
         par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.5, 1)  # Default: 1.5"
         par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
         par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
