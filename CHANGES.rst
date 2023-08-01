@@ -24,8 +24,8 @@
     - Fix wrong RA & Dec for 2D coadded serendips
 - Changed calibration frame naming as an attempt to avoid very long names for
   files with many calibration groups.  Sequential numbers are reduced to a
-  range; e.g., ``'0-1-2-3-4'`` becomes ``'0:5'`` and
-  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5:7-10:13-15-18:20'``
+  range; e.g., ``'0-1-2-3-4'`` becomes ``'0+5'`` and
+  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5+7-10+13-15-18+20'``
 
 1.13.0 (2 June 2023)
 --------------------
