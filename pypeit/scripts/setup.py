@@ -43,7 +43,7 @@ class Setup(scriptbase.ScriptBase):
                             help='Include the background-pair columns for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
-        parser.add_argument('-v', '--verbosity', type=int, default=2,
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Level of verbosity from 0 to 2.')
         parser.add_argument('-k', '--keep_bad_frames', default=False, action='store_true',
                             help='Keep all frames, even if they are identified as having '
@@ -68,8 +68,12 @@ class Setup(scriptbase.ScriptBase):
         import time
         from pathlib import Path
 
+        from pypeit import msgs
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit.calibrations import Calibrations
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('setup', args.verbosity)
 
         if args.spectrograph is None:
             raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
