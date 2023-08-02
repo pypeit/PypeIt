@@ -150,7 +150,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
 
 def ech_findobj_ineach_order(
     image, ivar, slitmask, slit_left, slit_righ, slit_spats,
-    order_vec, orders_gpm, spec_min_max, plate_scale_ord,
+    order_vec, spec_min_max, plate_scale_ord,
     det='DET01', inmask=None, std_trace=None, ncoeff=5, 
     hand_extract_dict=None,
     box_radius=2.0, fwhm=3.0,
@@ -204,9 +204,6 @@ def ech_findobj_ineach_order(
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
             objects.  If the orders are not known, this can be 
             ``np.arange(norders)`` (but this is *not* recommended).
-        order_gpm (`numpy.ndarray`_):
-            Boolean array indicating which orders are good (True),
-            i.e. have good calibrations (wavelengths, etc.).  Shape is
         spec_min_max (`numpy.ndarray`_):
             2D array defining the minimum and maximum pixel in the spectral
             direction with useable data for each order.  Shape must be (2,
@@ -296,9 +293,6 @@ def ech_findobj_ineach_order(
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     for iord, iorder in enumerate(order_vec):
-        if not orders_gpm[iord]:
-            continue
-        #
         qa_title = 'Finding objects on order # {:d}'.format(iorder)
         msgs.info(qa_title)
         thisslit_gpm = slitmask == slit_spats[iord]
@@ -334,8 +328,9 @@ def ech_findobj_ineach_order(
 
 def ech_fof_sobjs(sobjs:specobjs.SpecObjs, 
                   slit_left:np.ndarray, 
-                  slit_righ:np.ndarray, 
-                  plate_scale_ord:np.ndarray, 
+                  slit_righ:np.ndarray,
+                  order_vec:np.ndarray,
+                  plate_scale_ord:np.ndarray,
                   fof_link:float=1.5):
     """
     Links together objects previously found using a 
@@ -355,6 +350,9 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
             Right boundary of orders to be extracted (given as floating point
             pixels).  Shape is (nspec, norders), where norders is the total
             number of traced echelle orders.
+        order_vec (`numpy.ndarray`_):
+            Vector identifying the Echelle orders for each pair of order edges
+            found.
         plate_scale_ord (`numpy.ndarray`_):
             An array with shape (norders,) providing the plate 
             scale of each order in arcsec/pix, 
@@ -399,12 +397,11 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
     nobj_init = len(uni_obj_id_init)
     for iobj in range(nobj_init):
         for iord in range(norders):
-            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (
-                sobjs.ECH_ORDERINDX == iord)
+            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDER == order_vec[iord])
             if (np.sum(on_order) > 1):
-                msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
+                msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(order_vec[iord]) + msgs.newline() +
                           'Spawning new objects to maintain a single object per order.')
-                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX != iord)
+                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDER != order_vec[iord])
                 ind = np.where(on_order)[0]
                 if np.any(off_order):
                     # Keep the closest object to the location of the rest of the group (on other orders)
@@ -430,11 +427,10 @@ def ech_fof_sobjs(sobjs:specobjs.SpecObjs,
 
 def ech_fill_in_orders(sobjs:specobjs.SpecObjs, 
                   slit_left:np.ndarray, 
-                  slit_righ:np.ndarray, 
+                  slit_righ:np.ndarray,
+                  slit_spat_id: np.ndarray,
                   order_vec:np.ndarray,
-                  order_gpm:np.ndarray,
                   obj_id:np.ndarray,
-                  slit_spat_id:np.ndarray,
                   std_trace:specobjs.SpecObjs=None,
                   show:bool=False):
     """
@@ -465,20 +461,17 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             Right boundary of orders to be extracted (given as floating point
             pixels).  Shape is (nspec, norders), where norders is the total
             number of traced echelle orders.
+        slit_spat_id (`numpy.ndarray`_):
+            slit_spat values (spatial position 1/2 way up the detector)
+            for the orders
         order_vec (`numpy.ndarray`_):
             Vector identifying the Echelle orders for each pair of order edges
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
             objects.  If the orders are not known, this can be 
             ``np.arange(norders)`` (but this is *not* recommended).
-        order_gpm (`numpy.ndarray`_):
-            Boolean array indicating which orders are good (True),
-            i.e. have good calibrations (wavelengths, etc.).  Shape is
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
-        slit_spat_id (`numpy.ndarray`_):
-            slit_spat values (spatial position 1/2 way up the detector)
-            for the orders 
-        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional): 
+        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional):
             Standard star objects (including the traces)
             Defaults to None.
         show (bool, optional): 
@@ -496,12 +489,11 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     fracpos = sobjs.SPAT_FRACPOS
 
     # Prep
-    ngd_orders = np.sum(order_gpm)
-    gd_orders = order_vec[order_gpm]
+    norders = order_vec.size
     slit_width = slit_righ - slit_left
 
     # Check standard star
-    if std_trace is not None and std_trace.shape[1] != ngd_orders:
+    if std_trace is not None and std_trace.shape[1] != norders:
         msgs.error('Standard star trace does not match the number of orders in the echelle data.')
 
     # For traces
@@ -526,7 +518,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     # Loop over the orders and assign each specobj a fractional position and a obj_id number
     for iobj in range(nobj):
         #for iord in range(norders):
-        for iord in order_vec[order_gpm]:
+        for iord in order_vec:
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDER == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
             sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
@@ -543,9 +535,12 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
         indx_obj_id = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
-        if (nthisobj_id > 3) and (nthisobj_id<ngd_orders):
-            thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX
+        if (nthisobj_id > 3) and (nthisobj_id<norders):
+            # JFH This line could also be done with spat_ids, but they are all aligned
+            # Find the indices of the orders where this object was found
             thisorder = sobjs_align[indx_obj_id].ECH_ORDER
+            thisorderindx = [i for i, ord in enumerate(order_vec) if ord in thisorder]
+            #thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX # Old line replaced with the list comprehentsion above.
             # Allow for masked orders
             xcen_good = (sobjs_align[indx_obj_id].TRACE_SPAT).T
             slit_frac_good = (xcen_good-slit_left[:,thisorderindx])/slit_width[:,thisorderindx]
@@ -555,51 +550,46 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
             #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
             pypeitFit = fitting.robust_fit(
-                #order_vec[goodorder], frac_mean_good, 1,
                 thisorder, frac_mean_good, 1,
                 function='polynomial', maxiter=20, lower=2, upper=2,
                 use_mad= True, sticky=False,
                 minx = order_vec.min(), maxx=order_vec.max())
             # Fill
-            goodorder = np.in1d(gd_orders, thisorder)
+            goodorder = np.in1d(order_vec, thisorder)
             badorder = np.invert(goodorder)
-            frac_mean_new = np.zeros(gd_orders.size)
-            frac_mean_new[badorder] = pypeitFit.eval(gd_orders[badorder])
+            frac_mean_new = np.zeros(norders)
+            frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
             if show:
-                frac_mean_fit = pypeitFit.eval(gd_orders)
-                plt.plot(gd_orders[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(gd_orders[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
-                plt.plot(gd_orders[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
-                plt.plot(gd_orders,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
-                plt.plot(gd_orders, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
+                frac_mean_fit = pypeitFit.eval(order_vec)
+                plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
+                plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
+                plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
                 plt.xlabel('Order Index', fontsize=14)
                 plt.ylabel('Fractional Slit Position', fontsize=14)
                 plt.title('Fractional Slit Position Fit')
                 plt.legend()
                 plt.show()
         else:
-            frac_mean_new = np.full(gd_orders.size, uni_frac[iobj])
+            frac_mean_new = np.full(norders, uni_frac[iobj])
 
 
         # Now loop over the orders and add objects on the orders for 
         #  which the current object was not found
-        for iord in range(order_vec.size):
-            iorder = order_vec[iord]
-            if iorder not in gd_orders:
-                continue
+        for iord, this_order in enumerate(order_vec):
             # Is the current object detected on this order?
-            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (
-                sobjs_align.ECH_ORDER == iorder)
+            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDER == this_order)
             num_on_order = np.sum(on_order)
             if num_on_order == 0:
-                msgs.info(f"Adding object={uni_obj_id[iobj]} to order={iorder}")
+                msgs.info(f"Adding object={uni_obj_id[iobj]} to order={this_order}")
                 # If it is not, create a new sobjs and add to sobjs_align and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
                                              ECH_ORDERINDX=iord,
-                                             ECH_ORDER=iorder)
+                                             ECH_ORDER=this_order)
                 #thisobj.ECH_ORDERINDX = iord
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
@@ -617,7 +607,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
+                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDER - this_order))
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.hand_extract_flag = sobjs_align[imin].hand_extract_flag
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
@@ -645,12 +635,13 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
 
 def ech_cutobj_on_snr(
     sobjs_align, image:np.ndarray, ivar:np.ndarray, 
-    slitmask:np.ndarray, gd_orders:np.ndarray, 
+    slitmask:np.ndarray, order_vec:np.ndarray,
     plate_scale_ord:np.ndarray, max_snr:float=2.0,
     nperorder:int=2, min_snr:float=1.0, 
     nabove_min_snr:int=2,
     box_radius:float=2.0, inmask:np.ndarray=None):
-    """Cut down objects based on S/N
+    """
+    Cut down objects based on S/N
 
     This routine:
 
@@ -685,7 +676,7 @@ def ech_cutobj_on_snr(
             an order have a value equal to the slit number (i.e. 0 to nslits-1
             from left to right on the image).  Shape must match ``image``,
             (nspec, nspat).
-        gd_orders (`numpy.ndarray`_):
+        order_vec (`numpy.ndarray`_):
             `int` array of good orders 
         plate_scale_ord (`numpy.ndarray`_):
             An array with shape (norders,) providing the plate 
@@ -720,7 +711,7 @@ def ech_cutobj_on_snr(
         inmask = allmask
     # Prep
     nspec = image.shape[0]
-    norders = gd_orders.size                     
+    norders = order_vec.size
     uni_obj_id = np.unique(sobjs_align.ECH_OBJID)
     nobj = uni_obj_id.size
 
@@ -740,7 +731,7 @@ def ech_cutobj_on_snr(
             hand_flag[iobj] = True
         # SNR
         for iord in range(norders):
-            iorder_vec = gd_orders[iord]
+            iorder_vec = order_vec[iord]
             indx = sobjs_align.slitorder_objid_indices(
                 iorder_vec, uni_obj_id[iobj])
             #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
@@ -796,7 +787,7 @@ def ech_cutobj_on_snr(
             sobjs_keep = sobjs_align[ikeep].copy()
             sobjs_keep.ECH_OBJID = iobj_keep
             sobjs_keep.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID)])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
@@ -828,7 +819,7 @@ def ech_cutobj_on_snr(
 def ech_pca_traces(
     sobjs_final:specobjs.SpecObjs, image:np.ndarray, 
     slitmask:np.ndarray, inmask:np.ndarray, 
-    gd_orders:np.ndarray, spec_min_max,
+    order_vec:np.ndarray, spec_min_max,
     npca:int=None, coeff_npoly:int=None,
     pca_explained_var:float=99.0, 
     ncoeff:int=5, maxdev:float=2.0, fwhm:float=3.0,
@@ -860,7 +851,7 @@ def ech_pca_traces(
             Good-pixel mask for input image.  Must have the same shape as
             ``image``.  If None, all pixels in ``slitmask`` with non-negative
             values are considered good.
-        gd_orders (`numpy.ndarray`_):
+        order_vec (`numpy.ndarray`_):
             `int` array of good orders 
         spec_min_max (`numpy.ndarray`_): _description_
             `float` array of shape (2, norders) with the minimum and maximum
@@ -898,7 +889,7 @@ def ech_pca_traces(
 
     # Prep
     nspec, nspat = image.shape
-    norders = gd_orders.size                     
+    norders = order_vec.size
     uni_obj = np.unique(sobjs_final.ECH_OBJID)
     nobj_trim = uni_obj.size
     spec_vec = np.arange(nspec)
@@ -909,7 +900,7 @@ def ech_pca_traces(
         inmask = allmask
 
     # Checks
-    if gd_orders.size != spec_min_max.shape[1]:
+    if norders != spec_min_max.shape[1]:
         msgs.error("Number of good orders does not match the number of orders in spec_min_max")
 
     # Loop over the objects one by one and adjust/predict the traces
@@ -1014,9 +1005,8 @@ def ech_pca_traces(
     return sobjs_final
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bpm, 
-                slit_spat_id, spec_min_max,
-                det='DET01', inmask=None, 
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order_vec,
+                spec_min_max, det='DET01', inmask=None,
                 fof_link=1.5, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, 
                 coeff_npoly=None, max_snr=2.0, min_snr=1.0,
@@ -1048,6 +1038,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
 
         #. A PCA fit to the traces is performed using the routine above pca_fit
 
+    **Note on masking**:  This routine requires that all masking be performed in
+    the upstream calling routine (:func:`pypeit.find_objects`) and thus the
+    ``slit_left`` and ``slit_righ`` slit edge arrays must only contain these
+    slits. The number of orders in ``order_vec``,  ``spec_min_max``,
+    ``slit_spat_id``, and ``plate_scale`` must also match the number of slits in
+    the ``slit_left`` and ``slit_righ`` arrays.
+
     Args:
         image (`numpy.ndarray`_):
             (Floating-point) Image to use for object search with shape (nspec,
@@ -1075,6 +1072,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
             Right boundary of orders to be extracted (given as floating point
             pixels).  Shape is (nspec, norders), where norders is the total
             number of traced echelle orders.
+        slit_spat_id (`numpy.ndarray`_):
+            slit_spat values (spatial position 1/2 way up the detector)
+            for the orders
         order_vec (`numpy.ndarray`_):
             Vector identifying the Echelle orders for each pair of order edges
             found.  This is saved to the output :class:`~pypeit.specobj.SpecObj`
@@ -1083,11 +1083,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         slits_bpm (`numpy.ndarray`_):
             Boolean array selecting orders that should be ignored (i.e., good
             orders are False, bad orders are True).  Shape must be (norders,).
-        slit_spat_id (`numpy.ndarray`_):
-            slit_spat values (spatial position 1/2 way up the detector)
-            for the orders 
         spec_min_max (`numpy.ndarray`_):
-            2D array defining the minimum and maximum pixel in the spectral
+            A 2D array defining the minimum and maximum pixel in the spectral
             direction with useable data for each order.  Shape must be (2,
             norders).  This should only be used for echelle spectrographs for
             which the orders do not entirely cover the detector. PCA tracing
@@ -1225,18 +1222,32 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         show_pca = True
         #show_single_trace = True
 
+    # Perform some input checking
+    norders = slit_left.shape[1]
+    # TODO JFH Relaxing this strict requirement on the slitmask image for the time being
+    #gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    #if gdslit_spat.size != norders:
+    #msgs.error('Number of slitidsin slitmask and the number of left/right slits must be the same.')
+
+    if slit_righ.shape[1] != norders:
+        msgs.error('Number of left and right slits must be the same.')
+    if order_vec.size != norders:
+        msgs.error('Number of orders in order_vec and left/right slits must be the same.')
+    if spec_min_max.shape[1] != norders:
+        msgs.error('Number of orders in spec_min_max and left/right slits must be the same.')
+
     if specobj_dict is None:
         specobj_dict = {'SLITID': 999, 
                         'ECH_ORDERINDX': 999,
                         'DET': det, 'OBJTYPE': 'unknown', 
                         'PYPELINE': 'Echelle'}
 
+
     # Loop over the orders and find the objects within them (if any)
-    order_gpm = np.invert(slits_bpm)
     sobjs_in_orders = ech_findobj_ineach_order(
-        image, ivar, slitmask, slit_left, 
+        image, ivar, slitmask, slit_left,
         slit_righ, slit_spat_id,
-        order_vec, order_gpm,
+        order_vec,
         spec_min_max, plate_scale,
         det=det,
         inmask=inmask, 
@@ -1256,31 +1267,24 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         objfindQA_filename=objfindQA_filename,
         hand_extract_dict=manual_extract_dict)
 
+
     # No sources and no manual?
     if len(sobjs_in_orders) == 0: 
         return sobjs_in_orders
 
-    # Additional work for slits with sources (found or input manually)
+    # Perform some additional work for slits with sources (found or input manually)
 
     # Friend of friend algorithm to group objects
-    obj_id = ech_fof_sobjs(
-        sobjs_in_orders, slit_left,
-        slit_righ, plate_scale,
-        fof_link=fof_link)
+    obj_id = ech_fof_sobjs(sobjs_in_orders, slit_left, slit_righ, order_vec, plate_scale, fof_link=fof_link)
 
     # Fill in Orders
     sobjs_filled = ech_fill_in_orders(
-        sobjs_in_orders, 
-        slit_left, slit_righ,
-        order_vec, order_gpm,
-        obj_id, #obj_id[tmp], 
-        slit_spat_id,
-        std_trace=std_trace)
+        sobjs_in_orders, slit_left, slit_righ, slit_spat_id, order_vec, obj_id, std_trace=std_trace)
 
     # Cut on SNR and number of objects
     sobjs_pre_final = ech_cutobj_on_snr(
         sobjs_filled, image, ivar, slitmask,
-        order_vec[order_gpm],
+        order_vec,
         plate_scale, 
         inmask=inmask,
         nperorder=nperorder,
@@ -1289,12 +1293,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, slits_bp
         nabove_min_snr=nabove_min_snr,
         box_radius=box_radius)
 
+    if len(sobjs_pre_final) == 0:
+        return sobjs_pre_final
+
     # PCA
     sobjs_ech = ech_pca_traces(
         sobjs_pre_final, 
         image, slitmask, inmask, 
-        order_vec[order_gpm],
-        spec_min_max[:, order_gpm],
+        order_vec,
+        spec_min_max,
         coeff_npoly=coeff_npoly,
         ncoeff=ncoeff, npca=npca,
         pca_explained_var=pca_explained_var,

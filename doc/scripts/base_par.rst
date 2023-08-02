@@ -54,7 +54,7 @@ the precedence order is as follows:
       configurations via its ``config_specific_par`` method.  This allows the
       code to automatically define, e.g., the archived arc spectrum used for
       wavelength calibration given the grating used.  For example, see
-      :func:`~pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.config_specific_par`
+      :func:`~pypeit.spectrographs.shane_kast.ShaneKastBlueSpectrograph.config_specific_par`
       for Shane/Kast.  These configuration-specific parameters are currently not
       documented here; however, they can be viewed by looking at the source code
       display in the API documentation.

@@ -278,11 +278,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         """
         Generate a default bad-pixel mask.
 
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
         Args:
             filename (:obj:`str` or None):
                 An example file to use to get the image shape.

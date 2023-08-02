@@ -26,7 +26,7 @@ def phys_to_pix(array, pixlocn, axis):
 
     Returns
     -------
-    pixarr : ndarray
+    pixarr : `numpy.ndarray`_
       The pixel locations of the input array (as seen on a computer screen)
     """
     if len(array.shape) > 2:

@@ -40,22 +40,23 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
+def arc_fit_qa(waveFit, 
+               outfile=None, ids_only=False, title=None,
                log=True):
     """
     QA for Arc spectrum
 
     Args:
         waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
+            Wavelength solution object
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
+            ??
         title (:obj:`str`, optional):
+            Add a title to the spectrum plot
         log (:obj:`bool`, optional):
             If True, use log scaling for the spectrum
-
-    Returns:
-
     """
     plt.rcdefaults()
     plt.rcParams['font.family']= 'serif'
@@ -140,7 +141,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+        ax_spec.text(0.04, 0.93, title, 
+                     transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
@@ -202,7 +204,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     return
 
 
-def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
+def arc_fwhm_qa(fwhmFit, spat_id, slit_txt="slit", outfile=None, show_QA=False):
     """
     QA for spectral FWHM fitting
 
@@ -212,6 +214,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
         spat_id (int):
             The spatial ID of the slit. It is the spatial midpoint of the slit,
             halfway along the spectral direction.
+        slit_txt (:obj:`str`, optional):
+            String indicating if the QA should use "slit" (MultiSlit, IFU) or "order" (Echelle)
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         show_QA (bool, optional):
@@ -258,7 +262,8 @@ def arc_fwhm_qa(fwhmFit, spat_id, outfile=None, show_QA=False):
     ax.set_ylim((ymin, ymax))
     ax.set_xlabel('Spectral coordinate (pixels)', fontsize=12)
     ax.set_ylabel('Spectral FWHM (pixels)', fontsize=12)
-    titletxt = f'Spectral FWHM residual map (spat_order, spec_order)=({spat_order},{spec_order}) for slit={spat_id}:\n' \
+    titletxt = f'Spectral FWHM residual map for {slit_txt} {spat_id}\n' \
+               f'spat_order, spec_order = {spat_order}, {spec_order}\n' \
                f'rms={rms:.2f}, rms/FWHM={rmsfwhm:.2f}\n' \
                f'filled (unfilled) symbols = included (excluded) in fit'
     ax.set_title(titletxt, fontsize=12)
@@ -456,6 +461,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
+    # TODO -- Break up this morass into multiple methods
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -682,15 +688,16 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., specord=1, spatord=0, fwhm=5.):
+def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
+             spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
     """
     Map the spectral FWHM at all spectral and spatial locations of all slits, using an input image (usually an arc)
 
     Args:
         image (`numpy.ndarray`_):
             Arc image (nspec, nspat)
-        imbpm (`numpy.ndarray`_):
-            Bad pixel mask corresponding to the input arc image (nspec, nspat)
+        gpm (`numpy.ndarray`_):
+            Good pixel mask corresponding to the input arc image (nspec, nspat)
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
         npixel (int, None, optional):
@@ -716,35 +723,44 @@ def map_fwhm(image, imbpm, slits, npixel=None, nsample=None, sigdetect=10., spec
         `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the spectral FWHM (in pixels) given a
         spectral pixel and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
     """
-    nslits = slits.nslits
+    nslits = slits_left.shape[1]
     scale = (2 * np.sqrt(2 * np.log(2)))
     _npixel = 10 if npixel is None else npixel  # Sample every 10 pixels unless the argument is set (Note: this is only used if nsample is not set)
     _ord = (specord, spatord)  # The 2D polynomial orders to fit to the resolution map.
-    slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
+    _slit_bpm = np.zeros(nslits, dtype=bool) if slit_bpm is None else slit_bpm
+
+    #slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
+    #slitmask =
+    # TODO deal with slits not being defined beyond the slitmask in spectral direction
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
-    spec_vec = np.arange(image.shape[0])
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution for slit {sl+1}/{nslits}")
+        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
+        if _slit_bpm[sl]:
+            msgs.warn('Skipping FWHM map computation for masked slit {0:d}'.format(sl+1))
+            # Assign it an empty PypeItFit object so that we can still write to file
+            resmap[sl] = fitting.PypeItFit()
+            continue
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
         this_samp, this_cent, this_fwhm = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):
-            spat_vec = np.round(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).astype(int)
-            # Some slits are traced off the detector, so only consider pixels that are on the detector
-            wdet = np.where((spat_vec >= 0) & (spat_vec<image.shape[1]))
-            # Extract the relevant pixels
-            arc_spec = image[(spec_vec[wdet], spat_vec[wdet])]
-            arc_bpm = imbpm[(spec_vec[wdet], spat_vec[wdet])]
+            spat_vec = np.atleast_2d(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).T
+            arc_spec, arc_spec_bpm, bpm_mask = arc.get_censpec(spat_vec, slitmask, image, gpm=gpm, box_rad=box_rad,
+                                                               slit_bpm=np.array([_slit_bpm[sl]]), verbose=False)
+            if bpm_mask[0]:
+                msgs.warn('Failed to extract the arc at fractional location {0:.2f} along slit {1:d}'.format(slitsamp[ss], sl+1))
+                continue
             # Detect lines and store the spectral FWHM
-            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec, sigdetect=sigdetect, fwhm=fwhm, bpm=arc_bpm)
+            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(arc_spec.squeeze(), sigdetect=sigdetect, fwhm=fwhm, bpm=arc_spec_bpm.squeeze())
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
         # Perform a 2D robust fit on the measures for this slit
-        resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp,
-                                        lower=3, upper=3, function='polynomial2d')
+        resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
+
+
     # Return an array containing the PypeIt fits
     return np.array(resmap)
 
@@ -798,7 +814,7 @@ def set_fwhm(par, measured_fwhm=None):
     and the measured_fwhm
 
     Args:
-        par (:class:`~pypeit.par.pypeitpar.WaveSolutionPar`):
+        par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`):
             Key parameters that drive the behavior of the
             wavelength-solution algorithms.
         measured_fwhm (:obj:`float`):
@@ -1025,8 +1041,11 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Finish
     return wvcalib
 
-def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
-                    debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False, nonlinear_counts=1e10):
+def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, 
+                    ok_mask=None, use_unknowns=True, debug_all=False,
+                    debug_peaks=False, debug_xcorr=False, debug_reid=False, 
+                    debug_fits=False, nonlinear_counts=1e10,
+                    redo_slit:int=None):
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
@@ -1046,7 +1065,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
     ok_mask : `numpy.ndarray`, optional
@@ -1076,6 +1095,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
+    redo_slit: int, optional
+        If provided, only perform the wavelength calibration for the
+        given slit. 
 
     Returns
     -------
@@ -1128,11 +1150,13 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
+        if redo_slit is not None and orders[iord] != redo_slit:
+            continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
             wv_calib[str(iord)] = None
             continue
-        msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord, norders - 1))
+        msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
         rms_threshold = wvutils.parse_param(par, 'rms_threshold', iord)
@@ -1168,7 +1192,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         # Is the RMS below the threshold?
         if final_fit['rms'] > rms_threshold:
             msgs.warn('---------------------------------------------------' + msgs.newline() +
-                      'Reidentify report for slit {0:d}/{1:d}:'.format(iord, norders - 1) + msgs.newline() +
+                      'Reidentify report for slit {0:d}/{1:d}:'.format(iord+1, norders) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                           final_fit['rms']) + msgs.newline() +
                       '---------------------------------------------------')
@@ -1178,15 +1202,20 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, ok_mask=No
         # Add the patt_dict and wv_calib to the output dicts
         wv_calib[str(iord)] = copy.deepcopy(final_fit)
         if (debug_fits or debug_all):
-            arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)))
+            arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)), log=par['qa_log'])
 
     # Print the final report of all lines
-    report_final(norders, all_patt_dict, detections, wv_calib, ok_mask, bad_orders)
+    report_final(norders, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_orders,
+                 redo_slit=redo_slit, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
-def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits):
+def report_final(nslits, all_patt_dict, detections, 
+                 wv_calib, ok_mask, bad_slits, 
+                 redo_slit:int=None,
+                 orders:np.ndarray=None):
     """
     Print out the final report for wavelength calibration
 
@@ -1203,12 +1232,21 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
             Mask of indices of good slits
         bad_slits (ndarray, bool):
             List of slits that are bad
+        redo_slit (int, optional):
+            Slit or order that was redone.
+        orders (ndarray, optional):
+            Array of echelle orders to be printed out during the report.
     """
     for slit in range(nslits):
         # Prepare a message for bad wavelength solutions
         badmsg = '---------------------------------------------------' + msgs.newline() + \
-                 'Final report for slit {0:d}/{1:d}:'.format(slit, nslits) + msgs.newline() + \
-                 '  Wavelength calibration not performed!'
+            'Final report for slit {0:d}/{1:d}:'.format(slit+1, nslits) + msgs.newline()
+        if orders is not None:
+            badmsg += f'    Order: {orders[slit]}' + msgs.newline()
+        badmsg +=  '  Wavelength calibration not performed!'
+        # Redo?
+        if redo_slit is not None and orders[slit] != redo_slit:
+            continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
             msgs.warn(badmsg)
             continue
@@ -1223,17 +1261,19 @@ def report_final(nslits, all_patt_dict, detections, wv_calib, ok_mask, bad_slits
         # Report
         cen_wave = wv_calib[st]['cen_wave']
         cen_disp = wv_calib[st]['cen_disp']
-        msgs.info(msgs.newline() +
-                  '---------------------------------------------------' + msgs.newline() +
-                  'Final report for slit {0:d}/{1:d}:'.format(slit, nslits - 1) + msgs.newline() +
+        sreport = str('---------------------------------------------------' + msgs.newline() +
+                  'Final report for slit {0:d}/{1:d}:'.format(slit+1, nslits) + msgs.newline() +
                   '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                   '  Number of lines detected      = {:d}'.format(detections[st].size) + msgs.newline() +
                   '  Number of lines that were fit = {:d}'.format(
                       len(wv_calib[st]['pixel_fit'])) + msgs.newline() +
                   '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
-                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
+                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() + 
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
+        if orders is not None:
+            sreport + msgs.newline()+ f'  Echelle order                 = {orders[slit]}'
+        msgs.info(msgs.newline() + sreport)
 
 
 class ArchiveReid:
@@ -1249,7 +1289,7 @@ class ArchiveReid:
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
     ech_fixed_format: bool
@@ -1424,7 +1464,7 @@ class ArchiveReid:
             if slit not in self.ok_mask:
                 self.wv_calib[str(slit)] = None
                 continue
-            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
+            msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit+1,self.nslits))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
             ind_sp = arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
@@ -1464,8 +1504,9 @@ class ArchiveReid:
                 continue
             # Is the RMS below the threshold?
             if final_fit['rms'] > rms_threshold:
+                order_str = '' if orders is None else ', order={}'.format(orders[slit])
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
                               final_fit['rms']) + msgs.newline() +
                           '---------------------------------------------------')
@@ -2355,22 +2396,26 @@ class HolyGrail:
         """
         Grab the lines to use
 
-        Args:
-            corr:  int
-                Set if pixels correlate with wavelength (corr==1) or
-                anticorrelate (corr=-1)
-            arr_err:
-                A list [tcent, ecent] indicating which detection list
-                should be used. Note that if arr_err is set then the
-                weak keyword is ignored.
-            weak: bool, optional
-                If True, return the weak lines
-            cut: bool, optional
-                Cut on the lines according to significance
+        Parameters
+        ----------
+        corr : int
+            Set if pixels correlate with wavelength (corr==1) or
+            anticorrelate (corr=-1)
+        cut: bool, optional
+            Cut on the lines according to significance
+        arr_err : list, optional
+            A list [tcent, ecent] indicating which detection list
+            should be used. Note that if arr_err is set then the
+            weak keyword is ignored.
+        weak: bool, optional
+            If True, return the weak lines
 
-        Returns:
-            tuple: arr, err
-
+        Returns
+        -------
+        arr : `numpy.ndarray`
+            ???
+        err : `numpy.ndarray`
+            ???
         """
         # Decide which array to use
         if arr_err is None:
@@ -2398,17 +2443,22 @@ class HolyGrail:
         """
         Grab the lines to use
 
-        Args:
-            corr:  int
-              Set if pixels correlate with wavelength (corr==1) or
-              anticorrelate (corr=-1)
-            tcent_ecent:
-              A list [tcent, ecent] indicating which detection list
-              should be used. Note that if arr_err is set then the weak
-              keyword is ignored.
+        Parameters
+        ----------
+        corr : int
+            Set if pixels correlate with wavelength (corr==1) or
+            anticorrelate (corr=-1)
+        tcent_ecent : list
+            A list [tcent, ecent] indicating which detection list
+            should be used. Note that if arr_err is set then the weak
+            keyword is ignored.
 
-        Returns:
-            tuple: arr, err
+        Returns
+        -------
+        arr : `numpy.ndarray`
+            ???
+        err : `numpy.ndarray`
+            ???
         """
         # Return the appropriate tcent
         tcent, ecent = tcent_ecent[0], tcent_ecent[1]
@@ -2425,7 +2475,8 @@ class HolyGrail:
 
         Parameters
         ----------
-        tcent_ecent: list of ndarrays, [tcent, ecent]
+        tcent_ecent: list
+            List of `numpy.ndarray` objects, [tcent, ecent]
         poly, optional:
             algorithms to use for pattern matching. Only triangles (3)
             and quadrangles (4) are supported
@@ -2437,7 +2488,9 @@ class HolyGrail:
         lstsrch, optional:
             Number of lines to search over for the detected lines
         wavedata, optional:
+            ???
         arrerr, optional:
+            ???
 
         """
         # Import the pattern matching algorithms
@@ -2507,22 +2560,25 @@ class HolyGrail:
         and log10(disp). Then it attempts to fit each value determined
         (default of 1) to try to figure out if it is a reasonable fit.
 
-        Args:
-            slit:
-            psols:
-            msols:
-            tcent_ecent: list, [tcent, ecent]
-            nstore:
-                Number of pattern matches to store and fit
-            nselw:
-                All solutions around the best central wavelength
-                solution within +- nselw are selected to be fit
-            nseld:
-                All solutions around the best log10(dispersion) solution
-                within +- nseld are selected to be fit
+        Parameters
+        ----------
+        slit:
+        psols:
+        msols:
+        tcent_ecent: list, [tcent, ecent]
+        nstore:
+            Number of pattern matches to store and fit
+        nselw:
+            All solutions around the best central wavelength
+            solution within +- nselw are selected to be fit
+        nseld:
+            All solutions around the best log10(dispersion) solution
+            within +- nseld are selected to be fit
 
-        Returns:
-            tuple: patt_dict, final_dict
+        Returns
+        -------
+        patt_dict:
+        final_dict:
         """
 
         # Extract the solutions
@@ -2672,8 +2728,7 @@ class HolyGrail:
                 A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
 
         Returns:
-            patt_dict (dict):
-                Dictionary containing information about the best patterns.
+            dict: Dictionary containing information about the best patterns.
 
         """
 

@@ -17,13 +17,14 @@ from pypeit.core.wavecal import wvutils
 from pypeit import data
 
 
-def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, xdisp, xdangle, norders, pad=0):
+def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, 
+                               xdisp, xdangle, norders, pad=0):
     """
     Predict the coverage of orders in the echelle spectrum using the disperser dependent
     fits of the reddest order as a function of xdangle.
 
     Args:
-        angle_fits_params (astropy.table.Table):
+        angle_fits_params (`astropy.table.Table`_):
             Table holding the arxiv parameters
         xd_angle_coeffs
             Table holding the arxiv data
@@ -56,14 +57,14 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     wavelength solution coefficients vs echelle angle at the given echelle angle.
 
     Args:
-        angle_fits_params (astropy.table.Table):
+        angle_fits_params (`astropy.table.Table`_):
             Table holding the parameters governing the echelle angle fits
-        ech_angle_coeffs (numpy.ndarray):
+        ech_angle_coeffs (`numpy.ndarray`_):
             Array holding the polynomial coefficients for the fits of the wavelength solution polynomial coefficients
             vs echelle angle.
         ech_angle (float):
             Echelle angle
-        order_vec (numpy.ndarray):
+        order_vec (`numpy.ndarray`_):
             Array of order numbers for the deisred predicted spectrum. Shape = (norders,)
         nspec (int):
             Number of spectral pixels in the echelle spectrum
@@ -165,7 +166,8 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
-def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file, 
+def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
+                        angle_fits_file, 
                         composite_arc_file, debug=False, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
@@ -189,6 +191,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file,
         Number of orders to pad the coverage by on the blue and red side.
     debug : bool, optional
         Passed to xcorr_shift
+
 
     Returns
     -------
@@ -228,7 +231,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname, angle_fits_file,
     order_vec = order_vec_guess[-1] - ordr_shift + np.arange(norders)[::-1]
     ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 
-
+    # Return
     return order_vec, wave_soln_guess_pad[:, ind], arcspec_guess_pad[:, ind]
 
 

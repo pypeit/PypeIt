@@ -47,8 +47,125 @@ plt.rcParams["ytick.labelsize"] = 17
 plt.rcParams["axes.labelsize"] = 17
 
 
-# TODO: merge with wavegrid routine in wvutils
 
+# JFH This code should probably be deprecated since it is not used anywhere.
+def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5,
+                       max_factor=10., sigrej=3, debug=False, show=False):
+    '''
+    Function to scaling different orders by the median S/N
+
+
+    Args:
+        waves (`numpy.ndarray`_): wavelength array of your spectra with the shape of (nspec, norder)
+        fluxes (`numpy.ndarray`_): flux array of your spectra with the shape of (nspec, norder)
+        ivars (`numpy.ndarray`_): ivar array of your spectra with the shape of (nspec, norder)
+        masks (`numpy.ndarray`_): mask for your spectra with the shape of (nspec, norder)
+        min_good (float, optional): minimum fraction of the total number of good pixels needed for estimate the median ratio
+        maxiters (int or float, optional): maximum iterations for rejecting outliers
+        max_factor (float, optional): maximum scale factor
+        sigrej (float, optional): sigma used for rejecting outliers
+        debug (bool, optional): if True show intermediate QA
+        show (bool, optional): if True show the final QA
+
+    Returns:
+        tuple: (1) fluxes_new (`numpy.ndarray`_): re-scaled fluxes with the shape
+        of (nspec, norder).  (2) ivars_new (`numpy.ndarray`_): re-scaled ivars
+        with the shape of (nspec, norder) (3) order_ratios (`numpy.ndarray`_): an
+        array of scale factor with the length of norder
+    '''
+
+    norder = np.shape(waves)[1]
+    order_ratios = np.ones(norder)
+
+    ## re-scale bluer orders to match the reddest order.
+    # scaling spectrum order by order. We use the reddest order as the reference since slit loss in redder is smaller
+    for ii in range(norder - 1):
+        iord = norder - ii - 1
+        wave_blue, flux_blue, ivar_blue, mask_blue = waves[:, iord-1], fluxes[:, iord-1],\
+                                                     ivars[:, iord-1], masks[:, iord-1]
+
+        wave_red_tmp, flux_red_tmp = waves[:, iord], fluxes[:, iord]*order_ratios[iord]
+        ivar_red_tmp, mask_red_tmp = ivars[:, iord]*1.0/order_ratios[iord]**2, masks[:, iord]
+        wave_mask = wave_red_tmp>1.0
+        wave_red, flux_red, ivar_red, mask_red = wave_red_tmp[wave_mask], flux_red_tmp[wave_mask], \
+                                                 ivar_red_tmp[wave_mask], mask_red_tmp[wave_mask],
+
+        # interpolate iord-1 (bluer) to iord-1 (redder)
+        flux_blue_inter, ivar_blue_inter, mask_blue_inter = interp_spec(wave_red, wave_blue, flux_blue, ivar_blue, mask_blue)
+
+        npix_overlap = np.sum(mask_blue_inter & mask_red)
+        percentile_iord = np.fmax(100.0 * (npix_overlap / np.sum(mask_red)-0.05), 10)
+
+        mask_both = mask_blue_inter & mask_red
+        snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
+        snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
+
+        ## TODO: we set the SNR to be minimum of 300 to turn off the scaling but we need the QA plot
+        ##       need to think more about whether we need to scale different orders, it seems make the spectra
+        ##       much bluer than what it should be.
+        if (snr_median_blue>300.0) & (snr_median_red>300.0):
+            order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
+                                                   mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
+                                                   maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
+            order_ratios[iord - 1] = np.fmax(np.fmin(order_ratio_iord, max_factor), 1.0/max_factor)
+            msgs.info('Scaled {}th order to {}th order by {:}'.format(iord-1, iord, order_ratios[iord-1]))
+        else:
+            if ii>0:
+                order_ratios[iord - 1] = order_ratios[iord]
+                msgs.warn('Scaled {}th order to {}th order by {:} using the redder order scaling '
+                          'factor'.format(iord-1, iord, order_ratios[iord-1]))
+            else:
+                msgs.warn('The SNR in the overlapped region is too low or there is not enough overlapped pixels.'+ msgs.newline() +
+                          'Median scale between order {:} and order {:} was not attempted'.format(iord-1, iord))
+
+        if debug:
+            plt.figure(figsize=(12, 8))
+            plt.plot(wave_red[mask_red], flux_red[mask_red], 'k-', label='reference spectrum')
+            plt.plot(wave_blue[mask_blue], flux_blue[mask_blue],color='dodgerblue', lw=3, label='raw spectrum')
+            plt.plot(wave_blue[mask_blue], flux_blue[mask_blue]*order_ratios[iord-1], color='r',
+                     alpha=0.5, label='re-scaled spectrum')
+            ymin, ymax = get_ylim(flux_blue, ivar_blue, mask_blue)
+            plt.ylim([ymin, ymax])
+            plt.xlim([np.min(wave_blue[mask_blue]), np.max(wave_red[mask_red])])
+            plt.legend()
+            plt.xlabel('wavelength')
+            plt.ylabel('Flux')
+            plt.show()
+
+    # Update flux and ivar
+    fluxes_new = np.zeros_like(fluxes)
+    ivars_new = np.zeros_like(ivars)
+    for ii in range(norder):
+        fluxes_new[:, ii] *= order_ratios[ii]
+        ivars_new[:, ii] *= 1.0/order_ratios[ii]**2
+
+    if show:
+        plt.figure(figsize=(12, 8))
+        ymin = []
+        ymax = []
+        for ii in range(norder):
+            wave_stack_iord = waves[:, ii]
+            flux_stack_iord = fluxes_new[:, ii]
+            ivar_stack_iord = ivars_new[:, ii]
+            mask_stack_iord = masks[:, ii]
+            med_width = (2.0 * np.ceil(0.1 / 10.0 * np.size(wave_stack_iord[mask_stack_iord])) + 1).astype(int)
+            flux_med, ivar_med = median_filt_spec(flux_stack_iord, ivar_stack_iord, mask_stack_iord, med_width)
+            plt.plot(wave_stack_iord[mask_stack_iord], flux_med[mask_stack_iord], alpha=0.7)
+            #plt.plot(wave_stack_iord[mask_stack_iord], flux_stack_iord[mask_stack_iord], alpha=0.5)
+            # plt.plot(wave_stack_iord[mask_stack_iord],1.0/np.sqrt(ivar_stack_iord[mask_stack_iord]))
+            ymin_ii, ymax_ii = get_ylim(flux_stack_iord, ivar_stack_iord, mask_stack_iord)
+            ymax.append(ymax_ii)
+            ymin.append(ymin_ii)
+        plt.xlim([np.min(waves[masks]), np.max(waves[masks])])
+        plt.ylim([-0.15*np.median(ymax), 1.5*np.median(ymax)])
+        plt.xlabel('Wavelength ($\\rm\\AA$)')
+        plt.ylabel('Flux')
+        plt.show()
+
+    return fluxes_new, ivars_new, order_ratios
+
+
+# TODO: merge with wavegrid routine in wvutils
 
 def sensfunc_weights_old(sensfile, waves, masks, debug=False):
     '''

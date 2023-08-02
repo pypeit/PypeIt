@@ -456,7 +456,7 @@ def test_flux(monkeypatch):
         else: 
             return {"DISPNAME": "600ZD" }
 
-    def mock_get_flux_calib_instance(spec1d_files, sens_files, par):
+    def mock_flux_calib(spec1d_files, sens_files, par):
         if spec1d_files[0] == "fail_flux.fits":
             raise PypeItError("Test failure")
         else:
@@ -467,7 +467,7 @@ def test_flux(monkeypatch):
     # Test success
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
-        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+        monkeypatch.setattr(fluxcalibrate, "flux_calibrate", mock_flux_calib)
 
         spectrograph = load_spectrograph('keck_deimos')
         # This could break if we start supporting it
