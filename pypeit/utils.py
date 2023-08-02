@@ -52,9 +52,26 @@ def zero_not_finite(array):
     return new_array
 
 
-# TODO: Add a description at the top describing what the function does.
 def arr_setup_to_setup_list(arr_setup):
     """
+    This utility routine converts an arr_setup list to a setup_list. The arr_setup list and setup_lists are defined
+    as follows, for e.g. echelle wavelengths waves. See core.coadd.coadd1d.ech_combspec for further details.
+
+    waves_arr_setup  -- is a list of length nsetups, one for each setup. Each element is a numpy
+                        array with shape = (nspec, norder, nexp) which is the data model for echelle spectra
+                        for an individual setup. The utiltities utils.arr_setup_to_setup_list and
+                        utils.setup_list_to_arr convert between arr_setup and setup_list
+
+
+    waves_setup_list -- is a list of length nsetups, one for each setup. Each element of it is a list of length
+                         norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+                         for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+                         for iorder=0 appear first, then com nexp1 spectra for iorder=1, i.e. the outer or
+                         fastest varying dimension in python array ordering is the exposure number. The utility
+                         functions utils.echarr_to_echlist and utils.echlist_to_echarr convert between
+                         the multi-d numpy arrays in the waves_arr_setup and the lists of numpy arrays in
+                         waves_setup_list
+
 
     Parameters
     ----------
@@ -75,10 +92,27 @@ def arr_setup_to_setup_list(arr_setup):
     return [echarr_to_echlist(arr)[0] for arr in arr_setup]
 
 
-# TODO: What does it mean to convert a setup_list to an arr_setup list?
 def setup_list_to_arr_setup(setup_list, norders, nexps):
     """
-    Convert a setup_list to arr_setup list
+    This utility routine converts an setup_list list to an arr_setup list. The arr_setup list and setup_lists are defined
+    as follows, for e.g. echelle wavelengths waves. See core.coadd.coadd1d.ech_combspec for further details.
+
+    waves_arr_setup  -- is a list of length nsetups, one for each setup. Each element is a numpy
+                        array with shape = (nspec, norder, nexp) which is the data model for echelle spectra
+                        for an individual setup. The utiltities utils.arr_setup_to_setup_list and
+                        utils.setup_list_to_arr convert between arr_setup and setup_list
+
+
+    waves_setup_list -- is a list of length nsetups, one for each setup. Each element of it is a list of length
+                         norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+                         for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+                         for iorder=0 appear first, then com nexp1 spectra for iorder=1, i.e. the outer or
+                         fastest varying dimension in python array ordering is the exposure number. The utility
+                         functions utils.echarr_to_echlist and utils.echlist_to_echarr convert between
+                         the multi-d numpy arrays in the waves_arr_setup and the lists of numpy arrays in
+                         waves_setup_list
+
+
 
     Parameters
     ----------
@@ -108,9 +142,30 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
     return arr_setup
 
 
-# TODO: Add a description at the top describing what the function does.
+
 def concat_to_setup_list(concat, norders, nexps):
     r"""
+
+    This routine converts from a concat list to a setup_list list. The concat list and setup_lists are defined
+    as follows, for e.g echelle wavelengths waves. See core.coadd.coadd1d.ech_combspec for further details.
+
+
+    waves_concat     -- is a list of length = \Sum_i norder_i*nexp_i where the index i runs over the setups. The
+                        elements of the list contains a numpy array of wavelengths for the
+                        setup, order, exposure in question. The utility routines utils.setup_list_to_concat and
+                        utils.concat_to_setup_list convert between waves_setup_lists and waves_concat
+
+
+    waves_setup_list -- is a list of length nsetups, one for each setup. Each element of it is a list of length
+                         norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
+                         for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
+                         for iorder=0 appear first, then com nexp1 spectra for iorder=1, i.e. the outer or
+                         fastest varying dimension in python array ordering is the exposure number. The utility
+                         functions utils.echarr_to_echlist and utils.echlist_to_echarr convert between
+                         the multi-d numpy arrays in the waves_arr_setup and the lists of numpy arrays in
+                         waves_setup_list
+
+
 
     Parameters
     ----------
@@ -187,22 +242,24 @@ def echarr_to_echlist(echarr):
     return echlist, shape
 
 
-# TODO: Describe the objects
 def echlist_to_echarr(echlist, shape):
     """
-    Convert a list of 1d arrays to a 3d echelle array.
+    Convert a list of 1d arrays to a 3d echelle array in the format in which echelle outputs are stored, i.e.
+    with shape (nspec, norder, nexp).
 
     Parameters
     ----------
     echlist : :obj:`list`
-        Add description
+        A unraveled list of 1d arrays of shape (nspec,) where the norder
+        dimension is the fastest varying dimension and the nexp dimension is the
+        slowest varying dimension.
     shape : :obj:`tuple`
-        Add description
+        The shape of the echelle array to be returned, i.e. a tuple containing (nspec, norder, nexp)
 
     Returns
     -------
     echarr : `numpy.ndarray`_
-        Add description
+        An echelle spectral format array of shape (nspec, norder, nexp).
     """
     nspec, norder, nexp = shape
     echarr = np.zeros(shape, dtype=echlist[0].dtype)
