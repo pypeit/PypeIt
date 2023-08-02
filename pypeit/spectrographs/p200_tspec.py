@@ -217,6 +217,10 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
     def pypeit_file_keys(self):

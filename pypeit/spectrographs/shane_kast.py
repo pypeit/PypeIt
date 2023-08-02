@@ -57,6 +57,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [1, 61]
         #
         par['scienceframe']['exprng'] = [61, None]
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
         return par
 
     def init_meta(self):
@@ -460,7 +461,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
         # algorithm is not the default.
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
-
         return par
 
     def init_meta(self):
@@ -554,7 +554,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # Return
         return par
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -576,6 +576,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
 
         Returns
         -------
@@ -587,6 +589,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
@@ -594,10 +598,16 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             # The blue edge and red edge of the detector have no throughput so mask by hand.
             edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
             gpm_out = gpm_in & np.logical_not(edge_region)
+            # TODO Is this correct?
         else:
             gpm_out = gpm_in
 
-        return wave_in, counts_in, counts_ivar_in, gpm_out
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function * gpm_out
+        else:
+            log10_blaze_function_out = None
+        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
+
 
 
 
@@ -670,6 +680,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['use_instr_flag'] = True
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+
 
         return par
 

@@ -31,6 +31,10 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
+
+
+
+
 def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
                    longitude=None, latitude=None):
     """ Apply the sensitivity function to the data

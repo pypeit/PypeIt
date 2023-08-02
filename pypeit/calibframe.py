@@ -107,7 +107,7 @@ class CalibFrame(datamodel.DataContainer):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
         """
         self.calib_dir = Path(odir).resolve()
         # TODO: Keep this, or throw an error if the directory doesn't exist instead?
@@ -393,7 +393,7 @@ class CalibFrame(datamodel.DataContainer):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
 
         Returns:
             :obj:`str`: Calibration identifier.
