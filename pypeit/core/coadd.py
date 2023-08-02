@@ -2519,7 +2519,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     #                     utils.setup_list_to_arr convert between arr_setup and setup_list
 
     #
-    # waves_setup_list -- is a list of length nsteups, one for each seup. Each element of is a list of length
+    # waves_setup_list -- is a list of length nsetups, one for each setup. Each element of it is a list of length
     #                     norder*nexp elements, each of which contains the shape = (nspec1,) wavelength arrays
     #                     for the order/exposure in setup1. The list is arranged such that the nexp1 spectra
     #                     for iorder=0 appear first, then com nexp1 spectra for iorder=1, i.e. the outer or
