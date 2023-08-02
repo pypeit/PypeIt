@@ -166,6 +166,31 @@ def keck_lris_red_orig_R600_10000(overwrite=False):
                              subtract_conti=True, overwrite=overwrite,
                              shift_wave=True)
 
+
+def keck_lris_red_orig_R831_8200(overwrite=False):
+    binspec = 1
+    outroot = 'keck_lris_red_orig_R831_8200_ArCdHgNeZn.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R831_8200_orig', )
+
+    basefiles = ['WaveCalib_A_0_DET01_S0216.fits', 'WaveCalib_A_0_DET01_S1025.fits', 'WaveCalib_A_0_DET01_S1783.fits',
+                 'WaveCalib_A_0_DET01_S0757.fits', 'WaveCalib_A_0_DET01_S1332.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [0, 1, 2, 3, 4]
+    slits = [216, 1025, 1783, 757, 1332]
+    wv_cuts = [6060., 6290., 7100., 8330.]
+    assert len(wv_cuts) == len(slits) - 1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=True, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite,
+                             shift_wave=True)
+
+
 # Run em
 if __name__ == '__main__':
     # keck_lris_red_mark4_R400()#overwrite=True)
@@ -174,4 +199,5 @@ if __name__ == '__main__':
     # keck_lris_red_orig_R400_8500(overwrite=False)
     # keck_lris_red_orig_R600_5000(overwrite=False)
     # keck_lris_red_orig_R600_7500(overwrite=False)
-    keck_lris_red_orig_R600_10000(overwrite=False)
+    # keck_lris_red_orig_R600_10000(overwrite=False)
+    keck_lris_red_orig_R831_8200(overwrite=True)

@@ -1718,6 +1718,9 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '600/10000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R600_10000_ArCdHgNeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '831/8200':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R831_8200_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
 
 
         # Return
