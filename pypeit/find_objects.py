@@ -987,12 +987,12 @@ class IFUFindObjects(MultiSlitFindObjects):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
 
-    # TODO :: THIS FUNCTION IS NOT CURRENTLY USED, BUT RJC REQUESTS TO KEEP THIS CODE HERE FOR THE TIME BEING.
+    # RJC :: THIS FUNCTION IS NOT CURRENTLY USED, BUT RJC REQUESTS TO KEEP THIS CODE HERE FOR THE TIME BEING.
     # def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
     #     """
     #     Calculate the residual spatial illumination profile using the sky regions.
     #
-    #     The redisual is calculated using the differential:
+    #     The residual is calculated using the differential:
     #
     #     .. code-block:: python
     #
@@ -1318,9 +1318,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
-        sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)#, snr=self.sciImg.image*np.sqrt(self.sciImg.ivar))
-        sciImgcopy = sciimg.copy()
-        sciimg = sciImgcopy.copy()
+        sciimg = self.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
         # Iterate to use a model variance image
         numiter = 4  # This is more than enough, and will probably break earlier than this
         model_ivar = self.sciImg.ivar
@@ -1329,49 +1327,20 @@ class IFUFindObjects(MultiSlitFindObjects):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
             _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
-                                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                        sigrej=sigrej, trim_edg=trim_edg,
-                                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                        pos_mask=not self.bkg_redux and not objs_not_masked,
-                                                        max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
-                                                        show_fit=show_fit)
+                                                         thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                         sigrej=sigrej, trim_edg=trim_edg,
+                                                         bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                         no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                         pos_mask=not self.bkg_redux and not objs_not_masked,
+                                                         max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                         show_fit=show_fit)
 
             # Calculate the relative spectral illumination
-            scaleImg = np.ones_like(self.sciImg.image)
-            # Divide the slit into 20 bins and calculate the median of each bin
-            nbins = 20
-            for sl, spatid in enumerate(self.slits.spat_id):
-                # Prepare the masks, edges, and fitting variables
-                this_slit = (self.slitmask == spatid)
-                this_slit_mask = inmask & this_slit
-                this_wave = self.waveimg[this_slit_mask]
-                this_ivar = model_ivar[this_slit_mask]
-                wavedg = np.linspace(np.min(this_wave), np.max(this_wave), nbins+1)
-                wavcen = 0.5*(wavedg[1:]+wavedg[:-1])
-                scale_all = sciimg[this_slit_mask] * utils.inverse(_global_sky[this_slit_mask])
-                scale_bin = np.zeros(nbins)
-                scale_err = np.zeros(nbins)
-                for bb in range(nbins):
-                    cond = (this_wave >= wavedg[bb]) & (this_wave <= wavedg[bb+1])
-                    scale_bin[bb] = np.median(scale_all[cond])
-                    scale_err[bb] = 1.4826 * np.median(np.abs(scale_all[cond] - scale_bin[bb]))
-                wgd = np.where(scale_err > 0)
-                coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=2)
-                scaleImg[this_slit] *= np.polyval(coeff, self.waveimg[this_slit])
-                if sl == sl_ref:
-                    scaleImg[thismask] /= np.polyval(coeff, self.waveimg[thismask])
-                if nn == 0 and False:
-                    from matplotlib import pyplot as plt
-                    plt.imshow(scaleImg)
-                    plt.show()
-                    plt.plot(wavcen[wgd], scale_bin[wgd], 'bx')
-                    plt.plot(wavcen[wgd], np.polyval(coeff, wavcen[wgd]), 'r-')
-                    plt.show()
-            minv, maxv = np.min(scaleImg[thismask]), np.max(scaleImg[thismask])
-            msgs.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
+            scaleImg = flatfield.illum_profile_spectral_poly(sciimg, self.waveimg, self.slits, _global_sky,
+                                                             slit_illum_ref_idx=sl_ref, gpmask=inmask,
+                                                             thismask=thismask, flexure=self.spat_flexure_shift)
+            # Apply this scale image to the temporary science frame
             sciimg /= scaleImg
-            # self.apply_relative_scale(scaleImg)
 
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
@@ -1393,6 +1362,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             # self.calculate_flexure(global_sky_sep)
 
             # Check if the relative scaling isn't changing much after at least 4 iterations
+            minv, maxv = np.min(scaleImg[thismask]), np.max(scaleImg[thismask])
             if nn >= 3 and max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
                 break
 
@@ -1402,33 +1372,23 @@ class IFUFindObjects(MultiSlitFindObjects):
             # This operation updates the mask directly!
             self.sciImg.build_crmask(self.par['scienceframe']['process'], subtract_img=_global_sky)
 
-        # We now have a joint global sky fit to the modified science image (i.e. the one with the effective resolution)
-        # Invert the correction here so the global sky has the appropriate spectral resolution at each pixel.
-        embed()
-        from matplotlib import pyplot as plt
-        from pypeit.core import arc
-        unq = np.arange(30,161,5)
-        colors = plt.cm.Spectral(np.linspace(0.0,1.0,unq.size))
-        for ii, idx in enumerate(unq):
-            plt.subplot(121)
-            plt.plot(self.waveimg[1260:1300, idx], sciimg[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
-            plt.subplot(122)
-            plt.plot(self.waveimg[1260:1300, idx], self.sciImg.image[1260:1300, idx], drawstyle='steps-mid', color=colors[ii])
-            _, _, cent, wdth_orig, _, best, _, nsig = arc.detect_lines(self.sciImg.image[1260:1300, idx], fwhm=3)
-            _, _, cent, wdth, _, best, _, nsig = arc.detect_lines(sciimg[1260:1300, idx], fwhm=3)
-            # print(wdth[0], wdth_orig[0], fwhm_map[1280, idx], sigexc_map[1280, idx], np.sqrt(sigexc_map[1280, idx]**2 + wdth_orig[0]**2))
-        plt.show()
+        # Now we have a correct scale, apply it to the original science image
+        self.apply_relative_scale(scaleImg)
 
-        # TODO :: consider doing a shift and stretch spectral flexure
-        # TODO :: deconvolve global sky model to construct a sky model for the original science image
-        # TODO :: apply the scaleImg (calculated for the convolved science image) to the original science image
-        assert False
-        global_sky = self.convolve_skymodel(_global_sky)
+        # Recalculate the joint sky using the original image
+        _global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
+                                                     thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                     sigrej=sigrej, trim_edg=trim_edg,
+                                                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                     no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                     pos_mask=not self.bkg_redux and not objs_not_masked,
+                                                     max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                     show_fit=show_fit)
 
         # Update the ivar image used in the sky fit
         msgs.info("Updating sky noise model")
         # Choose the highest counts out of sky and object
-        counts = global_sky
+        counts = _global_sky
         _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
         # NOTE: darkcurr must be a float for the call below to work.
         var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
@@ -1441,8 +1401,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         if show:
             sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', global_sky=global_sky, slits=True, sobjs=sobjs_show, clear=False)
-        return global_sky
+            self.show('global', global_sky=_global_sky, slits=True, sobjs=sobjs_show, clear=False)
+        return _global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
@@ -1457,7 +1417,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
                                                show_objs=show_objs)
         # Check if any slits failed
-        if np.any(global_sky_sep[self.slitmask>=0] == 0) and not self.bkg_redux:
+        if np.any(global_sky_sep[self.slitmask >= 0] == 0) and not self.bkg_redux:
             # Cannot continue without a sky model for all slits
             msgs.error("Global sky subtraction has failed for at least one slit.")
 
@@ -1472,7 +1432,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Calculate spectral flexure
         method = self.par['flexure']['spec_method']
         # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
-        # TODO :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
+        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
         if method in ['slitcen']:
             self.calculate_flexure(global_sky_sep)
 
