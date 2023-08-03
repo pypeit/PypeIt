@@ -337,12 +337,12 @@ class CalibFrame(datamodel.DataContainer):
         indx = np.diff(calibs) != 1
         if not np.any(indx):
             # The full list is sequential, so give the starting and ending points
-            return f'{calibs[0]}+{calibs[-1]+1}'
+            return f'{calibs[0]}+{calibs[-1]}'
 
         # Split the array into sequential subarrays (or single elements) and
         # combine them into a single string
         split_calibs = np.split(calibs, np.where(indx)[0]+1)
-        return '-'.join([f'{s[0]}+{s[-1]+1}' if len(s) > 1 else f'{s[0]}' for s in split_calibs])
+        return '-'.join([f'{s[0]}+{s[-1]}' if len(s) > 1 else f'{s[0]}' for s in split_calibs])
 
     @staticmethod
     def parse_calib_id(calib_id_name):
@@ -367,7 +367,7 @@ class CalibFrame(datamodel.DataContainer):
         for slc in calib_id_name.split('-'):
             split_slc = slc.split('+')
             calib_id += split_slc if len(split_slc) == 1 \
-                            else np.arange(*np.array(split_slc).astype(int)).astype(str).tolist()
+                    else np.arange(int(split_slc[0]), int(split_slc[1])+1).astype(str).tolist()
         return calib_id
 
     @staticmethod
