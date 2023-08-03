@@ -26,9 +26,9 @@ from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
 
-class KeckKCWISpectrograph(spectrograph.Spectrograph):
+class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/KCWI specific code
+    Parent to handle Keck/KCWI+KCRM specific code
 
     .. todo::
         * Need to apply spectral flexure and heliocentric correction to waveimg -- done?
@@ -37,17 +37,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         * When making the datacube, add an option to apply a spectral flexure correction from a different frame?
         * Write some detailed docs about the corrections that can be used when making a datacube
         * Consider introducing a new method (par['flexure']['spec_method']) for IFU flexure corrections (see find-objects.py)
-
     """
     ndet = 1
-    name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
-    camera = 'KCWI'
-    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
-    header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True
-    comment = 'Supported setups: BM, BH2; see :doc:`keck_kcwi`'
 
     def __init__(self):
         super().__init__()
@@ -60,69 +54,53 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # EarthLocation. KBW: Fine with me!
         self.location = EarthLocation.of_site('Keck Observatory')
 
-    def get_detector_par(self, det, hdu=None):
+    def init_meta(self):
         """
-        Return metadata for the selected detector.
+        Define how metadata are derived from the spectrograph files.
 
-        .. warning::
-
-            Many of the necessary detector parameters are read from the file
-            header, meaning the ``hdu`` argument is effectively **required** for
-            KCWI.  The optional use of ``hdu`` is only viable for automatically
-            generated documentation.
-
-        Args:
-            det (:obj:`int`):
-                1-indexed detector number.
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.
-
-        Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
-            Object with the detector metadata.
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        if hdu is None:
-            binning = '2,2'
-            specflip = None
-            numamps = None
-            gainarr = None
-            ronarr = None
-#            dsecarr = None
-#            msgs.error("A required keyword argument (hdu) was not supplied")
-        else:
-            # Some properties of the image
-            binning = self.compound_meta(self.get_headarr(hdu), "binning")
-            numamps = hdu[0].header['NVIDINP']
-            specflip = True if hdu[0].header['AMPID1'] == 2 else False
-            gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
-            ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
-#            dsecarr = np.array(['']*numamps)
+        self.meta = {}
 
-            for ii in range(numamps):
-                # Assign the gain for this amplifier
-                gainarr[ii] = hdu[0].header["GAIN{0:1d}".format(ii + 1)]# * gainmul
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card=None, compound=True)
+        self.meta['dec'] = dict(ext=0, card=None, compound=True)
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='IFUNAM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        detector = dict(det             = det,
-                        binning         = binning,
-                        dataext         = 0,
-                        specaxis        = 0,
-                        specflip        = specflip,
-                        spatflip        = False,
-                        platescale      = 0.145728,  # arcsec/pixel
-                        darkcurr        = None,  # <-- TODO : Need to set this
-                        mincounts       = -1e10,
-                        saturation      = 65535.,
-                        nonlinear       = 0.95,       # For lack of a better number!
-                        numamplifiers   = numamps,
-                        gain            = gainarr,
-                        ronoise         = ronarr,
-# TODO: These are never used because the image reader sets these up using the
-# file headers data.
-#                        datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
-#                        oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
-                        )
-        # Return
-        return detector_container.DetectorContainer(**detector)
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(card=None, compound=True)
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+
+        # Extras for config and frametyping
+        self.meta['hatch'] = dict(ext=0, card='HATPOS')
+        #        self.meta['idname'] = dict(ext=0, card='CALXPOS')
+        self.meta['idname'] = dict(ext=0, card='IMTYPE')
+        self.meta['calpos'] = dict(ext=0, card='CALMNAM')
+        self.meta['slitwid'] = dict(card=None, compound=True)
+
+        # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
+        self.meta['obstime'] = dict(card=None, compound=True, required=False)
+        self.meta['pressure'] = dict(card=None, compound=True, required=False)
+        self.meta['temperature'] = dict(card=None, compound=True, required=False)
+        self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+        # Lamps
+        lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
+        for kk, lamp_name in enumerate(lamp_names):
+            self.meta['lampstat{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name + 'STAT')
+        for kk, lamp_name in enumerate(lamp_names):
+            if lamp_name == 'LMP3':
+                # There is no shutter on LMP3
+                self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
+                continue
+            self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name + 'SHST')
+        # Add in the dome lamp
+        self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
+        self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -154,6 +132,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'RM1':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_RM1.fits'
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -162,54 +142,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Return
         return par
 
-    def init_meta(self):
+    def configuration_keys(self):
         """
-        Define how metadata are derived from the spectrograph files.
+        Return the metadata keys that define a unique instrument
+        configuration.
 
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
-        self.meta = {}
-        # Required (core)
-        self.meta['ra'] = dict(ext=0, card=None, compound=True)
-        self.meta['dec'] = dict(ext=0, card=None, compound=True)
-        self.meta['target'] = dict(ext=0, card='TARGNAME')
-        self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
-        self.meta['decker'] = dict(ext=0, card='IFUNAM')
-        self.meta['binning'] = dict(card=None, compound=True)
-
-        self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(card=None, compound=True)
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-
-        # Extras for config and frametyping
-        self.meta['hatch'] = dict(ext=0, card='HATNUM')
-#        self.meta['idname'] = dict(ext=0, card='CALXPOS')
-        self.meta['idname'] = dict(ext=0, card='IMTYPE')
-        self.meta['calpos'] = dict(ext=0, card='CALMNAM')
-        self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
-        self.meta['slitwid'] = dict(card=None, compound=True)
-
-        # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
-        self.meta['obstime'] = dict(card=None, compound=True, required=False)
-        self.meta['pressure'] = dict(card=None, compound=True, required=False)
-        self.meta['temperature'] = dict(card=None, compound=True, required=False)
-        self.meta['humidity'] = dict(card=None, compound=True, required=False)
-        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-
-        # Lamps
-        lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
-        for kk, lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'STAT')
-        for kk, lamp_name in enumerate(lamp_names):
-            if lamp_name == 'LMP3':
-                # There is no shutter on LMP3
-                self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
-                continue
-            self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
-        # Add in the dome lamp
-        self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
-        self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
+        return ['dispname', 'decker', 'binning', 'dispangle']
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -278,41 +225,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'dispangle']
-
-    def raw_header_cards(self):
-        """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
-
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
-
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
-        """
-        return ['BGRATNAM', 'IFUNAM', 'BGRANGLE']
 
     @classmethod
     def default_pypeit_par(cls):
@@ -325,52 +237,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Subtract the detector pattern from certain frames.
-        # NOTE: The pattern subtraction is time-consuming, meaning we don't
-        # perform it (by default) for the high S/N pixel flat images but we do
-        # for everything else.
-        par['calibrations']['biasframe']['process']['use_pattern'] = True
-        par['calibrations']['darkframe']['process']['use_pattern'] = True
-        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
-        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
-        par['calibrations']['standardframe']['process']['use_pattern'] = True
-        par['scienceframe']['process']['use_pattern'] = True
-
-        # Correct the illumflat for pixel-to-pixel sensitivity variations
-        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
-
-        # Make sure the overscan is subtracted from the dark
-        par['calibrations']['darkframe']['process']['use_overscan'] = True
-
-        # Set the slit edge parameters
-        par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
-        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
-
-        # KCWI has non-uniform spectral resolution across the field-of-view
-        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
-        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
-
-        # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
-        # Relative illumination correction
-        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
-        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
-        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
-
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [0.01, None]
-#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-#        par['calibrations']['traceframe']['exprng'] = [None, 30]
-#        par['scienceframe']['exprng'] = [30, None]
 
         # Set the number of alignments in the align frames
         par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
@@ -437,37 +306,35 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        # hatch=1,0=open,closed
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['calpos'] == 'Sky') \
-                    & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '1')
+                    & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'Open')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype == 'pixelflat':
             # Use internal lamp
             return good_exp & (fitstbl['idname'] == 'FLATLAMP') & (fitstbl['calpos'] == 'Mirror') \
-                    & self.lamps(fitstbl, 'cont_noarc') & (fitstbl['hatch'] == '0')
+                    & self.lamps(fitstbl, 'cont_noarc')
         if ftype in ['illumflat', 'trace']:
             # Use dome flats
             return good_exp & (fitstbl['idname'] == 'DOMEFLAT') & (fitstbl['calpos'] == 'Sky') \
-                    & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '1')
+                    & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == 'Open')
         if ftype == 'dark':
             # Dark frames
             return good_exp & (fitstbl['idname'] == 'DARK') & self.lamps(fitstbl, 'off') \
-                    & (fitstbl['hatch'] == '0')
+                    & (fitstbl['hatch'] == 'Closed')
         if ftype == 'align':
             # Alignment frames
             # NOTE: Different from previous versions, this now only warns the user if everyth
             is_align = good_exp & (fitstbl['idname'] == 'CONTBARS') \
-                        & (fitstbl['calpos'] == 'Mirror') & self.lamps(fitstbl, 'cont') \
-                        & (fitstbl['hatch'] == '0')
+                        & (fitstbl['calpos'] == 'Mirror') & self.lamps(fitstbl, 'cont')
             if np.any(is_align & np.logical_not(self.lamps(fitstbl, 'cont_noarc'))):
                 msgs.warn('Alignment frames have both the continuum and arc lamps on (although '
                           'arc-lamp shutter might be closed)!')
             return is_align
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ARCLAMP') & (fitstbl['calpos'] == 'Mirror') \
-                    & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == '0')
+                    & self.lamps(fitstbl, 'arcs')
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -565,6 +432,177 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 lampstat += ["{0:s}-{1:s}".format(str(headarr[ext1][card1]), str(headarr[ext2][card2]))]
             kk += 1
         return "_".join(lampstat)
+
+
+class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
+    """
+    Child to handle Keck/KCWI specific code
+    """
+    name = 'keck_kcwi'
+    camera = 'KCWI'
+    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
+    header_name = 'KCWI'
+    comment = 'Supported setups: BL, BM, BH2; see :doc:`keck_kcwi`'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            KCWI.  The optional use of ``hdu`` is only viable for automatically
+            generated documentation.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        if hdu is None:
+            binning = '2,2'
+            specflip = None
+            numamps = None
+            gainarr = None
+            ronarr = None
+#            dsecarr = None
+#            msgs.error("A required keyword argument (hdu) was not supplied")
+        else:
+            # Some properties of the image
+            binning = self.compound_meta(self.get_headarr(hdu), "binning")
+            numamps = hdu[0].header['NVIDINP']
+            specflip = True if hdu[0].header['AMPID1'] == 2 else False
+            gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
+            ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
+#            dsecarr = np.array(['']*numamps)
+
+            for ii in range(numamps):
+                # Assign the gain for this amplifier
+                gainarr[ii] = hdu[0].header["GAIN{0:1d}".format(ii + 1)]# * gainmul
+
+        detector = dict(det             = det,
+                        binning         = binning,
+                        dataext         = 0,
+                        specaxis        = 0,
+                        specflip        = specflip,
+                        spatflip        = False,
+                        platescale      = 0.145728,  # arcsec/pixel
+                        darkcurr        = None,  # <-- TODO : Need to set this
+                        mincounts       = -1e10,
+                        saturation      = 65535.,
+                        nonlinear       = 0.95,       # For lack of a better number!
+                        numamplifiers   = numamps,
+                        gain            = gainarr,
+                        ronoise         = ronarr,
+                        # These are never used because the image reader sets these up using the file headers data.
+                        # datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
+                        # oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
+                        )
+        # Return
+        return detector_container.DetectorContainer(**detector)
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        super().init_meta()
+        self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
+        self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['BGRATNAM', 'IFUNAM', 'BGRANGLE']
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Subtract the detector pattern from certain frames.
+        # NOTE: The pattern subtraction is time-consuming, meaning we don't
+        # perform it (by default) for the high S/N pixel flat images but we do
+        # for everything else.
+        par['calibrations']['biasframe']['process']['use_pattern'] = True
+        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
+        par['calibrations']['standardframe']['process']['use_pattern'] = True
+        par['scienceframe']['process']['use_pattern'] = True
+
+        # Correct the illumflat for pixel-to-pixel sensitivity variations
+        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
+
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
+        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        return par
+
+    @staticmethod
+    def is_nasmask(hdr):
+        """
+        Determine if a frame used nod-and-shuffle.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame.
+
+        Returns:
+            :obj:`bool`: True if NAS used.
+        """
+        return 'Mask' in hdr['BNASNAM']
 
     def get_rawimage(self, raw_file, det):
         """
@@ -812,20 +850,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         return np.flipud(bpm_img)
 
-    @staticmethod
-    def is_nasmask(hdr):
-        """
-        Determine if a frame used nod-and-shuffle.
-
-        Args:
-            hdr (`astropy.io.fits.Header`_):
-                The header of the raw frame.
-
-        Returns:
-            :obj:`bool`: True if NAS used.
-        """
-        return 'Mask' in hdr['BNASNAM']
-
     def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
         """
         Construct/Read a World-Coordinate System for a frame.
@@ -1015,3 +1039,173 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         p0 = [amp, scale, phase, wavelength, angle]
         popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
         return sinfunc2d((xx, yy), *popt)
+
+
+class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
+    """
+    Child to handle Keck/KCRM specific code
+
+    """
+    name = 'keck_kcrm'
+    camera = 'KCRM'
+    url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
+    header_name = 'KCRM'
+    comment = 'Supported setups: RM1; see :doc:`keck_kcrm`'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            KCRM.  The optional use of ``hdu`` is only viable for automatically
+            generated documentation.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        if hdu is None:
+            binning = '2,2'
+            specflip = None
+            numamps = None
+            gainarr = None
+            ronarr = None
+#            dsecarr = None
+#            msgs.error("A required keyword argument (hdu) was not supplied")
+        else:
+            # Some properties of the image
+            binning = self.compound_meta(self.get_headarr(hdu), "binning")
+            nampsxy = hdu[0].header['NAMPSXY'].split()
+            numamps = int(nampsxy[0]) * int(nampsxy[1])
+            if numamps != 2:
+                msgs.error("PypeIt only supports dual amplifier readout of KCRM data")
+            specflip = False
+            gainarr = np.array([hdu[0].header["GAIN1"], hdu[0].header["GAIN3"]])
+            ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
+
+        detector = dict(det             = det,
+                        binning         = binning,
+                        dataext         = 0,
+                        specaxis        = 0,
+                        specflip        = specflip,
+                        spatflip        = False,
+                        platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
+                        darkcurr        = None,
+                        mincounts       = -1e10,
+                        saturation      = 65535.,
+                        nonlinear       = 0.95,       # For lack of a better number!
+                        numamplifiers   = numamps,
+                        gain            = gainarr,
+                        ronoise         = ronarr,
+                        # These are never used because the image reader sets these up using the file headers data.
+                        # datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
+                        # oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
+                        )
+        # Return
+        return detector_container.DetectorContainer(**detector)
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        super().init_meta()
+        self.meta['dispname'] = dict(ext=0, card='RGRATNAM')
+        self.meta['dispangle'] = dict(ext=0, card='RGRANGLE', rtol=0.01)
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['RGRATNAM', 'IFUNAM', 'RGRANGLE']
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Subtract the detector pattern from certain frames.
+        # NOTE: The pattern subtraction is time-consuming, meaning we don't
+        # perform it (by default) for the high S/N pixel flat images but we do
+        # for everything else.
+        par['calibrations']['biasframe']['process']['use_pattern'] = True
+        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
+        par['calibrations']['standardframe']['process']['use_pattern'] = True
+        par['scienceframe']['process']['use_pattern'] = True
+
+        # Correct the illumflat for pixel-to-pixel sensitivity variations
+        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
+
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
+        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        return par
+
+    @staticmethod
+    def is_nasmask(hdr):
+        """
+        Determine if a frame used nod-and-shuffle.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame.
+
+        Returns:
+            :obj:`bool`: True if NAS used.
+        """
+        return 'Mask' in hdr['RNASNAM']
