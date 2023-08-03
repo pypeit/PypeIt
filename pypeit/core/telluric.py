@@ -1180,7 +1180,7 @@ def eval_poly_model(theta, obj_dict):
 
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
-                      telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8, ntell=6, mask_hydrogen_lines=True,
+                      telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8, ntell=4, mask_hydrogen_lines=True,
                       mask_helium_lines=False, hydrogen_mask_wid=10., resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
@@ -1555,7 +1555,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None,
                   star_ra=None, star_dec=None, func='legendre', model='exp', polyorder=5,
-                  ntell=6, mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
+                  ntell=4, mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
                   delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -2182,7 +2182,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model,
-                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=6, airmass_guess=1.5,
+                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4, airmass_guess=1.5,
                  resln_guess=None, resln_frac_bounds=(0.5, 2.0), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
