@@ -1736,10 +1736,12 @@ class HolyGrail:
         self._det_weak = {}
         self._det_stro = {}
         for slit in range(self._nslit):
-            msgs.info("Working on slit: {}".format(slit))
             if slit not in self._ok_mask:
                 self._all_final_fit[str(slit)] = None
+                msgs.info('Ignoring masked slit {}'.format(slit))
                 continue
+            else:
+                msgs.info("Working on slit: {}".format(slit))
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
@@ -1772,11 +1774,10 @@ class HolyGrail:
 
         # Now that all slits have been inspected, cross match to generate a
         # list of all lines in every slit, and refit all spectra
-        if self._nslit > 1:
+        obad_slits = self.cross_match(good_fit, self._det_weak) if self._ok_mask.size > 1 else np.array([])
+        if obad_slits.size > 1:
             msgs.info('Checking wavelength solution by cross-correlating with all slits')
-
             msgs.info('Cross-correlation iteration #1')
-            obad_slits = self.cross_match(good_fit, self._det_weak)
             cntr = 2
             while obad_slits.size > 0:
                 msgs.info('Cross-correlation iteration #{:d}'.format(cntr))
@@ -2034,7 +2035,7 @@ class HolyGrail:
         # to be classified as a bad slit here. Is this the behavior we want?? Maybe we should be more
         # conservative and call a bad any slit which results in an outlier here?
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
-        bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+        bad_slits = np.setdiff1d(np.arange(self._nslit)[self._ok_mask], good_slits, assume_unique=True)
         nbad = bad_slits.size
         if nbad > 0:
             msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits + 1))
