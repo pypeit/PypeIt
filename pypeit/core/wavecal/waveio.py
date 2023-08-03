@@ -1,4 +1,7 @@
 """ Module for I/O in arclines
+
+.. include:: ../include/links.rst
+
 """
 import pathlib
 
@@ -51,17 +54,21 @@ def load_template(arxiv_file, det, wvrng=None):
     """
     Load a full template file from disk
 
-    Args:
-        arxiv_file: str
-        det: int
-        wvrng (list, optional):
-            min, max wavelength range for the arxiv
+    Parameters
+    ----------
+    arxiv_file : str
+        ???
+    det : int
+        ???
+    wvrng : list, optional
+        min, max wavelength range for the arxiv
 
-
-    Returns:
-        wave: ndarray
-        flux: ndarray
-        binning: int, Of the template arc spectrum
+    Returns
+    -------
+    wave : ndarray
+    flux : ndarray
+    binning : int
+        binning of the template arc spectrum
 
     """
     # Path already included?
@@ -148,7 +155,7 @@ def load_line_list(line_file, use_ion=False):
 
     Returns
     -------
-    line_list : Table
+    line_list : `astropy.table.Table`_
 
     """
     line_file = data.get_linelist_filepath(f'{line_file}_lines.dat') if use_ion else \
@@ -172,7 +179,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
 
     Returns
     -------
-    line_list : Table
+    line_list : `astropy.table.Table`_
 
     """
     # All?
@@ -279,7 +286,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
 
     Returns
     -------
-    unknwn_lines : Table
+    unknwn_lines : `astropy.table.Table`_
 
     """
     line_dict = defs.lines()

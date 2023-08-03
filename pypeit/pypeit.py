@@ -645,7 +645,7 @@ class PypeIt:
             5 objects are returned::
                 - str: Object type;  science or standard
                 - str: Setup/configuration string
-                - astropy.time.Time: Time of observation
+                - `astropy.time.Time`_: Time of observation
                 - str: Basename of the frame
                 - str: Binning of the detector
 
@@ -715,7 +715,7 @@ class PypeIt:
             List of frames to use as the background. Can be empty.
         std_outfile : :obj:`str`, optional
             Filename for the standard star spec1d file. Passed directly to
-            :func:`get_std_trace`.
+            :func:`~pypeit.specobjs.get_std_trace`.
 
         Returns
         -------
@@ -906,7 +906,7 @@ class PypeIt:
                 is provided
             det (:obj:`int`):
                 Detector number (1-indexed)
-            sciImg (:class:`PypeItImage`):
+            sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
             objFind : :class:`~pypeit.find_objects.FindObjects`
@@ -1052,13 +1052,13 @@ class PypeIt:
                 Right Ascension
             dec (float, str):
                 Declination
-            obstime (:obj:`astropy.time.Time`):
+            obstime (`astropy.time.Time`_):
                 Observation time
             slitgpm (`numpy.ndarray`_, None, optional):
                 1D boolean array indicating the good slits (True). If None, the gpm will be taken from slits
             waveimg (`numpy.ndarray`_, optional)
                 Two-dimensional image specifying the wavelength of each pixel
-            sobjs (:class:`pypeit.specobjs.Specobjs`, None, optional):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`, None, optional):
                 Spectrally extracted objects
 
         """

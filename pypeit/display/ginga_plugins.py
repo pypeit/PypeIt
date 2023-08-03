@@ -43,12 +43,12 @@ class SlitImage(AstroImage):
             image x coordinate
         data_y: float
             image y coordinate
-        settings: :class:`ginga.misc.Settings.SettingGroup`
+        settings: ``ginga.misc.Settings.SettingGroup``
             ginga settings group
 
         Returns
         -------
-        info : :class:`ginga.misc.Bunch.Bunch`
+        info : ``ginga.misc.Bunch.Bunch``
             Metadata for this coordinate
         """
         info = super(SlitImage, self).info_xy(data_x, data_y, settings)

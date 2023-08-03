@@ -26,7 +26,7 @@ Furthermore, all paths returned by this module are :obj:`pathlib.Path` objects
 rather than pure strings, with all of the functionality therein contained.
 
 Most (by number) of the package data files here are distributed with the
-``PypeIt`` package and are accessed via the :class:`~pypeit.data.Paths`
+``PypeIt`` package and are accessed via the :class:`~pypeit.data.utils.Paths`
 class.  For instance, the NIR spectrophotometry for Vega is accessed via:
 
 .. code-block:: python
@@ -65,7 +65,7 @@ testing a new ``get_*_filepath()`` routine.  Order of operations is:
 If new package-included data are added that are not very large (total directory
 size < a few MB), it is not necessary to use the AstroPy cache/download system.
 In this case, simply add the directory path to the
-:class:`~pypeit.data.Paths` class and access the enclosed files similarly
+:class:`~pypeit.data.utils.Paths` class and access the enclosed files similarly
 to the Vega example above.
 
 .. include:: ../include/links.rst
@@ -338,7 +338,7 @@ def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir=False) -> pathli
           pointing to the cached downloaded file.  Defaults to False.
 
     Returns:
-        :obj:`pthlib.Path`: The full path to the ``sensfunc`` file
+        :obj:`pathlib.Path`: The full path to the ``sensfunc`` file
     """
     # Full path within the package data structure:
     sensfunc_path = Paths.sensfuncs / sensfunc_file
@@ -743,7 +743,7 @@ def load_telluric_grid(filename: str):
           The filename (NO PATH) of the telluric atmospheric grid to use.
 
     Returns:
-        (:obj:`astropy.io.fits.HDUList`): Telluric Grid FITS HDU list
+        (`astropy.io.fits.HDUList`_): Telluric Grid FITS HDU list
     """
     # Check for existance of file parameter
     if not filename:
@@ -774,7 +774,7 @@ def load_thar_spec():
           The filename (NO PATH) of the telluric atmospheric grid to use.
 
     Returns:
-        (:obj:`astropy.io.fits.HDUList`): ThAr Spectrum FITS HDU list
+        (`astropy.io.fits.HDUList`_): ThAr Spectrum FITS HDU list
     """
     return io.fits_open(Paths.arclines / 'thar_spec_MM201006.fits')
 
@@ -793,6 +793,6 @@ def load_sky_spectrum(sky_file):
           The filename (NO PATH) of the sky file to use.
 
     Returns:
-        (:obj:`XSpectrum1D`): Sky spectrum
+        (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
     return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec / sky_file))

@@ -74,7 +74,7 @@ def test_setup_made_pypeit_file():
     pypeItFile = PypeItFile.from_file(pypeit_file)
 
     # Test
-    assert len(pypeItFile.filenames) == 8
+    assert len(pypeItFile.filenames) == 9
     assert sorted(pypeItFile.frametypes['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert pypeItFile.setup_name == 'A'
 

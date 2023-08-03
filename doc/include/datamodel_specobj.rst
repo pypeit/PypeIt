@@ -1,6 +1,6 @@
 
 
-Version: 1.1.8
+Version: 1.1.9
 
 =======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                  Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -16,6 +16,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``BOX_FLAM_IVAR``        ndarray                    float              Boxcar flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2                                                                                                                              
 ``BOX_FLAM_SIG``         ndarray                    float              Boxcar flux uncertainty (1e-17 erg/s/cm^2/Ang)                                                                                                                                      
 ``BOX_FRAC_USE``         ndarray                    float              Fraction of pixels in the object profile subimage used for this extraction                                                                                                          
+``BOX_FWHM``             ndarray                    float              Spectral FWHM (in Angstroms) at every pixel of the boxcar extracted flux.                                                                                                           
 ``BOX_MASK``             ndarray                    bool               Mask for boxcar extracted flux. True=good                                                                                                                                           
 ``BOX_NPIX``             ndarray                    float              Number of pixels used for the boxcar extraction; can be fractional                                                                                                                  
 ``BOX_RADIUS``           float                                         Size of boxcar radius (pixels)                                                                                                                                                      
@@ -52,6 +53,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``OPT_FLAM_IVAR``        ndarray                    float              Optimal flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2                                                                                                                             
 ``OPT_FLAM_SIG``         ndarray                    float              Optimal flux uncertainty (1e-17 erg/s/cm^2/Ang)                                                                                                                                     
 ``OPT_FRAC_USE``         ndarray                    float              Fraction of pixels in the object profile subimage used for this extraction                                                                                                          
+``OPT_FWHM``             ndarray                    float              Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.                                                                                                        
 ``OPT_MASK``             ndarray                    bool               Mask for optimally extracted flux. True=good                                                                                                                                        
 ``OPT_WAVE``             ndarray                    float              Optimal Wavelengths in vacuum (Angstroms)                                                                                                                                           
 ``PYPELINE``             str                                           Name of the PypeIt pipeline mode                                                                                                                                                    
@@ -65,7 +67,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``VEL_TYPE``             str                                           Type of heliocentric correction (if any)                                                                                                                                            
 ``WAVE_RMS``             float, floating                               RMS (pix) for the wavelength solution for this slit.                                                                                                                                
 ``hand_extract_flag``    bool                                          Boolean indicating if this is a forced extraction at the location provided by the user.                                                                                             
-``maskwidth``            float, floating                               Size (in units of fwhm) of the region used for local sky subtraction                                                                                                                
+``maskwidth``            float, floating                               Size (in units of spatial fwhm) of the region used for local sky subtraction                                                                                                        
 ``smash_peakflux``       float                                         Peak value of the spectral direction collapsed spatial profile                                                                                                                      
 ``smash_snr``            float                                         Peak S/N ratio of the spectral direction collapsed patial profile                                                                                                                   
 ``trace_spec``           ndarray                    int,numpy.integer  Array of pixels along the spectral direction                                                                                                                                        
