@@ -1693,16 +1693,9 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.
-        # par['calibrations']['wavelengths']['match_toler'] = 3.
-        par['calibrations']['wavelengths']['sigdetect'] = 10.
-        # par['calibrations']['wavelengths']['fwhm'] = 6.
-        # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
         if self.get_meta_value(scifile, 'dispname') == '150/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['nsnippet'] = 1
-            par['calibrations']['wavelengths']['sigdetect'] = 5.
         elif self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -1724,7 +1717,9 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '900/5500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R900_5500_ArCdHgNeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-
+        elif self.get_meta_value(scifile, 'dispname') == '1200/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R1200_7500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
 
         # Return
         return par
