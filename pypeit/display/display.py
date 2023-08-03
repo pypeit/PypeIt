@@ -43,7 +43,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             viewer if one is not already running.
 
     Returns:
-        RemoteClient: connection to ginga viewer.
+        `ginga.RemoteClient`_: connection to ginga viewer.
     """
     # Start
     viewer = grc.RemoteClient(host, port)
@@ -120,8 +120,8 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
             image in other channels to it.
 
     Returns:
-        ginga.util.grc.RemoteClient, ginga.util.grc._channel_proxy: The
-        ginga remote client and the channel with the displayed image.
+        :obj:`tuple`: The ginga remote client object and the channel object with
+        the displayed image.
 
     Raises:
         ValueError:
@@ -253,21 +253,21 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
     Parameters
     ----------
-    viewer (ginga.util.grc.RemoteClient):
+    viewer : `ginga.RemoteClient`_
         Ginga RC viewer
-    ch (ginga.util.grc._channel_proxy):
+    ch : ``ginga.util.grc._channel_proxy``
         Ginga channel
-    spec (list):
+    spec : list
         List of spectral positions on image to plot
-    spat (list):
+    spat : list
         List of spatial positions on image to plot
-    color (str):
+    color : str
         Color for points
-    legend (str):
-        Label for a legeng
-    legend_spec (float):
+    legend : str
+        Label for a legend
+    legend_spec : float
         Spectral pixel loation for legend
-    legend_spat (float):
+    legend_spat : float
         Pixel loation for legend
 
     """
@@ -291,9 +291,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     Overplot slits on the image in Ginga in the given channel
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel
         left (`numpy.ndarray`_):
             Array with spatial position of left slit edges. Shape must be :math:`(N_{\rm
@@ -447,9 +447,9 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     r"""
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer.
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel.
         trace (`numpy.ndarray`_):
             Array with spatial position of the object traces on the detector.
@@ -549,9 +549,9 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     Show the arc tilts on the input channel
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel
         tilt_traces (`astropy.table.Table`_):
             Table containing the traced and fitted tilts

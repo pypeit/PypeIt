@@ -99,12 +99,13 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (list or `numpy.ndarray`_):
-            List of `numpy.ndarray`_ wavelength arrays or a single 1d 'numpy.ndarray'_
-        pix_per_R (float):  default=3.0
+        waves (list, `numpy.ndarray`_):
+            List of `numpy.ndarray`_ wavelength arrays or a single 1d
+            'numpy.ndarray'_
+        pix_per_R (float):
             Number of pixels per resolution element used for the
             resolution guess. The default of 3.0 assumes roughly Nyquist
-            smampling
+            sampling.
 
     Returns:
         tuple: Returns dlam, dloglam, resln_guess, pix_per_sigma.
@@ -151,19 +152,28 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
 
     Args:
         waves (list):
-            List of the `numpy.ndarray`_ N original 1d wavelength arrays.  Shapes of the input arrays are arbitrary.
-            Required unless wave_method='user_input' in which case it need not be passed in.
+            List of the `numpy.ndarray`_ N original 1d wavelength arrays.
+            Shapes of the input arrays are arbitrary.  Required unless
+            wave_method='user_input' in which case it need not be passed in.
         gpms (list):
-            Good-pixel mask for wavelengths.  Same format as waves and shapes of the individual arrays must match.
+            Good-pixel mask for wavelengths.  Same format as waves and shapes of
+            the individual arrays must match.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
 
-                * 'iref' -- Use the first wavelength array (default)
-                * 'velocity' -- Grid is uniform in velocity
-                * 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
-                * 'linear' -- Constant pixel grid
-                * 'concatenate' -- Meld the input wavelength arrays
-                * 'user_input' -- Use a user input wavelength grid. wave_grid_input must be set for this option.
+                - 'iref' -- Use the first wavelength array (default)
+
+                - 'velocity' -- Grid is uniform in velocity
+
+                - 'log10'  -- Grid is uniform in log10(wave). This is the same
+                  as velocity.
+
+                - 'linear' -- Constant pixel grid
+
+                - 'concatenate' -- Meld the input wavelength arrays
+
+                - 'user_input' -- Use a user input wavelength grid.
+                  wave_grid_input must be set for this option.
 
         iref (:obj:`int`, optional):
             Index in waves array for reference spectrum
@@ -172,8 +182,9 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
         wave_grid_max (:obj:`float`, optional):
             max wavelength value for the final grid
         dwave (:obj:`float`, optional):
-            Pixel size in same units as input wavelength array (e.g. Angstroms). Used with the 'linear' method.
-            If not input, the median pixel size is calculated and used.
+            Pixel size in same units as input wavelength array (e.g. Angstroms).
+            Used with the 'linear' method.  If not input, the median pixel size
+            is calculated and used.
         dv (:obj:`float`, optional):
             Pixel size in km/s for 'velocity' method.  If not input, the median
             km/s per pixel is calculated and used
@@ -190,17 +201,23 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
-              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
-              the wavelength bins, that is this grid is simply offset from
-              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-              depending on whether linear or (log10 or velocity) was requested.
-              Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate, the linear wavelength sampling will be
-              calculated.
+
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not
+              masked.  This is a set of bin edges (rightmost edge for the last
+              bin and leftmost edges for the rest), while wave_grid_mid is a set
+              of bin centers, hence wave_grid has 1 more value than
+              wave_grid_mid.
+
+            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated
+              at the centers of the wavelength bins, that is this grid is simply
+              offset from ``wave_grid`` by ``dsamp/2.0``, in either linear space
+              or log10 depending on whether linear or (log10 or velocity) was
+              requested.  Last bin center is removed since it falls outside
+              wave_grid.  For iref or concatenate, the linear wavelength
+              sampling will be calculated.
+
             - ``dsamp``: The pixel sampling for wavelength grid created.
+
     """
 
     c_kms = constants.c.to('km/s').value
@@ -380,16 +397,16 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     Parameters
     ----------
-    theta (float `numpy.ndarray`_):
+    theta : float `numpy.ndarray`_
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1 (float `numpy.ndarray`_):  shape = (nspec,)
+    y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
-    y2 (float `numpy.ndarray`_):  shape = (nspec,)
+    y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
 
     Returns
     -------
-    corr_norm: float
+    corr_norm : float
         Negative of the zero lag cross-correlation coefficient (since we
         are miniziming with scipy.optimize). scipy.optimize will thus
         determine the shift,stretch that maximize the cross-correlation.
@@ -409,9 +426,9 @@ def zerolag_shift_stretch(theta, y1, y2):
 
 
 def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
-
-    """  Utility routine to create a synthetic arc spectrum for cross-correlation using the location of the peaks in
-    the input spectrum.
+    """
+    Utility routine to create a synthetic arc spectrum for cross-correlation
+    using the location of the peaks in the input spectrum.
 
     Args:
         inspec1 (`numpy.ndarray`_):
@@ -560,12 +577,18 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
                         fwhm = 4.0, debug=False, toler=1e-5, seed = None):
 
-    """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
-    guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
-    by optimizing the zero lag cross-correlation between the inspec1 and the transformed inspec2 (shifted and stretched via
-    wvutils.shift_and_stretch()) in a narrow window about the initial estimated shift. The convention for the shift is that
-    positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
-    that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
+    """
+    Determine the shift and stretch of inspec2 relative to inspec1.  This
+    routine computes an initial guess for the shift via maximimizing the
+    cross-correlation. It then performs a two parameter search for the shift and
+    stretch by optimizing the zero lag cross-correlation between the inspec1 and
+    the transformed inspec2 (shifted and stretched via
+    wvutils.shift_and_stretch()) in a narrow window about the initial estimated
+    shift. The convention for the shift is that positive shift means inspec2 is
+    shifted to the right (higher pixel values) relative to inspec1. The
+    convention for the stretch is that it is float near unity that increases the
+    size of the inspec2 relative to the original size (which is the size of
+    inspec1)
 
     Parameters
     ----------
@@ -613,10 +636,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
-    toler (float):
+    toler : float
         Tolerance for differential evolution optimizaiton.
     debug = False
-       Show plots to the screen useful for debugging.
+        Show plots to the screen useful for debugging.
 
     Returns
     -------
@@ -625,7 +648,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
           - success = 1, shift and stretch performed via sucessful
             optimization
+
           - success = 0, shift and stretch optimization failed
+
           - success = -1, initial x-correlation is below cc_thresh (see
             above), so shift/stretch optimization was not attempted
 
@@ -643,12 +668,12 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         which unity indicating a perfect match between the two spectra.
         If cc_thresh is set, and the initial cross-correlation is <
         cc_thresh, this will be just the initial cross-correlation
-    shift_init:
+    shift_init: float
         The initial shift determined by maximizing the cross-correlation
         coefficient without allowing for a stretch.  If cc_thresh is
         set, and the initial cross-correlation is < cc_thresh, this will
         be just the shift from the initial cross-correlation
-    cross_corr_init:
+    cross_corr_init: float
         The maximum of the initial cross-correlation coefficient
         determined without allowing for a stretch.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh, this will be

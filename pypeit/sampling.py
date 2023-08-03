@@ -23,7 +23,7 @@ def spectral_coordinate_step(wave, log=False, base=10.0):
     of the wavelength; otherwise, return the linear step in angstroms.
 
     Args: 
-        wave (numpy.ndarray): Wavelength coordinates of each spectral
+        wave (`numpy.ndarray`_): Wavelength coordinates of each spectral
             channel in angstroms.
         log (bool): (**Optional**) Input spectrum has been sampled
             geometrically.
@@ -51,7 +51,7 @@ def spectrum_velocity_scale(wave):
         log(angstrom).
 
     Args: 
-        wave (numpy.ndarray): Wavelength coordinates of each spectral
+        wave (`numpy.ndarray`_): Wavelength coordinates of each spectral
             channel in angstroms.  It is expected that the spectrum has
             been sampled geometrically
 
@@ -74,9 +74,9 @@ def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
     as determined by assuming the coordinate is at its center.
 
     Args:
-        wave (`numpy.ndarray`):
+        wave (`numpy.ndarray`_):
             (Geometric) centers of the spectrum pixels in angstroms.
-        log (`numpy.ndarray`, optional):
+        log (`numpy.ndarray`_, optional):
             The vector is geometrically sampled.
         base (:obj:`float`, optional):
             Base of the logarithm used in the geometric sampling.
@@ -84,7 +84,7 @@ def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
             The vector is regularly sampled.
 
     Returns:
-        numpy.ndarray: The angstroms per pixel.
+        `numpy.ndarray`_: The angstroms per pixel.
     """
     if regular:
         ang_per_pix = spectral_coordinate_step(wave, log=log, base=base)
@@ -103,7 +103,7 @@ def _pixel_centers(xlim, npix, log=False, base=10.0):
     sampled vector given first, last and number of pixels
 
     Args:
-        xlim (numpy.ndarray) : (Geometric) Centers of the first and last
+        xlim (`numpy.ndarray`_) : (Geometric) Centers of the first and last
             pixel in the vector.
         npix (int) : Number of pixels in the vector.
         log (bool) : (**Optional**) The input range is (to be)
@@ -113,7 +113,7 @@ def _pixel_centers(xlim, npix, log=False, base=10.0):
             natural logarithm.
 
     Returns:
-        numpy.ndarray, float: A vector with the npix centres of the
+        `numpy.ndarray`_, float: A vector with the npix centres of the
         pixels and the sampling rate.  If logarithmically binned, the
         sampling is the step in :math`\log x`.
     """
@@ -133,7 +133,7 @@ def _pixel_borders(xlim, npix, log=False, base=10.0):
     number of pixels
 
     Args:
-        xlim (numpy.ndarray) : (Geometric) Centers of the first and last
+        xlim (`numpy.ndarray`_) : (Geometric) Centers of the first and last
             pixel in the vector.
         npix (int) : Number of pixels in the vector.
         log (bool) : (**Optional**) The input range is (to be)
@@ -143,7 +143,7 @@ def _pixel_borders(xlim, npix, log=False, base=10.0):
             natural logarithm.
 
     Returns:
-        numpy.ndarray, float: A vector with the (npix+1) borders of the
+        `numpy.ndarray`_, float: A vector with the (npix+1) borders of the
         pixels and the sampling rate.  If logarithmically binned, the
         sampling is the step in :math`\log x`.
     """
@@ -163,7 +163,7 @@ def resample_vector_npix(outRange=None, dx=None, log=False, base=10.0, default=N
     Determine the number of pixels needed to resample a vector given first, last pixel and dx
 
     Args:
-        outRange (list or numpy.ndarray) : Two-element array with the
+        outRange (list, `numpy.ndarray`_) : Two-element array with the
             starting and ending x coordinate of the pixel centers to
             divide into pixels of a given width.  If *log* is True, this
             must still be the linear value of the x coordinate, not
@@ -176,7 +176,7 @@ def resample_vector_npix(outRange=None, dx=None, log=False, base=10.0, default=N
             returned if either *outRange* or *dx* are not provided.
 
     Returns:
-        int, numpy.ndarray: Returns two objects: The number of pixels to
+        :obj:`tuple`: Returns two objects: The number of pixels to
         cover *outRange* with pixels of width *dx* and the adjusted
         range such that number of pixels of size dx is the exact integer.
 
@@ -203,9 +203,8 @@ class Resample:
     Resample regularly or irregularly sampled data to a new grid using
     integration.
     
-    This is a generalization of the routine
-    :func:`ppxf.ppxf_util.log_rebin` provided by Michele Cappellari in
-    the pPXF package.
+    This is a generalization of the routine ``ppxf_util.log_rebin`` from from
+    the `ppxf`_ package by Michele Cappellari.
 
     The abscissa coordinates (`x`) or the pixel borders (`xBorders`) for
     the data (`y`) should be provided for irregularly sampled data.  If
@@ -263,24 +262,24 @@ class Resample:
         - Allow for a covariance matrix calculation.
 
     Args:
-        y (numpy.ndarray):
+        y (`numpy.ndarray`_):
             Data values to resample.  Can be a numpy.ma.MaskedArray, and
             the shape can be 1 or 2D.  If 1D, the shape must be
             :math:`(N_{\rm pix},)`; otherwise, it must be
             :math:`(N_y,N_{\rm pix})`.  I.e., the length of the last
             axis must match the input coordinates.
-        e (numpy.ndarray, optional):
+        e (`numpy.ndarray`_, optional):
             Errors in the data that should be resampled.  Can be a
             numpy.ma.MaskedArray, and the shape must match the input `y`
             array.  These data are used to perform a nominal calculation
             of the error in the resampled array.
-        mask (numpy.ndarray, optional):
+        mask (`numpy.ndarray`_, optional):
             A boolean array (masked values are True) indicating values
             in `y` that should be ignored during the resampling.  The
             mask used during the resampling is the union of this object
             and the masks of `y` and `e`, if they are provided as
             numpy.ma.MaskedArrays.
-        x (numpy.ndarray, optional):
+        x (`numpy.ndarray`_, optional):
             Abcissa coordinates for the data, which do not need to be
             regularly sampled.  If the pixel borders are not provided,
             they are assumed to be half-way between adjacent pixels, and
@@ -293,7 +292,7 @@ class Resample:
             A two-element array with the starting and ending value for
             the coordinates of the centers of the first and last pixels
             in y.  Default is :math:`[0,N_{\rm pix}-1]`.
-        xBorders (numpy.ndarray, optional):
+        xBorders (`numpy.ndarray`_, optional):
             An array with the borders of each pixel that must have a
             length of :math:`N_{\rm pix}+1`.
         inLog (:obj:`bool`, optional):
@@ -337,30 +336,30 @@ class Resample:
             interpolation between pixel samples.
     
     Attributes:
-        x (numpy.ndarray):
+        x (`numpy.ndarray`_):
             The coordinates of the function on input.
-        xborders (numpy.ndarray):
+        xborders (`numpy.ndarray`_):
             The borders of the input pixel samples.
-        y (numpy.ndarray):
+        y (`numpy.ndarray`_):
             The function to resample.
-        e (numpy.ndarray):
+        e (`numpy.ndarray`_):
             The 1-sigma errors in the function to resample.
-        m (numpy.ndarray):
+        m (`numpy.ndarray`_):
             The boolean mask for the input function.
-        outx (numpy.ndarray):
+        outx (`numpy.ndarray`_):
             The coordinates of the function on output.
-        outborders (numpy.ndarray):
+        outborders (`numpy.ndarray`_):
             The borders of the output pixel samples.
-        outy (numpy.ndarray):
+        outy (`numpy.ndarray`_):
             The resampled function.
-        oute (numpy.ndarray):
+        oute (`numpy.ndarray`_):
             The resampled 1-sigma errors.
-        outf (numpy.ndarray):
+        outf (`numpy.ndarray`_):
             The fraction of each output pixel that includes valid data
             from the input function.
 
     Raises:
-        ValueError: Raised if *y* is not of type numpy.ndarray, if *y*
+        ValueError: Raised if *y* is not of type `numpy.ndarray`_, if *y*
             is not one-dimensional, or if *xRange* is not provided and
             the input vector is logarithmically binned (see *inLog*
             above).

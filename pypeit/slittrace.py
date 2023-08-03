@@ -72,8 +72,10 @@ class SlitTraceSet(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_slittraceset.rst
 
     Attributes:
-        left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
-        right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
+        left_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected left
+        right_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected right
     """
     calib_type = 'Slits'
     """Name for type of calibration frame."""
@@ -420,12 +422,12 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         Parameters
         ----------
-        wcs : astropy.wcs
+        wcs : `astropy.wcs.WCS`_
             The World Coordinate system of a science frame
         alignSplines : :class:`pypeit.alignframe.AlignmentSplines`
             An instance of the AlignmentSplines class that allows one to build and
             transform between detector pixel coordinates and WCS pixel coordinates.
-        tilts : `numpy.ndarray`
+        tilts : `numpy.ndarray`_
             Spectral tilts.
         initial : bool
             Select the initial slit edges?
@@ -434,12 +436,16 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         Returns
         -------
-        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
-                of shape (nspec, nspat), where the first ndarray is the RA image, and the
-                second ndarray is the DEC image. RA and DEC are in units degrees. The third
-                element of the tuple stores the minimum and maximum difference (in pixels)
-                between the WCS reference (usually the centre of the slit) and the edges of
-                the slits. The third array has a shape of (nslits, 2).
+        raimg : `numpy.ndarray`_
+            Image with the RA coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        decimg : `numpy.ndarray`_
+            Image with the DEC coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        minmax : `numpy.ndarray`_
+            The minimum and maximum difference (in pixels) between the WCS
+            reference (usually the centre of the slit) and the edges of the
+            slits. Shape is (nslits, 2).
         """
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
@@ -1300,16 +1306,18 @@ class SlitTraceSet(calibframe.CalibFrame):
         will be computed using the average fwhm of the detected objects.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced.
             platescale (:obj:`float`):
                 Platescale.
             fwhm_parset (:obj:`float`, optional):
-                Parset that guides the determination of the fwhm of the maskdef_extract objects.
-                If None (default) the fwhm are computed as the averaged from the detected objects,
+                :class:`~pypeit.par.parset.Parset` that guides the determination
+                of the fwhm of the maskdef_extract objects.  If None (default)
+                the fwhm are computed as the averaged from the detected objects,
                 if it is a number it will be adopted as the fwhm.
             find_fwhm (:obj:`float`):
-            Initial guess of the objects fwhm in pixels (used in object finding)
+                Initial guess of the objects fwhm in pixels (used in object
+                finding)
 
         Returns:
             :obj:`float`: FWHM in pixels to be used in the optimal extraction
@@ -1381,10 +1389,10 @@ class SlitTraceSet(calibframe.CalibFrame):
 
     def mask_flats(self, flatImages):
         """
-        Mask from a :class:`pypeit.flatfield.Flats` object
+        Mask based on a :class:`~pypeit.flatfield.FlatImages` object.
 
         Args:
-            flatImages (:class:`pypeit.flatfield.FlatImages`):
+            flatImages (:class:`~pypeit.flatfield.FlatImages`):
 
         """
         # Loop on all the FLATFIELD BPM keys

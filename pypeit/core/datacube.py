@@ -182,7 +182,9 @@ class DataCube(datamodel.DataContainer):
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
-    """ Generates a fitting function to calculate the offset due to differential atmospheric refraction
+    """
+    Generates a fitting function to calculate the offset due to differential
+    atmospheric refraction
 
     Args:
         radec (tuple):
@@ -205,8 +207,7 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
             Outside relative humidity at `location`. This should be between 0 to 1.
 
     Returns:
-        chisq (float):
-            chi-squared difference between datfit and model
+        float: chi-squared difference between datfit and model
     """
     (diff_ra, diff_dec) = radec
     # Generate the coordinate with atmospheric conditions
@@ -784,7 +785,7 @@ def load_imageWCS(filename, ext=0):
 
     Returns:
         image (`numpy.ndarray`_): 2D image data
-        imgwcs (`astropy.wcs.wcs.WCS`_): The WCS of the image
+        imgwcs (`astropy.wcs.WCS`_): The WCS of the image
     """
     imghdu = fits.open(filename)
     image = imghdu[ext].data.T
@@ -818,7 +819,7 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
         all_ivar (`numpy.ndarray`_, optional):
             1D flattened array containing of the inverse variance of each pixel from all spec2d files.
             If provided, inverse variance images will be calculated and returned for each white light image.
-        whitelightWCS (`astropy.wcs.wcs.WCS`_, optional):
+        whitelightWCS (`astropy.wcs.WCS`_, optional):
             The WCS of a reference white light image. If supplied, you must also
             supply numra and numdec.
         numra (int, optional):
@@ -922,7 +923,7 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
 
     Returns
     -------
-    cubewcs : `astropy.wcs.wcs.WCS`_
+    cubewcs : `astropy.wcs.WCS`_
         astropy WCS to be used for the combined cube
     voxedges : tuple
         A three element tuple containing the bin edges in the x, y (spatial) and
@@ -1001,7 +1002,7 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
             Equinox of the WCS
 
     Returns:
-        `astropy.wcs.wcs.WCS`_ : astropy WCS to be used for the combined cube
+        `astropy.wcs.WCS`_ : astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
     msgs.info("Generating WCS")
@@ -1123,7 +1124,7 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
     Generate a white light image from the input pixels
 
     Args:
-        image_wcs (`astropy.wcs.wcs.WCS`_):
+        image_wcs (`astropy.wcs.WCS`_):
             World coordinate system to use for the white light images.
         all_ra (`numpy.ndarray`_):
             1D flattened array containing the right ascension of each pixel (units = degrees)
@@ -1217,7 +1218,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
     Args:
         outfile (str):
             Filename to be used to save the datacube
-        output_wcs (`astropy.wcs.wcs.WCS`_):
+        output_wcs (`astropy.wcs.WCS`_):
             Output world coordinate system.
         all_ra (`numpy.ndarray`_):
             1D flattened array containing the right ascension of each pixel (units = degrees)
@@ -1348,7 +1349,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
     and better looking cubes, versus no sampling and better behaved errors.
 
     Args:
-        output_wcs (`astropy.wcs.wcs.WCS`_):
+        output_wcs (`astropy.wcs.WCS`_):
             Output world coordinate system.
         all_ra (`numpy.ndarray`_)
             1D flattened array containing the right ascension of each pixel (units = degrees)
@@ -1517,7 +1518,7 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
             Index of filename to be saved. Required if combine=False.
 
     Returns:
-        outfile (str): The output filename to use.
+        str: The output filename to use.
     """
     if combine:
         if par_outfile == "":
@@ -1535,14 +1536,16 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
 
 
 def get_output_whitelight_filename(outfile):
-    """ Given the output filename of a datacube, create an appropriate whitelight fits file name
+    """
+    Given the output filename of a datacube, create an appropriate whitelight
+    fits file name
 
     Args:
         outfile (str):
             The output filename used for the datacube.
 
     Returns:
-        out_wl_filename (str): The output filename to use for the whitelight image.
+        str: The output filename to use for the whitelight image.
     """
     out_wl_filename = os.path.splitext(outfile)[0] + "_whitelight.fits"
     return out_wl_filename

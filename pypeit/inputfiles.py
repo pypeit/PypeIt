@@ -83,8 +83,7 @@ class InputFile:
             ifile (str): Name of the file to parse.
 
         Returns:
-            :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-            files.
+            `numpy.ndarray`_: Returns a list of the valid lines in the files.
         """
         # Check the files
         if not os.path.isfile(ifile):
@@ -258,10 +257,9 @@ class InputFile:
                 List of lines *within the data* block read from the input file.
         
         Returns:
-            tuple: list, Table.  A list of the paths provided (can be empty)
-            and a Table with the data provided in the input file.  
+            tuple: A :obj:`list` with the paths provided (can be empty) and an
+            `astropy.table.Table`_ with the data provided in the input file.  
         """
-
         # Allow for multiple paths
         paths = []
         for l in lines:
@@ -361,7 +359,7 @@ class InputFile:
 
     def path_and_files(self, key:str, skip_blank=False, check_exists=True):
         """Generate a list of the filenames with 
-        the full path from the column of the data Table
+        the full path from the column of the data `astropy.table.Table`_
         specified by `key`.  The files must exist and be 
         within one of the paths for this to succeed.
 
@@ -487,8 +485,8 @@ class InputFile:
             parameter.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItError`: Raised if the relevant
-            configuration parameter is not available.
+            :class:`~pypeit.pypmsgs.PypeItError`:
+                Raised if the relevant configuration parameter is not available.
         """
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
             msgs.error('Cannot define spectrograph.  Configuration file missing \n'

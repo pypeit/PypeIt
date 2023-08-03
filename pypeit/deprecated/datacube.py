@@ -20,7 +20,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        frame_wcs (`astropy.wcs.wcs.WCS`_):
+        frame_wcs (`astropy.wcs.WCS`_):
             World coordinate system for this frame.
         slits (:class:`pypeit.slittrace.SlitTraceSet`_)
             Information stored about the slits
@@ -47,7 +47,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
             when evaluating the voxel geometry in detector coordinates
         overwrite (bool, optional):
             If the output file exists, it will be overwritten if this parameter is True.
-        output_wcs (`astropy.wcs.wcs.WCS`_, optional):
+        output_wcs (`astropy.wcs.WCS`_, optional):
             World coordinate system for the output datacube. If None, frame_wcs will be used.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function

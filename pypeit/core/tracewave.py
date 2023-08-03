@@ -526,60 +526,72 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
                 max_badpix_frac=0.30, tcrude_nave=5, npca=2, coeff_npoly_pca=2, sigrej_pca=2.0,
                 debug_pca=False, show_tracefits=False):
     """
-    Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
+    Use a PCA model to determine the best object (or slit edge) traces for
+    echelle spectrographs.
 
     Parameters
     ----------
-    arcimg:  ndarray, float (nspec, nspat)
+    arcimg : `numpy.ndarray`_, float (nspec, nspat)
         Image of arc or sky that will be used for tracing tilts.
-    lines_spec: ndarray, float (nlines,)
-        Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
-        in pixels in image coordinates.
-    lines_spat: ndarray, float (nlines,)
-        Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
-        pixels in image coordinates.
-    thismask: ndarray, boolean (nspec, nsapt)
-        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
-        The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
-    inmask: float ndarray, default = None, optional
+    lines_spec : `numpy.ndarray`_, float (nlines,)
+        Array containing arc line centroids along the center of the slit for
+        each arc line that will be traced. This is in pixels in image
+        coordinates.
+    lines_spat : `numpy.ndarray`_, float (nlines,)
+        Array contianing the spatial position of the center of the slit along
+        which the arc was extracted. This is is in pixels in image coordinates.
+    thismask : `numpy.ndarray`_, boolean (nspec, nsapt)
+        Boolean mask image specifying the pixels which lie on the slit/order to
+        search for objects on.  The convention is: True = on the slit/order,
+        False  = off the slit/order. This must be the same size as the arcimg.
+    inmask : float ndarray, default = None, optional
         Input mask image.
-    gauss: bool, default = False, optional
-        If true the code will trace the arc lines usign Gaussian weighted centroiding (trace_gweight) instead of the default,
-        which is flux weighted centroiding (trace_fweight)
-    fwhm: float, optional
-       Expected FWHM of the arc lines.
-    spat_order: int, default = None, optional
-       Order of the legendre polynomial that will be fit to the tilts.
+    gauss : bool, default = False, optional
+        If true the code will trace the arc lines usign Gaussian weighted
+        centroiding (trace_gweight) instead of the default, which is flux
+        weighted centroiding (trace_fweight)
+    fwhm : float, optional
+        Expected FWHM of the arc lines.
+    spat_order : int, default = None, optional
+        Order of the legendre polynomial that will be fit to the tilts.
     maxdev_tracefit: float, default = 1.0, optional
-       Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
-    sigrej_trace: float, default =  3.0, optional
-       From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
-       analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
-       from that distribution.
+        Maximum absolute deviation for the arc tilt fits during iterative trace
+        fitting expressed in units of the fwhm.
+    sigrej_trace : float, default =  3.0, optional
+        From each line we compute a median absolute deviation of the trace from
+        the polynomial fit. We then analyze the distribution of maximxum
+        absolute deviations (MADs) for all the lines, and reject sigrej_trace
+        outliers from that distribution.
     max_badpix_frac: float, default = 0.30, optional
-       Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
-       (because the residuals are too large) to still be usable for tilt fitting.
-    tcrude_nave: int, default = 5, optional
-       Trace crude is used to determine the initial arc line tilts, which are then iteratively fit. Trace crude
-       can optionally boxcar smooth the image (along the spatial direction of the image, i.e. roughly along the arc line tilts)
-       to improve the tracing.
+        Maximum fraction of total pixels that can be masked by the trace_gweight
+        algorithm (because the residuals are too large) to still be usable for
+        tilt fitting.
+    tcrude_nave : int, default = 5, optional
+        Trace crude is used to determine the initial arc line tilts, which are
+        then iteratively fit. Trace crude can optionally boxcar smooth the image
+        (along the spatial direction of the image, i.e. roughly along the arc
+        line tilts) to improve the tracing.
     npca: int, default = 1, optional
-       Tilts are initially traced and then a PCA is performed. The PCA is used to determine better crutches for a second
-       round of improved tilt tracing. This parameter is the order of that PCA and determined how much the tilts behavior
-       is being compressed. npca = 0 would be just using the mean tilt. This PCA is only an intermediate step to
-       improve the crutches and is an attempt to make the tilt tracing that goes into the final fit more robust.
+        Tilts are initially traced and then a PCA is performed. The PCA is used
+        to determine better crutches for a second round of improved tilt
+        tracing. This parameter is the order of that PCA and determined how much
+        the tilts behavior is being compressed. npca = 0 would be just using the
+        mean tilt. This PCA is only an intermediate step to improve the crutches
+        and is an attempt to make the tilt tracing that goes into the final fit
+        more robust.
     coeff_npoly_pca: int, default = 1, optional
-       Order of polynomial fits used for PCA coefficients fitting for the PCA described above.
+        Order of polynomial fits used for PCA coefficients fitting for the PCA
+        described above.
     sigrej_pca: float, default = 2.0, optional
-       Significance threhsold for rejection of outliers from fits to PCA coefficients for the PCA described above.
+        Significance threhsold for rejection of outliers from fits to PCA
+        coefficients for the PCA described above.
     show_tracefits: bool, default = False, optional
-       If true the fits will be shown to each arc line trace by iter_fitting.py
+        If true the fits will be shown to each arc line trace by iter_fitting.py
 
     Returns
     -------
     trace_tilts_dict : dict
-        See trace_tilts_work for a complete description
-
+        See :func:`trace_tilts_work` for a complete description
     """
     #show_tracefits = True
     #debug_pca = True
@@ -646,7 +658,8 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     ----------
     trc_tilt_dict: dict
         Diciontary containing tilt info
-    slitord_id (int):  Slit ID, spatial; only used for QA
+    slitord_id : int
+        Slit ID, spatial; only used for QA
     all_tilts:
     order:
     yorder:
@@ -844,11 +857,11 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
 
     Parameters
     ----------
-    shape: tuple of ints,
+    shape : tuple of ints,
         shape of image
-    coeff2: ndarray, float
+    coeff2 : `numpy.ndarray`_, float
         result of griddata tilt fit
-    func2d: str
+    func2d : str
         the 2d function used to fit the tilts
     spat_shift : float, optional
         Spatial shift to be added to image pixels before evaluation
@@ -857,7 +870,7 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
 
     Returns
     -------
-    tilts: ndarray, float
+    tilts : `numpy.ndarray`_, float
         Image indicating how spectral pixel locations move across the
         image. This output is used in the pipeline.
 
