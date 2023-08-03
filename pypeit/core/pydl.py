@@ -325,7 +325,7 @@ class TraceSet(object):
         When initialized with x,y positions, this contains the fitted y
         values.
     pypeitFits : list
-        Holds a list of :class:`pypeit.fitting.PypeItFit` fits
+        Holds a list of :class:`~pypeit.core.fitting.PypeItFit` fits
     """
     # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):

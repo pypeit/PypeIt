@@ -52,9 +52,31 @@ def zero_not_finite(array):
     return new_array
 
 
-# TODO: Add a description at the top describing what the function does.
 def arr_setup_to_setup_list(arr_setup):
     """
+    This utility routine converts an arr_setup list to a setup_list. The
+    arr_setup list and setup_lists are defined as follows, for e.g. echelle
+    wavelengths waves. See :func:`~pypeit.core.coadd.coadd1d.ech_combspec` for
+    further details.
+
+        - ``arr_setup`` is a list of length nsetups, one for each setup. Each
+          element is a numpy array with ``shape = (nspec, norder, nexp)``, which
+          is the data model for echelle spectra for an individual setup. The
+          utiltities :func:`~pypeit.utils.arr_setup_to_setup_list` and
+          :func:`~pypeit.utils.setup_list_to_arr` convert between ``arr_setup``
+          and ``setup_list``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
 
     Parameters
     ----------
@@ -75,10 +97,29 @@ def arr_setup_to_setup_list(arr_setup):
     return [echarr_to_echlist(arr)[0] for arr in arr_setup]
 
 
-# TODO: What does it mean to convert a setup_list to an arr_setup list?
 def setup_list_to_arr_setup(setup_list, norders, nexps):
     """
-    Convert a setup_list to arr_setup list
+    This utility routine converts an setup_list list to an arr_setup list. The arr_setup list and setup_lists are defined
+    as follows, for e.g. echelle wavelengths waves. See core.coadd.coadd1d.ech_combspec for further details.
+
+        - ``arr_setup`` is a list of length nsetups, one for each setup. Each
+          element is a numpy array with ``shape = (nspec, norder, nexp)``, which
+          is the data model for echelle spectra for an individual setup. The
+          utiltities :func:`~pypeit.utils.arr_setup_to_setup_list` and
+          :func:`~pypeit.utils.setup_list_to_arr` convert between ``arr_setup``
+          and ``setup_list``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
 
     Parameters
     ----------
@@ -108,9 +149,32 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
     return arr_setup
 
 
-# TODO: Add a description at the top describing what the function does.
+
 def concat_to_setup_list(concat, norders, nexps):
     r"""
+    This routine converts from a ``concat`` list to a ``setup_list`` list. The
+    ``concat`` list and ``setup_lists`` are defined as follows. See
+    :func:`~pypeit.core.coadd.coadd1d.ech_combspec` for further details.
+
+        - ``concat`` is a list of length :math:`\Sum_i N_{{\rm order},i} N_{{\rm
+          exp},i}` where :math:`i` runs over the setups. The elements of the
+          list contains a numpy array of, e.g., wavelengths for the setup,
+          order, exposure in question. The utility routines
+          :func:`~pypeit.utils.setup_list_to_concat` and
+          :func:`~pypeit.utils.concat_to_setup_list` convert between
+          ``setup_lists`` and ``concat``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
 
     Parameters
     ----------
@@ -187,22 +251,24 @@ def echarr_to_echlist(echarr):
     return echlist, shape
 
 
-# TODO: Describe the objects
 def echlist_to_echarr(echlist, shape):
     """
-    Convert a list of 1d arrays to a 3d echelle array.
+    Convert a list of 1d arrays to a 3d echelle array in the format in which echelle outputs are stored, i.e.
+    with shape (nspec, norder, nexp).
 
     Parameters
     ----------
     echlist : :obj:`list`
-        Add description
+        A unraveled list of 1d arrays of shape (nspec,) where the norder
+        dimension is the fastest varying dimension and the nexp dimension is the
+        slowest varying dimension.
     shape : :obj:`tuple`
-        Add description
+        The shape of the echelle array to be returned, i.e. a tuple containing (nspec, norder, nexp)
 
     Returns
     -------
     echarr : `numpy.ndarray`_
-        Add description
+        An echelle spectral format array of shape (nspec, norder, nexp).
     """
     nspec, norder, nexp = shape
     echarr = np.zeros(shape, dtype=echlist[0].dtype)
@@ -531,15 +597,15 @@ def nan_mad_std(data, axis=None, func=None):
     Args:
         data (array-like):
             Data array or object that can be converted to an array.
-        axis (int, sequence of int, None, optional):
+        axis (int, tuple, optional):
             Axis along which the robust standard deviations are
             computed.  The default (`None`) is to compute the robust
             standard deviation of the flattened array.
 
     Returns:
-        float, `numpy.ndarray`: The robust standard deviation of the
+        float, `numpy.ndarray`_: The robust standard deviation of the
         input data.  If ``axis`` is `None` then a scalar will be
-        returned, otherwise a `~numpy.ndarray` will be returned.
+        returned, otherwise a `numpy.ndarray`_ will be returned.
     """
     return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
 
@@ -930,17 +996,19 @@ def fast_running_median(seq, window_size):
     scipy.ndimage.median_filter with the reflect boundary
     condition, but is ~ 100 times faster.
 
-    Args:
-        seq (list or 1-d numpy array of numbers):
-        window_size (int): size of running window.
-
-    Returns:
-        `numpy.ndarray`_: median filtered values
-
     Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.median_filter by Joe Hennawi.
 
     Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
+
+    Args:
+        seq (list, `numpy.ndarray`_):
+            1D array of values
+        window_size (int):
+            size of running window.
+
+    Returns:
+        `numpy.ndarray`_: median filtered values
     """
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
@@ -1112,14 +1180,6 @@ def robust_meanstd(array):
 def polyfitter2d(data, mask=None, order=2):
     """
     2D fitter
-
-    Args:
-        data:
-        mask:
-        order:
-
-    Returns:
-
     """
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
     if isinstance(mask, (float, int)):
@@ -1154,15 +1214,6 @@ def polyfitter2d(data, mask=None, order=2):
 def polyfit2d(x, y, z, order=3):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        z:
-        order:
-
-    Returns:
-
     """
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
@@ -1176,14 +1227,6 @@ def polyfit2d(x, y, z, order=3):
 def polyval2d(x, y, m):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        m:
-
-    Returns:
-
     """
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
@@ -1199,6 +1242,7 @@ def subsample(frame):
 
     Args:
         frame (`numpy.ndarray`_):
+            Array of data to subsample.
 
     Returns:
         `numpy.ndarray`_: Sliced image
@@ -1262,10 +1306,10 @@ def yamlify(obj, debug=False):
 
     Returns
     -------
-    obj: :class:`object`
+    obj : :class:`object`
         An object suitable for yaml serialization.  For example
         `numpy.ndarray`_ is converted to :class:`list`,
-        :class:`numpy.int64` is converted to :class:`int`, etc.
+        ``numpy.int64`` is converted to :class:`int`, etc.
     """
     # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
@@ -1445,7 +1489,7 @@ def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
 
     Returns
     -------
-    H : 2d-array
+    H : `numpy.ndarray`_
         An n-by-samples design matrix that has been normalized so factor values
         are uniformly spaced between zero and one.
 
@@ -1612,12 +1656,12 @@ def _pdist(x):
 
     Parameters
     ----------
-    x : 2d-array
+    x : `numpy.ndarray`_
         An m-by-n array of scalars, where there are m points in n dimensions.
 
     Returns
     -------
-    d : array
+    d : `numpy.ndarray`_
         A 1-by-b array of scalars, where b = m*(m - 1)/2. This array contains
         all the pair-wise point distances, arranged in the order (1, 0),
         (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).

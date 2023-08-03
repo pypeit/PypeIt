@@ -1,5 +1,8 @@
 """
 This script allows the user to manually select the sky background regions
+
+.. include:: ../include/links.rst
+
 """
 
 import os
@@ -154,7 +157,7 @@ class SkySubGUI:
         ----------
         det : int
             Detector index
-        frame : ndarray
+        frame : `numpy.ndarray`_
             Sky subtracted science image
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Object with the image coordinates of the slit edges
@@ -284,7 +287,7 @@ class SkySubGUI:
         would select the first 10%, the inner 30%, and the final 20% of all slits
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self.update_infobox(message='Enter regions in the terminal (see terminal for help)', yesno=False)
@@ -315,7 +318,7 @@ class SkySubGUI:
         """What to do when the 'exit and save' button is clicked
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_update"]
@@ -326,7 +329,7 @@ class SkySubGUI:
         """What to do when the 'exit and do not save changes' button is clicked
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_restore"]
@@ -373,7 +376,7 @@ class SkySubGUI:
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 A matplotlib event instance
         """
         # Get the background
@@ -384,7 +387,7 @@ class SkySubGUI:
         """Get the index of the slit closest to the cursor
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         # Find the current slit
@@ -401,7 +404,7 @@ class SkySubGUI:
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
 
         Returns:
@@ -427,7 +430,7 @@ class SkySubGUI:
         """What to do when the mouse button is pressed
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
@@ -449,7 +452,7 @@ class SkySubGUI:
         """What to do when the mouse button is released
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
@@ -494,7 +497,7 @@ class SkySubGUI:
         """What to do when a key is pressed
 
         Args:
-            event : Event
+            event : `matplotlib.backend_bases.Event`_
                 Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...

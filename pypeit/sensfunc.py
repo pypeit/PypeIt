@@ -59,9 +59,10 @@ class SensFunc(datamodel.DataContainer):
             File name for the sensitivity function data.
         par (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
             The parameters required for the sensitivity function computation.
-        par_fluxcalib (:class:`~pypeit.par.pypeitpar.FluxCalibPar`, optional):
-            The parameters required for flux calibration. These are only used for
-            flux calibration of the standard star spectrum for the QA plot. If None, defaults will be used.
+        par_fluxcalib (:class:`~pypeit.par.pypeitpar.FluxCalibratePar`, optional):
+            The parameters required for flux calibration. These are only used
+            for flux calibration of the standard star spectrum for the QA plot.
+            If None, defaults will be used.
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
@@ -145,7 +146,10 @@ class SensFunc(datamodel.DataContainer):
             nspec (:obj:`int`):
                 The number of spectral pixels for the zeropoint arrays.
             nspec_in (:obj:`int`):
-                The number of spectral pixels on the detector for the input standard star spectrum.
+                The number of spectral pixels on the detector for the input
+                standard star spectrum.
+            ncoeff (:obj:`int`, optional):
+                Number of coefficients for smooth model fit to zeropoints
 
         Returns:
             `astropy.table.Table`_: Instance of the empty sensitivity
@@ -285,11 +289,9 @@ class SensFunc(datamodel.DataContainer):
             debug (:obj:`bool`, optional):
                 Show plots useful for debugging. Default=False
 
-
         Returns:
-            log10_blaze_function (`numpy.ndarray`_):
-                The log10 blaze function. Shape = (nspec, norddet) if norddet > 1, else shape = (nspec,)
-
+            `numpy.ndarray`_: The log10 blaze function. Shape = (nspec, norddet)
+            if norddet > 1, else shape = (nspec,)
         """
 
 
@@ -797,13 +799,14 @@ class SensFunc(datamodel.DataContainer):
         Args:
             sensfile (str):
                 the name of your fits format sensfile
-            waves (ndarray): (nspec, norders, nexp) or (nspec, norders)
-                wavelength grid for your output weights
+            waves (`numpy.ndarray`_):
+                wavelength grid for your output weights.  Shape is (nspec,
+                norders, nexp) or (nspec, norders).
             debug (bool): default=False
                 show the weights QA
 
         Returns:
-            ndarray: sensfunc weights evaluated on the input waves
+            `numpy.ndarray`_: sensfunc weights evaluated on the input waves
             wavelength grid
         """
         sens = cls.from_file(sensfile)

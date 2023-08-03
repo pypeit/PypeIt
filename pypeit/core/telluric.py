@@ -558,7 +558,7 @@ def unpack_orders(sobjs, ret_flam=False):
     arrays necessary for telluric fitting.
 
     Args:
-        sobjs (obj):
+        sobjs (:class:`~pypeit.specobjs.SpecObjs`):
             SpecObjs object
         ret_flam (bool):
             If true return the FLAM, otherwise return COUNTS
@@ -1217,13 +1217,15 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     std_dict : :obj:`dict`
         Dictionary containing the information for the true flux of the standard
         star.
-    log10_blaze_function (`numpy.ndarray`_ , optional):
-        The log10 blaze function determined from a flat field image.  If this is passed in the sensitivity function
-        model will be a (parametric) polynomial fit multiplied into the (non-parametric) log10_blaze_function.
-        Shape must match ``wave``, i.e. (nspec,) or (nspec, norddet).
+    log10_blaze_function : `numpy.ndarray`_ , optional
+        The log10 blaze function determined from a flat field image.  If this is
+        passed in the sensitivity function model will be a (parametric)
+        polynomial fit multiplied into the (non-parametric)
+        log10_blaze_function.  Shape must match ``wave``, i.e. (nspec,) or
+        (nspec, norddet).
     telgridfile : :obj:`str`
-        File containing grid of HITRAN atmosphere models. This file is given by
-        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.
+        File containing grid of HITRAN atmosphere models; see
+        :class:`~pypeit.par.pypeitpar.TelluricPar`.
     ech_orders : `numpy.ndarray`_, shape is (norders,), optional
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
@@ -1836,8 +1838,8 @@ class Telluric(datamodel.DataContainer):
             Good pixel gpm for the object in question. Same shape as
             ``wave``.
         telgridfile (:obj:`str`):
-            File containing grid of HITRAN atmosphere models. This file is
-            given by :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.
+            File containing grid of HITRAN atmosphere models; see
+            :class:`~pypeit.par.pypeitpar.TelluricPar`.
         obj_params (:obj:`dict`):
             Dictionary of parameters for initializing the object model.
         init_obj_model (callable):
@@ -1916,7 +1918,7 @@ class Telluric(datamodel.DataContainer):
             option, you will see that the f(x) loss function gets
             progressively better during the iterations.
         sticky (:obj:`bool`, optional):
-            Sticky parameter for the :func:`~pypeit.utils.djs_reject`
+            Sticky parameter for the :func:`~pypeit.core.pydl.djs_reject`
             algorithm for iterative model fit rejection. If True then points
             rejected from a previous iteration are kept rejected, in other
             words the bad pixel mask is the OR of all previous iterations and
@@ -1941,7 +1943,7 @@ class Telluric(datamodel.DataContainer):
             into the formal errors. In this way, a rejection threshold of
             i.e. 3-sigma, will always correspond to roughly the same
             percentile. This renormalization is performed with
-            :func:`~pypeit.coadd1d.renormalize_errors`, and guarantees that
+            :func:`~pypeit.core.coadd.renormalize_errors`, and guarantees that
             rejection is not too agressive in cases where the empirical
             errors determined from the chi-distribution differ significantly
             from the formal noise, which is used to determine ``chi``.

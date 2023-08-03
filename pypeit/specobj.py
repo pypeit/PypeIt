@@ -481,9 +481,9 @@ class SpecObj(datamodel.DataContainer):
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            wave_zp (float array):
+            wave_zp (`numpy.ndarray`_):
                 Zeropoint wavelength array
-            zeropoint (float array):
+            zeropoint (`numpy.ndarray`_):
                 zeropoint array
             exptime (float):
                 Exposure time

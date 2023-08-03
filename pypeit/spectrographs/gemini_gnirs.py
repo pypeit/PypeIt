@@ -690,7 +690,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
                 Change in wavelength per spectral pixel.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length

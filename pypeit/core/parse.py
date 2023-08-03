@@ -123,7 +123,7 @@ def parse_binning(binning:str):
     parsed directly from the Header.  The developer needs to react accordingly..
 
     Args:
-        binning (str, ndarray or tuple):
+        binning (str, `numpy.ndarray`_, tuple):
 
     Returns:
         tuple: binspectral, binspatial as integers

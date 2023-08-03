@@ -5,6 +5,8 @@ This script allows the user to add/delete/modify object traces
 
     Implement color scaling with RMB click+drag
 
+.. include:: ../include/links.rst
+
 """
 
 import os
@@ -89,16 +91,25 @@ class ObjectTraces:
             self.add_object(det, pos_spat, pos_spec, obj_dict['traces'][ii], spec_trace, obj_dict['fwhm'][ii], addrm=0)
 
     def add_object(self, det, pos_spat, pos_spec, trc_spat, trc_spec, fwhm, addrm=1):
-        """Add an object trace
+        """x
+        Add an object trace
 
         Args:
-            det (int): Detector to add a slit on
-            pos_spat (float): Spatial pixel position
-            pos_spec (float): Spectral pixel position
-            trc_spat (ndarray): Spatial trace of object
-            trc_spec (ndarray): Spectral trace of object
-            fwhm (float): FWHM of the object
-            addrm (int): Flag to say if an object was been added (1), removed (-1), or was an auto found slit (0)
+            det (int):
+                Detector to add a slit on
+            pos_spat (float):
+                patial pixel position
+            pos_spec (float):
+                Spectral pixel position
+            trc_spat (`numpy.ndarray`_):
+                Spatial trace of object
+            trc_spec (`numpy.ndarray`_):
+                Spectral trace of object
+            fwhm (float):
+                FWHM of the object
+            addrm (int):
+                Flag to say if an object was been added (1), removed (-1), or
+                was an auto found slit (0)
         """
         self._det.append(det)
         self._add_rm.append(addrm)
@@ -402,7 +413,7 @@ class ObjFindGUI:
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -412,7 +423,7 @@ class ObjFindGUI:
         """Get the index of the object trace closest to the cursor
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         mindist = self._spatpos.shape[0]**2
         self._obj_idx = -1
@@ -430,7 +441,7 @@ class ObjFindGUI:
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
 
         Returns:
             int, None: Axis where the event has occurred
@@ -456,7 +467,7 @@ class ObjFindGUI:
         """What to do when the mouse button is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -475,7 +486,7 @@ class ObjFindGUI:
         """What to do when the mouse button is released
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -527,7 +538,7 @@ class ObjFindGUI:
         """What to do when a key is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_): Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -859,11 +870,11 @@ def initialise(det, frame, left, right, obj_trace, trace_models, sobjs, slit_ids
     Args:
         det (int):
             1-indexed detector number
-        frame (numpy.ndarray):
+        frame (`numpy.ndarray`_):
             Sky subtracted science image
-        left (numpy.ndarray):
+        left (`numpy.ndarray`_):
             Slit left edges
-        right (numpy.ndarray):
+        right (`numpy.ndarray`_):
             Slit right edges
         obj_trace (dict):
             Result of

@@ -40,9 +40,9 @@ parameter sets:
             for pk in parkeys:
                 kwargs[pk] = cfg[pk] if pk in k else None
 
-        - If the parameter is another ParSet or requires instantiation,
-          provide the instantiation.  For example, see how the
-          :class:`ProcessImagesPar` parameter set is defined in the
+        - If the parameter is another :class:`~pypeit.par.parset.ParSet` or
+          requires instantiation, provide the instantiation.  For example, see
+          how the :class:`ProcessImagesPar` parameter set is defined in the
           :class:`FrameGroupPar` class.  E.g.::
 
             pk = 'foo'
@@ -201,8 +201,8 @@ class ProcessImagesPar(ParSet):
     The parameters needed to perform basic image processing.
 
     These parameters are primarily used by
-    :class:`pypeit.processimages.ProcessImages`, the base class of many
-    of the pypeit objects.
+    :func:`~pypeit.images.buildimage.buildimage_fromlist`, the main function
+    used to process and combine images.
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
@@ -1304,7 +1304,7 @@ class Coadd2DPar(ParSet):
         # wave method
         defaults['wave_method'] = None
         dtypes['wave_method'] = str
-        descr['wave_method'] = "Argument to `pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how " \
+        descr['wave_method'] = "Argument to :func:`~pypeit.core.wavecal.wvutils.get_wave_grid` method, which determines how " \
                                "the 2d coadd wavelength grid is constructed. The default is None, which will use a linear grid" \
                                "for longslit/multislit coadds and a log10 grid for echelle coadds. " \
                                "Currently supported options with 2d coadding are:" \
@@ -2151,7 +2151,7 @@ class TelluricPar(ParSet):
         dtypes['minmax_coeff_bounds'] = tuple
         descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization. " \
                                        "Bounds are currently determined as follows. We compute an initial fit to the " \
-                                       "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
+                                       "sensfunc in the :func:`~pypeit.core.telluric.init_sensfunc_model` function. That deterines " \
                                        "a set of coefficients. The bounds are then determined according to: " \
                                        "[(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], " \
                                        "obj_params['minmax_coeff_bounds'][0]), " \
@@ -2964,7 +2964,7 @@ class EdgeTracePar(ParSet):
         defaults['fit_niter'] = 1
         dtypes['fit_niter'] = int
         descr['fit_niter'] = 'Number of iterations of re-measuring and re-fitting the edge ' \
-                             'data; see :func:`pypeit.core.trace.fit_trace`.'
+                             'data; see :func:`~pypeit.core.trace.fit_trace`.'
 
         # TODO: Allow this to be a list so that it can be detector specific?
         defaults['fit_min_spec_length'] = 0.6
@@ -3063,27 +3063,27 @@ class EdgeTracePar(ParSet):
         defaults['fwhm_uniform'] = 3.0
         dtypes['fwhm_uniform'] = [int, float]
         descr['fwhm_uniform'] = 'The `fwhm` parameter to use when using uniform weighting in ' \
-                                ':func:`pypeit.core.trace.fit_trace` when refining the PCA ' \
+                                ':func:`~pypeit.core.trace.fit_trace` when refining the PCA ' \
                                 'predictions of edges.  See description of ' \
-                                ':func:`pypeit.core.trace.peak_trace`.'
+                                ':func:`~pypeit.core.trace.peak_trace`.'
 
         defaults['niter_uniform'] = 9
         dtypes['niter_uniform'] = int
         descr['niter_uniform'] = 'The number of iterations of ' \
-                                 ':func:`pypeit.core.trace.fit_trace` to use when using ' \
+                                 ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                  'uniform weighting.'
 
         defaults['fwhm_gaussian'] = 3.0
         dtypes['fwhm_gaussian'] = [int, float]
         descr['fwhm_gaussian'] = 'The `fwhm` parameter to use when using Gaussian weighting in ' \
-                                 ':func:`pypeit.core.trace.fit_trace` when refining the PCA ' \
+                                 ':func:`~pypeit.core.trace.fit_trace` when refining the PCA ' \
                                  'predictions of edges.  See description ' \
-                                 ':func:`pypeit.core.trace.peak_trace`.'
+                                 ':func:`~pypeit.core.trace.peak_trace`.'
 
         defaults['niter_gaussian'] = 6
         dtypes['niter_gaussian'] = int
         descr['niter_gaussian'] = 'The number of iterations of ' \
-                                  ':func:`pypeit.core.trace.fit_trace` to use when using ' \
+                                  ':func:`~pypeit.core.trace.fit_trace` to use when using ' \
                                   'Gaussian weighting.'
 
         defaults['det_buffer'] = 5
@@ -4077,8 +4077,8 @@ class CalibrationsPar(ParSet):
         dtypes['calib_dir'] = str
         descr['calib_dir'] = 'The name of the directory for the processed calibration frames.  ' \
                              'The host path for the directory is set by the redux_path (see ' \
-                             ':class:`ReduxPar`).  Beware that success when changing the ' \
-                             'default value is not well tested!'
+                             ':class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success ' \
+                             'when changing the default value is not well tested!'
 
         defaults['raise_chk_error'] = True
         dtypes['raise_chk_error'] = bool
@@ -4303,7 +4303,7 @@ class PypeItPar(ParSet):
                                       merge_with=user_cfg_lines)
 
     To write the configuration of a given instance of :class:`PypeItPar`,
-    use the :func:`to_config` function::
+    use the :func:`~pypeit.par.parset.ParSet.to_config` function::
 
         par.to_config('mypypeitpar.cfg')
 
@@ -4436,7 +4436,7 @@ class PypeItPar(ParSet):
 
             When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
+            :func:`~pypeit.par.util.recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
             happens to be identical to an imported or system-level
             function.  Of course, this can be useful by allowing one to
@@ -4444,13 +4444,13 @@ class PypeItPar(ParSet):
             one has to be careful with the values that the parameters
             should be allowed to have.  The current way around this is
             to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
+            the evaluation, done using :func:`~pypeit.par.util._eval_ignore`.
 
         .. todo::
             Allow the user to add to the ignored strings.
 
         Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: The instance of the
             parameter set.
         """
         # Get the base parameters in a ConfigObj instance
@@ -4518,7 +4518,7 @@ class PypeItPar(ParSet):
 
             When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
-            :func:`_recursive_dict_evaluate`.  This has the potential to
+            :func:`~pypeit.par.util.recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
             happens to be identical to an imported or system-level
             function.  Of course, this can be useful by allowing one to
@@ -4526,13 +4526,13 @@ class PypeItPar(ParSet):
             one has to be careful with the values that the parameters
             should be allowed to have.  The current way around this is
             to provide a list of strings that should be ignored during
-            the evaluation, done using :func:`_eval_ignore`.
+            the evaluation, done using :func:`~pypeit.par.util._eval_ignore`.
 
         .. todo::
             Allow the user to add to the ignored strings.
 
         Returns:
-            :class:`pypeit.par.core.PypeItPar`: The instance of the
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: The instance of the
             parameter set.
         """
         # Get the base parameters in a ConfigObj instance

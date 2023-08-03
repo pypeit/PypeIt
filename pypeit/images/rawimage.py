@@ -60,7 +60,7 @@ class RawImage:
     Attributes:
         filename (:obj:`str`):
             Original file name with the data.
-        spectrograph (:class:`~pypeit.spectrograph.spectrographs.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph instance with the instrument-specific properties and
             methods.
         det (:obj:`int`, :obj:`tuple`):

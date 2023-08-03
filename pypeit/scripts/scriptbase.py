@@ -3,6 +3,7 @@ Implements base classes for use with ``PypeIt`` scripts.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
+
 """
 from IPython import embed
 

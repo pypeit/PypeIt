@@ -46,7 +46,7 @@ class SpecObjs:
             Baseline header to use
 
     Attributes:
-        summary (astropy.table.Table):
+        summary (`astropy.table.Table`_):
             Summary table (?)
     """
     version = '1.0.0'
@@ -179,7 +179,7 @@ class SpecObjs:
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
-        data. The user needs to already have trimmed the Specobjs to
+        data. The user needs to already have trimmed the :class:`SpecObjs` to
         the relevant indices for the object.
 
         Args:
@@ -257,7 +257,7 @@ class SpecObjs:
 
     def get_std(self, multi_spec_det=None):
         """
-        Return the standard star from this Specobjs. For MultiSlit this
+        Return the standard star from this :class:`SpecObjs`. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
         will be the standard for all the orders.
 
@@ -551,7 +551,7 @@ class SpecObjs:
         sensitivity function (``sens``).
 
         Args:
-            par (pypeit.par.pypeitpar.FluxCalibrate):
+            par (:class:`~pypeit.par.pypeitpar.FluxCalibratePar`):
                 Parset object containing parameters governing the flux calibration.
             spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 PypeIt Spectrograph class
@@ -997,10 +997,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              1-indexed detector(s) to process.
          std_outfile (:obj:`str`):
              Filename with the standard star spec1d file.  Can be None.
+
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.
-         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic is not available
-         in the provided spec1d file.
+         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
+         be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -1038,12 +1039,12 @@ def lst_to_array(lst, mask=None):
 
     Args:
         lst : list
-          Should be number or Quantities
-        mask (ndarray of bool, optional):  Limit to a subset of the list.  True=good
+            Should be number or Quantities
+        mask (`numpy.ndarray`_, optional):
+            Boolean array used to limit to a subset of the list.  True=good
 
     Returns:
-        ndarray or Quantity array:  Converted list
-
+        `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
     if mask is None:
         mask = np.array([True]*len(lst))
