@@ -44,15 +44,22 @@ class ArxivSolution(scriptbase.ScriptBase):
 
         # Load the wavelength calibration file
         wv_calib = WaveCalib.from_file(args.file)
+        # Check if a wavelength solution exists
+        if wv_calib['wv_fits'][args.slit]['wave_soln'] is None:
+            gd_slits = []
+            for slit in range(len(wv_calib['wv_fits'])):
+                if wv_calib['wv_fits'][slit]['wave_soln'] is not None:
+                    gd_slits.append(f"{slit}")
+            # Prepare the message
+            thismsg = f"A wavelength solution does not exist for slit {args.slit}. "
+            if len(gd_slits) == 0:
+                thismsg += "There are no good slits - the WaveCalib file is bad."
+            else:
+                thismsg += "Try one of the following slits, instead: " + msgs.newline() + ", ".join(gd_slits)
+            from IPython import embed
+            embed()
+            msgs.error(thismsg)
         wave = wv_calib['wv_fits'][args.slit]['wave_soln'].flatten()
         spec = wv_calib['wv_fits'][args.slit]['spec'].flatten()
         outname = args.file.replace(".fits", "_arXiv.fits")
-        wvutils.write_template(wave, spec, args.binning, './', outname)
-        print("")  # Empty line for clarity
-        msgs.info("To include the newly generated solution in the PypeIt archive," + msgs.newline() +
-                  "move (and appropriately rename) the following file: " + msgs.newline() +
-                  outname + msgs.newline() +
-                  "to the following directory:" + msgs.newline() +
-                  "pypeit/data/arc_lines/reid_arxiv/")
-        print("")  # Empty line for clarity
-        msgs.info("Please also consider sharing your solution with the PypeIt Developers.")
+        wvutils.write_template(wave, spec, args.binning, './', outname, cache=True)

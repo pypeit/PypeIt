@@ -1084,7 +1084,7 @@ def trim_frame(frame, mask):
         `numpy.ndarray`_: Trimmed image
 
     Raises:
-        PypitError:
+        :class:`~pypeit.pypmsgs.PypeItError`:
             Error raised if the trimmed image includes masked values
             because the shape of the valid region is odd.
     """

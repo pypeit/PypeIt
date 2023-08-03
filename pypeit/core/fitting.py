@@ -271,6 +271,8 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
         `numpy.ndarray`_:  Evaluated fit at the x (and x2) locations
 
     """
+    if func is None:
+        return None
     # For two-d fits x = x, y = x2, y = z
     if ('2d' in func) and (x2 is not None):
         # Is this a 2d fit?
@@ -285,6 +287,9 @@ def evaluate_fit(fitc, func, x, x2=None, minx=None,
                     else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
         else:
             msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+        # TODO: Why is this return here?  The code will never reach this point
+        # because of the if/elif/else above.  What should the behavior be, raise
+        # an exception or return None?
         return None
     elif func == "polynomial":
         return np.polynomial.polynomial.polyval(x, fitc)
@@ -471,7 +476,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     one to fit a more general model using the optimizer of the users
     choice. If you are fitting simple functions like Chebyshev or
     Legednre polynomials using a linear least-squares algorithm, you
-    should use :func:robust_polyfit_djs` instead of this function.
+    should use :func:`robust_fit` instead of this function.
 
     Args:
         ydata (`numpy.ndarray`_):
@@ -580,7 +585,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         inmask = np.ones(ydata.size, dtype=bool)
 
     nin_good = np.sum(inmask)
-    iter = 0
+    iIter = 0
     qdone = False
     thismask = np.copy(inmask)
 
@@ -588,7 +593,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     # results in signficant speedup for e.g. differential_evolution optimization. Thus
     # init_from_last is None on the first iteration and then is updated in the iteration loop.
     init_from_last = None
-    while (not qdone) and (iter < maxiter):
+    while (not qdone) and (iIter < maxiter):
         ret_tuple = fitfunc(ydata, thismask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)
         if (len(ret_tuple) == 2):
             result, ymodel = ret_tuple
@@ -610,9 +615,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             msgs.info(
                 'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
                 'total pixels'.format(iter, nrej, nrej_tot, nin_good))
-        iter += 1
+        iIter += 1
 
-    if (iter == maxiter) & (maxiter != 0):
+    if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
@@ -833,7 +838,8 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    """ A 2D Gaussian to be used to fit the cross-correlation
+    """
+    A 2D Gaussian to be used to fit the cross-correlation
 
     Args:
         tup (tuple):
@@ -842,7 +848,7 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
             The amplitude of the 2D Gaussian
         xo (float):
             The centre of the Gaussian in the x direction
-        yo (float:
+        yo (float):
             The centre of the Gaussian in the y direction
         sigma_x (float):
             The dispersion of the Gaussian in the x direction
@@ -1015,7 +1021,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
         elif error == 0:
             # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
             # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ywork, yfit, invvar=invwork, inmask=inmask_rej, outmask=maskwork,
                                               upper=upper, lower=lower, **kwargs_reject)
         else:

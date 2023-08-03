@@ -243,7 +243,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -277,11 +277,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
 
         Args:
             filename (:obj:`str` or None):

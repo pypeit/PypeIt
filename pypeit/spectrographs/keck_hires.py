@@ -150,8 +150,12 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 11 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def init_meta(self):
@@ -207,7 +211,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -222,7 +225,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'echangle', 'xdangle']
+        return ['filter1', 'echangle', 'xdangle', 'binning']
 
     def raw_header_cards(self):
         """

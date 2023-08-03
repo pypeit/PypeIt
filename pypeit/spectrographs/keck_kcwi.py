@@ -365,7 +365,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [0.01, None]
 #        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
 #        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
@@ -851,7 +851,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 the platescale will be used.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length

@@ -1,10 +1,14 @@
 .. code-block:: console
 
     $ pypeit_setup_coadd2d -h
-    usage: pypeit_setup_coadd2d [-h] (-f PYPEIT_FILE | -d SCIENCE_DIR) [--keep_par]
-                                [--obj OBJ [OBJ ...]] [--det DET [DET ...]]
+    usage: pypeit_setup_coadd2d [-h]
+                                (-f PYPEIT_FILE | -d SCIENCE_DIR [SCIENCE_DIR ...])
+                                [--keep_par] [--obj OBJ [OBJ ...]]
+                                [--det DET [DET ...]]
                                 [--only_slits ONLY_SLITS [ONLY_SLITS ...]]
-                                [--offsets OFFSETS] [--weights WEIGHTS]
+                                [--exclude_slits EXCLUDE_SLITS [EXCLUDE_SLITS ...]]
+                                [--spat_toler SPAT_TOLER] [--offsets OFFSETS]
+                                [--weights WEIGHTS]
     
     Prepare a configuration file for performing 2D coadds
     
@@ -12,8 +16,10 @@
       -h, --help            show this help message and exit
       -f PYPEIT_FILE, --pypeit_file PYPEIT_FILE
                             PypeIt reduction file (default: None)
-      -d SCIENCE_DIR, --science_dir SCIENCE_DIR
-                            Directory with spec2d files to stack (default: None)
+      -d SCIENCE_DIR [SCIENCE_DIR ...], --science_dir SCIENCE_DIR [SCIENCE_DIR ...]
+                            One or more directories with spec2d files to stack (use
+                            wildcard to specify multiple directories). (default:
+                            None)
       --keep_par            Propagate all parameters from the pypeit file to the
                             coadd2d file(s). If not set, only the required
                             parameters and their default values are included in the
@@ -35,8 +41,22 @@
                             mosaics made up of detectors 1,5 and 3,7, you would use
                             --det 1,5 3,7 (default: None)
       --only_slits ONLY_SLITS [ONLY_SLITS ...]
-                            A space-separated set of slits to coadd. If not
-                            provided, all slits are coadded. (default: None)
+                            A space-separated set of slits to coadd. Example syntax
+                            -- --only_slits DET01:175,DET02:205 or MSC02:2234. If
+                            not provided, all slits are coadded. If both --det and
+                            --only_slits are provided, --det will be ignored. This
+                            and --exclude_slits are mutually exclusive. If both are
+                            provided, --only_slits takes precedence. (default: None)
+      --exclude_slits EXCLUDE_SLITS [EXCLUDE_SLITS ...]
+                            A space-separated set of slits to exclude in the
+                            coaddition. This and --only_slits are mutually
+                            exclusive. If both are provided, --only_slits takes
+                            precedence. (default: None)
+      --spat_toler SPAT_TOLER
+                            Desired tolerance in spatial pixel used to identify
+                            slits in different exposures. If not provided, the
+                            default value for the specific instrument/configuration
+                            is used. (default: None)
       --offsets OFFSETS     Spatial offsets to apply to each image; see the
                             [coadd2d][offsets] parameter. Options are restricted
                             here to either maskdef_offsets or auto. If not

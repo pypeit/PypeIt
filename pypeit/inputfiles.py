@@ -83,8 +83,7 @@ class InputFile:
             ifile (str): Name of the file to parse.
 
         Returns:
-            :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-            files.
+            `numpy.ndarray`_: Returns a list of the valid lines in the files.
         """
         # Check the files
         if not os.path.isfile(ifile):
@@ -92,8 +91,7 @@ class InputFile:
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
-            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                    for l in f.readlines()])
+            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() for l in f.readlines()])
         # Remove empty or fully commented lines
         lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
         # Remove appended comments and return
@@ -259,10 +257,9 @@ class InputFile:
                 List of lines *within the data* block read from the input file.
         
         Returns:
-            tuple: list, Table.  A list of the paths provided (can be empty)
-            and a Table with the data provided in the input file.  
+            tuple: A :obj:`list` with the paths provided (can be empty) and an
+            `astropy.table.Table`_ with the data provided in the input file.  
         """
-
         # Allow for multiple paths
         paths = []
         for l in lines:
@@ -362,7 +359,7 @@ class InputFile:
 
     def path_and_files(self, key:str, skip_blank=False, check_exists=True):
         """Generate a list of the filenames with 
-        the full path from the column of the data Table
+        the full path from the column of the data `astropy.table.Table`_
         specified by `key`.  The files must exist and be 
         within one of the paths for this to succeed.
 
@@ -488,8 +485,8 @@ class InputFile:
             parameter.
 
         Raises:
-            :class:`~pypeit.pypmsgs.PypeItError`: Raised if the relevant
-            configuration parameter is not available.
+            :class:`~pypeit.pypmsgs.PypeItError`:
+                Raised if the relevant configuration parameter is not available.
         """
         if 'rdx' not in self.config.keys() or 'spectrograph' not in self.config['rdx'].keys():
             msgs.error('Cannot define spectrograph.  Configuration file missing \n'
@@ -675,6 +672,51 @@ class Coadd1DFile(InputFile):
             oids = oids*len(self.data)
         # Return
         return oids
+
+    # TODO is the correct way to treat optional table entries?
+
+    @property
+    def sensfiles(self):
+        """Generate a list of the sensitivity files with
+        the full path.  The files must exist and be
+        within one of the paths (or the current
+        folder with not other paths specified) for this to succeed.
+
+        Returns:
+            list: List of full path to each data file
+            or None if `filename` is not part of the data table
+            or there is no data table!
+        """
+
+        if 'sensfile' not in self.data.keys():
+            return None
+
+        # Grab em
+        sens_files = self.path_and_files('sensfile', skip_blank=True)
+        # Pad out
+        if len(sens_files) == 1 and len(self.filenames) > 1:
+            sens_files = sens_files * len(self.filenames)
+            # Return
+        return sens_files
+
+
+    @property
+    def setup_id(self):
+
+        if 'setup_id' not in self.data.keys():
+            return None
+
+        # Generate list, scrubbing empty entries
+        sid = [str(item) for item in self.data['setup_id'] if str(item).strip() not in ['', 'none', 'None']]
+
+        # Inflate as needed
+        if len(sid) == 1 and len(sid) < len(self.data):
+            sid = sid * len(self.data)
+        # Return
+        return sid
+
+
+
 
 
 class Coadd2DFile(InputFile):
