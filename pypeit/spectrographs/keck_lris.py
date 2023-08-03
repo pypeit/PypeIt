@@ -1311,7 +1311,24 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['scienceframe']['process']['sigclip'] = sigclip
             par['scienceframe']['process']['objlim'] = objlim
 
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
         # Wavelength calibrations
+        # REMOVE (for testing)
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.
+        # par['calibrations']['wavelengths']['match_toler'] = 3.
+        # par['calibrations']['wavelengths']['sigdetect'] = 5.
+        # par['calibrations']['wavelengths']['fwhm'] = 6.
+        # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
+        # par['calibrations']['wavelengths']['n_first'] = 1
+        # par['calibrations']['wavelengths']['nsnippet'] = 1
+        if self.get_meta_value(scifile, 'dispname') == '150/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R150_7500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+
         # if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
         #     if self.name == 'keck_lris_red_mark4':
         #         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
@@ -1336,10 +1353,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
         #     par['calibrations']['wavelengths']['method'] = 'full_template'
 
-        # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Return
         return par
