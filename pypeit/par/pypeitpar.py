@@ -3771,7 +3771,7 @@ class FindObjPar(ParSet):
 
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
-        descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the ' \
+        descr['find_min_max'] = 'It defines the minimum and maximum of your object in pixels in the spectral direction on the ' \
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
