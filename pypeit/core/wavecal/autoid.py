@@ -48,14 +48,15 @@ def arc_fit_qa(waveFit,
 
     Args:
         waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
+            Wavelength solution object
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
+            ??
         title (:obj:`str`, optional):
             Add a title to the spectrum plot
         log (:obj:`bool`, optional):
             If True, use log scaling for the spectrum
-
     """
     plt.rcdefaults()
     plt.rcParams['font.family']= 'serif'
@@ -943,7 +944,7 @@ def set_fwhm(par, measured_fwhm=None):
     and the measured_fwhm
 
     Args:
-        par (:class:`~pypeit.par.pypeitpar.WaveSolutionPar`):
+        par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`):
             Key parameters that drive the behavior of the
             wavelength-solution algorithms.
         measured_fwhm (:obj:`float`):
@@ -1190,7 +1191,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
     ok_mask : `numpy.ndarray`, optional
@@ -1412,7 +1413,7 @@ class ArchiveReid:
     lamps : :obj:`list`
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
     ech_fixed_format: bool
@@ -2519,22 +2520,26 @@ class HolyGrail:
         """
         Grab the lines to use
 
-        Args:
-            corr:  int
-                Set if pixels correlate with wavelength (corr==1) or
-                anticorrelate (corr=-1)
-            arr_err:
-                A list [tcent, ecent] indicating which detection list
-                should be used. Note that if arr_err is set then the
-                weak keyword is ignored.
-            weak: bool, optional
-                If True, return the weak lines
-            cut: bool, optional
-                Cut on the lines according to significance
+        Parameters
+        ----------
+        corr : int
+            Set if pixels correlate with wavelength (corr==1) or
+            anticorrelate (corr=-1)
+        cut: bool, optional
+            Cut on the lines according to significance
+        arr_err : list, optional
+            A list [tcent, ecent] indicating which detection list
+            should be used. Note that if arr_err is set then the
+            weak keyword is ignored.
+        weak: bool, optional
+            If True, return the weak lines
 
-        Returns:
-            tuple: arr, err
-
+        Returns
+        -------
+        arr : `numpy.ndarray`
+            ???
+        err : `numpy.ndarray`
+            ???
         """
         # Decide which array to use
         if arr_err is None:
@@ -2562,17 +2567,22 @@ class HolyGrail:
         """
         Grab the lines to use
 
-        Args:
-            corr:  int
-              Set if pixels correlate with wavelength (corr==1) or
-              anticorrelate (corr=-1)
-            tcent_ecent:
-              A list [tcent, ecent] indicating which detection list
-              should be used. Note that if arr_err is set then the weak
-              keyword is ignored.
+        Parameters
+        ----------
+        corr : int
+            Set if pixels correlate with wavelength (corr==1) or
+            anticorrelate (corr=-1)
+        tcent_ecent : list
+            A list [tcent, ecent] indicating which detection list
+            should be used. Note that if arr_err is set then the weak
+            keyword is ignored.
 
-        Returns:
-            tuple: arr, err
+        Returns
+        -------
+        arr : `numpy.ndarray`
+            ???
+        err : `numpy.ndarray`
+            ???
         """
         # Return the appropriate tcent
         tcent, ecent = tcent_ecent[0], tcent_ecent[1]
@@ -2589,7 +2599,8 @@ class HolyGrail:
 
         Parameters
         ----------
-        tcent_ecent: list of ndarrays, [tcent, ecent]
+        tcent_ecent: list
+            List of `numpy.ndarray` objects, [tcent, ecent]
         poly, optional:
             algorithms to use for pattern matching. Only triangles (3)
             and quadrangles (4) are supported
@@ -2601,7 +2612,9 @@ class HolyGrail:
         lstsrch, optional:
             Number of lines to search over for the detected lines
         wavedata, optional:
+            ???
         arrerr, optional:
+            ???
 
         """
         # Import the pattern matching algorithms
@@ -2671,22 +2684,25 @@ class HolyGrail:
         and log10(disp). Then it attempts to fit each value determined
         (default of 1) to try to figure out if it is a reasonable fit.
 
-        Args:
-            slit:
-            psols:
-            msols:
-            tcent_ecent: list, [tcent, ecent]
-            nstore:
-                Number of pattern matches to store and fit
-            nselw:
-                All solutions around the best central wavelength
-                solution within +- nselw are selected to be fit
-            nseld:
-                All solutions around the best log10(dispersion) solution
-                within +- nseld are selected to be fit
+        Parameters
+        ----------
+        slit:
+        psols:
+        msols:
+        tcent_ecent: list, [tcent, ecent]
+        nstore:
+            Number of pattern matches to store and fit
+        nselw:
+            All solutions around the best central wavelength
+            solution within +- nselw are selected to be fit
+        nseld:
+            All solutions around the best log10(dispersion) solution
+            within +- nseld are selected to be fit
 
-        Returns:
-            tuple: patt_dict, final_dict
+        Returns
+        -------
+        patt_dict:
+        final_dict:
         """
 
         # Extract the solutions
@@ -2836,8 +2852,7 @@ class HolyGrail:
                 A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
 
         Returns:
-            patt_dict (dict):
-                Dictionary containing information about the best patterns.
+            dict: Dictionary containing information about the best patterns.
 
         """
 

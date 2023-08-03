@@ -17,13 +17,13 @@ Derived classes must do the following:
 
     - Define a class attribute called ``datamodel``. See the examples
       below for their format.
-    - Provide an :func:`__init__` method that defines the
+    - Provide an ``__init__`` method that defines the
       instantiation calling sequence and passes the relevant
       dictionary to this base-class instantiation.
-    - Provide a :func:`_validate` method, if necessary, that
-      processes the data provided in the `__init__` into a complete
+    - Provide a ``_validate`` method, if necessary, that
+      processes the data provided in the ``__init__`` into a complete
       instantiation of the object. This method and the
-      :func:`__init__` method are the *only* places where attributes
+      ``__init__`` method are the *only* places where attributes
       can be added to the class.
     - Provide a :func:`_bundle` method that reorganizes the datamodel
       into partitions that can be written to one or more fits
@@ -39,7 +39,7 @@ Derived classes must do the following:
     The attributes of the class are *not required* to be a part of
     the ``datamodel``; however, it makes the object simpler when they
     are. Any attributes that are not part of the ``datamodel`` must
-    be defined in either the :func:`__init__` or :func:`_validate`
+    be defined in either the ``__init__`` or ``_validate``
     methods; otherwise, the class with throw an ``AttributeError``.
 
 Here are some examples of how to and how not to use them.
@@ -424,7 +424,7 @@ With this implementation:
 
     - The following instantiation is fine because
       ``DubiousInitContainer`` handles the fact that some of the
-      arguments to :func:`__init__` are not part of the datamodel::
+      arguments to ``__init__`` are not part of the datamodel::
 
         data = DubiousInitContainer(x,y)
         print(np.array_equal(data.out, data.inp1+data.inp2))
@@ -493,13 +493,13 @@ class DataContainer:
     Derived classes must do the following:
 
         - Define a datamodel
-        - Provide an :func:`__init__` method that defines the
+        - Provide an ``__init__`` method that defines the
           instantiation calling sequence and passes the relevant
           dictionary to this base-class instantiation.
-        - Provide a :func:`_validate` method, if necessary, that
-          processes the data provided in the `__init__` into a
+        - Provide a ``_validate`` method, if necessary, that
+          processes the data provided in the ``__init__`` into a
           complete instantiation of the object. This method and the
-          :func:`__init__` method are the *only* places where
+          ``__init__`` method are the *only* places where
           attributes can be added to the class.
         - Provide a :func:`_bundle` method that reorganizes the
           datamodel into partitions that can be written to one or
@@ -515,8 +515,8 @@ class DataContainer:
         The attributes of the class are *not required* to be a part
         of the ``datamodel``; however, it makes the object simpler
         when they are. Any attributes that are not part of the
-        ``datamodel`` must be defined in either the :func:`__init__`
-        or :func:`_validate` methods; otherwise, the class with throw
+        ``datamodel`` must be defined in either the ``__init__``
+        or ``_validate`` methods; otherwise, the class with throw
         an ``AttributeError``.
 
     .. todo::
@@ -528,8 +528,8 @@ class DataContainer:
             Dictionary to copy to the internal attribute dictionary.
             All of the keys in the dictionary *must* be elements of
             the ``datamodel``. Any attributes that are not part of
-            the ``datamodel`` can be set in the :func:`__init__` or
-            :func:`_validate` methods of a derived class. If None,
+            the ``datamodel`` can be set in the ``__init__`` or
+            ``_validate`` methods of a derived class. If None,
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.

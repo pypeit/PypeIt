@@ -573,7 +573,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     slit_righ : `numpy.ndarray`_
         Right slit boundary in floating point pixels.
         shape (nspec, 1) or (nspec)
-    sobjs : :class:`~pypeit.specobjs.SpecoObjs` object
+    sobjs : :class:`~pypeit.specobjs.SpecObjs` object
         Object containing the information about the objects found on the
         slit/order from objfind or ech_objfind
     ingpm : `numpy.ndarray`_, optional
@@ -1080,7 +1080,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Image identifying the 0-indexed order associated with
         each pixel. Pixels with -1 are not associatead with any
         order.
-    sobjs : :class:`~pypeit.specobjs.SpecoObjs` object
+    sobjs : :class:`~pypeit.specobjs.SpecObjs` object
         Object containing the information about the objects found on the
         slit/order from objfind or ech_objfind
     spat_pix: `numpy.ndarray`_, optional
@@ -1167,14 +1167,16 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         (does not have the right count levels).  In principle this could be
         improved if the user could pass in a model of what the sky is for
         near-IR difference imaging + residual subtraction
-    debug_bkpts:
+    debug_bkpts : bool, optional
+        debug
     show_profile : bool, default=False
         Show QA for the object profile fitting to the screen. Note
         that this will show interactive matplotlib plots which will
         block the execution of the code until the window is closed.
     show_resids : bool, optional
         Show the model fits and residuals.
-    show_fwhm:
+    show_fwhm : bool, optional
+        show fwhm
     adderr : float, default = 0.01
         Error floor. The quantity adderr**2*sciframe**2 is added to the variance
         to ensure that the S/N is never > 1/adderr, effectively setting a floor
@@ -1208,7 +1210,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         Model inverse variance where ``thismask`` is true.
     outmask : `numpy.ndarray`_
         Model mask where ``thismask`` is true.
-    sobjs : :class:`~pypeit.specobjs.SpecoObjs` object
+    sobjs : :class:`~pypeit.specobjs.SpecObjs` object
         Same object as passed in
 
     """
@@ -1473,7 +1475,7 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     skyreg : list
         A list of size nslits. Each element contains a numpy array (dtype=bool)
         where a True value indicates a value that is part of the sky region.
-    slits : :class:`SlitTraceSet`
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`
         Data container with slit trace information
     slits_left : `numpy.ndarray`_
         A 2D array containing the pixel coordinates of the left slit edges

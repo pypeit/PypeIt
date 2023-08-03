@@ -589,6 +589,5 @@ FluxSpec Class
 ==============
 
 The guts of the flux algorithms are guided by the
-:class:`~pypeit.fluxcalibrate.FluxCalibrate`
-class.
+:func:`~pypeit.fluxcalibrate.apply_flux_calib` class.
 

@@ -92,9 +92,9 @@ class Calibrations:
             Tilt calibration frame
         alignments (:class:`~pypeit.alignframe.Alignments`):
             Alignment calibration frame
-        msbias (:class:`~pypeit.buildimage.BiasImage`):
+        msbias (:class:`~pypeit.images.buildimage.BiasImage`):
             Bias calibration frame
-        msdark (:class:`~pypeit.buildimage.DarkImage`):
+        msdark (:class:`~pypeit.images.buildimage.DarkImage`):
             Dark calibration frame
         msbpm (`numpy.ndarray`_):
             Boolean array with the bad-pixel mask (pixels that should masked are

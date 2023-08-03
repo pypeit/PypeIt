@@ -481,8 +481,8 @@ class FlatField:
             The current slit traces.
         wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
-        wv_calib (??):
-            ??
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`):
+            Wavelength calibration object
         spat_illum_only (bool, optional):
             Only perform the spatial illumination calculation, and ignore
             the 2D bspline fit. This should only be set to true if you
@@ -490,8 +490,8 @@ class FlatField:
             simultaneously generate a pixel flat and a spatial
             illumination profile from the same input, this should be
             False (which is the default).
-        qa_path (??, optional):
-            ??
+        qa_path (str, optional):
+            Path to QA directory
 
     Attributes:
         rawflatimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
@@ -555,15 +555,12 @@ class FlatField:
 
         This is a simple wrapper for the main flat-field methods:
 
-            - Flat-field images are processed using :func:`build_pixflat`.
-
             - Full 2D model, illumination flat, and pixel flat images are
               constructed by :func:`fit`.
 
             - The results can be shown in a ginga window using :func:`show`.
 
-        The method is a simple wrapper for :func:`build_pixflat`, :func:`fit`,
-        and :func:`show`.
+        The method is a simple wrapper for :func:`fit` and :func:`show`.
 
         Args:
             doqa (:obj:`bool`, optional):
@@ -656,7 +653,7 @@ class FlatField:
         Generate bad pixel mask.
 
         Returns:
-            :obj:`numpy.ndarray` : bad pixel mask
+            `numpy.ndarray`_ : bad pixel mask
         """
         bpmflats = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
@@ -695,7 +692,7 @@ class FlatField:
         Construct a model of the flat-field image.
 
         For this method to work, :attr:`rawflatimg` must have been
-        previously constructed; see :func:`build_pixflat`.
+        previously constructed.
 
         The method loops through all slits provided by the :attr:`slits`
         object, except those that have been masked (i.e., slits with
@@ -734,7 +731,7 @@ class FlatField:
               (see ``tweak_slits_thresh`` in :attr:`flatpar`), up to a
               maximum allowed shift from the existing slit edge (see
               ``tweak_slits_maxfrac`` in :attr:`flatpar`).  See
-              :func:`pypeit.core.tweak_slit_edges`.  If tweaked, the
+              :func:`~pypeit.core.flat.tweak_slit_edges`.  If tweaked, the
               :func:`spatial_fit` is repeated to place it on the tweaked
               slits reference frame.
             - Use the bspline fit to construct the 2D illumination image
@@ -759,7 +756,7 @@ class FlatField:
         attributes are altered internally.  If the slit edges are to be
         tweaked using the 1D illumination profile (``tweak_slits`` in
         :attr:`flatpar`), the tweaked slit edge arrays in the internal
-        :class:`~pypeit.edgetrace.SlitTraceSet` object, :attr:`slits`,
+        :class:`~pypeit.slittrace.SlitTraceSet` object, :attr:`slits`,
         are also altered.
 
         Used parameters from :attr:`flatpar`

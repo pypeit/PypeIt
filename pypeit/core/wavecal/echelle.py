@@ -24,7 +24,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
     fits of the reddest order as a function of xdangle.
 
     Args:
-        angle_fits_params (astropy.table.Table):
+        angle_fits_params (`astropy.table.Table`_):
             Table holding the arxiv parameters
         xd_angle_coeffs
             Table holding the arxiv data
@@ -57,14 +57,14 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     wavelength solution coefficients vs echelle angle at the given echelle angle.
 
     Args:
-        angle_fits_params (astropy.table.Table):
+        angle_fits_params (`astropy.table.Table`_):
             Table holding the parameters governing the echelle angle fits
-        ech_angle_coeffs (numpy.ndarray):
+        ech_angle_coeffs (`numpy.ndarray`_):
             Array holding the polynomial coefficients for the fits of the wavelength solution polynomial coefficients
             vs echelle angle.
         ech_angle (float):
             Echelle angle
-        order_vec (numpy.ndarray):
+        order_vec (`numpy.ndarray`_):
             Array of order numbers for the deisred predicted spectrum. Shape = (norders,)
         nspec (int):
             Number of spectral pixels in the echelle spectrum

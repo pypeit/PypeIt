@@ -32,18 +32,18 @@ class FindObjects:
     science or standard-star exposures.
 
     Args:
-        sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
+        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Image to reduce.
-        slits (:class:`~pypeit.slittrace.SlitTracSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Object providing slit traces for the image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             PypeIt Spectrograph class
-        par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             Reduction parameters class
         objtype (:obj:`str`):
             Specifies object being reduced.  Should be 'science',
             'standard', or 'science_coadd2d'.
-        wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
             This is only used for the IFU child when a joint sky subtraction
             is requested.
         waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
@@ -71,7 +71,7 @@ class FindObjects:
             Clear the ginga window before showing the object finding results.
         basename (:obj:`str`, optional):
             Base name for output files
-        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
+        manual (:class:`~pypeit.manual_extract.ManualExtractionObj`, optional):
             Object containing manual extraction instructions/parameters.
 
     Attributes:
@@ -91,7 +91,7 @@ class FindObjects:
             Final output mask
         extractmask (`numpy.ndarray`_):
             Extraction mask
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Objects found
         spat_flexure_shift (:obj:`float`):
@@ -272,7 +272,7 @@ class FindObjects:
     # TODO Make this a method possibly in slittrace.py. Almost identical code is in extraction.py
     def initialize_slits(self, slits, initial=False):
         """
-        Gather all the :class:`SlitTraceSet` attributes
+        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes
         that we'll use here in :class:`FindObjects`
 
         Args:
@@ -493,11 +493,15 @@ class FindObjects:
             skymask (`numpy.ndarray`_, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
+                ??
             trim_edg (tuple, optional):
                  A two tuple of ints that specify the number of pixels to trim from the slit edges
             show_fit (bool, optional):
+                ??
             show (bool, optional):
+                ??
             show_objs (bool, optional):
+                ??
             previous_sky (`numpy.ndarray`_, optional):
                 Sky model estimate from a previous run of global_sky
                 Used to generate an improved estimated of the variance
@@ -601,25 +605,22 @@ class FindObjects:
         Show one of the internal images
 
         .. todo::
-            Should probably put some of these in ProcessImages
+
+            - This docstring is incomplete!
 
         Parameters
         ----------
         attr : str
-          global -- Sky model (global)
-          sci -- Processed science image
-          rawvar -- Raw variance image
-          modelvar -- Model variance image
-          crmasked -- Science image with CRs set to 0
-          skysub -- Science image with global sky subtracted
-          image -- Input image
-        display : str, optional
+            String specifying the image to show.  Options are:
+                - global -- Sky model (global)
+                - sci -- Processed science image
+                - rawvar -- Raw variance image
+                - modelvar -- Model variance image
+                - crmasked -- Science image with CRs set to 0
+                - skysub -- Science image with global sky subtracted
+                - image -- Input image
         image : ndarray, optional
-          User supplied image to display
-
-        Returns
-        -------
-
+            User supplied image to display
         """
         mask_in = self.sciImg.fullmask if showmask else None
 
@@ -727,7 +728,7 @@ class MultiSlitFindObjects(FindObjects):
 
         Returns
         -------
-        specobjs : :class:`~pypeot.specobjs.Specobjs`
+        specobjs : :class:`~pypeit.specobjs.SpecObjs`
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
@@ -875,7 +876,7 @@ class EchelleFindObjects(FindObjects):
 
         Returns
         -------
-        specobjs : :class:`~pypeit.specobjs.Specobjs`
+        specobjs : :class:`~pypeit.specobjs.SpecObjs`
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified

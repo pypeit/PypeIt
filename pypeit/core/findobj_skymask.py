@@ -640,7 +640,8 @@ def ech_cutobj_on_snr(
     nperorder:int=2, min_snr:float=1.0, 
     nabove_min_snr:int=2,
     box_radius:float=2.0, inmask:np.ndarray=None):
-    """Cut down objects based on S/N
+    """
+    Cut down objects based on S/N
 
     This routine:
 
@@ -1037,12 +1038,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
 
         #. A PCA fit to the traces is performed using the routine above pca_fit
 
-
-    Note on masking:  This routine requires that all masking be performed in the upstream calling routine
-    (:func:`pypeit.find_objects`) and thus the slit_left and slit_right slit edge arrays must only contain these slits. The number
-    of orders in order_vec,  spec_min_max,  slit_spat_id, and plate_scale must also match the number of slits in the slit_left
-    and slit_righ arrays.
-
+    **Note on masking**:  This routine requires that all masking be performed in
+    the upstream calling routine (:func:`pypeit.find_objects`) and thus the
+    ``slit_left`` and ``slit_righ`` slit edge arrays must only contain these
+    slits. The number of orders in ``order_vec``,  ``spec_min_max``,
+    ``slit_spat_id``, and ``plate_scale`` must also match the number of slits in
+    the ``slit_left`` and ``slit_righ`` arrays.
 
     Args:
         image (`numpy.ndarray`_):
@@ -1291,6 +1292,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         min_snr=min_snr,
         nabove_min_snr=nabove_min_snr,
         box_radius=box_radius)
+
+    if len(sobjs_pre_final) == 0:
+        return sobjs_pre_final
 
     # PCA
     sobjs_ech = ech_pca_traces(

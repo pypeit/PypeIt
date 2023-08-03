@@ -410,18 +410,18 @@ class BuildWaveCalib:
     Class to guide wavelength calibration
 
     Args:
-        msarc (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        msarc (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
-            The parameters used for the wavelength solution
-            Uses ['calibrations']['wavelengths']
-        meta_dict (dict: optional):
+        par (:class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`):
+            The parameters used for the wavelength solution.
+            Uses ``['calibrations']['wavelengths']``.
+        meta_dict (dict, optional):
             Dictionary containing meta information required for wavelength
             calibration. Specifically for non-fixed format echelles this dict
             must contain the following keys:
@@ -432,20 +432,20 @@ class BuildWaveCalib:
 
         det (int, optional):
             Detector number
-        msbpm (ndarray, optional):
+        msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask image
         qa_path (str, optional):
             For QA
 
     Attributes:
-        steps : list
+        steps (list):
             List of the processing steps performed
-        wv_calib : dict
+        wv_calib (dict):
             Primary output.  Keys 0, 1, 2, 3 are solution for individual
             previously slit steps
-        arccen (ndarray):
+        arccen (`numpy.ndarray`_):
             (nwave, nslit) Extracted arc(s) down the center of the slit(s)
-        maskslits : ndarray (nslit); bool
+        maskslits (`numpy.ndarray`_):
             Slits to ignore because they were not extracted. WARNING:
             Outside of this Class, it is best to regenerate the mask
             using  make_maskslits()
@@ -455,7 +455,8 @@ class BuildWaveCalib:
             require that we write it to disk with self.msarc.image
         nonlinear_counts (float):
             Specifies saturation level for the arc lines
-        wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
+        wvc_bpm (`numpy.ndarray`_):
+            Mask for slits attempted to have a wv_calib solution
     """
 
     # TODO: Is this used anywhere?
@@ -907,18 +908,19 @@ class BuildWaveCalib:
 
         Wrapper to arc.get_censpec()
 
-        Args:
-            slitIDs (:obj:`list`, optional):
-                A list of the slit IDs to extract (if None, all slits will be extracted)
+        Parameters
+        ----------
+        slitIDs : :obj:`list`, optional
+            A list of the slit IDs to extract (if None, all slits will be
+            extracted)
 
-        Returns:
-            tuple: Returns the following:
-                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
-                  all slits
-                - self.arc_maskslit: ndarray, bool (nsit): boolean array
-                  containing a mask indicating which slits are good
-                  True = masked (bad)
-
+        Returns
+        -------
+        arccen : `numpy.ndarray`_
+            arc spectrum for all slits, shape is (nspec, nslit):
+        wvc_bpm : `numpy.ndarray`_
+            boolean array containing a mask indicating which slits are good. True
+            = masked (bad).
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(

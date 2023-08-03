@@ -38,35 +38,40 @@ from pypeit import inputfiles
 
 def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     """
-    Gets the metadata from a SourceObject instance used building a report
-    on the results of collation.  It is intended to be wrapped in by functools
-    partial object that passes in object_header_keys and spec_obj_keys. file_info
-    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
-    Unlike the other get_*_metadata functions, this is not used for archiving; it is
-    used for reporting on the results of collating.
+    Gets the metadata from a :class:`~pypeit.core.collate.SourceObject` instance
+    used building a report on the results of collation.  It is intended to be
+    wrapped in by functools partial object that passes in object_header_keys and
+    spec_obj_keys. file_info is then passed as in by the
+    :class:`~pypeit.archive.ArchiveMetadata` object.  Unlike the other
+    get_*_metadata functions, this is not used for archiving; it is used for
+    reporting on the results of collating.
 
-    If another type of file is added to the ArchiveMetadata object, the file_info
-    argument will not be a SourceObject, In this case, a list of ``None`` values are 
-    returned.
+    If another type of file is added to the ArchiveMetadata object, the
+    file_info argument will not be a :class:`~pypeit.core.collate.SourceObject`,
+    In this case, a list of ``None`` values are returned.
 
     Args:
         object_header_keys (list of str):
             The keys to read fom the spec1d headers from the SourceObject.
 
         spec_obj_keys (list of str):
-            The keys to read from the (:obj:`pypeit.specobj.SpecObj`) objects in the SourceObject.
+            The keys to read from the (:class:`~pypeit.specobj.SpecObj`) objects in
+            the SourceObject.
 
-        file_info (:obj:`pypeit.scripts.collate_1d.SourceObject`)): 
-            The source object containing the headers, filenames and SpecObj information for a coadd output file.
+        file_info (:class:`~pypeit.core.collate.SourceObject`): 
+            The source object containing the headers, filenames and SpecObj
+            information for a coadd output file.
 
     Returns:
         tuple: A tuple of two lists:.
 
-               **data_rows** (:obj:`list` of :obj:`list`): The metadata rows built from the source object.
+            - **data_rows** (:obj:`list` of :obj:`list`): The metadata rows
+              built from the source object.
 
-               **files_to_copy** (iterable):
-               An list of tuples of files to copy. Because this function is not used for
-               archving data, this is always ``None``.
+            - **files_to_copy** (iterable): An list of tuples of files to copy.
+              Because this function is not used for archving data, this is
+              always ``None``.
+
     """
 
     if not isinstance(file_info, SourceObject):
@@ -151,11 +156,13 @@ def exclude_source_objects(source_objects, exclude_map, par):
     Returns:
         tuple: Tuple containing two lists:
 
-               **filtered_objects** (:obj:`list`): A list of :class:`~pypeit.core.collate.SourceObject` 
-               with any excluded ones removed.
+            - **filtered_objects** (:obj:`list`): A list of
+              :class:`~pypeit.core.collate.SourceObject` with any excluded ones
+              removed.
 
-               **missing_archive_msgs** (:obj:`list`): A list of messages explaining why some source 
-               objects were excluded.
+            - **missing_archive_msgs** (:obj:`list`): A list of messages
+              explaining why some source objects were excluded.
+
     """
     filtered_objects = []
     excluded_messages= []
@@ -208,9 +215,9 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
     Flux calibrate spec1d files using archived sens func files.
 
     Args:
-        par (`obj`:pypeit.par.pypeitpar.PypeItPar): 
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`): 
             Parameters for collating, fluxing, and coadding.
-        spectrograph (`obj`:pypeit.spectrographs.spectrograph):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph for the files to flux.
         spec1d_files (list of str):
             List of spec1d files to flux calibrate.
@@ -358,9 +365,11 @@ def coadd(par, coaddfile, source):
     """coadd the spectra for a given source.
 
     Args:
-        par (`obj`:Collate1DPar): Paramters for the coadding
-        source (`obj`:SourceObject): The SourceObject with information on
-            which files and spectra to coadd.
+        par (:class:`~pypeit.par.pypeitpar.Collate1DPar`):
+            Parameters for the coadding
+        source (:class:`~pypeit.core.collate.SourceObject`):
+            The SourceObject with information on which files and spectra to
+            coadd.
     """
     # Set destination file for coadding
     par['coadd1d']['coaddfile'] = coaddfile
@@ -433,7 +442,7 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, spec1d_failure_ms
         failed_source_msgs (:obj:`list` of :obj:`str`): 
             Messages about which objects failed coadding and why.
 
-        spec1d_failure_msgs (:obj:)`list` of :obj:`str`): 
+        spec1d_failure_msgs (:obj:`list` of :obj:`str`): 
             Messages about failures with spec1d files and why.
 
     """

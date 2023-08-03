@@ -19,6 +19,9 @@ from pypeit import inputfiles
 from pypeit.spectrographs.util import load_spectrograph
 
 def match_spec1ds_to_sensfuncs(spectrograph_name, spec1dfiles, sensfiles):
+    """
+    This needs a docstring
+    """
     result_map = {}
     spectrograph = load_spectrograph(spectrograph_name)
 

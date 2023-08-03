@@ -216,7 +216,7 @@ this setup as determined using the relevant metadata. Each "setup
 block" is followed by a table listing the files and relevant metadata
 for all files matched to that instrument configuration. The data
 provided is specific to each instrument, as defined by, e.g.,
-:func:`~pypeit.spectrographs.keck_deimos.pypeit_file_keys`.
+:func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.pypeit_file_keys`.
 
 The ``sorted`` file is only provided as a means of assessing the
 automated setup identification and file sorting, and we encourage you
