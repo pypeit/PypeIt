@@ -25,8 +25,7 @@ class ViewFits(scriptbase.ScriptBase):
                             help='List the extensions only?')
         parser.add_argument('--proc', default=False, action='store_true',
                             help='Process the image (i.e. orient, overscan subtract, multiply by '
-                                 'gain) using pypeit.images.buildimage. Note det=mosaic will not '
-                                 'work with this option')
+                                 'gain) using pypeit.images.buildimage.')
         parser.add_argument('--bkg_file', type=str, default=None, help='FITS file to be subtracted from the image in file.'
                             '--proc must be set in order for this option to work.')
 
@@ -66,9 +65,6 @@ class ViewFits(scriptbase.ScriptBase):
 
         if args.proc and args.exten is not None:
             msgs.error('You cannot specify --proc and --exten, since --exten shows the raw image')
-#        if args.proc and args.det == 'mosaic':
-#            msgs.error('You cannot specify --proc and --det mosaic, since --mosaic can only '
-#                       'display the raw image mosaic')
         if args.exten is not None and args.det == 'mosaic':
             msgs.error('You cannot specify --exten and --det mosaic, since --mosaic displays '
                        'multiple extensions by definition')
@@ -97,7 +93,6 @@ class ViewFits(scriptbase.ScriptBase):
                 mosaic = len(_det) > 1
                 if not mosaic:
                     _det = _det[0]
-
             if args.proc:
                 # Use the biasframe processing parameters because processing
                 # these frames is independent of any other frames (ie., does not
