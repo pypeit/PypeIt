@@ -709,8 +709,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     Args:
         lamps (list): List of lamps used in the arc
         spec (np.ndarray): Spectrum to match
-        wv_guess (np.ndarray): Wavelength guess for the input spectrum
-        spec_arxiv (np.ndarray): Spectrum to match to
+        wv_guess (np.ndarray): Wavelength solution guess for the input arc spectrum
+        spec_arxiv (np.ndarray): Archival spectrum to match to
         wave_arxiv (np.ndarray): Wavelegnth solution for the archival spectrum
         nreid_min (int): 
             Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv
@@ -1653,6 +1653,25 @@ class ArchiveReid:
     def get_results(self):
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
 
+    def get_arxiv(self, orders):
+        """ Grab the arxiv spectrum and wavelength solution for the provided orders
+
+        Args:
+            orders (list, `numpy.ndarray`_):  Orders to retrieve
+
+        Returns:
+            tuple: wavelengths arrays, spec arrays aligned with orders
+        """
+        # Collate
+        wave_soln_arxiv = []
+        arcspec_arxiv = []
+        for order in orders:
+            ind_sp = self.arxiv_orders.index(order) 
+            wave_soln_arxiv.append(self.wave_soln_arxiv[:,ind_sp])
+            arcspec_arxiv.append(self.spec_arxiv[:,ind_sp])
+
+        # Return
+        return np.stack(wave_soln_arxiv,axis=-1), np.stack(arcspec_arxiv,axis=-1)
 
 
 

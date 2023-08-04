@@ -230,7 +230,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     msgs.info('Shift in spectral pixels between prediction and data: {:.3f}'.format(spec_shift))
 
     # Assign
-    #order_vec = order_vec_guess[-1] - ordr_shift + np.arange(norders)[::-1]
     order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
     ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
 

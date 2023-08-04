@@ -28,7 +28,8 @@ in one or more ways.
 FWHM
 ----
 
-For the UVB or the VIS, you may turn off measuring the FWHM from the arc lines
+For the UVB or the VIS, you may turn off measuring the FWHM (in units
+of binned pixdels) from the arc lines
 by adding this to your :doc:`pypeit_file`:
 
 
@@ -53,5 +54,7 @@ This may be done in the :doc:`pypeit_file` as well:
         [[wavelengths]]
             rms_threshold = 1.5
 
+
 Note that this is scaled by the ratio of the measured FWHM value
-to the default value.
+to the default value.  See :ref:`_wvcalib-echelle` for
+further details.

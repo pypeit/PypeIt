@@ -646,16 +646,8 @@ class BuildWaveCalib:
 
             # Save arxiv for redo later?
             if self.par['echelle']: 
-                # Collate
-                wave_soln_arxiv = []
-                arcspec_arxiv = []
-                for order in self.orders:
-                    ind_sp = arcfitter.arxiv_orders.index(order) 
-                    wave_soln_arxiv.append(arcfitter.wave_soln_arxiv[:,ind_sp])
-                    arcspec_arxiv.append(arcfitter.spec_arxiv[:,ind_sp])
-                # Save
-                self.wave_soln_arxiv = np.stack(wave_soln_arxiv,axis=-1)
-                self.arcspec_arxiv = np.stack(arcspec_arxiv,axis=-1)
+                # Save for later usage
+                self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
         elif method == 'full_template':
             # Now preferred
@@ -703,17 +695,19 @@ class BuildWaveCalib:
 
         # Build the DataContainer
         if self.par['redo_slits'] is not None:
+            # If we are only redoing slits, we start from the
+            #  previous wv_calib and update only the (good) redone slits
             self.wv_calib = prev_wvcalib
             # Update/reset items
             self.wv_calib.arc_spectra = arccen
-            # Save?
+            # Save the new fits (if they meet tolerance)
             for key in final_fit.keys():
                 if final_fit[key]['rms'] < self.par['rms_threshold']:
                     idx = int(key)
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
-        else:
+        else: # Generate the DataContainer from scratch
             # Loop on WaveFit items
             tmp = []
             for idx in range(self.slits.nslits):
@@ -769,6 +763,97 @@ class BuildWaveCalib:
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
+
+    def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray):
+        """ Attempt to redo the wavelength calibration for a set 
+        of bad echelle orders
+
+        Args:
+            bad_orders (np.ndarray): Array of bad order numbers
+            dets (np.ndarray): detectors of the spectrograph
+                Multiple numbers for mosaic (typically)
+            order_dets (np.ndarray): 
+                Orders on the each detector
+
+        Returns:
+            bool: True if any of the echelle orders were 
+            successfully redone
+        """
+
+        # Make this outside the for loop..
+        #bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
+        fixed = False
+
+        for idet in range(len(dets)):
+            in_det = np.in1d(bad_orders, order_dets[idet])
+            if not np.any(in_det):
+                continue
+            # Are there few enough?
+            # TODO -- make max_bad a parameter
+            max_bad = len(order_dets[idet])//10 + 1
+            if np.sum(in_det) > max_bad:
+                msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
+                continue
+            # Loop
+            for order in bad_orders[in_det]:
+                iord = np.where(self.slits.ech_order == order)[0][0]
+                # Predict the wavelengths
+                nspec = self.arccen.shape[0]
+                spec_vec_norm = np.linspace(0,1,nspec)
+                wv_order_mod = self.wv_calib.wv_fit2d[idet].eval(spec_vec_norm, 
+                                    x2=np.ones_like(spec_vec_norm)*order)/order
+
+                # Link me
+                tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
+                    self.lamps, self.arccen[:,iord], wv_order_mod, 
+                    self.arcspec_arxiv[:, iord],  self.wave_soln_arxiv[:,iord],
+                    self.par['nreid_min'], 
+                match_toler=self.par['match_toler'], 
+                nonlinear_counts=self.nonlinear_counts, 
+                sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
+                fwhm=self.par['fwhm'])
+
+                if not patt_dict_slit['acceptable']:
+                    msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
+                    continue
+
+                # Fit me -- RMS may be too high again
+                n_final = wvutils.parse_param(self.par, 'n_final', iord)
+                # TODO - Make this cheaper
+                final_fit = wv_fitting.fit_slit(
+                    spec_cont_sub, patt_dict_slit, tcent, tot_llist, 
+                    match_toler=self.par['match_toler'], 
+                    func=self.par['func'], 
+                    n_first=self.par['n_first'],
+                    #n_first=3,
+                    sigrej_first=self.par['sigrej_first'], 
+                    n_final=n_final, 
+                    sigrej_final=2.)
+                msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
+
+                # Keep?
+                # TODO -- Make this a parameter?
+                increase_rms = 1.5
+                if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
+                    # TODO -- This is repeated from lines 718-725
+                    # QA
+                    outfile = qa.set_qa_filename(
+                        self.wv_calib.calib_key, 'arc_fit_qa', 
+                        slit=order,
+                        out_dir=self.qa_path)
+                    autoid.arc_fit_qa(final_fit,
+                                    title=f'Arc Fit QA for slit/order: {order}',
+                                    outfile=outfile)
+                    # This is for I/O naming
+                    final_fit.spat_id = self.slits.spat_id[iord]
+                    final_fit.fwhm = self.measured_fwhms[iord]
+                    # Save the wavelength solution fits
+                    self.wv_calib.wv_fits[iord] = final_fit
+                    self.wvc_bpm[iord] = False
+                    fixed = True
+        #
+        return fixed
+
 
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
@@ -957,19 +1042,22 @@ class BuildWaveCalib:
     def run(self, skip_QA=False, debug=False,
             prev_wvcalib=None):
         """
-        Main driver for wavelength calibration
+        Main method for wavelength calibration
 
         Code flow:
           1. Extract 1D arc spectra down the center of each unmasked slit/order
-          2. Load the parameters guiding wavelength calibration
-          3. Generate the 1D wavelength fits
-          4. Generate a mask
+          2. Generate the 1D wavelength fits
+          3. If echelle, perform 2D fit(s).
+          4. Deal with masking
+          5. Return a WaveCalib object
 
         Args:
             skip_QA : bool, optional
+            prev_wvcalib (WaveCalib, optional):
+                Previous wavelength calibration object (from disk, typically)
 
         Returns:
-            dict:  wv_calib dict
+            WaveCalib:  wavelength calibration object
 
         """
         ###############
@@ -1007,80 +1095,11 @@ class BuildWaveCalib:
 
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
-                # Make this outside the for loop..
                 bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
-                fixed = False
-                for idet in range(len(dets)):
-                    in_det = np.in1d(bad_orders, order_dets[idet])
-                    if not np.any(in_det):
-                        continue
-                    # Are there few enough?
-                    # TODO -- make the scale a parameter
-                    max_bad = len(order_dets[idet])//10 + 1
-                    if np.sum(in_det) > max_bad:
-                        msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
-                        continue
-                    # Loop
-                    for order in bad_orders[in_det]:
-                        iord = np.where(self.slits.ech_order == order)[0][0]
-                        # Predict the wavelengths
-                        nspec = self.arccen.shape[0]
-                        spec_vec_norm = np.linspace(0,1,nspec)
-                        wv_order_mod = fit2ds[idet].eval(spec_vec_norm, 
-                                           x2=np.ones_like(spec_vec_norm)*order)/order
+                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets)
 
-                        # Link me
-                        tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
-                            self.lamps, self.arccen[:,iord], wv_order_mod, 
-                            self.arcspec_arxiv[:, iord],  self.wave_soln_arxiv[:,iord],
-                            self.par['nreid_min'], 
-                        match_toler=self.par['match_toler'], 
-                        nonlinear_counts=self.nonlinear_counts, 
-                        sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
-                        fwhm=self.par['fwhm'])
-
-                        if not patt_dict_slit['acceptable']:
-                            msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
-                            continue
-
-                        # Fit me -- RMS may be too high again
-                        n_final = wvutils.parse_param(self.par, 'n_final', iord)
-                        # TODO - Make this cheaper
-                        final_fit = wv_fitting.fit_slit(
-                            spec_cont_sub, patt_dict_slit, tcent, tot_llist, 
-                            match_toler=self.par['match_toler'], 
-                            func=self.par['func'], 
-                            n_first=self.par['n_first'],
-                            #n_first=3,
-                            sigrej_first=self.par['sigrej_first'], 
-                            n_final=n_final, 
-                            sigrej_final=2.)
-                        msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
-
-                        # Keep?
-                        # TODO -- Make this a parameter?
-                        increase_rms = 1.5
-                        if final_fit['rms'] < increase_rms*self.par['rms_threshold']:
-                            # TODO -- This is repeated from lines 718-725
-                            # QA
-                            outfile = qa.set_qa_filename(
-                                self.wv_calib.calib_key, 'arc_fit_qa', 
-                                slit=order,
-                                out_dir=self.qa_path)
-                            autoid.arc_fit_qa(final_fit,
-                                            title=f'Arc Fit QA for slit/order: {order}',
-                                            outfile=outfile)
-                            # This is for I/O naming
-                            final_fit.spat_id = self.slits.spat_id[iord]
-                            final_fit.fwhm = self.measured_fwhms[iord]
-                            # Save the wavelength solution fits
-                            self.wv_calib.wv_fits[iord] = final_fit
-                            self.wvc_bpm[iord] = False
-                            fixed = True
-
-
-                # Do another full 2D
-                if fixed:
+                # Do another full 2D?
+                if any_fixed:
                     fit2ds, _, _ = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
                     # Save
                     self.wv_calib.wv_fit2d = np.array(fit2ds)

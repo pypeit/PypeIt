@@ -2696,10 +2696,9 @@ class WavelengthSolutionPar(ParSet):
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = [float, list, np.ndarray]
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
-                                 'single number or a list/array providing the value for each order. ' \
-                                 'Only used if ``method`` for \'reidentify\' and echelle spectrographs'
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
+                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter'
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
