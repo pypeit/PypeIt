@@ -26,11 +26,11 @@ Place all of the files in a single folder. Mine is named
 .. code-block:: bash
 
     $ ls
-    b10.fits.gz  b15.fits.gz  b1.fits.gz   b24.fits.gz  b4.fits.gz  b9.fits.gz
-    b11.fits.gz  b16.fits.gz  b20.fits.gz  b27.fits.gz  b5.fits.gz
-    b12.fits.gz  b17.fits.gz  b21.fits.gz  b28.fits.gz  b6.fits.gz
-    b13.fits.gz  b18.fits.gz  b22.fits.gz  b2.fits.gz   b7.fits.gz
-    b14.fits.gz  b19.fits.gz  b23.fits.gz  b3.fits.gz   b8.fits.gz
+    b1.fits.gz   b14.fits.gz  b19.fits.gz  b24.fits.gz  b5.fits.gz
+    b10.fits.gz  b15.fits.gz  b20.fits.gz  b27.fits.gz  b6.fits.gz
+    b11.fits.gz  b16.fits.gz  b21.fits.gz  b28.fits.gz  b7.fits.gz
+    b12.fits.gz  b17.fits.gz  b22.fits.gz  b3.fits.gz   b8.fits.gz
+    b13.fits.gz  b18.fits.gz  b23.fits.gz  b4.fits.gz   b9.fits.gz
 
 Run ``pypeit_setup``
 --------------------
@@ -64,19 +64,13 @@ incorrectly assigned owing to limited or erroneous headers.  However, in this
 example, all of the frametypes were accurately assigned in the
 :doc:`../pypeit_file`.
 
-A couple of notes:
+.. note::
 
-    #. One of the dome-flat images (``b2.fits.gz``) has an exposure time of 30s,
-       whereas the others are 15s.  Inspection of the image shows that the flat
-       was saturated, so the observer decreased the exposure time.  It's best to
-       comment out this line from the pypeit file (add a ``#`` character at the
-       beginning of the line) so that PypeIt will ignore the file.
-
-    #. This is the rare case when the observation of a standard star is
-       correctly typed.  Generally, it will be difficult for the automatic
-       frame-typing code to distinguish standard-star observations from science
-       targets, meaning that you'll need to edit the pypeit file directly to
-       designate standard-star observations as such.
+    This is the rare case when the observation of a standard star is correctly
+    typed.  Generally, it will be difficult for the automatic frame-typing code
+    to distinguish standard-star observations from science targets, meaning that
+    you'll need to edit the pypeit file directly to designate standard-star
+    observations as such.
 
 Main Run
 ========
