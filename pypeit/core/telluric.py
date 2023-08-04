@@ -192,6 +192,118 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     return dict(wave_grid=wave_grid, dloglam=dloglam, resln_guess=resln_guess,
             pix_per_sigma=pix_per_sigma, tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
             tell_pca=pca_comp_grid, bounds_tell_pca=bounds, coefs_tell_pca=model_coefs)
+            
+def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
+    """
+    Reads in the telluric grid from a file.
+
+    Optionally, this method also trims the grid to be in within ``wave_min``
+    and ``wave_max`` and pads the data (see ``pad_frac``).
+
+    .. todo::
+        List and describe the contents of the dictionary in the return
+        description.
+
+    Args:
+        filename (:obj:`str`):
+           Telluric grid filename
+        wave_min (:obj:`float`):
+           Minimum wavelength at which the grid is desired
+        wave_max (:obj:`float`):
+           Maximum wavelength at which the grid is desired.
+        pad_frac (:obj:`float`):
+           Percentage padding to be added to the grid boundaries if
+           ``wave_min`` or ``wave_max`` are input; ignored otherwise. The
+           resulting grid will extend from ``(1.0 - pad_frac)*wave_min`` to
+           ``(1.0 + pad_frac)*wave_max``.
+
+    Returns:
+        :obj:`dict`:  Dictionary containing the telluric grid
+            - wave_grid=
+            - dloglam=
+            - resln_guess=
+            - pix_per_sigma=
+            - tell_pad_pix=
+            - pressure_grid=
+            - temp_grid=
+            - h2o_grid=
+            - airmass_grid=
+            - tell_grid=
+    """
+    # load_telluric_grid() takes care of path and existance check
+    hdul = data.load_telluric_grid(filename)
+    wave_grid_full = 10.0*hdul[1].data
+    model_grid_full = hdul[0].data
+    nspec_full = wave_grid_full.size
+
+    ind_lower = np.argmin(np.abs(wave_grid_full - (1.0 - pad_frac)*wave_min)) \
+                    if wave_min is not None else 0
+    ind_upper = np.argmin(np.abs(wave_grid_full - (1.0 + pad_frac)*wave_max)) \
+                    if wave_max is not None else nspec_full
+    wave_grid = wave_grid_full[ind_lower:ind_upper]
+    model_grid = model_grid_full[...,ind_lower:ind_upper]
+
+    pg = hdul[0].header['PRES0']+hdul[0].header['DPRES']*np.arange(0,hdul[0].header['NPRES'])
+    tg = hdul[0].header['TEMP0']+hdul[0].header['DTEMP']*np.arange(0,hdul[0].header['NTEMP'])
+    hg = hdul[0].header['HUM0']+hdul[0].header['DHUM']*np.arange(0,hdul[0].header['NHUM'])
+    if hdul[0].header['NAM'] > 1:
+        ag = hdul[0].header['AM0']+hdul[0].header['DAM']*np.arange(0,hdul[0].header['NAM'])
+    else:
+        ag = hdul[0].header['AM0']+1*np.arange(0,1)
+
+    dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
+    tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
+
+
+    return dict(wave_grid=wave_grid,
+                dloglam=dloglam,
+                resln_guess=resln_guess,
+                pix_per_sigma=pix_per_sigma,
+                tell_pad_pix=tell_pad_pix,
+                pressure_grid=pg,
+                temp_grid=tg,
+                h2o_grid=hg,
+                airmass_grid=ag,
+                tell_grid=model_grid)
+
+
+def interp_telluric_grid(theta, tell_dict):
+    """
+    Interpolate the telluric model grid to the specified location in
+    parameter space.
+
+    The interpolation is only performed over the 4D parameter space specified
+    by pressure, temperature, humidity, and airmass. This routine performs
+    nearest-gridpoint interpolation to evaluate the telluric model at an
+    arbitrary location in this 4-d space. The telluric grid is assumed to be
+    uniformly sampled in this parameter space.
+
+    Args:
+        theta (`numpy.ndarray`_):
+            A 4-element vector with the telluric model parameters: pressure,
+            temperature, humidity, and airmass.
+        tell_dict (dict):
+            Dictionary containing the telluric grid. See
+            :func:`read_telluric_grid`.
+
+    Returns:
+        `numpy.ndarray`_: Telluric model evaluated at the provided 4D
+        position in parameter space. The telluric model is provided over all
+        available wavelengths in ``tell_dict``.
+    """
+    if len(theta) != 4:
+        msgs.error('Input parameter vector must have 4 and only 4 values.')
+    pg = tell_dict['pressure_grid']
+    tg = tell_dict['temp_grid']
+    hg = tell_dict['h2o_grid']
+    ag = tell_dict['airmass_grid']
+    p, t, h, a = theta
+    pi = int(np.round((p-pg[0])/(pg[1]-pg[0]))) if len(pg) > 1 else 0
+    ti = int(np.round((t-tg[0])/(tg[1]-tg[0]))) if len(tg) > 1 else 0
+    hi = int(np.round((h-hg[0])/(hg[1]-hg[0]))) if len(hg) > 1 else 0
+    ai = int(np.round((a-ag[0])/(ag[1]-ag[0]))) if len(ag) > 1 else 0
+    return tell_dict['tell_grid'][pi,ti,hi,ai]
+
 
 def conv_telluric(tell_model, dloglam, res):
     """
@@ -200,8 +312,8 @@ def conv_telluric(tell_model, dloglam, res):
     Args:
         tell_model (`numpy.ndarray`_):
             Input telluric model at the native resolution of the telluric model grid. The shape of this input is in
-            general  different from the size of the telluric grid (read in by read_telluric_grid above) because it is
-            trimmed to relevant wavelenghts using ind_lower, ind_upper. See eval_telluric below.
+            general different from the size of the raw telluric model (read in by read_telluric_* above) because it is
+            trimmed to relevant wavelengths using ind_lower, ind_upper. See eval_telluric_* below.
         dloglam (float):
             Wavelength spacing of the telluric grid expressed as a dlog10(lambda), i.e. stored in the
             tell_dict as tell_dict['dloglam']
@@ -262,7 +374,7 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     return tell_model_shift
 
 
-def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
+def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     Evaluate the telluric PCA model.
 
@@ -336,21 +448,77 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
                                    tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
     return tellmodel_out[ind_lower_final:ind_upper_final]
 
-def in_hull(points, x):
+def eval_telluric_grid(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
-    Checks whether the N-D point 'x' can be expressed as a convex combination
-    of 'points', equivalent to checking whether 'x' lies within the convex hull
-    defined by the outer subset of 'points' but much faster.
-    See: https://stackoverflow.com/a/43564754
-    """
-    n_points = len(points)
-    n_dim = len(x)
-    c = np.zeros(n_points)
-    A = np.r_[points.T,np.ones((1,n_points))]
-    b = np.r_[x, np.ones(1)]
-    lp = scipy.optimize.linprog(c, A_eq=A, b_eq=b)
-    return lp.success
+    Evaluate the telluric model at an arbitrary location in parameter space.
     
+    The full atmosphere model parameter space is either 5 or 7 dimensional,
+    which is the size of the ``theta_tell`` input parameter vector.
+
+    The parameters provided by ``theta_tell`` must be: pressure, temperature,
+    humidity, airmass, spectral resolution, shift, and stretch. The latter two
+    can be omitted if a shift and stretch of the telluric model are not
+    included.
+
+    This routine performs the following steps:
+
+       1. nearest grid point interpolation of the telluric model onto a
+          new location in the 4-d space (pressure, temperature,
+          humidity, airmass)
+
+       2. convolution of the atmosphere model to the resolution set by
+          the spectral resolution.
+
+       3. (Optional) shift and stretch the telluric model.
+
+    Args:
+        theta_tell (`numpy.ndarray`_):
+            Vector with the telluric model parameters. Must be 5 or 7
+            elements long. See method description.
+        tell_dict (:obj:`dict`):
+            Dictionary containing the telluric grid data. See
+            :func:`read_telluric_grid`.
+        ind_lower (:obj:`int`, optional):
+            The index of the first pixel to include in the model. Selecting a
+            wavelength region for the modeling makes things faster because we
+            only need to convolve the portion that is needed for the current
+            model fit.
+        ind_upper:
+            The index (inclusive) of the last pixel to include in the model.
+            Selecting a wavelength region for the modeling makes things
+            faster because we only need to convolve the portion that is
+            needed for the current model fit.
+
+    Returns:
+        `numpy.ndarray`_: Telluric model evaluated at the desired location
+        theta_tell in model atmosphere parameter space.
+    """
+    ntheta = len(theta_tell)
+    if ntheta not in [5, 7]:
+        msgs.error('Input model atmosphere parameters must have length 5 or 7.')
+
+    tellmodel_hires = interp_telluric_grid(theta_tell[:4], tell_dict)
+
+    # Set the wavelength range if not provided
+    ind_lower = 0 if ind_lower is None else ind_lower
+    ind_upper = tell_dict['wave_grid'].size - 1 if ind_upper is None else ind_upper
+
+    # Deal with padding for the convolutions
+    ind_lower_pad = np.fmax(ind_lower - tell_dict['tell_pad_pix'], 0)
+    ind_upper_pad = np.fmin(ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
+    ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
+    ind_lower_final = ind_lower_pad if ind_lower_pad == ind_lower else ind_lower - ind_lower_pad
+    ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
+    tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
+                                   tell_dict['dloglam'], theta_tell[4])
+    if ntheta == 5:
+        return tellmodel_conv[ind_lower_final:ind_upper_final]
+
+    tellmodel_out = shift_telluric(tellmodel_conv,
+                                   np.log10(tell_dict['wave_grid'][ind_lower_pad:ind_upper_pad+1]),
+                                   tell_dict['dloglam'], theta_tell[5], theta_tell[6])
+    return tellmodel_out[ind_lower_final:ind_upper_final]
+
 ############################
 #  Fitting routines        #
 ############################
@@ -380,22 +548,18 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     
 
     obj_model_func = arg_dict['obj_model_func']
+    tell_model_func = arg_dict['tell_model_func']
     flux_ivar = arg_dict['ivar']
-    ncomp_use = arg_dict['ntell']
 
     # TODO: make this work without shift and stretch turned on
+    # Number of telluric model parameters, plus shift, stretch, and resolution
     nfit = arg_dict['ntell']+3
 
     theta_obj = theta[:-nfit]
     theta_tell = theta[-nfit:]
-    
-    # If the PCA coefficients lie outside the convex hull of the telluric models,
-    # it is probably unphysical, so return infinity.
-#    if not in_hull(arg_dict['tell_dict']['coefs_tell_pca'][:,:(nfit-3)],theta_tell[:-3]):
-#        return np.inf
-#
-    tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
-                               ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
+
+    tell_model = tell_model_func(theta_tell, arg_dict['tell_dict'],
+                                 ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, model_gpm = obj_model_func(theta_obj, arg_dict['obj_dict'])
 
     totalmask = thismask & model_gpm
@@ -457,6 +621,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                 - ``arg_dict['ind_upper']``: Upper index into the
                   telluric model wave_grid to trim down the telluric
                   model.
+                - ``arg_dict['tell_model_func']``: Function for
+                  evaluating the telluric model, i.e. PCA or grid
                 - ``arg_dict['obj_model_func']``: User provided function
                   for evaluating the object model
                 - ``arg_dict['obj_dict']``:  Dictionary containing the
@@ -489,6 +655,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
 
     # Unpack arguments
     obj_model_func = arg_dict['obj_model_func'] # Evaluation function
+    tell_model_func = arg_dict['tell_model_func'] # Telluric model, PCA or Grid
     flux_ivar = arg_dict['ivar'] # Inverse variance of flux or counts
     bounds = arg_dict['bounds']  # bounds for differential evolution optimization
     rng = arg_dict['rng']      # Seed for differential evolution optimizaton
@@ -524,16 +691,11 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                                                    init = init, updating='immediate', popsize=popsize,
                                                    recombination=arg_dict['recombination'], maxiter=arg_dict['diff_evol_maxiter'],
                                                    polish=arg_dict['polish'], disp=arg_dict['disp'])
-    
-    # Let the user know if the best-fit telluric coefficients lie outside the model space,
-    # probably should not trust the model in that case!
-    if not in_hull(arg_dict['tell_dict']['coefs_tell_pca'][:,:(ntheta_tell-3)],result.x[-ntheta_tell:-3]):
-        msgs.warn('Best fit telluric model lies in potentially unphysical parameter space. Use with caution!')
-                                                   
+                                        
     theta_obj  = result.x[:-ntheta_tell]
     theta_tell = result.x[-ntheta_tell:]
-    tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
-                               ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
+    tell_model = tell_model_func(theta_tell, arg_dict['tell_dict'],
+                                 ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
     totalmask = thismask & modelmask
     chi_vec = totalmask*(flux - tell_model*obj_model)*np.sqrt(flux_ivar)
@@ -2025,7 +2187,10 @@ class Telluric(datamodel.DataContainer):
     """Datamodel version."""
 
     datamodel = {'telgrid': dict(otype=str,
-                                 descr='File containing grid of HITRAN atmosphere models'),
+                                 descr='File containing PCA components or grid of '
+                                       'HITRAN atmosphere models'),
+                 'teltype': dict(otype=str,
+                                 descr='Type of telluric model, pca or grid'),
                  'ntell': dict(otype=int,
                                     descr='Number of telluric PCA components used'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
@@ -2181,7 +2346,7 @@ class Telluric(datamodel.DataContainer):
             table.Column(name='WAVE_MAX', dtype=float, length=norders,
                          description='Maximum wavelength included in the fit')])
 
-    def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model,
+    def __init__(self, wave, flux, ivar, gpm, telgridfile, teltype, obj_params, init_obj_model,
                  eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4, airmass_guess=1.5,
                  resln_guess=None, resln_frac_bounds=(0.5, 2.0), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
@@ -2201,6 +2366,7 @@ class Telluric(datamodel.DataContainer):
 
         # 1) Assign arguments
         self.telgrid = telgridfile
+        self.teltype = teltype
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
         self.ntell = ntell
@@ -2241,8 +2407,14 @@ class Telluric(datamodel.DataContainer):
                 wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
-        self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
-                                            wave_max=self.wave_in_arr[wv_gpm].max())
+        if teltype == 'pca' or teltype == 'PCA':
+            self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
+                                               wave_max=self.wave_in_arr[wv_gpm].max())
+            tell_model_func = eval_telluric_pca
+        elif teltype == 'grid':
+            self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
+                                                wave_max=self.wave_in_arr[wv_gpm].max())
+            tell_model_func = eval_telluric_grid
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] \
@@ -2290,9 +2462,9 @@ class Telluric(datamodel.DataContainer):
         for counter, iord in enumerate(self.srt_order_tell):
             msgs.info(f'Initializing object model for order: {iord}, {counter}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
-            tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
-                                      ind_lower=self.ind_lower[iord],
-                                      ind_upper=self.ind_upper[iord])
+            tellmodel = tell_model_func(self.tell_guess, self.tell_dict,
+                                        ind_lower=self.ind_lower[iord],
+                                        ind_upper=self.ind_upper[iord])
             # TODO This is a pretty ugly way to pass in the blaze function. Particularly since now all the other models
             #  (star, qso, poly) are going to have this parameter set in their obj_params dictionary.
             #  Is there something more elegant that can be done with e.g. functools.partial?
@@ -2313,7 +2485,8 @@ class Telluric(datamodel.DataContainer):
             self.bounds_list[iord] = bounds_iord
             arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                  tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord],
-                                 ind_upper=self.ind_upper[iord], ntell=self.ntell,
+                                 ind_upper=self.ind_upper[iord],
+                                 ntell=self.ntell, tell_model_func=tell_model_func,
                                  obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
                                  ballsize=self.ballsize, bounds=bounds_iord, rng=self.rng,
                                  diff_evol_maxiter=self.diff_evol_maxiter, tol=self.tol,

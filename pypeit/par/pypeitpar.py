@@ -2079,7 +2079,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, ntell=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, ntell=None, teltype=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2108,6 +2108,13 @@ class TelluricPar(ParSet):
         defaults['ntell'] = 4
         dtypes['ntell'] = int
         descr['ntell'] = 'Number of telluric PCA components to use in the fitting'
+        
+        defaults['teltype'] = 'PCA'
+        dtypes['teltype'] = str
+        descr['teltype'] = 'Method used to evaluate telluric models, either PCA or grid. The grid option uses a ' \
+                           'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
+                           'observatory, whereas the PCA option uses principal components of a larger model grid ' \
+                           'to compute a pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
