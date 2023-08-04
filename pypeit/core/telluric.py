@@ -2258,6 +2258,7 @@ class Telluric(datamodel.DataContainer):
                  'norders',
 
                  'tell_dict',
+                 'tell_model_func',
         
                  'wave_grid',
                  'ngrid',
@@ -2411,11 +2412,11 @@ class Telluric(datamodel.DataContainer):
         if teltype == 'pca' or teltype == 'PCA':
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
-            tell_model_func = eval_telluric_pca
+            self.tell_model_func = eval_telluric_pca
         elif teltype == 'grid':
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
-            tell_model_func = eval_telluric_grid
+            self.tell_model_func = eval_telluric_grid
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] \
@@ -2463,7 +2464,7 @@ class Telluric(datamodel.DataContainer):
         for counter, iord in enumerate(self.srt_order_tell):
             msgs.info(f'Initializing object model for order: {iord}, {counter}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
-            tellmodel = tell_model_func(self.tell_guess, self.tell_dict,
+            tellmodel = self.tell_model_func(self.tell_guess, self.tell_dict,
                                         ind_lower=self.ind_lower[iord],
                                         ind_upper=self.ind_upper[iord])
             # TODO This is a pretty ugly way to pass in the blaze function. Particularly since now all the other models
@@ -2536,7 +2537,7 @@ class Telluric(datamodel.DataContainer):
             self.theta_tell_list[iord] = self.result_list[iord].x[-(self.ntell+3):]
             self.obj_model_list[iord], modelmask \
                     = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
-            self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
+            self.tellmodel_list[iord] = self.tell_model_func(self.theta_tell_list[iord], self.tell_dict,
                                                       ind_lower=self.ind_lower[iord],
                                                       ind_upper=self.ind_upper[iord])
             self.assign_output(iord)
