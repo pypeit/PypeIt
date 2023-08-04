@@ -880,6 +880,7 @@ class IRSensFunc(SensFunc):
                                                    self.counts_mask, self.meta_spec['EXPTIME'],
                                                    self.meta_spec['AIRMASS'], self.std_dict,
                                                    self.par['IR']['telgridfile'],
+                                                   self.par['IR']['teltype'],
                                                    log10_blaze_function=self.log10_blaze_function,
                                                    polyorder=self.par['polyorder'],
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],

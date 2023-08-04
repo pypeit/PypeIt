@@ -2107,14 +2107,16 @@ class TelluricPar(ParSet):
         
         defaults['ntell'] = 4
         dtypes['ntell'] = int
-        descr['ntell'] = 'Number of telluric PCA components to use in the fitting'
+        descr['ntell'] = 'Number of fitted telluric model parameters. Must be set to 4 (default) for teltype = grid, ' \
+                         'but can be set to any number from 1 to 15 for teltype = PCA, corresponding to the number of ' \
+                         'fitted PCA coefficients.'
         
         defaults['teltype'] = 'PCA'
         dtypes['teltype'] = str
         descr['teltype'] = 'Method used to evaluate telluric models, either PCA or grid. The grid option uses a ' \
                            'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
                            'observatory, whereas the PCA option uses principal components of a larger model grid ' \
-                           'to compute a pseudo-telluric model with a much lighter telgridfile.'
+                           'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2343,7 +2345,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'ntell',
+        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'ntell',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
