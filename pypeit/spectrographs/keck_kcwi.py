@@ -133,7 +133,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM1':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_RM1.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
