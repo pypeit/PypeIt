@@ -512,6 +512,154 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Return the list of pattern frequencies
         return patt_freqs
 
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
+        """
+        Construct/Read a World-Coordinate System for a frame.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`):
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale). See also 'spatial_scale'
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
+            spatial_scale (:obj:`float`, None, optional):
+                The spatial scale (units=arcsec/pixel) of the WCS to be used.
+                This variable is fixed, and is independent of the binning.
+                If spatial_scale is set, it will be used for the spatial size
+                of the WCS and the platescale will be ignored. If None, then
+                the platescale will be used.
+
+        Returns:
+            `astropy.wcs.WCS`_: The world-coordinate system.
+        """
+        msgs.info(f"Generating {self.camera} WCS")
+        # Get the x and y binning factors, and the typical slit length
+        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
+
+        # Get the pixel and slice scales
+        pxscl = platescale * binspat / 3600.0  # 3600 is to convert arcsec to degrees
+        slscl = self.get_meta_value([hdr], 'slitwid')
+        if spatial_scale is not None:
+            if pxscl > spatial_scale / 3600.0:
+                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
+            # Update the pixel scale
+            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
+
+        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+
+        # Get RA/DEC
+        raval = self.compound_meta([hdr], 'ra')
+        decval = self.compound_meta([hdr], 'dec')
+
+        # Create a coordinate
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+
+        # Get rotator position
+        if 'ROTPOSN' in hdr:
+            rpos = hdr['ROTPOSN']
+        else:
+            rpos = 0.
+        if 'ROTREFAN' in hdr:
+            rref = hdr['ROTREFAN']
+        else:
+            rref = 0.
+        # Get the offset and PA
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        skypa = rpos + rref  # IFU position angle (degrees)
+        crota = np.radians(-(skypa + rotoff))
+
+        # Calculate the fits coordinates
+        cdelt1 = -slscl
+        cdelt2 = pxscl
+        if coord is None:
+            ra = 0.
+            dec = 0.
+            crota = 1
+        else:
+            ra = coord.ra.degree
+            dec = coord.dec.degree
+        # Calculate the CD Matrix
+        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
+        # Get reference pixels (set these to the middle of the FOV)
+        crpix1 = 24/2   # i.e. 24 slices/2
+        crpix2 = slitlength / 2.
+        crpix3 = 1.
+        # Get the offset
+        porg = hdr['PONAME']
+        ifunum = hdr['IFUNUM']
+        if 'IFU' in porg:
+            if ifunum == 1:  # Large slicer
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:  # Medium slicer
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:  # Small slicer
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
+                off1 = 0.
+                off2 = 0.
+            off1 /= binspec
+            off2 /= binspat
+            crpix1 += off1
+            crpix2 += off2
+
+        # Create a new WCS object.
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.name = self.camera
+        w.wcs.radesys = 'FK5'
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+        # Insert the coordinate frame
+        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
+        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
+        return w
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        r"""
+        Calculate the bin edges to be used when making a datacube.
+
+        Args:
+            slitlength (:obj:`int`):
+                Length of the slit in pixels
+            minmax (`numpy.ndarray`_):
+                An array with the minimum and maximum pixel locations on each
+                slit relative to the reference location (usually the centre
+                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
+                typically the array returned by
+                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
+            num_wave (:obj:`int`):
+                Number of wavelength steps.  Given by::
+                    int(round((wavemax-wavemin)/delta_wave))
+
+        Args:
+            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
+            when constructing a histogram of the spec2d files. The elements
+            are :math:`(x,y,\lambda)`.
+        """
+        xbins = np.arange(1 + 24) - 12.0 - 0.5
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        spec_bins = np.arange(1+num_wave) - 0.5
+        return xbins, ybins, spec_bins
+
 
 class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
     """
@@ -849,154 +997,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             bpm_img[bc[bb][2]:bc[bb][3]+1, bc[bb][0]:bc[bb][1]+1] = 1
 
         return np.flipud(bpm_img)
-
-    def get_wcs(self, hdr, slits, platescale, wave0, dwv, spatial_scale=None):
-        """
-        Construct/Read a World-Coordinate System for a frame.
-
-        Args:
-            hdr (`astropy.io.fits.Header`_):
-                The header of the raw frame. The information in this
-                header will be extracted and returned as a WCS.
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                Slit traces.
-            platescale (:obj:`float`):
-                The platescale of an unbinned pixel in arcsec/pixel (e.g.
-                detector.platescale). See also 'spatial_scale'
-            wave0 (:obj:`float`):
-                The wavelength zeropoint.
-            dwv (:obj:`float`):
-                Change in wavelength per spectral pixel.
-            spatial_scale (:obj:`float`, None, optional):
-                The spatial scale (units=arcsec/pixel) of the WCS to be used.
-                This variable is fixed, and is independent of the binning.
-                If spatial_scale is set, it will be used for the spatial size
-                of the WCS and the platescale will be ignored. If None, then
-                the platescale will be used.
-
-        Returns:
-            `astropy.wcs.WCS`_: The world-coordinate system.
-        """
-        msgs.info("Generating KCWI WCS")
-        # Get the x and y binning factors, and the typical slit length
-        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
-
-        # Get the pixel and slice scales
-        pxscl = platescale * binspat / 3600.0  # 3600 is to convert arcsec to degrees
-        slscl = self.get_meta_value([hdr], 'slitwid')
-        if spatial_scale is not None:
-            if pxscl > spatial_scale / 3600.0:
-                msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(spatial_scale, pxscl*3600.0))
-            # Update the pixel scale
-            pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
-
-        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-
-        # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
-
-        # Create a coordinate
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-
-        # Get rotator position
-        if 'ROTPOSN' in hdr:
-            rpos = hdr['ROTPOSN']
-        else:
-            rpos = 0.
-        if 'ROTREFAN' in hdr:
-            rref = hdr['ROTREFAN']
-        else:
-            rref = 0.
-        # Get the offset and PA
-        rotoff = 0.0  # IFU-SKYPA offset (degrees)
-        skypa = rpos + rref  # IFU position angle (degrees)
-        crota = np.radians(-(skypa + rotoff))
-
-        # Calculate the fits coordinates
-        cdelt1 = -slscl
-        cdelt2 = pxscl
-        if coord is None:
-            ra = 0.
-            dec = 0.
-            crota = 1
-        else:
-            ra = coord.ra.degree
-            dec = coord.dec.degree
-        # Calculate the CD Matrix
-        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
-        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
-        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
-        # Get reference pixels (set these to the middle of the FOV)
-        crpix1 = 24/2   # i.e. 24 slices/2
-        crpix2 = slitlength / 2.
-        crpix3 = 1.
-        # Get the offset
-        porg = hdr['PONAME']
-        ifunum = hdr['IFUNUM']
-        if 'IFU' in porg:
-            if ifunum == 1:  # Large slicer
-                off1 = 1.0
-                off2 = 4.0
-            elif ifunum == 2:  # Medium slicer
-                off1 = 1.0
-                off2 = 5.0
-            elif ifunum == 3:  # Small slicer
-                off1 = 0.05
-                off2 = 5.6
-            else:
-                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
-                off1 = 0.
-                off2 = 0.
-            off1 /= binspec
-            off2 /= binspat
-            crpix1 += off1
-            crpix2 += off2
-
-        # Create a new WCS object.
-        w = wcs.WCS(naxis=3)
-        w.wcs.equinox = hdr['EQUINOX']
-        w.wcs.name = 'KCWI'
-        w.wcs.radesys = 'FK5'
-        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
-        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
-        # Insert the coordinate frame
-        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
-        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
-        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
-        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
-        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
-        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
-        return w
-
-    def get_datacube_bins(self, slitlength, minmax, num_wave):
-        r"""
-        Calculate the bin edges to be used when making a datacube.
-
-        Args:
-            slitlength (:obj:`int`):
-                Length of the slit in pixels
-            minmax (`numpy.ndarray`_):
-                An array with the minimum and maximum pixel locations on each
-                slit relative to the reference location (usually the centre
-                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
-                typically the array returned by
-                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
-            num_wave (:obj:`int`):
-                Number of wavelength steps.  Given by::
-                    int(round((wavemax-wavemin)/delta_wave))
-
-        Args:
-            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
-            when constructing a histogram of the spec2d files. The elements
-            are :math:`(x,y,\lambda)`.
-        """
-        xbins = np.arange(1 + 24) - 12.0 - 0.5
-        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
-        spec_bins = np.arange(1+num_wave) - 0.5
-        return xbins, ybins, spec_bins
 
     def fit_2d_det_response(self, det_resp, gpmask):
         r"""
