@@ -1315,3 +1315,80 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask for KCRM.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Processed bias frame used to identify bad pixels. **This is
+                ignored for KCWI.**
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm; msbias is always set to None.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=None)
+
+        # Extract some header info
+        head0 = fits.getheader(filename, ext=0)
+        ampmode = head0['AMPMODE']
+        binning = head0['BINNING']
+
+        # Construct a list of the bad columns
+        bc = None
+#         if ampmode == 'ALL':
+#             # TODO: There are several bad columns in this mode, but this is typically only used for arcs.
+#             #       It's the same set of bad columns seen in the TBO and TUP amplifier modes.
+#             if binning == '1,1':
+#                 bc = [[3676, 3676, 2056, 2244]]
+#             elif binning == '2,2':
+#                 bc = [[1838, 1838, 1028, 1121]]
+#         elif ampmode == 'TBO':
+#             if binning == '1,1':
+#                 bc = [[2622, 2622,  619,  687],
+#                       [2739, 2739, 1748, 1860],
+#                       [3295, 3300, 2556, 2560],
+#                       [3675, 3676, 2243, 4111]]
+#             elif binning == '2,2':
+#                 bc = [[1311, 1311,  310,  354],
+#                       [1369, 1369,  876,  947],
+#                       [1646, 1650, 1278, 1280],
+#                       [1838, 1838, 1122, 2055]]
+#         if ampmode == 'TUP':
+#             if binning == '1,1':
+# #                bc = [[2622, 2622, 3492, 3528],
+#                 bc = [[2622, 2622, 3492, 4111],   # Extending this BPM, as sometimes the bad column is larger than this.
+#                       [3295, 3300, 1550, 1555],
+#                       [3676, 3676, 1866, 4111]]
+#             elif binning == '2,2':
+# #                bc = [[1311, 1311, 1745, 1788],
+#                 bc = [[1311, 1311, 1745, 2055],   # Extending this BPM, as sometimes the bad column is larger than this.
+#                       [1646, 1650,  775,  777],
+#                       [1838, 1838,  933, 2055]]
+        if bc is None:
+            msgs.warn("KCRM bad pixel mask is not available for ampmode={0:s} binning={1:s}".format(ampmode, binning))
+            bc = []
+
+        # Apply these bad columns to the mask
+        for bb in range(len(bc)):
+            bpm_img[bc[bb][2]:bc[bb][3]+1, bc[bb][0]:bc[bb][1]+1] = 1
+
+        return np.flipud(bpm_img)
