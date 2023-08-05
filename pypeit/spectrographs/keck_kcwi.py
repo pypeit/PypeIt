@@ -739,9 +739,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
 
-        # get the x and y binning factors...
-        #binning = self.get_meta_value(headarr, 'binning')
-
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
@@ -749,20 +746,19 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(numamps):
+            for aa, ampid in enumerate(1+np.arange(numamps)):
                 # Get the data section
-                sec = head0[section+"{0:1d}".format(i+1)]
+                sec = head0[section+"{0:1d}".format(ampid)]
 
                 # Convert the data section from a string to a slice
                 # TODO :: RJC - I think something has changed here... and the BPM is flipped (or not flipped) for different amp modes.
-                # TODO :: RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an argument
-                datasec = parse.sec2slice(sec, one_indexed=one_indexed,
-                                          include_end=include_last, require_dim=2)#, binning=binning)
+                # RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an argument
+                datasec = parse.sec2slice(sec, one_indexed=one_indexed, include_end=include_last, require_dim=2)
                 # Flip the datasec
                 datasec = datasec[::-1]
 
                 # Assign the amplifier
-                pix_img[datasec] = i+1
+                pix_img[datasec] = aa+1
 
             # Finish
             if section == 'DSEC':
@@ -1090,11 +1086,14 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
             nampsxy = hdu[0].header['NAMPSXY'].split()
             numamps = int(nampsxy[0]) * int(nampsxy[1])
-            if numamps != 2:
-                msgs.error("PypeIt only supports dual amplifier readout of KCRM data")
+            amps = self.get_amplifiers(numamps)
+
             specflip = False
-            gainarr = np.array([hdu[0].header["GAIN1"], hdu[0].header["GAIN3"]])
+            gainarr = np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
+            for aa, amp in enumerate(amps):
+                # Assign the gain for this amplifier
+                gainarr[aa] = hdu[0].header["GAIN{0:1d}".format(amp)]
 
         detector = dict(det             = det,
                         binning         = binning,
@@ -1116,6 +1115,25 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         )
         # Return
         return detector_container.DetectorContainer(**detector)
+
+    def get_amplifiers(self, numamps):
+        """
+        Obtain a list of the amplifier ID numbers
+
+        Args:
+            numamps (:obj:`int`):
+                Number of amplifiers used for readout
+
+        Returns:
+            :obj:`list`:
+            A list (of length numamps) containing the ID number of the amplifiers used for readout
+        """
+        if numamps == 2:
+            return [1, 3]
+        elif numamps == 4:
+            return [0, 1, 2, 3]
+        else:
+            msgs.error("PypeIt only supports 2 or 4 amplifier readout of KCRM data")
 
     def init_meta(self):
         """
@@ -1163,12 +1181,12 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         # NOTE: The pattern subtraction is time-consuming, meaning we don't
         # perform it (by default) for the high S/N pixel flat images but we do
         # for everything else.
-        par['calibrations']['biasframe']['process']['use_pattern'] = True
-        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['biasframe']['process']['use_pattern'] = False
+        par['calibrations']['darkframe']['process']['use_pattern'] = False
         par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
-        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
-        par['calibrations']['standardframe']['process']['use_pattern'] = True
-        par['scienceframe']['process']['use_pattern'] = True
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = False
+        par['calibrations']['standardframe']['process']['use_pattern'] = False
+        par['scienceframe']['process']['use_pattern'] = False
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
@@ -1260,6 +1278,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         # Some properties of the image
         nampsxy = head0['NAMPSXY'].split()
         numamps = int(nampsxy[0]) * int(nampsxy[1])
+        amps = self.get_amplifiers(numamps)
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -1274,7 +1293,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            for ampid in [1, 3]:
+            for aa, ampid in enumerate(amps):
                 # Get the data section
                 sec = head0[section+"{0:1d}".format(ampid)]
 
@@ -1286,7 +1305,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                 datasec = datasec[::-1]
 
                 # Assign the amplifier
-                pix_img[datasec] = ampid
+                pix_img[datasec] = aa+1
 
             # Finish
             if section == 'DSEC':
