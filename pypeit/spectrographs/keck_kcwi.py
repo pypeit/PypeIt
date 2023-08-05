@@ -207,19 +207,22 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                return 0.0
+                msgs.info("The default pressure will be assumed: 0.611 bar")
+                return 0.611
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
             except KeyError:
                 msgs.warn("Temperature is not in header")
-                return 0.0
+                msgs.info("The default temperature will be assumed: 1.5 deg C")
+                return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
                 return headarr[0]['WXOUTHUM'] / 100.0
             except KeyError:
                 msgs.warn("Humidity is not in header")
-                return 0.0
+                msgs.info("The default relative humidity will be assumed: 20 %")
+                return 0.2  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         else:
@@ -432,6 +435,82 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 lampstat += ["{0:s}-{1:s}".format(str(headarr[ext1][card1]), str(headarr[ext2][card2]))]
             kk += 1
         return "_".join(lampstat)
+
+
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        """
+        Calculate the pattern frequency using the overscan region that covers
+        the overscan and data sections. Using a larger range allows the
+        frequency to be pinned down with high accuracy.
+
+        NOTE: The amplifiers are arranged as follows:
+
+        |   (0,ny)  --------- (nx,ny)
+        |           | 3 | 4 |
+        |           ---------
+        |           | 1 | 2 |
+        |     (0,0) --------- (nx, 0)
+
+        .. todo::
+
+            PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw data frame to be used to estimate the pattern frequency.
+        rawdatasec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier
+            number).
+        oscansec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the
+            amplifier number).
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file.
+
+        Returns
+        -------
+        patt_freqs : :obj:`list`
+            List of pattern frequencies.
+        """
+        msgs.info("Calculating pattern noise frequency")
+
+        # Make a copy of te original frame
+        raw_img = frame.copy()
+
+        # Get a unique list of the amplifiers
+        unq_amps = np.sort(np.unique(oscansec_img[np.where(oscansec_img >= 1)]))
+        num_amps = unq_amps.size
+
+        # Loop through amplifiers and calculate the frequency
+        patt_freqs = []
+        for amp in unq_amps:
+            # Grab the pixels where the amplifier has data
+            pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
+            rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
+            # Deal with the different locations of the overscan regions in 2- and 4- amp mode
+            if num_amps == 2:
+                cmin = 1+np.max(pixs[0])
+                frame = raw_img[cmin:, rmin:rmax].astype(float)
+            elif num_amps == 4:
+                if amp in [1, 2]:
+                    pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
+                    cmin = 1+np.max(pixs[0])
+                    cmax = (np.min(pixalt[0]) + cmin)//2  # Average of the bottom of the top amp, and top of the bottom amp
+                else:
+                    pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
+                    cmax = 1+np.min(pixs[0])
+                    cmin = (np.max(pixalt[0]) + cmax)//2
+                frame = raw_img[cmin:cmax, rmin:rmax].astype(float)
+            # Calculate the pattern frequency
+            freq = procimg.pattern_frequency(frame)
+            patt_freqs.append(freq)
+            msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
+
+        # Return the list of pattern frequencies
+        return patt_freqs
 
 
 class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
@@ -693,81 +772,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
-
-    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
-        """
-        Calculate the pattern frequency using the overscan region that covers
-        the overscan and data sections. Using a larger range allows the
-        frequency to be pinned down with high accuracy.
-
-        NOTE: The amplifiers are arranged as follows:
-
-        |   (0,ny)  --------- (nx,ny)
-        |           | 3 | 4 |
-        |           ---------
-        |           | 1 | 2 |
-        |     (0,0) --------- (nx, 0)
-
-        .. todo::
-
-            PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
-
-        Parameters
-        ----------
-        frame : `numpy.ndarray`_
-            Raw data frame to be used to estimate the pattern frequency.
-        rawdatasec_img : `numpy.ndarray`_
-            Array the same shape as ``frame``, used as a mask to identify the
-            data pixels (0 is no data, non-zero values indicate the amplifier
-            number).
-        oscansec_img : `numpy.ndarray`_
-            Array the same shape as ``frame``, used as a mask to identify the
-            overscan pixels (0 is no data, non-zero values indicate the
-            amplifier number).
-        hdu : `astropy.io.fits.HDUList`_
-            Opened fits file.
-
-        Returns
-        -------
-        patt_freqs : :obj:`list`
-            List of pattern frequencies.
-        """
-        msgs.info("Calculating pattern noise frequency")
-
-        # Make a copy of te original frame
-        raw_img = frame.copy()
-
-        # Get a unique list of the amplifiers
-        unq_amps = np.sort(np.unique(oscansec_img[np.where(oscansec_img >= 1)]))
-        num_amps = unq_amps.size
-
-        # Loop through amplifiers and calculate the frequency
-        patt_freqs = []
-        for amp in unq_amps:
-            # Grab the pixels where the amplifier has data
-            pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
-            rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
-            # Deal with the different locations of the overscan regions in 2- and 4- amp mode
-            if num_amps == 2:
-                cmin = 1+np.max(pixs[0])
-                frame = raw_img[cmin:, rmin:rmax].astype(float)
-            elif num_amps == 4:
-                if amp in [1, 2]:
-                    pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
-                    cmin = 1+np.max(pixs[0])
-                    cmax = (np.min(pixalt[0]) + cmin)//2  # Average of the bottom of the top amp, and top of the bottom amp
-                else:
-                    pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
-                    cmax = 1+np.min(pixs[0])
-                    cmin = (np.max(pixalt[0]) + cmax)//2
-                frame = raw_img[cmin:cmax, rmin:rmax].astype(float)
-            # Calculate the pattern frequency
-            freq = procimg.pattern_frequency(frame)
-            patt_freqs.append(freq)
-            msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
-
-        # Return the list of pattern frequencies
-        return patt_freqs
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1209,3 +1213,86 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             :obj:`bool`: True if NAS used.
         """
         return 'Mask' in hdr['RNASNAM']
+
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read a raw KCRM data frame
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
+
+        # Read
+        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
+        hdu = io.fits_open(fil[0])
+        detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
+        head0 = hdu[0].header
+        raw_img = hdu[detpar['dataext']].data.astype(float)
+
+        # Some properties of the image
+        nampsxy = head0['NAMPSXY'].split()
+        numamps = int(nampsxy[0]) * int(nampsxy[1])
+        # Exposure time (used by ProcessRawImage)
+        headarr = self.get_headarr(hdu)
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        # get the x and y binning factors...
+        #binning = self.get_meta_value(headarr, 'binning')
+
+        # Always assume normal FITS header formatting
+        one_indexed = True
+        include_last = True
+        for section in ['DSEC', 'BSEC']:
+
+            # Initialize the image (0 means no amplifier)
+            pix_img = np.zeros(raw_img.shape, dtype=int)
+            for ampid in [1, 3]:
+                # Get the data section
+                sec = head0[section+"{0:1d}".format(ampid)]
+
+                # Convert the data section from a string to a slice
+                # TODO :: RJC - I think something has changed here... and the BPM is flipped (or not flipped) for different amp modes.
+                # RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an argument
+                datasec = parse.sec2slice(sec, one_indexed=one_indexed, include_end=include_last, require_dim=2)
+                # Flip the datasec
+                datasec = datasec[::-1]
+
+                # Assign the amplifier
+                pix_img[datasec] = ampid
+
+            # Finish
+            if section == 'DSEC':
+                rawdatasec_img = pix_img.copy()
+            elif section == 'BSEC':
+                oscansec_img = pix_img.copy()
+
+        # Return
+        return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
