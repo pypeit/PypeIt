@@ -207,9 +207,20 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                         return time.Time(headarr[0]['DATE']).mjd
         elif meta_key == 'dateobs':
             if headarr[0].get('DATE-OBS') is not None:
-                return headarr[0]['DATE-OBS']
+                dateobs = headarr[0]['DATE-OBS']
             elif headarr[0].get('DATE') is not None:
-                    return headarr[0]['DATE'].split('T')[0]
+                dateobs = headarr[0]['DATE'].split('T')[0]
+            # check that we are using the right spectrograph (keck_lris_red, keck_lris_red_orig, or keck_lris_red_mark4)
+            _dateobs = time.Time(dateobs, format='iso')
+            date_mark4 = time.Time('2021-04-22', format='iso')
+            date_orig = time.Time('2009-05-02', format='iso')
+            if self.name == 'keck_lris_red_mark4' and _dateobs < date_mark4:
+                msgs.error('This is not the correct spectrograph. Use keck_lris_red or keck_lris_red_orig instead.')
+            elif self.name == 'keck_lris_red_orig' and _dateobs > date_orig:
+                msgs.error('This is not the correct spectrograph. Use keck_lris_red or keck_lris_red_mark4 instead.')
+            elif self.name == 'keck_lris_red' and (_dateobs <= date_orig or _dateobs >= date_mark4):
+                msgs.error('This is not the correct spectrograph. Use keck_lris_red_orig or keck_lris_red_mark4 instead.')
+            return dateobs
         elif meta_key == 'lampstat01':
             # lamp status header keywords
             lamp_keys = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN',
@@ -1320,23 +1331,18 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # REMOVE (for testing)
         par['calibrations']['wavelengths']['rms_threshold'] = 1.
         # par['calibrations']['wavelengths']['match_toler'] = 3.
-        # par['calibrations']['wavelengths']['sigdetect'] = 5.
+        # par['calibrations']['wavelengths']['sigdetect'] = 20.
         # par['calibrations']['wavelengths']['fwhm'] = 6.
         # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
-        # par['calibrations']['wavelengths']['n_first'] = 1
+        # par['calibrations']['wavelengths']['n_first'] = 3
         # par['calibrations']['wavelengths']['nsnippet'] = 1
         if self.get_meta_value(scifile, 'dispname') == '150/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R150_7500_ArCdHgNeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-
-        # if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
-        #     if self.name == 'keck_lris_red_mark4':
-        #         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
-        #     else:
-        #         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['sigdetect'] = 20.0
-        #     par['calibrations']['wavelengths']['nsnippet'] = 1
+        elif self.get_meta_value(scifile, 'dispname') == '400/8500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R400_8500_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['sigdetect'] = 20.0
         # elif self.get_meta_value(scifile, 'dispname') == '300/5000':
         #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgNeZn.fits'
         #     par['calibrations']['wavelengths']['method'] = 'full_template'

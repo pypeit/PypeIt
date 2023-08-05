@@ -9,7 +9,7 @@ def keck_lris_red_orig_R150_7500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R150_7500_orig',)
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R150_7500_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S0662.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -32,7 +32,7 @@ def keck_lris_red_orig_R300_5000(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R300_5000_orig',)
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R300_5000_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S1456.fits', 'WaveCalib_A_0_DET01_S0783.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -54,7 +54,7 @@ def keck_lris_red_orig_R400_8500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R400_8500_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R400_8500_orig',)
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R400_8500_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S0180.fits', 'WaveCalib_A_0_DET01_S0131.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -77,7 +77,7 @@ def keck_lris_red_orig_R600_5000(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R600_5000_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R600_5000_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R600_5000_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S0038.fits', 'WaveCalib_A_0_DET01_S0258.fits', 'WaveCalib_A_0_DET01_S0596.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -100,7 +100,7 @@ def keck_lris_red_orig_R600_7500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R600_7500_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R600_7500_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R600_7500_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S1179.fits', 'WaveCalib_A_0_DET01_S0476.fits',
                  'WaveCalib_A_0_DET01_S0741.fits', 'WaveCalib_A_0_DET01_S1872.fits']
@@ -124,7 +124,7 @@ def keck_lris_red_orig_R600_10000(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R600_10000_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R600_10000_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R600_10000_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S1567.fits', 'WaveCalib_A_0_DET01_S0543.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -147,7 +147,7 @@ def keck_lris_red_orig_R831_8200(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R831_8200_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R831_8200_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R831_8200_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S0216.fits', 'WaveCalib_A_0_DET01_S1025.fits', 'WaveCalib_A_0_DET01_S1783.fits',
                  'WaveCalib_A_0_DET01_S0757.fits', 'WaveCalib_A_0_DET01_S1332.fits']
@@ -171,7 +171,7 @@ def keck_lris_red_orig_R900_5500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R900_5500_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R900_5500_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R900_5500_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S1966.fits', 'WaveCalib_A_0_DET01_S1864.fits', 'WaveCalib_A_0_DET01_S0590.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
@@ -194,7 +194,7 @@ def keck_lris_red_orig_R1200_7500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R1200_7500_ArCdHgNeZn.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'R1200_7500_orig', )
+    wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red_orig', 'R1200_7500_orig')
 
     basefiles = ['WaveCalib_A_0_DET01_S0997.fits','WaveCalib_A_0_DET01_S0967.fits', 'WaveCalib_A_0_DET01_S0502.fits',
                  'WaveCalib_A_0_DET01_S1161.fits', 'WaveCalib_A_0_DET01_S0473.fits']
