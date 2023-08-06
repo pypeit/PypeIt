@@ -638,6 +638,10 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc,
         local cross correlation coefficient computed for each line
     cc_local_thresh : float, default = 0.8, optional
         Threshold to satisy for local cross-correlation 
+    nreid_min: int, default = 4, optional
+        Minimum number of matches 
+        to receive a score of 'Perfect' or 'Very Good'
+        Passed to score_xcorr()
 
     Returns
     -------
@@ -714,8 +718,8 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
         counts. The more different wavelengths that are attributed to
         the same detected line (i.e. not ideal) the longer the counts
         list will be.
-    nmin_match: int, default = 4, optional
-        Minimum number of slits/solutions that have to have been matched
+    nreid_min: int, default = 4, optional
+        Minimum number of matches 
         to receive a score of 'Perfect' or 'Very Good'
     cc_local_thresh: float, default = -1.0, optional
         What does this do??

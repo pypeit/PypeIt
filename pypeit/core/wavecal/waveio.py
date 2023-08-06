@@ -215,8 +215,8 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
 
     # Load Unknowns
     if 'ThAr' in lamps:
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        unkn_lines = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+        line_lists = line_lists_all[line_lists_all['ion'] != 'UNKNWN']
+        unkn_lines = line_lists_all[line_lists_all['ion'] == 'UNKNWN']
     else:
         line_lists = line_lists_all
         unkn_lines = load_unknown_list(lamps)

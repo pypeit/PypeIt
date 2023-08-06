@@ -644,9 +644,9 @@ class BuildWaveCalib:
                 nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
 
-            # Save arxiv for redo later?
+            # Grab arxiv for redo later?
             if self.par['echelle']: 
-                # Save for later usage
+                # Hold for later usage
                 self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
         elif method == 'full_template':
@@ -772,8 +772,7 @@ class BuildWaveCalib:
             bad_orders (np.ndarray): Array of bad order numbers
             dets (np.ndarray): detectors of the spectrograph
                 Multiple numbers for mosaic (typically)
-            order_dets (np.ndarray): 
-                Orders on the each detector
+            order_dets (np.ndarray): Orders on the each detector
 
         Returns:
             bool: True if any of the echelle orders were 
@@ -835,7 +834,8 @@ class BuildWaveCalib:
                 # TODO -- Make this a parameter?
                 increase_rms = 1.5
                 if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
-                    # TODO -- This is repeated from lines 718-725
+                    # TODO -- This is repeated from build_wv_calib()
+                    #  Would be nice to consolidate
                     # QA
                     outfile = qa.set_qa_filename(
                         self.wv_calib.calib_key, 'arc_fit_qa', 
@@ -1052,7 +1052,7 @@ class BuildWaveCalib:
           5. Return a WaveCalib object
 
         Args:
-            skip_QA : bool, optional
+            skip_QA (bool, optional): Skip QA?
             prev_wvcalib (WaveCalib, optional):
                 Previous wavelength calibration object (from disk, typically)
 
@@ -1065,9 +1065,6 @@ class BuildWaveCalib:
         self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        #skip_QA = True  # for debugging
-        #msgs.warn("TURN QA BACK ON!!!")
-
         self.wv_calib = self.build_wv_calib(
             self.arccen, self.par['method'],
             skip_QA=skip_QA,

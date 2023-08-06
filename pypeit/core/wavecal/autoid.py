@@ -1533,17 +1533,6 @@ class ArchiveReid:
         self.tot_line_list, self.line_lists, self.unknwns = waveio.load_line_lists(
             lamps, include_unknown=self.use_unknowns)
 
-        #if 'ThAr' in self.lamps:
-        #    line_lists_all = waveio.load_line_lists(self.lamps)
-        #    self.line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        #    self.unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-        #else:
-        #    self.line_lists = waveio.load_line_lists(self.lamps)
-        #    self.unknwns = waveio.load_unknown_list(self.lamps)
-        
-        #self.tot_line_list = astropy.table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
-        #                        else self.line_lists
-
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
         self.wv_calib_arxiv, self.par_arxiv = waveio.load_reid_arxiv(self.reid_arxiv)
@@ -1693,6 +1682,7 @@ class HolyGrail:
         Array of good slits
     islinelist : bool, optional
         Is lamps a linelist (True), or a list of ions (False)
+        The former is not recommended except by expert users/developers
     outroot : str, optional
         Name of output file
     debug : bool, optional
