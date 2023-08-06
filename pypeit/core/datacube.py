@@ -1830,6 +1830,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     skysub_exptime = fits.open(opts['skysub_frame'][ff])[0].header['EXPTIME']
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
+                # TODO :: Consider allowing the actual frame (instead of the skymodel) to be used as the skysub image - make sure the BPM is carried over.
+                #      :: Allow sky data fitting (i.e. scale the flux of a skysub frame to the science frame data)
                 skyImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
                 skyScl = spec2DObj_sky.scaleimg
                 this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
@@ -2000,9 +2002,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if key not in spec2DObj.calibs:
             msgs.error('Processed flat calibration file not recorded by spec2d file!')
         flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
-        # TODO: Check that the file exists?
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
+            # Check if the Flat file exists
+            if not os.path.exists(flatfile):
+                msgs.error("Grating correction requested, but the following file does not exist:" +
+                           msgs.newline() + flatfile)
+            # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
                           flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
