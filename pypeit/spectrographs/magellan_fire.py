@@ -201,7 +201,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['polyorder'] = 5
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         # Coadding. I'm not sure what this should be for PRISM mode?
         par['coadd1d']['wave_method'] = 'log10'
@@ -418,7 +418,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

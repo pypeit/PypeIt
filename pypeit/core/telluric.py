@@ -168,11 +168,8 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     Returns:
         :obj:`dict`: Dictionary containing the telluric PCA components.
     """
-#    # Check for file
-#    if not os.path.isfile(filename):
-#        msgs.error(f"File {filename} is not on your disk.  You likely need to download the Telluric files.  See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
-
-    hdul = fits.open(filename)
+    # load_telluric_grid() takes care of path and existance check
+    hdul = data.load_telluric_grid(filename)
     wave_grid_full = hdul[1].data
     pca_comp_full = hdul[0].data
     ncomp = hdul[0].header['NCOMP']
@@ -1551,7 +1548,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8,
+def qso_telluric(spec1dfile, telgridfile, teltype, pca_file, z_qso, telloutfile, outfile, npca=8,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1, ntell=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1671,7 +1668,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
                     if bal_wv_min_max is not None else mask & qsomask
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_qso_model,
                       eval_qso_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
@@ -1716,10 +1713,10 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     return TelObj
 
-def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None,
-                  star_ra=None, star_dec=None, func='legendre', model='exp', polyorder=5,
-                  ntell=4, mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
-                  delta_coeff_bounds=(-20.0, 20.0),
+def star_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, star_type=None,
+                  star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
+                  polyorder=5, ntell=4, mask_hydrogen_lines=True, mask_helium_lines=False,
+                  hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                   debug_init=False, debug=False, show=False):
@@ -1778,7 +1775,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_star_model,
                       eval_star_model, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
@@ -1823,7 +1820,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
     return TelObj
 
-def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
+def poly_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, z_obj=0.0, func='legendre',
                   model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, ntell=4,
                   delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
@@ -1876,7 +1873,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot &= np.logical_not(create_bal_mask(wave, fit_wv_min_max))
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_poly_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_poly_model,
                       eval_poly_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
@@ -2350,7 +2347,7 @@ class Telluric(datamodel.DataContainer):
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, teltype, obj_params, init_obj_model,
                  eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4, airmass_guess=1.5,
-                 resln_guess=None, resln_frac_bounds=(0.5, 2.0), pix_shift_bounds=(-5.0, 5.0),
+                 resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
                  recombination=0.7, polish=True, disp=False, sensfunc=False, debug=False):
@@ -2417,6 +2414,9 @@ class Telluric(datamodel.DataContainer):
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
             self.tell_model_func = eval_telluric_grid
+        else:
+            msgs.error('Invalid teltype -- must be `pca` or `grid`')
+            
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] \
@@ -2488,7 +2488,7 @@ class Telluric(datamodel.DataContainer):
             arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                  tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord],
                                  ind_upper=self.ind_upper[iord],
-                                 ntell=self.ntell, tell_model_func=tell_model_func,
+                                 ntell=self.ntell, tell_model_func=self.tell_model_func,
                                  obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
                                  ballsize=self.ballsize, bounds=bounds_iord, rng=self.rng,
                                  diff_evol_maxiter=self.diff_evol_maxiter, tol=self.tol,

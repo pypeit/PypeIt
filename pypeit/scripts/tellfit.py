@@ -152,6 +152,7 @@ class TellFit(scriptbase.ScriptBase):
         if par['telluric']['objmodel']=='qso':
             # run telluric.qso_telluric to get the final results
             TelQSO = telluric.qso_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                           par['telluric']['teltype'],
                                            par['telluric']['pca_file'],
                                            par['telluric']['redshift'], modelfile, outfile,
                                            npca=par['telluric']['npca'], ntell=par['telluric']['ntell'],
@@ -166,6 +167,7 @@ class TellFit(scriptbase.ScriptBase):
                                            debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='star':
             TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                             par['telluric']['teltype'],
                                              modelfile, outfile,
                                              star_type=par['telluric']['star_type'],
                                              star_mag=par['telluric']['star_mag'],
@@ -186,6 +188,7 @@ class TellFit(scriptbase.ScriptBase):
                                              debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='poly':
             TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                             par['telluric']['teltype'],
                                              modelfile, outfile,
                                              z_obj=par['telluric']['redshift'],
                                              func=par['telluric']['func'],
