@@ -561,7 +561,7 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     tell_model_func = arg_dict['tell_model_func']
     flux_ivar = arg_dict['ivar']
 
-    # TODO: make this work without shift and stretch turned on
+    # TODO: make this work without shift and stretch turned on?
     # Number of telluric model parameters, plus shift, stretch, and resolution
     nfit = arg_dict['ntell']+3
 
@@ -580,10 +580,6 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
         loss_function = np.sum(huber_vec * totalmask)
-            # If the PCA coefficients lie outside the convex hull of the telluric models,
-            # it should be disfavored, so penalize the loss function severely
-        #if not in_hull(arg_dict['tell_dict']['coefs_tell_pca'][:,:(nfit-3)],theta_tell[:-3]):
-        #    loss_function += 1e6
         return loss_function
 
 def tellfit(flux, thismask, arg_dict, init_from_last=None):
@@ -623,8 +619,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                 - ``arg_dict['flux_ivar']``:  Inverse variance for the
                   flux array
                 - ``arg_dict['tell_dict']``: Dictionary containing the
-                  telluric PCA model and its parameters read in by
-                  read_telluric_pca
+                  telluric model and its parameters read in by
+                  read_telluric_pca or read_telluric_grid
                 - ``arg_dict['ind_lower']``: Lower index into the
                   telluric model wave_grid to trim down the telluric
                   model.
@@ -674,7 +670,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     nparams = len(bounds) # Number of parameters in the model
     popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
     nsamples = arg_dict['popsize']*nparams
-    # FD: Currently assumes shift and stretch are turned on.
+    # FD: Assumes shift and stretch are turned on.
     ntheta_tell = arg_dict['ntell']+3 # Total number of telluric model parameters
     # Decide how to initialize
     if init_from_last is not None:
