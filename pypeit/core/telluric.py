@@ -80,8 +80,7 @@ def init_qso_pca(filename,wave_grid,redshift, npca):
     # Generate a mixture model for the coefficients prior, what should ngauss be?
     #prior = mixture.GaussianMixture(n_components = npca-1).fit(coeffs_c[:, 1:npca])
     # Construct the PCA dict
-    qso_pca_dict = {'npca': npca, 'components': pca_comp_new, 'coeffs': coeffs_c, 'z_fid': redshift, 'dloglam': dloglam,
-                'interp': pca_interp, 'wave_grid': wave_grid}
+    qso_pca_dict = {'npca': npca, 'components': pca_comp_new, 'coeffs': coeffs_c, 'z_fid': redshift, 'dloglam': dloglam}
     return qso_pca_dict
 
 def qso_pca_eval(theta,qso_pca_dict):
@@ -107,7 +106,6 @@ def qso_pca_eval(theta,qso_pca_dict):
     z_qso = theta[0]
     norm = theta[1]
     A = theta[2:]
-    #C_now = qso_pca_dict['interp'](qso_pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
     dshift = int(np.round(np.log10((1.0 + z_qso)/(1.0 + z_fid))/dloglam))
     C_now = np.roll(C[:npca,:], dshift, axis=1)
     return norm*np.exp(np.dot(np.append(1.0,A),C_now))
