@@ -35,11 +35,11 @@ def keck_lris_red_R150_7500(overwrite=False):
     # PypeIt fits
     wpath = os.path.join(templates.template_path, 'Keck_LRIS', 'keck_lris_red', 'R150_7500')
 
-    basefiles = ['WaveCalib_A_0_DET02_S0303.fits']
+    basefiles = ['WaveCalib_A_0_DET02_S0302.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
     # Snippets
     ifiles = [0]
-    slits = [303]
+    slits = [302]
     wv_cuts = []
     assert len(wv_cuts) == len(slits)-1
     # det_dict
@@ -101,8 +101,8 @@ def keck_lris_red_R400_8500(overwrite=False):
 # Run em
 if __name__ == '__main__':
     # keck_lris_red_mark4_R400()#overwrite=True)
-    # keck_lris_red_R150_7500(overwrite=False)
-    keck_lris_red_R300_5000(overwrite=False)
+    keck_lris_red_R150_7500(overwrite=False)
+    # keck_lris_red_R300_5000(overwrite=False)
     # keck_lris_red_R400_8500(overwrite=False)
 
 
