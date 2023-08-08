@@ -56,8 +56,6 @@ class ArxivSolution(scriptbase.ScriptBase):
                 thismsg += "There are no good slits - the WaveCalib file is bad."
             else:
                 thismsg += "Try one of the following slits, instead: " + msgs.newline() + ", ".join(gd_slits)
-            from IPython import embed
-            embed()
             msgs.error(thismsg)
         wave = wv_calib['wv_fits'][args.slit]['wave_soln'].flatten()
         spec = wv_calib['wv_fits'][args.slit]['spec'].flatten()
