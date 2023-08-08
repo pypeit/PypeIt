@@ -2739,7 +2739,7 @@ class Telluric(datamodel.DataContainer):
         function.
 
         Returns:
-            :obj:`tuple`: The guess telluric PCA coefficients,
+            :obj:`tuple`: The guess telluric model parameters,
             resolution, shift, and stretch parameters.
         """
         guess = list(np.zeros(self.ntell))
@@ -2754,9 +2754,9 @@ class Telluric(datamodel.DataContainer):
 
         Returns:
             :obj:`list`: A list of two-tuples, where each two-tuple proives
-            the minimum and maximum allowed model values for the pressure,
-            temperature, humidity, airmass, resolution, shift, and
-            stretch parameters.
+            the minimum and maximum allowed model values for the PCA coefficients,
+            (or for the `grid` approach: pressure, temperature, humidity, airmass)
+            as well as the resolution, shift, and stretch parameters.
         """
         # Set the bounds for the optimization
         bounds = []
@@ -2789,8 +2789,14 @@ class Telluric(datamodel.DataContainer):
         # Do a quick loop over all the orders to sort them in order of strongest
         # to weakest telluric absorption
         for iord in range(self.norders):
-            tell_model_mean = self.tell_dict['tell_pca'][0,self.ind_lower[iord]:self.ind_upper[iord]+1]
-            tell_med[iord] = np.mean(tell_model_mean)
+            if self.teltype == 'grid':
+                tm_grid = self.tell_dict['tell_grid'][...,self.ind_lower[iord]:self.ind_upper[iord]+1]
+                tell_model_mid = tm_grid[tm_grid.shape[0]//2, tm_grid.shape[1]//2,
+                                         tm_grid.shape[2]//2, tm_grid.shape[3]//2, :]
+                tell_med[iord] = np.mean(tell_model_mid)
+            else:
+                tell_model_mean = self.tell_dict['tell_pca'][0,self.ind_lower[iord]:self.ind_upper[iord]+1]
+                tell_med[iord] = np.mean(tell_model_mean)
 
         # Perform fits in order of telluric strength
         return tell_med.argsort()
