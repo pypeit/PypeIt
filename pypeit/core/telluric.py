@@ -1054,7 +1054,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     """
 
     qso_pca_dict = init_qso_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
-    qso_pca_mean = np.exp(qso_pca_dict['interp'](qso_pca_dict['wave_grid']*(1+qso_pca_dict['z_fid']))[0, :])
+    qso_pca_mean = np.exp(qso_pca_dict['components'][0, :])
     tell_mask = tellmodel > obj_params['tell_norm_thresh']
     # Create a reference model and bogus noise
     flux_ref = qso_pca_mean * tellmodel
@@ -1094,10 +1094,10 @@ def eval_qso_model(theta, obj_dict):
 
     Returns
     -------
-    qso_pca_model : array with same shape as the PCA vectors (tored in the obj_dict['pca_dict'])
+    qso_pca_model : array with same shape as the PCA vectors (stored in the obj_dict['pca_dict'])
        PCA vectors were already interpolated onto the telluric model grid by init_qso_model
 
-    gpm : : array with same shape as the qso_pca_model
+    gpm : `numpy.ndarray`_ : array with same shape as the qso_pca_model
        Good pixel mask indicating where the model is valid
 
     """
@@ -1516,7 +1516,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, teltype, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function, ntell=ntell, ech_orders=ech_orders,
+                      init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function,
+                      ntell=ntell, ech_orders=ech_orders,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
                       maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
@@ -2379,8 +2380,8 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, teltype, obj_params, init_obj_model,
-                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4, airmass_guess=1.5,
-                 resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4,
+                 airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
                  recombination=0.7, polish=True, disp=False, sensfunc=False, debug=False):
@@ -2402,6 +2403,7 @@ class Telluric(datamodel.DataContainer):
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
         self.ntell = ntell
+        self.airmass_guess = airmass_guess
         self.eval_obj_model = eval_obj_model
         self.ech_orders = ech_orders
         self.sn_clip = sn_clip
