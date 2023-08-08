@@ -33,7 +33,7 @@
     - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
     - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
     - Fix wrong RA & Dec for 2D coadded serendips
-
+- Introduced PCA method for telluric corrections
 
 1.13.0 (2 June 2023)
 --------------------
