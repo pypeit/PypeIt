@@ -2108,7 +2108,7 @@ class TelluricPar(ParSet):
         defaults['ntell'] = 4
         dtypes['ntell'] = int
         descr['ntell'] = 'Number of fitted telluric model parameters. Must be set to 4 (default) for teltype = grid, ' \
-                         'but can be set to any number from 1 to 15 for teltype = PCA, corresponding to the number of ' \
+                         'but can be set to any number from 1 to 10 for teltype = PCA, corresponding to the number of ' \
                          'fitted PCA coefficients.'
         
         defaults['teltype'] = 'PCA'
