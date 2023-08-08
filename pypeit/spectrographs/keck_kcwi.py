@@ -599,19 +599,19 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
         if 'IFU' in porg:
-            if ifunum == 1:  # Large slicer
-                off1 = 1.0
-                off2 = 4.0
-            elif ifunum == 2:  # Medium slicer
-                off1 = 1.0
-                off2 = 5.0
-            elif ifunum == 3:  # Small slicer
-                off1 = 0.05
-                off2 = 5.6
-            else:
-                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
-                off1 = 0.
-                off2 = 0.
+            # if ifunum == 1:  # Large slicer
+            #     off1 = 1.0
+            #     off2 = 4.0
+            # elif ifunum == 2:  # Medium slicer
+            #     off1 = 1.0
+            #     off2 = 5.0
+            # elif ifunum == 3:  # Small slicer
+            #     off1 = 0.05
+            #     off2 = 5.6
+            # else:
+            #     msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
+            off1 = 0.
+            off2 = 0.
             off1 /= binspec
             off2 /= binspat
             crpix1 += off1
@@ -655,7 +655,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             when constructing a histogram of the spec2d files. The elements
             are :math:`(x,y,\lambda)`.
         """
-        xbins = np.arange(1 + 24) - 12.0 - 0.5
+        xbins = np.arange(1 + 24) - 24/2 - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
