@@ -739,7 +739,7 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     for sl in range(nslits):
         msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn(f"Skipping FWHM map computation for masked slit {sl+1}")
+            msgs.warn(f"Skipping FWHM map computation for masked slit {sl+1}/{nslits}")
             # Assign it an empty PypeItFit object so that we can still write to file
             resmap[sl] = fitting.PypeItFit()
             continue
