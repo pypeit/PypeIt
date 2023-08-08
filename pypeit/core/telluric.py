@@ -422,7 +422,7 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     ntheta = len(theta_tell)
     # Infer number of used components from the number of parameters
-    # TODO: make this work even without shift and stretch
+    # TODO: make this work even without shift and stretch?
     ncomp_use = ntheta-3
     if ncomp_use > tell_dict['ncomp_tell_pca']:
         msgs.error('Asked for more PCA components than exist in PCA file.')
@@ -561,7 +561,7 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     tell_model_func = arg_dict['tell_model_func']
     flux_ivar = arg_dict['ivar']
 
-    # TODO: make this work without shift and stretch turned on?
+    # TODO: make this work without shift and stretch?
     # Number of telluric model parameters, plus shift, stretch, and resolution
     nfit = arg_dict['ntell']+3
 
@@ -600,8 +600,10 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                 theta_obj = theta[:-(ntell+3)]
                 theta_tell = theta[-(ntell+3):]
 
-            The telluric model theta_tell includes a user-specified number
-            of PCA coefficients, spectral resolution, shift, and stretch.
+            The telluric model theta_tell includes a either user-specified
+            number of PCA coefficients (in PCA mode) or ambient pressure,
+            temperature, humidity, and airmass (in grid mode) as well as
+            spectral resolution, shift, and stretch.
 
             The object model theta_obj can have an arbitrary size and is
             provided as an argument to obj_model_func
@@ -1037,7 +1039,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     tellmodel : array shape (nspec,)
         This is a telluric model computed on the wave wavelength grid. Initialization usually requires some initial
         best guess for the telluric absorption, which is computed from the mean of the telluric model grid using
-        the resolution of the spectrograph. (TODO: revisit this for PCA)
+        the resolution of the spectrograph.
 
     Returns
     -------
