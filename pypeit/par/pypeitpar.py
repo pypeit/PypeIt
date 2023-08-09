@@ -1396,7 +1396,7 @@ class CubePar(ParSet):
         defaults['align'] = False
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
                          'image that is generated using the first spec2d listed in the coadd3d file.'
 
         defaults['combine'] = False
@@ -1409,7 +1409,7 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \
-                                   'prefixed with "spec3d_*"'
+                                   'prefixed with ``spec3d_*``'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str

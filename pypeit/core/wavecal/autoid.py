@@ -688,6 +688,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
+# TODO: Docstring missing box_rad and slit_bpm
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
              spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
     """
@@ -698,17 +699,17 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             Arc image (nspec, nspat)
         gpm (`numpy.ndarray`_):
             Good pixel mask corresponding to the input arc image (nspec, nspat)
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        npixel (int, None, optional):
+        npixel (int, optional):
             Number of spatial detector pixels between each estimate of the FWHM
             Only nsample or npixel should be specified. Precedence is given to nsample.
-        nsample (int, None, optional):
+        nsample (int, optional):
             Number of positions along the spatial direction of the slit to estimate the FWHM.
             Only nsample or npixel should be specified. Precedence is given to nsample.
         sigdetect (:obj:`float`, optional):
             Sigma threshold above fluctuations for arc-line detection.
-            Used by :func:`pypeit.core.arc.detect_lines`.
+            Used by :func:`~pypeit.core.arc.detect_lines`.
         specord (tuple, optional):
             The spectral polynomial order to use in the 2D polynomial fit to the
             FWHM of the arc lines. See also, spatord.
@@ -717,11 +718,13 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             FWHM of the arc lines. See also, specord.
         fwhm (:obj:`float`, optional):
             Number of pixels per FWHM resolution element.
-            Used by :func:`pypeit.core.arc.detect_lines`.
+            Used by :func:`~pypeit.core.arc.detect_lines`.
 
     Returns:
-        `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the spectral FWHM (in pixels) given a
-        spectral pixel and the spatial coordinate (expressed as a fraction along the slit in the spatial direction)
+        `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the
+        spectral FWHM (in pixels) given a spectral pixel and the spatial
+        coordinate (expressed as a fraction along the slit in the spatial
+        direction)
     """
     nslits = slits_left.shape[1]
     scale = (2 * np.sqrt(2 * np.log(2)))
@@ -838,6 +841,7 @@ def set_fwhm(par, measured_fwhm=None):
     return fwhm
 
 
+# TODO: Docstring is missing many arguments
 def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
@@ -851,33 +855,36 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
       3. Loop on snippets of the input spectrum to ID lines using reidentify()
       4. Fit with fitting.iterative_fitting()
 
-    Args:
-        spec: ndarray (nspec, nslit)
-          Spectra to be calibrated
-        lamps : :obj:`list`
-            List of arc lamps to be used for wavelength calibration.
-            E.g., ['ArI','NeI','KrI','XeI']
-        par: WavelengthSolutionPar ParSet
-          Calibration parameters
-        ok_mask: ndarray, bool
-          Mask of indices of good slits
-        det: int
-          Detector index
-        binspectral: int
-          Binning of the input arc in the spectral dimension
-        nsnippet: int, optional
-          Number of snippets to chop the input spectrum into when ID'ing lines
-          This deals with differences due to non-linearity between the template
-          and input spectrum.
-        measured_fwhms: ndarray, optional
-            Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
-        x_percentile: float, optional
-          Passed to reidentify to reduce the dynamic range of arc line amplitudes
-        template_dict (dict, optional): Dict containing tempmlate items, largely for development
+    Parameters
+    ----------
+    spec : `numpy.ndarray`_
+        Spectra to be calibrated.  Shape is (nspec, nslit).
+    lamps : :obj:`list`
+        List of arc lamps to be used for wavelength calibration.
+        E.g., ['ArI','NeI','KrI','XeI']
+    par : :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`
+        Calibration parameters
+    ok_mask : `numpy.ndarray`_
+        Mask of indices of good slits
+    det : int
+        Detector index
+    binspectral : int
+        Binning of the input arc in the spectral dimension
+    nsnippet : int, optional
+        Number of snippets to chop the input spectrum into when IDing lines.
+        This deals with differences due to non-linearity between the template
+        and input spectrum.
+    measured_fwhms : `numpy.ndarray`_, optional
+        Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
+    x_percentile : float, optional
+        Passed to reidentify to reduce the dynamic range of arc line amplitudes
+    template_dict : dict, optional
+        Dict containing tempmlate items, largely for development
 
-    Returns:
-        wvcalib: dict
-          Dict of wavelength calibration solutions
+    Returns
+    -------
+    wvcalib : dict
+        Dict of wavelength calibration solutions
 
     """
     #debug = True
@@ -2468,6 +2475,7 @@ class HolyGrail:
             return (self._npix - 1.0) - tcent[::-1], ecent[::-1]
 
 
+    # TODO: Docstring missing return statement
     def results_brute(self, tcent_ecent, poly=3, pix_tol=0.5, detsrch=5, lstsrch=5, wavedata=None):
         """
         Need some docs here. I think this routine generates the
@@ -2475,24 +2483,32 @@ class HolyGrail:
 
         Parameters
         ----------
-        tcent_ecent: list
-            List of `numpy.ndarray` objects, [tcent, ecent]
-        poly, optional:
+        tcent_ecent : list
+            List of `numpy.ndarray`_ objects, [tcent, ecent]
+        poly : int, optional
             algorithms to use for pattern matching. Only triangles (3)
             and quadrangles (4) are supported
-        pix_tol, optional:
+        pix_tol : float, optional
             tolerance that is used to determine if a pattern match is
             successful (in units of pixels)
-        detsrch, optional:
+        detsrch: int, optional
             Number of lines to search over for the detected lines
-        lstsrch, optional:
+        lstsrch : int, optional
             Number of lines to search over for the detected lines
-        wavedata, optional:
-            ???
-        arrerr, optional:
-            ???
+        wavedata : `numpy.ndarray`), optional
+            Line list; see ``linelist`` argument in, e.g.,
+            :func:`~pypeit.core.wavecal.patterns.triangles`.
 
         """
+
+        # TODO: These imports should go at the top.  E.g.
+        #   from pypeit.core.wavecal.patterns import triangles, quadrangles
+        # You would then assign the relevant function to generate_patterns here.  E.g.
+        #   if poly == 3:
+        #       generate_patterns = triangles
+        #   elif poly == 4:
+        #       generate_patterns = quadrangles
+
         # Import the pattern matching algorithms
         if poly == 3:
             from pypeit.core.wavecal.patterns import triangles as generate_patterns
@@ -2562,23 +2578,29 @@ class HolyGrail:
 
         Parameters
         ----------
-        slit:
-        psols:
-        msols:
-        tcent_ecent: list, [tcent, ecent]
-        nstore:
+        slit : int
+            Slit ID number
+        psols : tuple
+            ??
+        msols : tuple
+            ??
+        tcent_ecent: list
+            List with [tcent, ecent]
+        nstore : int, optional
             Number of pattern matches to store and fit
-        nselw:
+        nselw : int, optional
             All solutions around the best central wavelength
             solution within +- nselw are selected to be fit
-        nseld:
+        nseld : int, optional
             All solutions around the best log10(dispersion) solution
             within +- nseld are selected to be fit
 
         Returns
         -------
-        patt_dict:
-        final_dict:
+        patt_dict : dict
+            ??
+        final_dict : dict
+            ??
         """
 
         # Extract the solutions
@@ -2717,15 +2739,27 @@ class HolyGrail:
         Args:
             slit (int):
                The ID of the slit
-            bestlist (list or ndarray):
-                A 5 element list, each containing a numpy.ndarray, with the following values required for each index:
-                    0: central wavelength of the pattern
-                    1: central dispersion of pattern
-                    2: sign of the pattern (note, sign = 1 [-1] if pixels correlate [anticorrelate] with wavelength
-                    3: index of the full list of patterns that were created from the detected arc lines
-                    4: index of the full list of patterns that were created from the line list.
+            bestlist (list, `numpy.ndarray`_):
+                A 5 element list, each containing a numpy.ndarray, with the
+                following values required for each index:
+
+                    #. central wavelength of the pattern
+
+                    #. central dispersion of pattern
+
+                    #. sign of the pattern (note, sign = 1 [-1] if pixels
+                       correlate [anticorrelate] with wavelength
+
+                    #. index of the full list of patterns that were created from
+                       the detected arc lines
+
+                    #. index of the full list of patterns that were created from
+                       the line list.
+
             tcent_ecent (list):
-                A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
+                A list [tcent, ecent] indicating which detection list should be
+                used. Note that if arr_err is set then the weak keyword is
+                ignored.
 
         Returns:
             dict: Dictionary containing information about the best patterns.
