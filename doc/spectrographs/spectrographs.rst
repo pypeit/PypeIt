@@ -53,3 +53,5 @@ instrument-specific details for running PypeIt.
    shane_kast
    soar_goodman
    xshooter
+
+

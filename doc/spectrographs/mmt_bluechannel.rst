@@ -44,3 +44,4 @@ A few notes on setting up observations to work optimally with ``pypeit`` and wha
 
 * Images taken as part of spectrograph focus runs are automatically identified and configured as ``tilt`` images, but not ``arc``. This
   is because their line widths can vary by quite a bit and thus shouldn't be coadded to/averaged with in-focus ``arc`` images.
+

@@ -172,3 +172,4 @@ development of PypeIt.
 * Timothy Ellsworth-Bowers
 * Gregory Simonian
 * Heather Martin
+

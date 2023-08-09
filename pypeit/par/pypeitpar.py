@@ -54,8 +54,6 @@ To add an entirely new parameter set, use one of the existing parameter
 sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
