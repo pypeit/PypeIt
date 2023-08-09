@@ -68,25 +68,25 @@ class SourceObject:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
     @classmethod
-    def build_source_objects(cls, spec1d_files, match_type, chk_version=True):
+    def build_source_objects(cls, specobjs_list, spec1d_files, match_type):
         """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
         Args:
-            spec1d_files (list of str): List of spec1d filenames
+            spec1d_files (list of :obj:`pypeit.specobjs.SpecObjs`): List of SpecObjs objects to build from.
+
+            spec1d_files (list of str): List of spec1d filenames corresponding to each SpecObjs object.
+
             match_type (str):           What type of matching the SourceObjects will be configured for.
                                         Must be either 'ra/dec' or 'pixel'
-            chk_version (bool):         Whether or not to verify the data model version of the spec1d files.
-                                        Defaults to True.
         Returns: 
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
         """
         result = []
-        for spec1d_file in spec1d_files:            
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=chk_version)
+        for i, sobjs in enumerate(specobjs_list):
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
-                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
+                result.append(SourceObject(sobj, sobjs.header, spec1d_files[i], spectrograph, match_type))
     
         return result
 

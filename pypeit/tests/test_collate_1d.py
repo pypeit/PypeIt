@@ -127,14 +127,14 @@ class MockSpecObjs:
     def write_to_fits(self, *args, **kwargs):
         pass
 
-def mock_specobjs(file):
+def mock_specobjs(file, chk_version=False):
     return MockSpecObjs(file)
 
 def test_group_spectra_by_radec(monkeypatch):
-    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
-    uncollated_list = SourceObject.build_source_objects(file_list, 'ra/dec')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='ra/dec')
     source_list = collate_spectra_by_source(uncollated_list, 0.0003, u.deg)
 
     assert len(source_list) == 6
@@ -178,9 +178,10 @@ def test_group_spectra_by_pixel(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file4']
-    spectrograph = load_spectrograph('keck_deimos')
+
     # Test matching by pixel and that unit argument is ignored
-    uncollated_list = SourceObject.build_source_objects(file_list, 'pixel')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='pixel')
     source_list = collate_spectra_by_source(uncollated_list, 5.0, u.deg)
 
     assert len(source_list) == 7
@@ -363,7 +364,8 @@ def test_exclude_source_objects(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
-    uncollated_list = SourceObject.build_source_objects(file_list, 'ra/dec')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='ra/dec')
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
     par['collate1d']['wv_rms_thresh'] = 0.1
@@ -456,7 +458,7 @@ def test_flux(monkeypatch):
         else: 
             return {"DISPNAME": "600ZD" }
 
-    def mock_flux_calib(spec1d_files, sens_files, par):
+    def mock_flux_calib(spec1d_files, sens_files, par, chk_version=False):
         if spec1d_files[0] == "fail_flux.fits":
             raise PypeItError("Test failure")
         else:
