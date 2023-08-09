@@ -561,7 +561,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'dateobs', 'dark': 'dateobs'}
+        return {'bias': ['dateobs', 'binning', 'amp'], 'dark': ['dateobs', 'binning', 'amp']}
 
     def pypeit_file_keys(self):
         """

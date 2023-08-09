@@ -33,7 +33,6 @@
     b11.fits.gz | pixelflat,illumflat,trace |            144.955 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07897476852 |            1.0 |    15.0 |      d55 |     0
     b12.fits.gz | pixelflat,illumflat,trace |  145.0908333333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079351388886 |            1.0 |    15.0 |      d55 |     0
     b13.fits.gz | pixelflat,illumflat,trace | 145.22791666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079728240744 |            1.0 |    15.0 |      d55 |     0
-     b2.fits.gz | pixelflat,illumflat,trace | 143.36208333333335 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07473645834 |            1.0 |    30.0 |      d55 |     0
      b3.fits.gz | pixelflat,illumflat,trace | 143.86791666666667 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07596400463 |            1.0 |    15.0 |      d55 |     0
      b4.fits.gz | pixelflat,illumflat,trace | 144.00458333333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.076341782406 |            1.0 |    15.0 |      d55 |     0
      b5.fits.gz | pixelflat,illumflat,trace | 144.14041666666665 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07671956019 |            1.0 |    15.0 |      d55 |     0

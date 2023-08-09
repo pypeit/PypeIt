@@ -42,9 +42,12 @@ class SpecObjs:
     Args:
         specobjs (`numpy.ndarray`_, list, optional):
             One or more :class:`~pypeit.specobj.SpecObj`  objects
+        header (`astropy.io.fits.Header`_, optional):
+            Baseline header to use
 
     Attributes:
-        summary (astropy.table.Table):
+        summary (`astropy.table.Table`_):
+            Summary table (?)
     """
     version = '1.0.0'
 
@@ -176,7 +179,7 @@ class SpecObjs:
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
-        data. The user needs to already have trimmed the Specobjs to
+        data. The user needs to already have trimmed the :class:`SpecObjs` to
         the relevant indices for the object.
 
         Args:
@@ -215,6 +218,9 @@ class SpecObjs:
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        trace_spec = np.zeros((nspec, norddet))
+        trace_spat = np.zeros((nspec, norddet))
+
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
@@ -227,6 +233,8 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
+            trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
+            trace_spec[:, iorddet] = self[iorddet].trace_spec
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])
@@ -242,14 +250,14 @@ class SpecObjs:
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
-            return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
+            return wave, flux, flux_ivar, flux_gpm, trace_spec, trace_spat, meta_spec, self.header
 
     def get_std(self, multi_spec_det=None):
         """
-        Return the standard star from this Specobjs. For MultiSlit this
+        Return the standard star from this :class:`SpecObjs`. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
         will be the standard for all the orders.
 
@@ -536,6 +544,78 @@ class SpecObjs:
                 # chk
                 chk &= (sub_box or sub_opt)
         return chk
+
+    def apply_flux_calib(self, par, spectrograph, sens):
+        """
+        Flux calibrate the  object spectra (``sobjs``) using the provided
+        sensitivity function (``sens``).
+
+        Args:
+            par (:class:`~pypeit.par.pypeitpar.FluxCalibratePar`):
+                Parset object containing parameters governing the flux calibration.
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                PypeIt Spectrograph class
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
+                PypeIt Sensitivity function class
+        """
+
+        _extinct_correct = (True if sens.algorithm == 'UVIS' else False) \
+            if par['extinct_correct'] is None else par['extinct_correct']
+
+        if spectrograph.pypeline == 'MultiSlit':
+            for ii, sci_obj in enumerate(self.specobjs):
+                if sens.wave.shape[1] == 1:
+                    sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             extrap_sens=par['extrap_sens'],
+                                             airmass=float(self.header['AIRMASS']))
+                elif sens.wave.shape[1] > 1 and sens.splice_multi_det:
+                    # This deals with the multi detector case where the sensitivity function is spliced. Note that
+                    # the final sensitivity function written to disk is  the spliced one. This functionality is only
+                    # used internal to sensfunc.py for fluxing the standard for the QA plot.
+                    sci_obj.apply_flux_calib(sens.wave[:, ii], sens.zeropoint[:, ii],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             extrap_sens=par['extrap_sens'],
+                                             airmass=float(self.header['AIRMASS']))
+                else:
+                    msgs.error('This should not happen, there is a problem with your sensitivity function.')
+
+
+        elif spectrograph.pypeline == 'Echelle':
+            # Flux calibrate the orders that are mutually in the meta_table and in
+            # the sobjs. This allows flexibility for applying to data for cases
+            # where not all orders are present in the data as in the sensfunc, etc.,
+            # i.e. X-shooter with the K-band blocking filter.
+            ech_orders = np.array(sens.sens['ECH_ORDERS']).flatten()
+            for sci_obj in self.specobjs:
+                # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
+                indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
+                if indx.size == 1:
+                    sci_obj.apply_flux_calib(sens.wave[:, indx[0]], sens.zeropoint[:, indx[0]],
+                                             self.header['EXPTIME'],
+                                             extinct_correct=_extinct_correct,
+                                             extrap_sens=par['extrap_sens'],
+                                             longitude=spectrograph.telescope['longitude'],
+                                             latitude=spectrograph.telescope['latitude'],
+                                             extinctfilepar=par['extinct_file'],
+                                             airmass=float(self.header['AIRMASS']))
+                elif indx.size == 0:
+                    msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                              'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
+                else:
+                    msgs.error('This should not happen')
+
+        else:
+            msgs.error('Unrecognized pypeline: {0}'.format(spectrograph.pypeline))
+
 
     def copy(self):
         """
@@ -917,10 +997,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              1-indexed detector(s) to process.
          std_outfile (:obj:`str`):
              Filename with the standard star spec1d file.  Can be None.
+
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.
-         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic is not available
-         in the provided spec1d file.
+         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
+         be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -958,12 +1039,12 @@ def lst_to_array(lst, mask=None):
 
     Args:
         lst : list
-          Should be number or Quantities
-        mask (ndarray of bool, optional):  Limit to a subset of the list.  True=good
+            Should be number or Quantities
+        mask (`numpy.ndarray`_, optional):
+            Boolean array used to limit to a subset of the list.  True=good
 
     Returns:
-        ndarray or Quantity array:  Converted list
-
+        `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
     if mask is None:
         mask = np.array([True]*len(lst))

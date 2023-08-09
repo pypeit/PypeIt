@@ -400,8 +400,9 @@ class BitMask:
             flag (:obj:`str`, :obj:`list`, optional):
                 The specific bits to unpack.  If None, all values are
                 unpacked.
+
         Returns:
-            tuple: A tuple of boolean numpy.ndarrays flagged according
+            tuple: A tuple of boolean `numpy.ndarray`_ objects flagged according
             to each bit.
         """
         _flag = self._prep_flags(flag)

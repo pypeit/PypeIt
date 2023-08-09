@@ -120,9 +120,16 @@ exclude_patterns = ['_build', 'include/*.rst', 'help/*.rst', 'scripts/*.rst']
 
 # When nit-picking, ignore these warnings:
 nitpick_ignore = [ ('py:class', 'optional'),
+                   ('py:class', 'iterable'),
+                   ('py:class', 'ndarray'),
+                   ('py:class', 'dict-like'),
                    ('py:class', 'array-like'),
+                   ('py:class', 'table-like'),
+                   ('py:class', 'float-like'),
                    ('py:class', 'scalar-like'),
-                   ('py:class', 'default') ]
+                   ('py:class', 'default'),
+                   ('py:class', 'callable'),
+                    ]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

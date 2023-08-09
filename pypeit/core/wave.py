@@ -29,7 +29,7 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     Args:
         radec (`astropy.coordinates.SkyCoord`_):
             RA, DEC of source
-        time (:obj:`astropy.time.Time`):
+        time (`astropy.time.Time`_):
             Time of observation
         longitude (float): 
             Telescope longitude in deg
@@ -56,7 +56,7 @@ def geomotion_correct(radec, time, longitude, latitude, elevation, refframe):
     Args:
         radec (`astropy.coordinates.SkyCoord`_):
             RA, DEC of source
-        time (:obj:`astropy.time.Time`):
+        time (`astropy.time.Time`_):
             Time of observation
         gd_slitord (`numpy.ndarray`_):
             Array of good slit/order IDs

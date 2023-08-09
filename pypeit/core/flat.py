@@ -151,7 +151,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     good-pixel mask should be for a single slit.
 
     The iterations involve constructing the illumination profile
-    using :func:`illum_profile` and then rejecting deviant residuals.
+    using :func:`illum_filter` and then rejecting deviant residuals.
     Each rejection iteration recomputes the standard deviation and
     pixels to reject from the full input set (i.e., rejected pixels
     are not kept between iterations). Rejection iterations are only

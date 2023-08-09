@@ -17,7 +17,7 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import msgs
-from pypeit import utils
+from pypeit import utils, data
 from pypeit.core import arc
 from pypeit.pypmsgs import PypeItError
 
@@ -99,14 +99,13 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (float `numpy.ndarray`_): shape = (nspec,) or (nspec, nimgs)
-            Array of wavelengths. Can be one or two dimensional where
-            the nimgs dimension can represent the orders, exposures, or
-            slits
-        pix_per_R (float):  default=3.0
+        waves (list, `numpy.ndarray`_):
+            List of `numpy.ndarray`_ wavelength arrays or a single 1d
+            'numpy.ndarray'_
+        pix_per_R (float):
             Number of pixels per resolution element used for the
             resolution guess. The default of 3.0 assumes roughly Nyquist
-            smampling
+            sampling.
 
     Returns:
         tuple: Returns dlam, dloglam, resln_guess, pix_per_sigma.
@@ -114,55 +113,67 @@ def get_sampling(waves, pix_per_R=3.0):
         vector(s)
 
     """
-
-    if waves.ndim == 1:
-        norders = 1
-        nspec = waves.shape[0]
-        waves_stack = waves.reshape((nspec, norders))
-    elif waves.ndim == 2:
-        waves_stack = waves
-    elif waves.ndim == 3:
-        nspec, norder, nexp = waves.shape
-        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
+    if isinstance(waves, np.ndarray):
+        if waves.ndim == 1:
+            waves_out = [waves]
+        elif waves.ndim == 2:
+            waves_out = utils.array_to_explist(waves)
+        else:
+            msgs.error('Array inputs can only be 1D or 2D')
+    elif isinstance(waves, list):
+        ndim = np.array([wave.ndim for wave in waves], dtype=int)
+        if np.any(ndim > 1):
+            msgs.error('Input list can only contain 1D arrays')
+        waves_out = waves
     else:
-        msgs.error('The shape of your wavelength array does not make sense.')
+        msgs.error('Input must be a list or numpy.ndarray')
 
-    wave_mask = waves_stack > 1.0
-    waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
-    loglam = np.ma.log10(waves_ma)
-    wave_diff = np.diff(waves_ma, axis=0)
-    loglam_diff = np.diff(loglam, axis=0)
-    dwave = np.ma.median(wave_diff)
-    dloglam = np.ma.median(loglam_diff)
-    #dloglam_ord = np.ma.median(loglam_roll, axis=0)
-    #dloglam = np.median(dloglam_ord)
+    wave_diff_flat = []
+    dloglam_flat = []
+    for wave in waves_out:
+        wave_good = wave[wave > 1.0]
+        wave_diff_flat += np.diff(wave_good).tolist()
+        dloglam_flat += np.diff(np.log10(wave_good)).tolist()
+
+
+    dwave = np.median(wave_diff_flat)
+    dloglam = np.median(dloglam_flat)
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 
 # TODO: the other methods iref should be deprecated or removed
-def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
+def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid_min=None,
                   wave_grid_max=None, dwave=None, dv=None, dloglam=None, wave_grid_input=None, 
                   spec_samp_fact=1.0):
     """
     Create a new wavelength grid for spectra to be rebinned and coadded.
 
     Args:
-        waves (`numpy.ndarray`_, optional):
-            Set of N original wavelength arrays.  Shape is (nspec, nexp).
-            Required unless wave_method='user_input' in which case it need not be passed in.
-        masks (`numpy.ndarray`_, optional):
-            Good-pixel mask for wavelengths.  Shape must match waves.
+        waves (list):
+            List of the `numpy.ndarray`_ N original 1d wavelength arrays.
+            Shapes of the input arrays are arbitrary.  Required unless
+            wave_method='user_input' in which case it need not be passed in.
+        gpms (list):
+            Good-pixel mask for wavelengths.  Same format as waves and shapes of
+            the individual arrays must match.
         wave_method (:obj:`str`, optional):
             Desired method for creating new wavelength grid:
 
-                * 'iref' -- Use the first wavelength array (default)
-                * 'velocity' -- Grid is uniform in velocity
-                * 'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
-                * 'linear' -- Constant pixel grid
-                * 'concatenate' -- Meld the input wavelength arrays
-                * 'user_input' -- Use a user input wavelength grid. wave_grid_input must be set for this option.
+                - 'iref' -- Use the first wavelength array (default)
+
+                - 'velocity' -- Grid is uniform in velocity
+
+                - 'log10'  -- Grid is uniform in log10(wave). This is the same
+                  as velocity.
+
+                - 'linear' -- Constant pixel grid
+
+                - 'concatenate' -- Meld the input wavelength arrays
+
+                - 'user_input' -- Use a user input wavelength grid.
+                  wave_grid_input must be set for this option.
 
         iref (:obj:`int`, optional):
             Index in waves array for reference spectrum
@@ -172,12 +183,13 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             max wavelength value for the final grid
         dwave (:obj:`float`, optional):
             Pixel size in same units as input wavelength array (e.g. Angstroms).
-            If not input, the median pixel size is calculated and used.
+            Used with the 'linear' method.  If not input, the median pixel size
+            is calculated and used.
         dv (:obj:`float`, optional):
-            Pixel size in km/s for velocity method.  If not input, the median
+            Pixel size in km/s for 'velocity' method.  If not input, the median
             km/s per pixel is calculated and used
         dloglam (:obj:`float`, optional):
-            Pixel size in log10(wave) for the log10 method.
+            Pixel size in log10(wave) for the log10 or velocity method.
         spec_samp_fact (:obj:`float`, optional):
             Make the wavelength grid sampling finer (spec_samp_fact < 1.0) or
             coarser (spec_samp_fact > 1.0) by this sampling factor. This
@@ -189,30 +201,37 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
-              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
-              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
-            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
-              the wavelength bins, that is this grid is simply offset from
-              ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
-              depending on whether linear or (log10 or velocity) was requested.
-              Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate, the linear wavelength sampling will be
-              calculated.
+
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not
+              masked.  This is a set of bin edges (rightmost edge for the last
+              bin and leftmost edges for the rest), while wave_grid_mid is a set
+              of bin centers, hence wave_grid has 1 more value than
+              wave_grid_mid.
+
+            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated
+              at the centers of the wavelength bins, that is this grid is simply
+              offset from ``wave_grid`` by ``dsamp/2.0``, in either linear space
+              or log10 depending on whether linear or (log10 or velocity) was
+              requested.  Last bin center is removed since it falls outside
+              wave_grid.  For iref or concatenate, the linear wavelength
+              sampling will be calculated.
+
             - ``dsamp``: The pixel sampling for wavelength grid created.
+
     """
+
     c_kms = constants.c.to('km/s').value
 
     if wave_method == 'user_input':
         wave_grid = wave_grid_input
     else:
-        if masks is None:
-            masks = waves > 1.0
+        if gpms is None:
+            gpms = [wave > 1.0 for wave in waves]
 
         if wave_grid_min is None:
-            wave_grid_min = waves[masks].min()
+            wave_grid_min = np.min([wave[gpm].min()for wave, gpm in zip(waves, gpms)])
         if wave_grid_max is None:
-            wave_grid_max = waves[masks].max()
+            wave_grid_max = np.max([wave[gpm].max() for wave, gpm in zip(waves, gpms)])
 
         dwave_data, dloglam_data, resln_guess, pix_per_sigma = get_sampling(waves)
 
@@ -240,15 +259,15 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
 
         elif wave_method == 'concatenate':  # Concatenate
             # Setup
-            loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
-            nexp = waves.shape[1]
-            newloglam = loglam[:, iref]  # Deals with mask
+            loglam = [np.log10(wave) for wave in waves] # This deals with padding (0's) just fine, i.e. they get masked..
+            nexp = len(waves)
+            newloglam = loglam[iref]  # Deals with mask
             # Loop
             for j in range(nexp):
                 if j == iref:
                     continue
                 #
-                iloglam = loglam[:, j]
+                iloglam = loglam[j]
                 dloglam_0 = (newloglam[1]-newloglam[0])
                 dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
                 if (newloglam[0] - iloglam[0]) > dloglam_0:
@@ -262,8 +281,8 @@ def get_wave_grid(waves=None, masks=None, wave_method='linear', iref=0, wave_gri
             wave_grid = np.power(10.0,newloglam)
 
         elif wave_method == 'iref': # Use the iref index wavelength array
-            wave_tmp = waves[:, iref]
-            wave_grid = wave_tmp[ wave_tmp > 1.0]
+            wave_tmp = waves[iref]
+            wave_grid = wave_tmp[wave_tmp > 1.0]
 
         else:
             msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
@@ -378,16 +397,16 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     Parameters
     ----------
-    theta (float `numpy.ndarray`_):
+    theta : float `numpy.ndarray`_
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1 (float `numpy.ndarray`_):  shape = (nspec,)
+    y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
-    y2 (float `numpy.ndarray`_):  shape = (nspec,)
+    y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
 
     Returns
     -------
-    corr_norm: float
+    corr_norm : float
         Negative of the zero lag cross-correlation coefficient (since we
         are miniziming with scipy.optimize). scipy.optimize will thus
         determine the shift,stretch that maximize the cross-correlation.
@@ -406,10 +425,10 @@ def zerolag_shift_stretch(theta, y1, y2):
     return -corr_norm
 
 
-def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0):
-
-    """  Utility routine to create an synthetic arc spectrum for cross-correlation using the location of the peaks in
-    the input spectrum.
+def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
+    """
+    Utility routine to create a synthetic arc spectrum for cross-correlation
+    using the location of the peaks in the input spectrum.
 
     Args:
         inspec1 (`numpy.ndarray`_):
@@ -427,6 +446,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
             If True, use amplitudes from the raw arc, i.e. do not continuum subtract. Default = False
         fwhm (float, optional):
             Fwhm of arc lines. Used for peak finding and to assign a fwhm in the xcorr_arc.
+        debug (bool, optional):
+             Show plots for line detection debugging. Default = False
 
     Returns:
         `numpy.ndarray`_: Synthetic arc spectrum to be used for
@@ -436,7 +457,8 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 
 
     # Run line detection to get the locations and amplitudes of the lines
-    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect, fwhm=fwhm)
+    tampl1, tampl1_cont, tcent1, twid1, centerr1, w1, arc1, nsig1 = arc.detect_lines(inspec1, sigdetect=sigdetect,
+                                                                                     fwhm=fwhm, debug=debug)
 
     ampl = tampl1 if use_raw_arc else tampl1_cont
 
@@ -448,6 +470,9 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         ceil_upper = np.inf
 
     ampl_clip = np.clip(ampl, None, ceil_upper)
+    if ampl_clip.size == 0:
+        msgs.warn('No lines were detected in the arc spectrum. Cannot create a synthetic arc spectrum for cross-correlation.')
+        return None
 
     # Make a fake arc by plopping down Gaussians at the location of every centroided line we found
     xcorr_arc = np.zeros_like(inspec1)
@@ -459,6 +484,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
         if tcent1[ind] == -999.0:
             continue
         xcorr_arc += ampl_clip[ind]*np.exp(-0.5*((spec_vec - tcent1[ind])/sigma)**2)
+
 
     return xcorr_arc
 
@@ -551,12 +577,18 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
                         fwhm = 4.0, debug=False, toler=1e-5, seed = None):
 
-    """ Determine the shift and stretch of inspec2 relative to inspec1.  This routine computes an initial
-    guess for the shift via maximimizing the cross-correlation. It then performs a two parameter search for the shift and stretch
-    by optimizing the zero lag cross-correlation between the inspec1 and the transformed inspec2 (shifted and stretched via
-    wvutils.shift_and_stretch()) in a narrow window about the initial estimated shift. The convention for the shift is that
-    positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
-    that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
+    """
+    Determine the shift and stretch of inspec2 relative to inspec1.  This
+    routine computes an initial guess for the shift via maximimizing the
+    cross-correlation. It then performs a two parameter search for the shift and
+    stretch by optimizing the zero lag cross-correlation between the inspec1 and
+    the transformed inspec2 (shifted and stretched via
+    wvutils.shift_and_stretch()) in a narrow window about the initial estimated
+    shift. The convention for the shift is that positive shift means inspec2 is
+    shifted to the right (higher pixel values) relative to inspec1. The
+    convention for the stretch is that it is float near unity that increases the
+    size of the inspec2 relative to the original size (which is the size of
+    inspec1)
 
     Parameters
     ----------
@@ -604,10 +636,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
-    toler (float):
+    toler : float
         Tolerance for differential evolution optimizaiton.
     debug = False
-       Show plots to the screen useful for debugging.
+        Show plots to the screen useful for debugging.
 
     Returns
     -------
@@ -616,7 +648,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
           - success = 1, shift and stretch performed via sucessful
             optimization
+
           - success = 0, shift and stretch optimization failed
+
           - success = -1, initial x-correlation is below cc_thresh (see
             above), so shift/stretch optimization was not attempted
 
@@ -634,12 +668,12 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         which unity indicating a perfect match between the two spectra.
         If cc_thresh is set, and the initial cross-correlation is <
         cc_thresh, this will be just the initial cross-correlation
-    shift_init:
+    shift_init: float
         The initial shift determined by maximizing the cross-correlation
         coefficient without allowing for a stretch.  If cc_thresh is
         set, and the initial cross-correlation is < cc_thresh, this will
         be just the shift from the initial cross-correlation
-    cross_corr_init:
+    cross_corr_init: float
         The maximum of the initial cross-correlation coefficient
         determined without allowing for a stretch.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh, this will be
@@ -655,9 +689,13 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
 
+    if y1 is None or y2 is None:
+        msgs.warn('No lines detected punting on shift/stretch')
+        return 0, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
+
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
     #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
@@ -771,7 +809,7 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-                   order=None, overwrite=True):
+                   order=None, overwrite=True, cache=False):
     """
     Write the template spectrum into a binary FITS table
 
@@ -783,7 +821,9 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
         binspec (int):
             Binning of the template
         outpath (str):
+            Directory to store the wavelength template file
         outroot (str):
+            Filename to use for the template
         det_cut (bool, optional):
             Cuts in wavelength for detector snippets
             Used primarily for DEIMOS
@@ -791,6 +831,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
             Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
+        cache (bool, optional):
+            Store the wavelength solution in the pypeit cache?
     """
     tbl = Table()
     tbl['wave'] = nwwv
@@ -809,4 +851,17 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     # Write
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
-    print("Wrote: {}".format(outfile))
+    msgs.info(f"Your arxiv solution has been written to {outfile}\n")
+    if cache:
+        # Also copy the file to the cache for direct use
+        data.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
+
+        msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
+                  f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                  f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                  f" [calibrations]{msgs.newline()}"
+                  f"   [[wavelengths]]{msgs.newline()}"
+                  f"     reid_arxiv = {outroot}{msgs.newline()}"
+                  f"     method = full_template\n")
+    print("")  # Empty line for clarity
+    msgs.info("Please consider sharing your solution with the PypeIt Developers.")

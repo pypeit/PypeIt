@@ -2,8 +2,8 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
-                           [-s SENS_FILE] [--debug] [--par_outfile PAR_OUTFILE]
-                           [-v VERBOSITY]
+                           [-s SENS_FILE] [-f FLATFILE] [--debug]
+                           [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
                            spec1dfile
     
     Compute a sensitivity function
@@ -61,6 +61,18 @@
                             in the filename.
       -s SENS_FILE, --sens_file SENS_FILE
                             Configuration file with sensitivity function parameters
+      -f FLATFILE, --flatfile FLATFILE
+                            Use the flat file for computing the sensitivity
+                            function.  Note that it is not possible to set
+                            --flatfile and simultaneously use a .sens file with the
+                            --sens_file option. If you are using a .sens file, set
+                            the flatfile there via e.g.:
+                             
+                                [sensfunc]
+                                     flatfile = Calibrations/Flat_A_0_DET01.fits'
+                             
+                            Where Flat_A_0_DET01.fits is the flat file in your
+                            Calibrations directory
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the

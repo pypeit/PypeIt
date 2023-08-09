@@ -28,9 +28,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     r"""
     Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
-    for a single :class:`~pypeit.specobjs.SpecObj`.
+    for a single :class:`~pypeit.specobj.SpecObj`.
 
-    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with optimal attributes
+    The :class:`~pypeit.specobj.SpecObj` object is changed in place with optimal attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
 
@@ -308,11 +308,11 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
                    count_scale=None, noise_floor=None):
     r"""
-    Perform boxcar extraction for a single :class:`~pypeit.specobjs.SpecObj`.
+    Perform boxcar extraction for a single :class:`~pypeit.specobj.SpecObj`.
     The size of the boxcar must be available as an attribute of the
     :class:`~pypeit.specobj.SpecObj` object.
 
-    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with boxcar attributes
+    The :class:`~pypeit.specobj.SpecObj` object is changed in place with boxcar attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
     
