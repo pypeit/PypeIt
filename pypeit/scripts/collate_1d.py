@@ -193,17 +193,35 @@ def exclude_source_objects(source_objects, exclude_map, par):
             excluded_messages.append(msg)
             continue
 
-        if par['coadd1d']['ex_value'] == 'OPT' and sobj.OPT_COUNTS is None:
-            msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS. Consider changing ex_value to "BOX".'
-            msgs.warn(msg)
-            excluded_messages.append(msg)
-            continue
+        if par['coadd1d']['ex_value'] == 'OPT':
+            msg = None
+            if sobj.OPT_COUNTS is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS. Consider changing ex_value to "BOX".'
+            elif sobj.OPT_MASK is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_MASK. Consider changing ex_value to "BOX".'
+            else:
+                if len(sobj.OPT_COUNTS[sobj.OPT_MASK]) == 0:
+                    msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of OPT_COUNTS was masked out. Consider changing ex_value to "BOX".'
+            
+            if msg is not None:
+                msgs.warn(msg)
+                excluded_messages.append(msg)
+                continue
 
-        if par['coadd1d']['ex_value'] == 'BOX' and sobj.BOX_COUNTS is None:
-            msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_COUNTS. Consider changing ex_value to "OPT".'
-            msgs.warn(msg)
-            excluded_messages.append(msg)
-            continue
+        if par['coadd1d']['ex_value'] == 'BOX':
+            msg = None
+            if sobj.BOX_COUNTS is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_COUNTS. Consider changing ex_value to "OPT".'
+            elif sobj.BOX_MASK is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_MASK. Consider changing ex_value to "OPT".'
+            else:
+                if len(sobj.BOX_COUNTS[sobj.BOX_MASK]) == 0:
+                    msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of BOX_COUNTS was masked out. Consider changing ex_value to "OPT".'
+
+            if msg is not None:
+                msgs.warn(msg)
+                excluded_messages.append(msg)
+                continue
 
         filtered_objects.append(source_object)
     return (filtered_objects, excluded_messages)
