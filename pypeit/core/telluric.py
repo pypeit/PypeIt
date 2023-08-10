@@ -2740,7 +2740,13 @@ class Telluric(datamodel.DataContainer):
             :obj:`tuple`: The guess telluric model parameters,
             resolution, shift, and stretch parameters.
         """
-        guess = list(np.zeros(self.ntell))
+        if self.teltype == 'grid':
+            guess = [np.median(self.tell_dict['pressure_grid'])]
+            guess.append(np.median(self.tell_dict['temp_grid']))
+            guess.append(np.median(self.tell_dict['h2o_grid']))
+            guess.append(self.airmass_guess)
+        else: 
+            guess = list(np.zeros(self.ntell))
         guess.append(self.resln_guess)
         guess.append(0.0)
         guess.append(1.0)
@@ -2758,9 +2764,19 @@ class Telluric(datamodel.DataContainer):
         """
         # Set the bounds for the optimization
         bounds = []
-        for ii in range(self.ntell):
-            bounds.append((self.tell_dict['bounds_tell_pca'][0][ii+1],
-                           self.tell_dict['bounds_tell_pca'][1][ii+1]))
+        if self.teltype == 'grid':
+            bounds.append((self.tell_dict['pressure_grid'].min(),
+                           self.tell_dict['pressure_grid'].max()))
+            bounds.append((self.tell_dict['temp_grid'].min(),
+                           self.tell_dict['temp_grid'].max()))
+            bounds.append((self.tell_dict['h2o_grid'].min(),
+                           self.tell_dict['h2o_grid'].max()))
+            bounds.append((self.tell_dict['airmass_grid'].min(),
+                           self.tell_dict['airmass_grid'].max()))
+        else:
+            for ii in range(self.ntell):
+                bounds.append((self.tell_dict['bounds_tell_pca'][0][ii+1],
+                               self.tell_dict['bounds_tell_pca'][1][ii+1]))
         bounds.append((self.resln_guess * self.resln_frac_bounds[0],
                        self.resln_guess * self.resln_frac_bounds[1]))
         bounds.append(self.pix_shift_bounds)

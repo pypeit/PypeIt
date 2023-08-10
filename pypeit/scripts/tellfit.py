@@ -163,6 +163,8 @@ class TellFit(scriptbase.ScriptBase):
                                            only_orders=par['telluric']['only_orders'],
                                            bal_wv_min_max=par['telluric']['bal_wv_min_max'],
                                            maxiter=par['telluric']['maxiter'],
+                                           popsize=par['telluric']['popsize'],
+                                           tol=par['telluric']['tol'],
                                            debug_init=args.debug, disp=args.debug,
                                            debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='star':
@@ -184,6 +186,8 @@ class TellFit(scriptbase.ScriptBase):
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              maxiter=par['telluric']['maxiter'],
+                                             popsize=par['telluric']['popsize'],
+                                             tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
                                              debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='poly':
@@ -201,6 +205,8 @@ class TellFit(scriptbase.ScriptBase):
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              only_orders=par['telluric']['only_orders'],
                                              maxiter=par['telluric']['maxiter'],
+                                             popsize=par['telluric']['popsize'],
+                                             tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
                                              debug=args.debug, show=args.plot)
         else:
