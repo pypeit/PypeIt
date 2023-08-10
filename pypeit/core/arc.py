@@ -485,12 +485,12 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             continue
         # Check if this slit is masked
         if slit_bpm is not None and slit_bpm[islit]:
-            msgs.info('Ignoring masked slit {}'.format(islit))
+            msgs.info('Ignoring masked slit {}'.format(islit+1))
             # TODO -- Avoid using NaNs
             arc_spec[:,islit] = np.nan
             continue
         if verbose:
-            msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))
+            msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit+1))
         # Create a mask for the pixels that will contribue to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
