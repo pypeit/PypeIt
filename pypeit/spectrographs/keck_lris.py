@@ -1370,17 +1370,16 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R1200_7500_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            # par['calibrations']['wavelengths']['sigdetect'] = 30.0  # lots of ghost lines
             par['calibrations']['wavelengths']['n_first'] = 3
             par['calibrations']['wavelengths']['n_final'] = 5
-        # elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-
+        elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 5
 
         # Return
         return par
-
 
     def init_meta(self):
         """
