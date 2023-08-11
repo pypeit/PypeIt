@@ -1869,10 +1869,12 @@ class HolyGrail:
         self._det_weak = {}
         self._det_stro = {}
         for slit in range(self._nslit):
-            msgs.info("Working on slit: {}".format(slit))
             if slit not in self._ok_mask:
                 self._all_final_fit[str(slit)] = None
+                msgs.info('Ignoring masked slit {}'.format(slit+1))
                 continue
+            else:
+                msgs.info("Working on slit: {}".format(slit+1))
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
@@ -1884,7 +1886,7 @@ class HolyGrail:
 
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
-                msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit))
+                msgs.warn("Not enough lines to identify in slit {0:d}!".format(slit+1))
                 self._det_weak[str(slit)] = [None,None]
                 self._det_stro[str(slit)] = [None,None]
                 # Remove from ok mask
@@ -1903,9 +1905,10 @@ class HolyGrail:
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
 
-        # Now that all slits have been inspected, cross match to generate a
+        # Now that all slits have been inspected, cross match (if there are bad fit) to generate a
         # list of all lines in every slit, and refit all spectra
-        if self._nslit > 1:
+        # in self.cross_match() good fits are cross correlate with each other, so we need to have at least 2 good fits
+        if np.where(good_fit[self._ok_mask])[0].size > 1 and np.any(np.logical_not(good_fit[self._ok_mask])):
             msgs.info('Checking wavelength solution by cross-correlating with all slits')
 
             msgs.info('Cross-correlation iteration #1')
@@ -2167,7 +2170,7 @@ class HolyGrail:
         # to be classified as a bad slit here. Is this the behavior we want?? Maybe we should be more
         # conservative and call a bad any slit which results in an outlier here?
         good_slits = np.sort(sort_idx[np.unique(slit_ids[gdmsk, :].flatten())])
-        bad_slits = np.setdiff1d(np.arange(self._nslit), good_slits, assume_unique=True)
+        bad_slits = np.setdiff1d(np.arange(self._nslit)[self._ok_mask], good_slits, assume_unique=True)
         nbad = bad_slits.size
         if nbad > 0:
             msgs.info('Working on {:d}'.format(nbad) + ' bad slits: {:}'.format(bad_slits + 1))
@@ -2991,13 +2994,12 @@ class HolyGrail:
         for slit in range(self._nslit):
             # Prepare a message for bad wavelength solutions
             badmsg = '---------------------------------------------------' + msgs.newline() +\
-                     'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +\
-                     '  Wavelength calibration not performed!'
+                     'Final report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline()
             if slit not in self._ok_mask:
-                msgs.warn(badmsg)
+                msgs.warn(badmsg + 'Masked slit ignored')
                 continue
             if self._all_patt_dict[str(slit)] is None:
-                msgs.warn(badmsg)
+                msgs.warn(badmsg + '  Wavelength calibration not performed!')
                 continue
             st = str(slit)
             if self._all_patt_dict[st]['sign'] == +1:
