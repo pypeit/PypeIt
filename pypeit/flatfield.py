@@ -1983,7 +1983,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slits, model, slit_illum_ref_id
     scale_model: `numpy.ndarray`_
         An image containing the appropriate scaling
     """
-    msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
+    msgs.info(f"Performing relative spectral sensitivity correction (reference slit = {slit_illum_ref_idx})")
     # Generate some masks
     slitmask = slits.slit_img(pad=0, initial=True, flexure=flexure)
     slitmask_trim = slits.slit_img(pad=-trim, initial=True, flexure=flexure)
