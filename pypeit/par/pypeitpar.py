@@ -2698,7 +2698,9 @@ class WavelengthSolutionPar(ParSet):
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = float
         descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
-                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter'
+                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
+                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
+                                     
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float

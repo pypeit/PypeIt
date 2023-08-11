@@ -299,6 +299,9 @@ That is, each order must satisfy the following:
 
     RMS < rms_threshold * (measured_FWHM/default_FWHM)
 
+Note: in a future release, we will re-define ``rms_threshold`` to be
+in units of the measured FWHM.
+
 Mosaics
 -------
 
