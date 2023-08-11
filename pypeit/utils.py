@@ -149,7 +149,6 @@ def setup_list_to_arr_setup(setup_list, norders, nexps):
     return arr_setup
 
 
-
 def concat_to_setup_list(concat, norders, nexps):
     r"""
     This routine converts from a ``concat`` list to a ``setup_list`` list. The
@@ -203,9 +202,9 @@ def concat_to_setup_list(concat, norders, nexps):
     setup_list = []
     ind_start = 0
     for isetup in range(nsetups):
-        ind_end = ind_start + norders[isetup]*nexps[isetup]
+        ind_end = ind_start + norders[isetup] * nexps[isetup]
         setup_list.append(concat[ind_start:ind_end])
-        ind_start=ind_end
+        ind_start = ind_end
 
     return setup_list
 
@@ -274,7 +273,7 @@ def echlist_to_echarr(echlist, shape):
     echarr = np.zeros(shape, dtype=echlist[0].dtype)
     for i in range(norder):
         for j in range(nexp):
-            echarr[:, i, j] = echlist[i*nexp + j]
+            echarr[:, i, j] = echlist[i * nexp + j]
     return echarr
 
 
@@ -301,7 +300,7 @@ def explist_to_array(explist, pad_value=0.0):
     nexp = len(explist)
     # Find the maximum array size in the list
     nspec_list = [arr.size for arr in explist]
-    nspec_max =  np.max(nspec_list)
+    nspec_max = np.max(nspec_list)
     array = np.full((nspec_max, nexp), pad_value, dtype=explist[0].dtype)
     for i in range(nexp):
         array[:nspec_list[i], i] = explist[i]
@@ -332,7 +331,7 @@ def array_to_explist(array, nspec_list=None):
     """
     nexp = array.shape[1]
     if nspec_list is None:
-        _nspec_list = [array.shape[0]]*nexp
+        _nspec_list = [array.shape[0]] * nexp
     else:
         _nspec_list = nspec_list
 
@@ -413,7 +412,7 @@ def all_subclasses(cls):
         intermediate base classes in the inheritance thread.
     """
     return set(cls.__subclasses__()).union(
-            [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
 def embed_header():
@@ -466,8 +465,8 @@ def to_string(data, use_repr=True, verbatim=False):
         return data if not verbatim else '``' + data + '``'
     if hasattr(data, '__len__'):
         return '[]' if isinstance(data, list) and len(data) == 0 \
-                    else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim) 
-                                        for d in data ])
+            else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim)
+                            for d in data])
     return data.__repr__() if use_repr else str(data)
 
 
@@ -502,25 +501,25 @@ def string_table(tbl, delimeter='print', has_header=True):
         _nrows += 1
         start += 1
 
-    row_string = ['']*_nrows
+    row_string = [''] * _nrows
 
-    for i in range(start,nrows+start-1):
-        row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
+    for i in range(start, nrows + start - 1):
+        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
     if delimeter == 'print':
         # Heading row
-        row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
         # Delimiter
         if has_header:
-            row_string[1] = '-'*len(row_string[0])
-        return '\n'.join(row_string)+'\n'
+            row_string[1] = '-' * len(row_string[0])
+        return '\n'.join(row_string) + '\n'
 
     # For an rst table
-    row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
+    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
     if has_header:
         row_string[2] = row_string[0]
     row_string[-1] = row_string[0]
-    return '\n'.join(row_string)+'\n'
+    return '\n'.join(row_string) + '\n'
 
 
 def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
@@ -569,10 +568,10 @@ def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False
         # NOTE: These reshape calls return copies of the arrays
         if log10_blaze_function is not None:
             return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                gpm.reshape(-1, 1), log10_blaze_function.reshape(-1,1), flux.size, 1
+                   gpm.reshape(-1, 1), log10_blaze_function.reshape(-1, 1), flux.size, 1
         else:
             return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                gpm.reshape(-1, 1), None, flux.size, 1
+                   gpm.reshape(-1, 1), None, flux.size, 1
 
     # Input is 2D
     nspec, norders = flux.shape
@@ -641,19 +640,19 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
     # Set the starting and ending values based on a fraction of the
     # growth
     _lim = 1.0 if lim > 1.0 else lim
-    start, end = (len(_a)*(1.0+_lim*np.array([-1,1]))/2).astype(int)
+    start, end = (len(_a) * (1.0 + _lim * np.array([-1, 1])) / 2).astype(int)
     if end == len(_a):
         end -= 1
 
     # Set the full range and multiply it by the provided factor
     srt = np.ma.argsort(_a)
-    Da = (_a[srt[end]] - _a[srt[start]])*fac
+    Da = (_a[srt[end]] - _a[srt[start]]) * fac
 
     # Set the midpoint
-    mid = _a[srt[len(_a)//2]] if midpoint is None else midpoint
+    mid = _a[srt[len(_a) // 2]] if midpoint is None else midpoint
 
     # Return the range centered on the midpoint
-    return [ mid - Da/2, mid + Da/2 ]
+    return [mid - Da / 2, mid + Da / 2]
 
 
 def nearest_unmasked(arr, use_indices=False):
@@ -691,7 +690,7 @@ def nearest_unmasked(arr, use_indices=False):
         return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
 
     # Get the difference of each element with every other element
-    nearest = np.absolute(arr[None,:]-arr.data[:,None])
+    nearest = np.absolute(arr[None, :] - arr.data[:, None])
     # Ignore the diagonal
     nearest[np.diag_indices(arr.size)] = np.ma.masked
     # Return the location of the minimum value ignoring the masked values
@@ -765,14 +764,14 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
 
     # Construct the kernel for mean calculation
     _nave = np.fmin(nave, img.shape[0])
-    kernel = np.ones((_nave, 1))/float(_nave)
+    kernel = np.ones((_nave, 1)) / float(_nave)
 
     if wgt is None:
         # No weights so just smooth
         return scipy.ndimage.convolve(img, kernel, mode='nearest')
 
     # Weighted smoothing
-    cimg = scipy.ndimage.convolve(img*wgt, kernel, mode='nearest')
+    cimg = scipy.ndimage.convolve(img * wgt, kernel, mode='nearest')
     wimg = scipy.ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
     if replace == 'original':
@@ -782,6 +781,81 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     else:
         msgs.error('Unrecognized value of replace')
     return smoothed_img.data
+
+
+def convolve_fft(img, kernel, msk):
+    """
+    Convolve img with an input kernel using an FFT. Following the FFT,
+    a slower convolution is used to estimate the convolved image near
+    the masked pixels.
+
+    .. note::
+        For images following the PypeIt convention, this smooths the
+        data spectrally for each spatial position.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image to convolve.
+        kernel (`numpy.ndarray`_):
+            1D kernel to use when convolving the image in the spectral direction
+        msk (`numpy.ndarray`_):
+            Mask of good pixels (True=good pixel). This should ideally be a slit mask,
+            where a True value represents a pixel on the slit, and a False value is a
+            pixel that is not on the slit.
+
+    Returns:
+        `numpy.ndarray`_: The convolved image
+    """
+    nspec = img.shape[0]
+    kernsize = kernel.size
+    hwid = (kernsize - 1) // 2
+    harr = np.arange(-hwid, +hwid + 1)
+    fullsize = nspec + kernsize - 1
+    fsize = 2 ** int(np.ceil(np.log2(fullsize)))  # Use this size for a more efficient computation
+    conv = np.fft.fft(img, fsize, axis=0)
+    conv *= np.fft.fft(kernel / np.sum(kernel), fsize)[:, None]
+    img_conv = np.fft.ifft(conv, axis=0).real[hwid:hwid + nspec, :]
+    del conv
+    # Find the slit edge pixels in the spectral direction
+    rmsk = (msk != np.roll(msk, 1, axis=0))
+    # Remove the edges of the detector
+    rmsk[0, :] = False
+    rmsk[-1, :] = False
+    # Separate into up edges and down edges
+    wup = np.where(rmsk & msk)
+    wdn = np.where(rmsk & np.logical_not(msk))
+
+    # Create an inner function that deals with the convolution near masked pixels
+    def inner_conv(idx_i, idx_j):
+        slc = idx_i + harr
+        slc = slc[(slc >= 0) & (slc < nspec)]
+        wsl = np.where(msk[slc, idx_j])
+        return np.sum(img[slc[wsl], idx_j] * kernel[wsl]) / np.sum(kernel[wsl])
+
+    # Now calculate the convolution directly for these pixels
+    for ee in range(wup[0].size):
+        ii, jj = wup[0][ee], wup[1][ee]
+        for cc in range(ii, min(nspec - 1, ii + hwid + 1)):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    for ee in range(wdn[0].size):
+        ii, jj = wdn[0][ee], wdn[1][ee]
+        for cc in range(max(0, ii - hwid - 1), ii + 1):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    # Now recalculate the convolution near the spectral edges
+    rmsk = np.zeros(msk.shape, dtype=bool)
+    rmsk[:hwid + 1, :] = True
+    wlo = np.where(msk & rmsk)
+    rmsk[:hwid + 1, :] = False
+    rmsk[-hwid - 1:, :] = True
+    whi = np.where(msk & rmsk)
+    for ee in range(wlo[0].size):
+        ii, jj = wlo[0][ee], wlo[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    for ee in range(whi[0].size):
+        ii, jj = whi[0][ee], whi[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    # Return the convolved image
+    return img_conv
 
 
 # TODO: Could this use bisect?
@@ -875,7 +949,7 @@ def rebinND(img, shape):
         msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
         return rebin_slice(img, shape)
     # Convert input 2D image into a 4D array to make the rebinning easier
-    sh = shape[0], img.shape[0]//shape[0], shape[1], img.shape[1]//shape[1]
+    sh = shape[0], img.shape[0] // shape[0], shape[1], img.shape[1] // shape[1]
     # Rebin to the 4D array and then average over the second and last elements.
     img_out = img.reshape(sh).mean(-1).mean(1)
     return img_out
@@ -978,7 +1052,7 @@ def smooth(x, window_len, window='flat'):
 
     y = np.convolve(w / w.sum(), s, mode='same')
 
-    return y[(window_len-1):(y.size-(window_len-1))]
+    return y[(window_len - 1):(y.size - (window_len - 1))]
 
 
 def fast_running_median(seq, window_size):
@@ -1013,21 +1087,22 @@ def fast_running_median(seq, window_size):
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
 
-    if (window_size > (len(seq)-1)):
+    if (window_size > (len(seq) - 1)):
         msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
     if (window_size < 0):
-        msgs.warn('window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
+        msgs.warn(
+            'window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
 
-    window_size = int(np.fmax(np.fmin(int(window_size), len(seq)-1),1))
+    window_size = int(np.fmax(np.fmin(int(window_size), len(seq) - 1), 1))
     # pad the array for the reflection
-    seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
+    seq_pad = np.concatenate((seq[0:window_size][::-1], seq, seq[-1:(-1 - window_size):-1]))
 
     result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.medfilt
 
-    result = np.roll(result, -window_size//2 + 1)
+    result = np.roll(result, -window_size // 2 + 1)
     return result[window_size:-window_size]
 
 
@@ -1071,13 +1146,12 @@ def cross_correlate(x, y, maxlag):
     if y.ndim != 1:
         msgs.error('y must be one-dimensional.')
 
-
-    #py = np.pad(y.conj(), 2*maxlag, mode=mode)
-    py = np.pad(y, 2*maxlag, mode='constant')
-    T = as_strided(py[2*maxlag:], shape=(2*maxlag+1, len(y) + 2*maxlag),
+    # py = np.pad(y.conj(), 2*maxlag, mode=mode)
+    py = np.pad(y, 2 * maxlag, mode='constant')
+    T = as_strided(py[2 * maxlag:], shape=(2 * maxlag + 1, len(y) + 2 * maxlag),
                    strides=(-py.strides[0], py.strides[0]))
     px = np.pad(x, maxlag, mode='constant')
-    lags = np.arange(-maxlag, maxlag + 1,dtype=float)
+    lags = np.arange(-maxlag, maxlag + 1, dtype=float)
     return lags, T.dot(px)
 
 
@@ -1118,8 +1192,8 @@ def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
     _gpm = ivar > 0.
     if gpm is not None:
         _gpm &= gpm
-    adderr = 1.0/sn_clip
-    ivar_cap = _gpm/(1.0/(ivar + np.logical_not(_gpm)) + adderr**2*(np.abs(flux))**2)
+    adderr = 1.0 / sn_clip
+    ivar_cap = _gpm / (1.0 / (ivar + np.logical_not(_gpm)) + adderr ** 2 * (np.abs(flux)) ** 2)
     return np.minimum(ivar, ivar_cap)
 
 
@@ -1141,7 +1215,7 @@ def inverse(array):
     Returns:
         `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
-    return (array > 0.0)/(np.abs(array) + (array == 0.0))
+    return (array > 0.0) / (np.abs(array) + (array == 0.0))
 
 
 def calc_ivar(varframe):
@@ -1173,8 +1247,8 @@ def robust_meanstd(array):
         deviation (assuming a symmetric distribution).
     """
     med = np.median(array)
-    mad = np.median(np.abs(array-med))
-    return med, 1.4826*mad
+    mad = np.median(np.abs(array - med))
+    return med, 1.4826 * mad
 
 
 def polyfitter2d(data, mask=None, order=2):
@@ -1215,11 +1289,11 @@ def polyfit2d(x, y, z, order=3):
     """
     Generate 2D polynomial
     """
-    ncols = (order + 1)**2
+    ncols = (order + 1) ** 2
     G = np.zeros((x.size, ncols))
-    ij = itertools.product(range(order+1), range(order+1))
-    for k, (i,j) in enumerate(ij):
-        G[:,k] = x**i * y**j
+    ij = itertools.product(range(order + 1), range(order + 1))
+    for k, (i, j) in enumerate(ij):
+        G[:, k] = x ** i * y ** j
     m, null, null, null = np.linalg.lstsq(G, z)
     return m
 
@@ -1229,10 +1303,10 @@ def polyval2d(x, y, m):
     Generate 2D polynomial
     """
     order = int(np.sqrt(len(m))) - 1
-    ij = itertools.product(range(order+1), range(order+1))
+    ij = itertools.product(range(order + 1), range(order + 1))
     z = np.zeros_like(x)
     for a, (i, j) in zip(m, ij):
-        z += a * x**i * y**j
+        z += a * x ** i * y ** j
     return z
 
 
@@ -1248,8 +1322,8 @@ def subsample(frame):
         `numpy.ndarray`_: Sliced image
 
     """
-    newshape = (2*frame.shape[0], 2*frame.shape[1])
-    slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
+    newshape = (2 * frame.shape[0], 2 * frame.shape[1])
+    slices = [slice(0, old, float(old) / new) for old, new in zip(frame.shape, newshape)]
     coordinates = np.mgrid[slices]
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
@@ -1319,12 +1393,12 @@ def yamlify(obj, debug=False):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
         obj = bool(obj)
-#    elif isinstance(obj, bytes):
-#        obj = obj.decode('utf-8')
+    #    elif isinstance(obj, bytes):
+    #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
         # Worry about colons!
         if ':' in obj:
-            obj = '"'+str(obj)+'"'
+            obj = '"' + str(obj) + '"'
         else:
             obj = str(obj)
     elif isinstance(obj, units.Quantity):
@@ -1567,6 +1641,7 @@ def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
 
     return H
 
+
 ################################################################################
 
 def _lhsclassic(rng, n, samples):
@@ -1575,21 +1650,22 @@ def _lhsclassic(rng, n, samples):
 
     # Fill points uniformly in each interval
     u = rng.random((samples, n))
-    #u = np.random.rand(samples, n)
+    # u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     rdpoints = np.zeros_like(u)
     for j in range(n):
-        rdpoints[:, j] = u[:, j ] *( b -a) + a
+        rdpoints[:, j] = u[:, j] * (b - a) + a
 
     # Make the random pairings
     H = np.zeros_like(rdpoints)
     for j in range(n):
         order = rng.permutation(range(samples))
-        #order = np.random.permutation(range(samples))
+        # order = np.random.permutation(range(samples))
         H[:, j] = rdpoints[order, j]
 
     return H
+
 
 ################################################################################
 
@@ -1599,18 +1675,19 @@ def _lhscentered(rng, n, samples):
 
     # Fill points uniformly in each interval
     u = rng.random((samples, n))
-    #u = np.random.rand(samples, n)
+    # u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
-    _center = (a + b ) /2
+    _center = (a + b) / 2
 
     # Make the random pairings
     H = np.zeros_like(u)
     for j in range(n):
         H[:, j] = rng.permutation(_center)
-        #H[:, j] = np.random.permutation(_center)
+        # H[:, j] = np.random.permutation(_center)
 
     return H
+
 
 ################################################################################
 
@@ -1619,17 +1696,18 @@ def _lhsmaximin(rng, n, samples, iterations, lhstype):
 
     # Maximize the minimum distance between points
     for i in range(iterations):
-        if lhstype=='maximin':
+        if lhstype == 'maximin':
             Hcandidate = _lhsclassic(rng, n, samples)
         else:
             Hcandidate = _lhscentered(rng, n, samples)
 
         d = _pdist(Hcandidate)
-        if maxdist <np.min(d):
+        if maxdist < np.min(d):
             maxdist = np.min(d)
             H = Hcandidate.copy()
 
     return H
+
 
 ################################################################################
 
@@ -1641,12 +1719,13 @@ def _lhscorrelate(rng, n, samples, iterations):
         # Generate a random LHS
         Hcandidate = _lhsclassic(rng, n, samples)
         R = np.corrcoef(Hcandidate)
-        if np.max(np.abs(R[ R!=1]) ) <mincorr:
-            mincorr = np.max(np.abs( R -np.eye(R.shape[0])))
+        if np.max(np.abs(R[R != 1])) < mincorr:
+            mincorr = np.max(np.abs(R - np.eye(R.shape[0])))
             print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
             H = Hcandidate.copy()
 
     return H
+
 
 ################################################################################
 
@@ -1682,10 +1761,10 @@ def _pdist(x):
     """
 
     x = np.atleast_2d(x)
-    assert len(x.shape )==2, 'Input array must be 2d-dimensional'
+    assert len(x.shape) == 2, 'Input array must be 2d-dimensional'
 
     m, n = x.shape
-    if m< 2:
+    if m < 2:
         return []
 
     d = []
@@ -1707,6 +1786,7 @@ def is_float(s):
 
     return True
 
+
 def find_single_file(file_pattern) -> pathlib.Path:
     """Find a single file matching a wildcard pattern.
 
@@ -1726,6 +1806,7 @@ def find_single_file(file_pattern) -> pathlib.Path:
     else:
         msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
         return pathlib.Path(files[0])
+
 
 def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
     """
@@ -1751,9 +1832,10 @@ def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
         if not visited[u]:
             visited[u] = True
             group.append(u)
-            neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
+            neighbors = [i for i in range(len(adj[u])) if adj[u, i]]
             for neighbor in neighbors:
                 stack.append(neighbor)
+
 
 # TODO: Describe returned arrays
 def list_of_spectral_lines():
@@ -1763,36 +1845,35 @@ def list_of_spectral_lines():
         tuple: Two `numpy.ndarray`_ objects.
     """
     # spectral features
-    CIVnam1, CIVwav1='CIV', 1548.
-    CIVnam2, CIVwav2='CIV', 1550.
+    CIVnam1, CIVwav1 = 'CIV', 1548.
+    CIVnam2, CIVwav2 = 'CIV', 1550.
 
-    HeIInam0, HeIIwav0='HeII', 1640.
+    HeIInam0, HeIIwav0 = 'HeII', 1640.
 
-    OIIInam01, OIIIwav01='OIII]', 1661.
-    OIIInam02, OIIIwav02='OIII]', 1666.
+    OIIInam01, OIIIwav01 = 'OIII]', 1661.
+    OIIInam02, OIIIwav02 = 'OIII]', 1666.
 
-    SiIIInam1, SiIIIwav1='SiIII]', 1882.
-    SiIIInam2, SiIIIwav2='SiIII]', 1892.
+    SiIIInam1, SiIIIwav1 = 'SiIII]', 1882.
+    SiIIInam2, SiIIIwav2 = 'SiIII]', 1892.
 
-    CIIInam1, CIIIwav1='CIII]', 1907.
-    CIIInam2, CIIIwav2='CIII]', 1909.
+    CIIInam1, CIIIwav1 = 'CIII]', 1907.
+    CIIInam2, CIIIwav2 = 'CIII]', 1909.
 
-    Lyalphanam, Lyalphawav='Lyalpha', 1215.7
-    OIInam1, OIIwav1='[OII]', 3726
-    OIInam2, OIIwav2='[OII]', 3729
-    OIIInam1, OIIIwav1='[OIII]', 5007.
-    OIIInam2, OIIIwav2='[OIII]', 4959.
-    OIIInam3, OIIIwav3='[OIII]', 4363.
-    Halphanam, Halphawav='Halpha', 6563.
-    Hbetanam, Hbetawav='Hbeta', 4861.
-    Hdeltanam, Hdeltawav='Hdelta', 4101.
-    Hgammanam, Hgammawav='Hgamma', 4341.
+    Lyalphanam, Lyalphawav = 'Lyalpha', 1215.7
+    OIInam1, OIIwav1 = '[OII]', 3726
+    OIInam2, OIIwav2 = '[OII]', 3729
+    OIIInam1, OIIIwav1 = '[OIII]', 5007.
+    OIIInam2, OIIIwav2 = '[OIII]', 4959.
+    OIIInam3, OIIIwav3 = '[OIII]', 4363.
+    Halphanam, Halphawav = 'Halpha', 6563.
+    Hbetanam, Hbetawav = 'Hbeta', 4861.
+    Hdeltanam, Hdeltawav = 'Hdelta', 4101.
+    Hgammanam, Hgammawav = 'Hgamma', 4341.
 
     NeIIInam, NeIIIwav = '[NeIII]', 3869.
     NeVnam, NeVwav = '[NeV]', 3426.
     SIInam1, SIIwav1 = '[SII]', 6716.
     SIInam2, SIIwav2 = '[SII]', 6716.
-
 
     ##absorption
     H13nam, H13wav = 'H13', 3734.
@@ -1808,16 +1889,16 @@ def list_of_spectral_lines():
 
     Gbandnam, Gbandwav = 'Gband', 4305.
 
-    line_names=np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
-                         CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
-                         OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
-                         SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
-                         CAII_Knam, CAII_Hnam, Gbandnam])
+    line_names = np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
+                           CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
+                           OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
+                           SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
+                           CAII_Knam, CAII_Hnam, Gbandnam])
 
     line_wav = np.array([CIVwav2, CIVwav2, HeIIwav0, OIIIwav01, OIIIwav02, SiIIIwav1, SiIIIwav2,
                          CIIIwav1, CIIIwav2, Lyalphawav, OIIwav1, OIIwav2, OIIIwav1, OIIIwav2,
                          OIIIwav3, Halphawav, Hbetawav, Hdeltawav, Hgammawav, NeIIIwav, NeVwav,
-                         SIIwav1,SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
+                         SIIwav1, SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
                          CaII_Kwav, CaII_Hwav, Gbandwav])
 
     return line_names, line_wav
