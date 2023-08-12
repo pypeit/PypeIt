@@ -338,6 +338,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['tilts']['tracethresh'] = 10
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+
+            # Coadding. Not for longslit data this might be problematic but that is not yet supported.
+            par['coadd1d']['wave_method'] = 'log10'
+
         # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
         elif '10/mmLBSX' in self.dispname:
             # Edges
@@ -686,7 +690,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
                 Change in wavelength per spectral pixel.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length

@@ -242,7 +242,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
             slit index
 
     Returns:
-        tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
+        tuple: `numpy.ndarray`_, `numpy.ndarray`_, PypeItFit:  wave, flux, pypeitFitting
 
     """
     if '.json' in in_file:
@@ -351,12 +351,12 @@ def poly_val(coeff, x, nrm):
     IDL style function for polynomial
 
     Args:
-        coeff (np.ndarray):  Polynomial coefficients
-        x (np.ndarray):  x array
-        nrm (np.ndarray): Normalization terms
+        coeff (`numpy.ndarray`_):  Polynomial coefficients
+        x (`numpy.ndarray`_):  x array
+        nrm (`numpy.ndarray`_): Normalization terms
 
     Returns:
-        np.ndarray:  Same shape as x
+        `numpy.ndarray`_:  Same shape as x
 
     """
     #

@@ -4,8 +4,8 @@
     usage: pypeit_skysub_regions [-h] [--det DET] [-o] [-i] [-f] [-s] [-v VERBOSITY]
                                  file
     
-    Display a Raw science image and interactively define the sky regions using a
-    GUI. Run in the same folder as your .pypeit file
+    Display a spec2d frame and interactively define the sky regions using a GUI. Run
+    in the same folder as your .pypeit file
     
     positional arguments:
       file                  spec2d file

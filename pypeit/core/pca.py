@@ -33,8 +33,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
 
         This is a fully generalized convenience function for a
         specific use of `sklearn.decomposition.PCA`_. When used
-        within PypeIt, the vectors to decompose (see, e.g.,
-        :class:`pypeit.edgetrace.EdgeTracePCA`) typically have the
+        within PypeIt, the vectors to decompose typically have the
         length of the spectral axis. This means that, within PypeIt,
         arrays are typically transposed when passed to this function.
 
@@ -133,12 +132,12 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
 
     The coefficients of each PCA component are fit by a low-order
     polynomial, where the abscissa is set by the `coo` argument (see
-    :func:`pypeit.fitting.robust_fit`).
+    :func:`~pypeit.core.fitting.robust_fit`).
 
     .. note::
         This is a general function, not really specific to the PCA;
         and is really just a wrapper for
-        :func:`pypeit.fitting.robust_fit`.
+        :func:`~pypeit.core.fitting.robust_fit`.
 
     Args:
         coeff (`numpy.ndarray`_):
@@ -157,7 +156,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         ivar (`numpy.ndarray`_, optional):
             Inverse variance in the PCA coefficients to use during
             the fit; see the `invvar` parameter of
-            :func:`pypeit.fitting.robust_fit`. If None, fit is
+            :func:`~pypeit.core.fitting.robust_fit`. If None, fit is
             not error weighted. If a vector with shape :math:`(N_{\rm
             vec},)`, the same error will be assumed for all PCA
             components (i.e., `ivar` will be expanded to match the
@@ -166,7 +165,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         weights (`numpy.ndarray`_, optional):
             Weights to apply to the PCA coefficients during the fit;
             see the `weights` parameter of
-            :func:`pypeit.fitting.robust_fit`. If None, the
+            :func:`~pypeit.core.fitting.robust_fit`. If None, the
             weights are uniform. If a vector with shape
             :math:`(N_{\rm vec},)`, the same weights will be assumed
             for all PCA components (i.e., `weights` will be expanded
@@ -177,14 +176,14 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         lower (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **below** the mean residual. If None, no rejection is
-            performed. See :func:`fitting.robust_fit`.
+            performed. See :func:`~pypeit.core.fitting.robust_fit`.
         upper (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **above** the mean residual. If None, no rejection is
-            performed. See :func:`fitting.robust_fit`.
+            performed. See :func:`~pypeit.core.fitting.robust_fit`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
-            See :func:`fitting.robust_fit`.
+            See :func:`~pypeit.core.fitting.robust_fit`.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allows. To force
             no rejection iterations, set to 0.
@@ -197,7 +196,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             Minimum and maximum values used to rescale the
             independent axis data. If None, the minimum and maximum
             values of `coo` are used. See
-            :func:`fitting.robust_fit`.
+            :func:`~pypeit.core.fitting.robust_fit`.
         debug (:obj:`bool`, optional):
             Show plots useful for debugging.
 
