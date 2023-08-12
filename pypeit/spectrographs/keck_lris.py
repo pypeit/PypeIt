@@ -207,20 +207,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                         return time.Time(headarr[0]['DATE']).mjd
         elif meta_key == 'dateobs':
             if headarr[0].get('DATE-OBS') is not None:
-                dateobs = headarr[0]['DATE-OBS']
+                return headarr[0]['DATE-OBS']
             elif headarr[0].get('DATE') is not None:
-                dateobs = headarr[0]['DATE'].split('T')[0]
-            # check that we are using the right spectrograph (keck_lris_red, keck_lris_red_orig, or keck_lris_red_mark4)
-            _dateobs = time.Time(dateobs, format='iso')
-            date_mark4 = time.Time('2021-04-22', format='iso')
-            date_orig = time.Time('2009-05-02', format='iso')
-            if self.name == 'keck_lris_red_mark4' and _dateobs < date_mark4:
-                msgs.error('This is not the correct spectrograph. Use keck_lris_red or keck_lris_red_orig instead.')
-            elif self.name == 'keck_lris_red_orig' and _dateobs > date_orig:
-                msgs.error('This is not the correct spectrograph. Use keck_lris_red or keck_lris_red_mark4 instead.')
-            elif self.name == 'keck_lris_red' and (_dateobs <= date_orig or _dateobs >= date_mark4):
-                msgs.error('This is not the correct spectrograph. Use keck_lris_red_orig or keck_lris_red_mark4 instead.')
-            return dateobs
+                return headarr[0]['DATE'].split('T')[0]
         elif meta_key == 'lampstat01':
             # lamp status header keywords
             lamp_keys = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN',
@@ -300,7 +289,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['binning']
+        return super().configuration_keys() + ['amp', 'binning']
 
     def config_independent_frames(self):
         """
@@ -318,7 +307,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'dateobs', 'dark': 'dateobs'}
+        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs']}
 
     def pypeit_file_keys(self):
         """
@@ -884,6 +873,14 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
+        # REMOVE for TESTING
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.
+        # par['calibrations']['wavelengths']['match_toler'] = 3.
+        # par['calibrations']['wavelengths']['sigdetect'] = 30.
+        # par['calibrations']['wavelengths']['fwhm'] = 6.
+        # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
+        # par['calibrations']['wavelengths']['n_first'] = 4
+        # par['calibrations']['wavelengths']['nsnippet'] = 1
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
@@ -1233,7 +1230,27 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
 
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+
+        # check that we are using the right spectrograph (keck_lris_red, keck_lris_red_orig, or keck_lris_red_mark4)
+        _dateobs = time.Time(self.get_meta_value(self.get_headarr(filename), 'dateobs'), format='iso')
+        # starting date for keck_lris_red_mark4
+        date_mark4 = time.Time('2021-04-22', format='iso')
+        # last day of keck_lris_red_orig
+        date_orig = time.Time('2009-05-02', format='iso')
+        if _dateobs <= date_orig and self.name in ['keck_lris_red_mark4', 'keck_lris_red']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red_orig instead.')
+        elif _dateobs >= date_mark4 and self.name in ['keck_lris_red_orig', 'keck_lris_red']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red_mark4 instead.')
+        elif date_orig < _dateobs < date_mark4 and self.name in ['keck_lris_red_orig', 'keck_lris_red_mark4']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red instead.')
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1328,14 +1345,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Wavelength calibrations
-        # REMOVE (for testing)
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.
-        # par['calibrations']['wavelengths']['match_toler'] = 3.
-        # par['calibrations']['wavelengths']['sigdetect'] = 30.
-        # par['calibrations']['wavelengths']['fwhm'] = 6.
-        # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
-        # par['calibrations']['wavelengths']['n_first'] = 4
-        # par['calibrations']['wavelengths']['nsnippet'] = 1
         if self.get_meta_value(scifile, 'dispname') == '150/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R150_7500_ArCdHgNeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -1392,26 +1401,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRANAME')
 
-    def config_independent_frames(self):
-        """
-        Define frame types that are independent of the fully defined
-        instrument configuration.
-
-        This method returns a dictionary where the keys of the dictionary are
-        the list of configuration-independent frame types. The value of each
-        dictionary element can be set to one or more metadata keys that can
-        be used to assign each frame type to a given configuration group. See
-        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
-        interprets the dictionary values, which can be None.
-
-        Returns:
-            :obj:`dict`: Dictionary where the keys are the frame types that
-            are configuration-independent and the values are the metadata
-            keywords that can be used to assign the frames to a configuration
-            group.
-        """
-        return {'bias': ['binning', 'amp'], 'dark': ['binning', 'amp']}
-
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -1426,7 +1415,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
+        return super().configuration_keys() + ['dispangle', 'cenwave']
 
     def raw_header_cards(self):
         """
@@ -1684,6 +1673,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         """
         # Note:  There is no way we know to super super super
         return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
+
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """

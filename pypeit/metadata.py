@@ -104,6 +104,10 @@ class PypeItMetaData:
 
         # Initialize internals
         self.spectrograph = spectrograph
+        if files is not None:
+            # check if the spectrograph selected is correct for the data. NOTE: this is defined
+            # for each spectrograph independently, so it's currently not defined for all spectrographs
+            self.spectrograph.check_spectrograph(files if isinstance(files, str) else files[0])
         self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
