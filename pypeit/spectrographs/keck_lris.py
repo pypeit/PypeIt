@@ -823,6 +823,24 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+
+        # check that we are using the right spectrograph (keck_lris_blue or keck_lris_blue_orig)
+        _dateobs = time.Time(self.get_meta_value(self.get_headarr(filename), 'dateobs'), format='iso')
+        # last day of keck_lris_blue_orig
+        date_orig = time.Time('2009-04-30', format='iso')
+        if _dateobs <= date_orig and self.name in ['keck_lris_blue']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_blue_orig instead.')
+        elif _dateobs > date_orig and self.name in ['keck_lris_blue_orig']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_blue instead.')
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -985,7 +1003,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     name = 'keck_lris_blue_orig'
     camera = 'LRISb'
     supported = True    # TODO: Is this true?
-    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
+    comment = 'Original detector; replaced after 2009-04-30; see :doc:`lris`'
 
     # def init_meta(self):
     #     """
