@@ -75,7 +75,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC_OH']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
@@ -148,16 +148,23 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='TRUITIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='DISPERS')
+        self.meta['dispname'] = dict(ext=0, card='OBSMODE')
         self.meta['hatch'] = dict(ext=0, card='CALMPOS')
-        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['idname'] = dict(ext=0, card='IMTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['filter1'] = dict(ext=0, card='SCIFILT1')
+        self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
+        self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
+        self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
+        self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
+
         # Lamps
-        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'HALOGEN']
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
 
@@ -175,7 +182,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname']
+        return ['filter1', 'echangle', 'xdangle']
 
     def raw_header_cards(self):
         """
@@ -195,7 +202,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SLITNAME', 'DISPERS']
+        return ['SCIFILT1','ECHLPOS', 'DISPPOS']
 
     def pypeit_file_keys(self):
         """
@@ -232,16 +239,16 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        hatch = fitstbl['hatch'].data.astype(int)
+        hatch = fitstbl['hatch']#.data.astype(int)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 0) \
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
                         & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 0) \
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
                         & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 1) \
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
                         & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
             # Don't type pinhole frames
@@ -249,9 +256,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 1) \
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
                             & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 0) \
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
                         & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -332,12 +339,12 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
-class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
+class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     """
-    Child to handle NIRSPEC low-dispersion specific code
+    Child to handle NIRSPEC high-dispersion specific code
     """
-    name = 'keck_nirspec_low'
+    name = 'keck_nirspec_high'
     supported = True
-    comment = 'Low-dispersion grating'
+    comment = 'High-dispersion grating'
 
 

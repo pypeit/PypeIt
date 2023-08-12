@@ -15,6 +15,7 @@ from pypeit.spectrographs import keck_lris
 from pypeit.spectrographs import keck_mosfire
 from pypeit.spectrographs import keck_nires
 from pypeit.spectrographs import keck_nirspec
+from pypeit.spectrographs import keck_nirspec_high
 from pypeit.spectrographs import lbt_luci
 from pypeit.spectrographs import lbt_mods
 from pypeit.spectrographs import ldt_deveny
