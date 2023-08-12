@@ -36,6 +36,21 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     url = 'https://www2.keck.hawaii.edu/inst/lris/'
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        instrume = self.get_meta_value(filename, 'instrument')
+        
+        if 'keck_lris_red' in self.name and instrume != 'LRIS':
+            msgs.error('This is not the correct spectrograph. You may want to use keck_lris_blue instead.')
+        elif 'keck_lris_blue' in self.name and instrume == 'LRIS':
+            msgs.error('This is not the correct spectrograph. You may want to use keck_lris_red instead.')
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -832,8 +847,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         """
 
+        super().check_spectrograph(filename)
+
         # check that we are using the right spectrograph (keck_lris_blue or keck_lris_blue_orig)
-        _dateobs = time.Time(self.get_meta_value(self.get_headarr(filename), 'dateobs'), format='iso')
+        _dateobs = time.Time(self.get_meta_value(filename, 'dateobs'), format='iso')
         # last day of keck_lris_blue_orig
         date_orig = time.Time('2009-04-30', format='iso')
         if _dateobs <= date_orig and self.name in ['keck_lris_blue']:
@@ -1256,9 +1273,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
 
         """
+        super().check_spectrograph(filename)
 
         # check that we are using the right spectrograph (keck_lris_red, keck_lris_red_orig, or keck_lris_red_mark4)
-        _dateobs = time.Time(self.get_meta_value(self.get_headarr(filename), 'dateobs'), format='iso')
+        _dateobs = time.Time(self.get_meta_value(filename, 'dateobs'), format='iso')
         # starting date for keck_lris_red_mark4
         date_mark4 = time.Time('2021-04-22', format='iso')
         # last day of keck_lris_red_orig
