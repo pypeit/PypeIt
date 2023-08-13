@@ -66,6 +66,7 @@ class LinesBitMask(BitMask):
             #('OH_FIRE_Echelle', 'Comment'),
             #('Ar_IR_GNIRS', 'Comment'),
             ('Ar', 'This is for Ar_IR_GNIRS which should specify the real ion'),
+            ('NeII', 'Comment'),
         ])
         super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -115,6 +116,8 @@ def lines():
     line_dict['OH_MOSFIRE_H'] = 2 ** 28
     line_dict['OH_MOSFIRE_K'] = 2 ** 29
     line_dict['ThAr_XSHOOTER_UVB'] = 2**30
+    line_dict['NeII'] = 2 ** 31
+    line_dict['FeAr'] = 2 ** 32
     #
     return line_dict
 

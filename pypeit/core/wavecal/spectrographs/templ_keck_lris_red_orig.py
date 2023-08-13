@@ -1,10 +1,10 @@
-""" Generate the wavelength templates for Keck/LRIS"""
+""" Generate the wavelength templates for Keck/LRIS RED ORIG"""
 import os
 
 from pypeit.core.wavecal import templates
 
 
-# Keck/DEIMOS
+
 def keck_lris_red_orig_R150_7500(overwrite=False):
     binspec = 1
     outroot = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
