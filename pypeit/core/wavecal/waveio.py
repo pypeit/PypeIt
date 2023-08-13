@@ -163,7 +163,7 @@ def load_line_list(line_file, use_ion=False):
     return astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
 
 
-def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
+def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None):
     """
     Loads a series of line list files
 
@@ -172,14 +172,18 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     lamps : list
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    unknown : bool, optional
-        Load the unknown list
     restrict_on_instr : str, optional
         Restrict according to the input spectrograph
+    all : bool, optional
+        Load all line lists, independent of the input lamps (not recommended)
+    include_unknown : bool, optional
+        If True, the tot_line_list includes the unknown lines
 
     Returns
     -------
-    line_list : `astropy.table.Table`_
+    tot_line_list : astropy Table of line lists (including unknown lines, if requested)
+    line_list : astropy Table of line lists
+    unkn_lines : astropy Table of unknown lines
 
     """
     # All?
@@ -201,23 +205,28 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     # Stack
     if len(lists) == 0:
         return None
-    line_lists = astropy.table.vstack(lists, join_type='exact')
+    line_lists_all = astropy.table.vstack(lists, join_type='exact')
 
     # Restrict on the spectrograph?
     if restrict_on_instr is not None:
         instr_dict = defs.instruments()
-        gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
-        line_lists = line_lists[gdI]
+        gdI = (line_lists_all['Instr'] & instr_dict[restrict_on_instr]) > 0
+        line_lists_all = line_lists_all[gdI]
 
-    # Unknown
-    if unknown:
+    # Load Unknowns
+    if 'ThAr' in lamps:
+        line_lists = line_lists_all[line_lists_all['ion'] != 'UNKNWN']
+        unkn_lines = line_lists_all[line_lists_all['ion'] == 'UNKNWN']
+    else:
+        line_lists = line_lists_all
         unkn_lines = load_unknown_list(lamps)
-        unkn_lines.remove_column('line_flag')  # may wish to have this info
-        # Stack
-        line_lists = astropy.table.vstack([line_lists, unkn_lines])
+        #unkn_lines.remove_column('line_flag')  # may wish to have this info
+
+    # Stack?
+    tot_line_list = astropy.table.vstack([line_lists, unkn_lines]) if include_unknown else line_lists_all
 
     # Return
-    return line_lists
+    return tot_line_list, line_lists, unkn_lines
 
 
 def load_tree(polygon=4, numsearch=20):
@@ -301,6 +310,10 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     # Otherwise
     msk = np.zeros(len(line_list), dtype=bool)
     for line in lines:
+        # Skip if the lines is not even in the line list
+        if line not in line_dict.keys():
+            continue
+        # Else consider masking
         line_flag = line_dict[line]
         match = line_list['line_flag'] % (2*line_flag) >= line_flag
         msk[match] = True

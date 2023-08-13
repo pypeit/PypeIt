@@ -175,15 +175,22 @@ All reduced calibration frames are named according to their primary calibration
 type (e.g., ``Arc``).  They are also assigned a unique identifier that is a
 combination of:
 
-    - the instrument configuration (setup) identifier (e.g., ``A``),
+    #. the instrument configuration (setup) identifier (e.g., ``A``),
 
-    - the list of associated calibration groups (e.g., ``1-2`` or ``all``), and
+    #. a compressed list of associated calibration groups (e.g., ``1+2`` or ``all``), and
 
-    - the detector or mosaic identifier (e.g., ``DET01`` or ``MSC01``).
+    #. the detector or mosaic identifier (e.g., ``DET01`` or ``MSC01``).
 
-.. note::
+For the second component, sequential numbers are reduced to a range; e.g.,
+``'0-1-2-3-4'`` becomes ``'0+4'`` and ``'3-5-6-10-11-12-15-18-19'`` becomes
+``'3-5+6-10+12-15-18+19'``.
+
+.. warning::
 
     If you have a lot of calibration groups in your pypeit file, you may end up
-    with very long file names!
+    with very long file names!  This may cause a fault when the file name is
+    included in the header of the output fits files.  If using the calibration
+    group ``all`` doesn't solve the problem or isn't possible given your
+    application, please `Submit an issue`_.
 
 
