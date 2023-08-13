@@ -1716,6 +1716,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.error("Reference image does not exist:" + msgs.newline() + cubepar['reference_image'])
 
     # Initialise arrays for storage
+    ifu_ra, ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
     all_spatpos, all_specpos, all_spatid = np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)
@@ -1772,7 +1773,6 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
         skySclDef = spec2DObj.scaleimg
 
-
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
         # Load it up
@@ -1783,6 +1783,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Load the header
         hdr = spec2DObj.head0
+        ifu_ra = np.append(ifu_ra, spec.compound_meta([hdr], 'ra'))
+        ifu_dec = np.append(ifu_dec, spec.compound_meta([hdr], 'dec'))
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -2152,13 +2154,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     # Register spatial offsets between all frames
     if align:
         if opts['ra_offset'] is not None:
+            # First, translate all coordinates to the coordinates of the first frame
+            # Note :: Don't need cosdec here, this just overrides the IFU coordinate centre of each frame
+            ref_shift_ra = ifu_ra[0] - ifu_ra
+            ref_shift_dec = ifu_dec[0] - ifu_dec
             for ff in range(numfiles):
                 # Apply the shift
-                all_ra[all_idx == ff] += opts['ra_offset'][ff]/3600.0
-                all_dec[all_idx == ff] += opts['dec_offset'][ff]/3600.0
-                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff + 1,
-                                                                                                         opts['ra_offset'][ff],
-                                                                                                         opts['dec_offset'][ff]))
+                all_ra[all_idx == ff] += ref_shift_ra[ff] + opts['ra_offset'][ff]/3600.0
+                all_dec[all_idx == ff] += ref_shift_dec[ff] + opts['dec_offset'][ff]/3600.0
+                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, opts['ra_offset'][ff], opts['dec_offset'][ff]))
         else:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
@@ -2197,7 +2201,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     # Convert pixel shift to degrees shift
                     ra_shift *= dspat/cosdec
                     dec_shift *= dspat
-                    msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+                    msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
                     # Apply the shift
                     all_ra[all_idx == ff] += ra_shift
                     all_dec[all_idx == ff] += dec_shift
