@@ -1598,7 +1598,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     align = cubepar['align']
     # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
     if numfiles == 1 and cubepar["reference_image"] is None:
+        if not align:
+            msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
+            msgs.info("Setting 'align' to False")
         align = False
+    if opts['ra_offset'] is not None:
+        if not align:
+            msgs.warn("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
+            msgs.info("Setting 'align' to True")
+        align = True
     # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
     #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
     #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
@@ -2143,47 +2151,53 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Register spatial offsets between all frames
     if align:
-        # Find the wavelength range where all frames overlap
-        min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
-                                              np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
-                                              cubepar['whitelight_range'])  # The user-specified values (if any)
-        # Get the good whitelight pixels
-        ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
-        # Iterate over white light image generation and spatial shifting
-        numiter = 2
-        for dd in range(numiter):
-            msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
-            # Setup the WCS to use for all white light images
-            ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
-            image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww],
-                                                             dspat, wavediff, collapse=True)
-            if voxedge[2].size != 2:
-                msgs.error("Spectral range for WCS is incorrect for white light image")
-
-            wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
-                                              all_sci[ww], all_ivar[ww], all_wghts[ww],
-                                              all_spatpos[ww], all_specpos[ww], all_spatid[ww],
-                                              all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
-                                              spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            if reference_image is None:
-                # ref_idx will be the index of the cube with the highest S/N
-                ref_idx = np.argmax(weights)
-                reference_image = wl_imgs[:, :, ref_idx].copy()
-                msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-            else:
-                msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
-
-            # Calculate the image offsets relative to the reference image
+        if opts['ra_offset'] is not None:
             for ff in range(numfiles):
-                # Calculate the shift
-                ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-                # Convert pixel shift to degrees shift
-                ra_shift *= dspat/cosdec
-                dec_shift *= dspat
-                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
                 # Apply the shift
-                all_ra[all_idx == ff] += ra_shift
-                all_dec[all_idx == ff] += dec_shift
+                all_ra[all_idx == ff] += opts['ra_offset'][ff]
+                all_dec[all_idx == ff] += opts['dec_offset'][ff]
+        else:
+            # Find the wavelength range where all frames overlap
+            min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                                  np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                                  cubepar['whitelight_range'])  # The user-specified values (if any)
+            # Get the good whitelight pixels
+            ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
+            # Iterate over white light image generation and spatial shifting
+            numiter = 2
+            for dd in range(numiter):
+                msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+                # Setup the WCS to use for all white light images
+                ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
+                image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww],
+                                                                 dspat, wavediff, collapse=True)
+                if voxedge[2].size != 2:
+                    msgs.error("Spectral range for WCS is incorrect for white light image")
+
+                wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                                  all_sci[ww], all_ivar[ww], all_wghts[ww],
+                                                  all_spatpos[ww], all_specpos[ww], all_spatid[ww],
+                                                  all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
+                                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+                if reference_image is None:
+                    # ref_idx will be the index of the cube with the highest S/N
+                    ref_idx = np.argmax(weights)
+                    reference_image = wl_imgs[:, :, ref_idx].copy()
+                    msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+                else:
+                    msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+
+                # Calculate the image offsets relative to the reference image
+                for ff in range(numfiles):
+                    # Calculate the shift
+                    ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
+                    # Convert pixel shift to degrees shift
+                    ra_shift *= dspat/cosdec
+                    dec_shift *= dspat
+                    msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+                    # Apply the shift
+                    all_ra[all_idx == ff] += ra_shift
+                    all_dec[all_idx == ff] += dec_shift
 
     # Calculate the relative spectral weights of all pixels
     if numfiles == 1:
