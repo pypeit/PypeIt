@@ -2154,8 +2154,11 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if opts['ra_offset'] is not None:
             for ff in range(numfiles):
                 # Apply the shift
-                all_ra[all_idx == ff] += opts['ra_offset'][ff]
-                all_dec[all_idx == ff] += opts['dec_offset'][ff]
+                all_ra[all_idx == ff] += opts['ra_offset'][ff]/3600.0
+                all_dec[all_idx == ff] += opts['dec_offset'][ff]/3600.0
+                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff + 1,
+                                                                                                         opts['ra_offset'][ff],
+                                                                                                         opts['dec_offset'][ff]))
         else:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength

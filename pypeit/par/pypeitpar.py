@@ -1397,7 +1397,9 @@ class CubePar(ParSet):
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
                          'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file.'
+                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
+                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
+                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]

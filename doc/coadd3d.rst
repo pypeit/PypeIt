@@ -268,15 +268,48 @@ cubes covering different wavelength range, but it can coadd
 multiple spec2D files into a single datacube if the wavelength
 setup overlaps, and the spatial positions are very similar.
 
-Difficulties with combining multiple datacubes
-==============================================
+Combining multiple datacubes
+============================
 
 PypeIt is able to combine standard star frames for flux calibration, and
 should not have any difficulty with this. If your science observations are
 designed so that there is very little overlap between exposures, you should
-not expect the automatic combination algorithm to perform well. Instead, you
-should output individual data cubes and manually combine the cubes with some
-other purpose-built software.
+not assume that the automatic combination algorithm will perform well. Instead,
+you may prefer to output individual data cubes and manually combine the cubes
+with some other purpose-built software. If you know the relative offsets very
+well, then you can specify these, and PypeIt can combine all frames into a
+single combined datacube. This is the recommended approach, provided that you
+know the relative offsets of each frame. In the following example, the first
+cube is assumed to be the reference cube (0.0 offset in both RA and Dec), and
+the second science frame is offset relative to the first by:
+
+.. code-block:: ini
+
+    Delta RA x cos(Dec) = 1.0" W
+    Delta Dec = 1.0" S
+
+The offset convention used in PypeIt is that positive offsets translate the RA and Dec
+of a frame to higher RA (i.e. more East) and higher Dec (i.e. more North). In the above
+example, the coadd3d file looks like the following:
+
+.. code-block:: ini
+
+    # User-defined execution parameters
+    [rdx]
+        spectrograph = keck_kcwi
+        detnum = 1
+    [reduce]
+        [[cube]]
+            combine = True
+            output_filename = BB1245p4238_datacube.fits
+            align = True
+
+    # Read in the data
+    spec2d read
+                               filename  |  ra_offset | dec_offset
+    Science/spec2d_scienceframe_01.fits  |  0.0       | 0.0
+    Science/spec2d_scienceframe_02.fits  |  1.0       | -1.0
+    spec2d end
 
 .. _coadd3d_datamodel:
 
