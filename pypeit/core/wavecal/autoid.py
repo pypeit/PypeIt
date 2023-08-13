@@ -377,12 +377,11 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
     return
 
 
-
-
-
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv=None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0,
-               debug_xcorr=False, debug_reid=False, debug_peaks = False):
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, 
+               nreid_min, det_arxiv=None, 
+               detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
+               sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -445,6 +444,12 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     debug_reid: bool, default = False
        Show plots useful for debugging the line reidentification
+
+    sigdetect: float, default = 5.0
+        Threshold for detecting arcliens
+
+    fwhm: float, default = 4.0
+        Full width at half maximum for the arc lines
 
     Returns
     -------
@@ -535,6 +540,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     wvc_arxiv = np.zeros(narxiv, dtype=float)
     disp_arxiv = np.zeros(narxiv, dtype=float)
+
     # Determine the central wavelength and dispersion of wavelength arxiv
     for iarxiv in range(narxiv):
         wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
@@ -647,9 +653,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         patt_dict_slit['sigdetect'] = sigdetect
         return detections, spec_cont_sub, patt_dict_slit
 
-
     # Finalize the best guess of each line
-    patt_dict_slit = patterns.solve_xcorr(detections, wvdata, det_indx, line_indx, line_cc,nreid_min=nreid_min,cc_local_thresh=cc_local_thresh)
+    patt_dict_slit = patterns.solve_xcorr(
+        detections, wvdata, det_indx, line_indx, line_cc,
+        nreid_min=nreid_min,cc_local_thresh=cc_local_thresh)
     patt_dict_slit['sign'] = sign # This is not used anywhere
     patt_dict_slit['bwv'] = np.median(wcen[wcen != 0.0])
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
@@ -687,6 +694,129 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     return detections, spec_cont_sub, patt_dict_slit
 
+
+def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
+                   spec_arxiv:np.ndarray, wave_arxiv:np.ndarray, nreid_min:int,
+                   match_toler=2.0, nonlinear_counts=1e10, sigdetect=5.0, fwhm=4.0,
+                   debug_peaks:bool=False, use_unknowns:bool=False):
+    """ Algorithm to match an input arc spectrum to an archival arc spectrum
+    using a set wavelength guess for the input.  This is an alternative to
+    shifting/stretching to match to the archival arc spectrum as we (hopefully)
+    have a good guess of the wavelength solution for the input spectrum.
+
+    Used only for missing orders of echelle spectrographs (so far)
+
+    Args:
+        lamps (list): List of lamps used in the arc
+        spec (np.ndarray): Spectrum to match
+        wv_guess (np.ndarray): Wavelength solution guess for the input arc spectrum
+        spec_arxiv (np.ndarray): Archival spectrum to match to
+        wave_arxiv (np.ndarray): Wavelegnth solution for the archival spectrum
+        nreid_min (int): 
+            Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv
+            to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question
+            (i.e. multislit) set this to a number like 2-4. For echelle this depends on the number of solutions in the arxiv.
+            For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend
+            on the number of solutions in the arxiv.
+        match_toler (float, optional): Defaults to 2.0.
+            Matching tolerance in pixels for a line reidentification. A good line match must match within this tolerance to the
+            the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within
+            match_toler dispersion elements from the line in line list.
+        nonlinear_counts (float, optional): Defaults to 1e10.
+            For arc line detection: Arc lines above this saturation
+            threshold are not used in wavelength solution fits because
+            they cannot be accurately centroided
+        sigdetect (float, optional): Defaults to 5.0.
+            Threshold for detecting arcliens
+        fwhm (float, optional): Defaults to 4.0.
+            Full width at half maximum for the arc lines
+        debug_peaks (bool, optional): Defaults to False.
+        use_unknowns (bool, optional): Defaults to False.
+            If True, use the unknowns in the solution (not recommended)
+
+    Returns:
+        tuple: tcent (np.ndarray; centroid of lines), spec_cont_sub (np.ndarray; subtracted continuum), 
+            patt_dict_slit (dict; dictionary on the lines), tot_line_list (astropy.table.Table; line list)
+    """
+    # Load line list
+    tot_line_list, _, _ = waveio.load_line_lists(lamps, include_unknown=use_unknowns)
+
+
+    # Generate the wavelengths from the line list and sort
+    wvdata = np.array(tot_line_list['wave'].data)  # Removes mask if any
+    wvdata.sort()
+
+    # Search for lines in the input arc
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        spec, sigdetect=sigdetect,
+        nonlinear_counts=nonlinear_counts, 
+        fwhm=fwhm, debug = debug_peaks)
+    # If there are no lines in the input arc, return
+    if tcent.size == 0:
+        return None
+
+    # Search for lines in the arxiv arc
+    tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
+            spec_arxiv, sigdetect=sigdetect,
+            nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+    # If there are no lines in the arxiv arc, return
+    if tcent_arxiv.size == 0:
+        return None
+
+    # Interpolate the input wavelengths
+    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess, 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    # Interpolate the arxiv both ways
+    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)), 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv, 
+                                   kind='cubic', bounds_error=False, 
+                                   fill_value='extrapolate')
+    # Find the wavelengths of the input arc lines and then the pixels
+    wv_cent = fwv_guess(tcent)
+    pix_arxiv = fpix_arxiv(wv_cent)
+
+    # Other bits
+    wvc_arxiv = wave_arxiv[wave_arxiv.size//2]
+    igood = wave_arxiv > 1.0
+    disp_arxiv = np.median(wave_arxiv[igood] - np.roll(wave_arxiv[igood], 1))
+
+    line_indx = np.array([], dtype=int)
+    det_indx = np.array([], dtype=int)
+    line_cc = np.array([], dtype=float)
+    #line_iarxiv = np.array([], dtype=int)
+
+    # Match with tolerance
+    for ss, ipix_arxiv in enumerate(pix_arxiv):
+        pdiff = np.abs(ipix_arxiv - tcent_arxiv)
+        bstpx = np.argmin(pdiff)
+        # If a match is found within 2 pixels, consider this a successful match
+        if pdiff[bstpx] < match_toler:
+            # Using the arxiv arc wavelength solution, search for the nearest line in the line list
+            bstwv = np.abs(wvdata - fwv_arxiv(tcent_arxiv[bstpx]))
+            # This is a good wavelength match if it is within match_toler disperion elements
+            if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv:
+                line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
+                det_indx = np.append(det_indx, ss)     # index of this line in the detected line array detections
+                #line_iarxiv = np.append(line_iarxiv,iarxiv)
+                line_cc = np.append(line_cc,1.) # Fakery
+
+    # Initialise the patterns dictionary, sigdetect not used anywhere
+    if (len(np.unique(line_indx)) < 3):
+        patt_dict_slit = patterns.empty_patt_dict(pix_arxiv.size)
+        patt_dict_slit['sigdetect'] = sigdetect
+    else:
+        # Finalize the best guess of each line
+        patt_dict_slit = patterns.solve_xcorr(
+            tcent, wvdata, det_indx, line_indx, line_cc,
+            nreid_min=nreid_min,cc_local_thresh=-1)
+        patt_dict_slit['bwv'] = wvc_arxiv
+        patt_dict_slit['bdisp'] = disp_arxiv
+        patt_dict_slit['sigdetect'] = sigdetect
+
+    return tcent, spec_cont_sub, patt_dict_slit, tot_line_list
 
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
              spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
@@ -884,11 +1014,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     #debug_xcorr = True
     #debug_reid = True
     # Load line lists
-    if 'ThAr' in lamps:
-        line_lists_all = waveio.load_line_lists(lamps)
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(lamps)
+    line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
     # Load template
     if template_dict is None:
@@ -1045,7 +1171,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, use_unknowns=True, debug_all=False,
                     debug_peaks=False, debug_xcorr=False, debug_reid=False, 
                     debug_fits=False, nonlinear_counts=1e10,
-                    redo_slit:int=None):
+                    redo_slits:list=None):
     r"""
     Algorithm to wavelength calibrate echelle data based on a predicted or archived wavelength solution
 
@@ -1095,9 +1221,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         For arc line detection: Arc lines above this saturation
         threshold are not used in wavelength solution fits because
         they cannot be accurately centroided
-    redo_slit: int, optional
+    redo_slits: list, optional
         If provided, only perform the wavelength calibration for the
-        given slit. 
+        given slit(s). 
 
     Returns
     -------
@@ -1130,15 +1256,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                    'spec array.')
 
     # Load the line lists
-    if 'ThAr' in lamps:
-        line_lists_all = waveio.load_line_lists(lamps)
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(lamps)
-        unknwns = waveio.load_unknown_list(lamps)
-
-    tot_line_list = astropy.table.vstack([line_lists, unknwns]) if use_unknowns else line_lists
+    tot_line_list, _, _ = waveio.load_line_lists(lamps, include_unknown=use_unknowns)
 
     # Array to hold continuum subtracted arcs
     spec_cont_sub = np.zeros_like(spec)
@@ -1150,7 +1268,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
     for iord in range(norders):
-        if redo_slit is not None and orders[iord] != redo_slit:
+        if redo_slits is not None and orders[iord] not in redo_slits:
             continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
@@ -1170,18 +1288,24 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
+        # Perform the fit
+        #if debug_fits or debug_all:
+        #    embed(header='1115 of autoid')
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
             continue
 
-        # Perform the fit
         n_final = wvutils.parse_param(par, 'n_final', iord)
-        final_fit = wv_fitting.fit_slit(spec_cont_sub[:, iord], all_patt_dict[str(iord)], detections[str(iord)],
-                                        tot_line_list, match_toler=par['match_toler'], func=par['func'],
-                                        n_first=par['n_first'],
-                                        sigrej_first=par['sigrej_first'], n_final=n_final, sigrej_final=par['sigrej_final'])
+        final_fit = wv_fitting.fit_slit(
+            spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
+            detections[str(iord)], tot_line_list, 
+            match_toler=par['match_toler'], 
+            func=par['func'], n_first=par['n_first'],
+            sigrej_first=par['sigrej_first'], 
+            n_final=n_final, 
+            sigrej_final=par['sigrej_final'])
 
         # Did the fit succeed?
         if final_fit is None:
@@ -1207,14 +1331,14 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     # Print the final report of all lines
     report_final(norders, all_patt_dict, detections, 
                  wv_calib, ok_mask, bad_orders,
-                 redo_slit=redo_slit, orders=orders)
+                 redo_slits=redo_slits, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
 def report_final(nslits, all_patt_dict, detections, 
                  wv_calib, ok_mask, bad_slits, 
-                 redo_slit:int=None,
+                 redo_slits:list=None,
                  orders:np.ndarray=None):
     """
     Print out the final report for wavelength calibration
@@ -1232,8 +1356,8 @@ def report_final(nslits, all_patt_dict, detections,
             Mask of indices of good slits
         bad_slits (ndarray, bool):
             List of slits that are bad
-        redo_slit (int, optional):
-            Slit or order that was redone.
+        redo_slits (list, optional):
+            Report on only these slits
         orders (ndarray, optional):
             Array of echelle orders to be printed out during the report.
     """
@@ -1245,7 +1369,7 @@ def report_final(nslits, all_patt_dict, detections,
             badmsg += f'    Order: {orders[slit]}' + msgs.newline()
         badmsg +=  '  Wavelength calibration not performed!'
         # Redo?
-        if redo_slit is not None and orders[slit] != redo_slit:
+        if redo_slits is not None and orders[slit] not in redo_slits:
             continue
         if slit not in ok_mask or slit in bad_slits or all_patt_dict[str(slit)] is None:
             msgs.warn(badmsg)
@@ -1406,16 +1530,8 @@ class ArchiveReid:
         self.sigrej_final= self.par['sigrej_final']
 
         # Load the line lists
-        if 'ThAr' in self.lamps:
-            line_lists_all = waveio.load_line_lists(self.lamps)
-            self.line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-            self.unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
-        else:
-            self.line_lists = waveio.load_line_lists(self.lamps)
-            self.unknwns = waveio.load_unknown_list(self.lamps)
-
-        self.tot_line_list = astropy.table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
-                                else self.line_lists
+        self.tot_line_list, self.line_lists, self.unknwns = waveio.load_line_lists(
+            lamps, include_unknown=self.use_unknowns)
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
@@ -1447,9 +1563,9 @@ class ArchiveReid:
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
         # arxiv orders (echelle only)
         if ech_fixed_format:
-            arxiv_orders = []
+            self.arxiv_orders = []
             for iarxiv in range(narxiv):
-                arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
+                self.arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
 #            orders, _ = self.spectrograph.slit2order(slit_spat_pos)
 
         ind_arxiv = np.arange(narxiv, dtype=int)
@@ -1467,7 +1583,7 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit+1,self.nslits))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            ind_sp = arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
+            ind_sp = self.arxiv_orders.index(orders[slit]) if ech_fixed_format else ind_arxiv
             if ech_fixed_format:
                 msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
@@ -1478,7 +1594,8 @@ class ArchiveReid:
             # get FWHM for this slit
             fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
-                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
+                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], 
+                           self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
@@ -1525,6 +1642,25 @@ class ArchiveReid:
     def get_results(self):
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
 
+    def get_arxiv(self, orders):
+        """ Grab the arxiv spectrum and wavelength solution for the provided orders
+
+        Args:
+            orders (list, `numpy.ndarray`_):  Orders to retrieve
+
+        Returns:
+            tuple: wavelengths arrays, spec arrays aligned with orders
+        """
+        # Collate
+        wave_soln_arxiv = []
+        arcspec_arxiv = []
+        for order in orders:
+            ind_sp = self.arxiv_orders.index(order) 
+            wave_soln_arxiv.append(self.wave_soln_arxiv[:,ind_sp])
+            arcspec_arxiv.append(self.spec_arxiv[:,ind_sp])
+
+        # Return
+        return np.stack(wave_soln_arxiv,axis=-1), np.stack(arcspec_arxiv,axis=-1)
 
 
 
@@ -1545,7 +1681,8 @@ class HolyGrail:
     ok_mask : ndarray, optional
         Array of good slits
     islinelist : bool, optional
-        Is lines a linelist (True), or a list of ions (False)
+        Is lamps a linelist (True), or a list of ions (False)
+        The former is not recommended except by expert users/developers
     outroot : str, optional
         Name of output file
     debug : bool, optional
@@ -1617,25 +1754,21 @@ class HolyGrail:
         self._debug = debug
         self._verbose = verbose
 
-        # Load the linelist to be used for pattern matching
+        # Line list provided? (not recommended)
         if self._islinelist:
             self._line_lists = self._lamps
             self._unknwns = self._lamps[:0].copy()
-        else:
-            if 'ThAr' in self._lamps:
-                line_lists_all = waveio.load_line_lists(self._lamps)
-                self._line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-                self._unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
+            if self._use_unknowns:
+                self._tot_list = astropy.table.vstack([self._line_lists, self._unknwns])
             else:
-                restrict = spectrograph if self._par['use_instr_flag'] else None
-                self._line_lists = waveio.load_line_lists(
-                    self._lamps, restrict_on_instr=restrict)
-                self._unknwns = waveio.load_unknown_list(self._lamps)
-
-        if self._use_unknowns:
-            self._tot_list = astropy.table.vstack([self._line_lists, self._unknwns])
+                self._tot_list = self._line_lists
         else:
-            self._tot_list = self._line_lists
+            # Load the linelist to be used for pattern matching
+            restrict = spectrograph if self._par['use_instr_flag'] else None
+            self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
+                self._lamps, include_unknown=self._use_unknowns, 
+                restrict_on_instr=restrict)
+
 
         # Generate the final linelist and sort
         self._wvdata = np.array(self._tot_list['wave'].data)  # Removes mask if any

@@ -18,8 +18,6 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
 from IPython import embed
 
