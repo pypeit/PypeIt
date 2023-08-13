@@ -286,11 +286,14 @@ the second science frame is offset relative to the first by:
 .. code-block:: ini
 
     Delta RA x cos(Dec) = 1.0" W
-    Delta Dec = 1.0" S
+    Delta Dec = 2.0" N
 
 The offset convention used in PypeIt is that positive offsets translate the RA and Dec
 of a frame to higher RA (i.e. more East) and higher Dec (i.e. more North). In the above
-example, the coadd3d file looks like the following:
+example, frame 2 is 1" to the West of frame 1, meaning that we need to move frame 2 by
+1" to the East (i.e. a correction of +1"). Similarly, we need to more frame 2 by 2" South
+(i.e. a correction of -2"). Therefore, in the above example, the coadd3d file would look
+like the following:
 
 .. code-block:: ini
 
@@ -308,7 +311,7 @@ example, the coadd3d file looks like the following:
     spec2d read
                                filename  |  ra_offset | dec_offset
     Science/spec2d_scienceframe_01.fits  |  0.0       | 0.0
-    Science/spec2d_scienceframe_02.fits  |  1.0       | -1.0
+    Science/spec2d_scienceframe_02.fits  |  1.0       | -2.0
     spec2d end
 
 .. _coadd3d_datamodel:
