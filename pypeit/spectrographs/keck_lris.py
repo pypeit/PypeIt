@@ -45,7 +45,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         """
         instrume = self.get_meta_value(filename, 'instrument')
-        
+
         if 'keck_lris_red' in self.name and instrume != 'LRIS':
             msgs.error('This is not the correct spectrograph. You may want to use keck_lris_blue instead.')
         elif 'keck_lris_blue' in self.name and instrume == 'LRIS':
@@ -877,9 +877,9 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 3
-        par['calibrations']['wavelengths']['match_toler'] = 2.5
-        par['calibrations']['wavelengths']['method'] = 'full_template'
+        # par['calibrations']['wavelengths']['n_first'] = 3
+        # par['calibrations']['wavelengths']['match_toler'] = 2.5
+        # par['calibrations']['wavelengths']['method'] = 'full_template'
 
         # Allow for longer exposure times on blue side (especially if using the Dome lamps)
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
@@ -910,14 +910,18 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         # REMOVE for TESTING
         par['calibrations']['wavelengths']['rms_threshold'] = 1.
-        # par['calibrations']['wavelengths']['match_toler'] = 3.
-        # par['calibrations']['wavelengths']['sigdetect'] = 30.
+        # par['calibrations']['wavelengths']['match_toler'] = 0.5
+        # par['calibrations']['wavelengths']['sigdetect'] = 20.
         # par['calibrations']['wavelengths']['fwhm'] = 6.
         # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
-        # par['calibrations']['wavelengths']['n_first'] = 4
+        # par['calibrations']['wavelengths']['n_first'] = 3
+        # par['calibrations']['wavelengths']['n_final'] = 3
         # par['calibrations']['wavelengths']['nsnippet'] = 1
+        par['calibrations']['wavelengths']['method'] = 'full_template'
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_B300_5000_d680_ArCdHgKrNeXeZnFeAr.fits'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 2
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
