@@ -45,7 +45,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.193,
-            darkcurr        = 0.8,
+            darkcurr        = 0.7*3600.0,  # e-/hour/pixel
             saturation      = 100000.,
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,

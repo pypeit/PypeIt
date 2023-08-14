@@ -123,7 +123,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.2012,
-            darkcurr        = 0.01,
+            darkcurr        = 0.01*3600.0,  # e-/pixel/hour
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,

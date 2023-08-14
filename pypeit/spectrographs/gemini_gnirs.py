@@ -55,7 +55,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             specflip=True,
             spatflip=True,
             platescale      = 0.15,
-            darkcurr        = 0.15,
+            darkcurr        = 0.15*3600.0,  # e-/hour/pixel
             saturation      = 150000.,
             nonlinear       = 0.71,
             mincounts       = -1e10,

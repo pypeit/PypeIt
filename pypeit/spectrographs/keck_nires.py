@@ -55,7 +55,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 0.13*3600.0,  # e-/hour/pixel
             saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
             nonlinear       = 0.76,
             mincounts       = -1e10,

@@ -79,7 +79,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.1787,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5*3600.0,  # e-/pixel/hour
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -246,7 +246,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 0.3*3600.0,  # e-/hour/pixel
             saturation      = 320000., #155400.,
             nonlinear       = 0.875,
             mincounts       = -1e10,

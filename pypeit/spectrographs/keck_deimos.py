@@ -150,7 +150,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=2,
-            darkcurr=3.60,
+            darkcurr=3.60,  # e-/pixel/hour
             gain=np.atleast_1d(1.188),
             ronoise=np.atleast_1d(2.491),
         ))
@@ -159,7 +159,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict3.update(dict(
             det=3,
             dataext=3,
-            darkcurr=3.50,
+            darkcurr=3.50,  # e-/pixel/hour
             gain=np.atleast_1d(1.248),
             ronoise=np.atleast_1d(2.618),
         ))
@@ -168,7 +168,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict4.update(dict(
             det=4,
             dataext=4,
-            darkcurr=3.70,
+            darkcurr=3.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.220),
             ronoise=np.atleast_1d(2.557),
         ))
@@ -177,7 +177,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict5.update(dict(
             det=5,
             dataext=5,
-            darkcurr=2.70,
+            darkcurr=2.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.184),
             ronoise=np.atleast_1d(2.482),
         ))
@@ -186,7 +186,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict6.update(dict(
             det=6,
             dataext=6,
-            darkcurr=3.80,
+            darkcurr=3.80,  # e-/pixel/hour
             gain=np.atleast_1d(1.177),
             ronoise=np.atleast_1d(2.469),
         ))
@@ -195,7 +195,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict7.update(dict(
             det=7,
             dataext=7,
-            darkcurr=3.30,
+            darkcurr=3.30,  # e-/pixel/hour
             gain=np.atleast_1d(1.201),
             ronoise=np.atleast_1d(2.518),
         ))
@@ -204,7 +204,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict8.update(dict(
             det=8,
             dataext=8,
-            darkcurr=3.70,
+            darkcurr=3.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.230),
             ronoise=np.atleast_1d(2.580),
         ))
