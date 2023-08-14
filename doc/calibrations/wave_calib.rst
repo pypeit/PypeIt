@@ -259,6 +259,57 @@ observations, long-slit observations where wavelengths
 vary (*e.g.*, grating tilts).  We are likely to implement
 this for echelle observations (*e.g.*, HIRES).
 
+.. _wvcalib-echelle:
+
+Echelle Spectrographs
+=====================
+
+Echelle spectrographs are a special case for wavelength
+solutions, primarily because the orders follow the
+grating equation.
+
+In general, the approach is:
+
+    1. Identify the arc lines in each order
+    2. Fit the arc lines in each order to a polynomial, individually
+    3. Fit a 2D solution to the lines using the order number as a basis
+    4. Reject orders where the RMS of the fit (measured in binned pixels) exceeds ``rms_threshold``
+    5. Attempt to recover the missing orders using the 2D fit and 
+      a higher RMS threshold
+    6. Refit the 2D solution
+
+One should always inspect the outputs, especially the 2D solution
+(global and orders).  One may then need to modify the ``rms_threshold``
+parameter and/or hand-fit a few of the orders to improve the solution.
+
+.. _wvcalib-rms-threshold:
+
+rms_threshold
+-------------
+
+All of the echelle spectrographs have a default ``rms_threshold`` 
+matched to a default ``FWHM`` parameter (also measured in binned pixels).
+The ``rms_threshold`` adopted in the analysis is one 
+scaled by the measured FWHM from the arc lines 
+(again, binned pixels) of the adopted calibration files
+
+That is, each order must satisfy the following:
+
+.. code-block:: ini
+
+    RMS < rms_threshold * (measured_FWHM/default_FWHM)
+
+Note: in a future release, we will re-define ``rms_threshold`` to be
+in units of the measured FWHM.
+
+Mosaics
+-------
+
+For echelle spectrographs with multiple detectors *per* camera
+that are mosaiced (e.g. Keck/HIRES), we fit the 2D solutions on a *per* detector
+basis.  Ths is because we have found the mosaic solutions to be
+too difficult to make sufficiently accurate.
+
 .. _wvcalib-byhand:
 
 By-Hand Approach
