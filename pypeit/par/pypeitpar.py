@@ -2521,7 +2521,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slit=None, qa_log=None):
+                 ech_separate_2d=None, redo_slits=None, qa_log=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2709,10 +2709,11 @@ class WavelengthSolutionPar(ParSet):
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = [float, list, np.ndarray]
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
-                                 'single number or a list/array providing the value for each slit. ' \
-                                 'Only used if ``method`` is either \'holy-grail\' or \'reidentify\''
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
+                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
+                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
+                                     
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2767,8 +2768,8 @@ class WavelengthSolutionPar(ParSet):
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
-        dtypes['redo_slit'] = int
-        descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
+        dtypes['redo_slits'] = [int, list]
+        descr['redo_slits'] = 'Redo the input slit(s) [multislit] or order(s) [echelle]'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -2796,8 +2797,8 @@ class WavelengthSolutionPar(ParSet):
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv', 'redo_slit', 'qa_log']
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
+                   'redo_slits', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

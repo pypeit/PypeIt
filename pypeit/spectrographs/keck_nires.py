@@ -80,9 +80,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.2  # Measured
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
