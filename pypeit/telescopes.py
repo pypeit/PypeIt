@@ -42,6 +42,7 @@ class MagellanTelescopePar(TelescopePar):
                                                elevation=loc.height.to(units.m).value,
                                                diameter=6.5)
 
+
 class ShaneTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Lick Observatory')
@@ -52,16 +53,27 @@ class ShaneTelescopePar(TelescopePar):
                                                 diameter=3.05,
                                                 eff_aperture=6.3617)
 
-                                
+
 class WHTTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')
-        super(WHTTelescopePar, self).__init__(name='WHT',
+        super(WHTTelescopePar, self).__init__(name='William Herschel Telescope',
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
                                               diameter=4.2)
-                                
+
+
+class INTTelescopePar(TelescopePar):
+    def __init__(self):
+        loc = EarthLocation.of_site('Roque de los Muchachos')
+        super(INTTelescopePar, self).__init__(name='Isaac Newton Telescope',
+                                              longitude=loc.lon.to(units.deg).value,
+                                              latitude=loc.lat.to(units.deg).value,
+                                              elevation=loc.height.to(units.m).value,
+                                              diameter=2.54)
+
+
 class APFTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Lick Observatory')
