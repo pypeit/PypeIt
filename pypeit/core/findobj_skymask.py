@@ -677,7 +677,7 @@ def ech_cutobj_on_snr(
             from left to right on the image).  Shape must match ``image``,
             (nspec, nspat).
         order_vec (`numpy.ndarray`_):
-            `int` array of good orders 
+            :obj:`int` array of good orders 
         plate_scale_ord (`numpy.ndarray`_):
             An array with shape (norders,) providing the plate 
             scale of each order in arcsec/pix, 
@@ -852,7 +852,7 @@ def ech_pca_traces(
             ``image``.  If None, all pixels in ``slitmask`` with non-negative
             values are considered good.
         order_vec (`numpy.ndarray`_):
-            `int` array of good orders 
+            :obj:`int` array of good orders 
         spec_min_max (`numpy.ndarray`_): _description_
             `float` array of shape (2, norders) with the minimum and maximum
             spectral value for each order
@@ -1039,9 +1039,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         #. A PCA fit to the traces is performed using the routine above pca_fit
 
     **Note on masking**:  This routine requires that all masking be performed in
-    the upstream calling routine (:func:`pypeit.find_objects`) and thus the
-    ``slit_left`` and ``slit_righ`` slit edge arrays must only contain these
-    slits. The number of orders in ``order_vec``,  ``spec_min_max``,
+    the upstream calling routine (:class:`pypeit.find_objects.FindObjects`) and
+    thus the ``slit_left`` and ``slit_righ`` slit edge arrays must only contain
+    these slits. The number of orders in ``order_vec``,  ``spec_min_max``,
     ``slit_spat_id``, and ``plate_scale`` must also match the number of slits in
     the ``slit_left`` and ``slit_righ`` arrays.
 

@@ -1039,19 +1039,24 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
                              count_scale=None):
     """
-    Perform local sky subtraction, profile fitting, and optimal extraction slit by slit. Objects
-    are sky/subtracted extracted in order of the highest average (across all orders) S/N ratio object first, and then
-    for a given object the highest S/N ratio orders are extracted first. The profile fitting FWHM are stored and
-    progressively fit as the objects are extracted to properly ensure that low S/N orders use Gaussian extracted
-    FWHMs from higher-S/N orders (i.e. in the regime where the data is too noisy for a non-parametric object
-    profile fit. The FWHM of higher S/N ratio objects are used for lower S/N ratio objects
-    (note this assumes point sources with FWHM set by the seeing).
+    Perform local sky subtraction, profile fitting, and optimal extraction slit
+    by slit. Objects are sky/subtracted extracted in order of the highest
+    average (across all orders) S/N ratio object first, and then for a given
+    object the highest S/N ratio orders are extracted first. The profile fitting
+    FWHM are stored and progressively fit as the objects are extracted to
+    properly ensure that low S/N orders use Gaussian extracted FWHMs from
+    higher-S/N orders (i.e. in the regime where the data is too noisy for a
+    non-parametric object profile fit). The FWHM of higher S/N ratio objects are
+    used for lower S/N ratio objects (note this assumes point sources with FWHM
+    set by the seeing).
 
-    Note on masking:  This routine requires that all masking be performed in the upstream calling routine
-    (:func:`pypeit.extraction`) and thus the left and right slit edge arrays must only contain these slits. Similarly,
-    the sobjs object must only include the unmasked (good) objects that are to be extracted. The
-    number of sobjs objects must equal to an integer multiple of the number of good slits/orders.
-    The routine will fault if any of these criteria are not met.
+    Note on masking:  This routine requires that all masking be performed in the
+    upstream calling routine (:class:`~pypeit.extraction.Extract`) and thus the left and
+    right slit edge arrays must only contain these slits. Similarly, the sobjs
+    object must only include the unmasked (good) objects that are to be
+    extracted. The number of sobjs objects must equal to an integer multiple of
+    the number of good slits/orders.  The routine will fault if any of these
+    criteria are not met.
 
     Parameters
     ----------

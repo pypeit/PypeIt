@@ -63,7 +63,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             # plate scale in arcsec/pixel
             platescale      = 0.3,
             # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
-            darkcurr        = 1.00,
+            darkcurr        = 1.0,  # e-/pixel/hour
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,

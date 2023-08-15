@@ -270,13 +270,19 @@ grating equation.
 
 In general, the approach is:
 
-    1. Identify the arc lines in each order
-    2. Fit the arc lines in each order to a polynomial, individually
-    3. Fit a 2D solution to the lines using the order number as a basis
-    4. Reject orders where the RMS of the fit (measured in binned pixels) exceeds ``rms_threshold``
-    5. Attempt to recover the missing orders using the 2D fit and 
-      a higher RMS threshold
-    6. Refit the 2D solution
+    #. Identify the arc lines in each order
+
+    #. Fit the arc lines in each order to a polynomial, individually
+
+    #. Fit a 2D solution to the lines using the order number as a basis
+
+    #. Reject orders where the RMS of the fit (measured in binned pixels)
+       exceeds ``rms_threshold``
+
+    #. Attempt to recover the missing orders using the 2D fit and a higher RMS
+       threshold
+
+    #. Refit the 2D solution
 
 One should always inspect the outputs, especially the 2D solution
 (global and orders).  One may then need to modify the ``rms_threshold``

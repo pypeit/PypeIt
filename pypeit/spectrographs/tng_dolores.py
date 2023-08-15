@@ -54,7 +54,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.252,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65500.,
             nonlinear       = 0.99,
             mincounts       = -1e10,

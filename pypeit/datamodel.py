@@ -453,8 +453,6 @@ With this implementation:
         print(data.func == _data.func)
         # True
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
