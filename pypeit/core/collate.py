@@ -81,7 +81,7 @@ class SourceObject:
         """
         result = []
         for spec1d_file in spec1d_files:            
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
                 result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))

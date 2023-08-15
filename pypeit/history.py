@@ -87,7 +87,7 @@ class History:
             for frame in calib_frames:
                 self.append(f'{frame["frametype"]} "{frame["filename"]}"', add_date=False)
 
-    def add_coadd1d(self, spec1d_files, objids, nocoadded=None):
+    def add_coadd1d(self, spec1d_files, objids, gpm_exp=None):
         """
         Add history entries for 1D coadding.
         
@@ -106,18 +106,18 @@ class History:
         Args:
             spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
             objids (:obj:`list`): List of the PypeIt object ids used in coadding.
-            nocoadded (`numpy.ndarray`_, optional): Array of indexes indicating which objects were not coadded.
+            gpm_exp (:obj:`list`, optional): List of boolean indicating which exposures where coadded.
         """
 
-        if nocoadded is not None:
+        if gpm_exp is not None:
             # Not coadded files and objids
-            notcoadded_spec1d_files = [spec1d_files[i] for i in range(len(spec1d_files)) if i in nocoadded]
-            notcoadded_objids = [objids[i] for i in range(len(objids)) if i in nocoadded]
+            notcoadded_spec1d_files = [spec1d_file for (spec1d_file, gpm_exp) in zip(spec1d_files, gpm_exp) if not gpm_exp]
+            notcoadded_objids = [objid for (objid, gpm_exp) in zip(objids, gpm_exp) if not gpm_exp]
             combined_notcoadd_files_objids = list(zip(notcoadded_spec1d_files, notcoadded_objids))
 
             # Coadded files and objids
-            coadded_spec1d_files = [spec1d_files[i] for i in range(len(spec1d_files)) if i not in nocoadded]
-            coadded_objids = [objids[i] for i in range(len(objids)) if i not in nocoadded]
+            coadded_spec1d_files = [spec1d_file for (spec1d_file, gpm_exp) in zip(spec1d_files, gpm_exp) if gpm_exp]
+            coadded_objids = [objid for (objid, gpm_exp) in zip(objids, gpm_exp) if gpm_exp]
             combined_files_objids = list(zip(coadded_spec1d_files, coadded_objids))
         else:
             combined_files_objids = list(zip(spec1d_files, objids))
