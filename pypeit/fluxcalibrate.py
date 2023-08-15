@@ -13,7 +13,7 @@ from astropy import table
 from IPython import embed
 
 
-def flux_calibrate(spec1dfiles, sensfiles, par=None, outfiles=None):
+def flux_calibrate(spec1dfiles, sensfiles, par=None, outfiles=None, chk_version=True):
     """
     Function for flux calibrating spectra.
 
@@ -27,6 +27,8 @@ def flux_calibrate(spec1dfiles, sensfiles, par=None, outfiles=None):
             Parset object containing parameters governing the flux calibration.
         outfiles (list, optional):
             Names of the output files.  If None, this is set to spec1dfiles and those are overwritten
+        chk_version (bool, optional):
+            Whether to check of the data model versions of spec1d and sens files. Defaults to True.
     """
 
 
@@ -41,10 +43,10 @@ def flux_calibrate(spec1dfiles, sensfiles, par=None, outfiles=None):
     sensf_last = None
     for spec1, sensf, outfile in zip(spec1dfiles, sensfiles, outfiles):
         # Read in the data
-        sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1, chk_version=chk_version)
         history = History(sobjs.header)
         if sensf != sensf_last:
-            sens = sensfunc.SensFunc.from_file(sensf)
+            sens = sensfunc.SensFunc.from_file(sensf, chk_version=chk_version)
             sensf_last = sensf
             history.append(f'PypeIt Flux calibration "{sensf}"')
         sobjs.apply_flux_calib(par, spectrograph, sens)

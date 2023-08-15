@@ -820,7 +820,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
                         specflip        = specflip,
                         spatflip        = False,
                         platescale      = 0.145728,  # arcsec/pixel
-                        darkcurr        = None,  # <-- TODO : Need to set this
+                        darkcurr        = 1.0,  # e-/hour/unbinned pixel
                         mincounts       = -1e10,
                         saturation      = 65535.,
                         nonlinear       = 0.95,       # For lack of a better number!
@@ -1121,7 +1121,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         specflip        = specflip,
                         spatflip        = False,
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
-                        darkcurr        = None,
+                        darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
                         saturation      = 65535.,
                         nonlinear       = 0.95,       # For lack of a better number!

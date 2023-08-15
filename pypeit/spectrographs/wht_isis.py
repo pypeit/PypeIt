@@ -154,7 +154,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.20,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.76,
             mincounts       = -1e10,
@@ -302,7 +302,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.22,
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,
