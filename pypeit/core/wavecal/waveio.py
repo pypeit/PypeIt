@@ -187,6 +187,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
             lamps.append(line_file[i0+1:i1])
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
+    print(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
     #       will exit with msgs.error().

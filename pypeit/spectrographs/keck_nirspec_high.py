@@ -7,9 +7,11 @@ Module for Keck/NIRSPEC specific methods.
 import numpy as np
 
 from pypeit import msgs
+from pypeit import io
 from pypeit.images import detector_container
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
@@ -45,14 +47,14 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.193,
+            platescale      = 0.13,
             darkcurr        = 0.8,
             saturation      = 100000.,
-            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            nonlinear       = 0.25,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
-            gain            = np.atleast_1d(5.8),
-            ronoise         = np.atleast_1d(23.),
+            gain            = np.atleast_1d(3.01),
+            ronoise         = np.atleast_1d(11.56),
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None, #np.atleast_1d('[:,:]')
             )
@@ -106,6 +108,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         #turn_off = dict(use_biasimage=False, use_overscan=False)
         #par.reset_all_processimages_par(**turn_off)
 
+        # Specify if cleaning cosmic ray hits/bad pixels
 
         # The settings below enable NIRSPEC dark subtraction from the
         # traceframe and pixelflatframe, but enforce that this bias won't be
@@ -122,10 +125,10 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         #par['scienceframe']['process']['bias'] = 'skip'
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['standardframe']['exprng'] = [None, None]
         par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
-        par['scienceframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [None, None]
+        par['scienceframe']['exprng'] = [None, None]
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -153,7 +156,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='OBSMODE')
-        self.meta['hatch'] = dict(ext=0, card='CALMPOS')
+        self.meta['hatch'] = dict(ext=0, card='HATCH')
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         self.meta['idname'] = dict(ext=0, card='IMTYPE')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
@@ -161,7 +164,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
         self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
         self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
-        self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
+        #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
 
         # Lamps
         lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'HALOGEN']
@@ -182,7 +185,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'echangle', 'xdangle']
+        return ['filter1', 'filter2', 'echangle', 'xdangle']
 
     def raw_header_cards(self):
         """
@@ -202,7 +205,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SCIFILT1','ECHLPOS', 'DISPPOS']
+        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS']
 
     def pypeit_file_keys(self):
         """
@@ -240,15 +243,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = fitstbl['hatch']#.data.astype(int)
-        if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+        if ftype in ['science']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Open') \
                         & (fitstbl['idname'] == 'object')
-        if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+        if ftype in 'dark':
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Closed') \
                         & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'Closed') \
                         & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
             # Don't type pinhole frames
@@ -256,9 +259,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'Closed') \
                             & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Open') \
                         & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -288,17 +291,17 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
             for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key].data.astype(int) == 0
+                retarr[kk,:] = fitstbl[key] == 'Off'
             return np.all(retarr, axis=0)
         if status == 'arcs':
             # Check if any arc lamps are on
             lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)))
             for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key].data.astype(int) == 1
+                retarr[kk,:] = fitstbl[key] == 'On'
             return np.any(retarr, axis=0)
         if status == 'dome':
-            return fitstbl['lampstat06'].data.astype(int) == 1
+            return fitstbl['lampstat06'] == 'On'
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
@@ -334,10 +337,168 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
-        bpm_img[:, :20] = 1.
-        bpm_img[:, 1000:] = 1.
+        #bpm_img[:, :20] = 1.
+        #bpm_img[:, 1000:] = 1.
 
         return bpm_img
+
+
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        Note that NIRES has no binning.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning. **This
+                is always ignored.**
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        return np.full(order_vec.size, 0.13)
+
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces that are key
+        for image processing.
+
+        .. warning::
+
+            - When reading multiple detectors for a mosaic, this function
+              expects all detector arrays to have exactly the same shape.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`, `Path`_
+            File to read
+        det : :obj:`int`, :obj:`tuple`
+            1-indexed detector(s) to read.  An image mosaic is selected using a
+            :obj:`tuple` with the detectors in the mosaic, which must be one of
+            the allowed mosaics returned by :func:`allowed_mosaics`.
+
+        Returns
+        -------
+        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+            Detector metadata parameters for one or more detectors.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.  Shape is 2D if a single detector image
+            is read and 3D if multiple detectors are read.  E.g., the image from
+            the first detector in the tuple is accessed using ``raw_img[0]``.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time *in seconds*.
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
+        """
+        # Check extension and then open
+        self._check_extensions(raw_file)
+        hdu = io.fits_open(raw_file)
+
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
+
+        # Grab metadata from the header
+        # NOTE: These metadata must be *identical* for all images when reading a
+        # mosaic
+        headarr = self.get_headarr(hdu)
+
+        # Exposure time (used by RawImage)
+        # NOTE: This *must* be (converted to) seconds.
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        # Rawdatasec, oscansec images
+        binning = self.get_meta_value(headarr, 'binning')
+        # NOTE: This means that `specaxis` must be the same for all detectors in
+        # a mosaic
+        if detectors[0]['specaxis'] == 1:
+            binning_raw = (',').join(binning.split(',')[::-1])
+        else:
+            binning_raw = binning
+
+        raw_img = [None]*nimg
+        rawdatasec_img = [None]*nimg
+        oscansec_img = [None]*nimg
+        for i in range(nimg):
+
+            # Raw image
+            raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
+            # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
+            # extention, so I add the following two lines. It's easier to change
+            # here than writing another get_rawimage function in the
+            # spectrograph file.
+            # TODO: This feels dangerous, but not sure what to do about it...
+            if raw_img[i].ndim != 2:
+                raw_img[i] = np.squeeze(raw_img[i])
+            if raw_img[i].ndim != 2:
+                msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
+                           f"of {raw_file}.")
+
+            for section in ['datasec', 'oscansec']:
+
+                # Get the data section
+                # Try using the image sections as header keywords
+                # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
+                #  Code like the following maybe useful
+                #hdr = hdu[detector[det - 1]['dataext']].header
+                #image_sections = [hdr[key] for key in detector[det - 1][section]]
+                # Grab from Detector
+                image_sections = detectors[i][section]
+                #if not isinstance(image_sections, list):
+                #    image_sections = [image_sections]
+                # Always assume normal FITS header formatting
+                one_indexed = True
+                include_last = True
+
+                # Initialize the image (0 means no amplifier)
+                pix_img = np.zeros(raw_img[i].shape, dtype=int)
+                for j in range(detectors[i]['numamplifiers']):
+
+                    if image_sections is not None:  # and image_sections[i] is not None:
+                        # Convert the data section from a string to a slice
+                        datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
+                                                  include_end=include_last, require_dim=2,
+                                                  binning=binning_raw)
+                        # Assign the amplifier
+                        pix_img[datasec] = j+1
+
+                # Finish
+                if section == 'datasec':
+                    rawdatasec_img[i] = pix_img.copy()
+                else:
+                    oscansec_img[i] = pix_img.copy()
+
+        if nimg == 1:
+            # Return single image
+            return detectors[0], raw_img[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+
+        if any([img.shape != raw_img[0].shape for img in raw_img[1:]]):
+            msgs.error('All raw images in a mosaic must have the same shape.')
+        # Return all images for mosaic
+        rotnum = 4
+        return mosaic, np.rot90(np.array(raw_img), k=rotnum), hdu, exptime, np.rot90(np.array(rawdatasec_img), k=rotnum), \
+                np.rot90(np.array(oscansec_img), k=rotnum)
+
+
 
 class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     """
