@@ -57,7 +57,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             ygap=0.,
             ysize=1.,
             platescale=0.1,
-            darkcurr=0.0092*3600.0,  # e-/hour
+            darkcurr=33.12,  # e-/pixel/hour  (=0.0092 e-/pixel/s)
             saturation=55100.,
             nonlinear=0.95,  # need to look up and update
             mincounts=-1e10,
@@ -73,7 +73,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=1,
-            darkcurr=0.0057*3600.0,  # e-/hour,
+            darkcurr=20.52,  # e-/pixel/hour,  (=0.0057 e-/pixel/s)
             saturation=60400.,
             gain=np.atleast_1d(1.137),
             ronoise=np.atleast_1d(6.60),

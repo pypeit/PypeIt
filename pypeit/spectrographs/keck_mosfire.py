@@ -59,7 +59,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1798,
-            darkcurr        = 0.008*3600.0,  # e-/hour/pixel
+            darkcurr        = 28.8,  # e-/pixel/hour  (=0.008 e-/pixel/s)
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,

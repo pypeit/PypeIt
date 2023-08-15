@@ -133,7 +133,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.37,
-            darkcurr        = 0.085*3600.0,  # e-/pixel/hour
+            darkcurr        = 306.0,  # e-/pixel/hour  (=0.085 e-/pixel/s)
             saturation      = 28000,
             nonlinear       = 0.9,
             mincounts       = -1e10,

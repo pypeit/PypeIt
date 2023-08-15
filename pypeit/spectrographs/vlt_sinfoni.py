@@ -51,7 +51,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.0125,
-            darkcurr        = 0.15*3600.0,  # e-/pixel/hour
+            darkcurr        = 540.0,  # e-/pixel/hour  (=0.15 e-/pixel/s)
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,

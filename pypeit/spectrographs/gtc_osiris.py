@@ -657,7 +657,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -676,7 +676,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,

@@ -137,7 +137,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1185,
-            darkcurr        = 3.30, # changed by DP. Taken from WMKO measurements on 2022-Apr-22
+            darkcurr        = 3.30, #  units are e-/pixel/hour... NOTE : changed by DP. Taken from WMKO measurements on 2022-Apr-22
             saturation      = 65535., # ADU
             nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
             mincounts       = -1e10,

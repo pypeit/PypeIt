@@ -251,7 +251,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -461,7 +461,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.15,
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=1.0,
             mincounts=-1e10,
