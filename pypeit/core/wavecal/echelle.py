@@ -207,7 +207,8 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
 
     # Predict the echelle order coverage and wavelength solution
     order_vec_guess, wave_soln_guess_pad, arcspec_guess_pad = predict_ech_arcspec(
-        angle_fits_file, composite_arc_file, echangle, xdangle, dispname, nspec, norders, pad=pad)
+        angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
+        nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
 
     # Since we padded the guess we need to pad the data to the same size
@@ -221,14 +222,18 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
     
     # Finish
-    x_ordr_shift = shift_cc / nspec
     ordr_shift = int(np.round(shift_cc / nspec))
     spec_shift = int(np.round(shift_cc - ordr_shift * nspec))
-    msgs.info('Shift in order number between prediction and reddest order: {:.3f}'.format(ordr_shift + pad))
+    msgs.info('Shift in order number between prediction and reddest order: {:.3f}'.format(
+        ordr_shift + pad))
     msgs.info('Shift in spectral pixels between prediction and data: {:.3f}'.format(spec_shift))
 
-    order_vec = order_vec_guess[-1] - ordr_shift + np.arange(norders)[::-1]
+    # Assign
+    order_vec = order_vec_guess[0] + ordr_shift - np.arange(norders)
     ind = np.isin(order_vec_guess, order_vec, assume_unique=True)
+
+    #if debug:
+    #    embed(header='identify_ech_orders 232 of echelle.py')
 
     # Return
     return order_vec, wave_soln_guess_pad[:, ind], arcspec_guess_pad[:, ind]
