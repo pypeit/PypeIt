@@ -8,7 +8,7 @@
                              [--flux] [--exclude_slit_bm EXCLUDE_SLIT_BM]
                              [--exclude_serendip] [--wv_rms_thresh WV_RMS_THRESH]
                              [--refframe {observed,heliocentric,barycentric}]
-                             [-v VERBOSITY]
+                             [--chk_version] [-v VERBOSITY]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for
@@ -36,6 +36,8 @@
                                                     value are skipped, else all wavelength rms values are accepted.
                               refframe              Perform reference frame correction prior to coadding.
                                                     Options are ['observed', 'heliocentric', 'barycentric']. Defaults to None.
+                              chk_version           If true, spec1ds and archival sensfuncs must match the currently
+                                                    supported versions. If false (the default) version numbers are not checked.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -86,6 +88,8 @@
       --refframe {observed,heliocentric,barycentric}
                             Perform reference frame correction prior to coadding.
                             Options are: observed, heliocentric, barycentric
+      --chk_version         Whether to check the data model versions of spec1d files
+                            and sensfunc files.
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename

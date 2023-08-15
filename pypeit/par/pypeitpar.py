@@ -54,8 +54,6 @@ To add an entirely new parameter set, use one of the existing parameter
 sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
@@ -1396,7 +1394,7 @@ class CubePar(ParSet):
         defaults['align'] = False
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
                          'image that is generated using the first spec2d listed in the coadd3d file.'
 
         defaults['combine'] = False
@@ -1409,7 +1407,7 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \
-                                   'prefixed with "spec3d_*"'
+                                   'prefixed with ``spec3d_*``'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str
@@ -4849,7 +4847,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None, chk_version=False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4928,6 +4926,10 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        defaults['chk_version'] = False
+        dtypes['chk_version'] = bool
+        descr['chk_version'] = "Whether to check the data model versions of spec1d files and sensfunc files."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4939,7 +4941,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe', 'chk_version']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
