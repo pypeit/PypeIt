@@ -472,18 +472,20 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
         # TODO: Should we allow the user to override these?
 
-        if self.get_meta_value(scifile, 'dispname') == '300/7500':
-            # TODO -- Note in docs that a NoNe solution is available too
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-            # Add CdI
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        else:
-            par['calibrations']['wavelengths']['use_instr_flag'] = True
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
+        # if self.get_meta_value(scifile, 'dispname') == '300/7500':
+        #     # TODO -- Note in docs that a NoNe solution is available too
+        #     par['calibrations']['wavelengths']['method'] = 'full_template'
+        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
+        #     # Add CdI
+        #     par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+        # elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
+        #     par['calibrations']['wavelengths']['method'] = 'full_template'
+        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
+        #     par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+        # else:
+        #     par['calibrations']['wavelengths']['use_instr_flag'] = True
 
         # Return
         return par
