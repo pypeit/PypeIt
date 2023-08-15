@@ -480,7 +480,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             specflip=False,
             spatflip=False,
             platescale=platescale,
-            darkcurr= 0.03,
+            darkcurr=108.0, #e-/pix/hour
             # Saturation is 55000, but will be set to dummy value for
             # now as integrated exposures over multiple detector integrations
             # will provide higher counts.
@@ -722,7 +722,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specflip=False,
             spatflip=False,
             platescale=platescale,
-            darkcurr=0.0,
+            darkcurr=21.6, #e-/pix/hour
             # Saturation is 55000, but will be set to dummy value for
             # now as integrated exposures over multiple detector integrations
             # will provide higher counts.
