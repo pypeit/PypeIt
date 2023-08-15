@@ -442,7 +442,11 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
                              tell_dict['tell_pca'][:ncomp_use+1][:,ind_lower_pad:ind_upper_pad+1])
                              
     # PCA model is inverse sinh of the optical depth, convert to transmission here
-    tellmodel_hires = np.exp(-np.sinh(tellmodel_hires))
+    tellmodel_hires = np.sinh(tellmodel_hires)
+    # It should generally be very rare, but trim negative optical depths here just in case.
+    clip = tellmodel_hires < 0
+    tellmodel_hires[clip] = 0
+    tellmodel_hires = np.exp(-tellmodel_hires)
     
     # Convolve transmission to given spectral resolution, and resample onto spectrum wavelengths
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
