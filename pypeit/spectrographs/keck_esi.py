@@ -90,7 +90,11 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # This is for 1x1
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30   
+        par['calibrations']['wavelengths']['fwhm'] = 2.9
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'NeI', 'HgI', 'XeI', 'ArII']
 
