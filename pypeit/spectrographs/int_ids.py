@@ -13,7 +13,7 @@ from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import framematch
+from pypeit.core import framematch, parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -68,19 +68,17 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        # dispname is arm specific (blue/red)
-        self.meta['decker'] = dict(ext=0, card='SLIT_N')
-        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['decker'] = dict(ext=0, card='SLTWDSKY')
+        self.meta['binning'] = dict(ext=0, card=None, compound=True)
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATNAME')
+        self.meta['dispangle'] = dict(ext=0, card='GRATANGL', rtol=1e-3)  # TODO :: Need to check the tolerance is OK
         # Additional ones, generally for configuration determination or time
-        self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
-        self.meta['instrument'] = dict(ext=0, card='VERSION')
-        lamp_names = [ '1', '2', '3', '4', '5',
-                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+        self.meta['instrument'] = dict(ext=0, card='DETECTOR')
+        self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
+        self.meta['lampstat02'] = dict(ext=0, card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -96,11 +94,28 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'mjd':
-            time = headarr[0]['DATE']
-            ttime = Time(time, format='isot')
-            return ttime.mjd
-        msgs.error("Not ready for this compound meta")
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
+            binning = parse.binning2string(binspec, binspatial)
+            return binning
+        elif meta_key == 'lampstat01':  # Dome lamps
+            if headarr[0]['COMPMPOS'].strip().lower() == 'in':
+                if headarr[0]['AGARCLMP'].strip() == 'W':
+                    return "on"
+                else:
+                    return "off"
+            else:
+                return "off"
+        elif meta_key == 'lampstat02':  # Arc lamps
+            if headarr[0]['COMPMPOS'].strip().lower() == 'in':
+                tst = headarr[0]['AGARCLMP'].strip()
+                if tst != "W" and tst != "":  # TODO :: Need to update this... currently this just checks that the lamp list is not empty and the tungsten lamp is not on
+                    return "on"
+                else:
+                    return "off"
+            else:
+                return "off"
+        msgs.error(f"Not ready for this compound meta: {meta_key}")
 
     def configuration_keys(self):
         """
@@ -117,7 +132,7 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
             object.
         """
         # decker is not included because arcs are often taken with a 0.5" slit
-        return ['dispname', 'dichroic' ]
+        return ['dispname', 'dispangle', 'instrument']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -142,15 +157,15 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
         if ftype in ['science', 'standard']:
             return good_exp & self.lamps(fitstbl, 'off')
         if ftype == 'bias':
-            return good_exp # & (fitstbl['target'] == 'Bias')
+            return good_exp
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
+            return good_exp & self.lamps(fitstbl, 'dome')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
+            return good_exp & self.lamps(fitstbl, 'arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -176,18 +191,15 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(6,17) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
+            return np.all(np.array([ (fitstbl[k] == 'off') for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
         if status == 'dome':
             # Check if any dome lamps are on
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in dome_lamp_stat]), axis=0)
+            dome_lamp_stat = ['lampstat01']
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys() if k in dome_lamp_stat]), axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = ['lampstat02']
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys() if k in arc_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
 
@@ -298,20 +310,6 @@ class INTIDSBlueSpectrograph(INTIDSSpectrograph):
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
         # Return
         return par
-
-
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-
-        # Required
-        self.meta['dispname'] = dict(ext=0, card='GRISM_N')
-        # Additional (for config)
 
     def raw_header_cards(self):
         """
@@ -451,58 +449,6 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
         return par
 
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        # Add the name of the dispersing element
-        # dispangle is not defined for INT IDS
-
-        # Required
-        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
-        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=1e-3)
-        # Additional (for config)
-
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return super().configuration_keys() + ['dispangle']
-
-    def raw_header_cards(self):
-        """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
-
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
-
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
-        """
-        return ['GRATNG_N', 'BSPLIT_N', 'GRTILT_P']
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
@@ -541,58 +487,3 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
 
         # Return
         return par
-
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
-        """
-
-        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
-        function fits will be well behaved. For example, masking second order light. For instruments that don't
-        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
-        with a method that performs the tweaks.
-
-        Parameters
-        ----------
-        wave_in: `numpy.ndarray`_
-            Input standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
-        counts_in: `numpy.ndarray`_
-            Input standard star counts (:obj:`float`, ``shape = (nspec,)``)
-        counts_ivar_in: `numpy.ndarray`_
-            Input inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
-        gpm_in: `numpy.ndarray`_
-            Input good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
-        meta_table: :obj:`dict`
-            Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
-            object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
-            contents of this table.
-        log10_blaze_function: `numpy.ndarray`_ or None
-            Input blaze function to be tweaked, optional. Default=None.
-
-        Returns
-        -------
-        wave_out: `numpy.ndarray`_
-            Output standard star wavelengths (:obj:`float`, ``shape = (nspec,)``)
-        counts_out: `numpy.ndarray`_
-            Output standard star counts (:obj:`float`, ``shape = (nspec,)``)
-        counts_ivar_out: `numpy.ndarray`_
-            Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
-        gpm_out: `numpy.ndarray`_
-            Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
-        log10_blaze_function_out: `numpy.ndarray`_ or None
-            Output blaze function after being tweaked.
-        """
-
-        # Could check the wavelenghts here to do something more robust to header/meta data issues
-        if '600/7500' in meta_table['DISPNAME']:
-            # The blue edge and red edge of the detector have no throughput so mask by hand.
-            edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
-            gpm_out = gpm_in & np.logical_not(edge_region)
-            # TODO Is this correct?
-        else:
-            gpm_out = gpm_in
-
-        if log10_blaze_function is not None:
-            log10_blaze_function_out = log10_blaze_function * gpm_out
-        else:
-            log10_blaze_function_out = None
-        return wave_in, counts_in, counts_ivar_in, gpm_out, log10_blaze_function_out
-
