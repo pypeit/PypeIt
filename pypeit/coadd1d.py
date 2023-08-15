@@ -283,7 +283,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
             bad_exps = rms_sn > thresh_value
             if np.any(bad_exps):
                 msgs.warn(f'The following exposure(s) has/have S/N > {thresh_value:.2f} '
-                          f'({_sigrej} sigma above the median S/N) in the stack.')
+                          f'({_sigrej} sigma above the median S/N in the stack).')
                 [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
                  for i, (fname, obj, bad_exp) in enumerate(zip(_spec1dfiles, _objids, bad_exps)) if bad_exp]
                 if self.par['sigrej_exp'] is not None:
@@ -296,13 +296,13 @@ class MultiSlitCoAdd1D(CoAdd1D):
                     _spec1dfiles = [spec1dfile for (spec1dfile, bad_exp) in zip(_spec1dfiles, bad_exps) if not bad_exp]
                     _objids = [objid for (objid, bad_exp) in zip(_objids, bad_exps) if not bad_exp]
                     # update good exposures index
-                    goodindx_exp = goodindx_exp[np.logical_not(bad_exps)].tolist()
+                    goodindx_exp = goodindx_exp[np.logical_not(bad_exps)]
 
         # gpm for the exposures, i.e., which exposures have been coadded
         gpm_exp = np.zeros(self.nexp, dtype=bool)
         gpm_exp[goodindx_exp] = True
 
-        return gpm_exp, _waves, _fluxes, _ivars, _gpms
+        return gpm_exp.tolist(), _waves, _fluxes, _ivars, _gpms
 
     def coadd(self):
         """
