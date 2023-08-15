@@ -422,8 +422,6 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     # Infer number of used components from the number of parameters
     # TODO: make this work even without shift and stretch?
     ncomp_use = ntheta-3
-    if ncomp_use > tell_dict['ncomp_tell_pca']:
-        msgs.error('Asked for more PCA components than exist in PCA file.')
 
     # Set the wavelength range if not provided
     ind_lower = 0 if ind_lower is None else ind_lower
@@ -2449,7 +2447,13 @@ class Telluric(datamodel.DataContainer):
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
             self.tell_model_func = eval_telluric_pca
+            if self.ntell > self.tell_dict['ncomp_tell_pca']:
+                msgs.error('Asked for more telluric PCA components ({}) ' \
+                           'than exist in the PCA file ({}).'.format(self.ntell,
+                                                                     self.tell_dict['ncomp_tell_pca']))
         elif teltype == 'grid':
+            if self.ntell != 4:
+                msgs.error('Parameter ntell must be 4 for teltype = grid')
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
             self.tell_model_func = eval_telluric_grid
