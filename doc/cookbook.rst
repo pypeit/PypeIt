@@ -33,7 +33,7 @@ Note that:
 
   - Invariably something will be out of date in our doc pages.  When you see an
     egregious example, please holler on `GitHub
-    <https://github.com/pypeit/PypeIt>`__ or `Slack <pypeit-users.slack.com>`__.
+    <https://github.com/pypeit/PypeIt>`__ or `Slack <https://pypeit-users.slack.com>`__.
 
 Finally, note that before you keep going, you should have already done the following:
 

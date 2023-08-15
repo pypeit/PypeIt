@@ -94,7 +94,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             specflip        = True,     # DeVeny CCD has blue at the right
             spatflip        = False,
             platescale      = 0.34,     # Arcsec / pixel
-            darkcurr        = 4.5,      # Electrons per hour
+            darkcurr        = 4.5,      # e-/pixel/hour
             saturation      = 65535.,   # 16-bit ADC
             nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,

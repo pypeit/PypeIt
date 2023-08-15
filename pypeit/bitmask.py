@@ -8,8 +8,6 @@ Class usage examples
 
 .. include:: ../include/bitmask_usage.rst
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 

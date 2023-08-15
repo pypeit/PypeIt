@@ -238,7 +238,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             xgap=0.,
             ygap=0.,
             ysize=1.,
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             # These are rows, columns on the raw frame, 1-indexed
             datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),
             oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
@@ -387,7 +387,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.43,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.76,
             mincounts       = -1e10,
@@ -651,7 +651,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.774,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
             nonlinear       = 0.76,
             mincounts       = -1e10,

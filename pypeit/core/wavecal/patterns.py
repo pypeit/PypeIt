@@ -1,4 +1,6 @@
 """ Module for finding patterns in arc line spectra
+
+.. include:: ../include/links.rst
 """
 import numpy as np
 import scipy.ndimage
