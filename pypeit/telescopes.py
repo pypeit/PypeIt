@@ -57,7 +57,7 @@ class ShaneTelescopePar(TelescopePar):
 class WHTTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')
-        super(WHTTelescopePar, self).__init__(name='William Herschel Telescope',
+        super(WHTTelescopePar, self).__init__(name='WHT',
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
@@ -67,7 +67,7 @@ class WHTTelescopePar(TelescopePar):
 class INTTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')
-        super(INTTelescopePar, self).__init__(name='Isaac Newton Telescope',
+        super(INTTelescopePar, self).__init__(name='INT',
                                               longitude=loc.lon.to(units.deg).value,
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
