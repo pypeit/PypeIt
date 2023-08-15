@@ -886,6 +886,7 @@ class IRSensFunc(SensFunc):
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
                                                    resln_guess=self.par['IR']['resln_guess'],
                                                    resln_frac_bounds=self.par['IR']['resln_frac_bounds'],
+                                                   pix_shift_bounds=self.par['IR']['pix_shift_bounds'],
                                                    sn_clip=self.par['IR']['sn_clip'],
                                                    ntell=self.par['IR']['ntell'],
                                                    mask_hydrogen_lines=self.par['mask_hydrogen_lines'],
