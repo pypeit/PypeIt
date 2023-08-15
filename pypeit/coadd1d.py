@@ -274,7 +274,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
             else:
                 sn_smooth_npix = self.par['sn_smooth_npix']
             # Evaluate the sn_weights.
-            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, sn_smooth_npix=sn_smooth_npix, verbose=True)
+            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, sn_smooth_npix=sn_smooth_npix, verbose=False)
             # some stats
             mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
             _sigrej = self.par['sigrej_exp'] if self.par['sigrej_exp'] is not None else 10.0
