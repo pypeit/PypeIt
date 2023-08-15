@@ -160,7 +160,7 @@ def exclude_source_objects(source_objects, exclude_map, par):
               :class:`~pypeit.core.collate.SourceObject` with any excluded ones
               removed.
 
-                **excluded_messages** (:obj:`list`): A list of messages explaining why some source objects were excluded.
+            - **excluded_messages** (:obj:`list`): A list of messages explaining why some source objects were excluded.
     """
     filtered_objects = []
     excluded_messages= []

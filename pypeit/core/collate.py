@@ -73,7 +73,7 @@ class SourceObject:
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
         Args:
-            spec1d_files (list of :obj:`pypeit.specobjs.SpecObjs`): List of SpecObjs objects to build from.
+            specobjs_list (list of :obj:`pypeit.specobjs.SpecObjs`): List of SpecObjs objects to build from.
 
             spec1d_files (list of str): List of spec1d filenames corresponding to each SpecObjs object.
 
