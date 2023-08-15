@@ -1,4 +1,6 @@
 
+.. include:: ../include/links.rst
+
 .. _calibrations:
 
 ============

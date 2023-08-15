@@ -42,7 +42,7 @@
                             --det 1,5 3,7 (default: None)
       --only_slits ONLY_SLITS [ONLY_SLITS ...]
                             A space-separated set of slits to coadd. Example syntax
-                            -- --only_slits DET01:175,DET02:205 or MSC02:2234. If
+                            for argument is DET01:175,DET02:205 or MSC02:2234. If
                             not provided, all slits are coadded. If both --det and
                             --only_slits are provided, --det will be ignored. This
                             and --exclude_slits are mutually exclusive. If both are

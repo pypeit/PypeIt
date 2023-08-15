@@ -815,7 +815,7 @@ def get_archive_spectrum(sky_file):
             Sky file
 
     Returns:
-        tuple: The sky spectrum (`linetools.spectra.xspectrum1d.XSpectrum1D`)
+        tuple: The sky spectrum (`linetools.spectra.xspectrum1d.XSpectrum1D`_)
         and the FWHM (float) of the sky lines in pixels.
     """
     # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
@@ -858,7 +858,7 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
             extracted.  For example, DET01.
 
     Returns:
-        (`linetools.spectra.xspectrum1d.XSpectrum1D`): Sky spectrum
+        (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
     spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
     spec.trace_spec = np.arange(slits.nspec)
