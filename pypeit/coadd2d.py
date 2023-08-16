@@ -503,14 +503,14 @@ class CoAdd2D:
             if not np.any(ithis):
                 msgs.error('Slit/order or OBJID provided not valid. Optimal weights cannot be determined.')
             # check if OPT_COUNTS is available
-            if sobjs[ithis][0].has_opt_ext():
+            if sobjs[ithis][0].has_opt_ext() and np.any(sobjs[ithis][0].OPT_MASK):
                 wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_opt_ext()
                 waves.append(wave_iexp)
                 fluxes.append(flux_iexp)
                 ivars.append(ivar_iexp)
                 gpms.append(gpm_iexp)
             # check if BOX_COUNTS is available
-            elif sobjs[ithis][0].has_box_ext():
+            elif sobjs[ithis][0].has_box_ext() and np.any(sobjs[ithis][0].BOX_MASK):
                 wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = sobjs[ithis][0].get_box_ext()
                 waves.append(wave_iexp)
                 fluxes.append(flux_iexp)
@@ -967,11 +967,14 @@ class CoAdd2D:
             for iexp, spec_this in enumerate(self.stack_dict['specobjs_list']):
                 for spec in spec_this:
                     # NOTE: BOX extraction usage needed for quicklook
-                    waves.append(spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE)
-                    gpms.append(spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK)
-                    # TODO -- OPT_MASK is likely to become a bpm with int values
-                    #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
-                    #indx += 1
+                    good_opt_ext = spec.has_opt_ext() and np.any(spec.OPT_MASK)
+                    good_box_ext = spec.has_box_ext() and np.any(spec.BOX_MASK)
+                    if good_opt_ext or good_box_ext:
+                        waves.append(spec.OPT_WAVE if good_opt_ext else spec.BOX_WAVE)
+                        gpms.append(spec.OPT_MASK if good_opt_ext else spec.BOX_MASK)
+                        # TODO -- OPT_MASK is likely to become a bpm with int values
+                        #gpm[:self.nspec_array[iexp], indx] = spec.OPT_MASK
+                        #indx += 1
 
         return wvutils.get_wave_grid(waves=waves, gpms=gpms, wave_method=wave_method,
                                                                 spec_samp_fact=self.spec_samp_fact)
@@ -1433,19 +1436,21 @@ class MultiSlitCoAdd2D(CoAdd2D):
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
             for islit, spat_id in enumerate(spat_ids):
+                if len(sobjs) == 0:
+                    continue
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
                     fluxes, ivars, gpms = [], [], []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
-                        if spec.has_opt_ext():
+                        if spec.has_opt_ext() and np.any(spec.OPT_MASK):
                             _, flux_iobj, ivar_iobj, gpm_iobj = spec.get_opt_ext()
                             fluxes.append(flux_iobj)
                             ivars.append(ivar_iobj)
                             gpms.append(gpm_iobj)
                         # check if BOX_COUNTS is available
-                        elif spec.has_box_ext():
+                        elif spec.has_box_ext() and np.any(spec.BOX_MASK):
                             _, flux_iobj, ivar_iobj, gpm_iobj = spec.get_box_ext()
                             fluxes.append(flux_iobj)
                             ivars.append(ivar_iobj)
@@ -1730,10 +1735,10 @@ class EchelleCoAdd2D(CoAdd2D):
                     flux = None
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
                     # check if OPT_COUNTS is available
-                    if sobjs[ind][0].has_opt_ext():
+                    if sobjs[ind][0].has_opt_ext() and np.any(sobjs[ind][0].OPT_MASK):
                         _, flux, ivar, mask = sobjs[ind][0].get_opt_ext()
                     # check if BOX_COUNTS is available
-                    elif sobjs[ind][0].has_box_ext():
+                    elif sobjs[ind][0].has_box_ext() and np.any(sobjs[ind][0].BOX_MASK):
                         _, flux, ivar, mask = sobjs[ind][0].get_box_ext()
                         msgs.warn(f'Optimal extraction not available for object {sobjs[ind][0].ECH_OBJID} '
                                   f'in order {sobjs[ind][0].ECH_ORDER}. Using box extraction.')
