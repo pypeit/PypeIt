@@ -131,7 +131,7 @@ class History:
             elif file_objid == combined_files_objids:
                 self.append(f'PypeIt Coadded {len(file_objid)} objects '
                             f'from {np.unique([f[0] for f in file_objid]).size} spec1d files')
-            elif file_objid == combined_notcoadd_files_objids:
+            elif file_objid == combined_notcoadd_files_objids and len(file_objid) > 0:
                 self.append(f'PypeIt DID NOT COADD {len(file_objid)} objects '
                             f'from {np.unique([f[0] for f in file_objid]).size} spec1d files', add_date=False)
 
@@ -150,10 +150,17 @@ class History:
                     if additional_info is not None:
                         self.append(additional_info, add_date=False)
                 obj_info = objid
-                if 'MASKDEF_ID' in fits.getheader(spec1d, extname=objid):
-                    obj_info += f" {fits.getheader(spec1d, extname=objid)['MASKDEF_ID']}"
-                if 'MASKDEF_OBJNAME' in fits.getheader(spec1d, extname=objid):
-                    obj_info += f" {fits.getheader(spec1d, extname=objid)['MASKDEF_OBJNAME']}"
+                # get extension names
+                hnames = [h.name for h in fits.open(spec1d)]
+                # find the extension name that include objid
+                ind_ext = np.where([objid in h for h in hnames])[0]
+                # get the header for this extension
+                this_ext_header = fits.getheader(spec1d, ext=ind_ext[0])
+                if ind_ext.size > 0:
+                    if 'MASKDEF_ID' in this_ext_header:
+                        obj_info += f" {this_ext_header['MASKDEF_ID']}"
+                    if 'MASKDEF_OBJNAME' in this_ext_header:
+                        obj_info += f" {this_ext_header['MASKDEF_OBJNAME']}"
                 self.append(obj_info, add_date=False)
 
     def append(self, history, add_date=True):
