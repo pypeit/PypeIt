@@ -154,9 +154,9 @@ class History:
                 hnames = [h.name for h in fits.open(spec1d)]
                 # find the extension name that include objid
                 ind_ext = np.where([objid in h for h in hnames])[0]
-                # get the header for this extension
-                this_ext_header = fits.getheader(spec1d, ext=ind_ext[0])
                 if ind_ext.size > 0:
+                    # get the header for this extension
+                    this_ext_header = fits.getheader(spec1d, ext=ind_ext[0])
                     if 'MASKDEF_ID' in this_ext_header:
                         obj_info += f" {this_ext_header['MASKDEF_ID']}"
                     if 'MASKDEF_OBJNAME' in this_ext_header:
