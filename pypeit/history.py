@@ -106,7 +106,7 @@ class History:
         Args:
             spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
             objids (:obj:`list`): List of the PypeIt object ids used in coadding.
-            gpm_exp (:obj:`list`, optional): List of boolean indicating which exposures where coadded.
+            gpm_exp (:obj:`list`, optional): List of boolean indicating which exposures were coadded.
         """
 
         if gpm_exp is not None:
