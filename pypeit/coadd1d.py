@@ -84,7 +84,7 @@ class CoAdd1D:
         self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
-        self.gpm_exp = np.ones(self.nexp, dtype=bool)  # bool indicating the exposures that have been coadded
+        self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
 
     def run(self):
         """
