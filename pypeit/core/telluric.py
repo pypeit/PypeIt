@@ -1567,7 +1567,7 @@ def qso_telluric(spec1dfile, telgridfile, teltype, pca_file, z_qso, telloutfile,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1, ntell=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                 debug_init=False, debug=False, show=False):
+                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
     """
     Fit and correct a QSO spectrum for telluric absorption.
 
@@ -1686,7 +1686,8 @@ def qso_telluric(spec1dfile, telgridfile, teltype, pca_file, z_qso, telloutfile,
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_qso_model,
-                      eval_qso_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
+                      eval_qso_model, pix_shift_bounds=pix_shift_bounds,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1736,7 +1737,7 @@ def star_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, star_t
                   hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                  debug_init=False, debug=False, show=False):
+                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
     """
     This needs a doc string.
 
@@ -1793,7 +1794,8 @@ def star_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, star_t
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_star_model,
-                      eval_star_model, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
+                      eval_star_model, pix_shift_bounds=pix_shift_bounds,
+                      ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1841,8 +1843,8 @@ def poly_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, z_obj=
                   model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, ntell=4,
                   delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
-                  recombination=0.7, polish=True, disp=False, debug_init=False, debug=False,
-                  show=False):
+                  recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
+                  debug_init=False, debug=False, show=False):
     """
     This needs a doc string.
 
@@ -1891,7 +1893,8 @@ def poly_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, z_obj=
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_poly_model,
-                      eval_poly_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
+                      eval_poly_model, pix_shift_bounds=pix_shift_bounds,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
