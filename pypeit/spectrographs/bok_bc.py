@@ -171,7 +171,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             #platescale      = 15.0/18.0,
             platescale      = 0.2,
-            darkcurr        = 5.4,
+            darkcurr        = 5.4,  # e-/hour/unbinned pixel
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,

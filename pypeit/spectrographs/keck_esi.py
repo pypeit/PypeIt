@@ -64,7 +64,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             # plate scale in arcsec/pixel
             platescale      = 0.1542,
             # electrons/pixel/hour. 
-            darkcurr        = 2.10, # Could be updated
+            darkcurr        = 2.10, # e/pixel/hour... Note : Could be updated
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,
