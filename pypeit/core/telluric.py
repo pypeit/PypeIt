@@ -351,6 +351,7 @@ def conv_telluric(tell_model, dloglam, res):
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
     Routine to apply a shift to the telluric model. Note that the shift can be sub-pixel, i.e this routine interpolates.
+    Note that the shift units are pixels *of the telluric model*.
 
     Args:
         tell_model (`numpy.ndarray`_):
@@ -1519,7 +1520,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, teltype, obj_params,
                       init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function,
-                      ntell=ntell, ech_orders=ech_orders,
+                      ntell=ntell, ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
                       maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
