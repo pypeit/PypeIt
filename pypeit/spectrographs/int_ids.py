@@ -25,6 +25,8 @@ class INTIDSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.INTTelescopePar()
     url = 'https://www.ing.iac.es/astronomy/instruments/ids/'
+    supported = True
+    comment = 'Supported setups: R637V'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -228,6 +230,7 @@ class INTIDSBlueSpectrograph(INTIDSSpectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        msgs.error("The INT/IDS EEV10 detector is not currently supported. Please contact the developers.")
         # Detector 1
         detector_dict = dict(
             binning='1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning'),
@@ -252,84 +255,6 @@ class INTIDSBlueSpectrograph(INTIDSSpectrograph):
             oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
         )
         return detector_container.DetectorContainer(**detector_dict)
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
-        """
-        par = super().default_pypeit_par()
-
-        # par['flexure']['spectrum'] = 'sky_kastb_600.fits'
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-        par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
-
-        par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['n_first'] = 3
-        par['calibrations']['wavelengths']['match_toler'] = 2.5
-
-        # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
-        par['calibrations']['tilts']['spec_order'] = 5
-        par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
-        par['calibrations']['tilts']['maxdev2d'] = 0.02
-
-        return par
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
-        """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO: Should we allow the user to override these?
-
-        if self.get_meta_value(scifile, 'dispname') == '600/4310':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '452/3306':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-        else:
-            msgs.error("NEED TO ADD YOUR GRISM HERE!")
-        # Return
-        return par
-
-    def raw_header_cards(self):
-        """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
-
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
-
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
-        """
-        return ['GRISM_N', 'BSPLIT_N']
 
 
 class INTIDSRedSpectrograph(INTIDSSpectrograph):
@@ -365,14 +290,13 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
             Object with the detector metadata.
         """
         # Binning
-        # TODO: Could this be detector dependent??
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,
+            dataext         = 1,
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
@@ -384,53 +308,9 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.91]),
             ronoise         = np.atleast_1d([3.48]),
-            datasec         = None,
+            datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None
             )
-
-        if hdu is None:
-            return detector_container.DetectorContainer(**detector_dict)
-
-        # TODO: I don't know how to handle the stuff below for the
-        # auto-generated detector table...
-
-        # Parse datasec, oscancsec from the header
-        header = hdu[0].header
-        naxis1 = header['NAXIS1']
-        crval1u = header['CRVAL1U']
-        nover = header['COVER']
-
-        ndata = naxis1 - nover*2
-
-        x1_0 = 1             # Amp 1
-        x1_1 = 512 - crval1u
-        x2_0 = max(x1_1+1,1)       # Amp 2
-        x2_1 = ndata
-
-        xo1_1 = x2_1+1
-        xo1_2 = x2_1+nover
-        xo2_1 = xo1_2+1
-        xo2_2 = xo1_2+nover
-
-        # Allow for reading only Amp 2!
-        if x1_1 < 3:
-            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
-            detector_dict['numamplifiers'] = 1
-            detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
-            detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])
-            # These are rows, columns on the raw frame, 1-indexed
-            datasec = ['[:,{}:{}]'.format(x2_0,x2_1)]
-            oscansec = ['[:,{}:{}]'.format(xo2_1,xo2_2)]
-        else:
-            # These are rows, columns on the raw frame, 1-indexed
-            datasec = ['[:,{}:{}]'.format(x1_0, x1_1), 
-                    '[:,{}:{}]'.format(x2_0,x2_1)]
-            oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), 
-                        '[:,{}:{}]'.format(xo2_1,xo2_2)]
-
-        # Fill it up
-        detector_dict['datasec'] = np.atleast_1d(datasec)
-        detector_dict['oscansec'] = np.atleast_1d(oscansec)
 
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -445,8 +325,10 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
         """
         par = super().default_pypeit_par()
 
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        # No overscan region!
+        turn_off = dict(use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -470,22 +352,14 @@ class INTIDSRedSpectrograph(INTIDSSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
 
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
-        # if self.get_meta_value(scifile, 'dispname') == '300/7500':
-        #     # TODO -- Note in docs that a NoNe solution is available too
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-        #     # Add CdI
-        #     par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        # elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
-        #     par['calibrations']['wavelengths']['method'] = 'full_template'
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'blah.fits'
-        #     par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
-        # else:
-        #     par['calibrations']['wavelengths']['use_instr_flag'] = True
+        if self.get_meta_value(scifile, 'dispname') == 'R632V':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'int_ids_red_637V_5500.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
+        else:
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Return
         return par
