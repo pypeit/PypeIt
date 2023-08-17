@@ -192,7 +192,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     debug : bool, optional
         Passed to xcorr_shift
 
-
     Returns
     -------
     order_vec : `numpy.ndarray`_

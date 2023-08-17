@@ -57,16 +57,18 @@ def load_template(arxiv_file, det, wvrng=None):
     Parameters
     ----------
     arxiv_file : str
-        ???
+        File with archive spectrum
     det : int
-        ???
+        Detector number
     wvrng : list, optional
         min, max wavelength range for the arxiv
 
     Returns
     -------
     wave : ndarray
+        Wavelength vector
     flux : ndarray
+        Flux vector
     binning : int
         binning of the template arc spectrum
 

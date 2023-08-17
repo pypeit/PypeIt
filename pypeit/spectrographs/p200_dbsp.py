@@ -246,7 +246,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             specflip        = True,
             spatflip        = False, # check
             platescale      = 0.389,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 62./65.,
             mincounts       = -1e10, # cross-check
@@ -470,7 +470,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             specflip        = False,
             spatflip        = False, # check
             platescale      = 0.293,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 45000.,
             nonlinear       = 40./45.,
             mincounts       = -1e10, # check

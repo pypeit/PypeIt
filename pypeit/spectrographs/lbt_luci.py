@@ -288,7 +288,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             platescale      = 0.25,
             # Dark current nominally is < 360 electrons per hours
             # but the dark subtraction will effectively bring this to 0
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation      = 1e+8,
@@ -417,7 +417,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.25,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation=1e+8,

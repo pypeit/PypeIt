@@ -27,8 +27,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
 
     r"""
-    Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
-    for a single :class:`~pypeit.specobj.SpecObj`.
+    Perform optimal extraction `(Horne 1986)
+    <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`__ for a
+    single :class:`~pypeit.specobj.SpecObj`.
 
     The :class:`~pypeit.specobj.SpecObj` object is changed in place with optimal attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.

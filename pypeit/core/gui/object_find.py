@@ -91,7 +91,7 @@ class ObjectTraces:
             self.add_object(det, pos_spat, pos_spec, obj_dict['traces'][ii], spec_trace, obj_dict['fwhm'][ii], addrm=0)
 
     def add_object(self, det, pos_spat, pos_spec, trc_spat, trc_spec, fwhm, addrm=1):
-        """x
+        """
         Add an object trace
 
         Args:

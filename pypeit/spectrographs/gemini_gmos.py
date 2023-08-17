@@ -816,7 +816,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.080,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 129000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -833,7 +833,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.080,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 123000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -850,7 +850,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.080,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 125000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1049,7 +1049,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0807,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 129000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1066,7 +1066,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0807,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 123000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1083,7 +1083,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0807,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 125000.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1280,7 +1280,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0728,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 110900.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1297,7 +1297,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0728,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 115500.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
@@ -1314,7 +1314,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.0728,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 116700.,
             nonlinear       = 0.95,
             mincounts       = -1e10,
