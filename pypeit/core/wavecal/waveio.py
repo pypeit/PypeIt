@@ -187,7 +187,7 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
             lamps.append(line_file[i0+1:i1])
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
-    print(f"Arc lamps used: {', '.join(lamps)}")
+    #print(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
     #       will exit with msgs.error().
@@ -202,7 +202,8 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
         instr_dict = defs.instruments()
         gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
         line_lists = line_lists[gdI]
-
+    msgs.info(f"line lists joined: {(line_lists)}")
+    msgs.info(f"Unknown Flag: {unknown}")
     # Unknown
     if unknown:
         unkn_lines = load_unknown_list(lamps)

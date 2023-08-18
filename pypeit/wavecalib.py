@@ -570,7 +570,11 @@ class BuildWaveCalib:
             msgs.info("Finding the echelle orders")
             order_vec, wave_soln_arxiv, arcspec_arxiv = echelle.identify_ech_orders(
                 arccen, self.meta_dict['echangle'], self.meta_dict['xdangle'], self.meta_dict['dispname'],
-                angle_fits_file, composite_arc_file, pad=3, debug=False)
+                angle_fits_file, composite_arc_file, pad=0, debug=False)
+            # Padding should be a spectrograph-specific, or calibration-mode-specific quantity.
+            # Default was 3 from HIRES. Set to 0 for NIRSPEC testing.
+
+
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")

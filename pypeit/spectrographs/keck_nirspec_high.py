@@ -23,6 +23,10 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     camera = 'NIRSPEC'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
+    pypeline = 'Echelle'
+    ech_fixed_format = False
+    #supported = True
+    comment = 'see :doc:`keck_nirspec_high`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -45,7 +49,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             binning         ='1,1',  # No binning allowed
             dataext         = 0,
             specaxis        = 0,
-            specflip        = False,
+            specflip        = True,
             spatflip        = False,
             platescale      = 0.13,
             darkcurr        = 0.8,
@@ -75,15 +79,26 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 3.0
         par['calibrations']['wavelengths']['n_final']= 4
-        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC_OH']
+        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC-ArNeKrXe', 'ThAr']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['method'] = 'echelle'
+        par['calibrations']['wavelengths']['echelle'] = True
+        
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-        par['calibrations']['slitedges']['edge_thresh'] = 200.
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        #par['calibrations']['slitedges']['edge_thresh'] = 200.
+        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+        par['calibrations']['slitedges']['max_nudge'] = 10.
+        par['calibrations']['slitedges']['overlap'] = True
+        par['calibrations']['slitedges']['dlength_range'] = 0.25
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
@@ -164,6 +179,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
         self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
         self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
+        #self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
 
         # Lamps
@@ -222,6 +238,19 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys += ['comb_id', 'bkg_id']
         return pypeit_keys
 
+    def get_echelle_angle_files(self):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        angle_fits_file = 'keck_nirspec_j_angle_fits.fits'
+        composite_arc_file = 'keck_nirspec_j_composite_arc.fits'
+
+        return [angle_fits_file, composite_arc_file]
+
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -243,6 +272,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = fitstbl['hatch']#.data.astype(int)
+
+
         if ftype in ['science']:
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Open') \
                         & (fitstbl['idname'] == 'object')
