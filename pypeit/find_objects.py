@@ -952,6 +952,9 @@ class IFUFindObjects(MultiSlitFindObjects):
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
         self.initialize_slits(slits, initial=True)
+        # TODO :: REMOVE THE FOLLOWING TWO LINES
+        # np.save(f"{self.basename}_img_scale.fits", self.sciImg.img_scale)
+        # np.save(f"{self.basename}_base_var.fits", self.sciImg.base_var)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
