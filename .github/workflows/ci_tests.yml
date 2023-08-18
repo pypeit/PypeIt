@@ -31,7 +31,7 @@ jobs:
         python -m pip install --upgrade pip tox
     - name: Test with tox
       run: |
-        tox -e ${{ matrix.toxenv }}
+        tox -e ${{ matrix.python }}-${{ matrix.toxenv }}
     - name: Upload coverage to codecov
       if: "contains(matrix.toxenv, '-cov')"
       uses: codecov/codecov-action@v3
