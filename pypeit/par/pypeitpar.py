@@ -2137,12 +2137,12 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
-        defaults['resln_frac_bounds'] = (0.5,1.5)
+        defaults['resln_frac_bounds'] = (0.3,1.5)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
-                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'This range is in units of the resln_guess, so the (0.3, 1.5) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
-                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+                                     'bounds_resln = (0.3*resln_guess, 1.5*resln_guess)'
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)

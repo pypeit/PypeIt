@@ -1353,7 +1353,7 @@ def eval_poly_model(theta, obj_dict):
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, teltype, log10_blaze_function=None, ech_orders=None, polyorder=8, ntell=4,
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
-                      resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                      resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -2387,7 +2387,7 @@ class Telluric(datamodel.DataContainer):
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, teltype, obj_params, init_obj_model,
                  eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4,
-                 airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                 airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
                  recombination=0.7, polish=True, disp=False, sensfunc=False, debug=False):
