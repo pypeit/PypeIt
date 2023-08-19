@@ -85,13 +85,18 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         print(indx, order, order_vec)
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
-        for ic in range(angle_fits_params['ech_n_final'] + 1):
+        for ic in range(int(angle_fits_params['ech_n_final'] + 1)):
+            #print(fitting.evaluate_fit(
+            #    ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
+            #    ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax']))
             coeff_predict[ic] = fitting.evaluate_fit(
-                ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
+                ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
-
+        print('coeff_predict = ', coeff_predict)
+        print('xnspec = ', xnspec)
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
+        print('wave_soln_guess = ', wave_soln_guess[:,iord])
 
 
     return wave_soln_guess
