@@ -910,28 +910,32 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         # REMOVE for TESTING
         par['calibrations']['wavelengths']['rms_threshold'] = 1.
-        # par['calibrations']['wavelengths']['match_toler'] = 0.5
+        # par['calibrations']['wavelengths']['match_toler'] = 1.5
         # par['calibrations']['wavelengths']['sigdetect'] = 20.
         # par['calibrations']['wavelengths']['fwhm'] = 6.
         # par['calibrations']['wavelengths']['fwhm_fromlines'] = False
         # par['calibrations']['wavelengths']['n_first'] = 3
         # par['calibrations']['wavelengths']['n_final'] = 3
         # par['calibrations']['wavelengths']['nsnippet'] = 1
-        par['calibrations']['wavelengths']['method'] = 'full_template'
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_B300_5000_d680_ArCdHgKrNeXeZnFeAr.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B300_5000_d680_ArCdHgKrNeXeZnFeAr.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['n_first'] = 3
             par['calibrations']['wavelengths']['n_final'] = 2
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B400_3400_d560_ArCdHgNeZnFeAr.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 2
+            # par['calibrations']['wavelengths']['nsnippet'] = 1
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '600/4000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
-            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
-            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
+        # elif self.get_meta_value(scifile, 'dispname') == '600/4000':
+        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
+        #     par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
+        # elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
+        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
+        #     par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
