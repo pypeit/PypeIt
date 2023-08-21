@@ -25,7 +25,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     header_name = 'NIRSPEC'
     pypeline = 'Echelle'
     ech_fixed_format = False
-    #supported = True
+    #supported = False
+
     comment = 'see :doc:`keck_nirspec_high`'
 
     def get_detector_par(self, det, hdu=None):
