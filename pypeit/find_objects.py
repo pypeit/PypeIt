@@ -363,6 +363,7 @@ class FindObjects:
         skymask_init = self.create_skymask(sobjs_obj)
         # Global sky subtract now using the skymask defined by object positions
         initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit)
+
         # Second pass object finding on sky-subtracted image with updated sky
         # created after masking objects
         if not self.std_redux and not self.par['reduce']['findobj']['skip_second_find']:
@@ -483,7 +484,9 @@ class FindObjects:
 
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg = (0, 0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
+                      previous_sky=None, show_fit=False, show=False, 
+                      show_objs=False, objs_not_masked=False,
+                      reinit_bpm:bool=True):
         """
         Perform global sky subtraction, slit by slit
 
@@ -509,13 +512,18 @@ class FindObjects:
                 Set this to be True if there are objects on the slit/order that are not being masked
                 by the skymask. This is typically the case for the first pass sky-subtraction
                 before object finding, since a skymask has not yet been created.
+            reinit_bpm (:obj:`bool`, optional):
+                If True (default), the bpm is reinitialized to the initial bpm 
+                Should be False on the final run in case there was a failure
+                upstream and no sources were found in the slit/order
 
         Returns:
             `numpy.ndarray`_: image of the the global sky model
 
         """
         # reset bpm since global sky is run several times and reduce_bpm is here updated.
-        self.reduce_bpm = self.reduce_bpm_init.copy()
+        if reinit_bpm:
+            self.reduce_bpm = self.reduce_bpm_init.copy()
         # Prep
         global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
