@@ -31,7 +31,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     Child to handle Keck/KCWI specific code
 
     .. todo::
-        Need to apply spectral flexure and heliocentric correction to waveimg
+        * Need to apply spectral flexure and heliocentric correction to waveimg -- done?
+        * Copy fast_histogram code into PypeIt?
+        * Re-write flexure code with datamodel + implement spectral flexure QA in find_objects.py
+        * When making the datacube, add an option to apply a spectral flexure correction from a different frame?
+        * Write some detailed docs about the corrections that can be used when making a datacube
+        * Consider introducing a new method (par['flexure']['spec_method']) for IFU flexure corrections (see find-objects.py)
 
     """
     ndet = 1
@@ -104,7 +109,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         specflip        = specflip,
                         spatflip        = False,
                         platescale      = 0.145728,  # arcsec/pixel
-                        darkcurr        = None,  # <-- TODO : Need to set this
+                        darkcurr        = 1.0,  # e-/hour/unbinned pixel
                         mincounts       = -1e10,
                         saturation      = 65535.,
                         nonlinear       = 0.95,       # For lack of a better number!
@@ -340,6 +345,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
+
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -355,7 +365,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [0.01, None]
 #        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
 #        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
@@ -369,7 +379,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
-        par['scienceframe']['process']['use_specillum'] = False  # apply relative spectral illumination
+        par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
         par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
@@ -841,9 +851,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 the platescale will be used.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
-        msgs.info("Calculating the WCS")
+        msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
@@ -922,21 +932,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             crpix2 += off2
 
         # Create a new WCS object.
-        msgs.info("Generating KCWI WCS")
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
         w.wcs.radesys = 'FK5'
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
         # Insert the coordinate frame
-        w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
         w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
         w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
         w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
-        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
-        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
-
         return w
 
     def get_datacube_bins(self, slitlength, minmax, num_wave):

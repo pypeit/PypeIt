@@ -115,7 +115,7 @@ def binning2string(binspectral, binspatial):
     return '{0},{1}'.format(binspectral, binspatial)
 
 
-def parse_binning(binning):
+def parse_binning(binning:str):
     """
     Parse input binning into binspectral, binspatial
 
@@ -123,7 +123,7 @@ def parse_binning(binning):
     parsed directly from the Header.  The developer needs to react accordingly..
 
     Args:
-        binning (str, ndarray or tuple):
+        binning (str, `numpy.ndarray`_, tuple):
 
     Returns:
         tuple: binspectral, binspatial as integers

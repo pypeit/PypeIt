@@ -254,7 +254,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                               global_sky=global_sky, waveTilts=caliBrate.wavetilts,
                                               wv_calib=caliBrate.wv_calib,
                                               bkg_redux=bkg_redux, return_negative=bkg_redux, show=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts = extract.run()
+    skymodel, objmodel, ivarmodel, outmask, sobjs, waveimg, tilts, slits = extract.run()
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -304,7 +304,7 @@ def reduce(files, caliBrate, spectrograph, parset, bkg_files=None, show=False, s
                                            vel_corr=None,
                                            vel_type=parset['calibrations']['wavelengths']['refframe'],
                                            tilts=tilts,
-                                           slits=copy.deepcopy(caliBrate.slits),
+                                           slits=copy.deepcopy(slits),
                                            wavesol=caliBrate.wv_calib.wave_diagnostics(print_diag=False),
                                            maskdef_designtab=None)
         return spec2DObj, spec2DObj_bkg

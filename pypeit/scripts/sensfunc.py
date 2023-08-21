@@ -57,6 +57,15 @@ class SensFunc(scriptbase.ScriptBase):
                                  'provided but with .fits trimmed off if it is in the filename.')
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
+        parser.add_argument("-f", "--flatfile", type=str,
+                            help="R|Use the flat file for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --flatfile and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the flatfile there via e.g.:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
+                                 "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
+
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -93,6 +102,14 @@ class SensFunc(scriptbase.ScriptBase):
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
                        "\n")
+        if args.flatfile is not None and args.sens_file is not None:
+            msgs.error("It is not possible to set --flatfile and simultaneously use a .sens "
+                       "file via the --sens_file option. If you are using a .sens file set the "
+                       "flatfile there via:\n"
+                       "\n"
+                       "    [sensfunc]\n"
+                       "       flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
+                       "\n")
 
         if args.multi is not None and args.sens_file is not None:
             msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
@@ -103,21 +120,21 @@ class SensFunc(scriptbase.ScriptBase):
                        "              multi_spec_det = 3,7\n"
                        "\n")
 
-        # Determine the spectrograph
-        hdul = io.fits_open(args.spec1dfile)
-        spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
-        spectrograph_config_par = spectrograph.config_specific_par(hdul)
+        # Determine the spectrograph and generate the primary FITS header
+        with io.fits_open(args.spec1dfile) as hdul:
+            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+            spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
-        # Construct a primary FITS header that includes the spectrograph's
-        #   config keys for inclusion in the output sensfunc file
-        primary_hdr = io.initialize_header()
-        add_keys = (
-            ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
-            + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
-        )
-        for key in add_keys:
-            if key.upper() in hdul[0].header.keys():
-                primary_hdr[key.upper()] = hdul[0].header[key.upper()]
+            # Construct a primary FITS header that includes the spectrograph's
+            #   config keys for inclusion in the output sensfunc file
+            primary_hdr = io.initialize_header()
+            add_keys = (
+                ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+                + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
+            )
+            for key in add_keys:
+                if key.upper() in hdul[0].header.keys():
+                    primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 
@@ -133,6 +150,11 @@ class SensFunc(scriptbase.ScriptBase):
         # file since they cannot both be passed
         if args.algorithm is not None:
             par['sensfunc']['algorithm'] = args.algorithm
+
+        # If flatfile was provided override defaults. Note this does undo .sens
+        # file since they cannot both be passed
+        if args.flatfile is not None:
+            par['sensfunc']['flatfile'] = args.flatfile
 
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed

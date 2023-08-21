@@ -4,6 +4,7 @@ for one of the outputs of PypeIt
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
+
 """
 
 import numpy as np
@@ -31,7 +32,7 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
     """ Generate the plot
 
     Args:
-        image (np.ndarray):
+        image (`numpy.ndarray`_):
             Image of the slit to plot.
         chi_select (`numpy.ndarray`_):
             2D array of the chi value for a selected part of the slit.
@@ -39,7 +40,7 @@ def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
             Array of wavelength of spectral features to be plotted.
         line_names (`numpy.ndarray`_):
             Array of names of spectral features to be plotted.
-        lbda_1d (np.ndarray):
+        lbda_1d (`numpy.ndarray`_):
             1D array of the wavelength
         lbda_min (float):
             Minimum wavelength of the select pat of the slit
