@@ -129,7 +129,10 @@ class Messages:
             print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
-            self._log.write(clean_msg+'\n' if last else clean_msg)
+            try:
+                self._log.write(clean_msg+'\n' if last else clean_msg)
+            except Exception as error:
+                print('logging error, ', error)
 
     def _initialize_log_file(self, log=None):
         """

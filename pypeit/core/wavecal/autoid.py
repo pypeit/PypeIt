@@ -562,8 +562,28 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
+    '''
+    plt.figure(figsize=(14, 6))
+    tampl_slit = np.interp(detections, xrng, spec_cont_sub)
+    plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
+    plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
+    plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
+                     label='arxiv arc', linewidth=0.5)
+    plt.legend()
+    plt.show()
+    '''
+    
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
+        plt.figure(figsize=(14, 6))
+        tampl_slit = np.interp(detections, xrng, spec_cont_sub)
+        plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
+        plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
+        plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
+                        label='arxiv arc', linewidth=0.5)
+        plt.legend()
+        plt.show()
+
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
@@ -572,6 +592,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
+            print('Shift and stretch failed, success = ', success)
             continue
         # Estimate wcen and disp for this slit based on its shift/stretch relative to the archive slit
         disp[iarxiv] = disp_arxiv[iarxiv] / stretch_vec[iarxiv]
@@ -580,7 +601,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
         det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
         spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
-
+        
+        
+        debug_xcorr = True
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
             tampl_slit = np.interp(detections, xrng, spec_cont_sub)
@@ -637,6 +660,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 # If a match is found within 2 pixels, consider this a successful match
                 if pdiff[bstpx] < match_toler:
                     # Using the arxiv arc wavelength solution, search for the nearest line in the line list
+                    #msgs.info(f"wvdata and wvval: {wvdata}, {wvval_arxiv[bstpx]}")
                     bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
                     # This is a good wavelength match if it is within match_toler disperion elements
                     if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
@@ -662,7 +686,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
     patt_dict_slit['sigdetect'] = sigdetect
 
-
+    #debug_reid = True
     if debug_reid:
         plt.figure(figsize=(14, 6))
         # Plot a summary of the local x-correlation values for each line on each slit
@@ -2289,6 +2313,7 @@ class HolyGrail:
                     if pdiff[bstpx] < 2.0:
                         # Using the good slit wavelength solution, search for the nearest line in the line list
                         bstwv = np.abs(self._wvdata - wvval[bstpx])
+
                         # This is probably not a good match
                         if bstwv[np.argmin(bstwv)] > 2.0*disp_med:
                             continue
