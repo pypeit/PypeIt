@@ -54,8 +54,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             platescale      = 0.13,
             darkcurr        = 0.8,
-            saturation      = 100000.,
-            nonlinear       = 0.25,  # docs say linear to 90,000 but our flats are usually higher
+            saturation      = 100000000.,
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
             gain            = np.atleast_1d(3.01),

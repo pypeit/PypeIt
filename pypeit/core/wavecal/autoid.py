@@ -577,6 +577,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         plt.figure(figsize=(14, 6))
         tampl_slit = np.interp(detections, xrng, spec_cont_sub)
+        plt.plot(xrng, spec, color='green', drawstyle='steps-mid', label='input arc og',linewidth=1.0, zorder=10)
         plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
         plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
         plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
@@ -603,7 +604,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
         
         
-        debug_xcorr = True
+        #debug_xcorr = True
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
             tampl_slit = np.interp(detections, xrng, spec_cont_sub)
