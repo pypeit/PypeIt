@@ -141,9 +141,7 @@ def arc_fit_qa(waveFit,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, 
-                     transform=ax_spec.transAxes,
-                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+        fig.suptitle(title, fontsize='x-large', va='top')
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         if outfile is None:
