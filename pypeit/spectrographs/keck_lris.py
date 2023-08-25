@@ -762,7 +762,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.135,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -1140,7 +1140,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.135,
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,
@@ -1513,7 +1513,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             specflip=True,  
             spatflip=True,
             platescale=0.135,  # From the web page
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,
@@ -1762,7 +1762,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.21,  # TO BE UPDATED!!
-            darkcurr=0.0,
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,

@@ -18,8 +18,6 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
 from IPython import embed
 
@@ -430,30 +428,29 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
     Parameters
     ----------
     slit_cen : `numpy.ndarray`_
-            Trace down the center of the slit. Shape (nspec, nslits)
+        Trace down the center of the slit. Shape (nspec, nslits)
     slitmask : `numpy.ndarray`_
-            Image where pixel values identify its parent slit,
-            starting with 0. Pixels with -1 are not part of any slit.
-            Shape must match `arcimg`.
+        Image where pixel values identify its parent slit, starting with 0.
+        Pixels with -1 are not part of any slit.  Shape must match `arcimg`.
     arcimg : `numpy.ndarray`_
-            Image to extract the arc from. This should be an arcimage
-            or perhaps a frame with night sky lines. Shape (nspec, nspat)
+        Image to extract the arc from. This should be an arcimage or perhaps a
+        frame with night sky lines. Shape (nspec, nspat)
     gpm : `numpy.ndarray`_, optional
-            Input mask image with same shape as arcimg. Convention
-            True = good and False = bad. If None, all pixels are
-            considered good. Shape must match arcimg.
+        Input mask image with same shape as arcimg. Convention True = good and
+        False = bad. If None, all pixels are considered good. Shape must match
+        arcimg.
     box_rad : :obj:`float`, optional
-            Half-width of the boxcar (floating-point pixels) in the
-            spatial direction used to extract the arc.
+        Half-width of the boxcar (floating-point pixels) in the spatial
+        direction used to extract the arc.
     nonlinear_counts : :obj:`float`, optional
-            Values exceeding this input value are masked as bad.
+        Values exceeding this input value are masked as bad.
     slitIDs : :obj:`list`, optional
-            A list of the slit IDs to extract (if None, all slits will be extracted)
+        A list of the slit IDs to extract (if None, all slits will be extracted)
     slit_bpm: `numpy.ndarray`_, bool, optional
-            Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc spectra are filled with np.nan
-            for masked slits.
+        Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
+        spectra are filled with np.nan for masked slits.
     verbose : :obj:`bool`, optional
-            Print out verbose information?
+        Print out verbose information?
 
     Returns
     -------

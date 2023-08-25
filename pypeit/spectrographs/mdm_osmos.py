@@ -55,7 +55,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
             ysize           = 1.,
             platescale      = 0.273,
             mincounts       = -1e10,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             numamplifiers   = 4,

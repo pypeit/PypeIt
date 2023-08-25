@@ -295,7 +295,7 @@ Here is a screen shot from the GUI showing the
    :width: 70%
 
 This uses the `XSpecGUI
-<https://linetools.readthedocs.io/en/latest/xspecgui.html>`_ from the
+<https://linetools.readthedocs.io/en/latest/xspecgui.html>`__ from the
 `linetools`_ package.  With your mouse hovering over the window, type ``?`` to
 open a webpage with the set of available commands used to interact with the
 plot.  The spectrum can also be ingested into a `specutils.Spectrum1D`_ object

@@ -231,7 +231,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.197, # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -295,7 +295,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.35
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.60
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -623,7 +623,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.16, # average from order 17 and order 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -682,15 +682,14 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
         # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.2
+        par['calibrations']['wavelengths']['fwhm'] = 8.0
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
-        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        # TODO: the arxived solution is for 1x1 binning. It needs to be
-        # generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
@@ -700,7 +699,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-        #par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['qa_log'] = True
 
 
@@ -912,7 +910,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             specflip        = True,
             spatflip        = True,
             platescale      = 0.161, # average from order 14 and order 24, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 0.86,  
             mincounts       = -1e10,
@@ -956,7 +954,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.60 
+        # This is for 1x1
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.70 
+        par['calibrations']['wavelengths']['fwhm'] = 3.8
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'

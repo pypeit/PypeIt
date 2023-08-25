@@ -37,6 +37,9 @@
   files with many calibration groups.  Sequential numbers are reduced to a
   range; e.g., ``'0-1-2-3-4'`` becomes ``'0+4'`` and
   ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5+6-10+12-15-18+19'``
+- HIRES wavelength solution improvements galor
+- Added `redo_slits` option
+- Refactored ``load_line_lists()`` yet again!
 
 
 1.13.0 (2 June 2023)

@@ -15,3 +15,4 @@ archive:
 
 PypeIt will only work with the .fz format, so please
 ensure that you are only using data in this format.
+
