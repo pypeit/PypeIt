@@ -735,12 +735,13 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM map computation for masked slit {0:d}'.format(sl+1))
+            msgs.warn(f'Skipping masked slit {sl + 1}/{nslits}')
             # Assign it an empty PypeItFit object so that we can still write to file
             resmap[sl] = fitting.PypeItFit()
             continue
+        else:
+            msgs.info(f"Calculating spectral resolution of slit {sl + 1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
