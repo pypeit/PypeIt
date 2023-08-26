@@ -391,8 +391,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             lamps (:obj:`list`) : List used arc lamps
 
         """
-
-        return [f'{lamp}' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
+        lamps = [f'{lamp}' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
+        # sometimes the flat lamps keyword are set ON for arc frames, remove them to avoid crashes in wavecalib
+        flat_lamps = ['Halogen', '2H']
+        for fl in flat_lamps:
+            if fl in lamps:
+                lamps.remove(fl)
+        return lamps
 
     def get_rawimage(self, raw_file, det):
         """
