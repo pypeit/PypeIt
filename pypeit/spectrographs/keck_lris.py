@@ -888,7 +888,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['n_final'] = 2
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B600_4000_d560_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['sigdetect'] = 20.
             par['calibrations']['wavelengths']['n_final'] = 6
             par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
