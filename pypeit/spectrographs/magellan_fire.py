@@ -119,7 +119,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.18,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
             saturation      = 100000., # This is an arbitrary value.
             nonlinear       = 1.0, # high gain mode, low gain is 0.875
@@ -366,7 +366,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
             nonlinear       = 0.875,
             mincounts       = -1e10,

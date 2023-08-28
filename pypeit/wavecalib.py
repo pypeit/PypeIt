@@ -862,23 +862,25 @@ class BuildWaveCalib:
         Primarily a wrapper for :func:`pypeit.core.arc.fit2darc`,
         using data unpacked from the ``wv_calib`` dictionary.
 
-        Args:
-            wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
-                Wavelength calibration object
-            debug (:obj:`bool`, optional):
-                Show debugging info
-            skip_QA (:obj:`bool`, optional):
-                Flag to skip construction of the nominal QA plots.
+        Parameters
+        ----------
+        wv_calib : :class:`pypeit.wavecalib.WaveCalib`
+            Wavelength calibration object
+        debug : :obj:`bool`, optional
+            Show debugging info
+        skip_QA : :obj:`bool`, optional
+            Flag to skip construction of the nominal QA plots.
 
-        Returns:
-            tuple: 
-                - ``fit2ds``: a list of :class:`pypeit.fitting.PypeItFit`: objects 
-                containing information from 2-d fit.  Frequently a list of 1 fit.  
-                The main exception is for a mosaic when one sets ``echelle_separate_2d=True``.
-    
-                - ``dets``: a list of integers for the detector numbers.
-
-                - ``order_dets``: a list of integer lists providing list of the orders.
+        Returns
+        -------
+        fit2ds : list of :class:`pypeit.fitting.PypeItFit`
+            Contains information from 2-d fit.  Frequently a list of 1 fit.  The
+            main exception is for a mosaic when one sets
+            ``echelle_separate_2d=True``.
+        dets : list
+            List of integers for the detector numbers.
+        save_order_dets: list
+            List of integer lists providing list of the orders.
         """
         if self.spectrograph.pypeline != 'Echelle':
             msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')

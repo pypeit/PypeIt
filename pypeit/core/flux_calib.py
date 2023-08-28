@@ -1211,10 +1211,9 @@ def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_a
 
     Parameters
     ----------
-
     theta : `numpy.ndarray`_
         Parameter vector for the zeropoint model
-    func : ``__callable__``
+    func : callable
         Function for the zeropoint model from the set of available functions in
         :func:`~pypeit.core.fitting.evaluate_fit`.
     wave : `numpy.ndarray`_, shape = (nspec,)

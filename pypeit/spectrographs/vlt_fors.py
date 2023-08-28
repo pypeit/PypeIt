@@ -241,7 +241,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # These numbers are from the ESO FORS2 user manual at: 0
         # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
         # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
 
         # CHIP1
         detector_dict1 = dict(
@@ -252,7 +252,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 2.1,
+            darkcurr        = 2.1,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -272,7 +272,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 1.4,
+            darkcurr        = 1.4,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,

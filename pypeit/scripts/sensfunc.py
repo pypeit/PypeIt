@@ -63,7 +63,7 @@ class SensFunc(scriptbase.ScriptBase):
                                  "simultaneously use a .sens file with the --sens_file option. If "
                                  "you are using a .sens file, set the flatfile there via e.g.:\n\n"
                                  "F|    [sensfunc]\n"
-                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
                                  "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
 
         parser.add_argument("--debug", default=False, action="store_true",

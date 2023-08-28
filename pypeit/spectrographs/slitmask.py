@@ -102,7 +102,7 @@ class SlitMask:
     Attributes:
         corners (`numpy.ndarray`_):
             See above.
-        id (`numpy.ndarray`_):
+        slitid (`numpy.ndarray`_):
             See `slitid` above.
         mask (`numpy.ndarray`_):
             Mask bits selecting the type of slit.
@@ -1028,20 +1028,18 @@ def load_keck_deimoslris(filename:str, instr:str):
     for index in indices:
         for cdim in ['X', 'Y']:
             slit_list.append(hdu['BluSlits'].data[f'slit{cdim}{index}'])
-    slitmask = SlitMask(numpy.array(slit_list).T.reshape(-1,4,2),
-                                slitid=hdu['BluSlits'].data['dSlitId'],
-                                align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
-                                science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                onsky=numpy.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                hdu['DesiSlits'].data['slitDec'][indx],
-                                                hdu['DesiSlits'].data['slitLen'][indx],
-                                                hdu['DesiSlits'].data['slitWid'][indx],
-                                                slit_pas]).T,
-                                objects=objects,
-                                #object_names=hdu['ObjectCat'].data['OBJECT'],
-                                mask_radec=(hdu['MaskDesign'].data['RA_PNT'][0], 
-                                            hdu['MaskDesign'].data['DEC_PNT'][0]),
-                                posx_pa=posx_pa)
-    # Return
-    return slitmask
+
+    return SlitMask(numpy.array(slit_list).T.reshape(-1,4,2),
+                    slitid=hdu['BluSlits'].data['dSlitId'],
+                    align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                    science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                    onsky=numpy.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                       hdu['DesiSlits'].data['slitDec'][indx],
+                                       hdu['DesiSlits'].data['slitLen'][indx],
+                                       hdu['DesiSlits'].data['slitWid'][indx],
+                                       slit_pas]).T,
+                    objects=objects,
+                    mask_radec=(hdu['MaskDesign'].data['RA_PNT'][0], 
+                                hdu['MaskDesign'].data['DEC_PNT'][0]),
+                    posx_pa=posx_pa)
 

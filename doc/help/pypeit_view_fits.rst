@@ -35,9 +35,8 @@
       -h, --help           show this help message and exit
       --list               List the extensions only? (default: False)
       --proc               Process the image (i.e. orient, overscan subtract,
-                           multiply by gain) using pypeit.images.buildimage. Note
-                           det=mosaic will not work with this option (default:
-                           False)
+                           multiply by gain) using pypeit.images.buildimage.
+                           (default: False)
       --bkg_file BKG_FILE  FITS file to be subtracted from the image in file.--proc
                            must be set in order for this option to work. (default:
                            None)

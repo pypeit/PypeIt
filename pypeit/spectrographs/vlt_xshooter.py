@@ -231,7 +231,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.197, # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -627,7 +627,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.16, # average from order 17 and order 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -918,7 +918,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             specflip        = True,
             spatflip        = True,
             platescale      = 0.161, # average from order 14 and order 24, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 0.86,  
             mincounts       = -1e10,

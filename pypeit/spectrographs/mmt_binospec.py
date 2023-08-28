@@ -58,7 +58,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.24,
-                            darkcurr        = 3.0, #ToDO: To Be update
+                            darkcurr        = 3.6,  #e-/pixel/hour  (=0.001 e-/pixel/s)  --  pulled from the ETC
                             saturation      = 65535.,
                             nonlinear       = 0.95,  #ToDO: To Be update
                             mincounts       = -1e10,
