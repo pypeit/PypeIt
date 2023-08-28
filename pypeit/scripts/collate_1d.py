@@ -124,7 +124,7 @@ def find_slits_to_exclude(spec2d_files, par):
     exclude_map = dict()
     for spec2d_file in spec2d_files:
 
-        allspec2d = AllSpec2DObj.from_fits(spec2d_file)
+        allspec2d = AllSpec2DObj.from_fits(spec2d_file, chk_version=par['collate1d']['chk_version'])
         for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
             for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
                 for flag in exclude_flags:
@@ -160,9 +160,7 @@ def exclude_source_objects(source_objects, exclude_map, par):
               :class:`~pypeit.core.collate.SourceObject` with any excluded ones
               removed.
 
-            - **missing_archive_msgs** (:obj:`list`): A list of messages
-              explaining why some source objects were excluded.
-
+            - **excluded_messages** (:obj:`list`): A list of messages explaining why some source objects were excluded.
     """
     filtered_objects = []
     excluded_messages= []
@@ -195,20 +193,71 @@ def exclude_source_objects(source_objects, exclude_map, par):
             excluded_messages.append(msg)
             continue
 
-        if par['coadd1d']['ex_value'] == 'OPT' and sobj.OPT_COUNTS is None:
-            msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS. Consider changing ex_value to "BOX".'
-            msgs.warn(msg)
-            excluded_messages.append(msg)
-            continue
+        if par['coadd1d']['ex_value'] == 'OPT':
+            msg = None
+            if sobj.OPT_COUNTS is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS. Consider changing ex_value to "BOX".'
+            elif sobj.OPT_MASK is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_MASK. Consider changing ex_value to "BOX".'
+            else:
+                if len(sobj.OPT_COUNTS[sobj.OPT_MASK]) == 0:
+                    msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of OPT_COUNTS was masked out. Consider changing ex_value to "BOX".'
+            
+            if msg is not None:
+                msgs.warn(msg)
+                excluded_messages.append(msg)
+                continue
 
-        if par['coadd1d']['ex_value'] == 'BOX' and sobj.BOX_COUNTS is None:
-            msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_COUNTS. Consider changing ex_value to "OPT".'
-            msgs.warn(msg)
-            excluded_messages.append(msg)
-            continue
+        if par['coadd1d']['ex_value'] == 'BOX':
+            msg = None
+            if sobj.BOX_COUNTS is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_COUNTS. Consider changing ex_value to "OPT".'
+            elif sobj.BOX_MASK is None:
+                msg = f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_MASK. Consider changing ex_value to "OPT".'
+            else:
+                if len(sobj.BOX_COUNTS[sobj.BOX_MASK]) == 0:
+                    msg = f'Excluding {sobj.NAME} in {spec1d_file} because all of BOX_COUNTS was masked out. Consider changing ex_value to "OPT".'
+
+            if msg is not None:
+                msgs.warn(msg)
+                excluded_messages.append(msg)
+                continue
 
         filtered_objects.append(source_object)
     return (filtered_objects, excluded_messages)
+
+def read_spec1d_files(par, spec1d_files, failure_msgs):
+    """
+    Read spec1d files.
+
+    Args:
+        par (`obj`:pypeit.par.pypeitpar.PypeItPar): 
+            Parameters for collating, fluxing, and coadding.
+        spec1d_files (list of str):
+            List of spec1d files to read.
+        failure_msgs(list of str):
+            Return parameter describing any failures that occurred when reading.
+
+    Returns:
+        list of str: The SpecObjs objects that were successfully read.
+        list of str: The spec1d files that were successfully read.
+    """
+    
+    specobjs_list = []
+    good_spec1d_files = []
+    for spec1d_file in spec1d_files:
+        try:
+            sobjs = SpecObjs.from_fitsfile(spec1d_file, chk_version = par['collate1d']['chk_version'])
+            specobjs_list.append(sobjs)
+            good_spec1d_files.append(spec1d_file)
+        except Exception as e:
+            formatted_exception = traceback.format_exc()
+            msgs.warn(formatted_exception)
+            msgs.warn(f"Failed to read {spec1d_file}, skipping it.")
+            failure_msgs.append(f"Failed to read {spec1d_file}, skipping it.")
+            failure_msgs.append(formatted_exception)
+
+    return specobjs_list, good_spec1d_files
 
 def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
     """
@@ -251,7 +300,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
         # Flux calibrate the spec1d file
         try:
             msgs.info(f"Running flux calibrate on {spec1d_file}")
-            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'])
+            FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'], chk_version=par['collate1d']['chk_version'])
             flux_calibrated_files.append(spec1d_file)
 
         except Exception:
@@ -374,6 +423,9 @@ def coadd(par, coaddfile, source):
     # Set destination file for coadding
     par['coadd1d']['coaddfile'] = coaddfile
     
+    # Whether to be forgiving of data model versions
+    par['coadd1d']['chk_version'] = par['collate1d']['chk_version']
+
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
@@ -555,6 +607,9 @@ def build_parameters(args):
     if args.refframe is not None:
         params['collate1d']['refframe'] = args.refframe
 
+    if args.chk_version is True:
+        params['collate1d']['chk_version'] = True
+
     return params, spectrograph, spec1d_files
 
 def create_report_archive(par):
@@ -578,8 +633,8 @@ def create_report_archive(par):
     COADDED_SPEC1D_HEADER_KEYS  = ['DISPNAME', 'DECKER',   'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PROGPI', 'SEMESTER', 'PROGID']
     COADDED_SPEC1D_COLUMN_NAMES = ['dispname', 'slmsknam', 'binning', 'mjd', 'airmass', 'exptime','guidfwhm', 'progpi', 'semester', 'progid']
 
-    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'S2N', 'MASKDEF_EXTRACT', 'WAVE_RMS']
-    COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 's2n',     'maskdef_extract', 'wave_rms']
+    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'MASKDEF_OBJMAG', 'MASKDEF_OBJMAG_BAND', 'S2N', 'MASKDEF_EXTRACT', 'WAVE_RMS']
+    COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 'maskdef_objmag', 'maskdef_objmag_band', 's2n', 'maskdef_extract', 'wave_rms']
 
     report_names = ['filename'] + \
                    COADDED_SOBJ_COLUMN_NAMES + \
@@ -637,6 +692,8 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|                        value are skipped, else all wavelength rms values are accepted.\n'
                                  'F|  refframe              Perform reference frame correction prior to coadding.\n'
                                 f'F|                        Options are {pypeitpar.WavelengthSolutionPar.valid_reference_frames()}. Defaults to None.\n'
+                                 'F|  chk_version           If true, spec1ds and archival sensfuncs must match the currently\n'
+                                 'F|                        supported versions. If false (the default) version numbers are not checked.\n'
                                  '\n'
                                  'F|spec1d read\n'
                                  'F|<path to spec1d files, wildcards allowed>\n'
@@ -663,6 +720,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
+        parser.add_argument('--chk_version', action = 'store_true', help=blank_par.descr['chk_version'])
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename collate_1d_YYYYMMDD-HHMM.log')
@@ -733,12 +791,14 @@ class Collate1D(scriptbase.ScriptBase):
 
             refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
 
+        # Read in the spec1d files        
+        specobjs_to_coadd, spec1d_files = read_spec1d_files(par, spec1d_files, spec1d_failure_msgs)
+
         # Build source objects from spec1d file, this list is not collated 
-        source_objects = SourceObject.build_source_objects(spec1d_files,
+        source_objects = SourceObject.build_source_objects(specobjs_to_coadd, spec1d_files,
                                                            par['collate1d']['match_using'])
 
-        # Filter based on the coadding ex_value, and the exclude_serendip 
-        # boolean
+        # Filter out unwanted SpecObj objects based on parameters 
         (objects_to_coadd, excluded_obj_msgs) = exclude_source_objects(source_objects, exclude_map, par)
 
         # Collate the spectra

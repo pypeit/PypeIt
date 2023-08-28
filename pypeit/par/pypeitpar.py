@@ -54,8 +54,6 @@ To add an entirely new parameter set, use one of the existing parameter
 sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
@@ -1396,7 +1394,7 @@ class CubePar(ParSet):
         defaults['align'] = False
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
-                         'whitelight images with either a reference image (see `reference_image`) or the whitelight ' \
+                         'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
                          'image that is generated using the first spec2d listed in the coadd3d file.'
 
         defaults['combine'] = False
@@ -1409,7 +1407,7 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of ' \
                                    'the combined datacube. If combine=False, the output filenames will be ' \
-                                   'prefixed with "spec3d_*"'
+                                   'prefixed with ``spec3d_*``'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str
@@ -2508,7 +2506,7 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slit=None, qa_log=None):
+                 ech_separate_2d=None, redo_slits=None, qa_log=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2696,10 +2694,11 @@ class WavelengthSolutionPar(ParSet):
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = [float, list, np.ndarray]
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
-                                 'single number or a list/array providing the value for each slit. ' \
-                                 'Only used if ``method`` is either \'holy-grail\' or \'reidentify\''
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
+                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
+                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
+                                     
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2754,8 +2753,8 @@ class WavelengthSolutionPar(ParSet):
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
-        dtypes['redo_slit'] = int
-        descr['redo_slit'] = 'Redo the input slit (multslit) or order (echelle)'
+        dtypes['redo_slits'] = [int, list]
+        descr['redo_slits'] = 'Redo the input slit(s) [multislit] or order(s) [echelle]'
 
         defaults['qa_log'] = True
         dtypes['qa_log'] = bool
@@ -2783,8 +2782,8 @@ class WavelengthSolutionPar(ParSet):
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
-                   'refframe', 'nsnippet', 'use_instr_flag',
-                   'wvrng_arxiv', 'redo_slit', 'qa_log']
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
+                   'redo_slits', 'qa_log']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4848,7 +4847,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None, chk_version=False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4927,6 +4926,10 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
+        defaults['chk_version'] = False
+        dtypes['chk_version'] = bool
+        descr['chk_version'] = "Whether to check the data model versions of spec1d files and sensfunc files."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4938,7 +4941,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe', 'chk_version']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

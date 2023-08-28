@@ -64,7 +64,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             # plate scale in arcsec/pixel
             platescale      = 0.1542,
             # electrons/pixel/hour. 
-            darkcurr        = 2.10, # Could be updated
+            darkcurr        = 2.10, # e/pixel/hour... Note : Could be updated
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,
@@ -90,7 +90,11 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # This is for 1x1
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30   
+        par['calibrations']['wavelengths']['fwhm'] = 2.9
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'NeI', 'HgI', 'XeI', 'ArII']
 

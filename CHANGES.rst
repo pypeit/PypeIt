@@ -1,5 +1,5 @@
-1.13.1dev (6 June 2023)
-------------------------
+1.13.1dev
+---------
 
 - Add support for Gemini/GNIRS (IFU)
 - Added a script to convert a wavelength solution into something that can be placed in the reid archive.
@@ -33,6 +33,13 @@
     - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
     - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
     - Fix wrong RA & Dec for 2D coadded serendips
+- Changed calibration frame naming as an attempt to avoid very long names for
+  files with many calibration groups.  Sequential numbers are reduced to a
+  range; e.g., ``'0-1-2-3-4'`` becomes ``'0+4'`` and
+  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5+6-10+12-15-18+19'``
+- HIRES wavelength solution improvements galor
+- Added `redo_slits` option
+- Refactored ``load_line_lists()`` yet again!
 
 
 1.13.0 (2 June 2023)
