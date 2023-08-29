@@ -496,7 +496,7 @@ def fetch_remote_file(
     remote_host: str='github',
     install_script: bool=False,
     force_update: bool=False,
-    full_url: bool=None,
+    full_url: str=None,
 ) -> pathlib.Path:
     """Use ``astropy.utils.data`` to fetch file from remote or cache
 
