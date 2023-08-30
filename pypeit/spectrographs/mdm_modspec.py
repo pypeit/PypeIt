@@ -82,7 +82,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             specflip        = True,     # Wavelength decreases as pixel number increases
             spatflip        = False,    # Spatial position increases as pixel number increases
             platescale      = 0.28,     # Arcsec / pixel
-            darkcurr        = 0.0,      # Electrons per hour
+            darkcurr        = 0.0,      # e-/pixel/hour
             saturation      = 65535.,   # 16-bit ADC
             nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,

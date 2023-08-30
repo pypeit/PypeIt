@@ -35,7 +35,6 @@
 .. scipy
 .. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
 .. _scipy.optimize.leastsq: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.leastsq.html
-.. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
 .. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
@@ -155,3 +154,5 @@
 .. _L.A.Cosmic: http://www.astro.yale.edu/dokkum/lacosmic/
 .. _van Dokkum (2001, PASP, 113, 1420): https://ui.adsabs.harvard.edu/abs/2001PASP..113.1420V/abstract
 .. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/
+
+

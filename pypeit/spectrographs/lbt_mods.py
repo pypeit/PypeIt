@@ -299,7 +299,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -463,7 +463,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -620,7 +620,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -782,7 +782,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,

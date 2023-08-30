@@ -28,13 +28,13 @@ during reductions (see :ref:`2d_combine`).
         ``1800``, ``1800``, ``1800``, and ``1200`` seconds, the exposure
         time of the coadded frame will be:
 
-        .. code-block:: ini
+        .. code-block:: python
 
             coadd_exptime = np.percentile([1800,1800,1800,1200],50, method='higher')
 
         and the flux of the individual frames will be rescaled by:
 
-        .. code-block:: ini
+        .. code-block:: python
 
             rescale_factor = coadd_exptime / exptime
 

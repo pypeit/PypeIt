@@ -837,7 +837,7 @@ class Calibrations:
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
             # Return
-            if self.par['wavelengths']['redo_slit'] is None:
+            if self.par['wavelengths']['redo_slits'] is None:
                 return self.wv_calib
 
         # Determine lamp list to use for wavecalib
@@ -863,7 +863,9 @@ class Calibrations:
         self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
                                       prev_wvcalib=self.wv_calib)
         # If orders were found, save slits to disk
-        if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+        #   or if redo_slits
+        if (self.par['wavelengths']['redo_slits'] is not None) or (
+            self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format):
             self.slits.to_file()
         # Save calibration frame
         self.wv_calib.to_file()

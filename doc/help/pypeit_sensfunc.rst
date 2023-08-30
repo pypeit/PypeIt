@@ -69,7 +69,7 @@
                             the flatfile there via e.g.:
                              
                                 [sensfunc]
-                                     flatfile = Calibrations/Flat_A_0_DET01.fits'
+                                     flatfile = Calibrations/Flat_A_0_DET01.fits
                              
                             Where Flat_A_0_DET01.fits is the flat file in your
                             Calibrations directory

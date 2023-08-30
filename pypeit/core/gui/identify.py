@@ -275,11 +275,7 @@ class Identify:
         detns = tdetns[icut]
 
         # Load line lists
-        if 'ThAr' in lamps:
-            line_lists_all = waveio.load_line_lists(lamps)
-            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        else:
-            line_lists = waveio.load_line_lists(lamps)
+        line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
         # Trim the wavelength scale if requested
         if wavelim is not None:
