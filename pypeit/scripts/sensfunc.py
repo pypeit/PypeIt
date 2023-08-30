@@ -4,7 +4,6 @@ Script to determine the sensitivity function for a PypeIt 1D spectrum.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import argparse
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -66,8 +65,7 @@ class SensFunc(scriptbase.ScriptBase):
                                  "F|    [sensfunc]\n"
                                  "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
                                  "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
-        parser.add_argument("--telgridfile", type=str, help=argparse.SUPPRESS)
-        parser.add_argument("--polyorder", type=int, help=argparse.SUPPRESS)
+
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -155,17 +153,6 @@ class SensFunc(scriptbase.ScriptBase):
         # file since they cannot both be passed
         if args.flatfile is not None:
             par['sensfunc']['flatfile'] = args.flatfile
-
-        # If telgridfile was provided override defaults.  Note this does undo .sens
-        # file since they cannot both be passed
-        if args.telgridfile is not None:
-            par['sensfunc']['IR']['telgridfile'] = args.telgridfile
-
-        # If polyorder was provided override defaults.  Note this does undo .sens
-        # file since they cannot both be passed
-        if args.polyorder is not None:
-            par['sensfunc']['polyorder'] = args.polyorder
-            par['sensfunc']['IR']['polyorder'] = args.polyorder
 
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed
