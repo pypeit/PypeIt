@@ -70,10 +70,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
         # different solution given that this is binned data and most of
         # the data in the dev suite is unbinned.
-        # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
-        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 6
+        # lris alignment boxes are typically 4 arcsec long
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.1
         # Remove slits that are too short
-        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 3.5
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
@@ -133,6 +133,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             if self.name == 'keck_lris_red':
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
+        # Wave FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
@@ -897,11 +901,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B1200_3400_d560_ArCdHgNeZn.fits'
             par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
 
-        # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
-
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
         #   It is primarily on the upper half of the detector (usually)
@@ -1328,11 +1327,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             objlim = 0.5
             par['scienceframe']['process']['sigclip'] = sigclip
             par['scienceframe']['process']['objlim'] = objlim
-
-        # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '150/7500':
