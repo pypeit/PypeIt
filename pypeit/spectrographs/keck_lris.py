@@ -855,6 +855,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Allow for longer exposure times on blue side (especially if using the Dome lamps)
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
         par['calibrations']['traceframe']['exprng'] = [None, 300]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 300]
 
         return par
 
