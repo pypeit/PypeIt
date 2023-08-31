@@ -791,20 +791,20 @@ def convolve_fft(img, kernel, msk):
 
     .. note::
         For images following the PypeIt convention, this smooths the
-        data spectrally for each spatial position.
+        data in the spectral direction for each spatial position.
 
     Args:
         img (`numpy.ndarray`_):
-            Image to convolve.
+            Image to convolve, shape = (nspec, nspat)
         kernel (`numpy.ndarray`_):
             1D kernel to use when convolving the image in the spectral direction
         msk (`numpy.ndarray`_):
             Mask of good pixels (True=good pixel). This should ideally be a slit mask,
             where a True value represents a pixel on the slit, and a False value is a
-            pixel that is not on the slit.
+            pixel that is not on the slit. Image shape should be the same as img
 
     Returns:
-        `numpy.ndarray`_: The convolved image
+        `numpy.ndarray`_: The convolved image, same shape as the input img
     """
     nspec = img.shape[0]
     kernsize = kernel.size

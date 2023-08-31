@@ -1128,13 +1128,13 @@ class IFUFindObjects(MultiSlitFindObjects):
 
          Args:
              input_img (`numpy.ndarray`_):
-                 The science frame
+                 The science frame, shape = nspec, nspat
              fwhm_map (`numpy.ndarray`_):
                  An array (same shape as input_img), that specifies the FWHM at every pixel
                  in the image.
              thismask (`numpy.ndarray`_):
-                 A mask (True = good) of the detector pixels that fall in a slit,
-                 and have a measured FWHM.
+                 A boolean mask (True = good), same shape as input_img, of the detector pixels
+                 that fall in a slit and have a measured FWHM.
              subpixel (int, optional):
                  Divide each pixel into this many subpixels to improve the accuracy of the
                  convolution (a higher number gives a more accurate result, at the expense
@@ -1143,7 +1143,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                  Number of grid points that will be used to evaluate the convolved image.
 
         Returns:
-            `numpy.ndarray`_: The convolved input image.
+            `numpy.ndarray`_: The convolved input_img, same shape as input_img.
         """
         fwhm_to_sig = 2 * np.sqrt(2 * np.log(2))
         # Make a subpixellated input science image
