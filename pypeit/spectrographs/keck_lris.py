@@ -70,10 +70,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
         # different solution given that this is binned data and most of
         # the data in the dev suite is unbinned.
-        # lris alignment boxes are typically 4 arcsec long
-        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.1
+        # lris alignment boxes are typically 4 arcsec
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 5.
         # Remove slits that are too short
-        par['calibrations']['slitedges']['minimum_slit_length'] = 3.5
+        par['calibrations']['slitedges']['minimum_slit_length'] = 3.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
