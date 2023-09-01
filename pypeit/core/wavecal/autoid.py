@@ -561,6 +561,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     disp = np.zeros(narxiv)
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
+    stretch2_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     '''
     plt.figure(figsize=(14, 6))
@@ -575,6 +576,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
+        '''
+        show arxiv arc vs data arc
         plt.figure(figsize=(14, 6))
         tampl_slit = np.interp(detections, xrng, spec_cont_sub)
         plt.plot(xrng, spec, color='green', drawstyle='steps-mid', label='input arc og',linewidth=1.0, zorder=10)
@@ -584,24 +587,24 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                         label='arxiv arc', linewidth=0.5)
         plt.legend()
         plt.show()
-
+        '''
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
-        success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
+        success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
             wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
-                                        debug=debug_xcorr)
+                                        debug=debug_xcorr, percent_ceil=99.9)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
-            print('Shift and stretch failed, success = ', success)
+            msgs.warn(f'Shift and stretch failed, success = {success}')
             continue
         # Estimate wcen and disp for this slit based on its shift/stretch relative to the archive slit
         disp[iarxiv] = disp_arxiv[iarxiv] / stretch_vec[iarxiv]
         wcen[iarxiv] = wvc_arxiv[iarxiv] - shift_vec[iarxiv]*disp[iarxiv]
         # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
-        det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
-        spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
+        det_arxiv_ss = this_det_arxiv**2*stretch2_vec[iarxiv] + this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
+        spec_arxiv_ss = wvutils.shift_and_stretch2(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv])
         
         
         #debug_xcorr = True
@@ -1314,6 +1317,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     wv_calib = {}
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
+    #debug_all = True
     for iord in range(norders):
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
@@ -1321,6 +1325,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         if iord not in ok_mask:
             wv_calib[str(iord)] = None
             continue
+        msgs.newline()
+        msgs.info('------------------------------------------------------------------------')
         msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
@@ -1342,8 +1348,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         if not all_patt_dict[str(iord)]['acceptable']:
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
+            msgs.warn('No acceptable reidentification solution found!')
             continue
-
+        #msgs.info(f"Using {len(wv_calib[str(iord)]['pixel_fit'])} lines in the fit")
+        msgs.info(f'Performing final fit for order {orders[iord]}')
         n_final = wvutils.parse_param(par, 'n_final', iord)
         final_fit = wv_fitting.fit_slit(
             spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
@@ -1353,10 +1361,11 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             sigrej_first=par['sigrej_first'], 
             n_final=n_final, 
             sigrej_final=par['sigrej_final'])
-
+        msgs.info(f"Number of lines used in fit: {len(final_fit['pixel_fit'])}")
         # Did the fit succeed?
         if final_fit is None:
             # This pattern wasn't good enough
+            msgs.warn(f'Final fit failed! Unable to calibrate slit {iord}')
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
             continue
@@ -1414,6 +1423,7 @@ def report_final(nslits, all_patt_dict, detections,
             'Final report for slit {0:d}/{1:d}:'.format(slit+1, nslits) + msgs.newline()
         if orders is not None:
             badmsg += f'    Order: {orders[slit]}' + msgs.newline()
+            #badmsg +=  '  Number of lines detected      = {:d}'.format(detections[str(slit)].size) + msgs.newline() 
         badmsg +=  '  Wavelength calibration not performed!'
         # Redo?
         if redo_slits is not None and orders[slit] not in redo_slits:

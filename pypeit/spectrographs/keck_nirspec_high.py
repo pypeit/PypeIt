@@ -78,20 +78,27 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 3.0
+        par['calibrations']['wavelengths']['fwhm_fromlines']= False
         par['calibrations']['wavelengths']['n_final']= 4
-        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC-ArNeKrXe', 'ThAr']
+        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC-ArNeKrXe']#, 'ThAr']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'echelle'
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.70
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['ech_separate_2d'] = False
+
         
-        # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-        #par['calibrations']['slitedges']['edge_thresh'] = 200.
-        #par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        # Trace ID parameters
+        par['calibrations']['slitedges']['edge_thresh'] = 50.0
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
@@ -246,9 +253,30 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         Returns:
             list: List of files
         """
-        angle_fits_file = 'keck_nirspec_j_angle_fits.fits'
-        composite_arc_file = 'keck_nirspec_j_composite_arc.fits'
-
+        print('Filter being used is: ', self.filter1)
+        '''
+        print('lamp selection = ', par['calibrations']['wavelengths']['lamps'])
+        if 'Xe' in par['calibrations']['wavelengths']['lamps']:
+            print('Using Arclamps probably')
+            if self.filter1 == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_j_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_composite_arc.fits'
+            if self.filter1 == 'Kband-new':
+                angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+        elif 'OH' in par['calibrations']['wavelengths']['lmaps']:
+            print('Using OH Lines')
+            if self.filter1 == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+        '''
+        angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+        composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+        angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+        composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+    
         return [angle_fits_file, composite_arc_file]
 
 
@@ -336,6 +364,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat06'] == 'On'
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+    #def filter(self, fitstbl):
+
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -454,6 +485,9 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # mosaic
         headarr = self.get_headarr(hdu)
 
+        # save filter being used:
+        self.filter1 = self.get_meta_value(headarr, 'filter1')
+
         # Exposure time (used by RawImage)
         # NOTE: This *must* be (converted to) seconds.
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -539,5 +573,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_high'
     supported = True
     comment = 'High-dispersion grating'
+    filter1 = ''
+    arc_or_sky = 'arc'
 
 
