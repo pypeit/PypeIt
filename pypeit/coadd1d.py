@@ -263,18 +263,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         # check if there is still more than 1 exposure left
         if len(_fluxes) < 2:
-            msgs.error('At least 2 exposures are required for coadding.')
+            msgs.error('At least 2 unmasked exposures are required for coadding.')
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
-            # set sn_smooth_npix if not provided
-            if self.par['sn_smooth_npix'] is None:
-                # same as in coadd.multi_combspec()
-                sn_smooth_npix = int(np.round(0.1 * (np.sum([np.sum(wave > 1.0) for wave in _waves]) / self.nexp)))
-            else:
-                sn_smooth_npix = self.par['sn_smooth_npix']
             # Evaluate the sn_weights.
-            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, sn_smooth_npix=sn_smooth_npix, verbose=False)
+            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, const_weights=True)
             # some stats
             mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
             _sigrej = self.par['sigrej_exp'] if self.par['sigrej_exp'] is not None else 10.0
