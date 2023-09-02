@@ -1153,6 +1153,9 @@ class IFUFindObjects(MultiSlitFindObjects):
         numiter = 4  # This is more than enough, and will probably break earlier than this
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        # Prepare the slitmasks for the relative spectral illumination
+        slitmask = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, initial=True, flexure=self.spat_flexure_shift)
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
@@ -1166,9 +1169,8 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                          show_fit=show_fit)
 
             # Calculate the relative spectral illumination
-            scaleImg = flatfield.illum_profile_spectral_poly(sciimg, self.waveimg, self.slits, _global_sky,
-                                                             slit_illum_ref_idx=sl_ref, gpmask=inmask,
-                                                             thismask=thismask, flexure=self.spat_flexure_shift)
+            scaleImg = flat.illum_profile_spectral_poly(sciimg, self.waveimg, slitmask, slitmask_trim, _global_sky,
+                                                        slit_illum_ref_idx=sl_ref, gpmask=inmask, thismask=thismask)
             # Apply this scale image to the temporary science frame
             sciimg /= scaleImg
 
