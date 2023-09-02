@@ -20,6 +20,7 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
 import scipy.ndimage
+from scipy import signal
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -806,16 +807,11 @@ def convolve_fft(img, kernel, msk):
     Returns:
         `numpy.ndarray`_: The convolved image, same shape as the input img
     """
-    nspec = img.shape[0]
-    kernsize = kernel.size
-    hwid = (kernsize - 1) // 2
-    harr = np.arange(-hwid, +hwid + 1)
-    fullsize = nspec + kernsize - 1
-    fsize = 2 ** int(np.ceil(np.log2(fullsize)))  # Use this size for a more efficient computation
-    conv = np.fft.fft(img, fsize, axis=0)
-    conv *= np.fft.fft(kernel / np.sum(kernel), fsize)[:, None]
-    img_conv = np.fft.ifft(conv, axis=0).real[hwid:hwid + nspec, :]
-    del conv
+    # Check the kernel shape
+    if kernel.ndim == 1:
+        kernel = kernel.reshape((kernel.size, 1))
+    # Start by convolving the image by the kernel
+    img_conv = signal.fftconvolve(img, kernel, mode='same', axes=0)
     # Find the slit edge pixels in the spectral direction
     rmsk = (msk != np.roll(msk, 1, axis=0))
     # Remove the edges of the detector
@@ -824,6 +820,12 @@ def convolve_fft(img, kernel, msk):
     # Separate into up edges and down edges
     wup = np.where(rmsk & msk)
     wdn = np.where(rmsk & np.logical_not(msk))
+
+    # Setup some of the variables used in the slow convolution
+    nspec = img.shape[0]
+    kernsize = kernel.size
+    hwid = (kernsize - 1) // 2
+    harr = np.arange(-hwid, +hwid + 1)
 
     # Create an inner function that deals with the convolution near masked pixels
     def inner_conv(idx_i, idx_j):
