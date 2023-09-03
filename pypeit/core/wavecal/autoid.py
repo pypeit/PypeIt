@@ -40,7 +40,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, 
+def arc_fit_qa(waveFit,
                outfile=None, ids_only=False, title=None,
                log=True):
     """
@@ -141,7 +141,7 @@ def arc_fit_qa(waveFit,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, 
+        ax_spec.text(0.04, 0.93, title,
                      transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
     if ids_only:
@@ -377,8 +377,8 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
     return
 
 
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, 
-               nreid_min, det_arxiv=None, 
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
+               nreid_min, det_arxiv=None,
                detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
@@ -718,7 +718,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
             Archival spectrum to match to
         wave_arxiv (`numpy.ndarray`_):
             Wavelegnth solution for the archival spectrum
-        nreid_min (int): 
+        nreid_min (int):
             Minimum number of times that a given candidate reidentified line
             must be properly matched with a line in the arxiv to be considered a
             good reidentification. If there is a lot of duplication in the arxiv
@@ -763,7 +763,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     # Search for lines in the input arc
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
         spec, sigdetect=sigdetect,
-        nonlinear_counts=nonlinear_counts, 
+        nonlinear_counts=nonlinear_counts,
         fwhm=fwhm, debug = debug_peaks)
     # If there are no lines in the input arc, return
     if tcent.size == 0:
@@ -778,15 +778,15 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         return None
 
     # Interpolate the input wavelengths
-    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess, 
-                                   kind='cubic', bounds_error=False, 
+    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess,
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
     # Interpolate the arxiv both ways
-    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)), 
-                                   kind='cubic', bounds_error=False, 
+    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)),
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
-    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv, 
-                                   kind='cubic', bounds_error=False, 
+    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv,
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
     # Find the wavelengths of the input arc lines and then the pixels
     wv_cent = fwv_guess(tcent)
@@ -833,7 +833,6 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     return tcent, spec_cont_sub, patt_dict_slit, tot_line_list
 
 
-# TODO: Docstring missing box_rad and slit_bpm
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
              spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
     """
@@ -844,8 +843,12 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             Arc image (nspec, nspat)
         gpm (`numpy.ndarray`_):
             Good pixel mask corresponding to the input arc image (nspec, nspat)
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-            Slit edges
+        slits_left (`numpy.ndarray`_):
+            Left slit edges
+        slits_right (`numpy.ndarray`_):
+            Right slit edges
+        slitmask (`numpy.ndarray`_):
+            2D array indicating which pixels are on the slit
         npixel (int, optional):
             Number of spatial detector pixels between each estimate of the FWHM
             Only nsample or npixel should be specified. Precedence is given to nsample.
@@ -864,6 +867,12 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         fwhm (:obj:`float`, optional):
             Number of pixels per FWHM resolution element.
             Used by :func:`~pypeit.core.arc.detect_lines`.
+        box_rad (:obj:`float`, optional):
+            Half-width of the boxcar (floating-point pixels) in the spatial
+            direction used to extract the arc.
+        slit_bpm (`numpy.ndarray`_, bool, optional):
+            Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
+            spectra are filled with np.nan for masked slits.
 
     Returns:
         `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the
@@ -872,20 +881,18 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         direction)
     """
     nslits = slits_left.shape[1]
-    scale = (2 * np.sqrt(2 * np.log(2)))
+    scale = 2 * np.sqrt(2 * np.log(2))
     _npixel = 10 if npixel is None else npixel  # Sample every 10 pixels unless the argument is set (Note: this is only used if nsample is not set)
     _ord = (specord, spatord)  # The 2D polynomial orders to fit to the resolution map.
     _slit_bpm = np.zeros(nslits, dtype=bool) if slit_bpm is None else slit_bpm
 
-    #slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
-    #slitmask =
     # TODO deal with slits not being defined beyond the slitmask in spectral direction
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
         msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM map computation for masked slit {0:d}'.format(sl+1))
+            msgs.warn(f"Skipping FWHM map computation for masked slit {sl+1}/{nslits}")
             # Assign it an empty PypeItFit object so that we can still write to file
             resmap[sl] = fitting.PypeItFit()
             continue
@@ -894,7 +901,7 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
         this_samp, this_cent, this_fwhm = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):
-            spat_vec = np.atleast_2d(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).T
+            spat_vec = np.atleast_2d((1-slitsamp[ss]) * slits_left[:, sl] + slitsamp[ss] * slits_right[:, sl]).T
             arc_spec, arc_spec_bpm, bpm_mask = arc.get_censpec(spat_vec, slitmask, image, gpm=gpm, box_rad=box_rad,
                                                                slit_bpm=np.array([_slit_bpm[sl]]), verbose=False)
             if bpm_mask[0]:
@@ -907,7 +914,6 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
-
 
     # Return an array containing the PypeIt fits
     return np.array(resmap)
@@ -1189,9 +1195,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Finish
     return wvcalib
 
-def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, 
+def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, use_unknowns=True, debug_all=False,
-                    debug_peaks=False, debug_xcorr=False, debug_reid=False, 
+                    debug_peaks=False, debug_xcorr=False, debug_reid=False,
                     debug_fits=False, nonlinear_counts=1e10,
                     redo_slits:list=None):
     r"""
@@ -1245,7 +1251,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         they cannot be accurately centroided
     redo_slits: list, optional
         If provided, only perform the wavelength calibration for the
-        given slit(s). 
+        given slit(s).
 
     Returns
     -------
@@ -1321,12 +1327,12 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
 
         n_final = wvutils.parse_param(par, 'n_final', iord)
         final_fit = wv_fitting.fit_slit(
-            spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
-            detections[str(iord)], tot_line_list, 
-            match_toler=par['match_toler'], 
+            spec_cont_sub[:, iord], all_patt_dict[str(iord)],
+            detections[str(iord)], tot_line_list,
+            match_toler=par['match_toler'],
             func=par['func'], n_first=par['n_first'],
-            sigrej_first=par['sigrej_first'], 
-            n_final=n_final, 
+            sigrej_first=par['sigrej_first'],
+            n_final=n_final,
             sigrej_final=par['sigrej_final'])
 
         # Did the fit succeed?
@@ -1351,15 +1357,15 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)), log=par['qa_log'])
 
     # Print the final report of all lines
-    report_final(norders, all_patt_dict, detections, 
+    report_final(norders, all_patt_dict, detections,
                  wv_calib, ok_mask, bad_orders,
                  redo_slits=redo_slits, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
-def report_final(nslits, all_patt_dict, detections, 
-                 wv_calib, ok_mask, bad_slits, 
+def report_final(nslits, all_patt_dict, detections,
+                 wv_calib, ok_mask, bad_slits,
                  redo_slits:list=None,
                  orders:np.ndarray=None):
     """
@@ -1415,7 +1421,7 @@ def report_final(nslits, all_patt_dict, detections,
                       len(wv_calib[st]['pixel_fit'])) + msgs.newline() +
                   '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
-                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() + 
+                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
         if orders is not None:
             sreport + msgs.newline()+ f'  Echelle order                 = {orders[slit]}'
@@ -1616,7 +1622,7 @@ class ArchiveReid:
             # get FWHM for this slit
             fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
-                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], 
+                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
                            self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
@@ -1677,7 +1683,7 @@ class ArchiveReid:
         wave_soln_arxiv = []
         arcspec_arxiv = []
         for order in orders:
-            ind_sp = self.arxiv_orders.index(order) 
+            ind_sp = self.arxiv_orders.index(order)
             wave_soln_arxiv.append(self.wave_soln_arxiv[:,ind_sp])
             arcspec_arxiv.append(self.spec_arxiv[:,ind_sp])
 
@@ -1788,7 +1794,7 @@ class HolyGrail:
             # Load the linelist to be used for pattern matching
             restrict = spectrograph if self._par['use_instr_flag'] else None
             self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
-                self._lamps, include_unknown=self._use_unknowns, 
+                self._lamps, include_unknown=self._use_unknowns,
                 restrict_on_instr=restrict)
 
 
