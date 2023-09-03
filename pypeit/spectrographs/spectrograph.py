@@ -1894,11 +1894,13 @@ class Spectrograph:
 
         Returns
         -------
-        scatt_img : `numpy.ndarray`_
-            A 2D image of the scattered light determined from the input frame
+        scatt_img : `numpy.ndarray`_, float
+            A 2D image of the scattered light determined from the input frame.
+            Alternatively, if a constant value is used, a constant floating point
+            value can be returned as well.
         """
         msgs.info("Scattered light removal is not implemented for spectrograph {0:s}".format(self.name))
-        return []
+        return 0.0
 
     def __repr__(self):
         """Return a string representation of the instance."""
