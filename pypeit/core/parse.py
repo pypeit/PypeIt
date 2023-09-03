@@ -124,6 +124,19 @@ def parse_binning(binning:str):
 
     Args:
         binning (str, `numpy.ndarray`_, tuple):
+            The spectral and spatial binning. Several formats are supported, including
+            the following examples. Note that in all examples, the binning in the spectral
+            direction is 2, and the binning in the spatial direction is 1:
+
+            * string format
+                --  comma delimited string (e.g. '2,1')
+                --  x delimited string (e.g. '2x1')
+                --  space delimited string (e.g. '2 1')
+                --  'None' will always assume 1x1 binning
+            * tuple format
+                -- this must be of the form of tuple, for example: (2,1)
+            * numpy array
+                -- this must be of the form of tuple, for example: np.array([2,1])
 
     Returns:
         tuple: binspectral, binspatial as integers
