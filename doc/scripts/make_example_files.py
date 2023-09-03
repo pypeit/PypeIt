@@ -75,17 +75,18 @@ def make_example_gnirs_pypeit_files(version, date):
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
     # Create the default pypeit file
-    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs' / '32_SB_SXD'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs_echelle' \
+                / '32_SB_SXD'
     
-    pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs', '-b', '-c', 'A',
-                                    '-d', str(oroot),
+    pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs_echelle', '-b',
+                                    '-c', 'A', '-d', str(oroot),
                                     '--version_override', version, 
                                     '--date_override', date])
     setup.Setup.main(pargs)
 
-    ofile = oroot / 'gemini_gnirs_A.pypeit.rst'
+    ofile = oroot / 'gemini_gnirs_echelle_A.pypeit.rst'
     with open(ofile, 'w') as f:
-        with open(oroot / 'gemini_gnirs_A' / 'gemini_gnirs_A.pypeit', 'r') as p:
+        with open(oroot / 'gemini_gnirs_echelle_A' / 'gemini_gnirs_echelle_A.pypeit', 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -93,13 +94,13 @@ def make_example_gnirs_pypeit_files(version, date):
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(oroot / 'gemini_gnirs_A')
+    shutil.rmtree(oroot / 'gemini_gnirs_echelle_A')
 
     # Copy over the one that is actually used by the dev-suite
     dev = Path(os.getenv('PYPEIT_DEV')).resolve() \
-                / 'pypeit_files' / 'gemini_gnirs_32_sb_sxd.pypeit'
+                / 'pypeit_files' / 'gemini_gnirs_echelle_32_sb_sxd.pypeit'
 
-    ofile = oroot / 'gemini_gnirs_A_corrected.pypeit.rst'
+    ofile = oroot / 'gemini_gnirs_echelle_A_corrected.pypeit.rst'
     with open(ofile, 'w') as f:
         with open(dev, 'r') as p:
             lines = p.readlines()

@@ -171,7 +171,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             #platescale      = 15.0/18.0,
             platescale      = 0.2,
-            darkcurr        = 5.4,
+            darkcurr        = 5.4,  # e-/hour/unbinned pixel
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -277,11 +277,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
 
         Args:
             filename (:obj:`str` or None):

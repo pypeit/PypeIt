@@ -16,6 +16,7 @@ from matplotlib import gridspec
 from IPython import embed
 
 from pypeit import msgs
+from pypeit.pypmsgs import PypeItError
 from pypeit import utils
 from pypeit import bspline
 
@@ -480,8 +481,8 @@ class FlatField:
             The current slit traces.
         wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
-        wv_calib (??):
-            ??
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`):
+            Wavelength calibration object
         spat_illum_only (bool, optional):
             Only perform the spatial illumination calculation, and ignore
             the 2D bspline fit. This should only be set to true if you
@@ -489,8 +490,8 @@ class FlatField:
             simultaneously generate a pixel flat and a spatial
             illumination profile from the same input, this should be
             False (which is the default).
-        qa_path (??, optional):
-            ??
+        qa_path (str, optional):
+            Path to QA directory
 
     Attributes:
         rawflatimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
@@ -554,15 +555,12 @@ class FlatField:
 
         This is a simple wrapper for the main flat-field methods:
 
-            - Flat-field images are processed using :func:`build_pixflat`.
-
             - Full 2D model, illumination flat, and pixel flat images are
               constructed by :func:`fit`.
 
             - The results can be shown in a ginga window using :func:`show`.
 
-        The method is a simple wrapper for :func:`build_pixflat`, :func:`fit`,
-        and :func:`show`.
+        The method is a simple wrapper for :func:`fit` and :func:`show`.
 
         Args:
             doqa (:obj:`bool`, optional):
@@ -655,7 +653,7 @@ class FlatField:
         Generate bad pixel mask.
 
         Returns:
-            :obj:`numpy.ndarray` : bad pixel mask
+            `numpy.ndarray`_ : bad pixel mask
         """
         bpmflats = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
@@ -694,7 +692,7 @@ class FlatField:
         Construct a model of the flat-field image.
 
         For this method to work, :attr:`rawflatimg` must have been
-        previously constructed; see :func:`build_pixflat`.
+        previously constructed.
 
         The method loops through all slits provided by the :attr:`slits`
         object, except those that have been masked (i.e., slits with
@@ -733,7 +731,7 @@ class FlatField:
               (see ``tweak_slits_thresh`` in :attr:`flatpar`), up to a
               maximum allowed shift from the existing slit edge (see
               ``tweak_slits_maxfrac`` in :attr:`flatpar`).  See
-              :func:`pypeit.core.tweak_slit_edges`.  If tweaked, the
+              :func:`~pypeit.core.flat.tweak_slit_edges`.  If tweaked, the
               :func:`spatial_fit` is repeated to place it on the tweaked
               slits reference frame.
             - Use the bspline fit to construct the 2D illumination image
@@ -758,7 +756,7 @@ class FlatField:
         attributes are altered internally.  If the slit edges are to be
         tweaked using the 1D illumination profile (``tweak_slits`` in
         :attr:`flatpar`), the tweaked slit edge arrays in the internal
-        :class:`~pypeit.edgetrace.SlitTraceSet` object, :attr:`slits`,
+        :class:`~pypeit.slittrace.SlitTraceSet` object, :attr:`slits`,
         are also altered.
 
         Used parameters from :attr:`flatpar`
@@ -1381,13 +1379,15 @@ class FlatField:
         spat_illum : `numpy.ndarray`_
             An image containing the generated spatial illumination profile for all slits.
         onslit_tweak : `numpy.ndarray`_
-            mask indicticating which pixels are on the slit (True = on slit)
+            mask indicating which pixels are on the slit (True = on slit)
         slit_idx : int
             Slit number (0-indexed)
         slit_spat : int
             Spatial ID of the slit
         gpm : `numpy.ndarray`_
             Good pixel mask
+        slit_txt : str
+            if pypeline is "Echelle", then slit_txt should be set to "order", otherwise, use "slit"
         slit_trim : int, optional
             Trim the slit edges by this number of pixels during the fitting. Note that the
             fit will be evaluated on the pixels indicated by onslit_tweak.
@@ -1397,7 +1397,9 @@ class FlatField:
         """
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
-        msgs.info("Performing a fine correction to the spatial illumination (slit={0:d})".format(slit_spat))
+        slit_txt = self.slits.slitord_txt
+        slit_ordid = self.slits.slitord_id[slit_idx]
+        msgs.info(f"Performing a fine correction to the spatial illumination ({slit_txt} {slit_ordid})")
         # initialise
         illumflat_finecorr = np.ones_like(self.rawflatimg.image)
         # Trim the edges by a few pixels to avoid edge effects
@@ -1458,7 +1460,7 @@ class FlatField:
             self.list_of_finecorr_fits[slit_idx] = fullfit
             illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
-            msgs.warn("Fine correction to the spatial illumination failed for slit {0:d}".format(slit_spat))
+            msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
             return
 
         # Prepare QA
@@ -1468,7 +1470,7 @@ class FlatField:
                 prefix += "illumflat_"
             outfile = qa.set_qa_filename(prefix+self.calib_key, 'spatillum_finecorr', slit=slit_spat,
                                          out_dir=self.qa_path)
-            title = "Fine correction to spatial illumination (slit={0:d})".format(slit_spat)
+            title = f"Fine correction to spatial illumination ({slit_txt} {slit_ordid})"
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
             spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
@@ -1650,8 +1652,10 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
         # Make the model
         offs = bb * sep
         model += offs
-        minmod = minmod if minmod < np.min(model) else np.min(model)
-        maxmod = maxmod if maxmod > np.max(model) else np.max(model)
+        nonzero = model != offs
+        if np.any(nonzero):
+            minmod = minmod if minmod < np.min(model[nonzero]) else np.min(model[nonzero])
+            maxmod = maxmod if maxmod > np.max(model[nonzero]) else np.max(model[nonzero])
         # Plot it!
         ax_spec.plot(spatmid, offs + cntr, linestyle='-', color=colors[bb])
         ax_spec.plot(spatmid, model, linestyle='-', color=colors[bb], alpha=0.5, linewidth=3)
@@ -1802,8 +1806,11 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
             clear = False
 
 
-def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
+                           model=None, gpmask=None, skymask=None, trim=3, flexure=None):
     """
+    TODO :: This could possibly be moved to core.flat
+
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
 

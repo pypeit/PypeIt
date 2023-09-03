@@ -241,7 +241,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
     used. The defaults are tuned for each spectrograph based on
     testing using data in the PypeIt development suite. See
     :ref:`pypeitpar` for the full documentation of the
-    :class:`pypeit.par.pypeitpar.EdgeTracePar` parameters.
+    :class:`~pypeit.par.pypeitpar.EdgeTracePar` parameters.
 
     Finally, note that the :attr:`design` and :attr:`object` data are
     currently empty, as part of a development path for matching slits
@@ -285,7 +285,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
     Attributes:
         traceimg
-            (:class:`~pypeit.images.buildcalibration.TraceImage`):
+            (:class:`~pypeit.images.buildimage.TraceImage`):
             See argument list.
         spectrograph
             (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -296,7 +296,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             The list of raw files used to construct the trace image
             (:attr:`img`). Only defined if argument `img` in
             :func:`initial_trace` or :func:`auto_trace` is a
-            :class:`~pypeit.images.buildcalibration.TraceImage` object.
+            :class:`~pypeit.images.buildimage.TraceImage` object.
         img (`numpy.ndarray`_):
             Convenience for now.
         det (:obj:`int`):
@@ -675,7 +675,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         for more detail.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         `left_right_pca`.
 
         Args:
@@ -770,7 +770,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
               user-provided lists in the :attr:`par`.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         `use_maskdesign`.
 
         Args:
@@ -839,6 +839,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.info('{0:^50}'.format('Matching traces to the slit-mask design'))
             msgs.info('-' * 50)
             self.maskdesign_matching(debug=debug)
+            if show_stages:
+                self.show(title='After matching to slit-mask design metadata.')
+            if np.all(self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)):
+                msgs.error('All traces masked!  Problem with mask-design matching, which may be '
+                           'due to spurious edges.  Try changing the edge detection threshold '
+                           '(edge_thresh) and troubleshooting the problem using the '
+                           'pypeit_trace_edges script.')
 
         if self.par['auto_pca'] and not self.can_pca() and not self.is_empty and self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
@@ -1108,7 +1115,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Construct the baseline header for all HDU extensions.
 
-        This appends the :class:`EdgeTracePar` and
+        This appends the :class:`~pypeit.par.pypeitpar.EdgeTracePar` and
         :class:`EdgeTraceBitMask` data to the headers of all HDU
         extensions. This is overkill, but avoids overriding
         :func:`pypeit.datamodel.DataContainer.to_hdu` by just
@@ -2005,7 +2012,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
               :func:`trace_pixels_off_detector`.
 
         The only used parameter from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is ``match_tol``.
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) is ``match_tol``.
 
         .. warning::
 
@@ -2394,7 +2401,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         synchronized partner.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         `minimum_slit_gap`, `minimum_slit_length`,
         `minimum_slit_length_sci`, and `length_range`.
 
@@ -2972,7 +2979,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         only traces that are *not* fully flagged are fit.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         ``max_shift_abs``, ``max_spat_error``, ``fit_function``,
         ``fit_order``, ``fwhm_uniform``, ``fwhm_gaussian``,
         ``fit_maxdev``, ``fit_maxiter``, ``fit_niter``, and
@@ -3089,11 +3096,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
         there are fewer than the minimum left *or* right edge traces.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         ``fit_min_spec_length``, ``left_right_pca``, and ``pca_min_edges``.
 
         .. warning::
-            This function calls :func:`check_trace` using
+
+            This function calls :func:`check_traces` using
             `fit_min_spec_length` to flag short traces, meaning that
             :attr:`edge_msk` will can be altered by this call.
 
@@ -3208,7 +3216,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         decompositions.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         `fit_min_spec_length`, `left_right_pca`, `pca_n`,
         `pca_var_percent`, `pca_function`, `pca_order`, `pca_sigrej`,
         `pca_maxrej`, and `pca_maxiter`.
@@ -3415,7 +3423,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         :attr:`edge_fit`, and :attr:`fittype`.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         ``left_right_pca``, ``edge_thresh``, ``smash_range``,
         ``edge_detect_clip``, ``trace_median_frac``, ``trace_thresh``,
         ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``fwhm_uniform``,
@@ -3634,7 +3642,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         by :func:`sync`.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         ``sync_center``, ``sync_to_edge``, and ``gap_offset``.
 
         Args:
@@ -3755,7 +3763,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         (`max_nudge`), to be no closer than a minimum number
         (`det_buffer`) pixels from the detector edges. Both
         parameters are pulled from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`). No limit is
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`). No limit is
         imposed on the size of the shift if `max_nudge` is None.
 
         .. warning::
@@ -3849,7 +3857,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         exception is raised.
             
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
         `det_buffer`, `left_right_pca`, and `sync_predict`.
 
         .. warning::
@@ -4090,7 +4098,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         New traces to add are first nudged away from the detector
         edge (see :func:`nudge_traces`) according to parameters
         `max_nudge` and `det_buffer` from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`). They are then
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`). They are then
         inserted or appended to the existing traces and masked
         according to the provided `mode`. The traces are added to
         *both* the measured centroid list and the fitted model data.
@@ -4233,7 +4241,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         masked as user-inserted.
 
         Only used parameter from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) is
         `det_buffer`.
         """
         # find where sobelsig is not masked
@@ -4255,7 +4263,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         Args:
             flag (:obj:`str`, :obj:`list`, optional):
                 The bit mask flags to select. If None, any flags are
-                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
+                used. See :func:`pypeit.bitmask.BitMask.flagged`.
             exclude (:obj:`str`, :obj:`list`, optional):
                 A set of flags to explicitly exclude from
                 consideration as a masked trace. I.e., if any
@@ -4610,14 +4618,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                       and the one traced on the image. One value per each edge side
 
         Args:
-            maskdef_id (:obj:`numpy.array`):
+            maskdef_id (`numpy.ndarray`_):
                 Slit ID number from slit-mask design matched to traced slits.
             cc_params_b, cc_params_t (:obj:`tuple`):
                 Three parameters of the cross-correlation (2 coefficients and RMS) between slit-mask design
                 and traced edges for the left and right edges.
-            omodel_bspat, omodel_tspat (:obj:`numpy.array`):
+            omodel_bspat, omodel_tspat (`numpy.ndarray`_):
                 Left and right spatial position of the slit edges from optical model
-            spat_id (:obj:`numpy.array`):
+            spat_id (`numpy.ndarray`_):
                 ID assigned by PypeIt to each slit. same as in `SlitTraceSet`.
 
 
@@ -4688,7 +4696,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
 
         Args:
-            maskdef_id (:obj:`numpy.array`):
+            maskdef_id (`numpy.ndarray`_):
                 Slit ID number from slit-mask design matched to traced slits.
         """
         # Check that slitmask is initiated

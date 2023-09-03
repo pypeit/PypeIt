@@ -84,7 +84,7 @@ htmlonly:
 
 picky:
 	make apirst
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) -n $(BUILDDIR)/html
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) -n -vvv -T $(BUILDDIR)/html -W
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
