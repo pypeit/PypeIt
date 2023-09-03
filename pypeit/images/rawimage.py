@@ -177,6 +177,7 @@ class RawImage:
                           subtract_pattern=False,
                           subtract_overscan=False,
                           subtract_continuum=False,
+                          subtract_scattlight=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -633,24 +634,9 @@ class RawImage:
         self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
                                     if self.par['spat_flexure_correct'] else None
 
-        # For KCWI, need to subtract scattered light before flatfielding
-        # TODO :: REALLY NEED TO DELETE THIS - CHECKING IF SCATTERED LIGHT IS IMPORTANT
-        if self.spectrograph.name == "keck_kcwi":
-            for ii in range(self.nimg):
-                spatbin = 1  # This needs to be set from the known spatial binning... probably can just take the image shape (spatial dimension)
-                ym = 4096 // (2*spatbin)
-                y0 = ym - 180//spatbin
-                y1 = ym + 180//spatbin
-                scattlightl = np.nanmedian(self.image[ii, :, :20], axis=1)[:,None]
-                scattlightr = np.nanmedian(self.image[ii, :, -40:], axis=1)[:,None]
-                scattlight = np.nanmedian(self.image[ii, :, y0:y1], axis=1)[:,None]
-                medl = np.median(scattlightl/scattlight)
-                medr = np.median(scattlightr/scattlight)
-                spatimg = np.meshgrid(np.arange(self.image.shape[2]), np.arange(self.image.shape[1]))[0]
-                scatimg = np.outer(scattlight, np.ones(self.image.shape[2]))
-                scatimg[spatimg < ym] *= 1 + (medl - 1) * (spatimg[spatimg < ym]/ym - 1)**2
-                scatimg[spatimg >= ym] *= 1 + (medr - 1) * (spatimg[spatimg >= ym] / (4095-ym) - ym/(4095-ym)) ** 2
-                self.image[ii, :, :] -= scatimg
+        #   - Subtract scattered light... this needs to be done before flatfielding.
+        if self.par['subtract_scattlight']:
+            self.subtract_scattlight()
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -1125,6 +1111,27 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
+    def subtract_scattlight(self):
+        """
+        Analyze and subtract the scattered light from the image.
+
+        This is primarily a wrapper for
+        :func:`~pypeit.spectrograph.procimg.subtract_pattern`.
+
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step]:
+            # Already pattern subtracted
+            msgs.warn("The scattered light has already been subtracted from the image!")
+            return
+
+        # Loop over the images
+        for ii in range(self.nimg):
+            binning = self.detector[0].binning
+            scatt_img = self.spectrograph.scattered_light(self.image[ii, :, :], binning)
+            self.image[ii, :, :] -= scatt_img
+        self.steps[step] = True
+
     def trim(self, force=False):
         """
         Trim image attributes to include only the science data.
@@ -1263,5 +1270,3 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
-
-
