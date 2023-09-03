@@ -832,6 +832,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
 
     return tcent, spec_cont_sub, patt_dict_slit, tot_line_list
 
+
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
              spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
     """
@@ -867,9 +868,11 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             Number of pixels per FWHM resolution element.
             Used by :func:`~pypeit.core.arc.detect_lines`.
         box_rad (:obj:`float`, optional):
-            TODO
-        slit_bpm ():
-            TODO
+            Half-width of the boxcar (floating-point pixels) in the spatial
+            direction used to extract the arc.
+        slit_bpm (`numpy.ndarray`_, bool, optional):
+            Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
+            spectra are filled with np.nan for masked slits.
 
     Returns:
         `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the

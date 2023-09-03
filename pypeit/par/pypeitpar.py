@@ -3891,7 +3891,9 @@ class SkySubPar(ParSet):
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
-                             'Currently, this parameter is only used for IFU data reduction.'
+                             'Currently, this parameter is only used for IFU data reduction. Note that the ' \
+                             'current implementation does not account for variations in the instrument FWHM ' \
+                             'in different slits. This will be addressed by Issue #1660.'
 
         defaults['max_mask_frac'] = 0.80
         dtypes['max_mask_frac'] = float
