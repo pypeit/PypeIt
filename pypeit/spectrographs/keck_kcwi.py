@@ -886,6 +886,12 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
+        # Subtract scattered light, but only for the pixel and illum flats,
+        # as well as and science/standard star data.
+        par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
+        par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
+        par['calibrations']['standardframe']['process']['subtract_scattlight'] = True
+        par['scienceframe']['process']['subtract_scattlight'] = True
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
@@ -1016,6 +1022,39 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def scattered_light(self, frame, binning):
+        """
+        Calculate a model of the scattered light of the input frame.
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw 2D data frame to be used to compute the scattered light.
+        binning : (str, `numpy.ndarray`_, tuple):
+            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
+            direction, and a binning of 1 in the spatial direction). For the supported
+            formats, refer to `~pypeit.core.parse.parse_binning`.
+
+        Returns
+        -------
+        scatt_img : `numpy.ndarray`_
+            A 2D image of the scattered light determined from the input frame
+        """
+        spatbin = parse.parse_binning(binning)[1]
+        ym = 4096 // (2 * spatbin)
+        y0 = ym - 180 // spatbin
+        y1 = ym + 180 // spatbin
+        scattlightl = np.nanmedian(frame[:, :20//spatbin], axis=1)[:, None]
+        scattlightr = np.nanmedian(frame[:, -40//spatbin:], axis=1)[:, None]
+        scattlight = np.nanmedian(frame[:, y0:y1], axis=1)[:, None]
+        medl = np.median(scattlightl / scattlight)
+        medr = np.median(scattlightr / scattlight)
+        spatimg = np.meshgrid(np.arange(frame.shape[1]), np.arange(frame.shape[0]))[0]
+        scatt_img = np.outer(scattlight, np.ones(frame.shape[1]))
+        scatt_img[spatimg < ym] *= 1 + (medl - 1) * (spatimg[spatimg < ym] / ym - 1) ** 2
+        scatt_img[spatimg >= ym] *= 1 + (medr - 1) * (spatimg[spatimg >= ym] / (4095//spatbin - ym) - ym / (4095//spatbin - ym)) ** 2
+        return scatt_img
 
     def fit_2d_det_response(self, det_resp, gpmask):
         r"""
