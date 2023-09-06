@@ -44,7 +44,8 @@ class Setup(scriptbase.ScriptBase):
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
-                            help='Level of verbosity from 0 to 2.')
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename setup_YYYYMMDD-HHMM.log')
         parser.add_argument('-k', '--keep_bad_frames', default=False, action='store_true',
                             help='Keep all frames, even if they are identified as having '
                                  'bad/unrecognized configurations that cannot be reduced by '
