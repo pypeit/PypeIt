@@ -7,10 +7,125 @@ Overview
 ========
 
 This file summarizes several instrument specific
-settings that are related to the Keck/LRIS spectrograph.
+settings that are related to the Keck/LRIS (RED and BLUE) spectrograph.
 
-Common Items
-============
+Common Items to LRISb and LRISr
+===============================
+.. _lris_FITS_format:
+FITS format
++++++++++++
+
+Before May 2009, both LRISb and LRISr observations were stored in standard simple
+`FITS <https://fits.gsfc.nasa.gov/fits_home.html>`__ format consisting of a
+single primary HDU without any extensions. Subsequently, the data were stored in
+multi-extension FITS files, including four extensions, one for each amplifier.
+To handle both formats, PypeIt defined 2 sets of spectrographs for each LRIS
+camera, one for the pre-May 2009 data (``keck_lris_blue_orig`` and ``keck_lris_red_orig``)
+and one for the post-May 2009 data (``keck_lris_blue`` and ``keck_lris_red``).
+Note that this change in FITS format coincided with the installation of the LBNL
+detectors (2kx4k) in LRISr (see :ref:`keck-lris-red`).
+
+Slit-masks
+++++++++++
+
+PypeIt can now incorporate slitmask information in the reduction
+routine for ``keck_lris_red``, ``keck_lris_red_mark4``, and ``keck_lris_blue``
+similar to its DEIMOS capabilities (see :ref:`deimos-mask-matching`).
+That is, if the trace calibration files with mask information are used, PypeIt is
+capable of using said information to match the traced slit edges to those predicted
+by the slitmask design, assign to each extracted spectrum the corresponding RA, Dec and
+object name information, force the extraction of undetected objects at the location
+expected from the slitmask design, identify serendipitous sources and, subsequently,
+collate by RA/Dec. See `Additional Reading`_ for more information.
+
+Unfortunately, LRIS raw frames do not come ready with slitmask
+data and thus this information needs to be inserted by the user before
+processing with PypeIt if they are desirous of incorporating
+the above mentioned features into their reduction. To do so, the user
+must first obtain the mask design files and then process them with
+the software `TILSOTUA <https://github.com/jsulli27/tilsotua>`__.
+Here are the steps to follow:
+
+#. Obtain the mask design files, which include:
+
+    #. Output files produced by `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__.
+
+        - One file with the `".file3"` extension containing milling information.
+
+        - One file with the `".file1"` extension containing the object catalog corresponding to the mask slits.
+
+    #. The ASCII object list file fed as input to
+       `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__ to generate the files above.
+
+   .. note::
+         `".file3"` is mandatory while the other two files can be optionally excluded to
+         debug `TILSOTUA <https://github.com/jsulli27/tilsotua>`__.
+
+#. Process the design files with `TILSOTUA <https://github.com/jsulli27/tilsotua>`__ :
+   The design files contain the milling blueprint (the `BluSlits` table).
+   When using the `".file3"` design file, TILSOTUA creates a FITS file with the `BluSlits` table
+   following the UCO/Lick template. If the `".file1"` file and the object list are provided,
+   the FITS mask design file will also includes the `DesiSlits`, `ObjectCat` and `SlitObjMap`
+   binary tables, otherwise they will be empty. These tables include information on the
+   slitmask design, the object catalog and the mapping between the two, similar to the
+   binary tables in DEIMOS raw frames. TILSOTUA populates these tables using its ``xytowcs``
+   function (in `LRIS_Mask_Coords_to_WCS.py
+   <https://github.com/jsulli27/tilsotua/blob/master/tilsotua/LRIS_Mask_Coords_to_WCS.py>`__).
+   This function can be run by providing two parameters:
+
+   - the ``input_file_name``, which is either the FITS or `".file3"` mask design file (be sure
+     the name includes the extension);
+   - the ``output_file_base``, which is the prefix for the four files that get created by the code.
+
+   .. TODO: Sunil can you comment on this. Here it says that the second parameter in the xytowcs call
+      is "output_file_base", but in the tilsotua github page I see the parameter is called "output_file",
+      it's not the prefix, but just the name, and that the extension (.fits) should not be provided here. Which
+      one is correct?
+
+   If only the `".file3"` file is provided, the calling sequence is:
+
+   .. code-block:: python
+
+        from tilsotua import xytowcs
+
+        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
+
+   If the `".file1"` file and the object list are provided, the calling sequence is:
+
+    .. code-block:: python
+
+        from tilsotua import xytowcs
+
+        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits",
+                obj_file="yourtargets.obj", file1="yourmaskname.file1")
+
+   It is assumed that the entries in `file1` and `obj_file` have unique `Name` values, i.e., make
+   sure you have a unique identifier for each object. Without this, it is not possible to correctly
+   reconcile the two tables.
+
+#. Add TILSOTUA generated slitmask design information to your raw trace files:
+   The user must first verify that TILSOTUA has indeed processed the files correctly. This implies:
+
+   - TILSOTUA has correctly identified the alignment stars (see the QA plot it generates).
+
+   - TILSOTUA has estimated the `TopDist` and `BotDist` in the `SlitObjMap` table correctly.
+
+   Once satisfied with the processed FITS file from TILSOTUA, the user can append the binary tables
+   populated by TILSOTUA to the LRIS trace FITS files as additional `HDUs`, e.g.:
+
+   .. code-block:: python
+
+        from astropy.io import fits
+
+        tracehdus = fits.open("trace_rawframe.fits")
+        autoslithdus = fits.open("yourmaskname_output.fits")
+
+        for hdu in autoslithdus[1:]:
+            tracehdus.append(hdu)
+        tracehdus.writeto("trace_with_maskinfo.fits")
+
+If processed correctly, PypeIt should now fully utilize its arsenal of slitmask processing tools
+to reduce and coadd spectra with the WCS information incorporated.
 
 Flexure
 +++++++
@@ -24,32 +139,63 @@ to turn either of these off.
 
 .. _lrisb:
 
-keck_lris_blue
-==============
+LRIS BLUE
+=========
 
-LRISb Default Settings
-++++++++++++++++++++++
+This section provides information on both ``keck_lris_blue_orig`` and ``keck_lris_blue``.
+When not specified, the information applies to both.
 
-See :ref:`instr_par-keck_lris_blue` for
+Default Settings
+++++++++++++++++
+
+See :ref:`instr_par-keck_lris_blue` and :ref:`instr_par-keck_lris_blue_orig` for
 a listing of modifications to the default settings.  *You do not have to add these changes to
 your PypeIt reduction file!*  This is just a listing of how the parameters used
-for Keck/LRIS differ from the defaults listed in the preceding tables on
+for LRISb differ from the defaults listed in the preceding tables on
 that page.
 
-Taking Calibrations for LRISb
-+++++++++++++++++++++++++++++
+Calibrations
+++++++++++++
+
+Wavelength calibration
+^^^^^^^^^^^^^^^^^^^^^^
 
 Arcs
 ----
 
-We recommend that you turn on *all* of the standard
-arc lamps,  including those slated for the red side.
+We recommend that you turn on *most* of the standard
+arc lamps, including those slated for the red side.
 
 These are::
 
     Ne,Ar,Cd,Kr,Xe,Zn,Hg
 
-The archived solutions expect all of these lamps.
+The archived solutions expect most of these lamps. A line list for the
+FeAr lamp is available for reduction process, although it appears
+to be less useful to obtain good wavelength solutions.
+
+Wavelength Solution
+-------------------
+
+As default, the wavelength calibration is performed using the :ref:`wvcalib-fulltemplate`
+algorithm. The templates are created in the same way as done for Keck/DEIMOS
+(see :ref:`deimos_wavecalib`) and kept in the ``data/arc_lines/reid_arxiv`` directory.
+There are four templates, one per each LRISb grism:
+
+=========== =======================================================
+   GRISM                         template
+=========== =======================================================
+ 300/5000    keck_lris_blue_B300_5000_d680_ArCdHgKrNeXeZnFeAr.fits
+ 400/3400      keck_lris_blue_B400_3400_d560_ArCdHgNeZnFeAr.fits
+ 600/4000      keck_lris_blue_B600_4000_d560_ArCdHgKrNeXeZn.fits
+ 1200/3400     keck_lris_blue_B1200_3400_d560_ArCdHgNeZn.fits
+=========== =======================================================
+
+PypeIt will automatically choose the right template according to the specific dataset.
+These templates work for both ``keck_lris_blue_orig`` and ``keck_lris_blue``.
+
+Flat Fielding
+^^^^^^^^^^^^^
 
 Pixel Flat
 ----------
@@ -86,9 +232,12 @@ of sunset/sunrise.
 
 .. _400-3400-grism:
 
+.. TODO: Can somebody comment on this. This warning says that the internal flats
+   are too faint in the very blue for tracing, while the warning above says that they may be
+   too bright for pixelflat.  Is it true?
 
 400/3400 grism
-++++++++++++++
+**************
 
 If you are using this grism, you are likely aware there are
 strong ghosts.  We have found these complicate edge tracing
@@ -104,29 +253,46 @@ need to increase the ``edge_thresh`` parameter to
 
 .. _keck-lris-red:
 
-keck_lris_red
-=============
+LRIS RED
+========
+
+This section provides information on ``keck_lris_red_orig``, ``keck_lris_red``,
+and ``keck_lris_red_mark4``. When not specified, the information applies to all.
 
 Detectors
 +++++++++
 
 There have been 3 (or is it 4?!) generations of detectors
-in the LRISr camera.  In PypeIt parlance, the original is named ``keck_lris_red_orig``,
-the LBNL detectors (2kx4k) are ``keck_lris_red``, and the newest
-Mark4 detector is ``keck_lris_red_mark4``.   
+in the LRISr camera. The first detector change happened in May 2009,
+concurrently with the change in the FITS file format (see :ref:`lris_FITS_format`).
+To reduce the data taken before May 2009, the user should use the
+``keck_lris_red_orig`` spectrograph. For data taken after May 2009,
+when the LBNL detectors were installed, the user should use the
+``keck_lris_red`` spectrograph. The newest detector was installed around
+May 2022 and is referred to as the Mark4 detector. To reduce the data
+taken with this detector, the user should use the ``keck_lris_red_mark4``
+spectrograph.
 
-For the latter (Mark4), the wavelengths have been incorporated for the 
-R400 grating only so far but the arxiv solutions from the LBNL detector
-may work ok.  Check the outputs!
 
 LRISr Default Settings
 ++++++++++++++++++++++
 
-See :ref:`instr_par-keck_lris_red` for
-a listing of modifications to the default settings.  *You do not have to add these changes to
-your PypeIt reduction file!*  This is just a listing of how the parameters used
-for Keck/LRIS differ from the defaults listed in the preceding tables on
-that page.
+See :ref:`instr_par-keck_lris_red`, :ref:`instr_par-keck_lris_red_orig`,
+and :ref:`instr_par-keck_lris_red_mark4`  for a listing of modifications to the default settings.
+*You do not have to add these changes to your PypeIt reduction file!*
+This is just a listing of how the parameters used for Keck/LRIS differ from the defaults
+listed in the preceding tables on that page.
+
+Wavelength calibration
+^^^^^^^^^^^^^^^^^^^^^^
+
+Arcs
+----
+
+
+
+Wavelength Solution
+-------------------
 
 Known issues
 ============
@@ -164,94 +330,21 @@ The code may identify a 'ghost' slit in empty detector real
 estate if your mask does not fill most of the field.  Be prepared
 to ignore it.
 
-Slit-masks
-++++++++++
 
-PypeIt can now incorporate slitmask information in the reduction
-routine for LRIS similar to its DEIMOS capabilities.  That is, if the trace
-calibrations files with mask information are fed to PypeIt, it is 
-capable of using said information to determine object coordinates, 
-identify targeted and serendipitous source and subsequently, collate by
-ra/dec. 
+Additional Reading
+==================
 
-Unfortunately, LRIS raw frames do not come ready with slitmask
-data and thus this information needs to be inserted by the user before
-processing with PypeIt if they are desirous of incorporating
-the abovementioned features into their reduction. 
-Here are the steps to do so:
+Here are additional docs related to Keck/LRIS.  Note many of them are related
+to the development of PypeIt for use with LRIS data:
 
-#. Obtain the mask design files. The design files include:
+.. TODO: Generally useful information in these dev docs should be moved into
+.. user-level doc pages, even if that means repeating information.
 
-    #. The AUTOSLIT-generated mask design files.
+.. toctree::
+   :maxdepth: 1
 
-        #. One file with the ".file3" extension containing milling information.
-
-        #. One file with the ".file1" extension containing the object catalog
-           corresponding to the mask slits.
-
-    #. The ASCII object list file fed as input to AUTOSLIT to generate the files
-       above.
-
-   ".file3" is mandatory while the other two files can be optionally excluded to
-   debug `TILSOTUA <https://github.com/jsulli27/tilsotua>`__.
-    
-#. Process the design files with `TILSOTUA
-   <https://github.com/jsulli27/tilsotua>`__ : The design files contain the
-   milling blueprint (the `BluSlits` table).  When using the ".file3" design
-   files, TILSOTUA creates FITS files based on the UCO/Lick template. The FITS
-   mask design files have empty `DesiSlits`, `ObjectCat` and `SlitObjMap` binary
-   tables. DEIMOS users may be familiar with these tables from their raw frames.
-   TILSOTUA populates these tables using its ``xytowcs`` function (in
-   ``LRIS_Mask_Coords_to_WCS.py``). One provides the code with two parameters:
-   ``input_file_name`` is either the FITS or ".file3" mask design file (be sure
-   the name includes the extension), and ``output_file_base`` is the prefix for
-   the the four files that get created by the code. The calling sequence is:
-
-   .. code-block:: python
-    
-        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
-
-#. The `ObjectCat` and `SlitObjMap` are only populated if ".file1" and the object list are provided.
-    e.g.
-
-    .. code-block:: python
-
-        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits",
-                obj_file="yourtargets.obj", file1="yourmaskname.file1")
-
-    It is assumed that the entries in `file1` and `obj_file` have unique `Name` values. i.e. Make
-    sure you have a unique identifier for each object. Without this, it is not possible to correctly
-    reconcile the two tables.
-    
-#. Append TILSOTUA's output to your raw trace files: Once the user is satisfied
-   with the processed FITS file from TILSOTUA, append the binary tables to the
-   trace FITS files. The user must first verify that TILSOTUA has indeed
-   processed the files correctly. This implies:
-
-    #. TILSOTUA has correctly identified the alignment stars (see the QA plot it generates).
-
-    #. TILSOTUA has estimated the `TopDist` and `BotDist` in the `SlitObjMap` table correctly.
-
-One may append the binary tables from the outputs as additional `HDUs` in the LRIS trace files. e.g.
-
-    .. code-block:: python
-
-        from astropy.io import fits
-
-        tracehdus = fits.open("trace_rawframe.fits")
-        autoslithdus = fits.open("yourmaskname_output.fits")
-
-        for hdu in autoslithdus[1:]:
-            tracehdus.append(hdu)
-        tracehdus.writeto("trace_with_maskinfo.fits")
-        
-If processed correctly, PypeIt should now fully utilize its 
-arsenal of slitmask processing tools to reduce and coadd spectra 
-with the WCS information incorporated.
-
-.. TODO: be specific about what you mean by "append the binary tables"
-
-.. TODO: Does the above mean that LRIS should be included in lists of
-   instruments that use mask design information.  Most relevant places claim we
-   can only do this for DEIMOS and MOSFIRE.
-
+   ../dev/lrisframes
+   ../dev/lrisconfig
+   ../dev/slitmask_ids
+   ../dev/radec_object
+   ../dev/add_missing_obj

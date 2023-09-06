@@ -1251,8 +1251,8 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
-                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching ' \
+                           '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
@@ -2011,8 +2011,8 @@ class SlitMaskPar(ParSet):
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
-                                     'and MOSFIRE slitmask design, respectively) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` ' \
+                                     'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'

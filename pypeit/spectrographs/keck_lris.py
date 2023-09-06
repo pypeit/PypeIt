@@ -171,10 +171,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Extras for pypeit file
         self.meta['dateobs'] = dict(card=None, compound=True)
-        if self.name == 'keck_lris_red_mark4':
-            self.meta['amp'] = dict(ext=0, card='TAPLINES')
-        else:
-            self.meta['amp'] = dict(ext=0, card='NUMAMPS')
+        self.meta['amp'] = dict(ext=0, card='NUMAMPS')
 
         # Lamps
         # similar approach to DEIMOS
@@ -741,7 +738,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISb'
     header_name = 'LRISBLUE'
     supported = True
-    comment = 'Blue camera; see :doc:`lris`'
+    comment = 'Blue camera; Current FITS file format; used from May 2009, see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -987,7 +984,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     name = 'keck_lris_blue_orig'
     camera = 'LRISb'
     supported = True    # TODO: Is this true?
-    comment = 'Original detector; replaced after 2009-04-30; see :doc:`lris`'
+    comment = 'Blue camera; Original FITS file format; used until April 2009; see :doc:`lris`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1115,7 +1112,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     header_name = 'LRIS'
     supported = True
     ql_supported = True
-    comment = 'Red camera;  LBNL detector, 2kx4k; in operation from 2009-05-23 to 2021-04-16, see :doc:`lris`'
+    comment = 'Red camera; Current FITS file format; ' \
+              'LBNL detector, 2kx4k; used from May 2009, see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -1144,7 +1142,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             specaxis=0,
             specflip=False,
             spatflip=False,
-            platescale=0.135,
+            platescale=0.135,  # confirmed from keck website at: https://www2.keck.hawaii.edu/inst/lris/lris-red-upgrade-notes.html#dewar3
             darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
@@ -1478,13 +1476,14 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     ndet = 1
     name = 'keck_lris_red_mark4'
     supported = True
-    comment = 'New Mark4 detector, in operation from 2021-04-22; Supported setups = R400'
+    comment = 'Red camera; New Mark4 detector, in operation since May 2021; see :doc:`lris`'
 
     def init_meta(self):
         super().init_meta()
         # Over-ride a pair
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
+        self.meta['amp'] = dict(ext=0, card='TAPLINES')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1667,7 +1666,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced after 2009-05-02; see :doc:`lris`'
+    comment = 'Red camera; Original FITS file format; used until April 2009; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1761,7 +1760,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.21,  # TO BE UPDATED!!
+            platescale=0.211,  # confirmed from keck website at: https://www2.keck.hawaii.edu/inst/lris/lris-red-upgrade-notes.html#dewar3
             darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
