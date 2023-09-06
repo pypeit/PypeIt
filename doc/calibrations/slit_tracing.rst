@@ -207,7 +207,7 @@ Detection Threshold
 The detection threshold for identifying slits is set
 relatively low to err on the side of finding more as opposed to fewer slit edges.
 The algorithm can be fooled by scattered light and detector
-defects.  One can increase the threshold with the ``sigdetect``
+defects.  One can increase the threshold with the ``edge_thresh``
 parameter:
 
 .. code-block:: ini
@@ -219,11 +219,11 @@ parameter:
 Then monitor the number of slits detected by the algorithm.
 
 Presently, we recommend that you err on the conservative
-side regarding thresholds, i.e. higher values of ``sigdetect``,
+side regarding thresholds, i.e. higher values of ``edge_thresh``,
 unless you have especially faint trace flat frames.
 
 On the flip side, if slit defects (common) are being
-mistaken as slit edges then *increase* ``sigdetect``
+mistaken as slit edges then *increase* ``edge_thresh``
 and hope for the best.
 
 .. _trace-slit-mask_frac_thresh:
