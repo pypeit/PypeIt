@@ -5,6 +5,7 @@ Module for the SpecObjs and SpecObj classes
 .. include:: ../include/links.rst
 """
 import os
+from pathlib import Path
 import re
 from typing import List
 
@@ -75,49 +76,57 @@ class SpecObjs:
             provided fits file.
         """
         # HDUList
-        hdul = io.fits_open(fits_file)
-        # Init
-        slf = cls()
-        # Add on the header
-        slf.header = hdul[0].header
-        # Keep track of HDUList for closing later
+        with io.fits_open(fits_file) as hdul:
+            # Init
+            slf = cls()
+            # Add on the header
+            slf.header = hdul[0].header
 
-        # Catch common error of trying to read a OneSpec file
-        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
-            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+            # Catch common error of trying to read a OneSpec file
+            if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+                msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
 
-        detector_hdus = {}
-        # Loop for Detectors first as we need to add these to the objects
-        for hdu in hdul[1:]:
-            if 'DETECTOR' not in hdu.name:
-                continue
-            if 'DMODCLS' not in hdu.header:
-                msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
-            try:
-                dmodcls = eval(hdu.header['DMODCLS'])
-            except:
-                msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
-            # NOTE: This requires that any "detector" datamodel class has a
-            # from_hdu method, and the name of the HDU must have a known format
-            # (e.g., 'DET01-DETECTOR').
-            _det = hdu.name.split('-')[0]
-            detector_hdus[_det] = dmodcls.from_hdu(hdu)
+            # Load the calibration association into the instance attribute `calibs`
+            if 'CLBS_DIR' in slf.header:
+                slf.calibs = {}
+                slf.calibs['DIR'] = slf.header['CLBS_DIR']
+                for key in slf.header.keys():
+                    if key.startswith('CLBS_') \
+                            and (Path(slf.calibs['DIR']).resolve() / slf.header[key]).exists():
+                        slf.calibs['_'.join(key.split('_')[1:])] = slf.header[key]
 
-        # Now the objects
-        for hdu in hdul[1:]:
-            if 'DETECTOR' in hdu.name:
-                continue
-            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
-            # Restrict on det?
-            if det is not None and sobj.DET != det:
-                continue
-            # Check for detector
-            if sobj.DET in detector_hdus.keys():
-                sobj.DETECTOR = detector_hdus[sobj.DET]
-            # Append
-            slf.add_sobj(sobj)
+            detector_hdus = {}
+            # Loop for Detectors first as we need to add these to the objects
+            for hdu in hdul[1:]:
+                if 'DETECTOR' not in hdu.name:
+                    continue
+                if 'DMODCLS' not in hdu.header:
+                    msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
+                try:
+                    dmodcls = eval(hdu.header['DMODCLS'])
+                except:
+                    msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
+                # NOTE: This requires that any "detector" datamodel class has a
+                # from_hdu method, and the name of the HDU must have a known format
+                # (e.g., 'DET01-DETECTOR').
+                _det = hdu.name.split('-')[0]
+                detector_hdus[_det] = dmodcls.from_hdu(hdu)
+
+            # Now the objects
+            for hdu in hdul[1:]:
+                if 'DETECTOR' in hdu.name:
+                    continue
+                sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
+                # Restrict on det?
+                if det is not None and sobj.DET != det:
+                    continue
+                # Check for detector
+                if sobj.DET in detector_hdus.keys():
+                    sobj.DETECTOR = detector_hdus[sobj.DET]
+                # Append
+                slf.add_sobj(sobj)
+
         # Return
-        hdul.close()
         return slf
 
 
@@ -133,6 +142,7 @@ class SpecObjs:
 
         self.header = header
         self.hdul = None
+        self.calibs = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -752,6 +762,10 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+        # Add calibration associations to Header
+        if self.calibs is not None:
+            for key, val in self.calibs.items():
+                header[f'CLBS_{key}'] = val
 
         # Init
         prihdu = fits.PrimaryHDU(header=header)
@@ -874,11 +888,8 @@ class SpecObjs:
                 boxsize.append(0.)
 
             # Optimal profile (FWHM)
+            opt_fwhm.append(specobj.SPAT_FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
-                opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-            else:  # Optimal is not required to occur
-                opt_fwhm.append(0.)
             # NOTE: Below requires that S2N not be None, otherwise the code will
             # fault.  If the code gets here and S2N is None, check that 1D
             # extractions have been performed.
