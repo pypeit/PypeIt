@@ -2,6 +2,7 @@
 ---------
 
 - Add support for Gemini/GNIRS (IFU)
+- Add support for Keck/KCRM
 - Added a script to convert a wavelength solution into something that can be placed in the reid archive.
 - Hotfix for GTC/OSIRIS lamp list
 - Hotfix for Arc1D stats annotations on the QA
