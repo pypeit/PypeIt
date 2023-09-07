@@ -291,9 +291,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         # The DeVeny arc line FWHM varies based on slitwidth used
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
-        # Because of the wide wavelength range, solution more non-linear; user higher orders
-        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True  # Defualt: False
@@ -475,18 +472,27 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par['calibrations']['wavelengths']['nsnippet'] = 2
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 400
 
         elif grating == 'DV2 (300/4000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 800
 
         elif grating == 'DV3 (300/6750)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1200
 
@@ -496,32 +502,24 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15  # Default: 0.15
-             # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1800
 
         elif grating == 'DV5 (500/5500)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1450
 
         elif grating == 'DV6 (600/4900)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1500
 
         elif grating == 'DV7 (600/6750)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 2000
 
@@ -531,18 +529,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
             par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25  # Default: 0.15
-            # Start/end with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
-            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3200
 
         elif grating == 'DV9 (1200/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
-            # Start/end with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
-            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3000
 
