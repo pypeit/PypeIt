@@ -40,7 +40,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-from pypeit.images.detector_container import DetectorContainer
+from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 
 
@@ -586,7 +586,7 @@ class Spectrograph:
 
         This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
         to measure the mean offset between the measured and expected slit
-        locations.  **This method is not defined for all spectrographs.**
+        locations.
 
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
@@ -611,7 +611,12 @@ class Spectrograph:
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        return None
+
+        if mosaic:
+            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
+        else:
+            return np.array([detector_container.DetectorContainer.get_name(i + 1) for i in range(self.ndet)])
+
 
     def get_lamps(self, fitstbl):
         """
@@ -988,7 +993,7 @@ class Spectrograph:
         # Single detector
         if det <= 0 or det > self.ndet:
             msgs.error(f'{det} is not a valid detector for {self.name}.')
-        return DetectorContainer.get_name(det)
+        return detector_container.DetectorContainer.get_name(det)
 
     def get_det_id(self, det):
         """
@@ -1059,7 +1064,10 @@ class Spectrograph:
             for ss in subset_list:
                 parsed_det = parse.parse_slitspatnum(ss)[0][0]
                 if 'DET' in parsed_det:
-                    idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
+                    try:
+                        idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
+                    except:
+                        embed()
                     new_dets.append(idx+1)
                 elif 'MSC' in parsed_det:
                     idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
