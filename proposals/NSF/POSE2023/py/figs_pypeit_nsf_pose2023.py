@@ -253,10 +253,23 @@ def fig_geo_spectrographs(outfile:str='fig_geo_spectrographs.png',
         debug (bool, optional): _description_. Defaults to False.
     """
     support_dict = {
-        'green': ['keck_deimos', 'keck_mosfire', 'ldt_deveny', 
-            'p200_dbsp_blue', 'p200_dbsp_red'],
-        'blue': ['keck_nires', 'keck_esi', 'shane_kast_blue', 'shane_kast_red',
-                   'magellan_fire'],
+        'green': ['keck_deimos', 'keck_mosfire', 
+            'keck_nires', 'keck_esi', 'keck_hires'],
+        'blue': [ 'ldt_deveny', 
+            'p200_dbsp_blue', 'p200_dbsp_red',
+                 'shane_kast_blue', 'shane_kast_red',
+                 'mmt_binospec', 'mmt_bluechannel', 'mmt_mmirs',
+                 'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b',
+                 'lbt_luci1', 'lbt_luci2', 
+                 'keck_lris_blue', 'keck_lris_red_mark4', 
+                 'keck_nirspec_low',
+            ],
+        'orange': ['magellan_fire', 'magellan_mage', 
+            'mdm_modspec', 'mdm_osmos_mdm4k',
+            'magellan_fire_long', 'not_alfosc',
+            'gtc_maat', 'gtc_osiris', 'gtc_osiris_plus',
+            'wht_isis_blue', 'wht_isis_red', 
+            'tng_dolores'],
         'black': ['rest'],
     }
     participants = ['keck']
@@ -305,17 +318,19 @@ def fig_geo_spectrographs(outfile:str='fig_geo_spectrographs.png',
         # Arziona
         if np.abs(uni_lat-31.6809444444) < 1e-5: 
             idx = idx | (np.abs(all_lats - 32.7015999999) < 1e-5) # LBT
-            idx = idx | (np.abs(all_lats - 34.744305000) < 1e-5) # LDT
+            idx = idx | (np.abs(all_lats - 34.744305000) < 1e-5) # 
             idx = idx | (np.abs(all_lats - 31.963333333) < 1e-5)
+            idx = idx | (np.abs(all_lats - 31.94999999) < 1e-5) # MDM
         lon, lat = geo_dict[specs[idx][0]][0], geo_dict[specs[idx][0]][1], 
         # Plot
-        if specs[idx][0] in ['gemini_gmos_north_e2v',
-                             'shane_kast_blue', 'p200_dbsp_blue', 
-                             'ntt_efosc2',
-                             'ldt_deveny', 'mdm_modspec', 'lbt_luci1']:
-            psym = '*'                        
-        else:
-            psym = 'o'
+        #if specs[idx][0] in ['gemini_gmos_north_e2v',
+        #                     'shane_kast_blue', 'p200_dbsp_blue', 
+        #                     'ntt_efosc2',
+        #                     'ldt_deveny', 'mdm_modspec', 'lbt_luci1']:
+        #    psym = '*'                        
+        #else:
+        #    psym = 'o'
+        psym = 'o'
         #print(specs[idx][0])
         plt.plot(lon, lat, psym, transform=tformP)
 
@@ -466,48 +481,6 @@ def fig_geo_users(outfile:str='fig_geo_users.png',
     plt.close()
     print('Wrote {:s}'.format(outfile))
 
-def fig_learn_curve(outfile='fig_learn_curve.png'):
-    # Grab the data
-    #valid_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_96/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm_losses_valid.h5'
-    #valid_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_96/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm_losses_valid.h5'
-    valid_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_v4/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_256_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_256_temp_0.07_trial_5_cosine_warm_losses_valid.h5'
-    with ulmo_io.open(valid_losses_file, 'rb') as f:
-        valid_hf = h5py.File(f, 'r')
-    loss_avg_valid = valid_hf['loss_avg_valid'][:]
-    loss_step_valid = valid_hf['loss_step_valid'][:]
-    loss_valid = valid_hf['loss_valid'][:]
-    valid_hf.close()
-
-    #train_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_96/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm_losses_train.h5'
-    #train_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_96/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_128_temp_0.07_trial_5_cosine_warm_losses_train.h5'
-    train_losses_file = 's3://modis-l2/SSL/models/MODIS_R2019_v4/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_256_temp_0.07_trial_5_cosine_warm/learning_curve/SimCLR_resnet50_lr_0.05_decay_0.0001_bsz_256_temp_0.07_trial_5_cosine_warm_losses_train.h5'
-    with ulmo_io.open(train_losses_file, 'rb') as f:
-        train_hf = h5py.File(f, 'r')
-    loss_train = train_hf['loss_train'][:]
-    train_hf.close()
-
-    # Plot
-    fig = plt.figure(figsize=(10, 10))
-    plt.clf()
-    gs = gridspec.GridSpec(1,1)
-
-    ax = plt.subplot(gs[0])
-
-    ax.plot(loss_valid, label='valid', lw=3)
-    ax.plot(loss_train, c='red', label='train', lw=3)
-
-    ax.legend(fontsize=19.)
-
-    # Label
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Loss")
-
-    plotting.set_fontsize(ax, 21.)
-    
-    plt.savefig(outfile, dpi=300)
-    plt.close()
-    print('Wrote {:s}'.format(outfile))
-
 
         
 #### ########################## #########################
@@ -550,7 +523,4 @@ if __name__ == '__main__':
 # Figures
 
 # Geographic location of Spectrographs
-# python py/figs_pypeit_nsf_cyber_2022.py geo_spec
-
-# Users
-# python py/figs_pypeit_nsf_cyber_2022.py geo_users --load
+# python py/figs_pypeit_nsf_pose2023.py geo_spec
