@@ -129,9 +129,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Extras for config and frametyping
+        # NOTE: `rtol` is _relative_ tolerance (e.g. 1 part in 1,000)
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
-        self.meta['cenwave'] = dict(card=None, compound=True, rtol=2.0)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=1e-3)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -275,10 +276,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #   of frames from different lamps into a comprehensible Master
         par['calibrations']['arcframe']['process']['clip'] = False
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        # par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
-        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+        # par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
 
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
