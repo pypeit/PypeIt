@@ -90,8 +90,14 @@ Requirement PLL-16 states: "As a user, I expect the pipeline to automatically cl
 
 ``PypeIt`` meets this requirement as demonstrated by the tests at
 ``${PYPEIT_DEV}/unit_tests/test_frametype.py``. There is one test
-per spectrograph: ``test_lris_blue()``, ``test_lris_blue_orig()``,
-``test_lris_red()``, ``test_lris_red_orig()``, ``test_lris_red_mark4()``.
+per spectrograph:
+
+- ``test_lris_blue()``
+- ``test_lris_blue_orig()``
+- ``test_lris_red()``
+- ``test_lris_red_orig()``
+- ``test_lris_red_mark4()``
+
 Here is an example of how to run the tests:
 
 .. code-block:: bash
@@ -99,7 +105,7 @@ Here is an example of how to run the tests:
     cd ${PYPEIT_DEV}/unit_tests
     pytest test_frametype.py::test_lris_blue -W ignore
 
-The tests requires that you have downloaded the ``PypeIt``
+The tests requires that you have downloaded the PypeIt
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
 variable that points to the relevant directory. The algorithm for
 all these tests is the same and is as follows:
