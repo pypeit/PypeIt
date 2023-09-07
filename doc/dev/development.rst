@@ -412,23 +412,27 @@ tagging process is as follows:
    will have been reviewed before pulling into ``develop``), but the result of
    the dev-suite tests must be shown and approved.  The reason for creating the
    new branch instead of a direct ``release...develop`` PR is to allow for the
-   following updates to ``develop`` before merging (``develop`` is a protected
+   following updates to ``staged`` before merging (``develop`` is a protected
    branch and cannot be directly edited):
 
         * Update the documentation by executing ``cd doc ; make clean ; make
           html``, add any updated files, and correct any issued errors/warnings.
-
-        * Make any final updates to ``CHANGES.rst`` and reset the relevant
-          version header to be the intended tag number.
 
         * Fix any test failures.  As necessary, an accompanying :ref:`dev-suite`
           PR may be issued that includes test fixes required code changes.  If
           no code changes are required, a :ref:`dev-suite` PR should be issued
           that merges its ``develop`` branch directly into its ``main`` branch.
 
- * Once the ``release`` branch is updated and the :ref:`dev-suite` ``main``
-   branch is updated, the dev-suite tests are re-run using these two branches.
-   These tests must pass before tagging.  Once they pass, the code is tagged as
+        * Make any final updates to ``CHANGES.rst`` and reset the relevant
+          version header to be the intended tag number.
+
+        * Add a new release doc to the ``doc/releases`` directory, parsing
+          changes from the ``CHANGES.rst`` file, and add include it in the
+          ``whatsnew.rst`` doc.
+
+ * Once the ``release`` branch and the :ref:`dev-suite` ``main`` branch are
+   updated, the dev-suite tests are re-run using these two branches.  These
+   tests must pass before tagging.  Once they pass, the code is tagged as
    follows:
           
     .. code-block:: bash
