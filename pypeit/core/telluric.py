@@ -402,8 +402,8 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
             needed for the current model fit.
 
     Returns:
-        `numpy.ndarray`_: Telluric model evaluated at the desired location
-        theta_tell in model atmosphere parameter space.
+        `numpy.ndarray`_: Telluric model evaluated from the PCA coefficients
+        given by theta_tell, with convolution, shift, and stretch applied.
     """
     ntheta = len(theta_tell)
     # Infer number of used components from the number of parameters
