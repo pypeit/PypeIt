@@ -2,8 +2,8 @@
 
 .. _lris_frames_report:
 
-Automated typing of LRIS frames
-=================================
+Automated typing of LRIS (BLUE and RED) frames
+==============================================
 
 Version History
 ---------------
@@ -12,7 +12,7 @@ Version History
 =========   ================   =========== ===========
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
-1.0         Debora Pelliccia   24 Oct 2021 1.6.1.dev
+1.0         Debora Pelliccia    6 Sep 2023 1.13.1.dev
 =========   ================   =========== ===========
 
 ----
@@ -23,84 +23,91 @@ Basics
 The general procedure used to assign frames a given type is described
 here: :ref:`frame_types`.
 
-DEIMOS frame typing
--------------------
+LRIS frame typing
+-----------------
 
-The primary typing of DEIMOS frames is performed by
-:func:`pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.check_frame_type`.
+The primary typing of LRIS frames is performed by
+:func:`pypeit.spectrographs.keck_lris.KeckLRISSpectrograph.check_frame_type`.
 This function checks the values of various header keywords against a
-set of criteria used to classify the frame type. The headers cards
-required for the frame-typing and their associated keyword in the
+set of criteria used to classify the frame type. The same criteria are used for
+``keck_lris_red``, ``keck_lris_red_orig``, ``keck_lris_red_mark4``, ``keck_lris_blue``,
+and ``keck_lris_blue_orig``, unless otherwise noted.
+The headers cards required for the frame-typing and their associated keyword in the
 :class:`~pypeit.metadata.PypeItMetaData` object are:
 
 ===============     ============
 ``fitstbl`` key     Header Key
 ===============     ============
-``mode``            ``MOSMODE``
 ``exptime``         ``ELAPTIME``
-``lampstat01``      ``LAMPS``
-``hatch``           ``HATCHPOS``
-``idname``          ``OBSTYPE``
+``hatch``           ``TRAPDOOR``
+``lampstat01``        No key
 ===============     ============
+
+``lampstat01`` is defined using a combination of header keywords, which include
+``LAMPS``, ``MERCURY``, ``NEON``, ``ARGON``, ``CADMIUM``, ``ZINC``, ``HALOGEN``,
+``KRYPTON``, ``XENON``, ``FEARGON``, ``DEUTERI``, ``FLAMP1``, ``FLAMP2``, ``FLIMAGIN``,
+``FLSPECTR``. Since LRIS header keywords have changed over time, the exact combination
+of keywords used to define ``lampstat01`` varies depending on the available header keywords.
+
+Note that the header keyword used for ``exptime`` is ``TELAPSE`` for `keck_lris_red_mark4``.
 
 The criteria used to select each frame type are as follows:
 
-=============   ==========================================  ===========   ============    ============
-Frame           ``OBSTYPE``                                 ``LAMPS``     ``HATCHPOS``    ``MOSMODE``
-=============   ==========================================  ===========   ============    ============
-``science``     ``'Object'``                                ``'Off'``     ``'open'``      ``'Spectral'``
-``bias``        ``'Bias'``                                  ``'Off'``     ``'closed'``    ``'Spectral'``
-``dark``        ``'Dark'``                                  ``'Off'``     ``'closed'``    ``'Spectral'``
-``pixelflat``   ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
-``pixelflat``   ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
-``trace``       ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
-``trace``       ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
-``illumflat``   ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
-``illumflat``   ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
-``arc``         ``'Line'``                                  ``!='Off'``   ``'closed'``    ``'Spectral'``
-``tilt``        ``'Line'``                                  ``!='Off'``   ``'closed'``    ``'Spectral'``
-=============   ==========================================  ===========   ============    ============
+=============   ============   ======================================   ===========================================
+Frame           ``hatch``      ``lampstat01``                           ``exptime``
+=============   ============   ======================================   ===========================================
+``science``     ``'open'``     ``'off'``                                ``>61s``
+``standard``    ``'open'``     ``'off'``                                ``>1s`` & ``<61s``
+``bias``        ``'closed'``   ``'off'``                                ``<0.001s``
+``pixelflat``   ``'closed'``   ``'Halogen' or '2H'``                    ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``pixelflat``   ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``trace``       ``'closed'``   ``'Halogen'`` or ``'2H'``                ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``trace``       ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``illumflat``   ``'closed'``   ``'Halogen'`` or ``'2H'``                ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``illumflat``   ``'open'``     ``'on'``                                 ``<60s``(LRIS RED) or ``<300s`` (LRIS BLUE)
+``arc``         ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      Not used
+``tilt``        ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      Not used
+=============   ============   ======================================   ===========================================
 
-Note that, by default, the exposure time (``ELAPTIME``) is not used to
-distinguish frame types; however, this can be changed using the ``exprng``
-parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.
+Note that PypeIt employs commonly used value of ``exptime`` to distinguish frame type;
+however, if needed, the user can specify a different value by
+using the ``exprng`` parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.
 
-Importantly, note that a DEIMOS frame is never given a ``pinhole``
-type. Also note that the criteria used to select ``pixelflat``,
-``trace``, and ``illumflat`` are identical; the same is true for
-``arc`` and ``tilt`` frames. No distinction is currently made between
-``IntFlat``, ``DmFlat``, or ``SkyFlat`` and how they're used in the
-code.
+The criteria used to select ``arc`` and ``tilt`` frames are identical; the same is true for
+``pixelflat``, ``trace``, and ``illumflat`` frames. However, it's important to note that
+PypeIt is able to correctly assign the ``pixelflat``, ``trace``, and ``illumflat`` types
+to the internal and dome flat frames, but the twilight flats will generally have the
+``science`` or ``standard`` type. Therefore, the user should manually change their frame type
+in the :ref:`pypeit_file`.
 
-Also note that ``PypeIt`` will ignore frames observed under
-conditions that do not meet the restricted values set by
-:func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.valid_configuration_values`.
-This currently requires all frames to have ``MOSMODE == 'Spectral'``
-and ``AMPMODE == 'SINGLE:B'``. Frames that do not meet these criteria
-will not be included in the automatically generated
-:ref:`pypeit_file` created by :ref:`pypeit_setup`.
+Finally, note that a LRIS frame is never given a ``pinhole`` or ``dark`` type.
+
 
 Testing
 -------
 
-Requirement PD-1 states: "As a user, I want the pipeline to
-automatically classify my calibrations."
+Requirement PLL-16 states: "As a user, I expect the pipeline to automatically classify my data."
 
-``PypeIt`` meets this requirement as demonstrated by the test at
-``${PYPEIT_DEV}/unit_tests/test_frametype.py``.  To run the test:
+``PypeIt`` meets this requirement as demonstrated by the tests at
+``${PYPEIT_DEV}/unit_tests/test_frametype.py``. There is one test
+per spectrograph: ``test_lris_blue()``, ``test_lris_blue_orig()``,
+``test_lris_red()``, ``test_lris_red_orig()``, ``test_lris_red_mark4()``.
+Here is an example of how to run the tests:
 
 .. code-block:: bash
 
     cd ${PYPEIT_DEV}/unit_tests
-    pytest test_frametype.py::test_deimos -W ignore
+    pytest test_frametype.py::test_lris_blue -W ignore
 
-The test requires that you have downloaded the ``PypeIt``
+The tests requires that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
-variable that points to the relevant directory. The algorithm of the
-test is as follows:
+variable that points to the relevant directory. The algorithm for
+all these tests is the same and is as follows:
 
-    1. Find all the directories in the :ref:`dev-suite` with Keck
-       DEIMOS data.
+    1. Find the directories in the :ref:`dev-suite` with Keck
+       LRIS data (separately for ``keck_lris_blue``,
+       ``keck_lris_blue_orig``, ``keck_lris_red``,
+       ``keck_lris_red_orig``, ``keck_lris_red_mark4``).
 
     2. For each directory (i.e., instrument setup):
 
@@ -121,3 +128,5 @@ test is as follows:
 Because this test is now included in the ``PypeIt``
 :ref:`unit-tests`, this frame-typing check is performed by the
 developers for every new version of the code.
+
+
