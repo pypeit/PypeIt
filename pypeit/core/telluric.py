@@ -146,10 +146,6 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     Optionally, this method also trims wavelength to be in within ``wave_min``
     and ``wave_max`` and pads the data (see ``pad_frac``).
 
-    .. todo::
-        List and describe the contents of the dictionary in the return
-        description.
-
     Args:
         filename (:obj:`str`):
             Telluric PCA filename
@@ -165,15 +161,13 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     Returns:
         :obj:`dict`: Dictionary containing the telluric PCA components.
-            - wave_grid=
-            - dloglam=
-            - resln_guess=
-            - pix_per_sigma=
-            - tell_pad_pix=
-            - ncomp_tell_pca=
-            - tell_pca=
-            - bounds_tell_pca=
-            - coefs_tell_pca=
+            - wave_grid: Telluric model wavelength grid
+            - dloglam: Wavelength sampling of telluric model
+            - tell_pad_pix: Number of pixels to pad at edges for convolution
+            - ncomp_tell_pca: Number of PCA components
+            - tell_pca: PCA component vectors
+            - bounds_tell_pca: Maximum/minimum coefficient
+            - coefs_tell_pca: Set of model coefficient values (for prior in future)
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
@@ -193,20 +187,17 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
 
-    return dict(wave_grid=wave_grid, dloglam=dloglam, resln_guess=resln_guess,
-            pix_per_sigma=pix_per_sigma, tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
-            tell_pca=pca_comp_grid, bounds_tell_pca=bounds, coefs_tell_pca=model_coefs)
+    return dict(wave_grid=wave_grid, dloglam=dloglam,
+                tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
+                tell_pca=pca_comp_grid, bounds_tell_pca=bounds, coefs_tell_pca=model_coefs)
             
 def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     """
-    Reads in the telluric grid from a file.
+    Reads in the telluric grid from a file. This method is no longer the
+    preferred approach; see "read_telluric_pca" and other functions.
 
     Optionally, this method also trims the grid to be in within ``wave_min``
     and ``wave_max`` and pads the data (see ``pad_frac``).
-
-    .. todo::
-        List and describe the contents of the dictionary in the return
-        description.
 
     Args:
         filename (:obj:`str`):
@@ -223,16 +214,14 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     Returns:
         :obj:`dict`:  Dictionary containing the telluric grid
-            - wave_grid=
-            - dloglam=
-            - resln_guess=
-            - pix_per_sigma=
-            - tell_pad_pix=
-            - pressure_grid=
-            - temp_grid=
-            - h2o_grid=
-            - airmass_grid=
-            - tell_grid=
+            - wave_grid: Telluric model wavelength grid
+            - dloglam: Wavelength sampling of telluric model
+            - tell_pad_pix: Number of pixels to pad at edges for convolution
+            - pressure_grid: Atmospheric pressure values in telluric grid [mbar]
+            - temp_grid: Temperature values in telluric grid [degrees C]
+            - h2o_grid: Humidity values in telluric grid [%]
+            - airmass_grid: Airmass values in telluric grid
+            - tell_grid: Grid of telluric models
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
@@ -258,11 +247,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
 
-
     return dict(wave_grid=wave_grid,
                 dloglam=dloglam,
-                resln_guess=resln_guess,
-                pix_per_sigma=pix_per_sigma,
                 tell_pad_pix=tell_pad_pix,
                 pressure_grid=pg,
                 temp_grid=tg,
@@ -378,7 +364,6 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
 
-
 def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     Evaluate the telluric PCA model.
@@ -400,7 +385,8 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     Args:
         theta_tell (`numpy.ndarray`_):
-            Vector with the telluric PCA coefficients
+            Vector with ntell PCA coefficients, followed by spectral resolution,
+            shift, and stretch. Final length is ntell+3.
         tell_dict (:obj:`dict`):
             Dictionary containing the telluric PCA data. See
             :func:`read_telluric_pca`.
@@ -604,7 +590,12 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
             The telluric model theta_tell includes a either user-specified
             number of PCA coefficients (in PCA mode) or ambient pressure,
             temperature, humidity, and airmass (in grid mode) as well as
-            spectral resolution, shift, and stretch.
+            spectral resolution, shift, and stretch. That is, in PCA mode,
+            
+                pca_coeffs = theta_tell[:ntell]
+                resolution = theta_tell[ntell]
+                shift      = theta_tell[ntell+1]
+                stretch    = theta_tell[ntell+2]
 
             The object model theta_obj can have an arbitrary size and is
             provided as an argument to obj_model_func
@@ -1563,8 +1554,9 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 
 
-def qso_telluric(spec1dfile, telgridfile, teltype, pca_file, z_qso, telloutfile, outfile, npca=8,
-                 pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1, ntell=4,
+def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile, npca=8,
+                 pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
+                 teltype='PCA', ntell=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
@@ -1731,10 +1723,10 @@ def qso_telluric(spec1dfile, telgridfile, teltype, pca_file, z_qso, telloutfile,
 
     return TelObj
 
-def star_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, star_type=None,
+def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
-                  polyorder=5, ntell=4, mask_hydrogen_lines=True, mask_helium_lines=False,
-                  hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
+                  polyorder=5, teltype='PCA', ntell=4, mask_hydrogen_lines=True,
+                  mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                   pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
@@ -1839,9 +1831,9 @@ def star_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, star_t
 
     return TelObj
 
-def poly_telluric(spec1dfile, telgridfile, teltype, telloutfile, outfile, z_obj=0.0, func='legendre',
-                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, ntell=4,
-                  delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
+def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
+                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='PCA',
+                  ntell=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
                   debug_init=False, debug=False, show=False):
@@ -2385,8 +2377,8 @@ class Telluric(datamodel.DataContainer):
             table.Column(name='WAVE_MAX', dtype=float, length=norders,
                          description='Maximum wavelength included in the fit')])
 
-    def __init__(self, wave, flux, ivar, gpm, telgridfile, teltype, obj_params, init_obj_model,
-                 eval_obj_model, log10_blaze_function=None, ech_orders=None, sn_clip=30.0, ntell=4,
+    def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model, eval_obj_model,
+                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='PCA', ntell=4,
                  airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
@@ -2447,7 +2439,7 @@ class Telluric(datamodel.DataContainer):
                 wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
-        if teltype == 'pca' or teltype == 'PCA':
+        if upper(teltype) == 'PCA':
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
             self.tell_model_func = eval_telluric_pca

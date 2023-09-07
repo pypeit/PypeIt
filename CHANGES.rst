@@ -42,8 +42,6 @@
 - Refactored ``load_line_lists()`` yet again!
 - Introduced PCA method for telluric corrections
 
->>>>>>> develop
-
 1.13.0 (2 June 2023)
 --------------------
 
