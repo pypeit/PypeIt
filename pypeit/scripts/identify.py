@@ -39,6 +39,9 @@ class Identify(scriptbase.ScriptBase):
                             help="Save the solutions, despite the RMS")
         parser.add_argument('--rescale_resid', default=False, action='store_true',
                             help="Rescale the residual plot to include all points?")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename identify_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -54,6 +57,9 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('identify', args.verbosity)
 
         # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file)
