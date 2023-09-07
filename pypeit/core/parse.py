@@ -149,6 +149,7 @@ def parse_binning(binning:str):
     # Return
     return binspectral, binspatial
 
+
 # TODO: Allow this to differentiate between detectors and mosaics.  Input syntax
 # likely to become, e.g., DET01:175,DET01:205.
 def parse_slitspatnum(slitspatnum):
@@ -165,6 +166,11 @@ def parse_slitspatnum(slitspatnum):
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
     """
+    _slitspatnum = slitspatnum if isinstance(slitspatnum,list) else [slitspatnum]
+    _slitspatnum = np.concatenate([item.split(',') for item in _slitspatnum])
+    _slitspatnum = np.array([item.split(':') for item in _slitspatnum])
+    return _slitspatnum[:,0], _slitspatnum[:,1].astype(int)
+
     dets = []
     spat_ids = []
     if isinstance(slitspatnum,list):
