@@ -1064,10 +1064,7 @@ class Spectrograph:
             for ss in subset_list:
                 parsed_det = parse.parse_slitspatnum(ss)[0][0]
                 if 'DET' in parsed_det:
-                    try:
-                        idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
-                    except:
-                        embed()
+                    idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
                     new_dets.append(idx+1)
                 elif 'MSC' in parsed_det:
                     idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
