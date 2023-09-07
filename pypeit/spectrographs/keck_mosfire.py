@@ -876,39 +876,40 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.show()
 
 
-    def list_detectors(self, mosaic=False):
-        """
-        List the *names* of the detectors in this spectrograph.
-
-        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
-        to measure the mean offset between the measured and expected slit
-        locations.
-
-        Detectors separated along the dispersion direction should be ordered
-        along the first axis of the returned array.  For example, Keck/DEIMOS
-        returns:
-        
-        .. code-block:: python
-        
-            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
-                             ['DET05', 'DET06', 'DET07', 'DET08']])
-
-        such that all the bluest detectors are in ``dets[0]``, and the slits
-        found in detectors 1 and 5 are just from the blue and red counterparts
-        of the same slit.
-
-        Args:
-            mosaic (:obj:`bool`, optional):
-                Is this a mosaic reduction?
-                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
-
-        Returns:
-            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
-            the array is 2D, there are detectors separated along the dispersion
-            axis.
-        """
-        return np.array([detector_container.DetectorContainer.get_name(i+1) 
-                            for i in range(self.ndet)])
+# NOTE: This now uses the base class function
+#    def list_detectors(self, mosaic=False):
+#        """
+#        List the *names* of the detectors in this spectrograph.
+#
+#        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+#        to measure the mean offset between the measured and expected slit
+#        locations.
+#
+#        Detectors separated along the dispersion direction should be ordered
+#        along the first axis of the returned array.  For example, Keck/DEIMOS
+#        returns:
+#        
+#        .. code-block:: python
+#        
+#            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+#                             ['DET05', 'DET06', 'DET07', 'DET08']])
+#
+#        such that all the bluest detectors are in ``dets[0]``, and the slits
+#        found in detectors 1 and 5 are just from the blue and red counterparts
+#        of the same slit.
+#
+#        Args:
+#            mosaic (:obj:`bool`, optional):
+#                Is this a mosaic reduction?
+#                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
+#
+#        Returns:
+#            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+#            the array is 2D, there are detectors separated along the dispersion
+#            axis.
+#        """
+#        return np.array([detector_container.DetectorContainer.get_name(i+1) 
+#                            for i in range(self.ndet)])
 
     def get_slitmask(self, filename):
         """

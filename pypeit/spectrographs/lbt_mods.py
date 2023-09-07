@@ -14,7 +14,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 
 # TODO: FW: test MODS1B and MODS2B
 
@@ -793,7 +793,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):

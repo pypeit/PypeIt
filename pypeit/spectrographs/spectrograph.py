@@ -40,7 +40,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 
 
@@ -611,11 +611,10 @@ class Spectrograph:
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-
-        if mosaic:
-            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-        else:
-            return np.array([detector_container.DetectorContainer.get_name(i + 1) for i in range(self.ndet)])
+        if mosaic and len(self.allowed_mosaics) == 0:
+            msgs.error(f'Spectrograph {self.name} does not have any defined detector mosaics.')
+        dets = self.allowed_mosaics if mosaic else range(1,self.ndet+1)
+        return np.array([self.get_det_name(det) for det in dets])
 
 
     def get_lamps(self, fitstbl):
@@ -993,7 +992,7 @@ class Spectrograph:
         # Single detector
         if det <= 0 or det > self.ndet:
             msgs.error(f'{det} is not a valid detector for {self.name}.')
-        return detector_container.DetectorContainer.get_name(det)
+        return DetectorContainer.get_name(det)
 
     def get_det_id(self, det):
         """
