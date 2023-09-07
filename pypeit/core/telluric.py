@@ -369,8 +369,7 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     Evaluate the telluric PCA model.
 
     The parameters provided by ``theta_tell`` must be: ntell PCA coefficients,
-    spectral resolution, shift, and stretch. The latter two can be omitted if
-    a shift and stretch of the telluric model are not included.
+    spectral resolution, shift, and stretch.
 
     This routine performs the following steps:
 
@@ -381,7 +380,7 @@ def eval_telluric_pca(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
        3. convolution of the atmosphere model to the resolution set by
           the spectral resolution.
 
-       4. (Optional) shift and stretch the telluric model.
+       4. shift and stretch the telluric model.
 
     Args:
         theta_tell (`numpy.ndarray`_):
