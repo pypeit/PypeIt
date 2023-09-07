@@ -385,9 +385,11 @@ class Extract:
         if len(remove_idx) > 0:
             self.sobjs.remove_sobj(remove_idx)
 
-        # Add the S/N ratio for each extracted object
+        # Add the DETECTOR container, S/N ratio, and FWHM in ARCSEC for each extracted object
         for sobj in self.sobjs:
+            sobj.DETECTOR = self.sciImg.detector
             sobj.S2N = sobj.med_s2n()
+            sobj.SPAT_FWHM = sobj.med_fwhm()
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
