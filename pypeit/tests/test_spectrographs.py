@@ -90,6 +90,16 @@ def test_list_detectors_mods():
         mosaics = mods.list_detectors(mosaic=True)
 
 
+def test_list_detectors_hires():
+    hires = load_spectrograph('keck_hires')
+    dets = hires.list_detectors()
+    assert dets.ndim == 1, 'HIRES has a 1D array of detectors'
+    assert dets.size == 3, 'HIRES has 1 detector'
+    mosaics = hires.list_detectors(mosaic=True)
+    assert mosaics.ndim == 1, 'Mosaics are listed as 1D arrays'
+    assert mosaics.size == 1, 'HIRES has 1 predefined mosaic'
+
+
 def test_configs():
 
     spec = load_spectrograph('keck_deimos')
