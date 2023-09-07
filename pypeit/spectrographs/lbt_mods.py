@@ -310,7 +310,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -474,7 +474,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -631,7 +631,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
