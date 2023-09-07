@@ -279,7 +279,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 warn_msg = f'The following exposure(s) has/have S/N > {thresh_value:.2f} ' \
                            f'({_sigrej} sigma above the median S/N in the stack).'
                 if self.par['sigrej_exp'] is not None:
-                    warn_msg += ' It/They will not be coadded.'
+                        warn_msg += ' It/They WILL NOT BE COADDED.'
                 msgs.warn(warn_msg)
                 [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
                  for i, (fname, obj, bad_exp) in enumerate(zip(_spec1dfiles, _objids, bad_exps)) if bad_exp]
