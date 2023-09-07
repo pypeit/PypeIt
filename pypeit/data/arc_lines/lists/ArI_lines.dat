@@ -160,4 +160,9 @@
 | ArI |  9356.7870 |    1 |    89 |      3521 |  lrisr_400_8500_PYPIT.json |
 | ArI |  9660.4350 |    1 |    72 |     35000 |   deimos_830g_r_PYPIT.json |
 | ArI |  9787.1860 |    1 |    25 |      8197 |  lrisr_400_8500_PYPIT.json |
+| ArI | 10054.81   |    1 |     1 |       300 |       keck_mosfire_webpage |
+| ArI | 10335.55   |    1 |     1 |       200 |       keck_mosfire_webpage |
 | ArI | 10472.9230 |    1 |    72 |      1600 |  deimos_830g_pypeit_manual |
+| ArI | 10676.49   |    1 |     1 |     11160 |       keck_mosfire_webpage |
+| ArI | 10703.90   |    1 |     1 |       130 |       keck_mosfire_webpage |
+| ArI | 10883.94   |    1 |     1 |       490 |       keck_mosfire_webpage |

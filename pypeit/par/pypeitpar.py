@@ -1398,7 +1398,9 @@ class CubePar(ParSet):
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
                          'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file.'
+                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
+                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
+                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -3892,7 +3894,9 @@ class SkySubPar(ParSet):
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
-                             'Currently, this parameter is only used for IFU data reduction.'
+                             'Currently, this parameter is only used for IFU data reduction. Note that the ' \
+                             'current implementation does not account for variations in the instrument FWHM ' \
+                             'in different slits. This will be addressed by Issue #1660.'
 
         defaults['max_mask_frac'] = 0.80
         dtypes['max_mask_frac'] = float
