@@ -589,13 +589,25 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
 
             The telluric model theta_tell includes a either user-specified
             number of PCA coefficients (in PCA mode) or ambient pressure,
-            temperature, humidity, and airmass (in grid mode) as well as
-            spectral resolution, shift, and stretch. That is, in PCA mode,
+            temperature, humidity, and airmass (in grid mode) followed by
+            spectral resolution, shift, and stretch.
+            
+            That is, in PCA mode,
             
                 pca_coeffs = theta_tell[:ntell]
-                resolution = theta_tell[ntell]
-                shift      = theta_tell[ntell+1]
-                stretch    = theta_tell[ntell+2]
+            
+            while in grid mode,
+            
+                pressure    = theta_tell[0]
+                temperature = theta_tell[1]
+                humidity    = theta_tell[2]
+                airmass     = theta_tell[3]
+                
+            with the last three indices of the array corresponding to
+            
+                resolution = theta_tell[-3]
+                shift      = theta_tell[-2]
+                stretch    = theta_tell[-1]
 
             The object model theta_obj can have an arbitrary size and is
             provided as an argument to obj_model_func
