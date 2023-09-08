@@ -577,7 +577,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     #   * Have a high threshold for detecting slit edges (par['calibrations']['slitedges']['edge_thresh'] = 100.), and have an option when inserting new traces to be the median of all other slit lengths (or a fit to the slit lengths).
     #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
 
     def init_meta(self):
         super().init_meta()

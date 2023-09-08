@@ -40,7 +40,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
     supported = True
 
     def __init__(self):

@@ -330,7 +330,7 @@ class ProcessImagesPar(ParSet):
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
-                                 'primarily used for IFUs.  To use this, you must set ' \
+                                 'primarily used for slicer IFUs.  To use this, you must set ' \
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
@@ -673,7 +673,7 @@ class FlatFieldPar(ParSet):
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
-                                       'only used for IFU reductions.'
+                                       'only used for SlicerIFU reductions.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int

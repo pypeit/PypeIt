@@ -42,7 +42,7 @@ class FindObjects:
             Specifies object being reduced.  Should be 'science',
             'standard', or 'science_coadd2d'.
         wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
-            This is only used for the IFU child when a joint sky subtraction
+            This is only used for the SlicerIFU child when a joint sky subtraction
             is requested.
         waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
             Calibration frame with arc/sky line tracing of the wavelength
@@ -449,7 +449,7 @@ class FindObjects:
         # For nobj we take only the positive objects
         return sobjs_obj_single, nobj_single
 
-    # TODO maybe we don't need parent and children for this method. But IFU has a bunch of extra methods.
+    # TODO maybe we don't need parent and children for this method. But SlicerIFU has a bunch of extra methods.
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, save_objfindQA=False, neg=False, debug=False,
@@ -471,7 +471,7 @@ class FindObjects:
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -678,7 +678,7 @@ class MultiSlitFindObjects(FindObjects):
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -828,7 +828,7 @@ class EchelleFindObjects(FindObjects):
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -941,9 +941,9 @@ class EchelleFindObjects(FindObjects):
         return sobjs_ech, len(sobjs_ech)
 
 
-class IFUFindObjects(MultiSlitFindObjects):
+class SlicerIFUFindObjects(MultiSlitFindObjects):
     """
-    Child of Reduce for IFU reductions
+    Child of Reduce for SlicerIFU reductions
 
     See parent doc string for Args and Attributes
 
@@ -957,7 +957,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                               show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
         """
-        See MultiSlitReduce for slit-based IFU reductions
+        See MultiSlitReduce for SlicerIFU reductions
         """
         if self.par['reduce']['cube']['slit_spec']:
             return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
@@ -1239,7 +1239,7 @@ class IFUFindObjects(MultiSlitFindObjects):
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
         """
-        Perform global sky subtraction. This IFU-specific routine ensures that the
+        Perform global sky subtraction. This SlicerIFU-specific routine ensures that the
         edges of the slits are not trimmed, and performs a spatial and spectral
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.

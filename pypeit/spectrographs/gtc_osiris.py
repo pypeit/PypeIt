@@ -430,7 +430,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
 
 
 class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
     name = 'gtc_maat'
 
     def init_meta(self):
