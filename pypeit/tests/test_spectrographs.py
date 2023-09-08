@@ -94,7 +94,7 @@ def test_list_detectors_hires():
     hires = load_spectrograph('keck_hires')
     dets = hires.list_detectors()
     assert dets.ndim == 1, 'HIRES has a 1D array of detectors'
-    assert dets.size == 3, 'HIRES has 1 detector'
+    assert dets.size == 3, 'HIRES has 3 detectors'
     mosaics = hires.list_detectors(mosaic=True)
     assert mosaics.ndim == 1, 'Mosaics are listed as 1D arrays'
     assert mosaics.size == 1, 'HIRES has 1 predefined mosaic'
