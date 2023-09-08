@@ -152,10 +152,10 @@ class TellFit(scriptbase.ScriptBase):
         if par['telluric']['objmodel']=='qso':
             # run telluric.qso_telluric to get the final results
             TelQSO = telluric.qso_telluric(args.spec1dfile, par['telluric']['telgridfile'],
-                                           par['telluric']['teltype'],
                                            par['telluric']['pca_file'],
                                            par['telluric']['redshift'], modelfile, outfile,
-                                           npca=par['telluric']['npca'], ntell=par['telluric']['ntell'],
+                                           npca=par['telluric']['npca'],
+                                           teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                            pca_lower=par['telluric']['pca_lower'],
                                            pca_upper=par['telluric']['pca_upper'],
                                            bounds_norm=par['telluric']['bounds_norm'],
@@ -169,7 +169,6 @@ class TellFit(scriptbase.ScriptBase):
                                            debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='star':
             TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'],
-                                             par['telluric']['teltype'],
                                              modelfile, outfile,
                                              star_type=par['telluric']['star_type'],
                                              star_mag=par['telluric']['star_mag'],
@@ -179,7 +178,7 @@ class TellFit(scriptbase.ScriptBase):
                                              model=par['telluric']['model'],
                                              polyorder=par['telluric']['polyorder'],
                                              only_orders=par['telluric']['only_orders'],
-                                             ntell=par['telluric']['ntell'],
+                                             teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                              mask_hydrogen_lines=par['sensfunc']['mask_hydrogen_lines'],
                                              mask_helium_lines=par['sensfunc']['mask_helium_lines'],
                                              hydrogen_mask_wid=par['sensfunc']['hydrogen_mask_wid'],
@@ -192,13 +191,12 @@ class TellFit(scriptbase.ScriptBase):
                                              debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='poly':
             TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'],
-                                             par['telluric']['teltype'],
                                              modelfile, outfile,
                                              z_obj=par['telluric']['redshift'],
                                              func=par['telluric']['func'],
                                              model=par['telluric']['model'],
                                              polyorder=par['telluric']['polyorder'],
-                                             ntell=par['telluric']['ntell'],
+                                             teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                              fit_wv_min_max=par['telluric']['fit_wv_min_max'],
                                              mask_lyman_a=par['telluric']['mask_lyman_a'],
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],

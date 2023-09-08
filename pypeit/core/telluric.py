@@ -195,7 +195,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     """
     Reads in the telluric grid from a file. This method is no longer the
-    preferred approach; see "read_telluric_pca" and other functions.
+    preferred approach; see "read_telluric_pca" for the PCA mode.
 
     Optionally, this method also trims the grid to be in within ``wave_min``
     and ``wave_max`` and pads the data (see ``pad_frac``).
@@ -299,7 +299,7 @@ def conv_telluric(tell_model, dloglam, res):
         tell_model (`numpy.ndarray`_):
             Input telluric model at the native resolution of the telluric model grid. The shape of this input is in
             general different from the size of the raw telluric model (read in by read_telluric_* above) because it is
-            trimmed to relevant wavelengths using ind_lower, ind_upper. See eval_telluric_* below.
+            trimmed to relevant wavelengths using ind_lower, ind_upper. See eval_telluric below.
         dloglam (float):
             Wavelength spacing of the telluric grid expressed as a dlog10(lambda), i.e. stored in the
             tell_dict as tell_dict['dloglam']
@@ -360,7 +360,7 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
 
-def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):)
+def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     Evaluate the telluric model.
 
@@ -426,7 +426,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):)
     if tell_dict['teltype'] == 'PCA':
         # Evaluate PCA model after truncating the wavelength range
         tellmodel_hires = np.zeros_like(tell_dict['tell_pca'][0])
-        tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.dot(np.append(1,theta_tell[:ncomp_use]),
+        tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.dot(np.append(1,theta_tell[:ntell]),
                                  tell_dict['tell_pca'][:ntell+1][:,ind_lower_pad:ind_upper_pad+1])
                                  
         # PCA model is inverse sinh of the optical depth, convert to transmission here
@@ -1620,9 +1620,9 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
                     if bal_wv_min_max is not None else mask & qsomask
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_qso_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model,
                       eval_qso_model, pix_shift_bounds=pix_shift_bounds,
-                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, teltype=teltype,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1730,7 +1730,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_star_model,
                       eval_star_model, pix_shift_bounds=pix_shift_bounds,
-                      ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
+                      teltype=teltype, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1829,7 +1829,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_poly_model,
                       eval_poly_model, pix_shift_bounds=pix_shift_bounds,
-                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, teltype=teltype,
                       ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -2339,7 +2339,7 @@ class Telluric(datamodel.DataContainer):
 
         # 1) Assign arguments
         self.telgrid = telgridfile
-        self.teltype = teltype
+        self.teltype = teltype.upper()
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
         self.ntell = ntell
@@ -2381,14 +2381,14 @@ class Telluric(datamodel.DataContainer):
                 wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
-        if upper(teltype) == 'PCA':
+        if self.teltype == 'PCA':
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
             if self.ntell > self.tell_dict['ncomp_tell_pca']:
                 msgs.error('Asked for more telluric PCA components ({}) ' \
                            'than exist in the PCA file ({}).'.format(self.ntell,
                                                                      self.tell_dict['ncomp_tell_pca']))
-        elif teltype == 'grid':
+        elif self.teltype == 'grid':
             if self.ntell != 4:
                 msgs.error('Parameter ntell must be 4 for teltype = grid')
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
