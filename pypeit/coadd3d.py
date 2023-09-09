@@ -295,7 +295,6 @@ class CoAdd3D:
         assert False
         dspat = None if self.cubepar['spatial_delta'] is None else self.cubepar['spatial_delta'] / 3600.0  # binning size on the sky (/3600 to convert to degrees)
         dwv = self.cubepar['wave_delta']  # binning size in wavelength direction (in Angstroms)
-        flat_splines = dict()  # A dictionary containing the splines of the flatfield
 
 
 
@@ -633,6 +632,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                  show=False, debug=False):
         super().__init__(spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
                          show=show, debug=debug)
+        self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
 
     def get_alignments(self, spec2DObj, slits, frame_wcs, spat_flexure=None):
         """
@@ -665,6 +665,51 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
         # Return the alignment splines
         return alignSplines
+
+    def get_grating_shift(self, flatfile, waveimg, slits, spat_flexure=None):
+        if flatfile not in self.flat_splines.keys():
+            msgs.info("Calculating relative sensitivity for grating correction")
+            # Check if the Flat file exists
+            if not os.path.exists(flatfile):
+                msgs.error("Grating correction requested, but the following file does not exist:" +
+                           msgs.newline() + flatfile)
+            # Load the Flat file
+            flatimages = flatfield.FlatImages.from_file(flatfile)
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True,
+                                                   spat_flexure=spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True,
+                                                   spat_flexure=spat_flexure)
+            flatframe = flatimages.pixelflat_raw / total_illum
+            if flatimages.pixelflat_spec_illum is None:
+                # Calculate the relative scale
+                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                                                               slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
+                                                               model=None,
+                                                               skymask=None, trim=self.flatpar['slit_trim'],
+                                                               flexure=spat_flexure,
+                                                               smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+            else:
+                msgs.info("Using relative spectral illumination from FlatImages")
+                scale_model = flatimages.pixelflat_spec_illum
+            # Apply the relative scale and generate a 1D "spectrum"
+            onslit = waveimg != 0
+            wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
+            hist, edge = np.histogram(waveimg[onslit], bins=wavebins,
+                                      weights=flatframe[onslit] / scale_model[onslit])
+            cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
+            cntr = cntr.astype(float)
+            norm = (cntr != 0) / (cntr + (cntr == 0))
+            spec_spl = hist * norm
+            wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
+            self.flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
+                                                   bounds_error=False, fill_value="extrapolate")
+            self.flat_splines[flatfile + "_wave"] = wave_spl.copy()
+            # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
+            # exposure in this for loop)
+            if self.blaze_spline is None:
+                self.blaze_wave, self.blaze_spec = wave_spl, spec_spl
+                self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
+                                             bounds_error=False, fill_value="extrapolate")
 
     def load(self):
         """
@@ -800,55 +845,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             ivar_ext = ivar[onslit_gpm].copy()
             dwav_ext = dwaveimg[onslit_gpm].copy()
 
-            # Correct for sensitivity as a function of grating angle
-            # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
-            key = flatfield.FlatImages.calib_type.upper()
-            if key not in spec2DObj.calibs:
-                msgs.error('Processed flat calibration file not recorded by spec2d file!')
-            flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
-            if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
-                msgs.info("Calculating relative sensitivity for grating correction")
-                # Check if the Flat file exists
-                if not os.path.exists(flatfile):
-                    msgs.error("Grating correction requested, but the following file does not exist:" +
-                               msgs.newline() + flatfile)
-                # Load the Flat file
-                flatimages = flatfield.FlatImages.from_file(flatfile)
-                total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True,
-                                                       spat_flexure=spat_flexure) * \
-                              flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True,
-                                                       spat_flexure=spat_flexure)
-                flatframe = flatimages.pixelflat_raw / total_illum
-                if flatimages.pixelflat_spec_illum is None:
-                    # Calculate the relative scale
-                    scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
-                                                                   slit_illum_ref_idx=flatpar['slit_illum_ref_idx'],
-                                                                   model=None,
-                                                                   skymask=None, trim=flatpar['slit_trim'],
-                                                                   flexure=spat_flexure,
-                                                                   smooth_npix=flatpar['slit_illum_smooth_npix'])
-                else:
-                    msgs.info("Using relative spectral illumination from FlatImages")
-                    scale_model = flatimages.pixelflat_spec_illum
-                # Apply the relative scale and generate a 1D "spectrum"
-                onslit = waveimg != 0
-                wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
-                hist, edge = np.histogram(waveimg[onslit], bins=wavebins,
-                                          weights=flatframe[onslit] / scale_model[onslit])
-                cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
-                cntr = cntr.astype(float)
-                norm = (cntr != 0) / (cntr + (cntr == 0))
-                spec_spl = hist * norm
-                wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
-                flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
-                                                  bounds_error=False, fill_value="extrapolate")
-                flat_splines[flatfile + "_wave"] = wave_spl.copy()
-                # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
-                # exposure in this for loop)
-                if blaze_spline is None:
-                    blaze_wave, blaze_spec = wave_spl, spec_spl
-                    blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
-                                            bounds_error=False, fill_value="extrapolate")
+            # From here on out, work in sorted wavelengths
+            wvsrt = np.argsort(wave_ext)
+            wave_sort = wave_ext[wvsrt]
+            dwav_sort = dwav_ext[wvsrt]
+            # Here's an array to get back to the original ordering
+            resrt = np.argsort(wvsrt)
 
             # Perform extinction correction
             msgs.info("Applying extinction correction")
@@ -857,39 +859,44 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             airmass = spec2DObj.head0[self.spec.meta['airmass']['card']]
             extinct = flux_calib.load_extinction_data(longitude, latitude, self.senspar['UVIS']['extinct_file'])
             # extinction_correction requires the wavelength is sorted
-            wvsrt = np.argsort(wave_ext)
-            ext_corr = flux_calib.extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
-            # Grating correction
-            grat_corr = 1.0
+            extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
+
+            # Correct for sensitivity as a function of grating angle
+            # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
+            gratcorr_sort = 1.0
             if self.cubepar['grating_corr']:
-                grat_corr = correct_grating_shift(wave_ext[wvsrt], flat_splines[flatfile + "_wave"],
-                                                  flat_splines[flatfile],
-                                                  blaze_wave, blaze_spline)
+                # Load the flatfield file
+                key = flatfield.FlatImages.calib_type.upper()
+                if key not in spec2DObj.calibs:
+                    msgs.error('Processed flat calibration file not recorded by spec2d file!')
+                flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+                # Setup the grating correction
+                self.get_grating_shift(flatfile, waveimg, slits, spat_flexure=spat_flexure)
+                # Calculate the grating correction
+                gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
+                                                               self.flat_splines[flatfile],
+                                                               self.blaze_wave, self.blaze_spline)
             # Sensitivity function
-            sens_func = 1.0
+            sensfunc_sort = 1.0
             if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
-                sens_func = flux_spline(wave_ext[wvsrt])
+                sensfunc_sort = self.flux_spline(wave_sort)
             # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
-            ext_corr *= sens_func / (exptime * grat_corr)
+            extcorr_sort *= sensfunc_sort / (exptime * gratcorr_sort)
             # Correct for extinction
-            flux_sav = flux_ext[wvsrt] * ext_corr
-            ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
+            flux_sort = flux_ext[wvsrt] * extcorr_sort
+            ivar_sort = ivar_ext[wvsrt] / extcorr_sort ** 2
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
             sl_deg = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
-            scl_units = dwav_ext[wvsrt] * (3600.0 * sl_deg) * (3600.0 * px_deg)
-            flux_sav /= scl_units
-            ivar_sav *= scl_units ** 2
-
-            # sort back to the original ordering
-            resrt = np.argsort(wvsrt)
-            numpix = raimg[onslit_gpm].size
+            scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
+            flux_sort /= scl_units
+            ivar_sort *= scl_units ** 2
 
             # Calculate the weights relative to the zeroth cube
-            weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
+            self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
             # Get the slit image and then unset pixels in the slit image that are bad
             this_specpos, this_spatpos = np.where(onslit_gpm)
@@ -897,6 +904,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
+            numpix = raimg[onslit_gpm].size
             if not self.combine and not self.align:
                 # Get the output filename
                 if self.numfiles == 1 and self.cubepar['output_filename'] != "":
