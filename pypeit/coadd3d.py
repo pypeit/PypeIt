@@ -670,7 +670,21 @@ class CoAdd3D:
 
     def compute_DAR(self, hdr0, waves, cosdec, wave_ref=None):
         """
-        TODO :: docstring
+        Compute the differential atmospheric refraction correction for a given frame.
+
+        Args:
+            hdr0 (`astropy.io.fits.Header`_):
+                Header of the spec2d file. This input should be retrieved from spec2DObj.head0
+            waves (`numpy.ndarray`_):
+                1D flattened array containing the wavelength of each pixel (units = Angstroms)
+            cosdec (:obj:`float`):
+                Cosine of the target declination.
+            wave_ref (:obj:`float`, optional):
+                Reference wavelength (The DAR correction will be performed relative to this wavelength)
+
+        Returns:
+            `numpy.ndarray`_: 1D differential RA for each wavelength of the input waves array
+            `numpy.ndarray`_: 1D differential Dec for each wavelength of the input waves array
         """
         if wave_ref is None:
             wave_ref = 0.5 * (np.min(waves) + np.max(waves))
@@ -696,6 +710,27 @@ class CoAdd3D:
                                                      pressure * units.bar, temperature * units.deg_C, rel_humidity,
                                                      wave_ref=wave_ref)
         return ra_corr*cosdec, dec_corr
+
+    def align_user_offsets(self):
+        """
+        Align the RA and DEC of all input frames, and then
+        manually shift the cubes based on user-provided offsets.
+        The offsets should be specified in arcseconds, and the
+        ra_offset should include the cos(dec) factor.
+        """
+        # First, translate all coordinates to the coordinates of the first frame
+        # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
+        #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
+        ref_shift_ra = self.ifu_ra[0] - self.ifu_ra
+        ref_shift_dec = self.ifu_dec[0] - self.ifu_dec
+        for ff in range(self.numfiles):
+            # Apply the shift
+            self.all_ra[self.all_idx == ff] += ref_shift_ra[ff] + self.opts['ra_offset'][ff] / 3600.0
+            self.all_dec[self.all_idx == ff] += ref_shift_dec[ff] + self.opts['dec_offset'][ff] / 3600.0
+            msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
+                      "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1,
+                                                                           self.opts['ra_offset'][ff],
+                                                                           self.opts['dec_offset'][ff]))
 
     def coadd(self):
         """
@@ -800,9 +835,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def set_spatial_scale(self):
         """
-        TODO :: docstring
+        This function checks if the spatial scales of all frames are consistent.
+        If the user has not specified the spatial scale, it will be set here.
         """
-        # Make sure all frames being combined have consistent scales
+        # Make sure all frames have consistent scales
         if not np.all(self._spatscale[:,0] != self._spatscale[0,0]):
             msgs.warn("The pixel scales of all input frames are not the same!")
             msgs.info("Pixel scales of all input frames:" + msgs.newline() + self._spatscale[:,0])
@@ -812,6 +848,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
         if self._dspat is None:
             self._dspat = np.max(self._spatscale)
+            msgs.info("Adopting a square pixel spatial scale of {0:f} arcsec".format(3600.0 * self._dspat))
 
     def load(self):
         """
@@ -1064,22 +1101,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def run_align(self):
         """
-        TODO :: Add docstring
+        This routine aligns multiple cubes by using manual input offsets or by cross-correlating white light images.
         """
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.all_dec) * np.pi / 180.0)
 
         # Register spatial offsets between all frames
         if self.opts['ra_offset'] is not None:
-            # First, translate all coordinates to the coordinates of the first frame
-            # Note :: Don't need cosdec here, this just overrides the IFU coordinate centre of each frame
-            ref_shift_ra = self.ifu_ra[0] - self.ifu_ra
-            ref_shift_dec = self.ifu_dec[0] - self.ifu_dec
-            for ff in range(self.numfiles):
-                # Apply the shift
-                self.all_ra[self.all_idx == ff] += ref_shift_ra[ff] + self.opts['ra_offset'][ff]/3600.0
-                self.all_dec[self.all_idx == ff] += ref_shift_dec[ff] + self.opts['dec_offset'][ff]/3600.0
-                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, self.opts['ra_offset'][ff], self.opts['dec_offset'][ff]))
+            self.align_user_offsets()
         else:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
@@ -1160,6 +1189,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         if not self.combine and not self.align:
             return
 
+        # If the user is aligning or combining, the spatial scale of the output cubes needs to be consistent.
         # Set the spatial scale of the output datacube
         self.set_spatial_scale()
 
