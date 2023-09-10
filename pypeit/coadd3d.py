@@ -182,10 +182,16 @@ class DataCube(datamodel.DataContainer):
 
     @property
     def ivar(self):
+        """
+        Utility function to compute the inverse variance cube
+        """
         return utils.inverse(self.sig**2)
 
     @property
     def wcs(self):
+        """
+        Utility function to provide the world coordinate system of the datacube
+        """
         return wcs.WCS(self.head0)
 
 
@@ -221,7 +227,7 @@ class CoAdd3D:
                         spec2dfiles, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
                         show=show, debug=debug)
 
-    def __init__(self, files, opts, spectrograph=None, par=None, det=1, overwrite=False,
+    def __init__(self, files, opts, spectrograph=None, par=None, det=None, overwrite=False,
                  show=False, debug=False):
         """
 
@@ -239,7 +245,7 @@ class CoAdd3D:
                 spectrograph (see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
                 for the relevant spectrograph class).
-            det (int):
+            det (:obj:`int`_, optional):
                 Detector index
             overwrite (:obj:`bool`, optional):
                 Overwrite the output file, if it exists?
@@ -327,7 +333,8 @@ class CoAdd3D:
             msgs.error(f"The following datacube method is not allowed: {self.method}")
 
         # Get the detector number and string representation
-        det = 1 if self.par['rdx']['detnum'] is None else self.par['rdx']['detnum']
+        if det is None:
+            det = 1 if self.par['rdx']['detnum'] is None else self.par['rdx']['detnum']
         self.detname = self.spec.get_det_name(det)
 
         # Check if the output file exists
@@ -347,7 +354,9 @@ class CoAdd3D:
 
     def check_outputs(self):
         """
-        TODO :: docstring
+        Check if any of the intended output files already exist. This check should be done near the
+        beginning of the coaddition, to avoid any computation that won't be saved in the event that
+        files won't be overwritten.
         """
         if self.combine:
             outfile = datacube.get_output_filename("", self.cubepar['output_filename'], self.combine)
@@ -471,7 +480,7 @@ class CoAdd3D:
 
     def make_sensfunc(self):
         """
-        TODO :: docstring
+        Generate the sensitivity function to be used for the flux calibration.
         """
         self.fluxcal = True
         ss_file = self.cubepar['standard_cube']
@@ -536,7 +545,7 @@ class CoAdd3D:
 
     def set_default_scalecorr(self):
         """
-        TODO :: docstring
+        Set the default mode to use for relative spectral scale correction.
         """
         if self.cubepar['scale_corr'] is not None:
             if self.cubepar['scale_corr'] == "image":
@@ -559,7 +568,22 @@ class CoAdd3D:
 
     def get_current_scalecorr(self, spec2DObj, opts_scalecorr=None):
         """
-        TODO :: docstring
+        Determine the scale correction that should be used to correct
+        for the relative spectral scaling of the science frame
+
+        Args:
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+                2D PypeIt spectra object.
+            opts_scalecorr (:obj:`str`, optional):
+                A string that describes what mode should be used for the sky subtraction. The
+                allowed values are:
+                default - Use the default value, as defined in self.set_default_scalecorr()
+                image - Use the relative scale that was derived from the science frame
+                none - Do not perform relative scale correction
+
+        Returns:
+            :obj:`str`_: A string that describes the scale correction mode to be used (see opts_scalecorr description)
+            `numpy.ndarray`_: 2D image (same shape as science frame) containing the relative spectral scaling to apply to the science frame
         """
         this_scalecorr = self.scalecorr_default
         relScaleImg = self.relScaleImgDef.copy()
@@ -597,7 +621,7 @@ class CoAdd3D:
 
     def set_default_skysub(self):
         """
-        TODO :: Add docstring
+        Set the default mode to use for sky subtraction.
         """
         if self.cubepar['skysub_frame'] in [None, 'none', '', 'None']:
             self.skysub_default = "none"
@@ -622,7 +646,24 @@ class CoAdd3D:
 
     def get_current_skysub(self, spec2DObj, exptime, opts_skysub=None):
         """
-        TODO :: docstring
+        Determine the sky frame that should be used to subtract from the science frame
+
+        Args:
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+                2D PypeIt spectra object.
+            exptime (:obj:`float`_):
+                The exposure time of the science frame (in seconds)
+            opts_skysub (:obj:`str`, optional):
+                A string that describes what mode should be used for the sky subtraction. The
+                allowed values are:
+                default - Use the default value, as defined in self.set_default_skysub()
+                image - Use the sky model derived from the science frame
+                none - Do not perform sky subtraction
+
+        Returns:
+            :obj:`str`_: A string that describes the sky subtration mode to be used (see opts_skysub description)
+            `numpy.ndarray`_: 2D image (same shape as science frame) containing the sky frame to be subtracted from the science frame
+            `numpy.ndarray`_: 2D image (same shape as science frame) containing the relative spectral scaling that has been applied to the returned sky frame
         """
         this_skysub = self.skysub_default
         if self.skysub_default == "image":
@@ -734,7 +775,8 @@ class CoAdd3D:
 
     def coadd(self):
         """
-        TODO :: Docstring
+        Main entry routine to set the order of operations to coadd the data. For specific
+        details of this procedure, see the child routines.
         """
         msgs.bug("This routine should be overridden by child classes.")
         msgs.error("Cannot proceed without coding the coadd routine.")
@@ -758,7 +800,22 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def get_alignments(self, spec2DObj, slits, spat_flexure=None):
         """
-        TODO :: docstring
+        Generate and return the spline interpolation fitting functions to be used for
+        the alignment frames, as part of the astrometric correction.
+
+        Parameters
+        ----------
+        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_):
+            2D PypeIt spectra object.
+        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+            Class containing information about the slits
+        spat_flexure: :obj:`float`, optional:
+            Spatial flexure in pixels
+
+        Returns
+        -------
+        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`_)
+            Alignment splines used for the astrometric correction
         """
         # Loading the alignments frame for these data
         alignments = None
@@ -789,6 +846,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         return alignSplines
 
     def get_grating_shift(self, flatfile, waveimg, slits, spat_flexure=None):
+        """
+        TODO :: docstring
+        """
         if flatfile not in self.flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             # Check if the Flat file exists
