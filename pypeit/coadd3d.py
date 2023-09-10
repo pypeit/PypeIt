@@ -847,7 +847,20 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def get_grating_shift(self, flatfile, waveimg, slits, spat_flexure=None):
         """
-        TODO :: docstring
+        Calculate the relative spectral sensitivity correction due to grating shifts with the
+        input frames.
+
+        Parameters
+        ----------
+        flatfile : :obj:`str`
+            Unique path of a flatfield frame used to calculate the relative spectral sensitivity
+            of the corresponding science frame.
+        waveimg : `numpy.ndarray`_
+            2D image (same shape as the science frame) indicating the wavelength of each detector pixel.
+        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+            Class containing information about the slits
+        spat_flexure: :obj:`float`, optional:
+            Spatial flexure in pixels
         """
         if flatfile not in self.flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
@@ -912,7 +925,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def load(self):
         """
-        TODO :: docstring
+        This is the main function that loads in the data, and performs several frame-specific corrections.
+        If the user does not wish to align or combine the individual datacubes, then this routine will also
+        produce a spec3d file, which is a DataCube representation of a PypeIt spec2d frame for SlicerIFU data.
         """
         # Initialise variables
         wave_ref = None
@@ -1214,6 +1229,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     self.all_dec[self.all_idx == ff] += dec_shift
 
     def compute_weights(self):
+        """
+        Compute the relative weights to apply to pixels that are collected into the voxels of the output DataCubes
+        """
         # Calculate the relative spectral weights of all pixels
         if self.numfiles == 1:
             # No need to calculate weights if there's just one frame
@@ -1240,7 +1258,24 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def coadd(self):
         """
-        TODO :: Add docstring
+        This is the main routine called to convert PypeIt spec2d files into PypeIt DataCube objects.
+
+        The simplest option is when combine=False and align=False. In this case, each individual spec2d file
+        is converted into a spec3d file (i.e. a PypeIt DataCube object). These fits files can be loaded/viewed
+        in other software to display or combine multiple datacubes into a single datacube. However, note that
+        different software packages use different algorithms that may not conserve flux, or may produce covariance
+        between adjacent voxels. First the data are loaded and several corrections are made. These include:
+
+        (1) A sky frame or model is subtracted from the science data, and the relative spectral illumination
+            of different slices is corrected.
+        (2) A mask of good pixels is identified
+        (3) A common spaxel scale is determined, and the astrometric correction is derived
+        (4) An RA and Dec image is created for each pixel.
+        (5) Based on atmospheric conditions, a differential atmospheric refraction correction is applied.
+        (6) Extinction correction
+        (7) Flux calibration (optional - this calibration is only applied if a standard star cube is supplied)
+
+        TODO :: NOT FINISHED THIS DOCSTRING YET!
         """
         # First loop through all of the frames, load the data, and save datacubes if no combining is required
         self.load()
