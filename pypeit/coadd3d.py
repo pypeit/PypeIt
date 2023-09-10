@@ -1258,7 +1258,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def coadd(self):
         """
-        This is the main routine called to convert PypeIt spec2d files into PypeIt DataCube objects.
+        This is the main routine called to convert PypeIt spec2d files into PypeIt DataCube objects. It is specific
+        to the SlicerIFU data.
 
         The simplest option is when combine=False and align=False. In this case, each individual spec2d file
         is converted into a spec3d file (i.e. a PypeIt DataCube object). These fits files can be loaded/viewed
