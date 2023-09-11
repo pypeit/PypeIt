@@ -23,7 +23,7 @@ Basics
 To prepare for the data reduction, PypeIt, first, automatically associates fits
 files to specific :ref:`frame_types` (see :ref:`lris_frames_report`) and, then,
 collects groups of frames in unique instrument configurations (see below). This is performed
-by the :ref:`pypeit_setup` script, which sorts the frames and write a
+by the :ref:`pypeit_setup` script, which sorts the frames and writes a
 :ref:`pypeit_file` for each unique configuration. See :ref:`setup_doc`.
 
 
@@ -43,16 +43,14 @@ which finds unique combinations of the following keywords:
 ``dichroic``        ``DICHNAME``
 ``decker``          ``SLITNAME``
 ``binning``         ``BINNING``
-``amp``             ``NUMAMPS``
+``amp``             ``NUMAMPS`` (``TAPLINES`` for ``keck_lris_red_mark4``)
 ``dispangle``       ``GRANGLE`` (only LRIS RED)
 ``cenwave``         ``WAVELEN`` (only LRIS RED)
 ===============     ====================================================================
 
-Note that the header keyword used for ``amp`` is ``TAPLINES`` for `keck_lris_red_mark4``.
-
 The unique configurations are determined by collating the relevant metadata from the headers
 of all frames found by a run of :ref:`pypeit_setup`, *except* those that are designated as
-bias frames. The reason is that bias can have header data (e.g., ``dispangle``)
+bias frames. The reason is that bias frames can have header data (e.g., ``dispangle``)
 that do not match the instrument configuration that an observer intended for their use;
 e.g., the frames were taken before the instrument was fully configured for the night's
 observations. Therefore, PypeIt uses the ``dateobs``, ``binning``, ``amp`` keys to match

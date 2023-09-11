@@ -11,7 +11,9 @@ settings that are related to the Keck/LRIS (RED and BLUE) spectrograph.
 
 Common Items to LRISb and LRISr
 ===============================
+
 .. _lris_FITS_format:
+
 FITS format
 +++++++++++
 
@@ -50,22 +52,23 @@ Here are the steps to follow:
 
     #. Output files produced by `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__.
 
-        - One file with the `".file3"` extension containing milling information.
+        - One file with the ``".file3"`` extension containing milling information.
 
-        - One file with the `".file1"` extension containing the object catalog matched to the slitmask slits.
+        - One file with the ``".file1"`` extension containing the object catalog matched to the slitmask slits.
 
     #. The ASCII object list file fed as input to
        `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__ to generate the files above.
 
    .. note::
-         `".file3"` is mandatory while the other two files can be optionally excluded to
+
+         ``".file3"`` is mandatory while the other two files can be optionally excluded to
          debug `TILSOTUA <https://github.com/jsulli27/tilsotua>`__.
 
 #. Process the design files with `TILSOTUA <https://github.com/jsulli27/tilsotua>`__ :
-   The design files contain the milling blueprint (the `BluSlits` table).
-   When using the `".file3"` design file, TILSOTUA creates a FITS file with the `BluSlits` table
-   following the UCO/Lick template. If the `".file1"` file and the object list are provided,
-   the FITS mask design file will also includes the `DesiSlits`, `ObjectCat` and `SlitObjMap`
+   The design files contain the milling blueprint (the ``BluSlits`` table).
+   When using the ``".file3"`` design file, TILSOTUA creates a FITS file with the ``BluSlits`` table
+   following the UCO/Lick template. If the ``".file1"`` file and the object list are provided,
+   the FITS mask design file will also includes the ``DesiSlits``, ``ObjectCat`` and ``SlitObjMap``
    binary tables, otherwise they will be empty. These tables include information on the
    slitmask design, the object catalog and the mapping between the two, similar to the
    binary tables in DEIMOS raw frames. TILSOTUA populates these tables using its ``xytowcs``
@@ -73,16 +76,18 @@ Here are the steps to follow:
    <https://github.com/jsulli27/tilsotua/blob/master/tilsotua/LRIS_Mask_Coords_to_WCS.py>`__).
    This function can be run by providing two parameters:
 
-   - the ``input_file_name``, which is either the FITS or `".file3"` mask design file (be sure
-     the name includes the extension);
-   - the ``output_file_base``, which is the prefix for the four files that get created by the code.
+        - the ``input_file_name``, which is either the FITS or ``".file3"`` mask
+          design file (be sure the name includes the extension);
+
+        - the ``output_file_base``, which is the prefix for the four files that
+          get created by the code.
 
    .. TODO: Sunil can you comment on this. Here it says that the second parameter in the xytowcs call
       is "output_file_base", but in the tilsotua github page I see the parameter is called "output_file",
       it's not the prefix, but just the name, and that the extension (.fits) should not be provided here. Which
       one is correct?
 
-   If only the `".file3"` file is provided, the calling sequence is:
+   If only the ``".file3"`` file is provided, the calling sequence is:
 
    .. code-block:: python
 
@@ -90,7 +95,7 @@ Here are the steps to follow:
 
         xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
 
-   If the `".file1"` file and the object list are provided, the calling sequence is:
+   If the ``".file1"`` file and the object list are provided, the calling sequence is:
 
     .. code-block:: python
 
@@ -99,19 +104,19 @@ Here are the steps to follow:
         xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits",
                 obj_file="yourtargets.obj", file1="yourmaskname.file1")
 
-   It is assumed that the entries in `file1` and `obj_file` have unique `Name` values, i.e., make
+   It is assumed that the entries in ``file1`` and ``obj_file`` have unique ``Name`` values, i.e., make
    sure you have a unique identifier for each object. Without this, it is not possible to correctly
    reconcile the two tables.
 
-#. Add TILSOTUA generated slitmask design information to your raw trace FITS files:
+#. Add the TILSOTUA-generated slitmask design information to your raw trace FITS files:
    The user must first verify that TILSOTUA has indeed processed the files correctly. This implies:
 
    - TILSOTUA has correctly identified the alignment stars (see the QA plot it generates).
 
-   - TILSOTUA has estimated the values of the `TopDist` and `BotDist` columns in the `SlitObjMap` table correctly.
+   - TILSOTUA has estimated the values of the ``TopDist`` and ``BotDist`` columns in the ``SlitObjMap`` table correctly.
 
    Once satisfied with the processed FITS file from TILSOTUA, the user can append the binary tables
-   populated by TILSOTUA to the LRIS trace FITS files as additional `HDUs`, e.g.:
+   populated by TILSOTUA to the LRIS trace FITS files as additional HDUs, e.g.:
 
    .. code-block:: python
 
@@ -232,11 +237,11 @@ of sunset/sunrise.
 
     Internal/dome flats are likely to be too faint in the very blue.
 
-.. _400-3400-grism:
-
 .. TODO: Can somebody comment on this. This warning says that the internal flats
    are too faint in the very blue for tracing, while the warning above says that they may be
    too bright for pixelflat.  Is it true?
+
+.. _400-3400-grism:
 
 400/3400 grism
 **************
@@ -262,6 +267,7 @@ This section provides information on ``keck_lris_red_orig``, ``keck_lris_red``,
 and ``keck_lris_red_mark4``. When not specified, the information applies to all.
 
 .. _lrisr-detectors:
+
 Detectors
 +++++++++
 

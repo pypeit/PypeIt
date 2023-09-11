@@ -32,24 +32,22 @@ This function checks the values of various header keywords against a
 set of criteria used to classify the frame type. The same criteria are used for
 ``keck_lris_red``, ``keck_lris_red_orig``, ``keck_lris_red_mark4``, ``keck_lris_blue``,
 and ``keck_lris_blue_orig``, unless otherwise noted.
-The headers cards required for the frame-typing and their associated keyword in the
+The header cards required for the frame-typing and their associated keyword in the
 :class:`~pypeit.metadata.PypeItMetaData` object are:
 
-===============     ============
+===============     ======================================================
 ``fitstbl`` key     Header Key
-===============     ============
-``exptime``         ``ELAPTIME``
+===============     ======================================================
+``exptime``         ``ELAPTIME`` (``TELAPSE`` for ``keck_lris_red_mark4``)
 ``hatch``           ``TRAPDOOR``
-``lampstat01``        No key
-===============     ============
+``lampstat01``      See below
+===============     ======================================================
 
 ``lampstat01`` is defined using a combination of header keywords, which include
 ``LAMPS``, ``MERCURY``, ``NEON``, ``ARGON``, ``CADMIUM``, ``ZINC``, ``HALOGEN``,
 ``KRYPTON``, ``XENON``, ``FEARGON``, ``DEUTERI``, ``FLAMP1``, ``FLAMP2``, ``FLIMAGIN``,
 ``FLSPECTR``. Since LRIS header keywords have changed over time, the exact combination
 of keywords used to define ``lampstat01`` varies depending on the available header keywords.
-
-Note that the header keyword used for ``exptime`` is ``TELAPSE`` for `keck_lris_red_mark4``.
 
 The criteria used to select each frame type are as follows:
 
