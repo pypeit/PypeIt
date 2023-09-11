@@ -201,9 +201,7 @@ class CoAdd3D:
     DataCube (spec3d) files. This routine is only used for IFU
     data reduction.
 
-    Algorithm steps are as follows:
-        - TODO :: Fill this in.
-
+    Algorithm steps are detailed in the coadd routine.
     """
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -945,7 +943,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.ifu_dec = np.append(self.ifu_dec, self.spec.compound_meta([hdr0], 'dec'))
 
             # Get the exposure time
-            # TODO :: Surely this should be retrieved from metadata...
+            # TODO :: Surely this should be retrieved from metadata... although it's coming from spec2d file?
             exptime = hdr0['EXPTIME']
 
             # Setup for PypeIt imports
