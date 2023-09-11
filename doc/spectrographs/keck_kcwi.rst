@@ -161,7 +161,14 @@ Sky subtraction
 ---------------
 
 See :doc:`../skysub` for useful hints to define the sky regions
-using an interactive GUI.
+using an interactive GUI. You can use the joint_fit parameter (see above)
+to jointly fit the sky in all slits (and compute the relative spectral
+sensitivity variation for each slice). However, note that some modes of
+KCWI and KCRM have significant variation of the instrument FWHM across
+the field of view. The current implementation of this joint sky subtraction
+does not account for the variation of the FWHM across the field of view.
+This will be addressed in the future (refer to Issue #1660 for any updates
+regarding this).
 
 Flexure corrections
 -------------------

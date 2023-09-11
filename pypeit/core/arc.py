@@ -417,7 +417,7 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
-def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, 
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
                 nonlinear_counts=1e10, slit_bpm=None, slitIDs=None, verbose=True):
     """
     Extract a boxcar spectrum with radius `box_rad` (pixels) from the input image using the 
@@ -487,7 +487,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             arc_spec[:,islit] = np.nan
             continue
         if verbose:
-            msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit+1))
+            msgs.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
         # Create a mask for the pixels that will contribue to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster

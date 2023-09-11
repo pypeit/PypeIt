@@ -823,7 +823,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
         sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
         sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
         if sn2_iexp is np.ma.masked:
-            msgs.error('No unmasked value in iexp={:d}. Check inputs.'.format(iexp))
+            msgs.error(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
         else:
             sn2.append(sn2_iexp)
             rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra

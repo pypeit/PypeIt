@@ -313,6 +313,9 @@ class Calibrations:
             self.msarc = frame['class'].from_file(cal_file)
             return self.msarc
 
+        # Reset the BPM
+        self.get_bpm(frame=raw_files[0])
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -352,6 +355,9 @@ class Calibrations:
         if cal_file.exists() and self.reuse_calibs:
             self.mstilt = frame['class'].from_file(cal_file)
             return self.mstilt
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_files[0])
 
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
@@ -398,6 +404,9 @@ class Calibrations:
             self.alignments = frame['class'].from_file(cal_file)
             self.alignments.is_synced(self.slits)
             return self.alignments
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_files[0])
 
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
@@ -506,7 +515,7 @@ class Calibrations:
         # Return it
         return self.msdark
 
-    def get_bpm(self):
+    def get_bpm(self, frame=None):
         """
         Load or generate the bad pixel mask.
 
@@ -519,8 +528,11 @@ class Calibrations:
         """
         # Check internals
         self._chk_set(['par', 'det'])
+        # Set the frame to use for the BPM
+        if frame is None:
+            frame = self.fitstbl.frame_paths(self.frame)
         # Build it
-        self.msbpm = self.spectrograph.bpm(self.fitstbl.frame_paths(self.frame), self.det,
+        self.msbpm = self.spectrograph.bpm(frame, self.det,
                                            msbias=self.msbias if self.par['bpm_usebias'] else None)
         # Return
         return self.msbpm
@@ -602,6 +614,8 @@ class Calibrations:
         # Check if the image files are the same
         pix_is_illum = Counter(raw_illum_files) == Counter(raw_pixel_files)
         if len(raw_pixel_files) > 0:
+            # Reset the BPM
+            self.get_bpm(frame=raw_pixel_files[0])
             msgs.info('Creating pixel-flat calibration frame using files: ')
             for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
@@ -610,6 +624,8 @@ class Calibrations:
                                                         raw_pixel_files, dark=self.msdark,
                                                         bias=self.msbias, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
+                # Reset the BPM
+                self.get_bpm(frame=raw_lampoff_files[0])
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
                     msgs.prindent(f'{Path(f).name}')
@@ -633,6 +649,8 @@ class Calibrations:
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
+            # Reset the BPM
+            self.get_bpm(frame=raw_illum_files[0])
             msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
@@ -751,6 +769,10 @@ class Calibrations:
         msgs.info('Creating edge tracing calibration frame using files: ')
         for f in raw_trace_files:
             msgs.prindent(f'{Path(f).name}')
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_trace_files[0])
+
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
@@ -760,6 +782,10 @@ class Calibrations:
             msgs.info('Subtracting lamp off flats using files: ')
             for f in raw_lampoff_files:
                 msgs.prindent(f'{Path(f).name}')
+
+            # Reset the BPM
+            self.get_bpm(frame=raw_trace_files[0])
+
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,

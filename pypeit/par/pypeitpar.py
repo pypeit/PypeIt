@@ -994,7 +994,7 @@ class Coadd1DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, dv=None, dwave=None, dloglam=None,
+                 sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, dwave=None, dloglam=None,
                  wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
@@ -1029,7 +1029,6 @@ class Coadd1DPar(ParSet):
         dtypes['nmaskedge'] = int
         descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
 
-        # Offsets
         defaults['sn_smooth_npix'] = None
         dtypes['sn_smooth_npix'] = [int, float]
         descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
@@ -1037,8 +1036,12 @@ class Coadd1DPar(ParSet):
                                   'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
                                   'this neff.'
 
+        defaults['sigrej_exp'] = None
+        dtypes['sigrej_exp'] = [int, float]
+        descr['sigrej_exp'] = 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma ' \
+                              'above the median S/N. If None (the default), no rejection is performed. Currently, ' \
+                              'only available for multi-slit observations.' \
 
-        # Offsets
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
@@ -1184,8 +1187,8 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'dwave', 'dloglam',
-                   'wave_grid_min', 'wave_grid_max',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'sigrej_exp',
+                   'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
@@ -1395,7 +1398,9 @@ class CubePar(ParSet):
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
                          'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file.'
+                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
+                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
+                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -3907,7 +3912,9 @@ class SkySubPar(ParSet):
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
-                             'Currently, this parameter is only used for IFU data reduction.'
+                             'Currently, this parameter is only used for IFU data reduction. Note that the ' \
+                             'current implementation does not account for variations in the instrument FWHM ' \
+                             'in different slits. This will be addressed by Issue #1660.'
 
         defaults['max_mask_frac'] = 0.80
         dtypes['max_mask_frac'] = float
