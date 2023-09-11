@@ -41,6 +41,7 @@
 - HIRES wavelength solution improvements galor
 - Added `redo_slits` option
 - Refactored ``load_line_lists()`` yet again!
+- Refactored ``coadd3d()``
 
 
 1.13.0 (2 June 2023)
