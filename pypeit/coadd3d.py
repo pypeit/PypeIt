@@ -222,7 +222,7 @@ class CoAdd3D:
 
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
+                        spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
                         show=show, debug=debug)
 
     def __init__(self, files, opts, spectrograph=None, par=None, det=None, overwrite=False,
