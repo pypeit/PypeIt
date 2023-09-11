@@ -75,12 +75,7 @@ Here are the steps to follow:
 
    - the ``input_file_name``, which is either the FITS or `".file3"` mask design file (be sure
      the name includes the extension);
-   - the ``output_file_base``, which is the prefix for the four files that get created by the code.
-
-   .. TODO: Sunil can you comment on this. Here it says that the second parameter in the xytowcs call
-      is "output_file_base", but in the tilsotua github page I see the parameter is called "output_file",
-      it's not the prefix, but just the name, and that the extension (.fits) should not be provided here. Which
-      one is correct?
+   - the ``output_file``, which is the name of the output file which TILSOTUA will generate. Do not include any extension such as `.fits`.
 
    If only the `".file3"` file is provided, the calling sequence is:
 
@@ -88,7 +83,9 @@ Here are the steps to follow:
 
         from tilsotua import xytowcs
 
-        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits")
+        xytowcs(input_file_name="yourmaskname.file3",output_file="yourmaskname_output")
+
+   Although the other parameters are optional for `xytowcs` as a standalone code, users interested in applying the slitmask information to their PypeIt reduction **must provide the `obj_file` and `file1` files to ensure that object names are assigned to the extracted spectra**.
 
    If the `".file1"` file and the object list are provided, the calling sequence is:
 
@@ -96,7 +93,7 @@ Here are the steps to follow:
 
         from tilsotua import xytowcs
 
-        xytowcs(input_file_name="yourmaskname.file3",output_file_base="yourmaskname_output.fits",
+        xytowcs(input_file_name="yourmaskname.file3",output_file="yourmaskname_output",
                 obj_file="yourtargets.obj", file1="yourmaskname.file1")
 
    It is assumed that the entries in `file1` and `obj_file` have unique `Name` values, i.e., make
