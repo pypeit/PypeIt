@@ -63,6 +63,19 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None, #np.atleast_1d('[:,:]')
             )
+        
+        if hdu: 
+            try:
+                mjd_obs = hdu[0].header['MJD-OBS']
+                if mjd_obs != None:
+                    if hdu[0].header['MJD-OBS']  < 58392.5:
+                        detector_dict['specaxis'] = 1
+                        detector_dict['specflip'] = False
+                        detector_dict['platescale'] = 0.26
+            except:
+                print('Not pre-upgrade format')                
+
+
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -174,26 +187,206 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(ext=0, card='TRUITIME')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='OBSMODE')
-        self.meta['hatch'] = dict(ext=0, card='HATCH')
-        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
-        self.meta['idname'] = dict(ext=0, card='IMTYPE')
-        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-        self.meta['filter1'] = dict(ext=0, card='SCIFILT1')
-        self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
+        self.meta['dispname'] = dict(ext=0, card=None, compound=True)
+        self.meta['hatch'] = dict(ext=0, card='CALMPOS')
+        self.meta['frameno'] = dict(ext=0, card=None, compound=True)
+        self.meta['idname'] = dict(ext=0, card=None, compound = True)
+        self.meta['instrument'] = dict(ext=0, card=None, compound=True)
+        self.meta['filter1'] = dict(ext=0, card=None, compound=True)
+        self.meta['filter2'] = dict(ext=0, card=None, compound=True)
         self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
         self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
         #self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
 
         # Lamps
-        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'HALOGEN']
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON']
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        self.meta['lampstat06'] = dict(ext=0, card = None, compound = True)
+
+
+    def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        msgs.info(f'Trying Compound Meta for key: {meta_key}')
+        msgs.info('First lets find out what the date is')
+        msgs.info('Post upgrade?')
+        
+        mjd_obs = headarr[0].get('MJD')
+
+        if mjd_obs == None:
+            try:
+                msgs.info('or Pre upgrade?')
+                mjd_obs = headarr[0].get('MJD-OBS')
+                msgs.info('Must be a pre-upgrade dataset! Trying different header keys')
+            except:
+                msgs.warn('This dataset does not match the old or new header keys')    
+
+
+        if meta_key == 'mjd':
+            if mjd_obs > 58392.5:
+                try:
+                    mjd_obs = headarr[0].get('MJD')
+                    #self.meta['mjd'] = dict(ext=0, card='MJD')
+                    return mjd_obs
+                except:
+                    msgs.warn(f'Header key error: MJD not found')
+            else:
+                try:
+                    mjd_obs = headarr[0].get('MJD-OBS')
+                    return mjd_obs
+                    #self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+                except:
+                    msgs.warn('Header key error: MJD-OBS not found')
+                # Handle Lamps now while we're doing this
+
+
+
+        if meta_key == 'filter1':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('SCIFILT1')
+                    return filt1
+                    #self.meta['filter1'] = dict(ext=0, card='SCIFILT1')
+                except:
+                    msgs.warn(f'Header key error: SCIFILT1 not found')
+            else:
+                try:
+                    filt1 = headarr[0].get('FILNAME')
+                    return filt1
+                    #self.meta['filter1'] = dict(ext=0, card='FILNAME')
+                except:
+                    msgs.warn('Header key error: FILNAME not found')
+
+        if meta_key == 'filter2':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('SCIFILT2')
+                    return filt1
+                    #self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
+                except:
+                    msgs.warn(f'Header key error: SCIFILT1 not found')
+            else:
+                try:
+                    return ''
+                    #self.meta['filter2'] = dict(ext=0, card=None, default='') #dict(ext=0, card='FILNAME')
+                except:
+                    msgs.warn('Header key error: FILNAME not found')
+
+
+
+        if meta_key == 'exptime':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('TRUITIME')
+                    return filt1
+                    #self.meta['filter2'] = dict(ext=0, card='TRUITIME')
+                except:
+                    msgs.warn(f'Header key error: TRUITIME not found')
+            else:
+                try:
+                    filt1 = headarr[0].get('ITIME')
+                    return filt1
+                    #self.meta['exptime'] = dict(ext=0, card='ITIME')
+                except:
+                    msgs.warn('Header key error: ITIME not found')
+
+        if meta_key == 'dispname':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('OBSMODE')
+                    return filt1
+                    #self.meta['dispname'] = dict(ext=0, card='OBSMODE')
+                except:
+                    msgs.warn(f'Header key error: OBSMODE not found')
+            else:
+                try:
+                    return 'Spectroscopy'
+                    #self.meta['dispname'] = dict(ext=0, card=None, default='Spectroscopy') #dict(ext=0, card='ITIME')
+                except:
+                    msgs.warn('Header key error: OBSMODE not found')
+
+
+        if meta_key == 'instrument':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('INSTRUME')
+                    return filt1
+                    #self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+                except:
+                    msgs.warn(f'Header key error: INSTRUME not found')
+            else:
+                try:
+                    filt1 = headarr[0].get('CURRINST')
+                    return filt1
+                    #self.meta['instrument'] = dict(ext=0, card='CURRINST')
+                except:
+                    msgs.warn('Header key error: CURRINST not found')
+
+        if meta_key == 'frameno':
+            if mjd_obs > 58392.5:
+                try:
+                    filt1 = headarr[0].get('FRAMENUM')
+                    return filt1
+                    #self.meta['instrument'] = dict(ext=0, card='FRAMENUM')
+                except:
+                    msgs.warn(f'Header key error: FRAMENUM not found')
+            else:
+                try:
+                    filt1 = headarr[0].get('FILENUM')
+                    return filt1
+                    #self.meta['instrument'] = dict(ext=0, card='FILENUM')
+                except:
+                    msgs.warn('Header key error: FILENUM not found')
+
+        if meta_key == 'lampstat06':
+            if mjd_obs > 58392.5:
+                try:
+                    lamp6 = headarr[0].get('HALOGEN')
+                    #self.meta['instrument'] = dict(ext=0, card='FRAMENUM')
+                    return lamp6
+                except:
+                    msgs.warn(f'Header key error: FRAMENUM not found')
+            else:
+                try:
+                    lamp6 = headarr[0].get('FLAT')
+                    #self.meta['instrument'] = dict(ext=0, card='FILENUM')
+                    return lamp6
+                except:
+                    msgs.warn('Header key error: FILENUM not found')
+
+        if meta_key == 'idname':
+            if mjd_obs > 58392.5:
+                try:
+                    lamp6 = headarr[0].get('IMTYPE')
+                    if lamp6 is not None:
+                        return lamp6
+                except:
+                    msgs.warn(f'Header key error: IMTYPE not found')
+            else:
+                try:
+                    return 'Spectrum'
+                except:
+                    msgs.warn('Header key error: IMTYPE not found')
+
+        #return 1
+
 
     def configuration_keys(self):
         """
@@ -246,34 +439,87 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys += ['comb_id', 'bkg_id']
         return pypeit_keys
 
-    def get_echelle_angle_files(self):
+    def get_echelle_angle_files(self, lamps_list, filter1, filter2):
         """ Pass back the files required
         to run the echelle method of wavecalib
 
         Returns:
             list: List of files
         """
-        print('Filter being used is: ', self.filter1)
-        '''
-        print('lamp selection = ', par['calibrations']['wavelengths']['lamps'])
-        if 'Xe' in par['calibrations']['wavelengths']['lamps']:
-            print('Using Arclamps probably')
-            if self.filter1 == 'NIRSPEC-3':
+        if filter1 == 'Kband-new' or filter2 == '':
+            band = filter1
+        else:
+            band = filter2
+        
+
+        print(lamps_list, 'Xe' in lamps_list[0])
+        print('filter1 = ', filter1)
+        if 'Xe' in lamps_list[0]:
+            #print('Using Arclamps probably')
+            #print(f'filter1 = {filter1}')
+            if band == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+            if band == 'NIRSPEC-3':
                 angle_fits_file = 'keck_nirspec_j_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_j_composite_arc.fits'
-            if self.filter1 == 'Kband-new':
+            if band == 'Kband-new':
                 angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
-        elif 'OH' in par['calibrations']['wavelengths']['lmaps']:
+            if band == 'NIRSPEC-7':
+                angle_fits_file = 'keck_nirspec_k_old_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_old_composite_arc.fits'
+        elif 'OH' in lamps_list[0]:
             print('Using OH Lines')
-            if self.filter1 == 'NIRSPEC-1':
+            if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        '''
-        angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+
+        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+    
+        return [angle_fits_file, composite_arc_file]
+
+
+    def get_echelle_angle_files(self, lamps_list, filter1):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Created for the pre-upgrade NIRSPEC
+
+        Returns:
+            list: List of files
+        """
+        band = filter1        
+
+        print(lamps_list, 'Xe' in lamps_list[0])
+        print('filter1 = ', filter1)
+        if 'Xe' in lamps_list[0]:
+            #print('Using Arclamps probably')
+            #print(f'filter1 = {filter1}')
+            if band == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_old_y_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_old_y_composite_arc.fits'
+            if band == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_old_j_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_old_j_composite_arc.fits'
+            if band == 'NIRSPEC-7':
+                angle_fits_file = 'keck_nirspec_k_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_preupgrade_composite_arc.fits'
+        elif 'OH' in lamps_list[0]:
+            print('Using OH Lines')
+            if band == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_y_old_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_old_composite_OH.fits'
+
+        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
         #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
         #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
     
@@ -300,32 +546,61 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        hatch = fitstbl['hatch']#.data.astype(int)
+        hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
+        if fitstbl['mjd'][0] > 58392.5:
 
-
-        if ftype in ['science']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Open') \
-                        & (fitstbl['idname'] == 'object')
-        if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Closed') \
-                        & (fitstbl['idname'] == 'dark')
-        if ftype in ['pixelflat', 'trace']:
-            # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'Closed') \
-                        & (fitstbl['idname'] == 'flatlamp')
-        if ftype == 'pinhole':
-            # Don't type pinhole frames
+            if ftype in ['science']:
+                return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            if ftype in 'dark':
+                return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
+                            & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
+            if ftype in ['pixelflat', 'trace']:
+                # Flats and trace frames are typed together
+                return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
+                            & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
+            if ftype == 'pinhole':
+                # Don't type pinhole frames
+                return np.zeros(len(fitstbl), dtype=bool)
+            if ftype in ['arc', 'tilt']:
+                # TODO: This is a kludge.  Allow science frames to also be
+                # classified as arcs
+                is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
+                                & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
+                is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+                return good_exp & (is_arc | is_obj)
+            msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
-            # TODO: This is a kludge.  Allow science frames to also be
-            # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'Closed') \
-                            & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Open') \
-                        & (fitstbl['idname'] == 'object')
-            return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        return np.zeros(len(fitstbl), dtype=bool)
+        
+
+        # Handle frames before 2018
+        if fitstbl['mjd'][0] < 58392.5:
+
+            if ftype in ['science']:
+                print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum') }")
+                return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') \
+                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            if ftype in 'dark':
+                return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') \
+                            & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
+            if ftype in ['pixelflat', 'trace']:
+                # Flats and trace frames are typed together
+                return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') \
+                            & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
+            if ftype == 'pinhole':
+                # Don't type pinhole frames
+                return np.zeros(len(fitstbl), dtype=bool)
+            if ftype in ['arc', 'tilt']:
+                # TODO: This is a kludge.  Allow science frames to also be
+                # classified as arcs
+                is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') \
+                                & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
+                is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') \
+                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+                return good_exp & (is_arc | is_obj)
+            msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+            return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
         """
@@ -346,22 +621,45 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             ValueError:
                 Raised if the status is not one of the valid options.
         """
-        if status == 'off':
-            # Check if all are off
-            lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
-            retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
-            for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key] == 'Off'
-            return np.all(retarr, axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            retarr = np.zeros((len(lamp_stat), len(fitstbl)))
-            for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key] == 'On'
-            return np.any(retarr, axis=0)
-        if status == 'dome':
-            return fitstbl['lampstat06'] == 'On'
+        mjd_obs = fitstbl['mjd'][0]
+        if mjd_obs > 58392.5:
+            if status == 'off':
+                # Check if all are off
+                lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
+                retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
+                for kk, key in enumerate(lamp_stat):
+                    retarr[kk,:] = fitstbl[key] == 'Off'
+                return np.all(retarr, axis=0)
+            if status == 'arcs':
+                # Check if any arc lamps are on
+                lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+                retarr = np.zeros((len(lamp_stat), len(fitstbl)))
+                for kk, key in enumerate(lamp_stat):
+                    retarr[kk,:] = fitstbl[key] == 'On'
+                return np.any(retarr, axis=0)
+            if status == 'dome':
+                return fitstbl['lampstat06'] == 'On'
+        else:
+            if status == 'off':
+                # Check if all are off
+                lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
+                retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
+                for kk, key in enumerate(lamp_stat):
+                    #print('off', key, fitstbl[key], fitstbl[key] == '0')
+                    #retarr[kk,:] = np.array([int(tabval) for tabval in fitstbl[key].data]) == 0
+                    retarr[kk,:] = fitstbl[key] == '0'
+                #print(retarr)
+                return np.all(retarr, axis=0)
+            if status == 'arcs':
+                # Check if any arc lamps are on
+                lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+                retarr = np.zeros((len(lamp_stat), len(fitstbl)))
+                for kk, key in enumerate(lamp_stat):
+                    #print('on', key, fitstbl[key])
+                    retarr[kk,:] = fitstbl[key] == '1'
+                return np.any(retarr, axis=0)
+            if status == 'dome':
+                return fitstbl['lampstat06'] == '1'
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
@@ -575,5 +873,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     comment = 'High-dispersion grating'
     filter1 = ''
     arc_or_sky = 'arc'
+    multi_ech_settings = True
 
 

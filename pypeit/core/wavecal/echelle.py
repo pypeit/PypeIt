@@ -175,7 +175,8 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
-                        composite_arc_file, debug=False, pad=3):
+                        composite_arc_file, debug=False, 
+                        xcorr_percent_ceil = 50.0, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -223,7 +224,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
-    '''
     debug=True
     import matplotlib.pyplot as plt
     for ii in range(norders):
@@ -236,12 +236,13 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     plt.plot(arcspec_guess_pad.flatten('F'))
     plt.ylim(0.0, np.max(arccen_pad))
     plt.show()
-    '''
+
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        percent_ceil=xcorr_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, 
+        max_lag_frac = float(nspec)/float(len(arccen_pad.flatten('F'))), debug=debug)
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

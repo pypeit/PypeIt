@@ -381,7 +381,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                nreid_min, det_arxiv=None, 
                detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
-               sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
+               sigdetect=5.0, fwhm=4.0, percent_ceil = 50, max_lag_frac = 1.0,
+               debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -593,7 +594,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
             wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
-                                        debug=debug_xcorr, percent_ceil=99.9)
+                                        debug=debug_xcorr, percent_ceil=percent_ceil, max_lag_frac=max_lag_frac)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
             msgs.warn(f'Shift and stretch failed, success = {success}')
@@ -1317,7 +1318,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     wv_calib = {}
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
-    #debug_all = True
+    debug_all = True
     for iord in range(norders):
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
@@ -1338,6 +1339,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             cc_thresh=cc_thresh, match_toler=par['match_toler'],
             cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=par['fwhm'],
+            percent_ceil= par['xcorr_percent_ceil'], max_lag_frac= par['xcorr_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
