@@ -1261,22 +1261,32 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         This is the main routine called to convert PypeIt spec2d files into PypeIt DataCube objects. It is specific
         to the SlicerIFU data.
 
-        The simplest option is when combine=False and align=False. In this case, each individual spec2d file
-        is converted into a spec3d file (i.e. a PypeIt DataCube object). These fits files can be loaded/viewed
-        in other software to display or combine multiple datacubes into a single datacube. However, note that
-        different software packages use different algorithms that may not conserve flux, or may produce covariance
-        between adjacent voxels. First the data are loaded and several corrections are made. These include:
+        First the data are loaded and several corrections are made. These include:
 
-        (1) A sky frame or model is subtracted from the science data, and the relative spectral illumination
-            of different slices is corrected.
-        (2) A mask of good pixels is identified
-        (3) A common spaxel scale is determined, and the astrometric correction is derived
-        (4) An RA and Dec image is created for each pixel.
-        (5) Based on atmospheric conditions, a differential atmospheric refraction correction is applied.
-        (6) Extinction correction
-        (7) Flux calibration (optional - this calibration is only applied if a standard star cube is supplied)
+        * A sky frame or model is subtracted from the science data, and the relative spectral illumination
+          of different slices is corrected.
+        * A mask of good pixels is identified
+        * A common spaxel scale is determined, and the astrometric correction is derived
+        * An RA and Dec image is created for each pixel.
+        * Based on atmospheric conditions, a differential atmospheric refraction correction is applied.
+        * Extinction correction
+        * Flux calibration (optional - this calibration is only applied if a standard star cube is supplied)
 
-        TODO :: NOT FINISHED THIS DOCSTRING YET!
+        If the input frames will not be combined (combine=False) if they won't be aligned (align=False), then
+        each individual spec2d file is converted into a spec3d file (i.e. a PypeIt DataCube object). These fits
+        files can be loaded/viewed in other software packages to display or combine multiple datacubes into a
+        single datacube. However, note that different software packages use combination algorithms that may not
+        conserve flux, or may produce covariance between adjacent voxels.
+
+        If the user wishes to either spatially align multiple exposures (align=True) or combine multiple
+        exposures (combine=True), then the next set of operations include:
+
+        * Generate white light images of each individual cube (according to a user-specified wavelength range)
+        * Align multiple frames if align=True (either manually by user input, or automatically by cross-correlation)
+        * Create the output WCS, and apply the flux calibration to the data
+        * Generate individual datacubes (combine=False) or one master datacube containing all exposures (combine=True).
+          Note, there are several algorithms used to combine multiple frames. Refer to the subpixellate() routine for
+          more details about the combination options.
         """
         # First loop through all of the frames, load the data, and save datacubes if no combining is required
         self.load()
