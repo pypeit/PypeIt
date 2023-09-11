@@ -1570,14 +1570,14 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=debug)
     # Extract the variables that we need
     if debug:
-        datacube, varcube, bpmcube, residcube = subpix
+        flxcube, varcube, bpmcube, residcube = subpix
         # Save a residuals cube
         outfile_resid = outfile.replace(".fits", "_resid.fits")
         msgs.info("Saving residuals datacube as: {0:s}".format(outfile_resid))
         hdu = fits.PrimaryHDU(residcube.T, header=hdr)
         hdu.writeto(outfile_resid, overwrite=overwrite)
     else:
-        datacube, varcube, bpmcube = subpix
+        flxcube, varcube, bpmcube = subpix
 
     # Check if the user requested a white light image
     if whitelight_range is not None:
@@ -1592,17 +1592,17 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             whitelight_range[0], whitelight_range[1]))
         # Get the output filename for the white light image
         out_whitelight = datacube.get_output_whitelight_filename(outfile)
-        nspec = datacube.shape[2]
+        nspec = flxcube.shape[2]
         # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
         wave = 1.0E10 * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
-        whitelight_img = datacube.make_whitelight_fromcube(datacube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
+        whitelight_img = datacube.make_whitelight_fromcube(flxcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
+    final_cube = DataCube(flxcube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
                           sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
@@ -1724,7 +1724,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
-    datacube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
+    flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
     if debug:
         residcube = np.zeros(outshape)
     # Divide each pixel into subpixels
@@ -1774,23 +1774,23 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
             if histogramdd is not None:
                 # use the "fast histogram" algorithm, that assumes regular bin spacing
-                datacube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+                flxcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
                 varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
                 normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
                 if debug:
                     residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
             else:
-                datacube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))[0]
+                flxcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))[0]
                 varcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))[0]
                 normcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))[0]
                 if debug:
                     residcube += np.histogramdd(vox_coord, bins=outshape, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))[0]
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
-    datacube *= nc_inverse
+    flxcube *= nc_inverse
     varcube *= nc_inverse**2
     bpmcube = (normcube == 0).astype(np.uint8)
     if debug:
         residcube *= nc_inverse
-        return datacube, varcube, bpmcube, residcube
-    return datacube, varcube, bpmcube
+        return flxcube, varcube, bpmcube, residcube
+    return flxcube, varcube, bpmcube
