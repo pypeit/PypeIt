@@ -350,6 +350,17 @@ class CoAdd3D:
             if not os.path.exists(self.cubepar['reference_image']):
                 msgs.error("Reference image does not exist:" + msgs.newline() + self.cubepar['reference_image'])
 
+        # Load the default scaleimg frame for the scale correction
+        self.scalecorr_default = "none"
+        self.relScaleImgDef = np.array([1])
+        self.set_default_scalecorr()
+
+        # Load the default sky frame to be used for sky subtraction
+        self.skysub_default = "image"
+        self.skyImgDef, self.skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
+        self.set_default_skysub()
+
+
     def check_outputs(self):
         """
         Check if any of the intended output files already exist. This check should be done near the
@@ -530,16 +541,6 @@ class CoAdd3D:
         wgd = np.where(zeropoint_fit_gpm)
         sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
         self.flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
-
-        # Load the default scaleimg frame for the scale correction
-        self.scalecorr_default = "none"
-        self.relScaleImgDef = np.array([1])
-        self.set_default_scalecorr()
-
-        # Load the default sky frame to be used for sky subtraction
-        self.skysub_default = "image"
-        self.skyImgDef, self.skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
-        self.set_default_skysub()
 
     def set_default_scalecorr(self):
         """
@@ -909,13 +910,18 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         This function checks if the spatial scales of all frames are consistent.
         If the user has not specified the spatial scale, it will be set here.
         """
-        # Make sure all frames have consistent scales
-        if not np.all(self._spatscale[:,0] != self._spatscale[0,0]):
+        # Make sure all frames have consistent pixel scales
+        ratio = (self._spatscale[:, 0] - self._spatscale[0, 0]) / self._spatscale[0, 0]
+        if np.any(np.abs(ratio) > 1E-4):
             msgs.warn("The pixel scales of all input frames are not the same!")
-            msgs.info("Pixel scales of all input frames:" + msgs.newline() + self._spatscale[:,0])
-        if not np.all(self._spatscale[:,1] != self._spatscale[0,1]):
+            spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,0]*3600.0])
+            msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr)
+        # Make sure all frames have consistent slicer scales
+        ratio = (self._spatscale[:, 1] - self._spatscale[0, 1]) / self._spatscale[0, 1]
+        if np.any(np.abs(ratio) > 1E-4):
             msgs.warn("The slicer scales of all input frames are not the same!")
-            msgs.info("Slicer scales of all input frames:" + msgs.newline() + self._spatscale[:,1])
+            spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,1]*3600.0])
+            msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr)
         # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
         if self._dspat is None:
             self._dspat = np.max(self._spatscale)
