@@ -875,4 +875,12 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     arc_or_sky = 'arc'
     multi_ech_settings = True
 
+class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
+    """
+    Child to handle NIRSPEC high-dispersion pre-upgrade specific code
+    """
+    name = 'keck_nirspec_high_old'
+    supported = True
+    comment = 'High-dispersion grating, pre-upgrade'
+    multi_ech_settings = True
 
