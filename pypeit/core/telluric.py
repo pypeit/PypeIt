@@ -378,7 +378,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
        3. convolution of the atmosphere model to the resolution set by
           the spectral resolution.
 
-       4. Shift and stretch the telluric model.
+       4. shift and stretch the telluric model.
 
     Args:
         theta_tell (`numpy.ndarray`_):
@@ -391,7 +391,6 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
             :func:`read_telluric_pca` if teltype=='PCA'.
             or
             :func:`read_telluric_grid` if teltype=='grid'.
-        teltype (:
         ind_lower (:obj:`int`, optional):
             The index of the first pixel to include in the model. Selecting a
             wavelength region for the modeling makes things faster because we
