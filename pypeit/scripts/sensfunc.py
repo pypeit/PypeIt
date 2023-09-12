@@ -81,8 +81,6 @@ class SensFunc(scriptbase.ScriptBase):
 
         import os
 
-        from astropy.io import fits
-
         from pypeit import msgs
         from pypeit import inputfiles
         from pypeit import io
