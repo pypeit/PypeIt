@@ -168,6 +168,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - tell_pca: PCA component vectors
             - bounds_tell_pca: Maximum/minimum coefficient
             - coefs_tell_pca: Set of model coefficient values (for prior in future)
+            - teltype: Type of telluric model, i.e. 'PCA'
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
@@ -223,6 +224,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - h2o_grid: Humidity values in telluric grid [%]
             - airmass_grid: Airmass values in telluric grid
             - tell_grid: Grid of telluric models
+            - teltype: Type of telluric model, i.e. 'grid'
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
