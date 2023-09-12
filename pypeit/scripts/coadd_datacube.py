@@ -52,7 +52,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
             msgs.info("Restricting to detector={}".format(args.det))
             parset['rdx']['detnum'] = int(args.det)
 
-        # Instantiate Coadd2d
+        # Instantiate CoAdd3d
         coadd = CoAdd3D.get_instance(coadd3dfile.filenames, coadd3dfile.options, spectrograph=spectrograph, par=parset,
                                      det=args.det, overwrite=args.overwrite)
 
