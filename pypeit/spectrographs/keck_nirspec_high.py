@@ -646,7 +646,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
                 for kk, key in enumerate(lamp_stat):
                     #print('off', key, fitstbl[key], fitstbl[key] == '0')
-                    #retarr[kk,:] = np.array([int(tabval) for tabval in fitstbl[key].data]) == 0
+                    #retarr[kk,:] = np.array([int(tabval) for tabval in fitstbl[key] .data]) == 0
                     retarr[kk,:] = fitstbl[key] == '0'
                 #print(retarr)
                 return np.all(retarr, axis=0)
@@ -884,3 +884,43 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     comment = 'High-dispersion grating, pre-upgrade'
     multi_ech_settings = True
 
+    comment = 'see :doc:`keck_nirspec_high_old`'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.26,
+            darkcurr        = 0.8,
+            saturation      = 100000000.,
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(3.01),
+            ronoise         = np.atleast_1d(11.56),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None, #np.atleast_1d('[:,:]')
+            )
+        
+
+
+        return detector_container.DetectorContainer(**detector_dict)
