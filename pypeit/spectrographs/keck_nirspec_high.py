@@ -911,7 +911,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             spatflip        = False,
             platescale      = 0.26,
             darkcurr        = 0.8,
-            saturation      = 100000000.,
+            saturation      = 1e5,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
