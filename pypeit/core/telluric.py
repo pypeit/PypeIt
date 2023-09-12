@@ -396,7 +396,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
             wavelength region for the modeling makes things faster because we
             only need to convolve the portion that is needed for the current
             model fit.
-        ind_upper:
+        ind_upper (:obj:`int`, optional):
             The index (inclusive) of the last pixel to include in the model.
             Selecting a wavelength region for the modeling makes things
             faster because we only need to convolve the portion that is
@@ -404,7 +404,10 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     Returns:
         `numpy.ndarray`_: Telluric model evaluated at the desired location
-        theta_tell in model atmosphere parameter space.
+        theta_tell in model atmosphere parameter space. Shape is given by
+        the size of `wave_grid' plus `tell_pad_pix' padding from the input
+        tell_dict.
+        
     """
     ntheta = len(theta_tell)
     # FD: Currently assumes that shift and stretch are on.
