@@ -242,7 +242,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
         percent_ceil=xcorr_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, 
-        max_lag_frac = float(nspec)/float(len(arccen_pad.flatten('F'))), debug=debug)
+        max_lag_frac = 2*float(nspec)/float(len(arccen_pad.flatten('F'))), debug=debug)
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

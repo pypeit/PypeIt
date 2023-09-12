@@ -29,353 +29,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
     comment = 'see :doc:`keck_nirspec_high`'
 
-    def get_detector_par(self, det, hdu=None):
-        """
-        Return metadata for the selected detector.
 
-        Args:
-            det (:obj:`int`):
-                1-indexed detector number.  This is not used because NIRSPEC
-                only has one detector!
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.  If not
-                provided, frame-dependent parameters are set to a default.
-
-        Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
-            Object with the detector metadata.
-        """
-        detector_dict = dict(
-            det=1,
-            binning         ='1,1',  # No binning allowed
-            dataext         = 0,
-            specaxis        = 0,
-            specflip        = True,
-            spatflip        = False,
-            platescale      = 0.13,
-            darkcurr        = 0.8,
-            saturation      = 100000000.,
-            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
-            numamplifiers   = 1,
-            mincounts       = -1e10,
-            gain            = np.atleast_1d(3.01),
-            ronoise         = np.atleast_1d(11.56),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = None, #np.atleast_1d('[:,:]')
-            )
-        
-
-
-        return detector_container.DetectorContainer(**detector_dict)
-
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of PypeIt methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Wavelengths
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 3.0
-        par['calibrations']['wavelengths']['fwhm_fromlines']= False
-        par['calibrations']['wavelengths']['n_final']= 4
-        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC-ArNeKrXe']#, 'ThAr']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['method'] = 'echelle'
-#        par['calibrations']['wavelengths']['ech_fix_format'] = True
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.70
-        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-        # Echelle parameters
-        par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-        par['calibrations']['wavelengths']['ech_separate_2d'] = False
-
-        
-        # Trace ID parameters
-        par['calibrations']['slitedges']['edge_thresh'] = 50.0
-        par['calibrations']['slitedges']['fit_order'] = 8
-        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-        par['calibrations']['slitedges']['trace_thresh'] = 10.
-        par['calibrations']['slitedges']['left_right_pca'] = True
-        par['calibrations']['slitedges']['length_range'] = 0.3
-        par['calibrations']['slitedges']['max_nudge'] = 10.
-        par['calibrations']['slitedges']['overlap'] = True
-        par['calibrations']['slitedges']['dlength_range'] = 0.25
-
-        # Flats
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
-
-        # Extraction
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
-        par['reduce']['extraction']['sn_gauss'] = 4.0
-
-        # Flexure
-        par['flexure']['spec_method'] = 'skip'
-
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-
-        # Should be we be illumflattening?
-
-        # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        #turn_off = dict(use_biasimage=False, use_overscan=False)
-        #par.reset_all_processimages_par(**turn_off)
-
-        # Specify if cleaning cosmic ray hits/bad pixels
-
-        # The settings below enable NIRSPEC dark subtraction from the
-        # traceframe and pixelflatframe, but enforce that this bias won't be
-        # subtracted from other images. It is a hack for now, because
-        # eventually we want to perform this operation with the dark frame
-        # class, and we want to attach individual sets of darks to specific
-        # images.
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-        #par['calibrations']['traceframe']['process']['bias'] = 'force'
-        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
-        #par['scienceframe']['process']['bias'] = 'skip'
-
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, None]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [None, None]
-        par['scienceframe']['exprng'] = [None, None]
-
-        # Sensitivity function parameters
-        par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
-        return par
-
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        self.meta = {}
-        # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='TARGNAME')
-        self.meta['decker'] = dict(ext=0, card='SLITNAME')
-        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
-
-        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card=None, compound=True)
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-        # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card=None, compound=True)
-        self.meta['hatch'] = dict(ext=0, card='CALMPOS')
-        self.meta['frameno'] = dict(ext=0, card=None, compound=True)
-        self.meta['idname'] = dict(ext=0, card=None, compound = True)
-        self.meta['instrument'] = dict(ext=0, card=None, compound=True)
-        self.meta['filter1'] = dict(ext=0, card=None, compound=True)
-        self.meta['filter2'] = dict(ext=0, card=None, compound=True)
-        self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
-        self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
-        #self.meta['binning'] = dict(ext=0, card=None, default='1,1')
-        #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
-
-        # Lamps
-        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
-        self.meta['lampstat06'] = dict(ext=0, card = None, compound = True)
-
-
-    def compound_meta(self, headarr, meta_key):
-        """
-        Methods to generate metadata requiring interpretation of the header
-        data, instead of simply reading the value of a header card.
-
-        Args:
-            headarr (:obj:`list`):
-                List of `astropy.io.fits.Header`_ objects.
-            meta_key (:obj:`str`):
-                Metadata keyword to construct.
-
-        Returns:
-            object: Metadata value read from the header(s).
-        """
-        msgs.info(f'Trying Compound Meta for key: {meta_key}')
-        msgs.info('First lets find out what the date is')
-        msgs.info('Post upgrade?')
-        
-        mjd_obs = headarr[0].get('MJD')
-
-        if mjd_obs == None:
-            try:
-                msgs.info('or Pre upgrade?')
-                mjd_obs = headarr[0].get('MJD-OBS')
-                msgs.info('Must be a pre-upgrade dataset! Trying different header keys')
-            except:
-                msgs.warn('This dataset does not match the old or new header keys')    
-
-
-        if meta_key == 'mjd':
-            if mjd_obs > 58392.5:
-                try:
-                    mjd_obs = headarr[0].get('MJD')
-                    #self.meta['mjd'] = dict(ext=0, card='MJD')
-                    return mjd_obs
-                except:
-                    msgs.warn(f'Header key error: MJD not found')
-            else:
-                try:
-                    mjd_obs = headarr[0].get('MJD-OBS')
-                    return mjd_obs
-                    #self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
-                except:
-                    msgs.warn('Header key error: MJD-OBS not found')
-                # Handle Lamps now while we're doing this
-
-
-
-        if meta_key == 'filter1':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('SCIFILT1')
-                    return filt1
-                    #self.meta['filter1'] = dict(ext=0, card='SCIFILT1')
-                except:
-                    msgs.warn(f'Header key error: SCIFILT1 not found')
-            else:
-                try:
-                    filt1 = headarr[0].get('FILNAME')
-                    return filt1
-                    #self.meta['filter1'] = dict(ext=0, card='FILNAME')
-                except:
-                    msgs.warn('Header key error: FILNAME not found')
-
-        if meta_key == 'filter2':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('SCIFILT2')
-                    return filt1
-                    #self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
-                except:
-                    msgs.warn(f'Header key error: SCIFILT1 not found')
-            else:
-                try:
-                    return ''
-                    #self.meta['filter2'] = dict(ext=0, card=None, default='') #dict(ext=0, card='FILNAME')
-                except:
-                    msgs.warn('Header key error: FILNAME not found')
-
-
-
-        if meta_key == 'exptime':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('TRUITIME')
-                    return filt1
-                    #self.meta['filter2'] = dict(ext=0, card='TRUITIME')
-                except:
-                    msgs.warn(f'Header key error: TRUITIME not found')
-            else:
-                try:
-                    filt1 = headarr[0].get('ITIME')
-                    return filt1
-                    #self.meta['exptime'] = dict(ext=0, card='ITIME')
-                except:
-                    msgs.warn('Header key error: ITIME not found')
-
-        if meta_key == 'dispname':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('OBSMODE')
-                    return filt1
-                    #self.meta['dispname'] = dict(ext=0, card='OBSMODE')
-                except:
-                    msgs.warn(f'Header key error: OBSMODE not found')
-            else:
-                try:
-                    return 'Spectroscopy'
-                    #self.meta['dispname'] = dict(ext=0, card=None, default='Spectroscopy') #dict(ext=0, card='ITIME')
-                except:
-                    msgs.warn('Header key error: OBSMODE not found')
-
-
-        if meta_key == 'instrument':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('INSTRUME')
-                    return filt1
-                    #self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-                except:
-                    msgs.warn(f'Header key error: INSTRUME not found')
-            else:
-                try:
-                    filt1 = headarr[0].get('CURRINST')
-                    return filt1
-                    #self.meta['instrument'] = dict(ext=0, card='CURRINST')
-                except:
-                    msgs.warn('Header key error: CURRINST not found')
-
-        if meta_key == 'frameno':
-            if mjd_obs > 58392.5:
-                try:
-                    filt1 = headarr[0].get('FRAMENUM')
-                    return filt1
-                    #self.meta['instrument'] = dict(ext=0, card='FRAMENUM')
-                except:
-                    msgs.warn(f'Header key error: FRAMENUM not found')
-            else:
-                try:
-                    filt1 = headarr[0].get('FILENUM')
-                    return filt1
-                    #self.meta['instrument'] = dict(ext=0, card='FILENUM')
-                except:
-                    msgs.warn('Header key error: FILENUM not found')
-
-        if meta_key == 'lampstat06':
-            if mjd_obs > 58392.5:
-                try:
-                    lamp6 = headarr[0].get('HALOGEN')
-                    #self.meta['instrument'] = dict(ext=0, card='FRAMENUM')
-                    return lamp6
-                except:
-                    msgs.warn(f'Header key error: FRAMENUM not found')
-            else:
-                try:
-                    lamp6 = headarr[0].get('FLAT')
-                    #self.meta['instrument'] = dict(ext=0, card='FILENUM')
-                    return lamp6
-                except:
-                    msgs.warn('Header key error: FILENUM not found')
-
-        if meta_key == 'idname':
-            if mjd_obs > 58392.5:
-                try:
-                    lamp6 = headarr[0].get('IMTYPE')
-                    if lamp6 is not None:
-                        return lamp6
-                except:
-                    msgs.warn(f'Header key error: IMTYPE not found')
-            else:
-                try:
-                    return 'Spectrum'
-                except:
-                    msgs.warn('Header key error: IMTYPE not found')
-
-        #return 1
 
 
     def configuration_keys(self):
@@ -474,7 +128,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     
         return [angle_fits_file, composite_arc_file]
 
-
+    '''
     def get_echelle_angle_files(self, lamps_list, filter1):
         """ Pass back the files required
         to run the echelle method of wavecalib
@@ -514,7 +168,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
     
         return [angle_fits_file, composite_arc_file]
-
+    '''
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -537,60 +191,30 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
-        if fitstbl['mjd'][0] > 58392.5:
-
-            if ftype in ['science']:
-                return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-            if ftype in 'dark':
-                return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
-                            & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-            if ftype in ['pixelflat', 'trace']:
-                # Flats and trace frames are typed together
-                return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
-                            & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
-            if ftype == 'pinhole':
-                # Don't type pinhole frames
-                return np.zeros(len(fitstbl), dtype=bool)
-            if ftype in ['arc', 'tilt']:
-                # TODO: This is a kludge.  Allow science frames to also be
-                # classified as arcs
-                is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
-                                & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
-                is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-                return good_exp & (is_arc | is_obj)
-            msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        if ftype in ['science']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+        if ftype in 'dark':
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
+                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
+                        & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
+        if ftype == 'pinhole':
+            # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            # TODO: This is a kludge.  Allow science frames to also be
+            # classified as arcs
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
+                            & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            return good_exp & (is_arc | is_obj)
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
         
-
-        # Handle frames before 2018
-        if fitstbl['mjd'][0] < 58392.5:
-
-            if ftype in ['science']:
-                print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum') }")
-                return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') \
-                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-            if ftype in 'dark':
-                return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') \
-                            & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-            if ftype in ['pixelflat', 'trace']:
-                # Flats and trace frames are typed together
-                return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') \
-                            & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
-            if ftype == 'pinhole':
-                # Don't type pinhole frames
-                return np.zeros(len(fitstbl), dtype=bool)
-            if ftype in ['arc', 'tilt']:
-                # TODO: This is a kludge.  Allow science frames to also be
-                # classified as arcs
-                is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') \
-                                & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
-                is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') \
-                            & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-                return good_exp & (is_arc | is_obj)
-            msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-            return np.zeros(len(fitstbl), dtype=bool)
 
     def lamps(self, fitstbl, status):
         """
@@ -611,45 +235,24 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             ValueError:
                 Raised if the status is not one of the valid options.
         """
-        mjd_obs = fitstbl['mjd'][0]
-        if mjd_obs > 58392.5:
-            if status == 'off':
-                # Check if all are off
-                lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
-                retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
-                for kk, key in enumerate(lamp_stat):
-                    retarr[kk,:] = fitstbl[key] == 'Off'
-                return np.all(retarr, axis=0)
-            if status == 'arcs':
-                # Check if any arc lamps are on
-                lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-                retarr = np.zeros((len(lamp_stat), len(fitstbl)))
-                for kk, key in enumerate(lamp_stat):
-                    retarr[kk,:] = fitstbl[key] == 'On'
-                return np.any(retarr, axis=0)
-            if status == 'dome':
-                return fitstbl['lampstat06'] == 'On'
-        else:
-            if status == 'off':
-                # Check if all are off
-                lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
-                retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
-                for kk, key in enumerate(lamp_stat):
-                    #print('off', key, fitstbl[key], fitstbl[key] == '0')
-                    #retarr[kk,:] = np.array([int(tabval) for tabval in fitstbl[key] .data]) == 0
-                    retarr[kk,:] = fitstbl[key] == '0'
-                #print(retarr)
-                return np.all(retarr, axis=0)
-            if status == 'arcs':
-                # Check if any arc lamps are on
-                lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-                retarr = np.zeros((len(lamp_stat), len(fitstbl)))
-                for kk, key in enumerate(lamp_stat):
-                    #print('on', key, fitstbl[key])
-                    retarr[kk,:] = fitstbl[key] == '1'
-                return np.any(retarr, axis=0)
-            if status == 'dome':
-                return fitstbl['lampstat06'] == '1'
+
+        if status == 'off':
+            # Check if all are off
+            lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key] == 'Off'
+            return np.all(retarr, axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)))
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key] == 'On'
+            return np.any(retarr, axis=0)
+        if status == 'dome':
+            return fitstbl['lampstat06'] == 'On'
+
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
@@ -861,9 +464,237 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_high'
     supported = True
     comment = 'High-dispersion grating'
-    filter1 = ''
-    arc_or_sky = 'arc'
     multi_ech_settings = True
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = True,
+            spatflip        = False,
+            platescale      = 0.13,
+            darkcurr        = 0.8,
+            saturation      = 100000000.,
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(3.01),
+            ronoise         = np.atleast_1d(11.56),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None, #np.atleast_1d('[:,:]')
+            )
+        
+
+
+        return detector_container.DetectorContainer(**detector_dict)
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
+
+        # Wavelengths
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['sigdetect']=5.0
+        par['calibrations']['wavelengths']['fwhm']= 3.0
+        par['calibrations']['wavelengths']['fwhm_fromlines']= False
+        par['calibrations']['wavelengths']['n_final']= 4
+        par['calibrations']['wavelengths']['lamps'] = ['NIRSPEC-ArNeKrXe']#, 'ThAr']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['method'] = 'echelle'
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.70
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        # Echelle parameters
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['ech_separate_2d'] = False
+
+        
+        # Trace ID parameters
+        par['calibrations']['slitedges']['edge_thresh'] = 50.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+        par['calibrations']['slitedges']['max_nudge'] = 10.
+        par['calibrations']['slitedges']['overlap'] = True
+        par['calibrations']['slitedges']['dlength_range'] = 0.25
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
+
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
+
+        # Flexure
+        par['flexure']['spec_method'] = 'skip'
+
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
+
+        # Should be we be illumflattening?
+
+        # Flats
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
+        #turn_off = dict(use_biasimage=False, use_overscan=False)
+        #par.reset_all_processimages_par(**turn_off)
+
+        # Specify if cleaning cosmic ray hits/bad pixels
+
+        # The settings below enable NIRSPEC dark subtraction from the
+        # traceframe and pixelflatframe, but enforce that this bias won't be
+        # subtracted from other images. It is a hack for now, because
+        # eventually we want to perform this operation with the dark frame
+        # class, and we want to attach individual sets of darks to specific
+        # images.
+        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        #par['calibrations']['traceframe']['process']['bias'] = 'force'
+        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        #par['scienceframe']['process']['bias'] = 'skip'
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, None]
+        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [None, None]
+        par['scienceframe']['exprng'] = [None, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        return par
+    
+
+
+    def init_meta(self):
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the PypeIt-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='SLITNAME')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='TRUITIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        self.meta['dispname'] = dict(ext=0, card='OBSMODE')
+        self.meta['hatch'] = dict(ext=0, card='CALMPOS')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['idname'] = dict(ext=0, card='IMTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['filter1'] = dict(ext=0, card='SCIFILT1')
+        self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
+        self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
+        self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
+        #self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
+
+        # Lamps
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON']
+        for kk,lamp_name in enumerate(lamp_names):
+            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        self.meta['lampstat06'] = dict(ext=0, card = 'HALOGEN')
+
+
+
+    def get_echelle_angle_files(self, lamps_list, filter1, filter2):
+        """ Pass back the files required
+        to run the echelle method of wavecalib
+
+        Returns:
+            list: List of files
+        """
+        if filter1 == 'Kband-new' or filter2 == '':
+            band = filter1
+        else:
+            band = filter2
+        
+
+        print(lamps_list, 'Xe' in lamps_list[0])
+        print('filter1 = ', filter1)
+        if 'Xe' in lamps_list[0]:
+            #print('Using Arclamps probably')
+            #print(f'filter1 = {filter1}')
+            if band == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+            if band == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_j_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_composite_arc.fits'
+            if band == 'NIRSPEC-5':
+                angle_fits_file = 'keck_nirspec_h_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_h_composite_arc.fits'
+            if band == 'Kband-new':
+                angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+            if band == 'NIRSPEC-7':
+                angle_fits_file = 'keck_nirspec_k_old_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_old_composite_arc.fits'
+        elif 'OH' in lamps_list[0]:
+            print('Using OH Lines')
+            if band == 'NIRSPEC-1':
+                angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+            if band == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_j_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_composite_OH.fits'
+            if band == 'NIRSPEC-5':
+                angle_fits_file = 'keck_nirspec_h_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_h_composite_OH.fits'
+
+        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
+        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
+        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+    
+        return [angle_fits_file, composite_arc_file]
+
+
 
 class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     """

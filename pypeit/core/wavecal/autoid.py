@@ -1324,7 +1324,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     wv_calib = {}
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
-    debug_all = True
+    #debug_all = True
     for iord in range(norders):
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
