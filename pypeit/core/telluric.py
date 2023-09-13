@@ -2642,7 +2642,6 @@ class Telluric(datamodel.DataContainer):
                                              kind='linear', bounds_error=False,
                                              fill_value=0.0)(wave_in_gd)
         self.model['TELL_THETA'][iord] = self.theta_tell_list[iord]
-        if
         self.model['TELL_PARAM'][iord] = self.theta_tell_list[iord][:self.ntell]
         self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][self.ntell]
         self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][self.ntell+1]
