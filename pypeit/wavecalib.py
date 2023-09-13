@@ -611,6 +611,9 @@ class BuildWaveCalib:
 
         # Save for redo's
         self.measured_fwhms = measured_fwhms
+        # determine rms threshold
+        fwhm_for_thresh = autoid.set_fwhm(self.par, measured_fwhm=np.median(measured_fwhms))
+        self.wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm_for_thresh,3)
 
         # Obtain calibration for all slits
         if method == 'holy-grail':
@@ -636,7 +639,7 @@ class BuildWaveCalib:
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(
-                arccen, self.lamps, self.par,
+                arccen, self.lamps, self.par, self.wave_rms_thresh,
                 ech_fixed_format=self.spectrograph.ech_fixed_format, 
                 ok_mask=ok_mask_idx,
                 measured_fwhms=self.measured_fwhms,
@@ -680,7 +683,8 @@ class BuildWaveCalib:
             #ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                self.lamps, self.par, ok_mask=ok_mask_idx,
+                self.lamps, self.par, self.wave_rms_thresh, ok_mask=ok_mask_idx,
+                measured_fwhms=self.measured_fwhms,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, 
                 redo_slits=np.atleast_1d(self.par['redo_slits']) if self.par['redo_slits'] is not None else None)
@@ -702,8 +706,8 @@ class BuildWaveCalib:
             self.wv_calib.arc_spectra = arccen
             # Save the new fits (if they meet tolerance)
             for key in final_fit.keys():
-                if final_fit[key]['rms'] < self.par['rms_threshold']:
-                    idx = int(key)
+                idx = int(key)
+                if final_fit[key]['rms'] < self.wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
@@ -801,7 +805,8 @@ class BuildWaveCalib:
                 spec_vec_norm = np.linspace(0,1,nspec)
                 wv_order_mod = self.wv_calib.wv_fit2d[idet].eval(spec_vec_norm, 
                                     x2=np.ones_like(spec_vec_norm)*order)/order
-
+                # get FWHM for this order
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord])
                 # Link me
                 tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                     self.lamps, self.arccen[:,iord], wv_order_mod, 
@@ -810,7 +815,7 @@ class BuildWaveCalib:
                 match_toler=self.par['match_toler'], 
                 nonlinear_counts=self.nonlinear_counts, 
                 sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
-                fwhm=self.par['fwhm'])
+                fwhm=fwhm)
 
                 if not patt_dict_slit['acceptable']:
                     msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
@@ -833,7 +838,7 @@ class BuildWaveCalib:
                 # Keep?
                 # TODO -- Make this a parameter?
                 increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
+                if final_fit['rms'] < increase_rms*self.wave_rms_thresh:
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -1077,7 +1082,7 @@ class BuildWaveCalib:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # Test and scale by measured_fwhms 
-            bad_rms = rms > (self.par['rms_threshold'] * np.median(self.measured_fwhms)/self.par['fwhm'])
+            bad_rms = rms > self.wave_rms_thresh
             #embed(header='line 975 of wavecalib.py')
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True
