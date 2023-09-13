@@ -2628,7 +2628,7 @@ class Telluric(datamodel.DataContainer):
         wave_grid_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
         
         if self.teltype == 'PCA':
-            ntell = tell_npca
+            ntell = self.tell_npca
         elif self.teltype == 'grid':
             ntell = 4
 
@@ -2642,10 +2642,10 @@ class Telluric(datamodel.DataContainer):
                                              kind='linear', bounds_error=False,
                                              fill_value=0.0)(wave_in_gd)
         self.model['TELL_THETA'][iord] = self.theta_tell_list[iord]
-        self.model['TELL_PARAM'][iord] = self.theta_tell_list[iord][:self.ntell]
-        self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][self.ntell]
-        self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][self.ntell+1]
-        self.model['TELL_STRETCH'][iord] = self.theta_tell_list[iord][self.ntell+2]
+        self.model['TELL_PARAM'][iord] = self.theta_tell_list[iord][:ntell]
+        self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][ntell]
+        self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][ntell+1]
+        self.model['TELL_STRETCH'][iord] = self.theta_tell_list[iord][ntell+2]
         ntheta_iord = len(self.theta_obj_list[iord])
         self.model['OBJ_THETA'][iord][:ntheta_iord] = self.theta_obj_list[iord]
         self.model['CHI2'][iord] = self.result_list[iord].fun
