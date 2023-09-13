@@ -1436,12 +1436,11 @@ class PypeItMetaData:
                 msgs.info(f)
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
-            else:
-                msgs.warn("These files are commented out and will be ignored during the reduction.")
-                # Comment out the frames that could not be identified
-                # first change the dtype of the filename column to be able to add a #
-                self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
-                self['filename'][indx] = ['# ' + fname for fname in self['filename'][indx]]
+            msgs.warn("These files are commented out and will be ignored during the reduction.")
+            # Comment out the frames that could not be identified
+            # first change the dtype of the filename column to be able to add a #
+            self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
+            self['filename'][indx] = ['# ' + fname for fname in self['filename'][indx]]
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")

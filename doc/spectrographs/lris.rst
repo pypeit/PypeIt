@@ -79,7 +79,7 @@ Here are the steps to follow:
         - the ``input_file_name``, which is either the FITS or ``".file3"`` mask
           design file (be sure the name includes the extension);
 
-        - the ``output_file``, which is the name of the output file which
+        - the ``output_file``, which is the name of the output file that
           TILSOTUA will generate. Do not include any extension such as ``.fits``.
 
    If only the ``".file3"`` file is provided, the calling sequence is:

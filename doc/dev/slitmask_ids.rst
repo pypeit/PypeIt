@@ -29,6 +29,7 @@ Slitmask information Spectrographs
 - :doc:`../spectrographs/deimos`
 - :doc:`../spectrographs/mosfire`
 - :doc:`../spectrographs/lris` (limited)
+- :doc:`../spectrographs/gemini_gmos` (limited)
 
 Basics
 ------

@@ -82,11 +82,10 @@ Testing
 Requirement PLL-17 states: "As a user, I expect the pipeline to automatically
 and correctly associate calibrations with science frames."
 
-PypeIt meets this requirement in the majority of use cases.
+PypeIt meets this requirement in the majority of use cases, as shown by the tests below.
 
-The test used to demonstrate PLL-16 is satisfied
-(:ref:`lris_frames_report`) is also relevant here since it
-shows that PypeIt correctly identifies LRIS data and associates
+Note that the tests described in :ref:`lris_frames_report` are also relevant here
+since they show that PypeIt correctly identifies LRIS data and associates
 them with a single configuration, all written to a single pypeit file.
 
 To test that PypeIt can successfully identify multiple
