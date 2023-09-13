@@ -1314,7 +1314,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             return
 
         # If the user is aligning or combining, the spatial scale of the output cubes needs to be consistent.
-        # Set the spatial scale of the output datacube
+        # Set the spatial and spectral scales of the output datacube
         self.set_voxel_sampling()
 
         # Align the frames
