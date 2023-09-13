@@ -1809,9 +1809,9 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
     subcube_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
                                                                 dspat, dwave, collapse=True)
     # Create the subcube
-    flxcube, varcube, bpmcube = subpixellate(subcube_wcs[wv_mask], ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
+    flxcube, varcube, bpmcube = subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
                                              wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
-                                             all_spatid, tilts, slits, astrom_trans,
+                                             all_spatid[wv_mask], tilts, slits, astrom_trans,
                                              voxedge, all_idx=None,
                                              spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=False)
 
