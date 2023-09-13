@@ -1141,6 +1141,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             this_specpos, this_spatpos = np.where(onslit_gpm)
             this_spatid = slitid_img_init[onslit_gpm]
 
+            # Astrometric alignment to HST frames
+            # TODO :: RJC requests this remains here... it is only used by RJC
+            ra_sort, dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort)
+
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
             numpix = ra_sort.size
@@ -1808,3 +1812,31 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
         residcube *= nc_inverse
         return flxcube, varcube, bpmcube, residcube
     return flxcube, varcube, bpmcube
+
+
+def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort):
+    """
+    This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
+    to align the daatcubes to an HST image.
+
+    Process:
+    * Send away pixel RA, Dec, wave, flux, error.
+    * ------
+    * Compute emission line map
+      - Need to generate full cube around H I gamma
+      - Fit to continuum and subtract it off
+      - Sum all flux above continuum
+      - Estimate error
+    * MPFIT HST emission line map to
+    * ------
+    * Return updated pixel RA, Dec
+    """
+    ############
+    ## STEP 1 ## - Create a datacube around Hgamma
+    ############
+    # Only use a small wavelength range
+    wv_mask = (wave_sort>) & (wave_sort<)
+    # Create a WCS for this subcube
+    image_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
+                                                          dspat, wavediff, collapse=True)
+    # Compute an emission line map that is as consistent as possible to an archival HST image
