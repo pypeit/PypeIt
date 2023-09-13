@@ -42,6 +42,16 @@
 - HIRES wavelength solution improvements galor
 - Added `redo_slits` option
 - Refactored ``load_line_lists()`` yet again!
+- Improvements for keck/LRIS
+    - Generated wavelength templates for all the LRIS grism & grating
+    - Added FeAr line list
+    - Improved calibration association and frame typing
+    - Improved and added documentation
+    - Changes to ``metadata.py`` including commenting out, in the pypeit file,
+      files that have frametype None (this prevent ``run_pypeit`` to crash)
+    - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
+      that checks (during ``pypeit_setup``) if the selected spectrograph is the
+      corrected one for the data used. 
 
 
 1.13.0 (2 June 2023)
