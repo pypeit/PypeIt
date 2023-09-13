@@ -384,10 +384,10 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     Args:
         theta_tell (`numpy.ndarray`_):
-            Vector with ntell PCA coefficients (if teltype='PCA')
+            Vector with tell_npca PCA coefficients (if teltype='PCA')
             or pressure, temperature, humidity, and airmass (if teltype='grid'),
             followed by spectral resolution, shift, and stretch.
-            Final length is ntell+3.
+            Final length is then tell_npca+3 or 7.
         tell_dict (:obj:`dict`):
             Dictionary containing the telluric data. See
             :func:`read_telluric_pca` if teltype=='PCA'.
@@ -412,9 +412,15 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
         
     """
     ntheta = len(theta_tell)
+    teltype = tell_dict['teltype']
     # FD: Currently assumes that shift and stretch are on.
     # TODO: Make this work without shift and stretch.
-    ntell = ntheta-3
+    if teltype == 'PCA':
+        ntell = ntheta-3
+    elif teltype == 'grid':
+        ntell = 4
+    else:
+        msgs.error("Unsupported teltype, must be 'PCA' or 'grid'")
     
     # Set the wavelength range if not provided
     ind_lower = 0 if ind_lower is None else ind_lower
@@ -427,7 +433,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     ind_lower_final = ind_lower_pad if ind_lower_pad == ind_lower else ind_lower - ind_lower_pad
     ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
 
-    if tell_dict['teltype'] == 'PCA':
+    if teltype == 'PCA':
         # Evaluate PCA model after truncating the wavelength range
         tellmodel_hires = np.zeros_like(tell_dict['tell_pca'][0])
         tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.dot(np.append(1,theta_tell[:ntell]),
@@ -439,7 +445,7 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
         clip = tellmodel_hires < 0
         tellmodel_hires[clip] = 0
         tellmodel_hires = np.exp(-tellmodel_hires)
-    elif tell_dict['teltype'] == 'grid':
+    elif teltype == 'grid':
         # Interpolate within the telluric grid
         tellmodel_hires = interp_telluric_grid(theta_tell[:ntell], tell_dict)
     else:
@@ -485,10 +491,16 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
 
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
+    teltype = arg_dict['tell_dict']['teltype']
 
     # TODO: make this work without shift and stretch?
     # Number of telluric model parameters, plus shift, stretch, and resolution
-    nfit = arg_dict['ntell']+3
+    if teltype == 'PCA':
+        nfit = arg_dict['tell_npca']+3
+    elif teltype == 'grid':
+        nfit = 4+3
+    else:
+        msgs.error("Unsupported teltype, must be 'PCA' or 'grid'")
 
     theta_obj = theta[:-nfit]
     theta_tell = theta[-nfit:]
@@ -520,11 +532,16 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
             Parameter vector for the object + telluric model.
 
             This is actually two concatenated paramter vectors, one for
-            the object and one for the telluric, i.e::
-
-                theta_obj = theta[:-(ntell+3)]
-                theta_tell = theta[-(ntell+3):]
-
+            the object and one for the telluric, i.e.:
+            
+            (in PCA mode)
+                theta_obj = theta[:-(tell_npca+3)]
+                theta_tell = theta[-(tell_npca+3):]
+                
+            (in grid mode)
+                theta_obj = theta[:-7]
+                theta_tell = theta[-7:]
+                
             The telluric model theta_tell includes a either user-specified
             number of PCA coefficients (in PCA mode) or ambient pressure,
             temperature, humidity, and airmass (in grid mode) followed by
@@ -532,7 +549,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
             
             That is, in PCA mode,
             
-                pca_coeffs = theta_tell[:ntell]
+                pca_coeffs = theta_tell[:tell_npca]
             
             while in grid mode,
             
@@ -611,8 +628,14 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     nparams = len(bounds) # Number of parameters in the model
     popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
     nsamples = arg_dict['popsize']*nparams
+    teltype = arg_dict['tell_dict']['teltype']
     # FD: Assumes shift and stretch are turned on.
-    ntheta_tell = arg_dict['ntell']+3 # Total number of telluric model parameters
+    if teltype == 'PCA':
+        ntheta_tell = arg_dict['tell_npca']+3 # Total number of telluric model parameters in PCA mode
+    elif teltype == 'grid':
+        ntheta_tell = 4+3 # Total number of telluric model parameters in grid mode
+    else:
+        msgs.error("Unsupported teltype, must be 'PCA' or 'grid'")
     # Decide how to initialize
     if init_from_last is not None:
         # Use a Gaussian ball about the optimum from a previous iteration
@@ -1289,7 +1312,8 @@ def eval_poly_model(theta, obj_dict):
 
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
-                      telgridfile, teltype, log10_blaze_function=None, ech_orders=None, polyorder=8, ntell=4,
+                      telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8,
+                      tell_npca=4, teltype='PCA',
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
                       resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
@@ -1336,14 +1360,14 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     telgridfile : :obj:`str`
         File containing grid of HITRAN atmosphere models; see
         :class:`~pypeit.par.pypeitpar.TelluricPar`.
-    teltype : :obj:`str`
-        Method for evaluating telluric models, either `PCA` or `grid`.
     ech_orders : `numpy.ndarray`_, shape is (norders,), optional
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
         Polynomial order for the sensitivity function fit.
-    ntell : :obj:`int`, optional, default = 4
-        Number of telluric model parameters (must be 4 for teltype=`grid`, or <=10 for teltype=`PCA`)
+    teltype : :obj:`str`, optional, default = 'PCA'
+        Method for evaluating telluric models, either `PCA` or `grid`.
+    tell_npca : :obj:`int`, optional, default = 4
+        Number of telluric PCA components used, must be <= 10
     mask_hydrogen_lines : :obj:`bool`, optional
         If True, mask stellar hydrogen absorption lines before fitting sensitivity function. Default = True
     mask_helium_lines : :obj:`bool`, optional
@@ -1456,9 +1480,10 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
-    TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, teltype, obj_params,
+    TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function,
-                      ntell=ntell, ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
+                      teltype=teltype, tell_npca=tell_npca,
+                      ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
                       maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
@@ -1503,7 +1528,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile, npca=8,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
-                 teltype='PCA', ntell=4,
+                 teltype='PCA', tell_npca=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
@@ -1517,8 +1542,6 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
         the output from a ``PypeIt`` 1D coadd.
     telgridfile : :obj:`str`
         File name with the grid of telluric spectra.
-    teltype : :obj:`str`
-        Method for evaluating telluric models, either `PCA` or `grid`.
     pca_file: :obj:`str`
         File name of the QSO PCA model fits file.
     z_qso : :obj:`float`
@@ -1541,8 +1564,10 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
     delta_zqso : :obj:`float`, optional
         During the fit, the QSO redshift is allowed to vary within
         ``+/-delta_zqso``.
-    ntell : :obj:`int`, optional, default = 4
-        Number of telluric model parameters (must be 4 for teltype=`grid`, or <=10 for teltype=`PCA`)
+    teltype : :obj:`str`, optional, default = 'PCA'
+        Method for evaluating telluric models, either `PCA` or `grid`.
+    tell_npca : :obj:`int`, optional, default = 4
+        Number of telluric PCA components used, must be <=10
     bounds_norm : :obj:`tuple`, optional
         A two-tuple with the lower and upper bounds on the fractional adjustment
         of the flux in the QSO model spectrum.  For example, a value of ``(0.1,
@@ -1627,7 +1652,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model,
                       eval_qso_model, pix_shift_bounds=pix_shift_bounds,
                       sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, teltype=teltype,
-                      ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
+                      tell_npca=tell_npca, recombination=recombination, polish=polish,
+                      disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
 
@@ -1672,7 +1698,7 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
-                  polyorder=5, teltype='PCA', ntell=4, mask_hydrogen_lines=True,
+                  polyorder=5, teltype='PCA', tell_npca=4, mask_hydrogen_lines=True,
                   mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1732,9 +1758,10 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_star_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
                       eval_star_model, pix_shift_bounds=pix_shift_bounds,
-                      teltype=teltype, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
+                      teltype=teltype, tell_npca=tell_npca,
+                      sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1780,7 +1807,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
                   model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='PCA',
-                  ntell=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
+                  tell_npca=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
                   debug_init=False, debug=False, show=False):
@@ -1831,10 +1858,10 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot &= np.logical_not(create_bal_mask(wave, fit_wv_min_max))
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_poly_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_poly_model,
                       eval_poly_model, pix_shift_bounds=pix_shift_bounds,
                       sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, teltype=teltype,
-                      ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
+                      tell_npca=tell_npca, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
 
@@ -1976,9 +2003,8 @@ class Telluric(datamodel.DataContainer):
             PCA decomposition of HITRAN atmospheric models, enabling a more
             flexible and far more file-size efficient interpolation
             of the telluric absorption model space.
-        ntell (:obj:`int`, optional):
-            Number of telluric model parameters. Must be 4 for teltype=`grid`,
-            or <=10 for teltype=`PCA`.
+        tell_npca (:obj:`int`, optional):
+            Number of telluric PCA components used, must be <=10
         obj_params (:obj:`dict`):
             Dictionary of parameters for initializing the object model.
         init_obj_model (callable):
@@ -2168,7 +2194,7 @@ class Telluric(datamodel.DataContainer):
                                        'HITRAN atmosphere models'),
                  'teltype': dict(otype=str,
                                  descr='Type of telluric model, `PCA` or `grid`'),
-                 'ntell': dict(otype=int,
+                 'tell_npca': dict(otype=int,
                                     descr='Number of telluric PCA components used'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
@@ -2267,7 +2293,7 @@ class Telluric(datamodel.DataContainer):
                 ]
 
     @staticmethod
-    def empty_model_table(norders, nspec, ntell=4, n_obj_par=0):
+    def empty_model_table(norders, nspec, tell_npca=4, n_obj_par=0):
         """
         Construct an empty `astropy.table.Table`_ for the telluric model
         results.
@@ -2277,6 +2303,8 @@ class Telluric(datamodel.DataContainer):
                 The number of slits/orders on the detector.
             nspec (:obj:`int`):
                 The number of spectral pixels on the detector.
+            tell_npca (:obj:`int`):
+                Number of telluric model parameters
             n_obj_par (:obj:`int`, optional):
                 The number of parameters used to construct the object model
                 spectrum.
@@ -2292,9 +2320,9 @@ class Telluric(datamodel.DataContainer):
             table.Column(name='OBJ_MODEL', dtype=float, length=norders, shape=(nspec,),
                          description='Best-fitting object model spectrum'),
             # TODO: Why do we need both TELL_THETA and all the individual parameters...
-            table.Column(name='TELL_THETA', dtype=float, length=norders, shape=(ntell+3,),
+            table.Column(name='TELL_THETA', dtype=float, length=norders, shape=(tell_npca+3,),
                          description='Best-fitting telluric model parameters'),
-            table.Column(name='TELL_PARAM', dtype=float, length=norders, shape=(ntell,),
+            table.Column(name='TELL_PARAM', dtype=float, length=norders, shape=(tell_npca,),
                          description='Best-fitting telluric atmospheric parameters or PCA coefficients'),
             table.Column(name='TELL_RESLN', dtype=float, length=norders,
                          description='Best-fitting telluric model spectral resolution'),
@@ -2324,7 +2352,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model, eval_obj_model,
-                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='PCA', ntell=4,
+                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='PCA', tell_npca=4,
                  airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
@@ -2346,7 +2374,7 @@ class Telluric(datamodel.DataContainer):
         self.teltype = teltype.upper()
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
-        self.ntell = ntell
+        self.tell_npca = tell_npca
         self.airmass_guess = airmass_guess
         self.eval_obj_model = eval_obj_model
         self.ech_orders = ech_orders
@@ -2388,13 +2416,11 @@ class Telluric(datamodel.DataContainer):
         if self.teltype == 'PCA':
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
-            if self.ntell > self.tell_dict['ncomp_tell_pca']:
+            if self.tell_npca > self.tell_dict['ncomp_tell_pca']:
                 msgs.error('Asked for more telluric PCA components ({}) ' \
-                           'than exist in the PCA file ({}).'.format(self.ntell,
+                           'than exist in the PCA file ({}).'.format(self.tell_npca,
                                                                      self.tell_dict['ncomp_tell_pca']))
         elif self.teltype == 'grid':
-            if self.ntell != 4:
-                msgs.error('Parameter ntell must be 4 for teltype = grid')
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
         else:
@@ -2471,7 +2497,7 @@ class Telluric(datamodel.DataContainer):
             arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                  tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord],
                                  ind_upper=self.ind_upper[iord],
-                                 ntell=self.ntell,
+                                 tell_npca=self.tell_npca,
                                  obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
                                  ballsize=self.ballsize, bounds=bounds_iord, rng=self.rng,
                                  diff_evol_maxiter=self.diff_evol_maxiter, tol=self.tol,
@@ -2516,8 +2542,12 @@ class Telluric(datamodel.DataContainer):
                                               inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                               maxiter=self.maxiter, lower=self.lower,
                                               upper=self.upper, sticky=self.sticky)
-            self.theta_obj_list[iord] = self.result_list[iord].x[:-(self.ntell+3)]
-            self.theta_tell_list[iord] = self.result_list[iord].x[-(self.ntell+3):]
+            if self.teltype == 'PCA':
+                self.theta_obj_list[iord] = self.result_list[iord].x[:-(self.tell_npca+3)]
+                self.theta_tell_list[iord] = self.result_list[iord].x[-(self.tell_npca+3):]
+            elif self.teltype == 'grid':
+                self.theta_obj_list[iord] = self.result_list[iord].x[:-(4+3)]
+                self.theta_tell_list[iord] = self.result_list[iord].x[-(4+3):]
             self.obj_model_list[iord], modelmask \
                     = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
             self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
@@ -2568,7 +2598,7 @@ class Telluric(datamodel.DataContainer):
         """
 
         self.model = self.empty_model_table(self.norders, self.nspec_in,
-                                            ntell=self.ntell, n_obj_par=self.max_ntheta_obj)
+                                            tell_npca=self.tell_npca, n_obj_par=self.max_ntheta_obj)
         if 'output_meta_keys' in self.obj_params:
             for key in self.obj_params['output_meta_keys']:
                 if key.lower() in self.datamodel.keys():
@@ -2596,6 +2626,11 @@ class Telluric(datamodel.DataContainer):
         gdwave = self.wave_in_arr[:,iord] > 1.0
         wave_in_gd = self.wave_in_arr[gdwave,iord]
         wave_grid_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
+        
+        if self.teltype == 'PCA':
+            ntell = tell_npca
+        elif self.teltype == 'grid':
+            ntell = 4
 
         self.model['WAVE'][iord] = self.wave_in_arr[:,iord]
         self.model['TELLURIC'][iord][gdwave] \
@@ -2607,6 +2642,7 @@ class Telluric(datamodel.DataContainer):
                                              kind='linear', bounds_error=False,
                                              fill_value=0.0)(wave_in_gd)
         self.model['TELL_THETA'][iord] = self.theta_tell_list[iord]
+        if
         self.model['TELL_PARAM'][iord] = self.theta_tell_list[iord][:self.ntell]
         self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][self.ntell]
         self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][self.ntell+1]
@@ -2694,7 +2730,7 @@ class Telluric(datamodel.DataContainer):
             guess.append(np.median(self.tell_dict['h2o_grid']))
             guess.append(self.airmass_guess)
         else: 
-            guess = list(np.zeros(self.ntell))
+            guess = list(np.zeros(self.tell_npca))
         guess.append(self.resln_guess)
         guess.append(0.0)
         guess.append(1.0)
@@ -2722,7 +2758,7 @@ class Telluric(datamodel.DataContainer):
             bounds.append((self.tell_dict['airmass_grid'].min(),
                            self.tell_dict['airmass_grid'].max()))
         else:
-            for ii in range(self.ntell):
+            for ii in range(self.tell_npca):
                 bounds.append((self.tell_dict['bounds_tell_pca'][0][ii+1],
                                self.tell_dict['bounds_tell_pca'][1][ii+1]))
         bounds.append((self.resln_guess * self.resln_frac_bounds[0],
