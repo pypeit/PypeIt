@@ -655,6 +655,116 @@ def load_imageWCS(filename, ext=0):
     return image, imgwcs
 
 
+def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
+               ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+               reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
+    """
+    Create a WCS and the expected edges of the voxels, based on user-specified
+    parameters or the extremities of the data.
+
+    Parameters
+    ----------
+    all_ra : `numpy.ndarray`_
+        1D flattened array containing the RA values of each pixel from all
+        spec2d files
+    all_dec : `numpy.ndarray`_
+        1D flattened array containing the DEC values of each pixel from all
+        spec2d files
+    all_wave : `numpy.ndarray`_
+        1D flattened array containing the wavelength values of each pixel from
+        all spec2d files
+    dspat : float
+        Spatial size of each square voxel (in arcsec). The default is to use the
+        values in cubepar.
+    dwave : float
+        Linear wavelength step of each voxel (in Angstroms)
+    ra_min : float, optional
+        Minimum RA of the WCS (degrees)
+    ra_max : float, optional
+        Maximum RA of the WCS (degrees)
+    dec_min : float, optional
+        Minimum Dec of the WCS (degrees)
+    dec_max : float, optional
+        Maximum Dec of the WCS (degrees)
+    wave_min : float, optional
+        Minimum wavelength of the WCS (degrees)
+    wave_max : float, optional
+        Maximum wavelength of the WCS (degrees)
+    reference : str, optional
+        Filename of a fits file that contains a WCS in the Primary HDU.
+    collapse : bool, optional
+        If True, the spectral dimension will be collapsed to a single channel
+        (primarily for white light images)
+    equinox : float, optional
+        Equinox of the WCS
+    specname : str, optional
+        Name of the spectrograph
+
+    Returns
+    -------
+    cubewcs : `astropy.wcs.WCS`_
+        astropy WCS to be used for the combined cube
+    voxedges : tuple
+        A three element tuple containing the bin edges in the x, y (spatial) and
+        z (wavelength) dimensions
+    reference_image : `numpy.ndarray`_
+        The reference image to be used for the cross-correlation. Can be None.
+    """
+    # Grab cos(dec) for convenience
+    cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
+
+    # Setup the cube ranges
+    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
+    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
+    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
+    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
+    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
+    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
+    # dwave = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
+
+    # Number of voxels in each dimension
+    numra = int((_ra_max - _ra_min) * cosdec / dspat)
+    numdec = int((_dec_max - _dec_min) / dspat)
+    numwav = int(np.round((_wav_max - _wav_min) / dwave))
+
+    # If a white light WCS is being generated, make sure there's only 1 wavelength bin
+    if collapse:
+        _wav_min = np.min(all_wave)
+        _wav_max = np.max(all_wave)
+        dwave = _wav_max - _wav_min
+        numwav = 1
+
+    # Generate a master WCS to register all frames
+    coord_min = [_ra_min, _dec_min, _wav_min]
+    coord_dlt = [dspat, dspat, dwave]
+
+    # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
+    if reference is not None:
+        # Load the requested reference image
+        reference_image, imgwcs = load_imageWCS(reference)
+        # Update the celestial WCS
+        coord_min[:2] = imgwcs.wcs.crval
+        coord_dlt[:2] = imgwcs.wcs.cdelt
+        numra, numdec = reference_image.shape
+
+    cubewcs = generate_WCS(coord_min, coord_dlt, equinox=equinox, name=specname)
+    msgs.info(msgs.newline() + "-" * 40 +
+              msgs.newline() + "Parameters of the WCS:" +
+              msgs.newline() + "RA   min = {0:f}".format(coord_min[0]) +
+              msgs.newline() + "DEC  min = {0:f}".format(coord_min[1]) +
+              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(_wav_min, _wav_max) +
+              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0 * dspat) +
+              msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
+              msgs.newline() + "-" * 40)
+
+    # Generate the output binning
+    xbins = np.arange(1 + numra) - 0.5
+    ybins = np.arange(1 + numdec) - 0.5
+    spec_bins = np.arange(1 + numwav) - 0.5
+    voxedges = (xbins, ybins, spec_bins)
+    return cubewcs, voxedges, reference_image
+
+
 def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
     """
     Generate a WCS that will cover all input spec2D files
