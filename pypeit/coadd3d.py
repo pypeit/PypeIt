@@ -796,6 +796,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
+        self._specscale = np.zeros(self.numfiles)
 
     def get_alignments(self, spec2DObj, slits, spat_flexure=None):
         """
@@ -905,27 +906,38 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
                                              bounds_error=False, fill_value="extrapolate")
 
-    def set_spatial_scale(self):
+    def set_voxel_sampling(self):
         """
-        This function checks if the spatial scales of all frames are consistent.
-        If the user has not specified the spatial scale, it will be set here.
+        This function checks if the spatial and spectral scales of all frames are consistent.
+        If the user has not specified either the spatial or spectral scales, they will be set here.
         """
         # Make sure all frames have consistent pixel scales
         ratio = (self._spatscale[:, 0] - self._spatscale[0, 0]) / self._spatscale[0, 0]
         if np.any(np.abs(ratio) > 1E-4):
             msgs.warn("The pixel scales of all input frames are not the same!")
             spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,0]*3600.0])
-            msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr)
+            msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
         # Make sure all frames have consistent slicer scales
         ratio = (self._spatscale[:, 1] - self._spatscale[0, 1]) / self._spatscale[0, 1]
         if np.any(np.abs(ratio) > 1E-4):
             msgs.warn("The slicer scales of all input frames are not the same!")
             spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,1]*3600.0])
-            msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr)
+            msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
+        # Make sure all frames have consistent wavelength sampling
+        ratio = (self._specscale - self._specscale[0]) / self._specscale[0]
+        if np.any(np.abs(ratio) > 1E-2):
+            msgs.warn("The wavelength samplings of the input frames are not the same!")
+            specstr = ", ".join(["{0:.6f}".format(ss) for ss in self._specscale])
+            msgs.info("Wavelength samplings of all input frames:" + msgs.newline() + specstr)
+
         # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
         if self._dspat is None:
             self._dspat = np.max(self._spatscale)
             msgs.info("Adopting a square pixel spatial scale of {0:f} arcsec".format(3600.0 * self._dspat))
+        # If the user has not specified the spectral sampling, then set it now to the largest value
+        if self._dwv is None:
+            self._dwv = np.max(self._specscale)
+            msgs.info("Adopting a wavelength sampling of {0:f} Angstrom".format(self._dwv))
 
     def load(self):
         """
@@ -1038,6 +1050,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             slscl = self.spec.get_meta_value([spec2DObj.head0], 'slitwid')
             self._spatscale[ff, 0] = pxscl
             self._spatscale[ff, 1] = slscl
+            self._specscale[ff] = dwv
+
             # If the spatial scale has been set by the user, check that it doesn't exceed the pixel or slicer scales
             if self._dspat is not None:
                 if pxscl > self._dspat:
@@ -1301,7 +1315,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         # If the user is aligning or combining, the spatial scale of the output cubes needs to be consistent.
         # Set the spatial scale of the output datacube
-        self.set_spatial_scale()
+        self.set_voxel_sampling()
 
         # Align the frames
         if self.align:
