@@ -739,6 +739,7 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
     coord_dlt = [dspat, dspat, dwave]
 
     # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
+    reference_image = None
     if reference is not None:
         # Load the requested reference image
         reference_image, imgwcs = load_imageWCS(reference)

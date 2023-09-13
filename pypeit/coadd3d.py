@@ -1105,7 +1105,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Astrometric alignment to HST frames
             # TODO :: RJC requests this remains here... it is only used by RJC
-            ra_sort, dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort)
+            ra_sort, dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
+                                              np.ones(ra_sort.size), this_specpos[wvsrt], this_specpos[wvsrt],
+                                              this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines,
+                                              )
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
@@ -1776,7 +1779,10 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
     return flxcube, varcube, bpmcube
 
 
-def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort):
+def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwave,
+                  wghts, spatpos, specpos,
+                  all_spatid, tilts, slits, astrom_trans,
+                  spat_subpixel=10, spec_subpixel=10):
     """
     This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
     to align the daatcubes to an HST image.
@@ -1796,9 +1802,26 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort):
     ############
     ## STEP 1 ## - Create a datacube around Hgamma
     ############
+    embed()
     # Only use a small wavelength range
-    wv_mask = (wave_sort>) & (wave_sort<)
+    wv_mask = (wave_sort > 4345.0) & (wave_sort < 4359.0)
     # Create a WCS for this subcube
-    image_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
-                                                          dspat, wavediff, collapse=True)
+    subcube_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
+                                                                dspat, dwave, collapse=True)
+    # Create the subcube
+    flxcube, varcube, bpmcube = subpixellate(subcube_wcs[wv_mask], ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
+                                             wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
+                                             all_spatid, tilts, slits, astrom_trans,
+                                             voxedge, all_idx=None,
+                                             spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=False)
+
+
+    # generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+    #                        all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+    #                        all_idx=None, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
+    #                        blaze_spec=None, fluxcal=False, sensfunc=None, whitelight_range=None,
+    #                        specname="PYP_SPEC", debug=False)
+
     # Compute an emission line map that is as consistent as possible to an archival HST image
+
+    return ra_corr, dec_corr
