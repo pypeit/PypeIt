@@ -22,15 +22,6 @@ Version History
 
 ----
 
-.. _slitmask_info_instruments:
-
-Slitmask information Spectrographs
-----------------------------------
-- :doc:`../spectrographs/deimos`
-- :doc:`../spectrographs/mosfire`
-- :doc:`../spectrographs/lris` (limited)
-- :doc:`../spectrographs/gemini_gmos` (limited)
-
 Basics
 ------
 
@@ -65,8 +56,7 @@ form longer slits.
 
 For LRIS, the procedure is similar to the one for MOSFIRE where edges are predicted
 based on the RA, DEC of each slit and the platescale of the detector.
-It has been developed and tested for the previous LRISr detector (not Mark4)
-and the current LRISb detector.
+It has been developed and tested for ``keck_lris_red``, ``keck_lris_red_mark4``, and ``keck_lris_blue``.
 
 The function :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` assigns to each slit 
 a ``maskdef_id``, which corresponds to `dSlitId` and `Slit_Number` in the DEIMOS/LRIS and
