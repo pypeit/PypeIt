@@ -57,7 +57,9 @@
                             Include the manual extraction column for the user to
                             edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
-                            Level of verbosity from 0 to 2. (default: 2)
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename setup_YYYYMMDD-
+                            HHMM.log (default: 1)
       -k, --keep_bad_frames
                             Keep all frames, even if they are identified as having
                             bad/unrecognized configurations that cannot be reduced
