@@ -141,9 +141,7 @@ def arc_fit_qa(waveFit,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title,
-                     transform=ax_spec.transAxes,
-                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+        fig.suptitle(title, fontsize='x-large', va='top')
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         if outfile is None:
@@ -890,12 +888,12 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
             msgs.warn(f"Skipping FWHM map computation for masked slit {sl+1}/{nslits}")
             # Assign it an empty PypeItFit object so that we can still write to file
             resmap[sl] = fitting.PypeItFit()
             continue
+        msgs.info(f"Calculating spectral resolution of slit {sl + 1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
@@ -993,7 +991,7 @@ def set_fwhm(par, measured_fwhm=None):
 
 
 # TODO: Docstring is missing many arguments
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
@@ -1025,6 +1023,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         Number of snippets to chop the input spectrum into when IDing lines.
         This deals with differences due to non-linearity between the template
         and input spectrum.
+    slit_ids: ndarray, optional
+        Array of slit/order IDs. Shape (nslit,)
     measured_fwhms : `numpy.ndarray`_, optional
         Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
     x_percentile : float, optional
@@ -1077,7 +1077,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
             continue
-        msgs.info("Processing slit {0:d}/{1:d}".format(slit+1, nslits))
+        slit_txt = f'slit/order {slit_ids[slit]} ({slit+1}/{nslits})' if slit_ids is not None else f'slit {slit+1}/{nslits}'
+        msgs.info("Processing " + slit_txt)
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
