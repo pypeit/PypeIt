@@ -392,11 +392,12 @@ class CoAdd3D:
                     if os.path.exists(out_whitelight) and self.cubepar['save_whitelight'] and not self.overwrite:
                         msgs.error("Output filename already exists:" + msgs.newline() + out_whitelight)
 
-    def create_wcs(self, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0,
+    def create_wcs(self, all_ra, all_dec, all_wave, dspat, dwave, collapse=False, equinox=2000.0,
                    specname="PYP_SPEC"):
         """
         Create a WCS and the expected edges of the voxels, based on user-specified
-        parameters or the extremities of the data.
+        parameters or the extremities of the data. This is a convenience function
+        that calls the core function in `pypeit.core.datacube`_.
 
         Parameters
         ----------
@@ -412,7 +413,7 @@ class CoAdd3D:
         dspat : float
             Spatial size of each square voxel (in arcsec). The default is to use the
             values in cubepar.
-        dwv : float
+        dwave : float
             Linear wavelength step of each voxel (in Angstroms)
         collapse : bool, optional
             If True, the spectral dimension will be collapsed to a single channel
@@ -432,9 +433,6 @@ class CoAdd3D:
         reference_image : `numpy.ndarray`_
             The reference image to be used for the cross-correlation. Can be None.
         """
-        # Grab cos(dec) for convenience
-        cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-
         # Setup the cube ranges
         reference_image = None  # The default behaviour is that the reference image is not used
         ra_min = self.cubepar['ra_min'] if self.cubepar['ra_min'] is not None else np.min(all_ra)
@@ -443,49 +441,13 @@ class CoAdd3D:
         dec_max = self.cubepar['dec_max'] if self.cubepar['dec_max'] is not None else np.max(all_dec)
         wav_min = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else np.min(all_wave)
         wav_max = self.cubepar['wave_max'] if self.cubepar['wave_max'] is not None else np.max(all_wave)
-        dwave = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
+        if self.cubepar['wave_delta'] is not None:
+            dwave = self.cubepar['wave_delta']
 
-        # Number of voxels in each dimension
-        numra = int((ra_max - ra_min) * cosdec / dspat)
-        numdec = int((dec_max - dec_min) / dspat)
-        numwav = int(np.round((wav_max - wav_min) / dwave))
-
-        # If a white light WCS is being generated, make sure there's only 1 wavelength bin
-        if collapse:
-            wav_min = np.min(all_wave)
-            wav_max = np.max(all_wave)
-            dwave = wav_max - wav_min
-            numwav = 1
-
-        # Generate a master WCS to register all frames
-        coord_min = [ra_min, dec_min, wav_min]
-        coord_dlt = [dspat, dspat, dwave]
-
-        # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
-        if self.cubepar["reference_image"] is not None:
-            # Load the requested reference image
-            reference_image, imgwcs = datacube.load_imageWCS(self.cubepar["reference_image"])
-            # Update the celestial WCS
-            coord_min[:2] = imgwcs.wcs.crval
-            coord_dlt[:2] = imgwcs.wcs.cdelt
-            numra, numdec = reference_image.shape
-
-        cubewcs = datacube.generate_WCS(coord_min, coord_dlt, equinox=equinox, name=specname)
-        msgs.info(msgs.newline() + "-" * 40 +
-                  msgs.newline() + "Parameters of the WCS:" +
-                  msgs.newline() + "RA   min = {0:f}".format(coord_min[0]) +
-                  msgs.newline() + "DEC  min = {0:f}".format(coord_min[1]) +
-                  msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
-                  msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0 * dspat) +
-                  msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
-                  msgs.newline() + "-" * 40)
-
-        # Generate the output binning
-        xbins = np.arange(1 + numra) - 0.5
-        ybins = np.arange(1 + numdec) - 0.5
-        spec_bins = np.arange(1 + numwav) - 0.5
-        voxedges = (xbins, ybins, spec_bins)
-        return cubewcs, voxedges, reference_image
+        return datacube.create_wcs(all_ra, all_dec, all_wave, dspat, dwave, ra_min=ra_min, ra_max=ra_max,
+                                   dec_min=dec_min, dec_max=dec_max, wave_min=wav_min, wave_max=wav_max,
+                                   reference=self.cubepar['reference_image'], collapse=collapse, equinox=equinox,
+                                   specname=specname)
 
     def make_sensfunc(self):
         """
