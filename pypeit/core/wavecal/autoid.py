@@ -1310,9 +1310,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, rms_thresh
         msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
-        rms_thresh_frac_fwhm = par['rms_thresh_frac_fwhm']
         msgs.info("Using sigdetect =  {}".format(sigdetect))
-        msgs.info(f"Using rms_threshold =  {rms_thresh} ({rms_thresh_frac_fwhm} * median FWHM)")
+        msgs.info(f"Using rms_threshold =  {rms_thresh} ({par['rms_thresh_frac_fwhm']} * median FWHM)")
         # Set FWHM for this order
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[iord])
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
@@ -1626,9 +1625,8 @@ class ArchiveReid:
                 msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
-            rms_thresh_frac_fwhm = self.par['rms_thresh_frac_fwhm']
             msgs.info("Using sigdetect =  {}".format(sigdetect))
-            msgs.info(f"Using rms_threshold =  {rms_thresh} ({rms_thresh_frac_fwhm} * median FWHM)")
+            msgs.info(f"Using rms_threshold =  {rms_thresh} ({self.par['rms_thresh_frac_fwhm']} * median FWHM)")
             # get FWHM for this slit
             fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
@@ -1870,8 +1868,7 @@ class HolyGrail:
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
                                      # an ID on either side of the spectrum)
 
-        rms_thresh_frac_fwhm = self._par['rms_thresh_frac_fwhm']
-        msgs.info(f"Using rms_threshold =  {self.rms_thresh} ({rms_thresh_frac_fwhm} * median FWHM)")
+        msgs.info(f"Using rms_threshold =  {self.rms_thresh} ({self._par['rms_thresh_frac_fwhm']} * median FWHM)")
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
