@@ -620,6 +620,8 @@ class BuildWaveCalib:
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, 
                                          ok_mask=ok_mask_idx,
+                                         rms_thresh=self.wave_rms_thresh,
+                                         measured_fwhms=self.measured_fwhms,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()

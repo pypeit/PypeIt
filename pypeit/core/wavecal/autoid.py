@@ -1771,9 +1771,10 @@ class HolyGrail:
         self._binw = binw
         self._bind = bind
         self._measured_fwhms = measured_fwhms
+        _med_fwhm = np.median(measured_fwhms) if measured_fwhms is not None else None
         self.rms_thresh = \
-            round(self._par['rms_thresh_frac_fwhm'] * set_fwhm(self._par, measured_fwhm=np.median(measured_fwhms))) \
-                if rms_thresh is None else rms_thresh
+            round(self._par['rms_thresh_frac_fwhm'] * set_fwhm(self._par, measured_fwhm=_med_fwhm)) \
+            if rms_thresh is None else rms_thresh
 
         # Mask info
         if ok_mask is None:
