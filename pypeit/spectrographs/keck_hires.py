@@ -513,7 +513,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.

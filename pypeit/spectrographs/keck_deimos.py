@@ -30,7 +30,7 @@ from pypeit.core import framematch
 from pypeit.core import wave
 from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 from pypeit import data
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
@@ -251,7 +251,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
                      detector_dict5, detector_dict6, detector_dict7, detector_dict8]
         # Return
-        return detector_container.DetectorContainer(**detectors[det-1])
+        return DetectorContainer(**detectors[det-1])
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1524,11 +1524,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        if mosaic:
-            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-        else:
-            return np.array([detector_container.DetectorContainer.get_name(i+1)
-                             for i in range(self.ndet)]).reshape(2,-1)
+        dets = super().list_detectors(mosaic=mosaic)
+        return dets if mosaic else dets.reshape(2,-1)
 
     def spec1d_match_spectra(self, sobjs):
         """
@@ -1549,7 +1546,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # MATCH RED TO BLUE VIA RA/DEC
 #        mb = sobjs['DET'] <=4
 #        mr = sobjs['DET'] >4
-        det = np.array([detector_container.DetectorContainer.parse_name(d) for d in sobjs.DET])
+        det = np.array([DetectorContainer.parse_name(d) for d in sobjs.DET])
         mb = det <= 4
         mr = det > 4
 
