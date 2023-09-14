@@ -497,7 +497,7 @@ class BuildWaveCalib:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
         except:
             self.nonlinear_counts = 1e10
-
+        
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
@@ -661,7 +661,20 @@ class BuildWaveCalib:
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
-            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
+            try:
+                if self.spectrograph.multi_ech_settings:
+                    #print(self.par.keys())
+                    # kludge to handle Keck/NIRSPEC. Should potentially be implemented inside the NIRSPEC instrument stuff.
+                    if self.meta_dict['filter2'] == '':
+                        angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files(self.par['lamps'], 
+                                                                                                        self.meta_dict['filter1'])
+                    else:
+                        angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files(self.par['lamps'], 
+                                                                                                        self.meta_dict['filter1'], 
+                                                                                                        self.meta_dict['filter2'])
+            except:
+                msgs.info('Assuming only one echelleogram reference needed')
+                angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
 
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")
@@ -671,7 +684,8 @@ class BuildWaveCalib:
                     self.meta_dict['dispname'],
                     angle_fits_file,
                     composite_arc_file,
-                    pad=0, debug=False)
+                    pad = self.par['echelle_pad'], 
+                    xcorr_percent_ceil = self.par['xcorr_percent_ceil'], debug=False)
             # Padding should be a spectrograph-specific, or calibration-mode-specific quantity.
             # Default was 3 from HIRES. Set to 0 for NIRSPEC testing.
 
@@ -1023,6 +1037,12 @@ class BuildWaveCalib:
         # Update the mask
         self.wvc_bpm |= arc_maskslit
 
+        #print(' WVC_BPM HAS SHAPE ', np.shape(self.wvc_bpm))
+        #print(' AND CONTENT ', self.wvc_bpm)
+        #print(' ARCCEN HAS SHAPE ', np.shape(arccen))
+        #plt.figure()
+        #plt.plot(arccen[:,3])
+        #plt.show()
         return arccen, self.wvc_bpm
 
 

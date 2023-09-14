@@ -2511,7 +2511,8 @@ class WavelengthSolutionPar(ParSet):
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slits=None, qa_log=None):
+                 ech_separate_2d=None, redo_slits=None, qa_log=None, 
+                 xcorr_percent_ceil = None, echelle_pad = None, xcorr_offset_minmax = None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2766,6 +2767,23 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
+        defaults['xcorr_percent_ceil'] = 50.0
+        dtypes['xcorr_percent_ceil'] = float
+        descr['xcorr_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating'\
+                          '100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr'
+        
+        defaults['echelle_pad'] = 0
+        dtypes['echelle_pad'] = int
+        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle method.'\
+                          'Values > 0 allow for some error in the reddest order guess, but require sufficient reference orders.'
+        
+        defaults['xcorr_offset_minmax'] = 1.0
+        dtypes['xcorr_offset_minmax'] = float
+        descr['xcorr_offset_minmax'] = 'Fraction of an echelle order by which the reference is allowed to be shifted to match the data.'\
+                          'Restricting this can be crucial if there are few reference lines and the cross correlation can get confused.'
+        
+        
+        
 
 
 
@@ -2788,7 +2806,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log']
+                   'redo_slits', 'qa_log', 'xcorr_percent_ceil', 'echelle_pad', 'xcorr_offset_minmax']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

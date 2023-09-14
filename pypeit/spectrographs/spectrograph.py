@@ -586,7 +586,7 @@ class Spectrograph:
 
         This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
         to measure the mean offset between the measured and expected slit
-        locations.  **This method is not defined for all spectrographs.**
+        locations.
 
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
@@ -611,7 +611,11 @@ class Spectrograph:
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        return None
+        if mosaic and len(self.allowed_mosaics) == 0:
+            msgs.error(f'Spectrograph {self.name} does not have any defined detector mosaics.')
+        dets = self.allowed_mosaics if mosaic else range(1,self.ndet+1)
+        return np.array([self.get_det_name(det) for det in dets])
+
 
     def get_lamps(self, fitstbl):
         """
@@ -1162,7 +1166,12 @@ class Spectrograph:
         """
         # Check extension and then open
         self._check_extensions(raw_file)
-        hdu = io.fits_open(raw_file)
+        try: 
+            hdu = io.fits_open(raw_file)
+        except Exception as e:
+            msgs.warn(e)
+            msgs.info('Error probably due to missing END card, trying to ignore:')
+            hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
