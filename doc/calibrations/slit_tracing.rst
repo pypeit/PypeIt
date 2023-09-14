@@ -90,6 +90,7 @@ edge traces and the PCA decomposition.  Fair warning that, for images with many
 slits, these plots can be laborious to wade through...
 
 .. _slit_tracing_issues:
+
 Known Slit Tracing Issues
 =========================
 
@@ -219,6 +220,7 @@ This will remove any slit on detector 2 that contains ``x_spat=2121``
 at ``y_spec=2000`` and similarly for the slit on ``det=3``.
 
 .. _slit_tracing_customizing:
+
 Slit Tracing Customizing
 ========================
 
