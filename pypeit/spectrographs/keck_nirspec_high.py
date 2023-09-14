@@ -170,93 +170,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         return [angle_fits_file, composite_arc_file]
     '''
 
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
-        """
-        Check for frames of the provided type.
-
-        Args:
-            ftype (:obj:`str`):
-                Type of frame to check. Must be a valid frame type; see
-                frame-type :ref:`frame_type_defs`.
-            fitstbl (`astropy.table.Table`_):
-                The table with the metadata for one or more frames to check.
-            exprng (:obj:`list`, optional):
-                Range in the allowed exposure time for a frame of type
-                ``ftype``. See
-                :func:`pypeit.core.framematch.check_frame_exptime`.
-
-        Returns:
-            `numpy.ndarray`_: Boolean array with the flags selecting the
-            exposures in ``fitstbl`` that are ``ftype`` type frames.
-        """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
-        if ftype in ['science']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-        if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
-                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-        if ftype in ['pixelflat', 'trace']:
-            # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In') \
-                        & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
-        if ftype == 'pinhole':
-            # Don't type pinhole frames
-            return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
-            # TODO: This is a kludge.  Allow science frames to also be
-            # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In') \
-                            & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
-            return good_exp & (is_arc | is_obj)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        return np.zeros(len(fitstbl), dtype=bool)
-        
-
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check. Can be ``'off'``, ``'arcs'``, or
-                ``'dome'``.
-
-        Returns:
-            `numpy.ndarray`_: A boolean array selecting fits files that meet
-            the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-
-        if status == 'off':
-            # Check if all are off
-            lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
-            retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
-            for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key] == 'Off'
-            return np.all(retarr, axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            retarr = np.zeros((len(lamp_stat), len(fitstbl)))
-            for kk, key in enumerate(lamp_stat):
-                retarr[kk,:] = fitstbl[key] == 'On'
-            return np.any(retarr, axis=0)
-        if status == 'dome':
-            return fitstbl['lampstat06'] == 'On'
-
-
-        raise ValueError('No implementation for status = {0}'.format(status))
-
-    #def filter(self, fitstbl):
+     #def filter(self, fitstbl):
 
 
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -317,7 +231,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         return np.full(order_vec.size, 0.13)
 
-
+'''
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces that are key
@@ -455,7 +369,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         return mosaic, np.rot90(np.array(raw_img), k=rotnum), hdu, exptime, np.rot90(np.array(rawdatasec_img), k=rotnum), \
                 np.rot90(np.array(oscansec_img), k=rotnum)
 
-
+'''
 
 class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     """
@@ -647,7 +561,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         Returns:
             list: List of files
         """
-        if filter1 == 'Kband-new' or filter2 == '':
+        if filter1 == 'Kband-new' or filter1 == 'KL' or filter2 == '':
             band = filter1
         else:
             band = filter2
@@ -671,8 +585,11 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
             if band == 'NIRSPEC-7':
-                angle_fits_file = 'keck_nirspec_k_old_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_k_old_composite_arc.fits'
+                angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
+            if band == 'KL':
+                angle_fits_file = 'keck_nirspec_l_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_l_composite_arc.fits'
         elif 'OH' in lamps_list[0]:
             print('Using OH Lines')
             if band == 'NIRSPEC-1':
@@ -693,6 +610,92 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
     
         return [angle_fits_file, composite_arc_file]
+    
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
+        if ftype in ['science']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+        if ftype in 'dark':
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
+                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In')
+        if ftype == 'pinhole':
+            # Don't type pinhole frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            # TODO: This is a kludge.  Allow science frames to also be
+            # classified as arcs
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In')
+            good_exp[is_arc] = True 
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
+                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            return good_exp & (is_arc | is_obj)
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+        
+
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check. Can be ``'off'``, ``'arcs'``, or
+                ``'dome'``.
+
+        Returns:
+            `numpy.ndarray`_: A boolean array selecting fits files that meet
+            the selected lamp status.
+
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
+
+        if status == 'off':
+            # Check if all are off
+            lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key] == 'Off'
+            return np.all(retarr, axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+            retarr = np.zeros((len(lamp_stat), len(fitstbl)))
+            for kk, key in enumerate(lamp_stat):
+                retarr[kk,:] = fitstbl[key] == 'On'
+            return np.any(retarr, axis=0)
+        if status == 'dome':
+            return fitstbl['lampstat06'] == 'On'
+
+
+        raise ValueError('No implementation for status = {0}'.format(status))
+
 
 
 
