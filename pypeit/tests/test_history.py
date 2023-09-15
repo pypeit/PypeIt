@@ -146,12 +146,28 @@ def test_add_coadd1d(monkeypatch):
     def mock_getheader(file, **kwargs):
         if file == "spec1d_file1.fits":
             return {"SEMESTER": "2021A",
-                    "PROGID":   "test_prog" }
+                    "PROGID":   "test_prog" ,
+                    'MASKDEF_ID': 11111,
+                    'MASKDEF_OBJNAME': 55555}
         else:
             return dict()
 
+    def mock_fits_open(file,**kwargs):
+        objids = ['SPAT001-SLIT001-DET01',
+                  'SPAT101-SLIT002-DET02',
+                  'SPAT002-SLIT001-DET01',
+                  'SPAT003-SLIT001-DET01',
+                  'SPAT103-SLIT002-DET02',
+                  'SPAT113-SLIT002-DET03']
+        hdul = fits.HDUList(fits.PrimaryHDU())
+        for obj in objids:
+            hdul.append(fits.BinTableHDU(name=obj))
+        return hdul
+
+
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_getheader)
+        monkeypatch.setattr(fits, "open", mock_fits_open)
 
         # First test when the spec1d_files and objids 
         # match length wise
@@ -175,8 +191,8 @@ def test_add_coadd1d(monkeypatch):
         expected_history = [' PypeIt Coadded 6 objects from 3 spec1d files',
                             'From "spec1d_file1.fits"',
                             'Semester: 2021A Program ID: test_prog',
-                            'SPAT001-SLIT001-DET01',
-                            'SPAT101-SLIT002-DET02',
+                            'SPAT001-SLIT001-DET01 11111 55555',
+                            'SPAT101-SLIT002-DET02 11111 55555',
                             'From "spec1d_file2.fits"',
                             'SPAT002-SLIT001-DET01',                        
                             'From "spec1d_file3.fits"',

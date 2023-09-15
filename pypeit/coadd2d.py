@@ -959,8 +959,8 @@ class CoAdd2D:
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
                     gpm_box = box_denom > 0.
-                    waves += [wave for wave in wave_box.T]
-                    gpms  += [(wave > 0.) & gpm for (wave, gpm) in zip(wave_box.T, gpm_box.T)]
+                    waves += [wave for (wave, gpm) in zip(wave_box.T, gpm_box.T) if np.any(gpm)]
+                    gpms += [(wave > 0.) & gpm for (wave, gpm) in zip(wave_box.T, gpm_box.T) if np.any(gpm)]
 
         else:
             waves, gpms = [], []
@@ -1554,9 +1554,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
             objpos_dspat_vec = np.zeros(self.nexp)
             for iexp in range(self.nexp):
                 # get maskdef_slitcen
-                maskdef_slitcen_pixpos = \
-                    self.stack_dict['slits_list'][iexp].maskdef_slitcen[self.nspec_array[0]//2, slit_idx] \
-                    + self.maskdef_offset[iexp]
+                mslitcen_pixpos = self.stack_dict['slits_list'][iexp].maskdef_slitcen
+                if mslitcen_pixpos.ndim < 2:
+                    mslitcen_pixpos = mslitcen_pixpos[:, None]
+                maskdef_slitcen_pixpos = mslitcen_pixpos[self.nspec_array[0]//2, slit_idx] + self.maskdef_offset[iexp]
 
                 # get maskdef_objpos
                 # find left edge

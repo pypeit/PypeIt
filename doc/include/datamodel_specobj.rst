@@ -1,6 +1,6 @@
 
 
-Version: 1.1.9
+Version: 1.1.10
 
 =======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                  Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -33,7 +33,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``FLEX_SHIFT_LOCAL``     float                                         Local shift of the spectrum to correct for spectralflexure (pixels). This should be a small correction tothe global value, and is based on the sky spectrumextracted near the object
 ``FLEX_SHIFT_TOTAL``     float                                         Total shift of the spectrum to correct for spectralflexure (pixels). This is the sum of the global andlocal FLEX_SHIFT                                                              
 ``FWHM``                 float                                         Spatial FWHM of the object (pixels)                                                                                                                                                 
-``FWHMFIT``              ndarray                                       Spatial FWHM across the detector (pixels)                                                                                                                                           
+``FWHMFIT``              ndarray                    float              Spatial FWHM across the detector (pixels)                                                                                                                                           
 ``MASKDEF_EXTRACT``      bool                                          Boolean indicating if this is a forced extraction at the expected location from slitmask design.                                                                                    
 ``MASKDEF_ID``           int, integer                                  Slitmask definition ID                                                                                                                                                              
 ``MASKDEF_OBJMAG``       float                                         Magnitude of the object from the slitmask definition                                                                                                                                
@@ -61,6 +61,7 @@ Obj Key                  Obj Type                   Array Type         Descripti
 ``S2N``                  float                                         Median signal to noise ratio of the extracted spectrum(OPT if available, otherwise BOX)                                                                                             
 ``SLITID``               int, integer                                  PypeIt slit ID (aka SPAT_ID).                                                                                                                                                       
 ``SPAT_FRACPOS``         float, floating                               Fractional location of the object on the slit                                                                                                                                       
+``SPAT_FWHM``            float                                         Spatial FWHM of the object (arcsec)                                                                                                                                                 
 ``SPAT_PIXPOS``          float, floating                               Spatial location of the trace on detector (pixel) at half-way                                                                                                                       
 ``TRACE_SPAT``           ndarray                    float              Object trace along the spec (spatial pixel)                                                                                                                                         
 ``VEL_CORR``             float                                         Relativistic velocity correction for wavelengths                                                                                                                                    

@@ -544,6 +544,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_300_7500.fits'
             # Add CdI
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+        elif self.get_meta_value(scifile, 'dispname') == '600/7500':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_600_7500.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_1200_5000.fits'

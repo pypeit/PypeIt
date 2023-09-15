@@ -1254,8 +1254,8 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
-                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching ' \
+                           '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
@@ -1398,7 +1398,9 @@ class CubePar(ParSet):
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
                          'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file.'
+                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
+                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
+                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -2014,8 +2016,8 @@ class SlitMaskPar(ParSet):
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
-                                     'and MOSFIRE slitmask design, respectively) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` ' \
+                                     'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'
@@ -2817,7 +2819,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid lamp ions
         """
-        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
+        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'FeAr']
 
     @staticmethod
     def valid_media():
@@ -3892,7 +3894,9 @@ class SkySubPar(ParSet):
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
-                             'Currently, this parameter is only used for IFU data reduction.'
+                             'Currently, this parameter is only used for IFU data reduction. Note that the ' \
+                             'current implementation does not account for variations in the instrument FWHM ' \
+                             'in different slits. This will be addressed by Issue #1660.'
 
         defaults['max_mask_frac'] = 0.80
         dtypes['max_mask_frac'] = float
