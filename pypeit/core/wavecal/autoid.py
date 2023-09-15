@@ -960,7 +960,7 @@ def measure_fwhm(spec, sigdetect=10., fwhm=5.):
     return measured_fwhm
 
 
-def set_fwhm(par, measured_fwhm=None):
+def set_fwhm(par, measured_fwhm=None, verbose=False):
     """
     Set the value of the arc lines FWHM by choosing between the provided parset
     and the measured_fwhm
@@ -971,6 +971,8 @@ def set_fwhm(par, measured_fwhm=None):
             wavelength-solution algorithms.
         measured_fwhm (:obj:`float`):
             Measured arc lines FWHM in binned pixels of the input arc image
+        verbose (:obj:`bool`, optional):
+            Print a message to screen reporting the chosen FWHM
 
     Returns:
        :obj:`float`: Chosen arc lines FWHM in binned pixels of the input arc image
@@ -979,13 +981,16 @@ def set_fwhm(par, measured_fwhm=None):
     # Set FWHM for the methods that follow
     if par['fwhm_fromlines'] is False:
         fwhm = par['fwhm']
-        msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
     elif measured_fwhm is None:
         fwhm = par['fwhm']
-        msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
     else:
         fwhm = measured_fwhm
-        msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
 
     return fwhm
 
@@ -1083,7 +1088,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
-        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
+        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
 
         # Find the shift
         ncomb = temp_spec.size
@@ -1313,7 +1318,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, rms_thresh
         msgs.info("Using sigdetect =  {}".format(sigdetect))
         msgs.info(f"Using rms_threshold =  {rms_thresh} ({par['rms_thresh_frac_fwhm']} * median FWHM)")
         # Set FWHM for this order
-        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[iord])
+        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[iord], verbose=True)
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
             cc_thresh=cc_thresh, match_toler=par['match_toler'],
@@ -1628,7 +1633,7 @@ class ArchiveReid:
             msgs.info("Using sigdetect =  {}".format(sigdetect))
             msgs.info(f"Using rms_threshold =  {rms_thresh} ({self.par['rms_thresh_frac_fwhm']} * median FWHM)")
             # get FWHM for this slit
-            fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
+            fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit], verbose=True)
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
                            self.wave_soln_arxiv[:,ind_sp],
@@ -1771,9 +1776,10 @@ class HolyGrail:
         self._binw = binw
         self._bind = bind
         self._measured_fwhms = measured_fwhms
-        _med_fwhm = np.median(measured_fwhms) if measured_fwhms is not None else None
+        _med_fwhm = np.median(measured_fwhms[measured_fwhms!=0]) \
+            if measured_fwhms is not None and np.any(measured_fwhms!=0) else None
         self.rms_thresh = \
-            round(self._par['rms_thresh_frac_fwhm'] * set_fwhm(self._par, measured_fwhm=_med_fwhm)) \
+            round(self._par['rms_thresh_frac_fwhm'] * set_fwhm(self._par, measured_fwhm=_med_fwhm),3) \
             if rms_thresh is None else rms_thresh
 
         # Mask info
@@ -1925,7 +1931,7 @@ class HolyGrail:
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             msgs.info("Using sigdetect =  {}".format(sigdetect))
             # get FWHM for this slit
-            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, fwhm=fwhm,
                                             nonlinear_counts=self._nonlinear_counts)
@@ -2035,7 +2041,7 @@ class HolyGrail:
                 self._all_final_fit[str(slit)] = {}
                 continue
             # get FWHM for this slit
-            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\

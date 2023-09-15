@@ -75,7 +75,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Remove slits that are too short
         par['calibrations']['slitedges']['minimum_slit_length'] = 3.
         # 1D wavelengths
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -846,7 +846,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
 
         # 1D wavelength solution -- Additional parameters are grism dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.06  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']

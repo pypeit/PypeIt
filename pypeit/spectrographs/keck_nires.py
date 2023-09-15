@@ -80,7 +80,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.136
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 2.2  # Measured
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True

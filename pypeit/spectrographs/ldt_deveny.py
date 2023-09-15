@@ -492,7 +492,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15  # Default: 0.15
              # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
@@ -527,7 +527,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25  # Default: 0.15
             # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5

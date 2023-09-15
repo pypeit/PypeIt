@@ -612,7 +612,8 @@ class BuildWaveCalib:
         # Save for redo's
         self.measured_fwhms = measured_fwhms
         # determine rms threshold
-        fwhm_for_thresh = autoid.set_fwhm(self.par, measured_fwhm=np.median(measured_fwhms))
+        _med_fwhm = np.median(measured_fwhms[measured_fwhms!=0]) if np.any(measured_fwhms!=0) else None
+        fwhm_for_thresh = autoid.set_fwhm(self.par, measured_fwhm=_med_fwhm)
         self.wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm_for_thresh,3)
 
         # Obtain calibration for all slits
@@ -808,7 +809,7 @@ class BuildWaveCalib:
                 wv_order_mod = self.wv_calib.wv_fit2d[idet].eval(spec_vec_norm, 
                                     x2=np.ones_like(spec_vec_norm)*order)/order
                 # get FWHM for this order
-                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord])
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord], verbose=True)
                 # Link me
                 tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                     self.lamps, self.arccen[:,iord], wv_order_mod, 
