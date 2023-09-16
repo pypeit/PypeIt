@@ -478,13 +478,14 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False)
+        turn_off = dict(use_biasimage=False, use_overscan=False,
+                        use_darkimage=False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
-        #turn_off = dict(use_biasimage=False, use_overscan=False)
-        #par.reset_all_processimages_par(**turn_off)
-
+        '''
+        turn_off = dict(use_biasimage=False, use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
+        '''
         # Specify if cleaning cosmic ray hits/bad pixels
 
         # The settings below enable NIRSPEC dark subtraction from the
@@ -602,13 +603,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_h_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_h_composite_OH.fits'
 
-        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
-        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
-    
         return [angle_fits_file, composite_arc_file]
     
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -633,12 +627,10 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
         if ftype in ['science']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') 
         if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
-                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-        if ftype in ['pixelflat', 'trace']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') 
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In')
         if ftype == 'pinhole':
@@ -649,8 +641,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             # classified as arcs
             is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In')
             good_exp[is_arc] = True 
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') 
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -810,7 +801,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+        turn_off = dict(use_illumflat=True, use_biasimage=False, use_overscan=False,
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
@@ -984,26 +975,21 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
 
         if ftype in ['science']:
-            print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum') }")
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') }")
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') 
         if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') \
-                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-        if ftype in ['pixelflat', 'trace']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') 
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') \
-                        & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') 
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') \
-                            & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') 
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') 
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
