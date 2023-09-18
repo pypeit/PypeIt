@@ -711,6 +711,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In')
             good_exp[is_arc] = True 
             is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') 
+            good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -852,7 +853,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par['calibrations']['slitedges']['length_range'] = 0.3
         par['calibrations']['slitedges']['max_nudge'] = 10.
         par['calibrations']['slitedges']['overlap'] = True
-        par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['dlength_range'] = 0.1
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
@@ -904,6 +905,85 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
+
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+        filter1 = self.get_meta_value(headarr, 'filter1')
+        filter2 = self.get_meta_value(headarr, 'filter2')
+
+        # wavelength calibration
+        supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
+        if (filter1 not in supported_filters) and (filter2 not in supported_filters):
+            msgs.warn(f'Filter {filter1} or {filter2} may not be supported!!')
+        
+        if filter2 == 'NIRSPEC-7':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+            
+        if filter1 == 'KL' or filter2 == 'KL':
+            par['calibrations']['wavelengths']['n_final'] = 2
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        if filter2 == 'NIRSPEC-5':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+
+        if filter2 == 'NIRSPEC-3':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 0
+
+        if filter2 == 'NIRSPEC-1':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        # Return
+        return par
+
 
     def init_meta(self):
         """
@@ -1002,6 +1082,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             if band == 'NIRSPEC-3':
                 angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'
+            if band == 'NIRSPEC-5':
+                angle_fits_file = 'keck_nirspec_h_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_h_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-7':
                 angle_fits_file = 'keck_nirspec_k_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_k_preupgrade_composite_arc.fits'
@@ -1058,7 +1141,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') 
+            good_exp[is_arc] = True
             is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') 
+            good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
