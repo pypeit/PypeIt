@@ -119,13 +119,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
 
-        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
-        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
-    
         return [angle_fits_file, composite_arc_file]
 
     '''
@@ -452,7 +445,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         
         # Trace ID parameters
-        par['calibrations']['slitedges']['edge_thresh'] = 50.0
+        par['calibrations']['slitedges']['edge_thresh'] = 100.0
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
@@ -478,13 +471,14 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False)
+        turn_off = dict(use_biasimage=False, use_overscan=False,
+                        use_darkimage=False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
-        #turn_off = dict(use_biasimage=False, use_overscan=False)
-        #par.reset_all_processimages_par(**turn_off)
-
+        '''
+        turn_off = dict(use_biasimage=False, use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
+        '''
         # Specify if cleaning cosmic ray hits/bad pixels
 
         # The settings below enable NIRSPEC dark subtraction from the
@@ -513,6 +507,84 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
     
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+        filter1 = self.get_meta_value(headarr, 'filter1')
+        filter2 = self.get_meta_value(headarr, 'filter2')
+
+        # wavelength calibration
+        supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
+        if (filter1 not in supported_filters) and (filter2 not in supported_filters):
+            msgs.warn(f'Filter {filter1} or {filter2} may not be supported!!')
+        
+        if filter1 == 'Kband-new' or filter2 == 'NIRSPEC-7':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+            
+        if filter1 == 'KL' or filter2 == 'KL':
+            par['calibrations']['wavelengths']['n_final'] = 2
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        if filter2 == 'NIRSPEC-5':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+
+        if filter2 == 'NIRSPEC-3':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 0
+
+        if filter2 == 'NIRSPEC-1':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        # Return
+        return par
+
 
 
     def init_meta(self):
@@ -543,8 +615,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         self.meta['filter2'] = dict(ext=0, card='SCIFILT2')
         self.meta['echangle'] = dict(ext=0, card='ECHLPOS', rtol=1e-3)
         self.meta['xdangle'] = dict(ext=0, card='DISPPOS', rtol=1e-3)
-        #self.meta['binning'] = dict(ext=0, card=None, default='1,1')
-        #self.meta['imagrot'] = dict(ext=0, card='IROTPOS', rtol=1e-3)
 
         # Lamps
         lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON']
@@ -602,13 +672,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_h_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_h_composite_OH.fits'
 
-        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
-        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
-    
         return [angle_fits_file, composite_arc_file]
     
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -633,12 +696,10 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
         if ftype in ['science']:
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') 
         if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') \
-                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-        if ftype in ['pixelflat', 'trace']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') 
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (hatch == 'In')
         if ftype == 'pinhole':
@@ -649,8 +710,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             # classified as arcs
             is_arc = self.lamps(fitstbl, 'arcs') & (hatch == 'In')
             good_exp[is_arc] = True 
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == 'Out') 
+            good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -792,7 +853,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par['calibrations']['slitedges']['length_range'] = 0.3
         par['calibrations']['slitedges']['max_nudge'] = 10.
         par['calibrations']['slitedges']['overlap'] = True
-        par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['dlength_range'] = 0.1
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
@@ -810,7 +871,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+        turn_off = dict(use_illumflat=True, use_biasimage=False, use_overscan=False,
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
@@ -844,6 +905,85 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
+
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+        filter1 = self.get_meta_value(headarr, 'filter1')
+        filter2 = self.get_meta_value(headarr, 'filter2')
+
+        # wavelength calibration
+        supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
+        if (filter1 not in supported_filters) and (filter2 not in supported_filters):
+            msgs.warn(f'Filter {filter1} or {filter2} may not be supported!!')
+        
+        if filter2 == 'NIRSPEC-7':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+            
+        if filter1 == 'KL' or filter2 == 'KL':
+            par['calibrations']['wavelengths']['n_final'] = 2
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        if filter2 == 'NIRSPEC-5':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+
+        if filter2 == 'NIRSPEC-3':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 0
+
+        if filter2 == 'NIRSPEC-1':
+            par['calibrations']['wavelengths']['n_final'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
+            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        # Return
+        return par
+
 
     def init_meta(self):
         """
@@ -942,6 +1082,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             if band == 'NIRSPEC-3':
                 angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'
+            if band == 'NIRSPEC-5':
+                angle_fits_file = 'keck_nirspec_h_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_h_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-7':
                 angle_fits_file = 'keck_nirspec_k_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_k_preupgrade_composite_arc.fits'
@@ -984,26 +1127,23 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
 
         if ftype in ['science']:
-            print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum') }")
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') }")
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') 
         if ftype in 'dark':
-            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') \
-                        & np.logical_or(fitstbl['idname'] == 'dark', fitstbl['idname'] == 'Spectrum')
-        if ftype in ['pixelflat', 'trace']:
+            return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') 
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') \
-                        & np.logical_or(fitstbl['idname'] == 'flatlamp', fitstbl['idname'] == 'Spectrum')
+            return good_exp & self.lamps(fitstbl, 'dome') & (hatch == '1') 
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') \
-                            & np.logical_or(fitstbl['idname'] == 'arclamp', fitstbl['idname'] == 'Spectrum')
-            is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') \
-                        & np.logical_or(fitstbl['idname'] == 'object', fitstbl['idname'] == 'Spectrum')
+            is_arc = self.lamps(fitstbl, 'arcs') & (hatch == '1') 
+            good_exp[is_arc] = True
+            is_obj = self.lamps(fitstbl, 'off') & (hatch == '0') 
+            good_exp[is_obj] = fitstbl['exptime'].data[is_obj] > 60.0
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
