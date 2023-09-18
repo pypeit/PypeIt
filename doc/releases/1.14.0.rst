@@ -17,6 +17,7 @@ Functionality/Performance Improvements and Additions
 - Sensitivity function models can now be computed relative to the
   flat-field spectrum.
 - Improvements in 2D coaddition
+
     - Fix a bug in ``pypeit_setup_coadd2d`` for the output file name of
       the ``.coadd2d`` file
     - Added possibility to specify more than one Science folder in
@@ -26,6 +27,7 @@ Functionality/Performance Improvements and Additions
     - Added ``exclude_slits`` parameter in ``pypeit_coadd_2dspec`` to
       exclude specific slits
     - Fix wrong RA and Dec for 2D coadded serendips
+
 - Allow wavelength calibrations for specific slits/orders to be redone
   (instead of adopting the value from a processed calibration frame);
   see new ``redo_slits`` parameter.
@@ -37,6 +39,7 @@ Instrument-specific Updates
   MDM/Modspec, Keck/HIRES, JWST
 - HIRES wavelength solution improvements galore
 - Improvements for Keck/LRIS
+
     - Generated wavelength templates for all the LRIS grism & grating
     - Added FeAr line list
     - Improved calibration association and frame typing
@@ -78,9 +81,11 @@ Bug Fixes
 - Hotfix for GTC/OSIRIS lamp list
 - Hotfix for Arc1D stats annotations on the QA
 - Hotfix for metadata:
+
     - correctly set ``config_independent_frames`` when multiple
       configurations are being setup
     - support lists in ``config_independent_frames``
+
 - Hotfix for rebin (speed-up and conserves flux)
 - Hotfix for skysub regions GUI that used ``np.bool``
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1,
