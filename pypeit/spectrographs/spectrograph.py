@@ -293,6 +293,17 @@ class Spectrograph:
                 raise TypeError('Telescope parameters must be one of those specified in'
                                 'pypeit.telescopes.')
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+        NOTE: Not defined for all the spectrographs.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        pass
+
     def raw_is_transposed(self, detector_par):
         """
         Check if raw image files are transposed with respect to the
@@ -543,11 +554,6 @@ class Spectrograph:
         """
         Generate a default bad-pixel mask.
 
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
         Args:
             filename (:obj:`str`):
                 An example file to use to get the image shape.  Can be None.
@@ -591,7 +597,7 @@ class Spectrograph:
 
         This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
         to measure the mean offset between the measured and expected slit
-        locations.  **This method is not defined for all spectrographs.**
+        locations.
 
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
@@ -616,7 +622,11 @@ class Spectrograph:
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        return None
+        if mosaic and len(self.allowed_mosaics) == 0:
+            msgs.error(f'Spectrograph {self.name} does not have any defined detector mosaics.')
+        dets = self.allowed_mosaics if mosaic else range(1,self.ndet+1)
+        return np.array([self.get_det_name(det) for det in dets])
+
 
     def get_lamps(self, fitstbl):
         """
@@ -678,7 +688,7 @@ class Spectrograph:
 
         Returns:
             :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            and used to construct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
         return ['dispname', 'dichroic', 'decker']
@@ -828,18 +838,10 @@ class Spectrograph:
                           f'expected one! Found {instr_names[0]}, expected {self.header_name}.  '
                           'You may have chosen the wrong PypeIt spectrograph name!')
 
-
     def config_independent_frames(self):
         """
         Define frame types that are independent of the fully defined
         instrument configuration.
-
-        By default, bias and dark frames are considered independent of a
-        configuration; however, at the moment, these frames can only be
-        associated with a *single* configuration. That is, you cannot take
-        afternoon biases, change the instrument configuration during the
-        night, and then use the same biases for both configurations. See
-        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
 
         This method returns a dictionary where the keys of the dictionary are
         the list of configuration-independent frame types. The value of each
@@ -854,7 +856,7 @@ class Spectrograph:
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': None, 'dark': None}
+        return {'bias': 'binning', 'dark': 'binning'}
 
     def get_comb_group(self, fitstbl):
         """
@@ -1062,16 +1064,20 @@ class Spectrograph:
         if subset is None:
             return np.arange(1, self.ndet+1).tolist()
 
-        if isinstance(subset, str):
-            _subset = parse.parse_slitspatnum(subset)[0].tolist()
+        # Parse subset if it's a string (single slitspatnum) or a list of slitspatnums
+        if isinstance(subset, str) or \
+                (isinstance(subset, list) and np.all([isinstance(ss, str) for ss in subset])
+                 and np.all([':' in ss for ss in subset])):
+            subset_list = [subset] if isinstance(subset, str) else subset
             # Convert detector to int/tuple
             new_dets = []
-            for item in _subset:
-                if 'DET' in item:
-                    idx = np.where(self.list_detectors() == item)[0][0]
+            for ss in subset_list:
+                parsed_det = parse.parse_slitspatnum(ss)[0][0]
+                if 'DET' in parsed_det:
+                    idx = np.where(self.list_detectors().flatten() == parsed_det)[0][0]
                     new_dets.append(idx+1)
-                elif 'MSC' in item:
-                    idx = np.where(self.list_detectors(mosaic=True) == item)[0][0]
+                elif 'MSC' in parsed_det:
+                    idx = np.where(self.list_detectors(mosaic=True) == parsed_det)[0][0]
                     new_dets.append(self.allowed_mosaics[idx])
             _subset = new_dets
         elif isinstance(subset, (int, tuple)):
@@ -1477,7 +1483,7 @@ class Spectrograph:
                 the platescale will be used.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.name))
         return None
@@ -1819,7 +1825,7 @@ class Spectrograph:
         msgs.error(f'Method to match slits across detectors not defined for {self.name}')
 
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -1841,6 +1847,8 @@ class Spectrograph:
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
 
         Returns
         -------
@@ -1852,8 +1860,10 @@ class Spectrograph:
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
-        return wave_in, counts_in, counts_ivar_in, gpm_in
+        return wave_in, counts_in, counts_ivar_in, gpm_in, log10_blaze_function
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

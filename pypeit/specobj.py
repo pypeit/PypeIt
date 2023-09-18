@@ -18,6 +18,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core import flexure
 from pypeit.core import flux_calib
+from pypeit.core import parse
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images.detector_container import DetectorContainer
@@ -54,7 +55,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.8'
+    version = '1.1.10'
     """
     Current datamodel version number.
     """
@@ -62,8 +63,9 @@ class SpecObj(datamodel.DataContainer):
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
                                     descr='Object trace along the spec (spatial pixel)'),
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
-                 'FWHMFIT': dict(otype=np.ndarray,
+                 'FWHMFIT': dict(otype=np.ndarray, atype=float,
                                  descr='Spatial FWHM across the detector (pixels)'),
+                 'SPAT_FWHM': dict(otype=float, descr='Spatial FWHM of the object (arcsec)'),
                  'smash_peakflux': dict(otype=float,
                                         descr='Peak value of the spectral direction collapsed spatial profile'),
                  'smash_snr': dict(otype=float,
@@ -87,6 +89,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
+                 'OPT_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -118,6 +122,8 @@ class SpecObj(datamodel.DataContainer):
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
+                 'BOX_FWHM': dict(otype=np.ndarray, atype=float,
+                                  descr='Spectral FWHM (in Angstroms) at every pixel of the boxcar extracted flux.'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
@@ -162,7 +168,7 @@ class SpecObj(datamodel.DataContainer):
                  'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
                                       descr='Array of pixels along the spectral direction'),
                  'maskwidth': dict(otype=(float, np.floating),
-                                      descr='Size (in units of fwhm) of the region used for local sky subtraction'),
+                                      descr='Size (in units of spatial fwhm) of the region used for local sky subtraction'),
                  # Slit and Object
                  'WAVE_RMS': dict(otype=(float, np.floating),
                                      descr='RMS (pix) for the wavelength solution for this slit.'),
@@ -189,6 +195,8 @@ class SpecObj(datamodel.DataContainer):
                                    descr='Object ID for echelle data. Each object is given an '
                                          'index in the order it appears increasing from from left '
                                          'to right. These are one based.'),
+                 # TODO ECH_ORDERINDX should be purged. It is not reliable for anything given masking. Instead
+                 # one needs to use SLITID or ECH_ORDER
                  'ECH_ORDERINDX': dict(otype=(int, np.integer),
                                        descr='Order indx, analogous to SLITID for echelle. '
                                              'Zero based.'),
@@ -351,6 +359,18 @@ class SpecObj(datamodel.DataContainer):
                 break
         return SN
 
+    def med_fwhm(self):
+        """Return median spatial FWHM of the spectrum
+
+        Returns:
+            float
+        """
+        FWHM = 0.
+        if self['FWHMFIT'] is not None and self['OPT_COUNTS'] is not None:
+            _, binspatial = parse.parse_binning(self['DETECTOR']['binning'])
+            FWHM = np.median(self['FWHMFIT']) * binspatial * self['DETECTOR']['platescale']
+        return FWHM
+
     def set_name(self):
         """
         Construct the ``PypeIt`` name for this object.
@@ -467,31 +487,32 @@ class SpecObj(datamodel.DataContainer):
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None,
+                         extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            wave_zp (float array)
+            wave_zp (`numpy.ndarray`_):
                 Zeropoint wavelength array
-            zeropoint (float array):
+            zeropoint (`numpy.ndarray`_):
                 zeropoint array
             exptime (float):
                 Exposure time
-            tellmodel:
+            tellmodel (?):
                 Telluric correction
-            extinct_correct:
+            extinct_correct (?):
                 If True, extinction correct
             airmass (float, optional):
                 Airmass
             longitude (float, optional):
                 longitude in degree for observatory
-            latitude:
+            latitude (float, optional):
                 latitude in degree for observatory
                 Used for extinction correction
-            extinctfilepar (str):
+            extinctfilepar (str, optional):
                 [sensfunc][UVIS][extinct_file] parameter
                 Used for extinction correction
             extrap_sens (bool, optional):

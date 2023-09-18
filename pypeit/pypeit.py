@@ -21,7 +21,7 @@ from astropy.table import Table
 from pypeit import io
 from pypeit import inputfiles
 from pypeit.calibframe import CalibFrame
-from pypeit.core import parse
+from pypeit.core import parse, wave, qa
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -29,7 +29,6 @@ from pypeit.display import display
 from pypeit import find_objects
 from pypeit import extraction
 from pypeit import spec2dobj
-from pypeit.core import qa
 from pypeit import specobjs
 #from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -627,6 +626,14 @@ class PypeIt:
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
+
+            # Add calibration associations to the SpecObjs object
+            all_specobjs_extract.calibs = calibrations.Calibrations.get_association(
+                                    self.fitstbl, self.spectrograph, self.calibrations_path,
+                                    self.fitstbl[frames[0]]['setup'],
+                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], self.det,
+                                    must_exist=True, proc_only=True)
+
             # JFH TODO write out the background frame?
 
             # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
@@ -646,7 +653,7 @@ class PypeIt:
             5 objects are returned::
                 - str: Object type;  science or standard
                 - str: Setup/configuration string
-                - astropy.time.Time: Time of observation
+                - `astropy.time.Time`_: Time of observation
                 - str: Basename of the frame
                 - str: Binning of the detector
 
@@ -716,7 +723,7 @@ class PypeIt:
             List of frames to use as the background. Can be empty.
         std_outfile : :obj:`str`, optional
             Filename for the standard star spec1d file. Passed directly to
-            :func:`get_std_trace`.
+            :func:`~pypeit.specobjs.get_std_trace`.
 
         Returns
         -------
@@ -907,7 +914,7 @@ class PypeIt:
                 is provided
             det (:obj:`int`):
                 Detector number (1-indexed)
-            sciImg (:class:`PypeItImage`):
+            sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
             objFind : :class:`~pypeit.find_objects.FindObjects`
@@ -961,46 +968,53 @@ class PypeIt:
             slits.mask[flagged_slits] = \
                 slits.bitmask.turn_on(slits.mask[flagged_slits], 'BADSKYSUB')
 
-        msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
-
-        # Instantiate Reduce object
-        # Required for pypeline specific object
-        # At instantiaton, the fullmask in self.sciImg is modified
-        # TODO Are we repeating steps in the init for FindObjects and Extract??
-        self.exTract = extraction.Extract.get_instance(
-            sciImg, slits, sobjs_obj, self.spectrograph,
-            self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
-            bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
-            std_redux=self.std_redux, basename=self.basename, show=self.show)
-
         if not self.par['reduce']['extraction']['skip_extraction']:
+            msgs.info(f"Extraction begins for {self.basename} on det={det}")
+            # Instantiate Reduce object
+            # Required for pipeline specific object
+            # At instantiation, the fullmask in self.sciImg is modified
+            # TODO Are we repeating steps in the init for FindObjects and Extract??
+            self.exTract = extraction.Extract.get_instance(
+                sciImg, slits, sobjs_obj, self.spectrograph,
+                self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts,
+                wv_calib=self.caliBrate.wv_calib,
+                bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
+                std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction
-            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.exTract.run()
-            # Apply a reference frame correction to each object and the waveimg
-            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime,
-                                          sobjs=self.exTract.sobjs)
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts, slits = self.exTract.run()
+            slitgpm = np.logical_not(self.exTract.extract_bpm)
+            slitshift = self.exTract.slitshift
         else:
+            msgs.info(f"Extraction skipped for {self.basename} on det={det}")
             # Since the extraction was not performed, fill the arrays with the best available information
-            self.exTract.refframe_correct(self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]], self.obstime)
-            skymodel = final_global_sky
-            objmodel = np.zeros_like(self.exTract.sciImg.image)
-            ivarmodel = np.copy(self.exTract.sciImg.ivar)
-            outmask = self.exTract.sciImg.fullmask
-            sobjs = sobjs_obj
-            waveImg = self.exTract.waveimg
-            tilts = self.exTract.tilts
+            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
+                final_global_sky, \
+                np.zeros_like(objFind.sciImg.image), \
+                np.copy(objFind.sciImg.ivar), \
+                objFind.sciImg.fullmask, \
+                sobjs_obj, \
+                objFind.waveimg, \
+                objFind.tilts
+            slitgpm = (slits.mask == 0)
+            slitshift = objFind.slitshift
+            # If waveImg has not yet been created, make it now
+            if waveImg is None:
+                waveImg = self.caliBrate.wv_calib.build_waveimg(tilts, slits, spat_flexure=objFind.spat_flexure_shift)
+
+        # Apply a reference frame correction to each object and the waveimg
+        vel_corr, waveImg = self.refframe_correct(slits, self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]],
+                                                  self.obstime, slitgpm=slitgpm, waveimg=waveImg, sobjs=sobjs)
 
         # TODO -- Do this upstream
-        # Tack on detector and wavelength RMS
+        # Tack on wavelength RMS
         for sobj in sobjs:
-            sobj.DETECTOR = sciImg.detector
             iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
             sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
         # Construct table of spectral flexure
         spec_flex_table = Table()
         spec_flex_table['spat_id'] = slits.spat_id
-        spec_flex_table['sci_spec_flexure'] = self.exTract.slitshift
+        spec_flex_table['sci_spec_flexure'] = slitshift
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
@@ -1014,7 +1028,7 @@ class PypeIt:
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
                                         sci_spec_flexure=spec_flex_table,
-                                        vel_corr=self.exTract.vel_corr,
+                                        vel_corr=vel_corr,
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
@@ -1033,6 +1047,65 @@ class PypeIt:
 
         # Return
         return spec2DObj, sobjs
+
+    # TODO :: Should this be moved outside of this class?
+    def refframe_correct(self, slits, ra, dec, obstime, slitgpm=None, waveimg=None, sobjs=None):
+        """ Correct the calibrated wavelength to the user-supplied reference frame
+
+        Args:
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit trace set object
+            ra (float, str):
+                Right Ascension
+            dec (float, str):
+                Declination
+            obstime (`astropy.time.Time`_):
+                Observation time
+            slitgpm (`numpy.ndarray`_, None, optional):
+                1D boolean array indicating the good slits (True). If None, the gpm will be taken from slits
+            waveimg (`numpy.ndarray`_, optional)
+                Two-dimensional image specifying the wavelength of each pixel
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`, None, optional):
+                Spectrally extracted objects
+
+        """
+        if slitgpm is None:
+            slitgpm = (slits.mask == 0)
+        # Correct Telescope's motion
+        refframe = self.par['calibrations']['wavelengths']['refframe']
+        vel_corr = 0.0
+        if refframe in ['heliocentric', 'barycentric'] \
+                and self.par['calibrations']['wavelengths']['reference'] != 'pixel':
+            msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
+            # Calculate correction
+            radec = ltu.radec_to_coord((ra, dec))
+            vel, vel_corr = wave.geomotion_correct(radec, obstime,
+                                                   self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   refframe)
+            # Apply correction to objects
+            msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
+            if (sobjs is not None) and (sobjs.nobj != 0):
+                # Loop on slits to apply
+                gd_slitord = slits.slitord_id[slitgpm]
+                for slitord in gd_slitord:
+                    indx = sobjs.slitorder_indices(slitord)
+                    this_specobjs = sobjs[indx]
+                    # Loop on objects
+                    for specobj in this_specobjs:
+                        if specobj is None:
+                            continue
+                        specobj.apply_helio(vel_corr, refframe)
+
+            # Apply correction to wavelength image
+            if waveimg is not None:
+                waveimg *= vel_corr
+        else:
+            msgs.info('A wavelength reference frame correction will not be performed.')
+
+        # Return the value of the correction and the corrected wavelength image
+        return vel_corr, waveimg
 
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
         """

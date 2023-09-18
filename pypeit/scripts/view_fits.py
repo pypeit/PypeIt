@@ -25,8 +25,7 @@ class ViewFits(scriptbase.ScriptBase):
                             help='List the extensions only?')
         parser.add_argument('--proc', default=False, action='store_true',
                             help='Process the image (i.e. orient, overscan subtract, multiply by '
-                                 'gain) using pypeit.images.buildimage. Note det=mosaic will not '
-                                 'work with this option')
+                                 'gain) using pypeit.images.buildimage.')
         parser.add_argument('--bkg_file', type=str, default=None, help='FITS file to be subtracted from the image in file.'
                             '--proc must be set in order for this option to work.')
 
@@ -40,6 +39,8 @@ class ViewFits(scriptbase.ScriptBase):
                                  'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
                                  'keck_lris will show the mosaic of all detectors.')
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
+        parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
+                            action='store_true')
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
         return parser
@@ -64,9 +65,6 @@ class ViewFits(scriptbase.ScriptBase):
 
         if args.proc and args.exten is not None:
             msgs.error('You cannot specify --proc and --exten, since --exten shows the raw image')
-#        if args.proc and args.det == 'mosaic':
-#            msgs.error('You cannot specify --proc and --det mosaic, since --mosaic can only '
-#                       'display the raw image mosaic')
         if args.exten is not None and args.det == 'mosaic':
             msgs.error('You cannot specify --exten and --det mosaic, since --mosaic displays '
                        'multiple extensions by definition')
@@ -95,7 +93,6 @@ class ViewFits(scriptbase.ScriptBase):
                 mosaic = len(_det) > 1
                 if not mosaic:
                     _det = _det[0]
-
             if args.proc:
                 # Use the biasframe processing parameters because processing
                 # these frames is independent of any other frames (ie., does not
@@ -115,6 +112,8 @@ class ViewFits(scriptbase.ScriptBase):
                     except Exception as e:
                         msgs.error(bad_read_message
                                    + f'  Original exception -- {type(e).__name__}: {str(e)}')
+
+
                     Img = Img.sub(bkgImg)
 
                 img = Img.image
@@ -129,6 +128,11 @@ class ViewFits(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
         display.show_image(img, chname=args.chname)
 
+        if args.showmask:
+            if not args.proc:
+                msgs.info("You need to use --proc with --showmask to show the mask.  Ignoring your argument")
+            else:
+                viewer, ch_mask = display.show_image(Img.bpm, chname="BPM")
 
         if args.embed:
             embed(header=utils.embed_header())

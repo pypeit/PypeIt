@@ -116,7 +116,7 @@ Here are the options:
 .. note::
 
     The ``offsets = maskdef_offsets`` option is only available for multi-slit observations and
-    currently only for Keck/DEIMOS and Keck/MOSFIRE.
+    currently only for these :ref:`slitmask_info_instruments`.
     Set the parameters :ref:`slitmaskpar` in the :ref:`pypeit_file` during
     the main PypeIt run to determine how ``maskdef_offsets`` are computed. See :ref:`radec_object_report`
     for more info.

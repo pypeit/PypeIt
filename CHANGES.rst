@@ -1,3 +1,58 @@
+1.14.0 (18 Sep 2023)
+--------------------
+
+- Add support for Gemini/GNIRS (IFU)
+- Add support for Keck/KCRM
+- Added a script to convert a wavelength solution into something that can be placed in the reid archive.
+- Hotfix for GTC/OSIRIS lamp list
+- Hotfix for Arc1D stats annotations on the QA
+- Hotfix for metadata (correctly set config_independent frames when multiple configurations are being setup)
+- Hotfix for metadata (support lists in ``config_independent_frames()``)
+- Hotfix for rebin (speed-up and conserves flux)
+- Hotfix for skysub regions GUI that used np.bool
+- Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
+  magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Hotfix to set BPM for each type of calibration file.
+- Adds Keck/ESI to PypeIt
+- Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
+- Adds Keck/ESI to PypeIt
+- Add MDM/Modspec spectrograph
+- Store user-generated wavelength solution in pypeit cache
+- Improvements to wavelength grids and masking in coadd routines.
+- Fixed a bug in echelle coadding where the wrong coadded spectra were being
+  used in final stacks.
+- Sensitivity function models can now be computed relative to the blaze
+  spectrum.
+- Refactored coadding routines to work with lists to support coadding data from
+  different setups.
+- Changes to how masking is dealt with in extraction to fix a bug in how masks
+  were being treated for echelle data
+- Various fixes and changes required to add more support for Keck/HIRES and JWST
+- Fix a bug in ``spectrograph.select_detectors``, where a list of ``slitspatnum`` could not be used.
+- Improvements in 2D coaddition
+    - Fix a bug in `pypeit_setup_coadd2d` for the output file name of the .coadd2d file
+    - Added possibility to specify more than one Science folder in `pypeit_setup_coadd2d`
+    - Now ``only_slits`` parameter in `pypeit_coadd_2dspec` includes the detector number (similar to ``slitspatnum``)
+    - Added ``exclude_slits`` parameter in `pypeit_coadd_2dspec` to exclude specific slits
+    - Fix wrong RA & Dec for 2D coadded serendips
+- Changed calibration frame naming as an attempt to avoid very long names for
+  files with many calibration groups.  Sequential numbers are reduced to a
+  range; e.g., ``'0-1-2-3-4'`` becomes ``'0+4'`` and
+  ``'3-5-6-10-11-12-15-18-19'`` becomes ``'3-5+6-10+12-15-18+19'``
+- HIRES wavelength solution improvements galor
+- Added `redo_slits` option
+- Refactored ``load_line_lists()`` yet again!
+- Improvements for keck/LRIS
+    - Generated wavelength templates for all the LRIS grism & grating
+    - Added FeAr line list
+    - Improved calibration association and frame typing
+    - Improved and added documentation
+    - Changes to ``metadata.py`` including commenting out, in the pypeit file,
+      files that have frametype None (this prevent ``run_pypeit`` to crash)
+    - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
+      that checks (during ``pypeit_setup``) if the selected spectrograph is the
+      corrected one for the data used. 
+
 
 1.13.0 (2 June 2023)
 --------------------
@@ -7,7 +62,6 @@
 - Allow user control of the local sky subtraction window
 - Deprecate use of python 3.8 with PypeIt, allow python 3.11
 - Make pypeit_show_2dspec (somewhat) backwards compatible.
-- Added the option to disable strict version checking for 1d coadds.
 - Hotfix for KCWI when using alignment (aka ContBars) frames for the astrometric correction.
 - Sensitivity function masking and output updates
 - Fixed a bug in the `variance_model` calculation for combined images.
@@ -27,7 +81,8 @@
 - The ``'calib'`` column is now always added to the pypeit file, regardless of
   whether or not you also request the ``'comb_id'`` and ``'bkg_id'`` columns.
 - Names of associated calibration frames now written to ``spec2d`` file headers.
-- Major quicklook updates.  ql_multislit.py deprecated.
+- Added the option to disable strict version checking for 1d coadds.
+- Major quicklook updates.  ql_multislit.py temporarily deprecated.
 - Improve speed in ginga visualization of traces and added
   `pypeit_chk_tilts`. Note that this script uses an update
   of the tilts datamodel, so it will not work on older reductions.
@@ -1523,7 +1578,7 @@ better with 2d coadds.
 - Other odds and ends including code flow doc
 - Introduce pypit/par and pypit/config directories
 - Introduce PypitPar as an initial step toward refactoring the front end
-- Move spectrograph specific code into spectographs/ folder
+- Move spectrograph specific code into spectrographs/ folder
 - Introduces the Spectrographs class
 - Introduces the Calibrations class with Notebook
 - Bug fix in view_fits script

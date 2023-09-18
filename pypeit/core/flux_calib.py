@@ -27,6 +27,7 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
+from pypeit.core import wave
 from pypeit import data
 
 
@@ -120,7 +121,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         Object right-ascension in decimal deg
     dec : float
         Object declination in decimal deg
-    toler : :class:`astropy.units.quantity.Quantity`, optional
+    toler : `astropy.units.Quantity`_, optional
         Tolerance on matching archived standards to input.  Expected
         to be in arcmin.
     check : bool, optional
@@ -199,6 +200,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
                                    units.erg / units.s / units.cm ** 2 / units.AA
+                # Xshooter standard files use air wavelengths, convert them to vacuum
+                std_dict['wave'] = wave.airtovac(std_dict['wave'])
             elif sset == 'calspec':
                 std_dict['std_source'] = sset
                 std_spec = io.fits_open(fil)[1].data
@@ -439,11 +442,14 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
 
     Parameters
     ----------
-    longitude, latitude: Geocentric coordinates in degrees (floats).
-    extinctfilepar : (str)
+    longitude : float
+        Geocentric longitude in degrees.
+    latitude : float
+        Geocentric latitude in degrees.
+    extinctfilepar : str
         The sensfunc['extinct_file'] parameter, used to determine
         which extinction file to load.
-    toler : Angle, optional
+    toler : `astropy.coordinates.Angle`_, optional
         Tolerance for matching detector to site (5 deg)
 
     Returns
@@ -496,17 +502,18 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
 
 def extinction_correction(wave, airmass, extinct):
     """
-    Derive extinction correction
+    Derive extinction correction.
+
     Based on algorithm in LowRedux (long_extinct)
 
     Parameters
     ----------
-    wave:  `numpy.ndarray`_
+    wave : `numpy.ndarray`_
         Wavelengths for interpolation. Should be sorted.
         Assumes angstroms.
     airmass : float
         Airmass
-    extinct : Table
+    extinct : `astropy.table.Table`_
         Table of extinction values 
 
     Returns
@@ -615,7 +622,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     Args:
         wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,) or (nspec, norders)
-        counts (ndarray):
+        counts (`numpy.ndarray`_):
             Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
         counts_ivar (`numpy.ndarray`_):
             Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
@@ -669,7 +676,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     """
 
-    wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
+    wave_arr, counts_arr, ivar_arr, mask_arr, log10_blaze_func, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
     zeropoint_data = np.zeros_like(wave_arr)
     zeropoint_data_gpm = np.zeros_like(wave_arr, dtype=bool)
     zeropoint_fit = np.zeros_like(wave_arr)
@@ -1198,6 +1205,42 @@ def mask_stellar_helium(wave_star, mask_width=5.0, mask_star=None):
 
 
 # These are physical limits on the allowed values of the zeropoint in magnitudes
+def eval_zeropoint(theta, func, wave, wave_min, wave_max, log10_blaze_func_per_ang=None):
+    """
+    Evaluate the zeropoint model.
+
+    Parameters
+    ----------
+    theta : `numpy.ndarray`_
+        Parameter vector for the zeropoint model
+    func : callable
+        Function for the zeropoint model from the set of available functions in
+        :func:`~pypeit.core.fitting.evaluate_fit`.
+    wave : `numpy.ndarray`_, shape = (nspec,)
+        Wavelength vector for zeropoint. 
+    wave_min : float
+        Minimum wavelength for the zeropoint fit to be passed as an argument to
+        :func:`~pypeit.core.fitting.evaluate_fit`
+    wave_max : float
+        Maximum wavelength for the zeropoint fit to be passed as an argument to
+        :func:`~pypeit.core.fitting.evaluate_fit`
+    log10_blaze_func_per_ang : `numpy.ndarray`_, optional, shape = (nspec,)
+        Log10 blaze function per angstrom. This option is used if the zeropoint
+        model is relative to the non-parametric blaze function determined from
+        flats. The blaze function is defined on the wavelength grid wave. 
+
+    Returns
+    -------
+    zeropoint : `numpy.ndarray`_, shape = (nspec,)
+        Zeropoint evaluated on the wavelength grid wave.
+    """
+    poly_model = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+    zeropoint = poly_model - 5.0 * np.log10(wave) + ZP_UNIT_CONST
+    if log10_blaze_func_per_ang is not None:
+        zeropoint += 2.5*log10_blaze_func_per_ang
+
+    return zeropoint
+
 
 def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     r"""
@@ -1242,7 +1285,7 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     Returns
     -------
     factor: `numpy.ndarray`_
-        Factor that when multiplied into F_lam converts to N_lam
+        Factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam
 
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
@@ -1264,7 +1307,7 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     N_lam_gpm: `numpy.ndarray`_
         N_lam mask, good pixel mask, boolean, shape (nspec,)
     flam_std_star: `numpy.ndarray`_
-        True standard star spectrum units set of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
+        True standard star spectrum in units of PYPEIT_FLUX_SCALE erg/s/cm^2/Angstrom
     tellmodel: `numpy.ndarray`_
         Telluric absorption model, optional, shape (nspec,)
 
@@ -1331,21 +1374,21 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
 
     Parameters
     ----------
-    wave: `numpy.ndarray`_
+    wave : `numpy.ndarray`_
         Wavelength array
-    zeropoint_data: `numpy.ndarray`_
+    zeropoint_data : `numpy.ndarray`_
         Zeropoint data array
-    zeropoint_data_gpm: bool `numpy.ndarray`_
+    zeropoint_data_gpm : boolean `numpy.ndarray`_
         Good pixel mask array for zeropoint_data
-    zeropoint_fit: `numpy.ndarray`_
+    zeropoint_fit : `numpy.ndarray`_
         Zeropoint fitting array
-    zeropoint_fit_gpm: bool zeropoint_fit
+    zeropoint_fit_gpm : boolean `numpy.ndarray`_
         Good pixel mask array for zeropoint_fit
-    title: str, optional
+    title : str, optional
         Title for the QA plot
-    axis: None or matplotlib.pyplot axis, optional
-        axis used for ploting.
-    show: bool, optional
+    axis : `matplotlib.axes.Axes`_, optional
+        axis used for ploting.  If None, a new plot is created
+    show : bool, optional
         Whether to show the QA plot
     """
 
@@ -1389,26 +1432,26 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
         inverse variance of counts/s/Angstrom
     Nlam_gpm : `numpy.ndarray`_
         mask for bad pixels. True is good.
-    flam_true : Quantity array
-        standard star true flux (erg/s/cm^2/A)
+    flam_true : `astropy.units.Quantity`_
+        array with true standard star flux (erg/s/cm^2/A)
     mask_recomb: `numpy.ndarray`_
         mask for hydrogen (and/or helium II) recombination lines. True is good.
     mask_tell: `numpy.ndarray`_
         mask for telluric regions. True is good.
-    maxiter : integer
+    maxiter : int
         maximum number of iterations for polynomial fit
-    upper : integer
+    upper : int
         number of sigma for rejection in polynomial
-    lower : integer
+    lower : int
         number of sigma for rejection in polynomial
-    polyorder : integer
+    polyorder : int
         order of polynomial fit
     balm_mask_wid: float
         Mask parameter for Balmer absorption. A region equal to balm_mask_wid in
         units of angstrom is masked.
-    nresln: integer/float
+    nresln: int, float
         number of resolution elements between breakpoints
-    resolution: integer/float.
+    resolution: int, float
         The spectral resolution.  This paramters should be removed in the
         future. The resolution should be estimated from spectra directly.
     debug : bool

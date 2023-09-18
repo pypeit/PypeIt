@@ -32,6 +32,7 @@ Notes with JFH:
   #. Consider not writing out but return instead
 
 .. include:: ../include/links.rst
+
 """
 from pathlib import Path
 import time
@@ -143,7 +144,7 @@ def quicklook_regroup(fitstbl):
     **This function directly alters the input object!**
 
     Args:
-        fitstbl (:class:~pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
             Metadata table for frames to be processed.
     """
     comb_strt = 0
@@ -228,7 +229,8 @@ def generate_sci_pypeitfile(redux_path:str,
         ref_calib_dir (`Path`_):
             Path with the pre-processed calibration frames.  A symlink will be
             created to this directory from within ``redux_path`` to mimic the
-            location of the calibrations expected by :class:`~pypeit.PypeIt`.
+            location of the calibrations expected by
+            :class:`~pypeit.pypeit.PypeIt`.
         ps_sci (:class:`~pypeit.pypeitsetup.PypeItSetup`):
             Setup object for the science frame(s) only.
         det (:obj:`str`, optional):
@@ -353,7 +355,10 @@ def generate_sci_pypeitfile(redux_path:str,
                 detname = slitTrace.detname
                 # Mosaic?
                 mosaic = True if detname[0:3] == 'MSC' else False
-                det_id = np.where(ps_sci.spectrograph.list_detectors(mosaic=mosaic) == detname)[0]
+                # if mosaic is False list_detectors() returns a 2D array for some spectrographs, therefore we flatten it
+                spec_list_dets = ps_sci.spectrograph.list_detectors(mosaic=mosaic) if mosaic \
+                    else ps_sci.spectrograph.list_detectors().flatten()
+                det_id = np.where(spec_list_dets == detname)[0]
                 if len(det_id) == 0:
                     detname = None  # Reset
                     continue        # TODO: or fault?
