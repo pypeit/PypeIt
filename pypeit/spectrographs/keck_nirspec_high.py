@@ -874,7 +874,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=True, use_biasimage=False, use_overscan=False,
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
@@ -1080,8 +1080,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             #print('Using Arclamps probably')
             #print(f'filter1 = {filter1}')
             if band == 'NIRSPEC-1':
-                angle_fits_file = 'keck_nirspec_preupgrade_y_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_preupgrade_y_composite_arc.fits'
+                angle_fits_file = 'keck_nirspec_y_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-3':
                 angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'

@@ -48,16 +48,32 @@ where the ``-r`` argument should be replaced by your local directory and the
 reducing data with multiple configurations, using ``-c all`` will create an output directory for each configuration. In this case,
 since the dataset only has one configuration, using ``-c A`` would be equivalent. 
 
+This will make a directory called ``keck_nirspec_high_A`` that holds a pypeit file
+called ``keck_nirspec_high_A.pypeit`` that looks like this:
+
+.. include:: ../include/keck_nires_A.pypeit.rst
 
 
 At the moment, NIRSPEC does not keep track of the nod pattern that was used in observing and where in the nod pattern the exposure 
 was taken. This means that setting AB pairs in the data for background subtraction must be done manually. 
 
+The corrections we'll need to make are:
 
-This will make a directory called ``keck_nires_A`` that holds a pypeit file
-called ``keck_nires_A.pypeit`` that looks like this:
 
-.. include:: ../include/keck_nires_A.pypeit.rst
+
+
+The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
+
+.. include:: ../include/keck_nires_A_corrected.pypeit.rst
+
+
+
+
+
+
+
+
+
 
 For this example dataset, the details of the default pypeit file are not
 completely correct; see :ref:`here <nires_config_report>` for an example where the frame
