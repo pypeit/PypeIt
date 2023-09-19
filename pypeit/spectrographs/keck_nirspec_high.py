@@ -457,6 +457,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
+        par['calibrations']['flatfield']['slit_illum_relative'] = False#True
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -472,7 +473,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_biasimage=False, use_overscan=False,
-                        use_darkimage=False, use_specillum=True) #use_illumflat=True, 
+                        use_darkimage=False, use_specillum=False, use_illumflat = False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
         '''

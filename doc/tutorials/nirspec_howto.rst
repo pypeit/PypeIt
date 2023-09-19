@@ -19,23 +19,40 @@ See :ref:`here <dev-suite>` to find the example dataset, please join our `PypeIt
 <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__)
 to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
+
+----
+
+Directory Organization
+=====
+
+Before starting the reduction, we recommend creating a directory in which to store all of the PypeIt output files. PypeIt will 
+create its own directory structure within that, but it is good to have a dedicated place to work. PypeIt will also reuse directory names
+so creating a dedicated directory for a given reduction run is recommended. 
+
+
 ----
 
 Setup
 =====
 
-Before reducing your data with PypeIt, you first have to prepare a
-:ref:`pypeit_file` by running :ref:`pypeit_setup`:
+PypeIt uses a special input file, the :ref:`pypeit_file`, to organize any user supplied keywords, the locations of the input data files, and 
+the metadata corresponding to each file. This file is created and automatically populated by running :ref:`pypeit_setup`:
 
 .. code-block:: bash
 
-    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard/ -s keck_nires -b -c A
+    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard/ -s keck_nirspec_high -b -c all
 
 where the ``-r`` argument should be replaced by your local directory and the
 ``-b`` indicates that the data uses background images and should include the
-``calib``, ``comb_id``, ``bkg_id`` in the pypeit file.  This directory only has
-one instrument configuration (NIRES only has one configuration anyway), so
-setting ``-c A`` and ``-c all`` is equivalent.
+``calib``, ``comb_id``, ``bkg_id`` in the pypeit file.  In the event that you are 
+reducing data with multiple configurations, using ``-c all`` will create an output directory for each configuration. In this case,
+since the dataset only has one configuration, using ``-c A`` would be equivalent. 
+
+
+
+At the moment, NIRSPEC does not keep track of the nod pattern that was used in observing and where in the nod pattern the exposure 
+was taken. This means that setting AB pairs in the data for background subtraction must be done manually. 
+
 
 This will make a directory called ``keck_nires_A`` that holds a pypeit file
 called ``keck_nires_A.pypeit`` that looks like this:
