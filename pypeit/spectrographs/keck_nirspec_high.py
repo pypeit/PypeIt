@@ -472,7 +472,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_biasimage=False, use_overscan=False,
-                        use_darkimage=False) #use_illumflat=True, 
+                        use_darkimage=False, use_specillum=True) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
         '''
@@ -562,6 +562,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            if self.get_meta_value(headarr, 'xdangle') == 36.72:
+                par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
 
         if filter2 == 'NIRSPEC-3':
