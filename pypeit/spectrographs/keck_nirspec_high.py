@@ -165,7 +165,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
      #def filter(self, fitstbl):
 
-
+    '''
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -202,7 +202,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         #bpm_img[:, 1000:] = 1.
 
         return bpm_img
-
+    '''
 
 
     def order_platescale(self, order_vec, binning=None):
@@ -1096,6 +1096,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_preupgrade_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_preupgrade_composite_OH.fits'
+            if band == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_j_preupgrade_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_preupgrade_composite_OH.fits'
 
         #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
         #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
@@ -1195,7 +1198,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
     #def filter(self, fitstbl):
 
-
+    '''
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -1232,7 +1235,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         #bpm_img[:, 1000:] = 1.
 
         return bpm_img
-
+    '''
 
 
     def order_platescale(self, order_vec, binning=None):

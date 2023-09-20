@@ -9,7 +9,7 @@ from IPython import embed
 
 from pypeit.scripts import scriptbase
 
-class Identify(scriptbase.ScriptBase):
+class Identify_Multi(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
@@ -23,7 +23,7 @@ class Identify(scriptbase.ScriptBase):
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
         parser.add_argument("--wmax", type=float, default=50000.0, help="Maximum wavelength range")
-        parser.add_argument("--slits", type=str, default='[0]',
+        parser.add_argument("--slits", type=list, default=[0],
                             help="Which slit to load for wavelength calibration")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
@@ -59,7 +59,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.images.buildimage import ArcImage
 
         # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('identify', args.verbosity)
+        msgs.set_logfile_and_verbosity('identify_multi', args.verbosity)
 
         # Load the Arc file
         msarc = ArcImage.from_file(args.arc_file)
@@ -89,27 +89,13 @@ class Identify(scriptbase.ScriptBase):
                         if os.path.exists(solnname) and args.solution else None
 
         #iterate over each slit to add to the wv_calib
-        slit_list = list(args.slits)
-        ii = 0
-        slits_inds = []
-        while 2*ii+1 < len(slit_list):
-            slits_inds.append(int(slit_list[2*ii+1]))
-            ii += 1
-        slits_inds = np.array(slits_inds)
-        print(args.slits, slits_inds)
+        slits_inds = args.slit
         for slit_val in slits_inds:
             # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
             # set to any flagged pixel in Arc.
-
-            if wv_calib:
-                if not wv_calib.wv_fits[slit_val]['pypeitfit']:
-                    wv_calib_slit = None
-                else:
-                    wv_calib_slit = wv_calib
-
             wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                     msbpm=msarc.select_flag())
-            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[slit_val])
+            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
             # Launch the identify window
             # TODO -- REMOVE THIS HACK
@@ -117,8 +103,8 @@ class Identify(scriptbase.ScriptBase):
                 nonlinear_counts = msarc.detector.nonlinear_counts()
             except AttributeError:
                 nonlinear_counts = None
-            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(slit_val), par=par,
-                                            wv_calib_all=wv_calib_slit, wavelim=[args.wmin, args.wmax],
+            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
+                                            wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                             nonlinear_counts=nonlinear_counts,
                                             pxtoler=args.pixtol, test=args.test, 
                                             fwhm=args.fwhm,
