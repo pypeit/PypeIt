@@ -1321,7 +1321,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[iord], verbose=True)
         # get rms threshold for this slit
         rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
-        msgs.info(f"Using rms_threshold =  {rms_thresh} ({par['rms_thresh_frac_fwhm']} * median FWHM)")
+        msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
             cc_thresh=cc_thresh, match_toler=par['match_toler'],
@@ -1637,7 +1637,7 @@ class ArchiveReid:
             fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit], verbose=True)
             # get rms threshold for this slit
             rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
-            msgs.info(f"Using rms_threshold =  {rms_thresh} ({self.par['rms_thresh_frac_fwhm']} * median FWHM)")
+            msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {self.par['rms_thresh_frac_fwhm']}")
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
                            self.wave_soln_arxiv[:,ind_sp],
@@ -1884,7 +1884,7 @@ class HolyGrail:
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
                                      # an ID on either side of the spectrum)
 
-        msgs.info(f"Using rms_threshold =  {rms_thresh} ({self._par['rms_thresh_frac_fwhm']} * median FWHM)")
+        msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {self._par['rms_thresh_frac_fwhm']}")
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
@@ -2375,7 +2375,7 @@ class HolyGrail:
                 continue
 
             # get FWHM for this slit
-            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[bs])
             # get rms threshold for this slit
             rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
 
@@ -2926,7 +2926,7 @@ class HolyGrail:
             # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
 
             # get FWHM for this slit
-            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
             # get rms threshold for this slit
             rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
 
@@ -3060,7 +3060,7 @@ class HolyGrail:
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
 
         # get FWHM for this slit
-        fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
+        fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
         # get rms threshold for this slit
         rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
 

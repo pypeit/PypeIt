@@ -1085,16 +1085,12 @@ class BuildWaveCalib:
         if self.par['echelle']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            # Test and scale by measured_fwhms
             # get used FWHM
-            if self.measured_fwhms is not None:
-                fwhm = [autoid.set_fwhm(self.par, measured_fwhm=m_fwhm) for m_fwhm in self.measured_fwhms]
-            else:
-                fwhm = autoid.set_fwhm(self.par, measured_fwhm=None)
-            # get rms threshold for each slit
+            fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
+                else self.measured_fwhms
+            # get rms threshold for all orders
             wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
             bad_rms = rms > wave_rms_thresh
-            #embed(header='line 975 of wavecalib.py')
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True
                 msgs.warn("Masking one or more bad orders (RMS)")
