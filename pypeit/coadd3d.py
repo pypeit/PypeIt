@@ -13,6 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from scipy.interpolate import interp1d
 import numpy as np
+import ref_index  # TODO :: Could just copy this code into the DAR class?
 
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
@@ -195,6 +196,103 @@ class DataCube(datamodel.DataContainer):
         return wcs.WCS(self.head0)
 
 
+class DARcorrection:
+    """
+    This class holds all of the functions needed to quickly compute the differential atmospheric refraction correction.
+    """
+    def __init__(self, hdr0, cosdec, spectrograph=None, wave_ref=4500.0):
+        """
+        Args:
+            hdr0 (`astropy.io.fits.Header`_):
+                Header of the spec2d file. This input should be retrieved from spec2DObj.head0
+            spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+                The name or instance of the spectrograph used to obtain the data.
+                If None, this is pulled from the file header.
+            cosdec (:obj:`float`):
+                Cosine of the target declination.
+            wave_ref (:obj:`float`, optional):
+                Reference wavelength (The DAR correction will be performed relative to this wavelength)
+        """
+        msgs.info("Preparing the parameters for the DAR correction")
+        # Check on Spectrograph input
+        if spectrograph is None:
+            spectrograph = hdr0['PYP_SPEC']
+
+        if isinstance(spectrograph, str):
+            self.spec = load_spectrograph(spectrograph)
+            self.specname = spectrograph
+        else:
+            # Assume it's a Spectrograph instance
+            self.spec = spectrograph
+            self.specname = spectrograph.name
+
+        # Get DAR parameters
+        self.airmass = self.spec.get_meta_value([hdr0], 'airmass')  # unitless
+        self.parangle = self.spec.get_meta_value([hdr0], 'parangle')
+        self.pressure = self.spec.get_meta_value([hdr0], 'pressure')  # units are pascals
+        self.temperature = self.spec.get_meta_value([hdr0], 'temperature')  # units are degrees C
+        self.humidity = self.spec.get_meta_value([hdr0], 'humidity')  # Expressed as a percentage (not a fraction!)
+        self.co2 = 400.0  # units are mu-mole/mole
+        self.wave_ref = wave_ref  # This should be in Angstroms
+        self.cosdec = cosdec
+
+        # Print out the DAR parameters
+        msgs.info("DAR correction parameters:" + msgs.newline() +
+                  "   Airmass = {0:.2f}".format(self.airmass) + msgs.newline() +
+                  "   Pressure = {0:.2f} Pa".format(self.pressure) + msgs.newline() +
+                  "   Humidity = {0:.2f} %".format(self.humidity) + msgs.newline() +
+                  "   Temperature = {0:.2f} deg C".format(self.temperature) + msgs.newline() +
+                  "   Reference wavelength = {0:.2f}".format(self.wave_ref))
+
+    def calculate_dispersion(self, waves):
+        """ Calculate the total atmospheric dispersion relative to the reference wavelength
+
+        Parameters
+        ----------
+        waves : `np.ndarray`_
+            1D array of wavelengths (units must be Angstroms)
+
+        Returns
+        -------
+        full_dispersion : :obj:`float`
+            The atmospheric dispersion (in degrees) for each wavelength input
+        """
+
+        # Calculate
+        z = np.arccos(1.0/self.airmass)
+
+        n0 = ref_index.ciddor(wave=self.wave_ref/10.0, t=self.temperature, p=self.pressure, rh=self.humidity, co2=self.co2)
+        n1 = ref_index.ciddor(wave=waves/10.0, t=self.temperature, p=self.pressure, rh=self.humidity, co2=self.co2)
+
+        return (180.0/np.pi) * (n0 - n1) * np.tan(z)  # This is in degrees
+
+    def correction(self, waves):
+        """
+        Main routine that computes the DAR correction for both right ascension and declination.
+
+        Parameters
+        ----------
+        waves : `np.ndarray`_
+            1D array of wavelengths (units must be Angstroms)
+
+        Returns
+        -------
+        ra_corr : `np.ndarray`_
+            The RA component of the atmospheric dispersion correction (in degrees) for each wavelength input.
+        dec_corr : `np.ndarray`_
+            The Dec component of the atmospheric dispersion correction (in degrees) for each wavelength input.
+        """
+        # Determine the correction angle
+        corr_ang = self.parangle - np.pi/2
+        # Calculate the full amount of refraction
+        dar_full = self.calculate_dispersion(waves)
+        # Calculate the correction in dec and RA for each detector pixel
+        # These numbers should be ADDED to the original RA and Dec values
+        ra_corr = (dar_full/self.cosdec)*np.cos(corr_ang)
+        dec_corr = -dar_full*np.sin(corr_ang)
+        return ra_corr, dec_corr
+
+
 class CoAdd3D:
     """
     Main routine to convert processed PypeIt spec2d frames into
@@ -287,7 +385,7 @@ class CoAdd3D:
         self.all_sci, self.all_ivar, self.all_idx, self.all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
         self.all_spatpos, self.all_specpos, self.all_spatid = np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)
         self.all_tilts, self.all_slits, self.all_align = [], [], []
-        self.all_wcs = []
+        self.all_wcs, self.all_dar = [], []
         self.weights = np.ones(self.numfiles)  # Weights to use when combining cubes
 
         self._dspat = None if self.cubepar['spatial_delta'] is None else self.cubepar['spatial_delta'] / 3600.0  # binning size on the sky (/3600 to convert to degrees)
@@ -299,7 +397,7 @@ class CoAdd3D:
         self.align = self.cubepar['align']
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
         if self.numfiles == 1 and self.cubepar["reference_image"] is None:
-            if not self.align:
+            if self.align:
                 msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
                 msgs.info("Setting 'align' to False")
             self.align = False
@@ -670,48 +768,48 @@ class CoAdd3D:
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
-    def compute_DAR(self, hdr0, waves, cosdec, wave_ref=None):
-        """
-        Compute the differential atmospheric refraction correction for a given frame.
-
-        Args:
-            hdr0 (`astropy.io.fits.Header`_):
-                Header of the spec2d file. This input should be retrieved from spec2DObj.head0
-            waves (`numpy.ndarray`_):
-                1D flattened array containing the wavelength of each pixel (units = Angstroms)
-            cosdec (:obj:`float`):
-                Cosine of the target declination.
-            wave_ref (:obj:`float`, optional):
-                Reference wavelength (The DAR correction will be performed relative to this wavelength)
-
-        Returns:
-            `numpy.ndarray`_: 1D differential RA for each wavelength of the input waves array
-            `numpy.ndarray`_: 1D differential Dec for each wavelength of the input waves array
-        """
-        if wave_ref is None:
-            wave_ref = 0.5 * (np.min(waves) + np.max(waves))
-        # Get DAR parameters
-        raval = self.spec.get_meta_value([hdr0], 'ra')
-        decval = self.spec.get_meta_value([hdr0], 'dec')
-        obstime = self.spec.get_meta_value([hdr0], 'obstime')
-        pressure = self.spec.get_meta_value([hdr0], 'pressure')
-        temperature = self.spec.get_meta_value([hdr0], 'temperature')
-        rel_humidity = self.spec.get_meta_value([hdr0], 'humidity')
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-        location = self.spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
-        # Set a default value
-        ra_corr, dec_corr = 0.0, 0.0
-        if pressure == 0.0:
-            msgs.warn("Pressure is set to zero - DAR correction will not be performed")
-        else:
-            msgs.info("DAR correction parameters:" + msgs.newline() +
-                      "   Pressure = {0:f} bar".format(pressure) + msgs.newline() +
-                      "   Temperature = {0:f} deg C".format(temperature) + msgs.newline() +
-                      "   Humidity = {0:f}".format(rel_humidity))
-            ra_corr, dec_corr = datacube.correct_dar(waves, coord, obstime, location,
-                                                     pressure * units.bar, temperature * units.deg_C, rel_humidity,
-                                                     wave_ref=wave_ref)
-        return ra_corr*cosdec, dec_corr
+    # def compute_DAR(self, hdr0, waves, cosdec, wave_ref=None):
+    #     """
+    #     Compute the differential atmospheric refraction correction for a given frame.
+    #
+    #     Args:
+    #         hdr0 (`astropy.io.fits.Header`_):
+    #             Header of the spec2d file. This input should be retrieved from spec2DObj.head0
+    #         waves (`numpy.ndarray`_):
+    #             1D flattened array containing the wavelength of each pixel (units = Angstroms)
+    #         cosdec (:obj:`float`):
+    #             Cosine of the target declination.
+    #         wave_ref (:obj:`float`, optional):
+    #             Reference wavelength (The DAR correction will be performed relative to this wavelength)
+    #
+    #     Returns:
+    #         `numpy.ndarray`_: 1D differential RA for each wavelength of the input waves array
+    #         `numpy.ndarray`_: 1D differential Dec for each wavelength of the input waves array
+    #     """
+    #     if wave_ref is None:
+    #         wave_ref = 0.5 * (np.min(waves) + np.max(waves))
+    #     # Get DAR parameters
+    #     raval = self.spec.get_meta_value([hdr0], 'ra')
+    #     decval = self.spec.get_meta_value([hdr0], 'dec')
+    #     obstime = self.spec.get_meta_value([hdr0], 'obstime')
+    #     pressure = self.spec.get_meta_value([hdr0], 'pressure')
+    #     temperature = self.spec.get_meta_value([hdr0], 'temperature')
+    #     rel_humidity = self.spec.get_meta_value([hdr0], 'humidity')
+    #     coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+    #     location = self.spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
+    #     # Set a default value
+    #     ra_corr, dec_corr = 0.0, 0.0
+    #     if pressure == 0.0:
+    #         msgs.warn("Pressure is set to zero - DAR correction will not be performed")
+    #     else:
+    #         msgs.info("DAR correction parameters:" + msgs.newline() +
+    #                   "   Pressure = {0:f} bar".format(pressure) + msgs.newline() +
+    #                   "   Temperature = {0:f} deg C".format(temperature) + msgs.newline() +
+    #                   "   Humidity = {0:f}".format(rel_humidity))
+    #         ra_corr, dec_corr = datacube.correct_dar(waves, coord, obstime, location,
+    #                                                  pressure * units.bar, temperature * units.deg_C, rel_humidity,
+    #                                                  wave_ref=wave_ref)
+    #     return ra_corr, dec_corr
 
     def align_user_offsets(self):
         """
@@ -767,16 +865,16 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         Parameters
         ----------
-        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_):
+        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_:
             2D PypeIt spectra object.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+        slits : :class:`pypeit.slittrace.SlitTraceSet`_:
             Class containing information about the slits
         spat_flexure: :obj:`float`, optional:
             Spatial flexure in pixels
 
         Returns
         -------
-        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`_)
+        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`_
             Alignment splines used for the astrometric correction
         """
         # Loading the alignments frame for these data
@@ -955,8 +1053,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             relScale = spec2DObj.scaleimg / relScaleImg  # This factor is applied to the sky subtracted science frame
 
             # Extract the relevant information from the spec2d file
-            sciImg = (spec2DObj.sciimg - skyImg * relSclSky) * relScale  # Subtract sky and apply relative illumination
-            ivar = spec2DObj.ivarraw / relScale ** 2
+            # sciImg = (spec2DObj.sciimg - skyImg * relSclSky) * relScale  # Subtract sky and apply relative illumination
+            # ivar = spec2DObj.ivarraw / relScale ** 2
+            sciImg = spec2DObj.sciimg
+            ivar = spec2DObj.ivarraw
             waveimg = spec2DObj.waveimg
             bpmmask = spec2DObj.bpmmask
 
@@ -1047,11 +1147,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Here's an array to get back to the original ordering
             resrt = np.argsort(wvsrt)
 
-            # Perform the DAR correction
+            # Compute the DAR correction
             cosdec = np.cos(np.mean(dec_sort) * np.pi / 180.0)
-            ra_corr, dec_corr = self.compute_DAR(spec2DObj.head0, wave_sort, cosdec, wave_ref=wave_ref)
-            ra_sort += ra_corr
-            dec_sort += dec_corr
+            darcorr = DARcorrection(spec2DObj.head0, cosdec, spectrograph=self.spec)
 
             # Perform extinction correction
             msgs.info("Applying extinction correction")
@@ -1103,12 +1201,19 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             this_specpos, this_spatpos = np.where(onslit_gpm)
             this_spatid = slitid_img_init[onslit_gpm]
 
+            ##################################
             # Astrometric alignment to HST frames
             # TODO :: RJC requests this remains here... it is only used by RJC
-            ra_sort, dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
-                                              np.ones(ra_sort.size), this_specpos[wvsrt], this_specpos[wvsrt],
-                                              this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines,
-                                              )
+            # _ra_sort, _dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
+            #                                   np.ones(ra_sort.size), this_spatpos[wvsrt], this_specpos[wvsrt],
+            #                                   this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines)
+            # ra_del = np.median(_ra_sort-ra_sort)
+            # dec_del = np.median(_dec_sort-dec_sort)
+            # ra_sort = _ra_sort
+            # dec_sort = _dec_sort
+            # spec2DObj.head0['RA'] += ra_del
+            # spec2DObj.head0['DEC'] += dec_del
+            ##################################
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
@@ -1139,7 +1244,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     generate_cube_subpixel(outfile, output_wcs, ra_sort[resrt], dec_sort[resrt], wave_sort[resrt],
                                            flux_sort[resrt], ivar_sort[resrt], np.ones(numpix),
                                            this_spatpos, this_specpos, this_spatid,
-                                           spec2DObj.tilts, slits, alignSplines, bins,
+                                           spec2DObj.tilts, slits, alignSplines, darcorr, bins,
                                            all_idx=None, overwrite=self.overwrite,
                                            blaze_wave=self.blaze_wave, blaze_spec=self.blaze_spec,
                                            fluxcal=self.fluxcal, specname=self.specname, whitelight_range=wl_wvrng,
@@ -1160,6 +1265,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.all_tilts.append(spec2DObj.tilts)
             self.all_slits.append(slits)
             self.all_align.append(alignSplines)
+            self.all_dar.append(darcorr)
 
     def run_align(self):
         """
@@ -1237,8 +1343,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             wl_full = generate_image_subpixel(image_wcs, self.all_ra, self.all_dec, self.all_wave,
                                               self.all_sci, self.all_ivar, self.all_wghts,
                                               self.all_spatpos, self.all_specpos, self.all_spatid,
-                                              self.all_tilts, self.all_slits, self.all_align, voxedge, all_idx=self.all_idx,
-                                              spec_subpixel=1, spat_subpixel=1, combine=True)
+                                              self.all_tilts, self.all_slits, self.all_align, self.all_dar, voxedge,
+                                              all_idx=self.all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
             # Compute the weights
             self.all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar, self.all_idx, wl_full[:, :, 0],
                                                       self._dspat, self._dwv, relative_weights=self.cubepar['relative_weights'])
@@ -1287,7 +1393,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.set_voxel_sampling()
 
         # Align the frames
-        if self.align:
+        if self.align and False:
             self.run_align()
 
         # Compute the relative weights on the spectra
@@ -1313,9 +1419,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 np.min(self.mnmx_wv[:, :, 1]),
                                                 self.cubepar['whitelight_range'])
             if self.combine:
+                # TODO :: remove the following line... it's just temporary
+                outfile = datacube.get_output_filename(self.spec2d[0], "", False, 1)
                 generate_cube_subpixel(outfile, cube_wcs, self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
                                        np.ones(self.all_wghts.size),  # all_wghts,
-                                       self.all_spatpos, self.all_specpos, self.all_spatid, self.all_tilts, self.all_slits, self.all_align, vox_edges,
+                                       self.all_spatpos, self.all_specpos, self.all_spatid, self.all_tilts, self.all_slits, self.all_align, self.all_dar, vox_edges,
                                        all_idx=self.all_idx, overwrite=self.overwrite, blaze_wave=self.blaze_wave,
                                        blaze_spec=self.blaze_spec,
                                        fluxcal=self.fluxcal, sensfunc=sensfunc, specname=self.specname, whitelight_range=wl_wvrng,
@@ -1327,7 +1435,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     generate_cube_subpixel(outfile, cube_wcs, self.all_ra[ww], self.all_dec[ww], self.all_wave[ww], self.all_sci[ww],
                                            self.all_ivar[ww], np.ones(self.all_wghts[ww].size),
                                            self.all_spatpos[ww], self.all_specpos[ww], self.all_spatid[ww], self.all_tilts[ff],
-                                           self.all_slits[ff], self.all_align[ff], vox_edges,
+                                           self.all_slits[ff], self.all_align[ff], self.all_dar[ff], vox_edges,
                                            all_idx=self.all_idx[ww], overwrite=self.overwrite, blaze_wave=self.blaze_wave,
                                            blaze_spec=self.blaze_spec,
                                            fluxcal=self.fluxcal, sensfunc=sensfunc, specname=self.specname,
@@ -1336,7 +1444,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
 
 def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                            all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                            all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
                             all_idx=None, spec_subpixel=10, spat_subpixel=10, combine=False):
     """
     Generate a white light image from the input pixels
@@ -1379,6 +1487,9 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
             A Class containing the transformation between detector pixel
             coordinates and WCS pixel coordinates, or a list of Alignment
             Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
             and z wavelength coordinates
@@ -1413,9 +1524,9 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
         numfr = 1
     else:
         numfr = np.unique(_all_idx).size
-        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr:
+        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr or len(all_dar) != numfr:
             msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
-                       + msgs.newline() + "tilts, slits, astrom_trans")
+                       + msgs.newline() + "tilts, slits, astrom_trans, all_dar")
     # Prepare the array of white light images to be stored
     numra = bins[0].size-1
     numdec = bins[1].size-1
@@ -1428,26 +1539,26 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, all_ra, all_dec, all_wave,
                                      all_sci, all_ivar, all_wghts, all_spatpos,
-                                     all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                                     all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, all_idx=_all_idx)
         else:
             ww = np.where(_all_idx == fr)
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
                                      all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
-                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr], bins,
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr],
+                                     all_dar[fr], bins, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
 
 
 def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                           all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
+                           all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
                            all_idx=None, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
                            blaze_spec=None, fluxcal=False, sensfunc=None, whitelight_range=None,
                            specname="PYP_SPEC", debug=False):
-    r"""
+    """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
 
@@ -1491,6 +1602,9 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             A Class containing the transformation between detector pixel
             coordinates and WCS pixel coordinates, or a list of Alignment
             Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
             and z wavelength coordinates
@@ -1549,7 +1663,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
 
     # Subpixellate
     subpix = subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
-                          all_spatid, tilts, slits, astrom_trans, bins, all_idx=all_idx,
+                          all_spatid, tilts, slits, astrom_trans, all_dar, bins, all_idx=all_idx,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=debug)
     # Extract the variables that we need
     if debug:
@@ -1591,7 +1705,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
 
 
 def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
-                 all_spatid, tilts, slits, astrom_trans, bins, all_idx=None,
+                 all_spatid, tilts, slits, astrom_trans, all_dar, bins, all_idx=None,
                  spec_subpixel=10, spat_subpixel=10, debug=False):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
@@ -1644,6 +1758,9 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             A Class containing the transformation between detector pixel
             coordinates and WCS pixel coordinates, or a list of Alignment
             Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
             and z wavelength coordinates
@@ -1677,12 +1794,12 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
         residual cube.  The latter is only returned if debug is True.
     """
     # Check for combinations of lists or not
-    if type(tilts) is list and type(slits) is list and type(astrom_trans) is list:
+    if type(tilts) is list and type(slits) is list and type(astrom_trans) is list and type(all_dar) is list:
         # Several frames are being combined. Check the lists have the same length
         numframes = len(tilts)
-        if len(slits) != numframes or len(astrom_trans) != numframes:
+        if len(slits) != numframes or len(astrom_trans) != numframes or len(all_dar) != numframes:
             msgs.error("The following lists must have the same length:" + msgs.newline() +
-                       "tilts, slits, astrom_trans")
+                       "tilts, slits, astrom_trans, all_dar")
         # Check all_idx has been set
         if all_idx is None:
             if numframes != 1:
@@ -1694,16 +1811,16 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             if tmp != numframes:
                 msgs.warn("Indices in argument 'all_idx' does not match the number of frames expected.")
         # Store in the following variables
-        _tilts, _slits, _astrom_trans = tilts, slits, astrom_trans
+        _tilts, _slits, _astrom_trans, _all_dar = tilts, slits, astrom_trans, all_dar
     elif type(tilts) is not list and type(slits) is not list and \
-            type(astrom_trans) is not list:
+            type(astrom_trans) is not list and type(all_dar) is not list:
         # Just a single frame - store as lists for this code
-        _tilts, _slits, _astrom_trans = [tilts], [slits], [astrom_trans],
+        _tilts, _slits, _astrom_trans, _all_dar = [tilts], [slits], [astrom_trans], [all_dar]
         all_idx = np.zeros(all_sci.size)
         numframes = 1
     else:
         msgs.error("The following input arguments should all be of type 'list', or all not be type 'list':" +
-                   msgs.newline() + "tilts, slits, astrom_trans")
+                   msgs.newline() + "tilts, slits, astrom_trans, all_dar")
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
@@ -1737,22 +1854,31 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             wspl = all_wave[this_sl]
             asrt = np.argsort(yspl)
             wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # Calculate the wavelength at each subpixel
+            this_wave = wave_spl(tiltpos)
+            # Calculate the DAR correction at each sub pixel
+            ra_corr, dec_corr = _all_dar[fr].correction(this_wave)  # This routine needs the wavelengths to be expressed in Angstroms
             # Calculate spatial and spectral positions of the subpixels
             spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
             spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
             # Transform this to spatial location
             spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
             spatpos = _astrom_trans[fr].transform(sl, all_spatpos[this_sl], all_specpos[this_sl])
-            ra_coeff = np.polyfit(spatpos, all_ra[this_sl], 1)
-            dec_coeff = np.polyfit(spatpos, all_dec[this_sl], 1)
-            this_ra = np.polyval(ra_coeff, spatpos_subpix)#ra_spl(spatpos_subpix)
-            this_dec = np.polyval(dec_coeff, spatpos_subpix)#dec_spl(spatpos_subpix)
-            # ssrt = np.argsort(spatpos)
-            # ra_spl = interp1d(spatpos[ssrt], all_ra[this_sl][ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-            # dec_spl = interp1d(spatpos[ssrt], all_dec[this_sl][ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-            # this_ra = ra_spl(spatpos_subpix)
-            # this_dec = dec_spl(spatpos_subpix)
-            this_wave = wave_spl(tiltpos)
+            # OLD (WRONG) ROUTINE
+            # ra_coeff = np.polyfit(spatpos, all_ra[this_sl], 1)
+            # dec_coeff = np.polyfit(spatpos, all_dec[this_sl], 1)
+            # this_ra = np.polyval(ra_coeff, spatpos_subpix)#ra_spl(spatpos_subpix)
+            # this_dec = np.polyval(dec_coeff, spatpos_subpix)#dec_spl(spatpos_subpix)
+            ssrt = np.argsort(spatpos)
+            tmp_ra = all_ra[this_sl]
+            tmp_dec = all_dec[this_sl]
+            ra_spl = interp1d(spatpos[ssrt], tmp_ra[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            dec_spl = interp1d(spatpos[ssrt], tmp_dec[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            this_ra = ra_spl(spatpos_subpix)
+            this_dec = dec_spl(spatpos_subpix)
+            # Now apply the DAR correction
+            this_ra += ra_corr
+            this_dec += dec_corr
             # Convert world coordinates to voxel coordinates, then histogram
             vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
             if histogramdd is not None:
@@ -1799,29 +1925,33 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
     * ------
     * Return updated pixel RA, Dec
     """
+    from pypeit import astrometry
     ############
     ## STEP 1 ## - Create a datacube around Hgamma
     ############
-    embed()
     # Only use a small wavelength range
-    wv_mask = (wave_sort > 4345.0) & (wave_sort < 4359.0)
+    wv_mask = (wave_sort > 4346.0) & (wave_sort < 4358.0)
     # Create a WCS for this subcube
     subcube_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
-                                                                dspat, dwave, collapse=True)
+                                                                dspat, dwave)
     # Create the subcube
     flxcube, varcube, bpmcube = subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
                                              wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
                                              all_spatid[wv_mask], tilts, slits, astrom_trans,
                                              voxedge, all_idx=None,
                                              spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=False)
+    if False:
+        hdu = fits.PrimaryHDU(flxcube)
+        hdu.writeto("tstHg.fits", overwrite=True)
 
-
-    # generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-    #                        all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, bins,
-    #                        all_idx=None, spec_subpixel=10, spat_subpixel=10, overwrite=False, blaze_wave=None,
-    #                        blaze_spec=None, fluxcal=False, sensfunc=None, whitelight_range=None,
-    #                        specname="PYP_SPEC", debug=False)
-
+    ############
+    ## STEP 2 ## - Create an emission line map of Hgamma
+    ############
     # Compute an emission line map that is as consistent as possible to an archival HST image
-
+    HgMap, HgMapErr = astrometry.fit_cube(flxcube.T, varcube.T, subcube_wcs)
+    ############
+    ## STEP 3 ## - Map the emission line map to an HST image, and vice-versa
+    ############
+    ra_corr, dec_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, ra_sort, dec_sort)
+    # embed()
     return ra_corr, dec_corr

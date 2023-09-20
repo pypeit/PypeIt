@@ -330,7 +330,7 @@ plot a wavelength slice of the cube:
 
     from matplotlib import pyplot as plt
     from astropy.visualization import ZScaleInterval, ImageNormalize
-    from pypeit.core.datacube import DataCube
+    from pypeit.coadd3d import DataCube
 
     filename = "datacube.fits"
     cube = DataCube.from_file(filename)
