@@ -1869,11 +1869,19 @@ class HolyGrail:
 
         Args:
             slit (int):
-            tcent_ecent:
-            rms_thresh:
-            wavedata:
+                Slit number
+            tcent_ecent (list):
+                List of `numpy.ndarray`_ objects, [tcent, ecent], which are the
+                centroids and errors of the detections to be used.
+            rms_thresh (float):
+                 RMS threshold for the wavelength solution fit
+            wavedata (`numpy.ndarray`_, optional):
+                Line list; see ``linelist`` argument in, e.g.,
+                :func:`~pypeit.core.wavecal.patterns.triangles`.
 
         Returns:
+            tuple:  Returns two dictionaries, one containing information about the best pattern,
+            and the other containing the information about the best final fit.
 
         """
         # Set the parameter space that gets searched
