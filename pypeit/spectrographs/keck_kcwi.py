@@ -86,6 +86,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps
@@ -211,11 +212,11 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['WXPRESS'] * 100.0  # Must be in astropy.units.pascal
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 0.611 bar")
-                return 0.611
+                msgs.info("The default pressure will be assumed: 61.1 kPa")
+                return 61.1E3
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
@@ -225,11 +226,18 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
-                return headarr[0]['WXOUTHUM'] / 100.0
+                # Humidity expressed as a percentage, not a fraction
+                return headarr[0]['WXOUTHUM']
             except KeyError:
                 msgs.warn("Humidity is not in header")
                 msgs.info("The default relative humidity will be assumed: 20 %")
-                return 0.2  # van Kooten & Izett, arXiv:2208.11794
+                return 20.0  # van Kooten & Izett, arXiv:2208.11794
+        elif meta_key == 'parangle':
+            try:
+                # Parallactic angle expressed in radians
+                return headarr[0]['PARANG'] * np.pi / 180
+            except KeyError:
+                msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         else:

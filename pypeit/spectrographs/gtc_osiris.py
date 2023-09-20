@@ -173,22 +173,30 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             return binning
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['PRESSURE'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['PRESSURE']  # Must be in astropy.units.pascal
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                return 0.0
+                msgs.info("The default pressure will be assumed: 61.1 kPa")
+                return 61.1E3
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
                 msgs.warn("Temperature is not in header")
-                return 0.0
+                msgs.info("The default temperature will be assumed: 1.5 deg C")
+                return 1.5
         elif meta_key == 'humidity':
             try:
                 return headarr[0]['HUMIDITY']
             except KeyError:
                 msgs.warn("Humidity is not in header")
-                return 0.0
+                msgs.info("The default relative humidity will be assumed: 20 %")
+                return 20.0
+        elif meta_key == 'parangle':
+            try:
+                return headarr[0]['PARANG']  # Must be expressed in radians
+            except KeyError:
+                msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
@@ -439,6 +447,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
 
     @classmethod
     def default_pypeit_par(cls):
