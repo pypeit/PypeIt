@@ -611,17 +611,12 @@ class BuildWaveCalib:
 
         # Save for redo's
         self.measured_fwhms = measured_fwhms
-        # determine rms threshold
-        _med_fwhm = np.median(measured_fwhms[measured_fwhms!=0]) if np.any(measured_fwhms!=0) else None
-        fwhm_for_thresh = autoid.set_fwhm(self.par, measured_fwhm=_med_fwhm)
-        self.wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm_for_thresh,3)
 
         # Obtain calibration for all slits
         if method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, 
                                          ok_mask=ok_mask_idx,
-                                         rms_thresh=self.wave_rms_thresh,
                                          measured_fwhms=self.measured_fwhms,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
@@ -642,7 +637,7 @@ class BuildWaveCalib:
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(
-                arccen, self.lamps, self.par, self.wave_rms_thresh,
+                arccen, self.lamps, self.par,
                 ech_fixed_format=self.spectrograph.ech_fixed_format, 
                 ok_mask=ok_mask_idx,
                 measured_fwhms=self.measured_fwhms,
@@ -686,7 +681,7 @@ class BuildWaveCalib:
             #ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
-                self.lamps, self.par, self.wave_rms_thresh, ok_mask=ok_mask_idx,
+                self.lamps, self.par, ok_mask=ok_mask_idx,
                 measured_fwhms=self.measured_fwhms,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, 
@@ -710,7 +705,11 @@ class BuildWaveCalib:
             # Save the new fits (if they meet tolerance)
             for key in final_fit.keys():
                 idx = int(key)
-                if final_fit[key]['rms'] < self.wave_rms_thresh:
+                # get FWHM for this slit
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[idx], verbose=True)
+                # get rms threshold for this slit
+                wave_rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
+                if final_fit[key]['rms'] < wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
@@ -810,6 +809,8 @@ class BuildWaveCalib:
                                     x2=np.ones_like(spec_vec_norm)*order)/order
                 # get FWHM for this order
                 fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord], verbose=True)
+                # get rms threshold for this order
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
                 # Link me
                 tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                     self.lamps, self.arccen[:,iord], wv_order_mod, 
@@ -841,7 +842,7 @@ class BuildWaveCalib:
                 # Keep?
                 # TODO -- Make this a parameter?
                 increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*self.wave_rms_thresh:
+                if final_fit['rms'] < increase_rms*wave_rms_thresh:
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -1084,8 +1085,15 @@ class BuildWaveCalib:
         if self.par['echelle']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            # Test and scale by measured_fwhms 
-            bad_rms = rms > self.wave_rms_thresh
+            # Test and scale by measured_fwhms
+            # get used FWHM
+            if self.measured_fwhms is not None:
+                fwhm = [autoid.set_fwhm(self.par, measured_fwhm=m_fwhm) for m_fwhm in self.measured_fwhms]
+            else:
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=None)
+            # get rms threshold for each slit
+            wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            bad_rms = rms > wave_rms_thresh
             #embed(header='line 975 of wavecalib.py')
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True

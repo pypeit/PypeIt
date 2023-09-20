@@ -146,7 +146,6 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Wavelengths
         # 1D wavelength solution with OH lines
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.2
-        par['calibrations']['wavelengths']['fwhm'] = 5.
         par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=[3,3,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
@@ -392,7 +391,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
         par['calibrations']['wavelengths']['sigdetect']=3
         par['calibrations']['wavelengths']['fwhm'] = 10
         par['calibrations']['wavelengths']['n_first']=2

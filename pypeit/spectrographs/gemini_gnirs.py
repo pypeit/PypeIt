@@ -322,8 +322,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
 
             # Wavelengths
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.4  # Might be grating dependent..
-            par['calibrations']['wavelengths']['fwhm'] = 2.5
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.4
             par['calibrations']['wavelengths']['sigdetect'] = 5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -355,7 +354,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
             # Wavelengths
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 1.0  # Might be grating dependent..
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
             par['calibrations']['wavelengths']['sigdetect'] = 5.0
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_GNIRS']
             # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
