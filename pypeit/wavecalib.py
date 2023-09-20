@@ -1087,7 +1087,7 @@ class BuildWaveCalib:
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # get used FWHM
             fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
-                else self.measured_fwhms
+                else self.measured_fwhms.astype(float)
             # get rms threshold for all orders
             wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
             bad_rms = rms > wave_rms_thresh
