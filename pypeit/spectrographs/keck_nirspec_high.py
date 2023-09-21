@@ -545,6 +545,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+            par['calibrations']['slitedges']['overlap'] = False
             
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
@@ -554,6 +556,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+            par['calibrations']['slitedges']['overlap'] = False
 
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -946,7 +950,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
-            
+
+            par['calibrations']['slitedges']['overlap'] = False
+
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
@@ -955,6 +961,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+            par['calibrations']['slitedges']['overlap'] = False
 
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3

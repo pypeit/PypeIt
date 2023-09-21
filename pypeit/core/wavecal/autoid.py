@@ -1082,6 +1082,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         temp_spec = template_dict['spec']
         temp_bin = template_dict['bin']
 
+    temp_wv = np.sort(np.reshape(temp_wv, -1))
+    temp_spec = np.reshape(temp_spec, -1)[np.argsort(np.reshape(temp_wv, -1))]
+
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
         msgs.info("Resizing the template due to different binning.")
@@ -1134,7 +1137,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             pad_spec = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=50.0) #par['xcorr_percent_ceil'])
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -1186,6 +1189,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
+                                                              #percent_ceil = par['xcorr_percent_ceil'],
                                                               cc_thresh=0.1, fwhm=fwhm)
             # Deal with IDs
             sv_det.append(j0 + detections)
