@@ -15,6 +15,7 @@ Submodules
    pypeit.spectrographs.jwst_nircam
    pypeit.spectrographs.jwst_nirspec
    pypeit.spectrographs.keck_deimos
+   pypeit.spectrographs.keck_esi
    pypeit.spectrographs.keck_hires
    pypeit.spectrographs.keck_kcwi
    pypeit.spectrographs.keck_lris
@@ -26,6 +27,7 @@ Submodules
    pypeit.spectrographs.ldt_deveny
    pypeit.spectrographs.magellan_fire
    pypeit.spectrographs.magellan_mage
+   pypeit.spectrographs.mdm_modspec
    pypeit.spectrographs.mdm_osmos
    pypeit.spectrographs.mmt_binospec
    pypeit.spectrographs.mmt_bluechannel

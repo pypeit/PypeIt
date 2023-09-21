@@ -122,9 +122,9 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
-        obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        obj_skyspec (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Spectrum of the sky related to our object
-        arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        arx_skyspec (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Archived sky spectrum
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
@@ -321,9 +321,9 @@ def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=
     """
 
     Args:
-        arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        arx_skyspec (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Archived sky spectrum.
-        obj_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        obj_skyspec (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Sky spectrum associated with the science target.
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
@@ -409,7 +409,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
             this list are sky spectra, extracted from the center of each slit.
         islit (:obj:`int`):
             Index of the slit where the sky spectrum related to our object is.
-        sky_spectrum (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        sky_spectrum (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Archived sky spectrum.
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
@@ -478,11 +478,11 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
             Slit trace set.
         slitord (`numpy.ndarray`_):
             Array of slit/order numbers.
-        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
+        specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
             Spectral extractions.
         islit (:obj:`int`):
             Index of the slit where the sky spectrum related to our object is.
-        sky_spectrum (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
+        sky_spectrum (`linetools.spectra.xspectrum1d.XSpectrum1d`_):
             Archived sky spectrum.
         arx_fwhm_pix (:obj:`float`):
             Spectral FWHM (in pixels) of the archived sky spectrum.
@@ -611,7 +611,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                   extracted. This method uses a spectrum (stored in
                   slitspecs) that is extracted from the center of
                   each slit.
-        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
+        specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
             Spectral extractions
         slit_specs (:obj:`list`, optional):
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
@@ -816,8 +816,8 @@ def get_archive_spectrum(sky_file):
             Sky file
 
     Returns:
-        (:obj:`XSpectrum1D`): Sky spectrum
-        (float): FWHM of the sky lines in pixels.
+        tuple: The sky spectrum (`linetools.spectra.xspectrum1d.XSpectrum1D`_)
+        and the FWHM (float) of the sky lines in pixels.
     """
     # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
     # multiple times
@@ -859,7 +859,7 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
             extracted.  For example, DET01.
 
     Returns:
-        (:obj:`XSpectrum1D`): Sky spectrum
+        (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
     spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
     spec.trace_spec = np.arange(slits.nspec)
@@ -918,9 +918,9 @@ def spec_flexure_qa(slitords, bpm, basename, flex_list,
             Used to generate the output file name
         flex_list (list):
             list of :obj:`dict` objects containing the flexure information
-        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
+        specobjs (:class:`~pypeit.specobjs.SpecObjs`, optional):
             Spectrally extracted objects
-        out_dir (str, optonal):
+        out_dir (str, optional):
             Path to the output directory for the QA plots.  If None, the current
             is used.
     """
@@ -1065,29 +1065,30 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
     skimage is not installed, a standard (unmasked) cross-correlation is used.
 
 
-    Args:
-        im_ref (`numpy.ndarray`_):
-            Reference image
-        imshift (`numpy.ndarray`_):
-            Image that we want to measure the shift of (relative to im_ref)
-        gpm_ref (`numpy.ndarray`_):
-            Mask of good pixels (True = good) in the reference image
-        gpm_shift (`numpy.ndarray`_):
-            Mask of good pixels (True = good) in the shifted image
-        maskval (float, optional):
-            If gpm_ref and gpm_shift are both None, a single value can be specified
-            and this value will be masked in both images.
+    Parameters
+    ----------
+    im_ref : `numpy.ndarray`_
+        Reference image
+    imshift : `numpy.ndarray`_
+        Image that we want to measure the shift of (relative to im_ref)
+    gpm_ref : `numpy.ndarray`_
+        Mask of good pixels (True = good) in the reference image
+    gpm_shift : `numpy.ndarray`_
+        Mask of good pixels (True = good) in the shifted image
+    maskval : float, optional
+        If gpm_ref and gpm_shift are both None, a single value can be specified
+        and this value will be masked in both images.
 
-    Returns:
-        ra_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (x direction).
-            In order to align image with im_ref, ra_diff should be added to the
-            x-coordinates of image
-        dec_diff (float):
-            Relative shift (in pixels) of image relative to im_ref (y direction).
-            In order to align image with im_ref, dec_diff should be added to the
-            y-coordinates of image
-
+    Returns
+    -------
+    ra_diff : float
+        Relative shift (in pixels) of image relative to im_ref (x direction).
+        In order to align image with im_ref, ra_diff should be added to the
+        x-coordinates of image
+    dec_diff : float
+        Relative shift (in pixels) of image relative to im_ref (y direction).
+        In order to align image with im_ref, dec_diff should be added to the
+        y-coordinates of image
     """
     # Do some checks first
     try:
@@ -1328,7 +1329,7 @@ class MultiSlitFlexure(DataContainer):
 
     internals = ['flex_par',        # Parameters (FlexurePar)
                  'spectrograph',    # spectrograph
-                 'specobjs',        # Specobjs object
+                 'specobjs',        # SpecObjs object
                  'sobj_idx',        # (ndet, nslits); Index to specobjs (tuple of arrays)
                  'sky_table',       # Sky line table
                  # 2D models

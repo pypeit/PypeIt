@@ -55,14 +55,14 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             binning = '1,1'
             gain = None
             ronoise = None
-            darkcurr = None
+            darkcurr = None  # e-/pixel/hour
             datasec = None
             oscansec = None
         else:
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
-            darkcurr = hdu[0].header['DARKCUR']
+            darkcurr = hdu[0].header['DARKCUR']  # units are e-/pixel/hour
             datasec = np.atleast_1d(hdu[0].header['DATASEC'])
             oscansec = np.atleast_1d(hdu[0].header['BIASSEC'])
 
@@ -78,7 +78,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.3,
-            darkcurr        = darkcurr, #header['DARKCUR'],
+            darkcurr        = darkcurr,  # units are e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.95,  # need to look up and update
             mincounts       = -1e10,

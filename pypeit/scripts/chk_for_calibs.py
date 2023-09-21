@@ -35,7 +35,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
             args:
 
         Returns:
-            astropy.table.Table:
+            `astropy.table.Table`_:
 
         """
 

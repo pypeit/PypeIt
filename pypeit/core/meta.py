@@ -1,7 +1,7 @@
 """
-Provides methods common to :class:`pypeit.metadata.PypeItMetaData` and
-:class:`pypeit.spectographs.spectrograph.Spectrograph` that define the
-common metadata used for all specrographs.
+Provides methods common to :class:`~pypeit.metadata.PypeItMetaData` and
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph` that define the
+common metadata used for all spectrographs.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst

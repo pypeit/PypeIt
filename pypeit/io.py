@@ -9,6 +9,7 @@ Provides a set of I/O routines.
 """
 import os
 from pathlib import Path
+import importlib
 import glob
 import sys
 import warnings
@@ -880,3 +881,45 @@ def files_from_extension(raw_path,
         return numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path]).tolist()
 
     msgs.error(f"Incorrect type {type(raw_path)} for raw_path (must be str or list)")
+
+
+
+def load_object(module, obj=None):
+    """
+    Load an abstracted module and object.
+
+    Thanks to: https://stackoverflow.com/questions/67631/how-to-import-a-module-given-the-full-path?rq=1
+
+    Args:
+        module (:obj:`str`):
+            The name of a global python module, the root name of a local file
+            with the object to import, or the full module + object type.  If
+            ``obj`` is None, this *must* be the latter.
+        obj (:obj:`str`, optional):
+            The name of the object to import.  If None, ``module`` must be the
+            full module + object type name.
+
+    Return:
+        :obj:`type`: The imported object.
+
+    Raises:
+        ImportError:
+            Raised if unable to import ``module``.
+    """
+    if obj is None:
+        _module = '.'.join(module.split('.')[:-1])
+        obj = module.split('.')[-1]
+    else:
+        _module = module
+
+    try:
+        Module = importlib.import_module(_module)
+    except (ModuleNotFoundError, ImportError, TypeError) as e:
+        p = Path(module + '.py').resolve()
+        if not p.exists():
+            raise ImportError(f'Unable to load module {_module}!') from e
+        spec = importlib.util.spec_from_file_location(_module, str(p))
+        Module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(Module)
+
+    return getattr(Module, obj)

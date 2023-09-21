@@ -92,9 +92,9 @@ class Calibrations:
             Tilt calibration frame
         alignments (:class:`~pypeit.alignframe.Alignments`):
             Alignment calibration frame
-        msbias (:class:`~pypeit.buildimage.BiasImage`):
+        msbias (:class:`~pypeit.images.buildimage.BiasImage`):
             Bias calibration frame
-        msdark (:class:`~pypeit.buildimage.DarkImage`):
+        msdark (:class:`~pypeit.images.buildimage.DarkImage`):
             Dark calibration frame
         msbpm (`numpy.ndarray`_):
             Boolean array with the bad-pixel mask (pixels that should masked are
@@ -829,13 +829,16 @@ class Calibrations:
             self.wv_calib = None
             return self.wv_calib
 
-        # If a processed calibration frame exists and we want to reuse it, do
-        # so:
-        if cal_file.exists() and self.reuse_calibs:
+        # If a processed calibration frame exists and 
+        # we want to reuse it, do so (or just load it):
+        if cal_file.exists() and self.reuse_calibs: 
+            # Load the file
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
-            return self.wv_calib
+            # Return
+            if self.par['wavelengths']['redo_slits'] is None:
+                return self.wv_calib
 
         # Determine lamp list to use for wavecalib
         # Find all the arc frames in this calibration group
@@ -857,9 +860,12 @@ class Calibrations:
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)
-        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa))
+        self.wv_calib = waveCalib.run(skip_QA=(not self.write_qa),
+                                      prev_wvcalib=self.wv_calib)
         # If orders were found, save slits to disk
-        if self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format:
+        #   or if redo_slits
+        if (self.par['wavelengths']['redo_slits'] is not None) or (
+            self.spectrograph.pypeline == 'Echelle' and not self.spectrograph.ech_fixed_format):
             self.slits.to_file()
         # Save calibration frame
         self.wv_calib.to_file()

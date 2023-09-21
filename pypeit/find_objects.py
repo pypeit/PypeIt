@@ -32,18 +32,18 @@ class FindObjects:
     science or standard-star exposures.
 
     Args:
-        sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
+        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
             Image to reduce.
-        slits (:class:`~pypeit.slittrace.SlitTracSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Object providing slit traces for the image to reduce.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            PypeIt Sspectrograph class
-        par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
+            PypeIt Spectrograph class
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             Reduction parameters class
         objtype (:obj:`str`):
             Specifies object being reduced.  Should be 'science',
             'standard', or 'science_coadd2d'.
-        wv_calib (:class:`~pypeit.wavetilts.WaveCalib`, optional):
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
             This is only used for the IFU child when a joint sky subtraction
             is requested.
         waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
@@ -71,7 +71,7 @@ class FindObjects:
             Clear the ginga window before showing the object finding results.
         basename (:obj:`str`, optional):
             Base name for output files
-        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
+        manual (:class:`~pypeit.manual_extract.ManualExtractionObj`, optional):
             Object containing manual extraction instructions/parameters.
 
     Attributes:
@@ -91,7 +91,7 @@ class FindObjects:
             Final output mask
         extractmask (`numpy.ndarray`_):
             Extraction mask
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Objects found
         spat_flexure_shift (:obj:`float`):
@@ -162,8 +162,8 @@ class FindObjects:
             self.spat_flexure_shift = None
 
         # Initialise the slits
-        msgs.info("Initialising slits")
-        self.initialise_slits(slits)
+        msgs.info("Initializing slits")
+        self.initialize_slits(slits)
 
         # Internal bpm mask
         # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
@@ -269,9 +269,10 @@ class FindObjects:
         # Return
         return skymask
 
-    def initialise_slits(self, slits, initial=False):
+    # TODO Make this a method possibly in slittrace.py. Almost identical code is in extraction.py
+    def initialize_slits(self, slits, initial=False):
         """
-        Gather all the :class:`SlitTraceSet` attributes
+        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes
         that we'll use here in :class:`FindObjects`
 
         Args:
@@ -284,8 +285,18 @@ class FindObjects:
         # Slits
         self.slits = slits
         # Select the edges to use
+        # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
             = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+        # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
+        # to return a new slits object with the desired selection criteria which would remove the ambiguity
+        # about whether the slits and the slitmask are in sync.
+        #bpm = self.slits.mask.astype(bool)
+        #bpm &= np.invert(self.slits.bitmask.flagged(self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing + ['BOXSLIT']))
+        #gpm = np.logical_not(bpm)
+        #self.slits_left = slits_left[:, gpm]
+        #self.slits_right = slits_right[:, gpm]
+
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -297,6 +308,8 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
+    # TODO There are going to be problems with std_trace not being aligned with whatever orders are getting masked in
+    # this routine.
     def run(self, std_trace=None, show_peaks=False, show_skysub_fit=False):
         """
         Primary code flow for object finding in PypeIt reductions
@@ -480,11 +493,15 @@ class FindObjects:
             skymask (`numpy.ndarray`_, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
+                ??
             trim_edg (tuple, optional):
                  A two tuple of ints that specify the number of pixels to trim from the slit edges
             show_fit (bool, optional):
+                ??
             show (bool, optional):
+                ??
             show_objs (bool, optional):
+                ??
             previous_sky (`numpy.ndarray`_, optional):
                 Sky model estimate from a previous run of global_sky
                 Used to generate an improved estimated of the variance
@@ -588,25 +605,22 @@ class FindObjects:
         Show one of the internal images
 
         .. todo::
-            Should probably put some of these in ProcessImages
+
+            - This docstring is incomplete!
 
         Parameters
         ----------
         attr : str
-          global -- Sky model (global)
-          sci -- Processed science image
-          rawvar -- Raw variance image
-          modelvar -- Model variance image
-          crmasked -- Science image with CRs set to 0
-          skysub -- Science image with global sky subtracted
-          image -- Input image
-        display : str, optional
+            String specifying the image to show.  Options are:
+                - global -- Sky model (global)
+                - sci -- Processed science image
+                - rawvar -- Raw variance image
+                - modelvar -- Model variance image
+                - crmasked -- Science image with CRs set to 0
+                - skysub -- Science image with global sky subtracted
+                - image -- Input image
         image : ndarray, optional
-          User supplied image to display
-
-        Returns
-        -------
-
+            User supplied image to display
         """
         mask_in = self.sciImg.fullmask if showmask else None
 
@@ -714,7 +728,7 @@ class MultiSlitFindObjects(FindObjects):
 
         Returns
         -------
-        specobjs : :class:`~pypeot.specobjs.Specobjs`
+        specobjs : :class:`~pypeit.specobjs.SpecObjs`
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
@@ -862,7 +876,7 @@ class EchelleFindObjects(FindObjects):
 
         Returns
         -------
-        specobjs : :class:`~pypeit.specobjs.Specobjs`
+        specobjs : :class:`~pypeit.specobjs.SpecObjs`
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
@@ -894,16 +908,16 @@ class EchelleFindObjects(FindObjects):
         nperorder =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
             else self.par['reduce']['findobj']['maxnumber_sci']
 
+        reduce_gpm = np.logical_not(self.reduce_bpm)
         sobjs_ech = findobj_skymask.ech_objfind(
-            image, ivar, self.slitmask, self.slits_left, self.slits_right,
-            self.order_vec, self.reduce_bpm, 
-            self.slits.spat_id,
-            np.vstack((self.slits.specmin, self.slits.specmax)),
+            image, ivar, self.slitmask, self.slits_left[:, reduce_gpm], self.slits_right[:, reduce_gpm],
+            self.slits.spat_id[reduce_gpm], self.order_vec[reduce_gpm],
+            np.vstack((self.slits.specmin, self.slits.specmax))[:, reduce_gpm],
             det=self.det,
             inmask=inmask, 
             ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             manual_extract_dict=manual_extract_dict, 
-            plate_scale=plate_scale,
+            plate_scale=plate_scale[reduce_gpm],
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             snr_thresh=self.par['reduce']['findobj']['snr_thresh'],
@@ -938,7 +952,7 @@ class IFUFindObjects(MultiSlitFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-        self.initialise_slits(slits, initial=True)
+        self.initialize_slits(slits, initial=True)
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,

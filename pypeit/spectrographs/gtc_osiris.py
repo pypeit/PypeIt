@@ -65,7 +65,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
-            darkcurr        = 5.0,
+            darkcurr        = 5.0,  #e-/hr/pixel
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -500,7 +500,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
                 Change in wavelength per spectral pixel.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
@@ -657,7 +657,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -676,7 +676,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,

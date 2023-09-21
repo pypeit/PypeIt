@@ -5,11 +5,11 @@
     
     # User-defined execution parameters
     [rdx]
-    spectrograph = gemini_gnirs
-    [calibrations]
-     [[wavelengths]]
-        rms_threshold = 0.8, 0.4, 0.8, 0.8, 0.5, 0.9
-        sigdetect = 5.,5.,6.,6.,5.,7.
+    spectrograph = gemini_gnirs_echelle
+    #[calibrations]
+    # [[wavelengths]]
+    #    rms_threshold = 0.8, 0.4, 0.8, 0.8, 0.5, 0.9
+    #    sigdetect = 5.,5.,6.,6.,5.,7.
     
     # Setup
     setup read
@@ -18,7 +18,7 @@
     
     # Read in the data
     data read
-     path /Users/joe/python/PypeIt-development-suite/RAW_DATA/gemini_gnirs/32_SB_SXD/
+     path /Users/joe/python/PypeIt-development-suite/RAW_DATA/gemini_gnirs_echelle/32_SB_SXD/
     |             filename |       date |       frametype |   target | exptime |      dispname |     decker | setup | calib  | dispangle | idname | comb_id | bkg_id |
     | cN20170331S0206.fits | 2017-03-31 |        standard | HIP62745 |    10.0 | 32/mmSB_G5533 | SCXD_G5531 |     A |     0  |    6.1887 | OBJECT |       5 |     6  |
     | cN20170331S0207.fits | 2017-03-31 |        standard | HIP62745 |    10.0 | 32/mmSB_G5533 | SCXD_G5531 |     A |     0  |    6.1887 | OBJECT |       6 |     5  |

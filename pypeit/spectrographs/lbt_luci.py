@@ -460,7 +460,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             else:
                 msgs.error("Read mode not recognized (options: LIR, MER)")
                 raise ValueError()
-            
+
             camera = self.get_meta_value(self.get_headarr(hdu), 'camera')
             if camera == 'N1.8 Camera':
                 platescale = 0.2500
@@ -503,10 +503,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             # included here.
             oscansec=np.atleast_1d('[5:2044,1:4]'),
             )
-            
-        detector = detector_container.DetectorContainer(**detector_dict)
-
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -533,7 +530,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 10.
         par['calibrations']['slitedges']['edge_thresh'] = 30.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        
+
         # Large chunk of long slit is lost with default tweak threshold.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
@@ -572,7 +569,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # par['scienceframe']['process']['satpix'] = 'reject'
 
         return par
-        
+
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces that are key
@@ -615,15 +612,15 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        
+
         detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
-        
+
         # Non-linearity correction
         # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
         # I assume that the correction applies to each DIT, not the full exposure.
         ndit = hdu[0].header['NDIT']
         raw = ndit*(raw/ndit + 2.767e-6*((raw/ndit)**2.0))
-        
+
         return detector, raw, hdu, texp, datasec, oscansec
 
 
@@ -735,11 +732,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             datasec= np.atleast_1d('[5:2044,5:2044]'),
             oscansec= np.atleast_1d('[5:2044,1:4]'),
             )
-            
-            
-        detector = detector_container.DetectorContainer(**detector_dict)
-        
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -761,7 +754,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
-        
+
         # Large chunk of slit is lost with default tweak threshold.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.85
 
@@ -779,7 +772,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['findobj']['maxnumber_std'] = 1
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        
+
 
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
@@ -802,7 +795,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # par['scienceframe']['process']['satpix'] = 'reject'
 
         return par
-        
+
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces that are key
@@ -845,14 +838,14 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             pixel. Pixels unassociated with any amplifier are set to 0.  Shape
             is identical to ``raw_img``.
         """
-        
+
         detector, raw, hdu, texp, datasec, oscansec = super().get_rawimage(raw_file, det)
-        
+
         # Non-linearity correction
         # See: https://scienceops.lbto.org/luci/instrument-characteristics/detector/
         ndit = hdu[0].header['NDIT']
         raw = ndit*(raw/ndit+2.898e-6*((raw/ndit)**2.0))
-        
+
         return detector, raw, hdu, texp, datasec, oscansec
 
     def config_specific_par(self, scifile, inp_par=None):

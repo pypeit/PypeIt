@@ -109,7 +109,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         specflip        = specflip,
                         spatflip        = False,
                         platescale      = 0.145728,  # arcsec/pixel
-                        darkcurr        = None,  # <-- TODO : Need to set this
+                        darkcurr        = 1.0,  # e-/hour/unbinned pixel
                         mincounts       = -1e10,
                         saturation      = 65535.,
                         nonlinear       = 0.95,       # For lack of a better number!
@@ -851,7 +851,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 the platescale will be used.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Generating KCWI WCS")
         # Get the x and y binning factors, and the typical slit length
