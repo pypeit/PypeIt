@@ -567,6 +567,11 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
+        
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MountGraham_9000_25000_R15000.fits'
+
 
         return par
 
@@ -793,6 +798,10 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
+        
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MountGraham_9000_25000_R15000.fits'
 
         return par
 
