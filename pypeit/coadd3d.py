@@ -9,7 +9,6 @@ import copy
 import inspect
 
 from astropy import wcs, units
-from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from scipy.interpolate import interp1d
 import numpy as np
@@ -205,11 +204,11 @@ class DARcorrection:
         Args:
             hdr0 (`astropy.io.fits.Header`_):
                 Header of the spec2d file. This input should be retrieved from spec2DObj.head0
+            cosdec (:obj:`float`):
+                Cosine of the target declination.
             spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
                 The name or instance of the spectrograph used to obtain the data.
                 If None, this is pulled from the file header.
-            cosdec (:obj:`float`):
-                Cosine of the target declination.
             wave_ref (:obj:`float`, optional):
                 Reference wavelength (The DAR correction will be performed relative to this wavelength)
         """
@@ -767,49 +766,6 @@ class CoAdd3D:
             msgs.info("Using the following frame for sky subtraction:" + msgs.newline() + this_skysub)
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
-
-    # def compute_DAR(self, hdr0, waves, cosdec, wave_ref=None):
-    #     """
-    #     Compute the differential atmospheric refraction correction for a given frame.
-    #
-    #     Args:
-    #         hdr0 (`astropy.io.fits.Header`_):
-    #             Header of the spec2d file. This input should be retrieved from spec2DObj.head0
-    #         waves (`numpy.ndarray`_):
-    #             1D flattened array containing the wavelength of each pixel (units = Angstroms)
-    #         cosdec (:obj:`float`):
-    #             Cosine of the target declination.
-    #         wave_ref (:obj:`float`, optional):
-    #             Reference wavelength (The DAR correction will be performed relative to this wavelength)
-    #
-    #     Returns:
-    #         `numpy.ndarray`_: 1D differential RA for each wavelength of the input waves array
-    #         `numpy.ndarray`_: 1D differential Dec for each wavelength of the input waves array
-    #     """
-    #     if wave_ref is None:
-    #         wave_ref = 0.5 * (np.min(waves) + np.max(waves))
-    #     # Get DAR parameters
-    #     raval = self.spec.get_meta_value([hdr0], 'ra')
-    #     decval = self.spec.get_meta_value([hdr0], 'dec')
-    #     obstime = self.spec.get_meta_value([hdr0], 'obstime')
-    #     pressure = self.spec.get_meta_value([hdr0], 'pressure')
-    #     temperature = self.spec.get_meta_value([hdr0], 'temperature')
-    #     rel_humidity = self.spec.get_meta_value([hdr0], 'humidity')
-    #     coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-    #     location = self.spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
-    #     # Set a default value
-    #     ra_corr, dec_corr = 0.0, 0.0
-    #     if pressure == 0.0:
-    #         msgs.warn("Pressure is set to zero - DAR correction will not be performed")
-    #     else:
-    #         msgs.info("DAR correction parameters:" + msgs.newline() +
-    #                   "   Pressure = {0:f} bar".format(pressure) + msgs.newline() +
-    #                   "   Temperature = {0:f} deg C".format(temperature) + msgs.newline() +
-    #                   "   Humidity = {0:f}".format(rel_humidity))
-    #         ra_corr, dec_corr = datacube.correct_dar(waves, coord, obstime, location,
-    #                                                  pressure * units.bar, temperature * units.deg_C, rel_humidity,
-    #                                                  wave_ref=wave_ref)
-    #     return ra_corr, dec_corr
 
     def align_user_offsets(self):
         """
