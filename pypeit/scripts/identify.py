@@ -150,7 +150,7 @@ class Identify(scriptbase.ScriptBase):
             
             
             #wv_calib.to_file()
-            
+        wv_calib.wv_fit2d=None
             # Ask the user if they wish to store the result in PypeIt calibrations
         arcfitter.store_solution(final_fit, slits.binspec,
                                 wvcalib=wv_calib,
