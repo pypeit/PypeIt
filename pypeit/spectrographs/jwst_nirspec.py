@@ -3,7 +3,6 @@ Module for JWST NIRSpec specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 
 from pypeit import msgs
