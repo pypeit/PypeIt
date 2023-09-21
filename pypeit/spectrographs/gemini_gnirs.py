@@ -158,6 +158,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'parangle':
             try:
                 # Humidity expressed as a percentage, not a fraction
+                msgs.work("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
                 return headarr[0]['PARANGLE']  # Must be expressed in radians
             except KeyError:
                 msgs.warn("Parallactic angle is not in header!")

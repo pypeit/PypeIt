@@ -194,6 +194,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
                 return 20.0
         elif meta_key == 'parangle':
             try:
+                msgs.work("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
                 return headarr[0]['PARANG']  # Must be expressed in radians
             except KeyError:
                 msgs.error("Parallactic angle is not in header")
