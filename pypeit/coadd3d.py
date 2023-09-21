@@ -1053,10 +1053,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             relScale = spec2DObj.scaleimg / relScaleImg  # This factor is applied to the sky subtracted science frame
 
             # Extract the relevant information from the spec2d file
-            # sciImg = (spec2DObj.sciimg - skyImg * relSclSky) * relScale  # Subtract sky and apply relative illumination
-            # ivar = spec2DObj.ivarraw / relScale ** 2
-            sciImg = spec2DObj.sciimg
-            ivar = spec2DObj.ivarraw
+            sciImg = (spec2DObj.sciimg - skyImg * relSclSky) * relScale  # Subtract sky and apply relative illumination
+            ivar = spec2DObj.ivarraw / relScale ** 2
             waveimg = spec2DObj.waveimg
             bpmmask = spec2DObj.bpmmask
 
@@ -1204,15 +1202,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             ##################################
             # Astrometric alignment to HST frames
             # TODO :: RJC requests this remains here... it is only used by RJC
-            # _ra_sort, _dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
-            #                                   np.ones(ra_sort.size), this_spatpos[wvsrt], this_specpos[wvsrt],
-            #                                   this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines)
-            # ra_del = np.median(_ra_sort-ra_sort)
-            # dec_del = np.median(_dec_sort-dec_sort)
-            # ra_sort = _ra_sort
-            # dec_sort = _dec_sort
-            # spec2DObj.head0['RA'] += ra_del
-            # spec2DObj.head0['DEC'] += dec_del
+            _ra_sort, _dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
+                                              np.ones(ra_sort.size), this_spatpos[wvsrt], this_specpos[wvsrt],
+                                              this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines, darcorr)
+            ra_del = np.median(_ra_sort-ra_sort)
+            dec_del = np.median(_dec_sort-dec_sort)
+            ra_sort = _ra_sort
+            dec_sort = _dec_sort
+            spec2DObj.head0['RA'] += ra_del
+            spec2DObj.head0['DEC'] += dec_del
             ##################################
 
             # If individual frames are to be output without aligning them,
@@ -1907,7 +1905,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
 
 def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwave,
                   wghts, spatpos, specpos,
-                  all_spatid, tilts, slits, astrom_trans,
+                  all_spatid, tilts, slits, astrom_trans, all_dar,
                   spat_subpixel=10, spec_subpixel=10):
     """
     This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
@@ -1937,7 +1935,7 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
     # Create the subcube
     flxcube, varcube, bpmcube = subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
                                              wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
-                                             all_spatid[wv_mask], tilts, slits, astrom_trans,
+                                             all_spatid[wv_mask], tilts, slits, astrom_trans, all_dar,
                                              voxedge, all_idx=None,
                                              spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=False)
     if False:
