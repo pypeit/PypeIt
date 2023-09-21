@@ -50,7 +50,7 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file, det, wvrng=None):
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray,int]:
     """
     Load a full template file from disk
 
@@ -73,6 +73,9 @@ def load_template(arxiv_file, det, wvrng=None):
         binning of the template arc spectrum
 
     """
+    if not isinstance(arxiv_file, (str, pathlib.Path)):
+        msgs.error(f"Incorrect or nonexistant arxiv file specified: {arxiv_file}")
+
     # Path already included?
     if pathlib.Path(arxiv_file).name == arxiv_file:
         calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
