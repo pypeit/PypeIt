@@ -3,13 +3,13 @@ Module for MMT/Blue Channel specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -493,10 +493,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*')
+        if fil is None:
+            msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read FITS image
         msgs.info("Reading MMT Blue Channel file: {:s}".format(fil[0]))
