@@ -206,8 +206,7 @@ class Paths:
         If yes, return the directory path, else raise an error message
         """
         if not path.is_dir():
-            msgs.error(f"Unable to find {path}.  "
-                        "Check your installation.")
+            msgs.error(f"Unable to find {path}.  Check your installation.")
         return path
 
 
@@ -308,7 +307,7 @@ def get_skisim_filepath(skisim_file: str) -> pathlib.Path:
     return skisim_path
 
 
-def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir=False) -> pathlib.Path:
+def get_sensfunc_filepath(sensfunc_file: str, symlink_in_pkgdir: bool=False) -> pathlib.Path:
     """Return the full path to the ``sensfunc`` file
 
     In an attempt to reduce the size of the PypeIt package as distributed on
@@ -494,10 +493,10 @@ def get_extinctfile_filepath(extinction_file: str) -> pathlib.Path:
 def fetch_remote_file(
     filename: str,
     filetype: str,
-    remote_host='github',
-    install_script=False,
-    force_update=False,
-    full_url=None
+    remote_host: str='github',
+    install_script: bool=False,
+    force_update: bool=False,
+    full_url: str=None,
 ) -> pathlib.Path:
     """Use ``astropy.utils.data`` to fetch file from remote or cache
 
@@ -549,13 +548,14 @@ def fetch_remote_file(
             sources=sources,
             timeout=10,
             cache="update" if force_update else True,
-            pkgname="pypeit"
+            pkgname="pypeit",
         )
 
     except urllib.error.URLError as error:
-        if remote_host == "s3_cloud" and (requests.head(sources[0]).status_code in
-                                         [requests.codes.forbidden, requests.codes.not_found]):
-
+        if remote_host == "s3_cloud" and (
+            requests.head(sources[0]).status_code
+            in [requests.codes.forbidden, requests.codes.not_found]
+        ):
             err_msg = (
                 f"The file {filename}{msgs.newline()}"
                 f"is not hosted in the cloud.  Please download this file from{msgs.newline()}"
@@ -593,8 +593,11 @@ def fetch_remote_file(
         # Raise the appropriate error message
         msgs.error(err_msg)
 
+    except TimeoutError as error:
+        msgs.error(f"Timeout Error enountered: {error}")
+
     # If no error, return the pathlib object
-    return pathlib.Path(cache_fn)
+    return pathlib.Path(cache_fn).resolve()
 
 
 def search_cache(pattern_str: str) -> list[pathlib.Path]:
@@ -619,7 +622,7 @@ def search_cache(pattern_str: str) -> list[pathlib.Path]:
     return [pathlib.Path(cache_dict[url]) for url in cache_dict if pattern_str in url]
 
 
-def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
+def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_host: str="github"):
     """Use ``astropy.utils.data`` to save local file to cache
 
     This function writes a local file to the PypeIt cache as if it came from a
@@ -638,14 +641,14 @@ def write_file_to_cache(filename, cachename, filetype, remote_host="github"):
           The remote host scheme.  Currently only 'github' and 's3_cloud' are
           supported.  Defaults to 'github'.
     """
-   # Build the `url_key` as if this file were in the remote location
+    # Build the `url_key` as if this file were in the remote location
     url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
 
     # Use `import file_to_cache()` to place the `filename` into the cache
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
-def _build_remote_url(f_name, f_type, remote_host=""):
+def _build_remote_url(f_name: str, f_type: str, remote_host: str=""):
     """Build the remote URL for the ``astropy.utils.data`` functions
 
     This function keeps the URL-creation in one place.  In the event that files
@@ -678,9 +681,10 @@ def _build_remote_url(f_name, f_type, remote_host=""):
         # Hard-wire the URL based on PypeIt Version
         data_url = (
             "https://raw.githubusercontent.com/pypeit/PypeIt/"
-            f"{'develop' if '.dev' in __version__ else __version__}/pypeit/data"
+            f"{'develop' if '.dev' in __version__ else __version__}"
+            f"/pypeit/data/{f_type}/{f_name}"
         )
-        return f"{data_url}/{f_type}/{f_name}", None
+        return data_url, None
 
     if remote_host == "s3_cloud":
         # Build up the (permanent, fake) `remote_url` and (fluid, real) `sources` for S3 Cloud
@@ -690,7 +694,7 @@ def _build_remote_url(f_name, f_type, remote_host=""):
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
 
 
-def _get_s3_hostname():
+def _get_s3_hostname() -> str:
     """Get the current S3 hostname from the package file
 
     Since the S3 server hostname used to hold package data such as telluric
@@ -723,7 +727,8 @@ def _get_s3_hostname():
         requests.exceptions.ConnectionError,
         requests.exceptions.RequestException,
         urllib.error.URLError,
-        github.GithubException
+        github.GithubException,
+        TimeoutError,
     ):
         filepath = Paths.data / "s3_url.txt"
 
@@ -779,7 +784,7 @@ def load_thar_spec():
     return io.fits_open(Paths.arclines / 'thar_spec_MM201006.fits')
 
 
-def load_sky_spectrum(sky_file):
+def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
     """Load a sky spectrum into an XSpectrum1D object
 
     NOTE: This is where the path to the data directory is added!

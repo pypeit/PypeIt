@@ -18,6 +18,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core import flexure
 from pypeit.core import flux_calib
+from pypeit.core import parse
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images.detector_container import DetectorContainer
@@ -54,7 +55,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.9'
+    version = '1.1.10'
     """
     Current datamodel version number.
     """
@@ -62,8 +63,9 @@ class SpecObj(datamodel.DataContainer):
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
                                     descr='Object trace along the spec (spatial pixel)'),
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
-                 'FWHMFIT': dict(otype=np.ndarray,
+                 'FWHMFIT': dict(otype=np.ndarray, atype=float,
                                  descr='Spatial FWHM across the detector (pixels)'),
+                 'SPAT_FWHM': dict(otype=float, descr='Spatial FWHM of the object (arcsec)'),
                  'smash_peakflux': dict(otype=float,
                                         descr='Peak value of the spectral direction collapsed spatial profile'),
                  'smash_snr': dict(otype=float,
@@ -356,6 +358,18 @@ class SpecObj(datamodel.DataContainer):
             if SN != 0.:
                 break
         return SN
+
+    def med_fwhm(self):
+        """Return median spatial FWHM of the spectrum
+
+        Returns:
+            float
+        """
+        FWHM = 0.
+        if self['FWHMFIT'] is not None and self['OPT_COUNTS'] is not None:
+            _, binspatial = parse.parse_binning(self['DETECTOR']['binning'])
+            FWHM = np.median(self['FWHMFIT']) * binspatial * self['DETECTOR']['platescale']
+        return FWHM
 
     def set_name(self):
         """
