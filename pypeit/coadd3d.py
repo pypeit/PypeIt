@@ -1333,7 +1333,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.set_voxel_sampling()
 
         # Align the frames
-        if self.align and False:
+        if self.align:
             self.run_align()
 
         # Compute the relative weights on the spectra
@@ -1359,8 +1359,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 np.min(self.mnmx_wv[:, :, 1]),
                                                 self.cubepar['whitelight_range'])
             if self.combine:
-                # TODO :: remove the following line... it's just temporary
-                outfile = datacube.get_output_filename(self.spec2d[0], "", False, 1)
                 generate_cube_subpixel(outfile, cube_wcs, self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
                                        np.ones(self.all_wghts.size),  # all_wghts,
                                        self.all_spatpos, self.all_specpos, self.all_spatid, self.all_tilts, self.all_slits, self.all_align, self.all_dar, vox_edges,
@@ -1804,11 +1802,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             # Transform this to spatial location
             spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
             spatpos = _astrom_trans[fr].transform(sl, all_spatpos[this_sl], all_specpos[this_sl])
-            # OLD (WRONG) ROUTINE
-            # ra_coeff = np.polyfit(spatpos, all_ra[this_sl], 1)
-            # dec_coeff = np.polyfit(spatpos, all_dec[this_sl], 1)
-            # this_ra = np.polyval(ra_coeff, spatpos_subpix)#ra_spl(spatpos_subpix)
-            # this_dec = np.polyval(dec_coeff, spatpos_subpix)#dec_spl(spatpos_subpix)
+            # Interpolate the RA/Dec over the subpixel spatial positions
             ssrt = np.argsort(spatpos)
             tmp_ra = all_ra[this_sl]
             tmp_dec = all_dec[this_sl]
