@@ -845,7 +845,8 @@ class Identify:
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
             return
-        elif final_fit['rms'] < rmstol:
+        elif final_fit['rms'] < rmstol or multi:
+            #ans = input(f"rms = {final_fit['rms']}, which is greater than rmstol = {rmstol}! Save anyway? (y/[n]): ")
             ans = ''
             if not force_save:
                 while ans != 'y' and ans != 'n':
