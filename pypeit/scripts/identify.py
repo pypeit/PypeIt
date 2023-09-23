@@ -54,9 +54,10 @@ class Identify(scriptbase.ScriptBase):
     def main(args):
 
         import os
+        import json
 
         import numpy as np
-        
+                
         from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
@@ -64,6 +65,8 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
         from pypeit.core.wavecal import autoid
+        from linetools.utils import jsonify
+
 
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('identify', args.verbosity)
@@ -124,6 +127,9 @@ class Identify(scriptbase.ScriptBase):
             # Save for redo's
             wavecal.measured_fwhms = measured_fwhms
             if args.new_sol:
+                sv_par = par.data.copy()
+                j_par = jsonify(sv_par)
+                strpar = json.dumps(j_par)
 
                 wv_calib = WaveCalib(wv_fits=None,
                                     fwhm_map=fwhm_map,
@@ -131,7 +137,8 @@ class Identify(scriptbase.ScriptBase):
                                     nslits=wavecal.slits.nslits,
                                     spat_ids=wavecal.slits.spat_id,
                                     PYP_SPEC=wavecal.spectrograph.name,
-                                    lamps=','.join(wavecal.lamps))
+                                    lamps=','.join(wavecal.lamps),
+                                    strpar = strpar)
 
 
 
