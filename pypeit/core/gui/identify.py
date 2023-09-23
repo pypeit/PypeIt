@@ -799,7 +799,8 @@ class Identify:
         return wvarxiv_name
 
     def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
-                       force_save=False, wvcalib=None, multi = False, fits_dicts = None, specdata = None):
+                       force_save=False, wvcalib=None, multi = False, 
+                       fits_dicts = None, specdata = None, slits = None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -856,7 +857,10 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 if multi:
-                    make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
+                    make_arxiv = ''
+                    while make_arxiv != 'y' and make_arxiv != 'n': 
+                        make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
+                        print(make_arxiv == 'y', make_arxiv)
                     if make_arxiv != 'n':
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
@@ -866,8 +870,19 @@ class Identify:
                             wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
                                                                     (specdata[iord,:].size - 1))
                         # prompt the user to give the orders that were used here
-                        order_str = input("Which orders were used to create this file? e.g. (32:39):  ")
-                        order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                        while True:
+                            try:
+                                order_str = input("Which orders were used to create this file? e.g. (32:39):  ")    
+                                order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                            except ValueError:
+                                print("Sorry, syntax may be invalid...")
+                                #better try again... Return to the start of the loop
+                                continue
+                            else:
+                                #age was successfully parsed!
+                                #we're ready to exit the loop.
+                                break
+                        #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")
                         wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
@@ -879,9 +894,29 @@ class Identify:
                     print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
                     print('NOTE: To use this calibration the user will need to delete the other Calibration/ files')
                     print(' and re-run run_pypeit. ')
-                    ow_wvcalib = input('Proceed with overwrite? (y/[n])')
+                    ow_wvcalib = ''
+                    while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
+                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
                     if ow_wvcalib == 'y':
                         wvcalib.to_file()
+                        slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
+                        for islit in slit_list: 
+                            if islit < len(slit_list) - 1:
+                                slit_list_str += str(islit) + ','
+                            else: slit_list_str += str(islit)
+                        
+
+                        msgs.info(f"Your WaveCalib solution has also been saved.{msgs.newline()}"
+                                f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                                f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                                f" [calibrations]{msgs.newline()}"
+                                f"   [[wavelengths]]{msgs.newline()}"
+                                f"     redo_slits = [{slit_list_str}]{msgs.newline()}"
+                                f"     \n")
+                    if slits:
+                        msgs.info('Unflagging Slits from WaveCalib: ')
+                        slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                        slits.to_file()
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:

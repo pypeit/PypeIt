@@ -100,30 +100,30 @@ class Identify(scriptbase.ScriptBase):
 
             wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                     msbpm=msarc.select_flag())
+            # Obtain a list of good slits
+            ok_mask_idx = np.where(np.invert(wavecal.wvc_bpm))[0]
+
+            # print to screen the slit widths if maskdef_designtab is available
+            if slits.maskdef_designtab is not None:
+                msgs.info("Slit widths (arcsec): {}".format(np.round(slits.maskdef_designtab['SLITWID'].data, 2)))
+
+            # Generate a map of the instrumental spectral FWHM
+            # TODO nsample should be a parameter
+            fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
+                                    nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
+                                    spatord=wavecal.par['fwhm_spat_order'])
+            # Calculate the typical spectral FWHM down the centre of the slit
+            measured_fwhms = np.zeros(slits.nslits, dtype=object)
+            for islit in range(slits.nslits):
+                if islit not in ok_mask_idx:
+                    continue
+                # Measure the spectral FWHM (in pixels) at the midpoint of the slit
+                # (i.e. the midpoint in both the spectral and spatial directions)
+                measured_fwhms[islit] = fwhm_map[islit].eval(wavecal.msarc.image.shape[0]//2, 0.5)
+
+            # Save for redo's
+            wavecal.measured_fwhms = measured_fwhms
             if args.new_sol:
-                # Obtain a list of good slits
-                ok_mask_idx = np.where(np.invert(wavecal.wvc_bpm))[0]
-
-                # print to screen the slit widths if maskdef_designtab is available
-                if slits.maskdef_designtab is not None:
-                    msgs.info("Slit widths (arcsec): {}".format(np.round(slits.maskdef_designtab['SLITWID'].data, 2)))
-
-                # Generate a map of the instrumental spectral FWHM
-                # TODO nsample should be a parameter
-                fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
-                                        nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
-                                        spatord=wavecal.par['fwhm_spat_order'])
-                # Calculate the typical spectral FWHM down the centre of the slit
-                measured_fwhms = np.zeros(slits.nslits, dtype=object)
-                for islit in range(slits.nslits):
-                    if islit not in ok_mask_idx:
-                        continue
-                    # Measure the spectral FWHM (in pixels) at the midpoint of the slit
-                    # (i.e. the midpoint in both the spectral and spatial directions)
-                    measured_fwhms[islit] = fwhm_map[islit].eval(wavecal.msarc.image.shape[0]//2, 0.5)
-
-                # Save for redo's
-                wavecal.measured_fwhms = measured_fwhms
 
                 wv_calib = WaveCalib(wv_fits=None,
                                     fwhm_map=fwhm_map,
@@ -155,7 +155,7 @@ class Identify(scriptbase.ScriptBase):
                 # set to any flagged pixel in Arc.
                 wv_calib_slit = None
                 if wv_calib:
-                    if not wv_calib.wv_fits:
+                    if not np.any(wv_calib.wv_fits):
                         wv_calib_slit = None
                     else:
                         if not wv_calib.wv_fits[slit_val]['pypeitfit']:
@@ -197,7 +197,7 @@ class Identify(scriptbase.ScriptBase):
                     #                        spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                     #                        PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
                     #else:
-                    if wv_calib.wv_fits:
+                    if np.any(wv_calib.wv_fits):
                         wv_calib.wv_fits[slit_val] = arcfitter._fitdict['WaveFit']
                         wv_calib.wv_fits[slit_val].fwhm = measured_fwhms[slit_val]
                     else:
@@ -208,7 +208,7 @@ class Identify(scriptbase.ScriptBase):
                 else:
                     waveCalib = None
                 
-            if not wv_calib.wv_fits:
+            if not np.any(wv_calib.wv_fits):
                 wv_calib.wv_fits = np.array(wv_fits_arr)
                 #wv_calib.to_file()
             if not args.new_sol:
@@ -221,7 +221,8 @@ class Identify(scriptbase.ScriptBase):
                                     rmstol=args.rmstol,
                                     force_save=args.force_save, 
                                     multi = True, fits_dicts = fits_dicts,
-                                    specdata = np.array(specdata))
+                                    specdata = np.array(specdata),
+                                    slits = slits)
             
 
         # If we just want the normal one-trace output
