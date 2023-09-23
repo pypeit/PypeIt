@@ -857,6 +857,20 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 if multi:
+                                            # prompt the user to give the orders that were used here
+                    while True:
+                        try:
+                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                        except ValueError:
+                            print("Sorry, syntax may be invalid...")
+                            #better try again... Return to the start of the loop
+                            continue
+                        else:
+                            #age was successfully parsed!
+                            #we're ready to exit the loop.
+                            break
+
                     make_arxiv = ''
                     while make_arxiv != 'y' and make_arxiv != 'n': 
                         make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
@@ -869,26 +883,13 @@ class Identify:
                             print(np.shape(specdata), norder)
                             wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
                                                                     (specdata[iord,:].size - 1))
-                        # prompt the user to give the orders that were used here
-                        while True:
-                            try:
-                                order_str = input("Which orders were used to create this file? e.g. (32:39):  ")    
-                                order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
-                            except ValueError:
-                                print("Sorry, syntax may be invalid...")
-                                #better try again... Return to the start of the loop
-                                continue
-                            else:
-                                #age was successfully parsed!
-                                #we're ready to exit the loop.
-                                break
                         #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")
                         wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
 
                         wvutils.write_template(wavelengths, specdata, binspec, './', 
-                                            wvarxiv_name, cache=True, order = order)
+                                            wvarxiv_name, cache=True, order = order_vec)
                     
                     # Allow user to overwrite the existing WVCalib file
                     print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
@@ -913,10 +914,11 @@ class Identify:
                                 f"   [[wavelengths]]{msgs.newline()}"
                                 f"     redo_slits = [{slit_list_str}]{msgs.newline()}"
                                 f"     \n")
-                    if slits:
-                        msgs.info('Unflagging Slits from WaveCalib: ')
-                        slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
-                        slits.to_file()
+                        if slits:
+                            msgs.info('Unflagging Slits from WaveCalib: ')
+                            slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                            slits.ech_order = order_vec
+                            slits.to_file()
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:

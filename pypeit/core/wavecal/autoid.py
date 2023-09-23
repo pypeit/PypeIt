@@ -668,6 +668,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                     #msgs.info(f"wvdata and wvval: {wvdata}, {wvval_arxiv[bstpx]}")
                     bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
                     # This is a good wavelength match if it is within match_toler disperion elements
+                    #print('bstwv match = ', bstwv[np.argmin(bstwv)], 'tolerance = ',match_toler*disp_arxiv[iarxiv])
                     if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
                         line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
                         det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
@@ -677,7 +678,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     narxiv_used = np.sum(wcen != 0.0)
 
     # Initialise the patterns dictionary, sigdetect not used anywhere
-    if (narxiv_used == 0) or (len(np.unique(line_indx)) < 3):
+    if (narxiv_used == 0) or (len(np.unique(line_indx)) < 1):
         patt_dict_slit = patterns.empty_patt_dict(detections.size)
         patt_dict_slit['sigdetect'] = sigdetect
         return detections, spec_cont_sub, patt_dict_slit
@@ -1075,7 +1076,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
 
     # Load template
     if template_dict is None:
-        temp_wv, temp_spec, temp_bin = waveio.load_template(
+        temp_wv, temp_spec, temp_bin, order = waveio.load_template(
             par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
         temp_wv = template_dict['wave']
@@ -1137,16 +1138,25 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             pad_spec = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=50.0) #par['xcorr_percent_ceil'])
+        '''
+        plt.figure()
+        plt.plot(pad_spec, label = 'input spec')
+        plt.plot(tspec, label = 'template spec')
+        plt.legend()
+        plt.title('slit # '+str(slit))
+        plt.show()
+        '''
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+        #debug = True
         if debug:
             xvals = np.arange(tspec.size)
             plt.clf()
             ax = plt.gca()
             #
             ax.plot(xvals, tspec, label='template')  # Template
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
+            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
             #embed(header='909 autoid')
@@ -1183,14 +1193,17 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             # TODO -- JXP
             #  should we use par['cc_thresh'] instead of hard-coding cc_thresh??
             # Run reidentify
+            #debug_xcorr = True
+            #debug_reid = True
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
                                                               sigdetect=sigdetect,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              #percent_ceil = par['xcorr_percent_ceil'],
+                                                              percent_ceil = par['xcorr_percent_ceil'],
                                                               cc_thresh=0.1, fwhm=fwhm)
+            print(patt_dict)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -1206,7 +1219,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         dets = np.concatenate(sv_det)
         IDs = np.concatenate(sv_IDs)
         gd_det = np.where(IDs > 0.)[0]
-        if len(gd_det) < 4:
+        if len(gd_det) < 2:
             msgs.warn("Not enough useful IDs")
             wvcalib[str(slit)] = None
             continue
@@ -1217,7 +1230,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
                                               func=par['func'],
-                                              n_final=par['n_final'],
+                                              n_final= np.min([len(gd_det), par['n_final']]),
                                               sigrej_first=par['sigrej_first'],
                                               sigrej_final=par['sigrej_final'])
         except TypeError:
@@ -1225,8 +1238,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             wvcalib[str(slit)] = None
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
+        
+        #Load order information for Echelle:
+        if np.any(order):
+            orders = order
     # Finish
-    return wvcalib
+    return wvcalib, order
 
 def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, use_unknowns=True, debug_all=False,

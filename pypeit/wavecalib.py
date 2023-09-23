@@ -653,12 +653,17 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
+            final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
                                              self.binspectral, 
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
                                              #debug=True, debug_reid=True, debug_xcorr=True)
+            # Grab arxiv for redo later?
+            if self.par['echelle']: 
+                # Hold for later usage
+                self.slits.ech_order = order_vec
+                self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
             try:
