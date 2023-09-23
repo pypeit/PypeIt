@@ -279,8 +279,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['no_poly'] = False # True
+        par['reduce']['skysub']['bspline_spacing'] = 0.4
         par['reduce']['skysub']['joint_fit'] = False
 
         # Don't correct flexure by default, but you should use slitcen,
