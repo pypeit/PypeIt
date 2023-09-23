@@ -1818,11 +1818,6 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             # Transform this to spatial location
             spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
             spatpos = _astrom_trans[fr].transform(sl, all_spatpos[this_sl], all_specpos[this_sl])
-            # OLD (WRONG) ROUTINE
-            # ra_coeff = np.polyfit(spatpos, all_ra[this_sl], 1)
-            # dec_coeff = np.polyfit(spatpos, all_dec[this_sl], 1)
-            # this_ra = np.polyval(ra_coeff, spatpos_subpix)#ra_spl(spatpos_subpix)
-            # this_dec = np.polyval(dec_coeff, spatpos_subpix)#dec_spl(spatpos_subpix)
             ssrt = np.argsort(spatpos)
             tmp_ra = all_ra[this_sl]
             tmp_dec = all_dec[this_sl]
