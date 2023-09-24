@@ -143,10 +143,14 @@ def define_additional_meta(nlamps=20):
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
                        'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
+                       # TODO what is the difference between dither and dithoff? Also, we should rename these to be
+                       # more clearly the offset along the slit to distinguish from the IFU case of RA_off and DEC_off
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
+                       'dithoff': dict(dtype=float, comment='Dither offset'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),
-                       'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'ra_off': dict(dtype=float, comment='Dither offset in RA'),
+                       'dec_off': dict(dtype=float, comment='Dither offset in DEC'),
                        'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),

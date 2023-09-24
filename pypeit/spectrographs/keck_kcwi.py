@@ -73,6 +73,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['ra_off'] = dict(ext=0, card='RAOFF')
+        self.meta['dec_off'] = dict(ext=0, card='DECOFF')
+
 
         # Extras for config and frametyping
         self.meta['hatch'] = dict(ext=0, card='HATPOS')
@@ -164,7 +167,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'decker', 'binning', 'cenwave']
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -279,8 +282,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = False # True
-        par['reduce']['skysub']['bspline_spacing'] = 0.4
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
 
         # Don't correct flexure by default, but you should use slitcen,
@@ -302,7 +305,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['idname', 'calpos']
+        return  super().pypeit_file_keys() + ['ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -852,6 +855,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='BCWAVE', rtol=0.01)
+
 
     def raw_header_cards(self):
         """
@@ -1172,6 +1177,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='RGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='RGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='RCWAVE', rtol=0.01)
 
     def raw_header_cards(self):
         """
@@ -1242,6 +1248,11 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
         par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = False
+        par['reduce']['skysub']['bspline_spacing'] = 0.4
+        par['reduce']['skysub']['joint_fit'] = False
 
         return par
 
