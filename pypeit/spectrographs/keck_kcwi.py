@@ -257,7 +257,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             else:
                 rref = 0.
             # Get the offset and PA
-            rotoff = 0.0  # IFU-SKYPA offset (degrees)
             skypa = rpos + rref  # IFU position angle (degrees)
             return skypa
         else:
@@ -609,8 +608,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         #else:
         #    rref = 0.
         # Get the offset and PA
-        #rotoff = 0.0  # IFU-SKYPA offset (degrees)
         #skypa = rpos + rref  # IFU position angle (degrees)
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
@@ -1151,7 +1150,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        spatflip        = False,
+                        spatflip        = True, # TODO There is a flip in the slices relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
