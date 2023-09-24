@@ -149,6 +149,7 @@ def define_additional_meta(nlamps=20):
                        'dithoff': dict(dtype=float, comment='Dither offset'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),
+                       'posang': dict(dtype=float, comment='Position angle of the observation (degrees, positive is East from North)'),
                        'ra_off': dict(dtype=float, comment='Dither offset in RA'),
                        'dec_off': dict(dtype=float, comment='Dither offset in DEC'),
                        'echangle':dict(dtype=float, comment='Echelle angle'),

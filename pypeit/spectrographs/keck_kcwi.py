@@ -73,6 +73,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['posang'] = dict(card=None, compound=True)
         self.meta['ra_off'] = dict(ext=0, card='RAOFF')
         self.meta['dec_off'] = dict(ext=0, card='DECOFF')
 
@@ -105,6 +106,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Add in the dome lamp
         self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -243,6 +245,21 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
+        elif meta_key == 'posang':
+            hdr = headarr[0]
+            # Get rotator position
+            if 'ROTPOSN' in hdr:
+                rpos = hdr['ROTPOSN']
+            else:
+                rpos = 0.
+            if 'ROTREFAN' in hdr:
+                rref = hdr['ROTREFAN']
+            else:
+                rref = 0.
+            # Get the offset and PA
+            rotoff = 0.0  # IFU-SKYPA offset (degrees)
+            skypa = rpos + rref  # IFU position angle (degrees)
+            return skypa
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -305,7 +322,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return  super().pypeit_file_keys() + ['ra_off', 'dec_off', 'idname', 'calpos']
+        return  super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -580,18 +597,20 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Create a coordinate
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
+        skypa = self.compound_meta([hdr], 'posang')
+        # Now in compont_meta
         # Get rotator position
-        if 'ROTPOSN' in hdr:
-            rpos = hdr['ROTPOSN']
-        else:
-            rpos = 0.
-        if 'ROTREFAN' in hdr:
-            rref = hdr['ROTREFAN']
-        else:
-            rref = 0.
+        #if 'ROTPOSN' in hdr:
+        #    rpos = hdr['ROTPOSN']
+        #else:
+        #    rpos = 0.
+        #if 'ROTREFAN' in hdr:
+        #    rref = hdr['ROTREFAN']
+        #else:
+        #    rref = 0.
         # Get the offset and PA
-        rotoff = 0.0  # IFU-SKYPA offset (degrees)
-        skypa = rpos + rref  # IFU position angle (degrees)
+        #rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        #skypa = rpos + rref  # IFU position angle (degrees)
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
