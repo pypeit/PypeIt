@@ -719,7 +719,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     iperfect = np.array(patt_dict_slit['scores']) != 'Perfect'
     patt_dict_slit['mask'][iperfect] = False
     patt_dict_slit['nmatch'] = np.sum(patt_dict_slit['mask'])
-    if patt_dict_slit['nmatch'] < 3:
+    if patt_dict_slit['nmatch'] < 2:
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
@@ -1377,6 +1377,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         if not all_patt_dict[str(iord)]['acceptable']:
             wv_calib[str(iord)] = None
             bad_orders = np.append(bad_orders, iord)
+            print(all_patt_dict[str(iord)])
+        
             msgs.warn('No acceptable reidentification solution found!')
             continue
         #msgs.info(f"Using {len(wv_calib[str(iord)]['pixel_fit'])} lines in the fit")
