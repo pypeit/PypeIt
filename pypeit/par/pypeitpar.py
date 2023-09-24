@@ -1455,7 +1455,7 @@ class CubePar(ParSet):
                           'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, ' \
                           'but voxels are correlated, and the error spectrum does not account for covariance between ' \
                           'adjacent voxels. See also, spec_subpixel and spat_subpixel. ' \
-                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          '(2) "ngp" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
@@ -1464,9 +1464,6 @@ class CubePar(ParSet):
                           'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two ' \
                           'pixels have the same variance, the voxel would be assigned the average flux of the two ' \
                           'pixels).'
-        # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
-        # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-        # 'for covariance between neighbouring pixels. ' \
 
         defaults['spec_subpixel'] = 5
         dtypes['spec_subpixel'] = int
@@ -1584,9 +1581,20 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        allowed_methods = ["subpixel", "NGP"]#, "resample"
+        # Check the method options
+        allowed_methods = ["subpixel", "ngp"]
         if self.data['method'] not in allowed_methods:
-            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+            # Check if the supplied name exists
+            if not os.path.exists(self.data['method']):
+                raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods) +
+                                 "\nor, the relative path to a spec2d file.")
+        # Check the skysub options
+        allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
+        if self.data['skysub_frame'] not in allowed_skysub_options:
+            # Check if the supplied name exists
+            if not os.path.exists(self.data['method']):
+                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_methods) +
+                                 "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
