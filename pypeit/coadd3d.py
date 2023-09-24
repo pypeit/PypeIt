@@ -38,6 +38,8 @@ class DataCube(datamodel.DataContainer):
     .. include:: ../include/class_datamodel_datacube.rst
 
     Args:
+        wave (`numpy.ndarray`_):
+            A 1D numpy array containing the wavelength array for convenience (nwave)
         flux (`numpy.ndarray`_):
             The science datacube (nwave, nspaxel_y, nspaxel_x)
         sig (`numpy.ndarray`_):
@@ -67,9 +69,12 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.1.0'
+    version = '1.2.0'
 
-    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating,
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Wavelength of each slice in the spectral direction. '
+                                    'The units are Angstroms.'),
+                 'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux datacube in units of counts/s/Ang/arcsec^2 or '
                                     '10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'sig': dict(otype=np.ndarray, atype=np.floating,
@@ -91,7 +96,7 @@ class DataCube(datamodel.DataContainer):
                  'spect_meta'
                 ]
 
-    def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
+    def __init__(self, wave, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
                  fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -322,12 +327,12 @@ class CoAdd3D:
                         spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
                         show=show, debug=debug)
 
-    def __init__(self, files, opts, spectrograph=None, par=None, det=None, overwrite=False,
+    def __init__(self, spec2dfiles, opts, spectrograph=None, par=None, det=None, overwrite=False,
                  show=False, debug=False):
         """
 
         Args:
-            files (:obj:`list`):
+            spec2dfiles (:obj:`list`):
                 List of all spec2D files
             opts (:obj:`dict`):
                 Options associated with each spec2d file
@@ -350,14 +355,14 @@ class CoAdd3D:
                 Show QA for debugging.
 
         """
-        self.spec2d = files
-        self.numfiles = len(files)
+        self.spec2d = spec2dfiles
+        self.numfiles = len(spec2dfiles)
         self.opts = opts
         self.overwrite = overwrite
 
         # Check on Spectrograph input
         if spectrograph is None:
-            with fits.open(files[0]) as hdu:
+            with fits.open(spec2dfiles[0]) as hdu:
                 spectrograph = hdu[0].header['PYP_SPEC']
 
         if isinstance(spectrograph, str):
@@ -369,10 +374,8 @@ class CoAdd3D:
             self.specname = spectrograph.name
 
         # Grab the parset, if not provided
-        if par is None:
-            # TODO :: Use config_specific_par instead?
-            par = self.spec.default_pypeit_par()
-        self.par = par
+        self.par = self.spec.default_pypeit_par() if par is None else par
+
         # Extract some parsets for simplicity
         self.cubepar = self.par['reduce']['cube']
         self.flatpar = self.par['calibrations']['flatfield']
@@ -391,7 +394,7 @@ class CoAdd3D:
         self._dwv = self.cubepar['wave_delta']  # linear binning size in wavelength direction (in Angstroms)
 
         # Extract some commonly used variables
-        self.method = self.cubepar['method'].lower()
+        self.method = self.cubepar['method']
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
@@ -685,7 +688,7 @@ class CoAdd3D:
             self.skysub_default = "none"
             self.skyImgDef = np.array([0.0])  # Do not perform sky subtraction
             self.skySclDef = np.array([0.0])  # Do not perform sky subtraction
-        elif self.cubepar['skysub_frame'].lower() == "image":
+        elif self.cubepar['skysub_frame'] == "image":
             msgs.info("The sky model in the spec2d science frames will be used for sky subtraction" + msgs.newline() +
                       "(unless specific skysub frames have been specified)")
             self.skysub_default = "image"
@@ -1614,6 +1617,10 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
     else:
         flxcube, varcube, bpmcube = subpix
 
+    # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+    nspec = flxcube.shape[2]
+    wave = 1.0E10 * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]  # The factor 1.0E10 convert to Angstroms
+
     # Check if the user requested a white light image
     if whitelight_range is not None:
         # Grab the WCS of the white light image
@@ -1627,9 +1634,6 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
             whitelight_range[0], whitelight_range[1]))
         # Get the output filename for the white light image
         out_whitelight = datacube.get_output_whitelight_filename(outfile)
-        nspec = flxcube.shape[2]
-        # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
-        wave = 1.0E10 * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
         whitelight_img = datacube.make_whitelight_fromcube(flxcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
@@ -1637,7 +1641,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(flxcube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
+    final_cube = DataCube(wave, flxcube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
                           sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
