@@ -211,8 +211,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LBT/MODS file: {fil}')
+        hdu = io.fits_open(fil)
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par

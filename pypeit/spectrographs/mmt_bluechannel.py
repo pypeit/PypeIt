@@ -498,8 +498,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read FITS image
-        msgs.info("Reading MMT Blue Channel file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        msgs.info(f'Reading MMT Blue Channel file: {fil}')
+        hdu = fits.open(fil)
         hdr = hdu[0].header
 
         # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the

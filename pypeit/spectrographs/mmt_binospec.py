@@ -385,8 +385,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading BINOSPEC file: {fil}')
+        hdu = io.fits_open(fil)
         head1 = hdu[1].header
 
         # TOdO Store these parameters in the DetectorPar.

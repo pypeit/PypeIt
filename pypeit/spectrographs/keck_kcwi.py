@@ -974,8 +974,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
@@ -1286,8 +1286,8 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)

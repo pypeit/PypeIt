@@ -353,9 +353,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading MMIRS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
-        head1 = fits.getheader(fil[0],1)
+        msgs.info(f'Reading MMIRS file: {fil}')
+        hdu = io.fits_open(fil)
+        head1 = fits.getheader(fil,1)
 
         detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 

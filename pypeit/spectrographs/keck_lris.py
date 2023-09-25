@@ -438,8 +438,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LRIS file: {fil}')
+        hdu = io.fits_open(fil)
         head0 = hdu[0].header
 
         # Get post, pre-pix values

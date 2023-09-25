@@ -293,8 +293,8 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'No files matching pattern: {raw_file}')
 
         # Read
-        msgs.info("Reading JWST/NIRSpec file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading JWST/NIRSpec file: {fil}')
+        hdu = io.fits_open(fil)
         head0 = hdu[0].header
 
         detector = self.get_detector_par(det if det is not None else 1, hdu=hdu)
