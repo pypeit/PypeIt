@@ -531,6 +531,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         headarr = self.get_headarr(scifile)
         filter1 = self.get_meta_value(headarr, 'filter1')
         filter2 = self.get_meta_value(headarr, 'filter2')
+        decker = self.get_meta_value(headarr, 'decker')
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
@@ -588,6 +589,17 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        if decker == '0.144x12':
+            par['calibrations']['wavelengths']['fwhm'] = 1.5
+        if decker == '0.288x12' or decker == '0.288x24':
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
+        if decker == '0.432x12' or decker == '0.432x24':
+            par['calibrations']['wavelengths']['fwhm'] = 4.5
+        if decker == '0.576x12':
+            par['calibrations']['wavelengths']['fwhm'] = 6.0
+        if decker == '0.720x12' or decker == '0.720x24':
+            par['calibrations']['wavelengths']['fwhm'] = 7.5
 
         # Return
         return par

@@ -1203,7 +1203,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
                                                               match_toler=par['match_toler'],
                                                               percent_ceil = par['xcorr_percent_ceil'],
                                                               cc_thresh=0.1, fwhm=fwhm)
-            print(patt_dict)
+            #print(patt_dict)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
