@@ -87,6 +87,12 @@ def load_template(arxiv_file, det, wvrng=None):
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
+    
+    #for echelle spectrographs
+    try:
+        tbl_order = tbl['order'].data
+    except:
+        tbl_order = None
 
     # Cut down?
     if wvrng is not None:
@@ -95,7 +101,7 @@ def load_template(arxiv_file, det, wvrng=None):
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order
 
 
 def load_reid_arxiv(arxiv_file):

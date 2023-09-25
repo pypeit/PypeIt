@@ -760,7 +760,7 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
-                                                             (self.specdata.size - 1))
+                                                            (self.specdata.size - 1))
 
                 # Instead of a generic name, save the wvarxiv with a unique identifier
                 date_str = datetime.now().strftime("%Y%m%dT%H%M")
@@ -797,6 +797,183 @@ class Identify:
 
         # For the cases that need the wvarxiv name, return it
         return wvarxiv_name
+
+    def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
+                       force_save=False, wvcalib=None, multi = False, 
+                       fits_dicts = None, specdata = None, slits = None):
+        """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
+        for multiple traces
+
+        Parameters
+        ----------
+
+        final_fit : dict
+            Dict of wavelength calibration solutions (see self.get_results())
+        binspec : int
+            Spectral binning
+        rmstol : float
+            RMS tolerance allowed for the wavelength solution to be stored in the archive
+        force_save : bool
+            Force save
+        multi : bool
+            Is the template multiple traces?
+        fits_dict : list
+            List of dictionaries containing the _fitdict of previous calls, if multi-trace data
+        specdata : array
+            Numpy array containing the flux information from all the traces
+        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
+            Wavelength solution
+
+        Returns
+        -------
+
+        wvarxiv_name : :obj:`str` or :obj:`None`
+            The name of the wvarxiv file if saved, else None
+        """
+        # For return
+        wvarxiv_name = None
+
+        # Line IDs
+        ans = ''
+        if not force_save:
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store the line IDs? (y/n): ")
+        else:
+            ans = 'y'
+        if ans == 'y':
+            self.save_IDs()
+        # Solution
+        if 'rms' not in final_fit.keys():
+            msgs.warn("No wavelength solution available")
+            return
+        elif final_fit['rms'] < rmstol or multi:
+            #ans = input(f"rms = {final_fit['rms']}, which is greater than rmstol = {rmstol}! Save anyway? (y/[n]): ")
+            ans = ''
+            if not force_save:
+                while ans != 'y' and ans != 'n':
+                    ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
+            else:
+                ans = 'y'
+            if ans == 'y':
+                # Arxiv solution
+                if multi:
+                                            # prompt the user to give the orders that were used here
+                    while True:
+                        try:
+                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                        except ValueError:
+                            print("Sorry, syntax may be invalid...")
+                            #better try again... Return to the start of the loop
+                            continue
+                        else:
+                            #age was successfully parsed!
+                            #we're ready to exit the loop.
+                            break
+
+                    make_arxiv = ''
+                    while make_arxiv != 'y' and make_arxiv != 'n': 
+                        make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
+                        print(make_arxiv == 'y', make_arxiv)
+                    if make_arxiv != 'n':
+                        norder = np.shape(specdata)[0]
+                        wavelengths = np.copy(specdata)
+                        for iord in range(norder):
+                            fitdict = fits_dicts[iord]
+                            print(np.shape(specdata), norder)
+                            wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
+                                                                    (specdata[iord,:].size - 1))
+                        #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                        # Instead of a generic name, save the wvarxiv with a unique identifier
+                        date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                        wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
+
+                        wvutils.write_template(wavelengths, specdata, binspec, './', 
+                                            wvarxiv_name, cache=True, order = order_vec)
+                    
+                    # Allow user to overwrite the existing WVCalib file
+                    print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
+                    print('NOTE: To use this calibration the user will need to delete the other Calibration/ files')
+                    print(' and re-run run_pypeit. ')
+                    ow_wvcalib = ''
+                    while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
+                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
+                    if ow_wvcalib == 'y':
+                        wvcalib.to_file()
+                        slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
+                        for islit in slit_list: 
+                            if islit < len(slit_list) - 1:
+                                slit_list_str += str(islit) + ','
+                            else: slit_list_str += str(islit)
+                        
+
+                        msgs.info(f"Your WaveCalib solution has also been saved.{msgs.newline()}"
+                                f"To utilize this wavelength solution, insert the{msgs.newline()}"
+                                f"following block in your PypeIt Reduction File:{msgs.newline()}"
+                                f" [calibrations]{msgs.newline()}"
+                                f"   [[wavelengths]]{msgs.newline()}"
+                                f"     redo_slits = [{slit_list_str}]{msgs.newline()}"
+                                f"     \n")
+                        if slits:
+                            msgs.info('Unflagging Slits from WaveCalib: ')
+                            slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                            slits.ech_order = order_vec
+                            slits.to_file()
+                    # Write the WVCalib file
+                    outfname = "wvcalib.fits"
+                    if wvcalib is not None:
+                        wvcalib.to_file(outfname, overwrite=True)
+                        msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                    # Print some helpful information
+                    print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
+                    print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
+                    print("You will need the following information:")
+                    print("  (1) spectral binning = {0:d}".format(binspec))
+                    print("  (2) slit spat_id = {0:s}".format(self._spatid))
+                    print("  (3) the {0:s} file".format(outfname))
+                    print("\nPlease consider sending your solution to the PypeIt team!\n")
+
+                else:
+                    wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
+                                                                (self.specdata.size - 1))
+
+                    # Instead of a generic name, save the wvarxiv with a unique identifier
+                    date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                    wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
+                    wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
+
+                    # Write the WVCalib file
+                    outfname = "wvcalib.fits"
+                    if wvcalib is not None:
+                        wvcalib.to_file(outfname, overwrite=True)
+                        msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                    # Print some helpful information
+                    print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
+                    print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
+                    print("You will need the following information:")
+                    print("  (1) spectral binning = {0:d}".format(binspec))
+                    print("  (2) slit spat_id = {0:s}".format(self._spatid))
+                    print("  (3) the {0:s} file".format(outfname))
+                    print("\nPlease consider sending your solution to the PypeIt team!\n")
+        else:
+            print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
+            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
+            if ans != 'y':
+                # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
+                ans = ''
+                if not force_save:
+                    while ans != 'y' and ans != 'n':
+                        ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
+                else:
+                    ans = 'y'
+                if ans == 'y':
+                    self.save_IDs()
+
+        # For the cases that need the wvarxiv name, return it
+        return wvarxiv_name
+
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed

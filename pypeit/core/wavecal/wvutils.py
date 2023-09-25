@@ -413,6 +413,8 @@ def shift_and_stretch2(spec, shift, stretch, stretch2):
         shift to be applied
     stretch: float
         stretch to be applied
+    stretch2: float
+        second order stretch to be applied
 
     Returns
     -------
@@ -436,9 +438,11 @@ def shift_and_stretch2(spec, shift, stretch, stretch2):
     # Now interpolate onto the original grid
     spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
     '''
+    
     # Can do the stretch and shift in one operation
 
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
+                                           spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
     '''
     plt.figure()
     plt.plot(np.arange(nspec), spec)
@@ -498,7 +502,7 @@ def zerolag_shift_stretch2(theta, y1, y2):
     Parameters
     ----------
     theta : float `numpy.ndarray`_
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
+        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = second order stretch
     y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
     y2 : float `numpy.ndarray`_, shape = (nspec,)
@@ -737,6 +741,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         may not work well if this range is significantly expanded
         because the linear approximation used to transform the arc
         starts to break down.
+    max_lag_frac: float, default = 1.0
+        Maximum rangeo of lags over which to compute the cross correlation, 
+        expressed as a fraction of the length of the vectors being cross-correlated.
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
@@ -764,6 +771,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         will be just the cross-correlation shift
     stretch: float
         the optimal stretch which was determined.  If cc_thresh is set,
+        and the initial cross-correlation is < cc_thresh,  then this
+        will be just be 1.0
+    stretch2: float
+        the optimal second order stretch which was determined.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh,  then this
         will be just be 1.0
     cross_corr: float

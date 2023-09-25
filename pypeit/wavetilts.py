@@ -458,6 +458,9 @@ class BuildWaveTilts:
             `numpy.ndarray`_: Array containing the coefficients for the 2d
             legendre polynomial fit.  Shape is (spat_order + 1, spec_order+1).
         """
+        #print(slit_idx)
+        #print(self.slits)
+        #print(self.slits.slitord_id)
         # Index
         self.all_fit_dict[slit_idx], self.all_trace_dict[slit_idx] \
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,

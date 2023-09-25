@@ -165,7 +165,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
      #def filter(self, fitstbl):
 
-
+    '''
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -202,7 +202,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         #bpm_img[:, 1000:] = 1.
 
         return bpm_img
-
+    '''
 
 
     def order_platescale(self, order_vec, binning=None):
@@ -457,6 +457,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
+        par['calibrations']['flatfield']['slit_illum_relative'] = False#True
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -472,7 +473,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_biasimage=False, use_overscan=False,
-                        use_darkimage=False) #use_illumflat=True, 
+                        use_darkimage=False, use_specillum=False, use_illumflat = False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
         '''
@@ -530,6 +531,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         headarr = self.get_headarr(scifile)
         filter1 = self.get_meta_value(headarr, 'filter1')
         filter2 = self.get_meta_value(headarr, 'filter2')
+        decker = self.get_meta_value(headarr, 'decker')
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
@@ -544,6 +546,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+            par['calibrations']['slitedges']['overlap'] = False
             
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
@@ -554,6 +558,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
+            par['calibrations']['slitedges']['overlap'] = False
+
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
@@ -562,6 +568,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            if self.get_meta_value(headarr, 'xdangle') == 36.72:
+                par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
 
         if filter2 == 'NIRSPEC-3':
@@ -581,6 +589,17 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+        if decker == '0.144x12':
+            par['calibrations']['wavelengths']['fwhm'] = 1.5
+        if decker == '0.288x12' or decker == '0.288x24':
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
+        if decker == '0.432x12' or decker == '0.432x24':
+            par['calibrations']['wavelengths']['fwhm'] = 4.5
+        if decker == '0.576x12':
+            par['calibrations']['wavelengths']['fwhm'] = 6.0
+        if decker == '0.720x12' or decker == '0.720x24':
+            par['calibrations']['wavelengths']['fwhm'] = 7.5
 
         # Return
         return par
@@ -871,7 +890,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=True, use_biasimage=False, use_overscan=False,
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
@@ -943,7 +962,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
-            
+
+            par['calibrations']['slitedges']['overlap'] = False
+
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
@@ -952,6 +973,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+
+            par['calibrations']['slitedges']['overlap'] = False
 
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -1077,8 +1100,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             #print('Using Arclamps probably')
             #print(f'filter1 = {filter1}')
             if band == 'NIRSPEC-1':
-                angle_fits_file = 'keck_nirspec_preupgrade_y_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_preupgrade_y_composite_arc.fits'
+                angle_fits_file = 'keck_nirspec_y_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_y_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-3':
                 angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'
@@ -1093,6 +1116,9 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_preupgrade_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_preupgrade_composite_OH.fits'
+            if band == 'NIRSPEC-3':
+                angle_fits_file = 'keck_nirspec_j_preupgrade_OH_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_preupgrade_composite_OH.fits'
 
         #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
         #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
@@ -1192,7 +1218,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
     #def filter(self, fitstbl):
 
-
+    '''
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -1229,7 +1255,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         #bpm_img[:, 1000:] = 1.
 
         return bpm_img
-
+    '''
 
 
     def order_platescale(self, order_vec, binning=None):
