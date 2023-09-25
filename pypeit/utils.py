@@ -1803,11 +1803,10 @@ def find_single_file(file_pattern) -> pathlib.Path:
         one.
     """
     files = glob.glob(file_pattern)
-    if len(files) == 1:
-        return pathlib.Path(files[0])
     if len(files) == 0:
         return None
-    msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
+    if len(files) > 1:
+        msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
     return pathlib.Path(files[0])
 
 
