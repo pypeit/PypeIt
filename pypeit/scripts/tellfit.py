@@ -155,6 +155,7 @@ class TellFit(scriptbase.ScriptBase):
                                            par['telluric']['pca_file'],
                                            par['telluric']['redshift'], modelfile, outfile,
                                            npca=par['telluric']['npca'],
+                                           teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                            pca_lower=par['telluric']['pca_lower'],
                                            pca_upper=par['telluric']['pca_upper'],
                                            bounds_norm=par['telluric']['bounds_norm'],
@@ -162,6 +163,8 @@ class TellFit(scriptbase.ScriptBase):
                                            only_orders=par['telluric']['only_orders'],
                                            bal_wv_min_max=par['telluric']['bal_wv_min_max'],
                                            maxiter=par['telluric']['maxiter'],
+                                           popsize=par['telluric']['popsize'],
+                                           tol=par['telluric']['tol'],
                                            debug_init=args.debug, disp=args.debug,
                                            debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='star':
@@ -175,12 +178,15 @@ class TellFit(scriptbase.ScriptBase):
                                              model=par['telluric']['model'],
                                              polyorder=par['telluric']['polyorder'],
                                              only_orders=par['telluric']['only_orders'],
+                                             teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                              mask_hydrogen_lines=par['sensfunc']['mask_hydrogen_lines'],
                                              mask_helium_lines=par['sensfunc']['mask_helium_lines'],
                                              hydrogen_mask_wid=par['sensfunc']['hydrogen_mask_wid'],
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              maxiter=par['telluric']['maxiter'],
+                                             popsize=par['telluric']['popsize'],
+                                             tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
                                              debug=args.debug, show=args.plot)
         elif par['telluric']['objmodel']=='poly':
@@ -190,12 +196,15 @@ class TellFit(scriptbase.ScriptBase):
                                              func=par['telluric']['func'],
                                              model=par['telluric']['model'],
                                              polyorder=par['telluric']['polyorder'],
+                                             teltype=par['telluric']['teltype'], ntell=par['telluric']['ntell'],
                                              fit_wv_min_max=par['telluric']['fit_wv_min_max'],
                                              mask_lyman_a=par['telluric']['mask_lyman_a'],
                                              delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              only_orders=par['telluric']['only_orders'],
                                              maxiter=par['telluric']['maxiter'],
+                                             popsize=par['telluric']['popsize'],
+                                             tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
                                              debug=args.debug, show=args.plot)
         else:

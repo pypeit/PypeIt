@@ -42,7 +42,7 @@
 - HIRES wavelength solution improvements galor
 - Added `redo_slits` option
 - Refactored ``load_line_lists()`` yet again!
-
+- Introduced PCA method for telluric corrections
 
 1.13.0 (2 June 2023)
 --------------------
