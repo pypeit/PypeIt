@@ -12,12 +12,11 @@ from astropy import wcs, units
 from astropy.io import fits
 from scipy.interpolate import interp1d
 import numpy as np
-import ref_index  # TODO :: Could just copy this code into the DAR class?
 
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, flux_calib, parse
+from pypeit.core import datacube, flux_calib, parse, ref_index
 from pypeit.spectrographs.util import load_spectrograph
 
 # Use a fast histogram for speed!
