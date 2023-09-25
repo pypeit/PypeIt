@@ -21,7 +21,6 @@ from pypeit.scripts import compare_sky
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
-from pypeit.scripts import identify_multi
 from pypeit.scripts import install_extinctfile
 from pypeit.scripts import install_linelist
 from pypeit.scripts import install_ql_calibs
