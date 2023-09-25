@@ -1803,11 +1803,9 @@ def find_single_file(file_pattern) -> pathlib.Path:
         one.
     """
     files = glob.glob(file_pattern)
-    if len(files) == 0:
-        return None
     if len(files) > 1:
         msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
-    return pathlib.Path(files[0])
+    return None if len(files) == 0 else pathlib.Path(files[0])
 
 
 def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
