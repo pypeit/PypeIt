@@ -323,7 +323,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Wavelengths
             par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.4
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
@@ -611,6 +611,9 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
+
+        # wavecalib
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True

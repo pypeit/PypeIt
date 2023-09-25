@@ -708,7 +708,7 @@ class BuildWaveCalib:
                 # get FWHM for this slit
                 fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[idx], verbose=True)
                 # get rms threshold for this slit
-                wave_rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
                 if final_fit[key]['rms'] < wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]

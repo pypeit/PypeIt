@@ -385,6 +385,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
             elif grating == '600/4000' and dichroic == 'D68':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d68.fits'
+                par['calibrations']['wavelengths']['fwhm_fromlines'] = False
             elif grating == '300/3990' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
             else:
