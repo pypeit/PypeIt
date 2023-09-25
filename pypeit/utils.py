@@ -1802,7 +1802,7 @@ def find_single_file(file_pattern) -> pathlib.Path:
         will give a warning if multiple files are found and return the first
         one.
     """
-    files = glob.glob(file_pattern)
+    files = sorted(glob.glob(file_pattern))
     if len(files) > 1:
         msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
     return None if len(files) == 0 else pathlib.Path(files[0])
