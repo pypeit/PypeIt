@@ -1043,15 +1043,18 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     plt.rcdefaults()
 
 
-def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms,
-                   fwhm,
-                   setup='A', slitord_id=0, outfile=None, show_QA=False, out_dir=None):
+def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask,
+                      spat_order, spec_order, rms, fwhm, setup='A', slitord_id=0, outfile=None,
+                      show_QA=False, out_dir=None):
+    """
+    NEEDS A DOC STRING!
+    """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'sans-serif'
 
-    # Outfil
+    # Output file
     method = inspect.stack()[0][3]
-    if (outfile is None):
+    if outfile is None:
         outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     nspat, nuse = tilts_dspat.shape
@@ -1090,7 +1093,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     ax.legend(handles=legend_elements)
     ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
                  'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slitord_id, rms, rms / fwhm), fontsize=15)
-    cb = fig.colorbar(dummie_cax, ticks=lines_spec)
+    cb = fig.colorbar(dummie_cax, ax=ax, ticks=lines_spec)
     cb.set_label('Spectral Pixel')
 
     # Finish
