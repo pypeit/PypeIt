@@ -279,133 +279,135 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in,
-                       meta_table, debug=False):
-        """
-
-        This routine is for performing instrument/disperser specific tweaks
-        to standard stars so that sensitivity function fits will be well
-        behaved.
-
-        With regard to LUCI 1/2 the very edges of the spectra for both zJspec
-        and HKspec configurations will be masked removing the extremely steep
-        drop in sensitivity, predominantly at the blue edge of the spectrum.
-
-        This function is copied and adapted from keck_mosfire.py
-
-        Parameters
-        ----------
-        wave_in: (float np.ndarray) shape = (nspec,)
-            Input standard star wavelenghts
-        counts_in: (float np.ndarray) shape = (nspec,)
-            Input standard star counts
-        counts_ivar_in: (float np.ndarray) shape = (nspec,)
-            Input inverse variance of standard star counts
-        gpm_in: (bool np.ndarray) shape = (nspec,)
-            Input good pixel mask for standard
-        meta_table: (astropy.table)
-            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
-            for the contents of this table.
-
-        Returns
-        -------
-        wave_out: (float np.ndarray) shape = (nspec,)
-            Output standard star wavelenghts
-        counts_out: (float np.ndarray) shape = (nspec,)
-            Output standard star counts
-        counts_ivar_out: (float np.ndarray) shape = (nspec,)
-            Output inverse variance of standard star counts
-        gpm_out: (bool np.ndarray) shape = (nspec,)
-            Output good pixel mask for standard
-
-        """
-
-        wvmin = np.min(wave_in)
-        wvmax = np.max(wave_in)
-
-        if wvmin < 10000 and wvmax > 13000:
-            coverage = 'zJspec'
-
-        elif wvmin < 15500 and wvmax > 22000:
-            coverage = 'HKspec'
-
-        else:
-            coverage = None
-            msgs.warn('Standard tweaks not available for provided wavelength '
-                      'range')
-            msgs.warn('Continuing without tweaking standard spectrum.')
-
-        if 'G200 LoRes' in meta_table['DISPNAME'] and coverage is not None:
-
-            # Setting the wavelength edges depending on the wavelength
-            # and the spectrograph LUCI1/LUCI2
-
-            if 'lbt_luci2' in meta_table['PYP_SPEC'] and coverage == 'zJspec':
-
-                wave_blue = 9800  # blue wavelength below which there is a strong
-                # drop off in flux
-                wave_red = 13400  # red wavelength above which there is a strong
-                # drop off in flux combined with telluric absorption
-
-            elif 'lbt_luci2' in meta_table['PYP_SPEC'] and coverage == 'HKspec':
-
-                wave_blue = 13000  # blue wavelength below which there is a
-                # strong
-                # drop off in flux
-                wave_red = 25000 # red wavelength above which there is a strong
-                # drop off in flux combined with telluric absorption
-
-            if 'lbt_luci1' in meta_table['PYP_SPEC'] and coverage == 'zJspec':
-
-                wave_blue = 9400  # blue wavelength below which there is a
-                # strong
-                # drop off in flux
-                wave_red = 13400  # red wavelength above which there is a strong
-                # drop off in flux combined with telluric absorption
-
-            elif 'lbt_luci1' in meta_table['PYP_SPEC'] and coverage == 'HKspec':
-
-                wave_blue = 15200  # blue wavelength below which there is a
-                # strong drop off in flux
-                wave_red = 23100 # red wavelength above which there is a strong
-                # drop off in flux combined with telluric absorption
-
-
-            msgs.warn('Tweaking standard spectrum coverage.')
-            msgs.warn('Standard spectrum reduced wavelenghts: {} to {'
-                         '}'.format(wave_blue, wave_red))
-            msgs.warn('For the telluric correction (pypeit_tellfilt), '
-                      'make sure to mask the excluded regions.')
-
-
-
-
-            exclusion_region = (wave_in < wave_blue) | (wave_in > wave_red)
-
-            wave = wave_in.copy()
-            counts = counts_in.copy()
-            gpm = gpm_in.copy()
-            counts_ivar = counts_ivar_in.copy()
-            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
-            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
-            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
-            wave[exclusion_region] = 0.0
-            counts[exclusion_region] = 0.0
-            counts_ivar[exclusion_region] = 0.0
-            gpm[exclusion_region] = False
-            if debug:
-               from matplotlib import pyplot as plt
-               counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
-               plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
-               plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
-               plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
-               plt.axvline(wave_blue, color='blue')
-               plt.axvline(wave_red, color='red')
-               plt.legend()
-               plt.show()
-            return wave, counts, counts_ivar, gpm
-        else:
-            return wave_in, counts_in, counts_ivar_in, gpm_in
+#    Routine deprecated, as the problems with the sensitivity function
+#    are fixed by including the blaze in the model.
+#    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in,
+#                       meta_table, debug=False):
+#        """
+#
+#        This routine is for performing instrument/disperser specific tweaks
+#        to standard stars so that sensitivity function fits will be well
+#        behaved.
+#
+#        With regard to LUCI 1/2 the very edges of the spectra for both zJspec
+#        and HKspec configurations will be masked removing the extremely steep
+#        drop in sensitivity, predominantly at the blue edge of the spectrum.
+#
+#        This function is copied and adapted from keck_mosfire.py
+#
+#        Parameters
+#        ----------
+#        wave_in: (float np.ndarray) shape = (nspec,)
+#            Input standard star wavelenghts
+#        counts_in: (float np.ndarray) shape = (nspec,)
+#            Input standard star counts
+#        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+#            Input inverse variance of standard star counts
+#        gpm_in: (bool np.ndarray) shape = (nspec,)
+#            Input good pixel mask for standard
+#        meta_table: (astropy.table)
+#            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+#            for the contents of this table.
+#
+#        Returns
+#        -------
+#        wave_out: (float np.ndarray) shape = (nspec,)
+#            Output standard star wavelenghts
+#        counts_out: (float np.ndarray) shape = (nspec,)
+#            Output standard star counts
+#        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+#            Output inverse variance of standard star counts
+#        gpm_out: (bool np.ndarray) shape = (nspec,)
+#            Output good pixel mask for standard
+#
+#        """
+#
+#        wvmin = np.min(wave_in)
+#        wvmax = np.max(wave_in)
+#
+#        if wvmin < 10000 and wvmax > 13000:
+#            coverage = 'zJspec'
+#
+#        elif wvmin < 15500 and wvmax > 22000:
+#            coverage = 'HKspec'
+#
+#        else:
+#            coverage = None
+#            msgs.warn('Standard tweaks not available for provided wavelength '
+#                      'range')
+#            msgs.warn('Continuing without tweaking standard spectrum.')
+#
+#        if 'G200 LoRes' in meta_table['DISPNAME'] and coverage is not None:
+#
+#            # Setting the wavelength edges depending on the wavelength
+#            # and the spectrograph LUCI1/LUCI2
+#
+#            if 'lbt_luci2' in meta_table['PYP_SPEC'] and coverage == 'zJspec':
+#
+#                wave_blue = 9800  # blue wavelength below which there is a strong
+#                # drop off in flux
+#                wave_red = 13400  # red wavelength above which there is a strong
+#                # drop off in flux combined with telluric absorption
+#
+#            elif 'lbt_luci2' in meta_table['PYP_SPEC'] and coverage == 'HKspec':
+#
+#                wave_blue = 13000  # blue wavelength below which there is a
+#                # strong
+#                # drop off in flux
+#                wave_red = 25000 # red wavelength above which there is a strong
+#                # drop off in flux combined with telluric absorption
+#
+#            if 'lbt_luci1' in meta_table['PYP_SPEC'] and coverage == 'zJspec':
+#
+#                wave_blue = 9400  # blue wavelength below which there is a
+#                # strong
+#                # drop off in flux
+#                wave_red = 13400  # red wavelength above which there is a strong
+#                # drop off in flux combined with telluric absorption
+#
+#            elif 'lbt_luci1' in meta_table['PYP_SPEC'] and coverage == 'HKspec':
+#
+#                wave_blue = 15200  # blue wavelength below which there is a
+#                # strong drop off in flux
+#                wave_red = 23100 # red wavelength above which there is a strong
+#                # drop off in flux combined with telluric absorption
+#
+#
+#            msgs.warn('Tweaking standard spectrum coverage.')
+#            msgs.warn('Standard spectrum reduced wavelenghts: {} to {'
+#                         '}'.format(wave_blue, wave_red))
+#            msgs.warn('For the telluric correction (pypeit_tellfilt), '
+#                      'make sure to mask the excluded regions.')
+#
+#
+#
+#
+#            exclusion_region = (wave_in < wave_blue) | (wave_in > wave_red)
+#
+#            wave = wave_in.copy()
+#            counts = counts_in.copy()
+#            gpm = gpm_in.copy()
+#            counts_ivar = counts_ivar_in.copy()
+#            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+#            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+#            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+#            wave[exclusion_region] = 0.0
+#            counts[exclusion_region] = 0.0
+#            counts_ivar[exclusion_region] = 0.0
+#            gpm[exclusion_region] = False
+#            if debug:
+#               from matplotlib import pyplot as plt
+#               counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+#               plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+#               plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+#               plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+#               plt.axvline(wave_blue, color='blue')
+#               plt.axvline(wave_red, color='red')
+#               plt.legend()
+#               plt.show()
+#            return wave, counts, counts_ivar, gpm
+#        else:
+#            return wave_in, counts_in, counts_ivar_in, gpm_in
 
 # Detector information from official LBT LUCI website
 # https://sites.google.com/a/lbto.org/luci/instrument-characteristics/detector
