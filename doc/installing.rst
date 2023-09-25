@@ -38,7 +38,7 @@ Setup a clean python environment
 
 Both methods discussed below for installing PypeIt (via `pip`_ or `conda`_)
 also install or upgrade its :ref:`dependencies`.  For this reason, we highly
-(!!) recommended you first set up a clean python environment in which to install
+(!!) recommend you first set up a clean python environment in which to install
 PypeIt.  This mitigates any possible dependency conflicts with other
 packages you use.
 
@@ -130,8 +130,8 @@ and then reinstalling.
     version after upgrading to a new version.  **The best approach is to always
     re-reduce data you're still working with anytime you update PypeIt.**
 
-Install via ``conda`` (recommended overall)
--------------------------------------------
+Install via ``conda``
+---------------------
 
 `conda`_ is a popular and widely-used package and environment manager. We
 provide a yaml file that can be used to setup a conda environment called
