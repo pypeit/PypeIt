@@ -1451,11 +1451,13 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
-    TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, teltype, obj_params,
+    msgs.info(f'log10_blaze_function = {log10_blaze_function}')
+
+    TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function,
                       ntell=ntell, ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
-                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
+                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol, teltype = teltype, 
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
                       sensfunc=True, debug=debug)
     TelObj.run(only_orders=only_orders)
@@ -1727,7 +1729,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # parameters lowered for testing
-    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, teltype, obj_params, init_star_model,
+    TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
                       eval_star_model, pix_shift_bounds=pix_shift_bounds,
                       teltype=teltype, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
@@ -2371,6 +2373,8 @@ class Telluric(datamodel.DataContainer):
 
         # 2) Reshape all spectra to be (nspec, norders)
         if log10_blaze_function is not None:
+            msgs.info(f'log10_blaze_function = {log10_blaze_function}')
+
             self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
                 self.nspec_in, self.norders = utils.spec_atleast_2d(
                 wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)

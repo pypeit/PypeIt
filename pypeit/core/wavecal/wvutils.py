@@ -806,7 +806,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     if y1 is None or y2 is None:
         msgs.warn('No lines detected punting on shift/stretch')
-        return 0, None, None, None, None, None
+        return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, 
@@ -823,7 +823,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         result = scipy.optimize.differential_evolution(zerolag_shift_stretch2, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
     except PypeItError:
         msgs.warn("Differential evolution failed.")
-        return 0, None, None, None, None, None
+        return 0, None, None, None, None, None, None
     else:
         corr_de = -result.fun
         shift_de = result.x[0]

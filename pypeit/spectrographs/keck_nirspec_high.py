@@ -506,6 +506,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+    
         return par
     
 
@@ -948,6 +949,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         headarr = self.get_headarr(scifile)
         filter1 = self.get_meta_value(headarr, 'filter1')
         filter2 = self.get_meta_value(headarr, 'filter2')
+        decker = self.get_meta_value(headarr, 'decker')
+
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
@@ -1003,6 +1006,16 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+        if decker == '0.144x12':
+            par['calibrations']['wavelengths']['fwhm'] = 1.0
+        if decker == '0.288x12' or decker == '0.288x24':
+            par['calibrations']['wavelengths']['fwhm'] = 2.0
+        if decker == '0.432x12' or decker == '0.432x24':
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
+        if decker == '0.576x12':
+            par['calibrations']['wavelengths']['fwhm'] = 4.0
+        if decker == '0.720x12' or decker == '0.720x24':
+            par['calibrations']['wavelengths']['fwhm'] = 5.0
 
         # Return
         return par
@@ -1103,8 +1116,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_y_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-3':
-                angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'
+                angle_fits_file = 'keck_nirspec_j_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-5':
                 angle_fits_file = 'keck_nirspec_h_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_h_preupgrade_composite_arc.fits'
