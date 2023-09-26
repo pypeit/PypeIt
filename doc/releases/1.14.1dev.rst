@@ -1,0 +1,29 @@
+
+Version 1.14.1dev
+=================
+
+Dependency Changes
+------------------
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+Instrument-specific Updates
+---------------------------
+
+Script Changes
+--------------
+
+Datamodel Changes
+-----------------
+
+Under-the-hood Improvements
+---------------------------
+
+Bug Fixes
+---------
+
+- Fixed bug associated with finding more than one file with the same name (but
+  presumably different extensions).
+
+
