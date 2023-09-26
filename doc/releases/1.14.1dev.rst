@@ -25,5 +25,7 @@ Bug Fixes
 
 - Fixed bug associated with finding more than one file with the same name (but
   presumably different extensions).
-
+- Fixed differential atmospheric refraction (DAR) correction bug. This bug affected
+  datacubes combined using CoAdd3D(). Previously, the DAR was being computed, applied,
+  and then later overwritten. The new routine is faster and more accurate.
 
