@@ -420,6 +420,19 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             # vega is V=0.03
             std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
+        if 'PHOENIX' in star_type:
+            msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
+            ## Vega model from TSPECTOOL
+            vega_file = data.Paths.standards / 'PHOENIX_10000K_4p0.dat'
+            vega_data = table.Table.read(vega_file, comment='#', format='ascii')
+            std_dict = dict(cal_file='PHOENIX_10000K_4p0', name=star_type, Vmag=star_mag,
+                            std_ra=ra, std_dec=dec)
+            std_dict['std_source'] = 'VEGA'
+            std_dict['wave'] = vega_data['col1'] * units.AA
+
+            # vega is V=0.03
+            std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
+                               units.erg / units.s / units.cm ** 2 / units.AA
         ## using Kurucz stellar model
         else:
             # Create star spectral model

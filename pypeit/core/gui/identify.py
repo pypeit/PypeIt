@@ -917,8 +917,11 @@ class Identify:
                         if slits:
                             msgs.info('Unflagging Slits from WaveCalib: ')
                             slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
-                            slits.ech_order = order_vec
+                            slits.ech_order = np.flip(order_vec)
                             slits.to_file()
+                        clean_calib = input('Clean up the Calibrations/ directory? y/[n]: ')
+                        if clean_calib:
+                            os.system('rm -rf Calibrations/Arc* Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:

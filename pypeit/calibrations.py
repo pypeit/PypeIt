@@ -862,6 +862,31 @@ class Calibrations:
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
+            if self.par['wavelengths']['method'] == 'echelle':
+                msgs.info('Method set to Echelle -- checking wv_calib for 2dfits')
+                if not self.wv_calib.wv_fit2d:
+                    msgs.info('2d fit does not exist! Doing now: ')
+                    is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
+                    lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
+                                if self.par['wavelengths']['lamps'] == ['use_header'] \
+                                else self.par['wavelengths']['lamps']
+                    meta_dict = dict(self.fitstbl[is_arc][0]) \
+                                if self.spectrograph.pypeline == 'Echelle' \
+                                    and not self.spectrograph.ech_fixed_format else None
+                    waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
+                                        self.par['wavelengths'], lamps, meta_dict=meta_dict,
+                                        det=self.det, qa_path=self.qa_path)
+
+                    fit2ds, dets, order_dets = waveCalib.echelle_2dfit(
+                        self.wv_calib, skip_QA = False, debug=False)
+                    # Save
+                    self.wv_calib.wv_fit2d = np.array(fit2ds)
+                    # Save det_img?
+                    if self.par['wavelengths']['ech_separate_2d']:
+                        self.wv_calib.det_img = self.msarc.det_img.copy()
+                    #update file with the new 2d fits
+                    self.wv_calib.to_file()
+
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
                 return self.wv_calib

@@ -1451,7 +1451,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     mask_tot = mask_bad & mask_recomb & mask_tell
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
-    msgs.info(f'log10_blaze_function = {log10_blaze_function}')
+    #msgs.info(f'log10_blaze_function = {log10_blaze_function}')
 
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model, log10_blaze_function=log10_blaze_function,
@@ -2373,7 +2373,7 @@ class Telluric(datamodel.DataContainer):
 
         # 2) Reshape all spectra to be (nspec, norders)
         if log10_blaze_function is not None:
-            msgs.info(f'log10_blaze_function = {log10_blaze_function}')
+            #msgs.info(f'log10_blaze_function = {log10_blaze_function}')
 
             self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
                 self.nspec_in, self.norders = utils.spec_atleast_2d(

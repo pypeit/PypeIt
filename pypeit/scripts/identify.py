@@ -146,13 +146,16 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 slits_inds = np.arange(slits.nslits)
             else:
-                slit_list = list(args.slits)
-                ii = 0
-                slits_inds = []
-                while 2*ii+1 < len(slit_list):
-                    slits_inds.append(int(slit_list[2*ii+1]))
-                    ii += 1
-                slits_inds = np.array(slits_inds)
+                if args.slits == 'all':
+                    slits_inds = np.arange(slits.nslits)
+                else:
+                    slit_list = list(args.slits)
+                    ii = 0
+                    slits_inds = []
+                    while 2*ii+1 < len(slit_list):
+                        slits_inds.append(int(slit_list[2*ii+1]))
+                        ii += 1
+                    slits_inds = np.array(slits_inds)
             fits_dicts = []
             specdata = []
             wv_fits_arr = []
