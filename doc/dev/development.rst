@@ -14,7 +14,7 @@ Installation
 ------------
 
 If you plan to develop/alter the ``PypeIt`` code directly, you should 
-install the code from sourc; see :ref:`developer_install`.
+install the code from source; see :ref:`developer_install`.
 
 For simplicity in the discussion below, I refer to the directory with your
 installation as ``$PYPEIT_DIR``.
