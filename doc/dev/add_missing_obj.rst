@@ -15,6 +15,7 @@ Version History
 1.1         Debora Pelliccia    28 Jul 2021  1.4.3dev
 1.3         Debora Pelliccia    21 Oct 2021  1.6.1dev
 1.4         J. Xavier Prochaska 25 Jan 2022  1.7.1dev
+1.5         Debora Pelliccia     6 Sep 2023  1.13.1dev
 =========   =================== =========== ===========
 
 ----
@@ -23,7 +24,7 @@ Basics
 ------
 
 The procedure to determine the location on the slit of undetected objects
-using the slitmask design information is currently available for Keck/DEIMOS and Keck/MOSFIRE only
+using the slitmask design information is currently available for these :ref:`slitmask_info_instruments` only
 and it is performed right after the object finding (see :ref:`object_finding`)
 and the RA, Dec and object name assignment procedures (see :ref:`radec_object_report`) have been completed.
 

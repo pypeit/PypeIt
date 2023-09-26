@@ -11,12 +11,13 @@ Version History
 =========   =================== =========== ===========
 *Version*   *Author*            *Date*      ``PypeIt``
 =========   =================== =========== ===========
-1.0         Debora Pelliccia    9 Oct 2020  1.1.2dev
-1.1         Debora Pelliccia    5 Nov 2020  1.2.1dev
+1.0         Debora Pelliccia     9 Oct 2020 1.1.2dev
+1.1         Debora Pelliccia     5 Nov 2020 1.2.1dev
 1.2         Debora Pelliccia    26 Jan 2021 1.3.1dev
 1.3         Debora Pelliccia    21 Oct 2021 1.6.1dev
 1.4         J. Xavier Prochaska 11 Jan 2022 1.7.1dev
 1.5         Kyle Westfall       23 Mar 2023 1.12.2dev
+1.6         Debora Pelliccia     6 Sep 2023 1.13.1dev
 =========   =================== =========== ===========
 
 ----
@@ -25,7 +26,7 @@ Basics
 ------
 
 The procedure used to assign slitmask ID to each slit is currently available for 
-Keck/DEIMOS, Keck/MOSFIRE, and Keck/LRIS (limited) only,
+these :ref:`slitmask_info_instruments` only,
 and is part of the more general slit tracing procedure described 
 in :ref:`slit_tracing`.
 
@@ -55,8 +56,7 @@ form longer slits.
 
 For LRIS, the procedure is similar to the one for MOSFIRE where edges are predicted
 based on the RA, DEC of each slit and the platescale of the detector.
-It has been developed and tested for the previous LRISr detector (not Mark4)
-and the current LRISb detector.
+It has been developed and tested for ``keck_lris_red``, ``keck_lris_red_mark4``, and ``keck_lris_blue``.
 
 The function :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` assigns to each slit 
 a ``maskdef_id``, which corresponds to `dSlitId` and `Slit_Number` in the DEIMOS/LRIS and
@@ -105,8 +105,8 @@ Access
 
 The ``maskdef_id`` is recorded for each slits in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel,
 which is written to disk as a multi-extension FITS file prefixed by Slits.
-In addition, for DEIMOS and MOSFIRE a second `astropy.io.fits.BinTableHDU`_ is written to disk and contains
-more slitmask design information. See :ref:`slits` for a description of the provided information
+In addition, for these :ref:`slitmask_info_instruments` a second `astropy.io.fits.BinTableHDU`_ is written
+to disk and contains more slitmask design information. See :ref:`slits` for a description of the provided information
 and for a way to visualize them.
 
 Moreover, the ``maskdef_id`` assigned to each slit can be found, after a full reduction with ``PypeIt``
