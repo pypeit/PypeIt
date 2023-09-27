@@ -4,7 +4,7 @@ Dynamically build table listing available spectrographs.
 
 import os
 import time
-from pkg_resources import resource_filename
+from importlib import resources
 
 from IPython import embed
 
@@ -44,12 +44,11 @@ def write_spec_table(path):
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    path = os.path.join(pypeit_root, 'doc', 'include')
-    if not os.path.isdir(path):
-        os.makedirs(path)
+    output_root = str(resources.files('pypeit').parent / 'doc' / 'include')
+    if not os.path.isdir(output_root):
+        os.makedirs(output_root)
 
-    write_spec_table(path)
+    write_spec_table(output_root)
 
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 

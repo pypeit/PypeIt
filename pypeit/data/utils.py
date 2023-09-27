@@ -15,8 +15,8 @@ Implementation Documentation
 This module contains the organization scheme for the ``pypeit/data`` files
 needed by the ``PypeIt`` package.  Any routine in the package that needs to load
 a data file stored in this directory should use the paths supplied by this
-module and not call `resource_filename
-<https://setuptools.pypa.io/en/latest/pkg_resources.html#resource-extraction>`__
+module and not call, e.g. `importlib.resources.files
+<https://docs.python.org/3/library/importlib.resources.html#importlib.resources.files>`__
 or attempt to otherwise directly access the package directory structure.  In
 this way, if structural changes to this directory are needed, only this module
 need be modified and the remainder of the package can remain ignorant of those
@@ -73,11 +73,11 @@ to the Vega example above.
 import pathlib
 import shutil
 import urllib.error
+from importlib import resources
 
 import astropy.utils.data
 import github
 from linetools.spectra import xspectrum1d
-from pkg_resources import resource_filename
 import requests
 
 from pypeit import io
@@ -101,7 +101,8 @@ class Paths:
     """
 
     # Class Attributes -- Hardwired Paths
-    _data = pathlib.Path(resource_filename('pypeit', 'data'))
+    _data = resources.files('pypeit') / 'data'
+#    _data = pathlib.Path(resource_filename('pypeit', 'data'))
 
     # Telluric Corrections
     _telgrid = _data / 'telluric' / 'atm_grids'

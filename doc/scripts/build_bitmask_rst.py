@@ -4,9 +4,10 @@ Dynamically build tables for the bitmasks.
 
 import os
 import time
+from importlib import resources
+
 import numpy
 
-from pkg_resources import resource_filename
 from pypeit.utils import to_string, string_table
 
 from IPython import embed
@@ -34,8 +35,7 @@ def write_bitmask_table(obj, path):
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    path = os.path.join(pypeit_root, 'doc', 'include')
+    path = str(resources.files('pypeit').parent / 'doc' / 'include')
     if not os.path.isdir(path):
         os.makedirs(path)
 

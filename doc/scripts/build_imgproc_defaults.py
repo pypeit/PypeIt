@@ -2,9 +2,10 @@
 Construct an rst table with the dependencies
 """
 
-from IPython import embed
 import os
-from pkg_resources import resource_filename
+from importlib import resources
+
+from IPython import embed
 
 import numpy
 
@@ -73,8 +74,7 @@ def write_imgproc_def_table(ofile, spec=None):
 
 
 def main():
-    output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
-                               'doc', 'include')
+    output_root = resources.files('pypeit').parent / 'doc' / 'include'
     if not os.path.isdir(output_root):
         raise NotADirectoryError(f'{output_root} does not exist!')
 

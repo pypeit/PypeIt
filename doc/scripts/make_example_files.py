@@ -8,8 +8,7 @@ import os
 import time
 import shutil 
 import glob
-
-from pkg_resources import resource_filename
+from importlib import resources
 
 from IPython import embed
 
@@ -21,7 +20,7 @@ from pypeit import pypeitsetup
 
 def make_example_kast_pypeit_file(version, date):
 
-    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() \
                 / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
@@ -47,7 +46,7 @@ def make_example_kast_pypeit_file(version, date):
 
 def make_example_deimos_pypeit_file(version, date):
 
-    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
     
@@ -72,7 +71,7 @@ def make_example_deimos_pypeit_file(version, date):
 
 def make_example_gnirs_pypeit_files(version, date):
 
-    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     # Create the default pypeit file
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs_echelle' \
@@ -113,7 +112,7 @@ def make_example_gnirs_pypeit_files(version, date):
 
 def make_example_nires_pypeit_files(version, date):
 
-    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     # Create the default pypeit file
     droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
@@ -164,7 +163,7 @@ def make_example_sorted_file():
     sorted_file = Path().resolve() / ps.pypeit_file.replace('.pypeit', '.sorted')
     ps.fitstbl.write_sorted(sorted_file)
 
-    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
     ofile = oroot / 'keck_deimos.sorted.rst'
     with open(ofile, 'w') as f:
         with open(sorted_file, 'r') as p:
@@ -178,9 +177,8 @@ def make_example_sorted_file():
     os.remove(sorted_file)
 
 def make_meta_examples():
-
-    ofile = Path(resource_filename('pypeit', '')).resolve().parent \
-                / 'doc' / 'include' / 'deimos_meta_key_map.rst'
+    oroot = resources.files('pypeit').parent / 'doc' / 'include'
+    ofile = oroot / 'deimos_meta_key_map.rst'
     otmp = ofile.parent / 'tmp_meta'
     if otmp.exists():
         otmp.unlink()
