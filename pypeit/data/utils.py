@@ -102,7 +102,6 @@ class Paths:
 
     # Class Attributes -- Hardwired Paths
     _data = resources.files('pypeit') / 'data'
-#    _data = pathlib.Path(resource_filename('pypeit', 'data'))
 
     # Telluric Corrections
     _telgrid = _data / 'telluric' / 'atm_grids'
