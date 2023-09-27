@@ -11,7 +11,7 @@
 We use Sphinx to build our documentation:
 https://www.sphinx-doc.org/en/master/index.html
 
-Dostrings should be in rst format:
+Docstrings should be in rst format:
 http://docutils.sourceforge.net/rst.html
 
 Google format example (preferred):
