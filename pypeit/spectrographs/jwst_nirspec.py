@@ -288,9 +288,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        fil = utils.find_single_file(f'{raw_file}*')
-        if fil is None:
-            msgs.error(f'No files matching pattern: {raw_file}')
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
         msgs.info(f'Reading JWST/NIRSpec file: {fil}')
