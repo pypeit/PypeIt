@@ -348,7 +348,10 @@ A typical ``PypeIt`` development workflow is as follows:
    *Any* warnings in the sphinx build of the docs *must* be fixed.  If you're
    having difficulty getting the right sphinx/rst incantation, ping the
    documentation channel in the `PypeIt Developers Slack
-   <https://pypeit.slack.com>`__.
+   <https://pypeit.slack.com>`__.  Also note that, even if no warnings are
+   issued, it's useful to check that the documentation formats as you expect.
+   After building the docs, you can open the ``doc/_build/html/index.html`` file
+   to view and navigate through the documentation in its entirety.
 
  * Make sure all your edits are committed and pushed to the remote
    repository:
