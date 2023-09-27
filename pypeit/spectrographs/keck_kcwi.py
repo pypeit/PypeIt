@@ -5,8 +5,6 @@ Implements KCWI-specific functions.
 .. include:: ../include/links.rst
 """
 
-import glob
-
 from IPython import embed
 
 import numpy as np
@@ -16,8 +14,10 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
 from scipy.optimize import curve_fit
+
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -969,14 +969,11 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
@@ -1282,14 +1279,11 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
