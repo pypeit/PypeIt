@@ -5,6 +5,12 @@
 Development Procedures and Guidelines
 =====================================
 
+.. contents:: Contents
+    :depth: 1
+    :local:
+
+----
+
 We encourage anyone to help us develop the ``PypeIt`` code base to better
 suit your needs and to improve its algorithms.  If you do so, please
 follow this list of procedures and guidelines.  In particular, please

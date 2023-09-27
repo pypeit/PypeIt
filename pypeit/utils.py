@@ -1789,13 +1789,15 @@ def is_float(s):
     return True
 
 
-def find_single_file(file_pattern) -> pathlib.Path:
+def find_single_file(file_pattern, required: bool=False) -> pathlib.Path:
     """
     Find a single file matching a wildcard pattern.
 
     Args:
         file_pattern (str):
             A filename pattern, see the python 'glob' module.
+        required (:obj:`bool`, optional):
+            If True and no files are found, an error is raised.
 
     Returns:
         :obj:`pathlib.Path`: A file name, or None if no filename was found. This
@@ -1805,6 +1807,8 @@ def find_single_file(file_pattern) -> pathlib.Path:
     files = sorted(glob.glob(file_pattern))
     if len(files) > 1:
         msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
+    if len(files) == 0 and required:
+        msgs.error(f'No files matching pattern: {file_pattern}')
     return None if len(files) == 0 else pathlib.Path(files[0])
 
 
