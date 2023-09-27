@@ -162,8 +162,7 @@ def parse_binning(binning:str):
     # Return
     return binspectral, binspatial
 
-# TODO: Allow this to differentiate between detectors and mosaics.  Input syntax
-# likely to become, e.g., DET01:175,DET01:205.
+
 def parse_slitspatnum(slitspatnum):
     """
     Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
@@ -178,16 +177,10 @@ def parse_slitspatnum(slitspatnum):
         array is ``(nslits,)``, where ``nslits`` is the number of
         ``slitspatnum`` entries parsed (1 if only a single string is provided).
     """
-    dets = []
-    spat_ids = []
-    if isinstance(slitspatnum,list):
-        slitspatnum = ",".join(slitspatnum)
-    for item in slitspatnum.split(','):
-        spt = item.split(':')
-        dets.append(spt[0])
-        spat_ids.append(int(spt[1]))
-    # Return
-    return np.array(dets).astype(str), np.array(spat_ids).astype(int)
+    _slitspatnum = slitspatnum if isinstance(slitspatnum,list) else [slitspatnum]
+    _slitspatnum = np.concatenate([item.split(',') for item in _slitspatnum])
+    _slitspatnum = np.array([item.split(':') for item in _slitspatnum])
+    return _slitspatnum[:,0], _slitspatnum[:,1].astype(int)
 
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):

@@ -1108,7 +1108,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCRM'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
     header_name = 'KCRM'
-    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcrm`'
+    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """

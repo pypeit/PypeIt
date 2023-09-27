@@ -81,8 +81,9 @@ HgI     2900-12000  28 February 2022
 KrI     4000-10000  3 May 2018
 NeI     5000-12000  3 May 2018
 XeI     4000-12000  3 May 2018
-ZnI     3000-5000   21 December 2016
+ZnI     3000-5000   6 Sep 2023
 ThAr    3000-11000  9 January 2018
+FeAr    3000-9000   6 Sep 2023
 ======  ==========  ================
 
 In the case of the ThAr list, all of the lines are taken from the NIST database,

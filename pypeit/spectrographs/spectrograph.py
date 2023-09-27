@@ -293,6 +293,17 @@ class Spectrograph:
                 raise TypeError('Telescope parameters must be one of those specified in'
                                 'pypeit.telescopes.')
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+        NOTE: Not defined for all the spectrographs.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        pass
+
     def raw_is_transposed(self, detector_par):
         """
         Check if raw image files are transposed with respect to the
@@ -586,7 +597,7 @@ class Spectrograph:
 
         This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
         to measure the mean offset between the measured and expected slit
-        locations.  **This method is not defined for all spectrographs.**
+        locations.
 
         Detectors separated along the dispersion direction should be ordered
         along the first axis of the returned array.  For example, Keck/DEIMOS
@@ -611,7 +622,11 @@ class Spectrograph:
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        return None
+        if mosaic and len(self.allowed_mosaics) == 0:
+            msgs.error(f'Spectrograph {self.name} does not have any defined detector mosaics.')
+        dets = self.allowed_mosaics if mosaic else range(1,self.ndet+1)
+        return np.array([self.get_det_name(det) for det in dets])
+
 
     def get_lamps(self, fitstbl):
         """

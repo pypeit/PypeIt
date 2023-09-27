@@ -12,6 +12,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy import stats
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
@@ -83,6 +84,7 @@ class CoAdd1D:
         self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
+        self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
 
     def run(self):
         """
@@ -133,7 +135,7 @@ class CoAdd1D:
 
         # Add history entries for coadding.
         history = History()
-        history.add_coadd1d(self.spec1dfiles, self.objids)
+        history.add_coadd1d(self.spec1dfiles, self.objids, gpm_exp=self.gpm_exp)
 
         # Add on others
         if telluric is not None:
@@ -207,8 +209,96 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
             headers.append(header_out)
 
-
         return waves, fluxes, ivars, gpms, headers
+
+    def check_exposures(self):
+        """
+        Check if there are bad exposures.
+        Exposures with flux masked everywhere are always removed.
+        Exposures that are considered bad based on their S/N compared to the
+        average S/N among all the exposures, are removed only if self.par['sigrej_exp'] is set.
+        The attributes self.waves, self.fluxes, self.ivars, self.gpms need to be defined.
+
+        Returns
+        -------
+        gpm_exp: list of bool
+            List of boolean that indicates which exposures
+            have been coadded. The length of the list is nexp.
+        _waves : list of float `numpy.ndarray`_
+            Updated list of wavelength arrays.
+        _fluxes : list of float `numpy.ndarray`_
+            Updated list of flux arrays.
+        _ivars : list of float `numpy.ndarray`_
+            Updated list of inverse variance arrays.
+        _gpms : list of bool `numpy.ndarray`_
+            Updated list of good pixel mask variance arrays.
+        """
+
+        # initialize the exposures lists
+        _waves = [wave for wave in self.waves]
+        _fluxes = [flux for flux in self.fluxes]
+        _ivars = [ivar for ivar in self.ivars]
+        _gpms = [gpm for gpm in self.gpms]
+        _spec1dfiles = [spec1dfile for spec1dfile in self.spec1dfiles]
+        _objids = [objid for objid in self.objids]
+
+        # good exposures index
+        goodindx_exp = np.arange(self.nexp)
+
+        # check if there are exposures that are completely masked out, i.e., gpms = False for all spectral pixels
+        masked_exps = [np.all(np.logical_not(gpm)) for gpm in _gpms]
+        if np.any(masked_exps):
+            msgs.warn(f'The following exposure(s) is/are completely masked out. It/They will not be coadded.')
+            [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+             for i, (fname, obj, masked_exp) in enumerate(zip(_spec1dfiles, _objids, masked_exps)) if masked_exp]
+            # remove masked out exposure
+            _waves = [wave for (wave, masked_exp) in zip(_waves, masked_exps) if not masked_exp]
+            _fluxes = [flux for (flux, masked_exp) in zip(_fluxes, masked_exps) if not masked_exp]
+            _ivars = [ivar for (ivar, masked_exp) in zip(_ivars, masked_exps) if not masked_exp]
+            _gpms = [gpm for (gpm, masked_exp) in zip(_gpms, masked_exps) if not masked_exp]
+            _spec1dfiles = [spec1dfile for (spec1dfile, masked_exp) in zip(_spec1dfiles, masked_exps) if not masked_exp]
+            _objids = [objid for (objid, masked_exp) in zip(_objids, masked_exps) if not masked_exp]
+            # update good exposures index
+            goodindx_exp = goodindx_exp[np.logical_not(masked_exps)]
+
+        # check if there is still more than 1 exposure left
+        if len(_fluxes) < 2:
+            msgs.error('At least 2 unmasked exposures are required for coadding.')
+
+        # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
+        if len(_fluxes) > 2:
+            # Evaluate the sn_weights.
+            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, const_weights=True)
+            # some stats
+            mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
+            _sigrej = self.par['sigrej_exp'] if self.par['sigrej_exp'] is not None else 10.0
+            # we set thresh_value to never be less than 0.2
+            thresh_value = round(0.2 + med + _sigrej * sigma, 2)
+            bad_exps = rms_sn > thresh_value
+            if np.any(bad_exps):
+                warn_msg = f'The following exposure(s) has/have S/N > {thresh_value:.2f} ' \
+                           f'({_sigrej} sigma above the median S/N in the stack).'
+                if self.par['sigrej_exp'] is not None:
+                        warn_msg += ' It/They WILL NOT BE COADDED.'
+                msgs.warn(warn_msg)
+                [msgs.warn(f"Exposure {i}: {fname.split('/')[-1]}  {obj}")
+                 for i, (fname, obj, bad_exp) in enumerate(zip(_spec1dfiles, _objids, bad_exps)) if bad_exp]
+                if self.par['sigrej_exp'] is not None:
+                    # remove bad exposure
+                    _waves = [wave for (wave, bad_exp) in zip(_waves, bad_exps) if not bad_exp]
+                    _fluxes = [flux for (flux, bad_exp) in zip(_fluxes, bad_exps) if not bad_exp]
+                    _ivars = [ivar for (ivar, bad_exp) in zip(_ivars, bad_exps) if not bad_exp]
+                    _gpms = [gpm for (gpm, bad_exp) in zip(_gpms, bad_exps) if not bad_exp]
+                    _spec1dfiles = [spec1dfile for (spec1dfile, bad_exp) in zip(_spec1dfiles, bad_exps) if not bad_exp]
+                    _objids = [objid for (objid, bad_exp) in zip(_objids, bad_exps) if not bad_exp]
+                    # update good exposures index
+                    goodindx_exp = goodindx_exp[np.logical_not(bad_exps)]
+
+        # gpm for the exposures, i.e., which exposures have been coadded
+        gpm_exp = np.zeros(self.nexp, dtype=bool)
+        gpm_exp[goodindx_exp] = True
+
+        return gpm_exp.tolist(), _waves, _fluxes, _ivars, _gpms
 
     def coadd(self):
         """
@@ -220,9 +310,10 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.headers = self.load()
+        # check if there are bad exposures and remove them
+        self.gpm_exp, _waves, _fluxes, _ivars, _gpms = self.check_exposures()
         # Perform and return the coadd
-        return coadd.multi_combspec(
-            self.waves, self.fluxes, self.ivars, self.gpms,
+        return coadd.multi_combspec(_waves, _fluxes, _ivars, _gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
             wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],

@@ -1001,7 +1001,7 @@ class Coadd1DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, dv=None, dwave=None, dloglam=None,
+                 sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, dwave=None, dloglam=None,
                  wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
@@ -1036,7 +1036,6 @@ class Coadd1DPar(ParSet):
         dtypes['nmaskedge'] = int
         descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
 
-        # Offsets
         defaults['sn_smooth_npix'] = None
         dtypes['sn_smooth_npix'] = [int, float]
         descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
@@ -1044,8 +1043,12 @@ class Coadd1DPar(ParSet):
                                   'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
                                   'this neff.'
 
+        defaults['sigrej_exp'] = None
+        dtypes['sigrej_exp'] = [int, float]
+        descr['sigrej_exp'] = 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma ' \
+                              'above the median S/N. If None (the default), no rejection is performed. Currently, ' \
+                              'only available for multi-slit observations.' \
 
-        # Offsets
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
@@ -1191,8 +1194,8 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'dwave', 'dloglam',
-                   'wave_grid_min', 'wave_grid_max',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'sigrej_exp',
+                   'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
@@ -1258,8 +1261,8 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
-                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching ' \
+                           '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
@@ -2020,8 +2023,8 @@ class SlitMaskPar(ParSet):
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
-                                     'and MOSFIRE slitmask design, respectively) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` ' \
+                                     'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'
@@ -2823,7 +2826,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid lamp ions
         """
-        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
+        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'FeAr']
 
     @staticmethod
     def valid_media():

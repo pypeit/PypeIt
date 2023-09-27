@@ -229,7 +229,7 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             gpms = [wave > 1.0 for wave in waves]
 
         if wave_grid_min is None:
-            wave_grid_min = np.min([wave[gpm].min()for wave, gpm in zip(waves, gpms)])
+            wave_grid_min = np.min([wave[gpm].min() for wave, gpm in zip(waves, gpms)])
         if wave_grid_max is None:
             wave_grid_max = np.max([wave[gpm].max() for wave, gpm in zip(waves, gpms)])
 
