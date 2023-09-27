@@ -616,7 +616,8 @@ class SpecObjs:
                                              longitude=spectrograph.telescope['longitude'],
                                              latitude=spectrograph.telescope['latitude'],
                                              extinctfilepar=par['extinct_file'],
-                                             airmass=float(self.header['AIRMASS']))
+                                             airmass=float(self.header['AIRMASS']),
+                                             sens_fwhm = sens.sens['SENS_STD_SPAT_FWHM'][indx[0]])
                 elif indx.size == 0:
                     msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
                               'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))

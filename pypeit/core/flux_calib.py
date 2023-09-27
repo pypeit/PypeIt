@@ -431,7 +431,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             std_dict['wave'] = vega_data['col1'] * units.AA
 
             # vega is V=0.03
-            std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
+            std_dict['flux'] = vega_data['col2'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
         ## using Kurucz stellar model
         else:
@@ -738,7 +738,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     return meta_table, out_table
 
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, 
+                         extrap_sens=False, sens_fwhm = None, dat_fwhm = None):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
@@ -770,6 +771,10 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
                 Used for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
+        sens_fwhm (`numpy.ndarray`_, optional):
+            Use the fwhm from the sensitivity function to estimate the slit loss
+        dat_fwhm (`numpy.ndarray`_, optional):
+            Use the fwhm from the data to estimate the slit loss
 
     Returns
     -------
@@ -825,6 +830,12 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         senstot = sensfunc_obs * ext_corr
     else:
         senstot = sensfunc_obs.copy()
+
+    if np.any(sens_fwhm) and np.any(dat_fwhm):
+        #print(np.shape(dat_fwhm), np.shape(sens_fwhm), np.shape(senstot))  
+        msgs.info(f'Sens Std fwhm = {sens_fwhm}, but dat_fwhm = {dat_fwhm}')
+        msgs.info(f'Slit loss correction = {1/np.sqrt(dat_fwhm/sens_fwhm)}')
+        senstot *= 1.0/np.sqrt(dat_fwhm/sens_fwhm)
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom

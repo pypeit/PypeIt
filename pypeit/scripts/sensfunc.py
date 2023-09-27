@@ -182,6 +182,7 @@ class SensFunc(scriptbase.ScriptBase):
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
+        msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
         # Write it out to a file, including the new primary FITS header
         sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 

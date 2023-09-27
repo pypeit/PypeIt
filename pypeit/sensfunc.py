@@ -95,6 +95,8 @@ class SensFunc(datamodel.DataContainer):
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
                                     descr='Spectrograph throughput measurements'),
+                 'spat_fwhm_std': dict(otype=np.ndarray, atype=float,
+                                    descr='Measured spatial fwhm of the standard source'),
                  'algorithm': dict(otype=str, descr='Algorithm used for the sensitivity calculation.')}
 #                                    ,
 #                 'wave_splice': dict(otype=np.ndarray, atype=float,
@@ -128,7 +130,8 @@ class SensFunc(datamodel.DataContainer):
                  'steps',
                  'splice_multi_det',
                  'meta_spec',
-                 'std_dict'
+                 'std_dict',
+                 'spat_fwhm_std'
                 ]
 
     _algorithm = None
@@ -189,7 +192,9 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
                          description='The good pixel mask for the fluxed standard star spectrum '),
             table.Column(name='SENS_STD_MODEL_FLAM', dtype=float, length=norders, shape=(nspec_in,),
-                         description='The F_lambda for the standard model spectrum')])
+                         description='The F_lambda for the standard model spectrum'),
+            table.Column(name='SENS_STD_SPAT_FWHM', dtype=float, length=norders, shape=(nspec_in,),
+                         description='The spatial fwhm for the standard model spectrum, to account for slit losses')])
 
 
 
@@ -244,6 +249,10 @@ class SensFunc(datamodel.DataContainer):
 
         if self.sobjs_std is None:
             msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
+
+        #save the standard fwhm
+        self.spat_fwhm_std = self.sobjs_std.SPAT_FWHM
+        msgs.info(f'Saving standard fwhm as: {self.spat_fwhm_std}')
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = self.sobjs_std.unpack_object(ret_flam=False)
@@ -474,6 +483,8 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
+        self.sens['SENS_STD_SPAT_FWHM'] = self.sobjs_std.SPAT_FWHM
+        self.spat_fwhm_std = self.sens['SENS_STD_SPAT_FWHM']
 
 
 
@@ -797,6 +808,8 @@ class SensFunc(datamodel.DataContainer):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             model_flux_sav[iorddet][wave_gpm] = model_interp_func(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm])
         self.sens['SENS_STD_MODEL_FLAM'] = model_flux_sav
+
+        self.sens['SENS_STD_SPAT_FWHM'] = self.spat_fwhm_std
 
 
 

@@ -542,7 +542,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         
         if filter1 == 'Kband-new' or filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
-            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.9
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
@@ -593,7 +593,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
         if decker == '0.144x12':
-            par['calibrations']['wavelengths']['fwhm'] = 1.5
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
         if decker == '0.288x12' or decker == '0.288x24':
             par['calibrations']['wavelengths']['fwhm'] = 3.0
         if decker == '0.432x12' or decker == '0.432x24':

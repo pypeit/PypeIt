@@ -1485,7 +1485,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       teltype=teltype, tell_npca=tell_npca,
                       ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
-                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol, teltype = teltype, 
+                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol, 
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
                       sensfunc=True, debug=debug)
     TelObj.run(only_orders=only_orders)
