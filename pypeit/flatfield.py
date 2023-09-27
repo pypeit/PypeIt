@@ -1370,7 +1370,7 @@ class FlatField:
 
     def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
         """
-        Generate a relative scaling image for a slit-based IFU. All
+        Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
         the spectrograph settings file.
 
@@ -1478,7 +1478,7 @@ class FlatField:
 
     def extract_structure(self, rawflat_orig, slit_trim=3):
         """
-        Generate a relative scaling image for a slit-based IFU. All
+        Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
         the spectrograph settings file.
 
@@ -1550,7 +1550,7 @@ class FlatField:
 
     def spectral_illumination(self, gpm=None, debug=False):
         """
-        Generate a relative scaling image for a slit-based IFU. All
+        Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
         the spectrograph settings file.
 

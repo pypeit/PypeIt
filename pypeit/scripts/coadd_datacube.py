@@ -1,6 +1,6 @@
 """
 This script enables the user to convert spec2D FITS files
-from IFU instruments into a 3D cube with a defined WCS.
+from SlicerIFU instruments into a 3D cube with a defined WCS.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -10,7 +10,7 @@ from pypeit import msgs
 from pypeit import par
 from pypeit import inputfiles
 from pypeit import utils
-from pypeit.core.datacube import coadd_cube
+from pypeit.coadd3d import CoAdd3D
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
 
@@ -52,7 +52,11 @@ class CoAddDataCube(scriptbase.ScriptBase):
             msgs.info("Restricting to detector={}".format(args.det))
             parset['rdx']['detnum'] = int(args.det)
 
+        # Instantiate CoAdd3d
+        coadd = CoAdd3D.get_instance(coadd3dfile.filenames, coadd3dfile.options, spectrograph=spectrograph, par=parset,
+                                     det=args.det, overwrite=args.overwrite)
+
         # Coadd the files
         tstart = time.time()
-        coadd_cube(coadd3dfile.filenames, coadd3dfile.options, parset=parset, overwrite=args.overwrite)
+        coadd.coadd()
         msgs.info(utils.get_time_string(time.time()-tstart))

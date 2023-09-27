@@ -803,9 +803,9 @@ class Coadd3DFile(InputFile):
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            opts['scale_corr'] = scale_corr*len(self.filenames)
+            opts['scale_corr'] = scale_corr.lower()*len(self.filenames)
         elif len(scale_corr) != 0:
-            opts['scale_corr'] = scale_corr
+            opts['scale_corr'] = scale_corr.lower()
 
         # Get the skysub files
         skysub_frame = self.path_and_files('skysub_frame', skip_blank=False, check_exists=False)
