@@ -1,5 +1,8 @@
 # Buiding the docs:
 
+# First, make sure that you have the PypeIt Development Suite installed
+# on your system. Then execute the following commands in a terminal:
+#
 # ./update_docs
 # cd doc
 # make html

@@ -1116,7 +1116,7 @@ class RawImage:
         Analyze and subtract the scattered light from the image.
 
         This is primarily a wrapper for
-        :func:`~pypeit.spectrograph.procimg.subtract_pattern`.
+        :func:`~pypeit.spectrographs.spectrograph.scattered_light`.
 
         """
         step = inspect.stack()[0][3]
@@ -1128,8 +1128,8 @@ class RawImage:
         # Loop over the images
         for ii in range(self.nimg):
             binning = self.detector[0].binning
-            scatt_img = self.spectrograph.scattered_light(self.image[ii, :, :], binning)
-            self.image[ii, :, :] -= scatt_img
+            scatt_img = self.spectrograph.scattered_light(self.image[ii, ...], binning)
+            self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
     def trim(self, force=False):

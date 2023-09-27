@@ -1902,10 +1902,10 @@ class Spectrograph:
         ----------
         frame : `numpy.ndarray`_
             Raw 2D data frame to be used to compute the scattered light.
-        binning : (str, `numpy.ndarray`_, tuple):
+        binning : str, `numpy.ndarray`_, tuple
             Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
             direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to `~pypeit.core.parse.parse_binning`.
+            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
 
         Returns
         -------

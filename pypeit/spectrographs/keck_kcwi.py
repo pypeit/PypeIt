@@ -1030,23 +1030,31 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         ----------
         frame : `numpy.ndarray`_
             Raw 2D data frame to be used to compute the scattered light.
-        binning : (str, `numpy.ndarray`_, tuple):
+        binning : str, `numpy.ndarray`_, tuple
             Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
             direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to `~pypeit.core.parse.parse_binning`.
+            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
 
         Returns
         -------
         scatt_img : `numpy.ndarray`_
             A 2D image of the scattered light determined from the input frame
         """
+        # Determine the spatial binning. Currently, we hard-code the regions on the KCWI detector
+        # to be used for the determination of the scattered light. This is crude, and a better model
+        # is currently under development (RJC)
         spatbin = parse.parse_binning(binning)[1]
         ym = 4096 // (2 * spatbin)
         y0 = ym - 180 // spatbin
         y1 = ym + 180 // spatbin
+        # Obtain a robust (median) "spectrum" of the scattered light at the left, right, and middle of the detector
         scattlightl = np.nanmedian(frame[:, :20//spatbin], axis=1)[:, None]
         scattlightr = np.nanmedian(frame[:, -40//spatbin:], axis=1)[:, None]
         scattlight = np.nanmedian(frame[:, y0:y1], axis=1)[:, None]
+        # The following algorithm is a polynomial fit to:
+        # (1) The left half of the detector (using the left and middle scattered light spectrum)
+        # (2) The right half of the detector (using the right and middle scattered light spectrum)
+        # We then ensure that the model is continuous and smooth at the middle of the detector.
         medl = np.median(scattlightl / scattlight)
         medr = np.median(scattlightr / scattlight)
         spatimg = np.meshgrid(np.arange(frame.shape[1]), np.arange(frame.shape[0]))[0]
