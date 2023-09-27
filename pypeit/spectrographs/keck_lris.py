@@ -36,6 +36,21 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     url = 'https://www2.keck.hawaii.edu/inst/lris/'
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        instrume = self.get_meta_value(filename, 'instrument')
+
+        if 'keck_lris_red' in self.name and instrume != 'LRIS':
+            msgs.error('This is not the correct spectrograph. You may want to use keck_lris_blue instead.')
+        elif 'keck_lris_blue' in self.name and instrume == 'LRIS':
+            msgs.error('This is not the correct spectrograph. You may want to use keck_lris_red instead.')
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -55,10 +70,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
         # different solution given that this is binned data and most of
         # the data in the dev suite is unbinned.
-        # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
-        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 6
+        # lris alignment boxes are typically 4 arcsec
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 5.
         # Remove slits that are too short
-        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 3.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
@@ -67,7 +82,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
         par['calibrations']['traceframe']['exprng'] = [None, 60]
-        par['calibrations']['standardframe']['exprng'] = [None, 30]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [1, 61]
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
@@ -78,14 +94,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
-        par['scienceframe']['exprng'] = [60, None]
+        par['scienceframe']['exprng'] = [61, None]
 
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
         return par
-
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -118,6 +133,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             if self.name == 'keck_lris_red':
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
+        # Wave FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
+
         return par
 
     def init_meta(self):
@@ -135,7 +157,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
         # 
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -143,19 +165,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
-        self.meta['cenwave'] = dict(ext=0, card='WAVELEN', rtol=2.0)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=1e-3)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Extras for pypeit file
-        if self.name == 'keck_lris_red_mark4':
-            self.meta['amp'] = dict(ext=0, card='TAPLINES')
-        else:
-            self.meta['amp'] = dict(ext=0, card='NUMAMPS')
+        self.meta['dateobs'] = dict(card=None, compound=True)
+        self.meta['amp'] = dict(ext=0, card='NUMAMPS')
 
-        # Lamps -- Have varied in time..
-        for kk in range(12): # This needs to match the length of LAMPS below
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
+        # Lamps
+        # similar approach to DEIMOS
+        self.meta['lampstat01'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -174,38 +194,67 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
-
             return binning
-        elif 'lampstat' in meta_key:
-            idx = int(meta_key[-2:])
-            try:
-                curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
-            except:
-                msgs.warn('No mjd in header. You either have bad headers, '
-                          'or incorrectly specified the wrong spectrograph, '
-                          'or are reading in other files from your directory.  '
-                          'Using 2022-01-01 as the date for parsing lamp info from headers')
-                curr_date =  time.Time("2022-01-01", format='isot')
-            # Modern -- Assuming the change occurred with the new red detector
-            t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
-            if curr_date > t_newlamp:
-                lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                              'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-                return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
-            else:  # Original lamps
-                plamps = headarr[0]['LAMPS'].split(',')
-                # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
-                old_lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN']
-                if idx <= 5: # Arcs
-                    return ('off' if plamps[idx - 1] == '0' else 'on')
-                elif idx == 10:  # Current FLAMP1
-                    return headarr[0]['FLIMAGIN'].strip()
-                elif idx == 11:  # Current FLAMP2
-                    return headarr[0]['FLSPECTR'].strip()
-                elif idx == 12:  # Current Halogen slot
-                    return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
-                else:  # Lamp didn't exist.  Set to None
-                    return 'None'
+        elif meta_key == 'cenwave':
+            # it may happen that cenwave is zero in the header
+            return headarr[0]['WAVELEN'] if headarr[0]['WAVELEN'] > 0. else 0.1
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD-OBS') is not None:
+                return headarr[0]['MJD-OBS']
+            elif headarr[0].get('UTC') is not None or headarr[0].get('UT') is not None:
+                ut = headarr[0].get('UTC') if headarr[0].get('UTC') is not None else headarr[0].get('UT')
+                if headarr[0].get('DATE-OBS') is not None:
+                    return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], ut)).mjd
+                elif headarr[0].get('DATE') is not None:
+                    # LRIS sometime has a duplicate DATE card. The first one is the date of the
+                    # file creation and the second one is the date of the observation.
+                    # We want the second one. Find it by looking for the date string without "T"
+                    dd = np.where([headarr[0].cards[i][0] == 'DATE' and 'T' not in headarr[0].cards[i][1]
+                                   for i in range(len(headarr[0].cards))])[0]
+                    if dd.size > 0:
+                        date = headarr[0].cards[dd[0]][1]
+                        return time.Time('{}T{}'.format(date, ut)).mjd
+                    else:
+                        # this is most likely not the obs date+time, but the date+time the file
+                        # was created, which should be very close to the obs time
+                        return time.Time(headarr[0]['DATE']).mjd
+        elif meta_key == 'dateobs':
+            if headarr[0].get('DATE-OBS') is not None:
+                return headarr[0]['DATE-OBS']
+            elif headarr[0].get('DATE') is not None:
+                return headarr[0]['DATE'].split('T')[0]
+        elif meta_key == 'lampstat01':
+            # lamp status header keywords
+            lamp_keys = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN',
+                         'KRYPTON', 'XENON', 'FEARGON', 'DEUTERI']
+            # pypeit lamp names
+            lamp_names = np.array(['HgI', 'NeI', 'ArI', 'CdI', 'ZnI', 'Halogen', 'KrI', 'XeI', 'FeAr', '2H'])
+
+            # lamps header keywords changed over time. We know when the change happened ("2014-02-15"),
+            # but will try to not use the date and instead look for the latest keyword.
+            # old keyword looks like LAMPS = '0,0,0,0,0,1', which refers to 'MERCURY,NEON,ARGON,CADMIUM,ZINC,HALOGEN'
+            # from https://www2.keck.hawaii.edu/inst/lris/instrument_key_list.html
+            old_lamp_status = np.array(headarr[0].get('LAMPS').split(','), dtype=int).astype(bool) \
+                if headarr[0].get('LAMPS') is not None else None
+            new_lamp_status = np.array([headarr[0].get(k) == 'on' for k in lamp_keys])
+            where_on = np.where(new_lamp_status)[0] if old_lamp_status is None else np.where(old_lamp_status)[0]
+            if where_on.size > 0:
+                return ' '.join(lamp_names[where_on])
+
+            # dome flat header keywords changed over time, but it's not clear-cut the date of the change.
+            # We check if the latest keyword is present, and if not, we assume it's the old one.
+            elif headarr[0].get('FLAMP1') is not None or headarr[0].get('FLAMP2') is not None:
+                if headarr[0].get('FLAMP1') == 'on' or headarr[0].get('FLAMP2') == 'on':
+                    return 'on'
+                else:
+                    return 'off'
+            elif headarr[0].get('FLIMAGIN') is not None or headarr[0].get('FLSPECTR') is not None:
+                if headarr[0].get('FLIMAGIN') == 'on' or headarr[0].get('FLSPECTR') == 'on':
+                    return 'on'
+                else:
+                    return 'off'
+            else:
+                return 'off'
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -223,7 +272,25 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['binning']
+        return super().configuration_keys() + ['amp', 'binning']
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs']}
 
     def pypeit_file_keys(self):
         """
@@ -234,7 +301,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno']
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'dateobs', 'utc', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -265,7 +332,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Allow for dome or internal
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
-            good_internal = self.lamps(fitstbl, 'halogen') & (fitstbl['hatch'] == 'closed')
+            good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
             return good_exp & (good_dome + good_internal)
         if ftype in ['pinhole', 'dark']:
@@ -298,27 +365,40 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+            return fitstbl['lampstat01'] == 'off'
         elif status == 'arcs':
             # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
+            return np.array([lamp not in ['Halogen', '2H', 'on', 'off'] for lamp in fitstbl['lampstat01']])
         elif status == 'dome':
             # Check if any dome lamps are on
-            # Warning 9, 10 are FEARGON and DEUTERI
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in dome_lamp_stat]), axis=0)
-        elif status == 'halogen':
-            halo_lamp_stat = ['lampstat12']
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in halo_lamp_stat]), axis=0)
+            return fitstbl['lampstat01'] == 'on'
+
+        elif status == 'internal':
+            return np.array([lamp in ['Halogen', '2H'] for lamp in fitstbl['lampstat01']])
         else:
             msgs.error(f"Bad status option! {status}")
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+
+        """
+        lamps = [f'{lamp}' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
+        # sometimes the flat lamps keyword are set ON for arc frames, remove them to avoid crashes in wavecalib
+        flat_lamps = ['Halogen', '2H']
+        for fl in flat_lamps:
+            if fl in lamps:
+                lamps.remove(fl)
+        return lamps
 
     def get_rawimage(self, raw_file, det):
         """
@@ -658,7 +738,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISb'
     header_name = 'LRISBLUE'
     supported = True
-    comment = 'Blue camera; see :doc:`lris`'
+    comment = 'Blue camera; Current FITS file format; used from May 2009, see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -731,6 +811,26 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+
+        super().check_spectrograph(filename)
+
+        # check that we are using the right spectrograph (keck_lris_blue or keck_lris_blue_orig)
+        _dateobs = time.Time(self.get_meta_value(filename, 'dateobs'), format='iso')
+        # last day of keck_lris_blue_orig
+        date_orig = time.Time('2009-04-30', format='iso')
+        if _dateobs <= date_orig and self.name in ['keck_lris_blue']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_blue_orig instead.')
+        elif _dateobs > date_orig and self.name in ['keck_lris_blue_orig']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_blue instead.')
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -749,15 +849,14 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
-        par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['method'] = 'full_template'
 
         # Allow for longer exposure times on blue side (especially if using the Dome lamps)
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
         par['calibrations']['traceframe']['exprng'] = [None, 300]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 300]
 
         return par
 
@@ -783,21 +882,21 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B300_5000_d680_ArCdHgKrNeXeZnFeAr.fits'
+            par['calibrations']['wavelengths']['n_final'] = 2
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B400_3400_d560_ArCdHgNeZnFeAr.fits'
+            par['calibrations']['wavelengths']['n_final'] = 2
             par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B600_4000_d560_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['sigdetect'] = 20.
+            par['calibrations']['wavelengths']['n_final'] = 6
             par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
         elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_B1200_3400_d560_ArCdHgNeZn.fits'
             par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
-
-        # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
 
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
@@ -885,21 +984,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     name = 'keck_lris_blue_orig'
     camera = 'LRISb'
     supported = True    # TODO: Is this true?
-    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
-
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        # Remove the lamps
-        keys = list(self.meta.keys())
-        for key in keys:
-            if 'lampstat' in key:
-                self.meta.pop(key)
+    comment = 'Blue camera; Original FITS file format; used until April 2009; see :doc:`lris`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1027,7 +1112,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     header_name = 'LRIS'
     supported = True
     ql_supported = True
-    comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
+    comment = 'Red camera; Current FITS file format; ' \
+              'LBNL detector, 2kx4k; used from May 2009, see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -1056,7 +1142,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             specaxis=0,
             specflip=False,
             spatflip=False,
-            platescale=0.135,
+            platescale=0.135,  # confirmed from keck website at: https://www2.keck.hawaii.edu/inst/lris/lris-red-upgrade-notes.html#dewar3
             darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
@@ -1130,7 +1216,28 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
 
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        super().check_spectrograph(filename)
+
+        # check that we are using the right spectrograph (keck_lris_red, keck_lris_red_orig, or keck_lris_red_mark4)
+        _dateobs = time.Time(self.get_meta_value(filename, 'dateobs'), format='iso')
+        # starting date for keck_lris_red_mark4
+        date_mark4 = time.Time('2021-04-22', format='iso')
+        # last day of keck_lris_red_orig
+        date_orig = time.Time('2009-05-02', format='iso')
+        if _dateobs <= date_orig and self.name in ['keck_lris_red_mark4', 'keck_lris_red']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red_orig instead.')
+        elif _dateobs >= date_mark4 and self.name in ['keck_lris_red_orig', 'keck_lris_red']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red_mark4 instead.')
+        elif date_orig < _dateobs < date_mark4 and self.name in ['keck_lris_red_orig', 'keck_lris_red_mark4']:
+            msgs.error('This is not the correct spectrograph. Use keck_lris_red instead.')
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1146,7 +1253,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Tilts
@@ -1221,34 +1327,50 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['scienceframe']['process']['objlim'] = objlim
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
-            if self.name == 'keck_lris_red_mark4':
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
-            else:
-                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
+        if self.get_meta_value(scifile, 'dispname') == '150/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R150_7500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R300_5000_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '400/8500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R400_8500_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['sigdetect'] = 20.0
-            par['calibrations']['wavelengths']['nsnippet'] = 1
         elif self.get_meta_value(scifile, 'dispname') == '600/5000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_5000.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R600_5000_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '600/7500':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_7500.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R600_7500_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == '600/10000':  # d680
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_10000.fits'
+            par['calibrations']['wavelengths']['n_first'] = 3
+        elif self.get_meta_value(scifile, 'dispname') == '600/10000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R600_10000_ArCdHgKrNeXeZn.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['n_first'] = 3
+        elif self.get_meta_value(scifile, 'dispname') == '831/8200':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R831_8200_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['sigdetect'] = 30.0  # lots of ghost lines
+            par['calibrations']['wavelengths']['n_first'] = 3
+        elif self.get_meta_value(scifile, 'dispname') == '900/5500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R900_5500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['sigdetect'] = 30.0  # lots of ghost lines
+            par['calibrations']['wavelengths']['n_first'] = 3
+        elif self.get_meta_value(scifile, 'dispname') == '1200/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R1200_7500_ArCdHgKrNeXeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 5
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-
-        # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+            par['calibrations']['wavelengths']['n_first'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 5
 
         # Return
         return par
-
 
     def init_meta(self):
         """
@@ -1260,26 +1382,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         super().init_meta()
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRANAME')
-
-    def config_independent_frames(self):
-        """
-        Define frame types that are independent of the fully defined
-        instrument configuration.
-
-        This method returns a dictionary where the keys of the dictionary are
-        the list of configuration-independent frame types. The value of each
-        dictionary element can be set to one or more metadata keys that can
-        be used to assign each frame type to a given configuration group. See
-        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
-        interprets the dictionary values, which can be None.
-
-        Returns:
-            :obj:`dict`: Dictionary where the keys are the frame types that
-            are configuration-independent and the values are the metadata
-            keywords that can be used to assign the frames to a configuration
-            group.
-        """
-        return {'bias': ['binning', 'amp'], 'dark': ['binning', 'amp']}
 
     def configuration_keys(self):
         """
@@ -1295,7 +1397,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
+        return super().configuration_keys() + ['dispangle', 'cenwave']
 
     def raw_header_cards(self):
         """
@@ -1374,13 +1476,14 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     ndet = 1
     name = 'keck_lris_red_mark4'
     supported = True
-    comment = 'New Mark4 detector, circa Spring 2021; Supported setups = R400'
+    comment = 'Red camera; New Mark4 detector, in operation since May 2021; see :doc:`lris`'
 
     def init_meta(self):
         super().init_meta()
         # Over-ride a pair
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
+        self.meta['amp'] = dict(ext=0, card='TAPLINES')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1554,15 +1657,16 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Note:  There is no way we know to super super super
         return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
 
+
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """
-    Child to handle the original LRISr detector (pre 01 JUL 2009)
+    Child to handle the original LRISr detector (up to 2009-05-02)
     """
     ndet = 1
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced in 2009; see :doc:`lris`'
+    comment = 'Red camera; Original FITS file format; used until April 2009; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1575,9 +1679,58 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         """
         par = super().default_pypeit_par()
 
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'KrI', 'XeI', 'HgI']
+        return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '150/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R150_7500_ArHgNe.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R300_5000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '400/8500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R400_8500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/5000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R600_5000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R600_7500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/10000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R600_10000_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '831/8200':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R831_8200_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '900/5500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R900_5500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '1200/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_orig_R1200_7500_ArCdHgNeZn.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # Return
         return par
 
     def get_detector_par(self, det, hdu=None):
@@ -1607,7 +1760,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.21,  # TO BE UPDATED!!
+            platescale=0.211,  # confirmed from keck website at: https://www2.keck.hawaii.edu/inst/lris/lris-red-upgrade-notes.html#dewar3
             darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=0.76,
@@ -1625,20 +1778,6 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
         # Return
         return detector
-
-    def init_meta(self):
-        """
-        Define how metadata are derived from the spectrograph files.
-
-        That is, this associates the PypeIt-specific metadata keywords
-        with the instrument-specific header cards using :attr:`meta`.
-        """
-        super().init_meta()
-        # Remove the lamps
-        keys = list(self.meta.keys())
-        for key in keys:
-            if 'lampstat' in key:
-                self.meta.pop(key)
 
     def get_rawimage(self, raw_file, det):
         """

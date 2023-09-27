@@ -293,6 +293,17 @@ class Spectrograph:
                 raise TypeError('Telescope parameters must be one of those specified in'
                                 'pypeit.telescopes.')
 
+    def check_spectrograph(self, filename):
+        """
+        Check that the selected spectrograph is the correct one for the input data.
+        NOTE: Not defined for all the spectrographs.
+
+        Args:
+            filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
+
+        """
+        pass
+
     def raw_is_transposed(self, detector_par):
         """
         Check if raw image files are transposed with respect to the
