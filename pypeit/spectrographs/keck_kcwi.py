@@ -890,7 +890,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # as well as and science/standard star data.
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
-        par['calibrations']['standardframe']['process']['subtract_scattlight'] = True
         par['scienceframe']['process']['subtract_scattlight'] = True
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
