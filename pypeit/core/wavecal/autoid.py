@@ -1182,7 +1182,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     ions = all_idsion
                     # Final RMS
                     rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-                    rms_pix = rms_ang/cen_disp
+                    rms_pix = rms_ang/bdisp
 
                     # Pack up fit
                     spec_vec = np.arange(nspec)
