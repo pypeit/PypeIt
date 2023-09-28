@@ -1160,7 +1160,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                 dets = pix_arxiv_ss
                 IDs = lines_wav[slit]
                 msgs.info(f'Using lines from pixel {dets} mapped to Wavelengths: {IDs}')
-                gd_det = np.where(np.logical_and(IDs > 0., np.logical_and(dets < len(obs_spec_i), dets > 1)))[0]
+                gd_det = np.where(np.logical_and(IDs > 0., np.logical_and(dets < len(obs_spec_i)-50, dets > 50)))[0]
                 if len(gd_det) < 2:
                     msgs.warn("Not enough useful IDs")
                     wvcalib[str(slit)] = None
