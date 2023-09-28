@@ -1177,7 +1177,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                         mn = np.min(np.abs(iwave-line_lists['wave']))
                         if mn/bdisp < par['match_toler']:
                             imn = np.argmin(np.abs(iwave-line_lists['wave']))
-                            all_idsion[imn] = line_lists['ion'][imn]
+                            all_idsion[ss] = line_lists['ion'][imn]
 
                     ions = all_idsion
                     # Final RMS
