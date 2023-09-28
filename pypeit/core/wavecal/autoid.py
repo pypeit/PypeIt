@@ -1175,7 +1175,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     all_idsion = np.copy(IDs)
                     for ss, iwave in enumerate(IDs):
                         mn = np.min(np.abs(iwave-line_lists['wave']))
-                        if mn/cen_disp < par['match_toler']:
+                        if mn/bdisp < par['match_toler']:
                             imn = np.argmin(np.abs(iwave-line_lists['wave']))
                             all_idsion[imn] = line_lists['ion'][imn]
 
