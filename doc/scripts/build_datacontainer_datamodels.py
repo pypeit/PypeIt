@@ -4,15 +4,15 @@ Dynamically build the rst documentation for the Calibration Images
 
 from importlib import resources
 
-from IPython import embed
-
-import numpy
+import numpy as np
 
 from pypeit.utils import to_string, string_table
 from pypeit import datamodel
 
+from IPython import embed
+
 def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
+    return f'`{type(p).__name__} Keywords`_'
 
 #-----------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ def build_datamodel_tbl(obj):
     keys = list(data_model.keys())
     keys.sort()
 
-    data_table = numpy.empty((len(keys)+1, 4), dtype=object)
+    data_table = np.empty((len(keys)+1, 4), dtype=object)
     data_table[0,:] = ['Attribute', 'Type', 'Array Type', 'Description']
     for i,k in enumerate(keys):
         # Key
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     from pypeit.images.mosaic import Mosaic
     from pypeit.images.pypeitimage import PypeItImage
 
-    from pypeit.images import buildimage
+    # from pypeit.images import buildimage
 
     datacontainers = [Alignments, EdgeTraceSet, FlatImages, ManualExtractionObj, OneSpec,
                       SensFunc, SlitTraceSet, Spec2DObj, SpecObj, TracePCA, WaveCalib, WaveTilts,
@@ -102,7 +102,6 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print('Wrote: {}'.format(ofile))
-
+        print(f'Wrote: {ofile}')
 
 
