@@ -1147,14 +1147,14 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             if lines_pix[slit] is not None:
                 msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 msgs.info('Checking for possible shifts')
-                plt.figure()
-                plt.plot(temp_spec_og[slit,:], label = 'Arxiv Arc')
-                plt.plot(obs_spec_i, label = 'Data Arc')
-                plt.legend()
-                plt.show()
+                #plt.figure()
+                #plt.plot(temp_spec_og[slit,:], label = 'Arxiv Arc')
+                #plt.plot(obs_spec_i, label = 'Data Arc')
+                #plt.legend()
+                #plt.show()
                 shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
                 msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
-                pix_arxiv_ss = lines_pix[slit] + shift_cc
+                pix_arxiv_ss = lines_pix[slit] - shift_cc
                 bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
                 # Collate and proceed
                 dets = pix_arxiv_ss
