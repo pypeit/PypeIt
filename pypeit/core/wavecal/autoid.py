@@ -1157,8 +1157,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                 pix_arxiv_ss = lines_pix[slit] - shift_cc
                 bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
                 # Collate and proceed
-                dets = pix_arxiv_ss[np.where(np.logical_and(dets < len(obs_spec_i)-50, dets > 50))[0]]
-                IDs = lines_wav[slit][np.where(np.logical_and(dets < len(obs_spec_i)-50, dets > 50))[0]]
+                dets = pix_arxiv_ss[np.where(np.logical_and(pix_arxiv_ss < len(obs_spec_i)-50, pix_arxiv_ss > 50))[0]]
+                IDs = lines_wav[slit][np.where(np.logical_and(pix_arxiv_ss < len(obs_spec_i)-50, pix_arxiv_ss > 50))[0]]
                 msgs.info(f'Using lines from pixel {dets} mapped to Wavelengths: {IDs}')
                 gd_det = np.where(IDs > 0.)[0]
                 if len(gd_det) < 2:
