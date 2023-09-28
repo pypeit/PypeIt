@@ -1172,13 +1172,14 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                    function=par['func'], maxiter=gd_det.size - lines_fit_ord[slit] - 2,
                                 lower=2.0, upper=2.0, maxrej=1, sticky=True,
                                 minx=0.0, maxx=1.0, weights=np.ones(dets.size))
-                    all_idsion = np.copy(IDs)
+                    all_idsion = []
                     for ss, iwave in enumerate(IDs):
                         mn = np.min(np.abs(iwave-line_lists['wave']))
                         if mn/bdisp < par['match_toler']:
                             imn = np.argmin(np.abs(iwave-line_lists['wave']))
                             print(imn, line_lists['ion'])
-                            all_idsion[ss] = line_lists['ion'][imn]
+                            all_idsion.append(line_lists['ion'][imn])
+                    all_idsion = np.array(all_idsion)
 
                     ions = all_idsion
                     # Final RMS
