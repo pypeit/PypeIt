@@ -1166,7 +1166,45 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     wvcalib[str(slit)] = None
                     continue
                 # Fit
-                try:
+                try:        
+                    xnspecmin1 = (float(len(obs_spec_i))-1)
+                    pypeitFit = fitting.robust_fit(dets[gd_det]/(float(len(obs_spec_i))-1), IDs[gd_det], lines_fit_ord[slit], 
+                                                   function=par['func'], maxiter=gd_det.size - lines_fit_ord[slit] - 2,
+                                lower=2.0, upper=2.0, maxrej=1, sticky=True,
+                                minx=0.0, maxx=1.0, weights=np.ones(dets.size))
+                    all_idsion = np.copy(IDs)
+                    for ss, iwave in enumerate(IDs):
+                        mn = np.min(np.abs(iwave-line_lists['wave']))
+                        if mn/cen_disp < par['match_toler']:
+                            imn = np.argmin(np.abs(iwave-line_lists['wave']))
+                            all_idsion[imn] = line_lists['ion'][imn]
+
+                    ions = all_idsion
+                    # Final RMS
+                    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
+                    rms_pix = rms_ang/cen_disp
+
+                    # Pack up fit
+                    spec_vec = np.arange(nspec)
+                    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
+                    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
+                    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
+                    cen_disp = cen_wave - cen_wave_min1
+
+                    # Ions bit
+                    ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
+                    for kk,ion in enumerate(ions):
+                        ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
+
+                    # DataContainer time
+                    # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
+                    final_fit = wv_fitting.WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=dets[gd_det], wave_fit=IDs[gd_det],
+                                        ion_bits=ion_bits, xnorm=(float(len(obs_spec_i))-1),
+                                        cen_wave=cen_wave, cen_disp=cen_disp,
+                                        spec=spec, wave_soln = wave_soln, sigrej=3.0,
+                                        shift=0., tcent=dets, rms=rms_pix)
+
+                    '''
                     final_fit = wv_fitting.iterative_fitting(obs_spec_i, dets, gd_det,
                                                     IDs[gd_det], line_lists, bdisp,
                                                     verbose=False, n_first=par['n_first'],
@@ -1175,6 +1213,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                     n_final= lines_fit_ord[slit],
                                                     sigrej_first=par['sigrej_first'],
                                                     sigrej_final=par['sigrej_final'])
+                    '''
                 except TypeError:
                     #embed(header='974 of autoid')
                     wvcalib[str(slit)] = None
