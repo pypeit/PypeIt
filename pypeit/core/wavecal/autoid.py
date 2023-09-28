@@ -1177,7 +1177,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                         mn = np.min(np.abs(iwave-line_lists['wave']))
                         if mn/bdisp < par['match_toler']:
                             imn = np.argmin(np.abs(iwave-line_lists['wave']))
-                            print(imn, line_lists['ion'])
+                            #print(imn, line_lists['ion'])
                             all_idsion.append(line_lists['ion'][imn])
                     all_idsion = np.array(all_idsion)
 
@@ -1203,7 +1203,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     final_fit = wv_fitting.WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=dets[gd_det], wave_fit=IDs[gd_det],
                                         ion_bits=ion_bits, xnorm=(float(len(obs_spec_i))-1),
                                         cen_wave=cen_wave, cen_disp=cen_disp,
-                                        spec=spec, wave_soln = wave_soln, sigrej=3.0,
+                                        spec=obs_spec_i, wave_soln = wave_soln, sigrej=3.0,
                                         shift=0., tcent=dets, rms=rms_pix)
 
                     '''
