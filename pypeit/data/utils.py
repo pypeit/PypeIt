@@ -70,10 +70,10 @@ to the Vega example above.
 
 .. include:: ../include/links.rst
 """
+from importlib import resources
 import pathlib
 import shutil
 import urllib.error
-from importlib import resources
 
 import astropy.utils.data
 import github
@@ -100,107 +100,84 @@ class Paths:
     Each `@property` method returns a :obj:`pathlib.Path` object
     """
 
-    # Class Attributes -- Hardwired Paths
+    # Determine the location of the data directory on this system
     _data = resources.files('pypeit') / 'data'
-
-    # Telluric Corrections
-    _telgrid = _data / 'telluric' / 'atm_grids'
-    _tel_model = _data / 'telluric' / 'models'
-
-    # Wavelength Calibrations
-    _arclines = _data / 'arc_lines'
-    _reid_arxiv = _arclines / 'reid_arxiv'
-    _linelist = _arclines / 'lists'
-    _nist = _arclines / 'NIST'
-    _arc_plot = _arclines /'plots'
-
-    # Flux Calibrations
-    _standards = _data / 'standards'
-    _extinction = _data / 'extinction'
-    _skisim = _data / 'skisim'
-    _filters = _data / 'filters'
-    _sensfuncs = _data / 'sensfuncs'
-
-    # Other
-    _sky_spec = _data / 'sky_spec'
-    _static_calibs = _data / 'static_calibs'
-    _spectrographs = _data / 'spectrographs'
 
     @classmethod
     @property
-    def data(cls):
+    def data(cls) -> pathlib.Path:
         return cls.check_isdir(cls._data)
 
     # Telluric Corrections
     @classmethod
     @property
-    def telgrid(cls):
-        return cls.check_isdir(cls._telgrid)
+    def telgrid(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'telluric' / 'atm_grids')
     @classmethod
     @property
-    def tel_model(cls):
-        return cls.check_isdir(cls._tel_model)
+    def tel_model(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'telluric' / 'models')
 
     # Wavelength Calibrations
     @classmethod
     @property
-    def arclines(cls):
-        return cls.check_isdir(cls._arclines)
+    def arclines(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines')
     @classmethod
     @property
-    def reid_arxiv(cls):
-        return cls.check_isdir(cls._reid_arxiv)
+    def reid_arxiv(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'reid_arxiv')
     @classmethod
     @property
-    def linelist(cls):
-        return cls.check_isdir(cls._linelist)
+    def linelist(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'lists')
     @classmethod
     @property
-    def nist(cls):
-        return cls.check_isdir(cls._nist)
+    def nist(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'NIST')
     @classmethod
     @property
-    def arc_plot(cls):
-        return cls.check_isdir(cls._arc_plot)
+    def arc_plot(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' /'plots')
 
     # Flux Calibrations
     @classmethod
     @property
-    def standards(cls):
-        return cls.check_isdir(cls._standards)
+    def standards(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'standards')
     @classmethod
     @property
-    def extinction(cls):
-        return cls.check_isdir(cls._extinction)
+    def extinction(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'extinction')
     @classmethod
     @property
-    def skisim(cls):
-        return cls.check_isdir(cls._skisim)
+    def skisim(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'skisim')
     @classmethod
     @property
-    def filters(cls):
-        return cls.check_isdir(cls._filters)
+    def filters(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'filters')
     @classmethod
     @property
-    def sensfuncs(cls):
-        return cls.check_isdir(cls._sensfuncs)
+    def sensfuncs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'sensfuncs')
 
     # Other
     @classmethod
     @property
-    def sky_spec(cls):
-        return cls.check_isdir(cls._sky_spec)
+    def sky_spec(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'sky_spec')
     @classmethod
     @property
-    def static_calibs(cls):
-        return cls.check_isdir(cls._static_calibs)
+    def static_calibs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'static_calibs')
     @classmethod
     @property
-    def spectrographs(cls):
-        return cls.check_isdir(cls._spectrographs)
+    def spectrographs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'spectrographs')
 
     @staticmethod
-    def check_isdir(path):
+    def check_isdir(path:pathlib.Path) -> pathlib.Path:
         """Check that the hardwired directory exists
 
         If yes, return the directory path, else raise an error message
