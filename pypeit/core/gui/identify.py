@@ -942,7 +942,7 @@ class Identify:
                             slits.ech_order = order_vec
                             slits.to_file()
                         clean_calib = input('Clean up the Calibrations/ directory? y/[n]: ')
-                        if clean_calib:
+                        if clean_calib == 'y':
                             os.system('rm -rf Calibrations/Arc* Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"

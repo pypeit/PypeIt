@@ -420,7 +420,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             # vega is V=0.03
             std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
-        if 'PHOENIX' in star_type:
+        elif 'PHOENIX' in star_type:
             msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
             ## Vega model from TSPECTOOL
             vega_file = data.Paths.standards / 'PHOENIX_10000K_4p0.dat'
@@ -433,7 +433,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             # vega is V=0.03
             std_dict['flux'] = vega_data['col2'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
-        if 'NONE' in star_type:
+        elif 'NONE' in star_type:
             msgs.info('Setting Standard to Continuum')
             ## Vega model from TSPECTOOL
             std_dict = dict(cal_file='continuum', name=star_type, Vmag=star_mag,
@@ -845,8 +845,8 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     if np.any(sens_fwhm) and np.any(dat_fwhm):
         #print(np.shape(dat_fwhm), np.shape(sens_fwhm), np.shape(senstot))  
         msgs.info(f'Sens Std fwhm = {sens_fwhm}, but dat_fwhm = {dat_fwhm}')
-        msgs.info(f'Slit loss correction = {1/np.sqrt(dat_fwhm/sens_fwhm)}')
-        senstot *= 1.0/np.sqrt(dat_fwhm/sens_fwhm)
+        #msgs.info(f'Slit loss correction = {1/np.sqrt(dat_fwhm/sens_fwhm)}')
+        #senstot *= 1.0#/np.sqrt(dat_fwhm/sens_fwhm)
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom
