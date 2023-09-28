@@ -800,7 +800,8 @@ class Identify:
 
     def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None, multi = False, 
-                       fits_dicts = None, specdata = None, slits = None):
+                       fits_dicts = None, specdata = None, slits = None, 
+                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -823,6 +824,10 @@ class Identify:
             Numpy array containing the flux information from all the traces
         wvcalib : :class:`pypeit.wavecalib.WaveCalib`
             Wavelength solution
+        lines_pix_arr : array
+            Numpy array containing the pixel locations of all ID'd lines
+        lines_wav_arr : array
+            Numpy array containing wavelengths of all the ID'd lines
 
         Returns
         -------
@@ -887,9 +892,26 @@ class Identify:
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")
                         wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-
+                        
+                        name_check = input(f'Do you want to use the default arxiv name? ({wvarxiv_name}) [y]/n: ')
+                        if name_check == 'n':
+                            wvarxiv_name_new = ''
+                            while len(wvarxiv_name_new) < 2:
+                                wvarxiv_name_new = input('Please enter the desired filename: ')
+                            if not ('.fits' in wvarxiv_name_new):
+                                wvarxiv_name_new += '.fits'
+                            wvarxiv_name = wvarxiv_name_new
+                        #wavelengths = np.flip(wavelengths, axis = 0)
+                        #specdata = np.flip(specdata, axis = 0)
+#                        if lines_pix_arr is not None:
+#                            lines_pix_arr = [lines_pix_arr[ii] for ii in range(len(lines_pix_arr)-1, -1, -1)]
+#                            lines_wav_arr = [lines_wav_arr[ii] for ii in range(len(lines_wav_arr)-1, -1, -1)]
+#                            lines_fit_ord = np.flip(lines_fit_ord)
+                        order_vec = np.flip(order_vec, axis = 0)
                         wvutils.write_template(wavelengths, specdata, binspec, './', 
-                                            wvarxiv_name, cache=True, order = order_vec)
+                                            wvarxiv_name, cache=True, order = order_vec, 
+                                            lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr, 
+                                            lines_fit_ord = lines_fit_ord)
                     
                     # Allow user to overwrite the existing WVCalib file
                     print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
@@ -917,7 +939,7 @@ class Identify:
                         if slits:
                             msgs.info('Unflagging Slits from WaveCalib: ')
                             slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
-                            slits.ech_order = np.flip(order_vec)
+                            slits.ech_order = order_vec
                             slits.to_file()
                         clean_calib = input('Clean up the Calibrations/ directory? y/[n]: ')
                         if clean_calib:

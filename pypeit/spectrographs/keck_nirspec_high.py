@@ -1009,7 +1009,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
         if decker == '0.144x12':
-            par['calibrations']['wavelengths']['fwhm'] = 1.0
+            par['calibrations']['wavelengths']['fwhm'] = 2.0
         if decker == '0.288x12' or decker == '0.288x24':
             par['calibrations']['wavelengths']['fwhm'] = 2.0
         if decker == '0.432x12' or decker == '0.432x24':

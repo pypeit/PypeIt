@@ -380,7 +380,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, percent_ceil = 50, max_lag_frac = 1.0,
-               debug_xcorr=False, debug_reid=False, debug_peaks = False):
+               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'quad'):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -449,6 +449,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
     fwhm: float, default = 4.0
         Full width at half maximum for the arc lines
+
+    stretch_func: str, default = 'quad'
+        Toggle between 'quad' (quadtratic stretch function) or 'linear' (linear stretch only)
 
     Returns
     -------
@@ -592,7 +595,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
             wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
-                                        debug=debug_xcorr, percent_ceil=percent_ceil, max_lag_frac=max_lag_frac)
+                                        debug=debug_xcorr, percent_ceil=percent_ceil, max_lag_frac=max_lag_frac, stretch_func = stretch_func)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
             msgs.warn(f'Shift and stretch failed, success = {success}')
@@ -1076,15 +1079,15 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
     # Load template
     if template_dict is None:
-        temp_wv, temp_spec, temp_bin, order = waveio.load_template(
+        temp_wv_og, temp_spec_og, temp_bin, order, lines_pix, lines_wav, lines_fit_ord = waveio.load_template(
             par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
-        temp_wv = template_dict['wave']
-        temp_spec = template_dict['spec']
+        temp_wv_og = template_dict['wave']
+        temp_spec_og = template_dict['spec']
         temp_bin = template_dict['bin']
 
-    temp_wv = np.sort(np.reshape(temp_wv, -1))
-    temp_spec = np.reshape(temp_spec, -1)[np.argsort(np.reshape(temp_wv, -1))]
+    temp_wv = np.sort(np.reshape(temp_wv_og, -1))
+    temp_spec = np.reshape(temp_spec_og, -1)[np.argsort(np.reshape(temp_wv_og, -1))]
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
@@ -1117,7 +1120,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
         fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
-
         # Find the shift
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to obs_spec_i
@@ -1138,6 +1140,56 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         else:  # No padding necessary
             pad_spec = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
+
+        # check if there is an arxived solution for this slit:
+        #lines_pix = None
+        if lines_pix is not None:
+            if lines_pix[slit] is not None:
+                msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
+                msgs.info('Checking for possible shifts')
+                plt.figure()
+                plt.plot(temp_spec_og[slit,:], label = 'Arxiv Arc')
+                plt.plot(obs_spec_i, label = 'Data Arc')
+                plt.legend()
+                plt.show()
+                shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
+                msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
+                pix_arxiv_ss = lines_pix[slit] + shift_cc
+                bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
+                # Collate and proceed
+                dets = pix_arxiv_ss
+                IDs = lines_wav[slit]
+                msgs.info(f'Using lines from pixel {dets} mapped to Wavelengths: {IDs}')
+                gd_det = np.where(IDs > 0.)[0]
+                if len(gd_det) < 2:
+                    msgs.warn("Not enough useful IDs")
+                    wvcalib[str(slit)] = None
+                    continue
+                # Fit
+                try:
+                    final_fit = wv_fitting.iterative_fitting(obs_spec_i, dets, gd_det,
+                                                    IDs[gd_det], line_lists, bdisp,
+                                                    verbose=False, n_first=par['n_first'],
+                                                    match_toler=par['match_toler'],
+                                                    func=par['func'],
+                                                    n_final= lines_fit_ord[slit],
+                                                    sigrej_first=par['sigrej_first'],
+                                                    sigrej_final=par['sigrej_final'])
+                except TypeError:
+                    #embed(header='974 of autoid')
+                    wvcalib[str(slit)] = None
+                else:
+                    wvcalib[str(slit)] = copy.deepcopy(final_fit)
+
+                #Load order information for Echelle:
+                if np.any(order):
+                    slit_ids = order
+                continue
+            else:
+                msgs.info('No solution yet for this slit, so making one now...')
+
+
+
         # Cross-correlate
         '''
         plt.figure()
@@ -1203,8 +1255,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
                                                               percent_ceil = par['xcorr_percent_ceil'],
-                                                              cc_thresh=0.1, fwhm=fwhm)
-            #print(patt_dict)
+                                                              cc_thresh=0.1, fwhm=fwhm, stretch_func='linear')
+            print(patt_dict)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -1242,7 +1294,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         
         #Load order information for Echelle:
         if np.any(order):
-            orders = order
+            slit_ids = order
     # Finish
     return wvcalib, order
 
@@ -1346,7 +1398,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     wv_calib = {}
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
-    debug_all = True
+    #debug_all = True
     for iord in range(norders):
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue

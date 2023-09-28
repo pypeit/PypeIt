@@ -1023,6 +1023,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     if input_thresh is None:
         (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
+        if stddev == 0.0:
+            msgs.warn('stddev = 0.0, so resetting to 1.0')
+            stddev = 1.0
     else:
         med = 0.0
         if isinstance(input_thresh,(float, int)):
@@ -1047,7 +1050,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # TODO: Why does this interpolate to pixt and not tcent?
     tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
-
+    
     # Find the lines that meet the following criteria:
     #   - Amplitude is in the linear regime of the detector response
     #   - Center is within the limits of the spectrum
@@ -1057,7 +1060,6 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
-
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1

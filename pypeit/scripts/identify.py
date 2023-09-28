@@ -159,6 +159,9 @@ class Identify(scriptbase.ScriptBase):
             fits_dicts = []
             specdata = []
             wv_fits_arr = []
+            lines_pix_arr = []
+            lines_wav_arr = []
+            lines_fit_ord = []
             #print(args.slits, slits_inds)
             for slit_val in slits_inds:
                 # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
@@ -207,6 +210,10 @@ class Identify(scriptbase.ScriptBase):
                     #                        spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                     #                        PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
                     #else:
+
+                    lines_pix_arr.append(arcfitter._fitdict['WaveFit']['pixel_fit'])
+                    lines_wav_arr.append(arcfitter._fitdict['WaveFit']['wave_fit'])
+                    lines_fit_ord.append(arcfitter._fitdict['WaveFit']['pypeitfit']['order'])
                     if np.any(wv_calib.wv_fits):
                         wv_calib.wv_fits[slit_val] = arcfitter._fitdict['WaveFit']
                         wv_calib.wv_fits[slit_val].fwhm = measured_fwhms[slit_val]
@@ -225,14 +232,20 @@ class Identify(scriptbase.ScriptBase):
                 wv_calib.wv_fit2d=None
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
-                # Ask the user if they wish to store the result in PypeIt calibrations
+
+            # TODO: Make the following more elegant:
+            # fill lines with dummy values to make this work
+            # Ask the user if they wish to store the result in PypeIt calibrations
             arcfitter.store_solution_multi(final_fit, slits.binspec,
                                     wvcalib=wv_calib,
                                     rmstol=args.rmstol,
                                     force_save=args.force_save, 
                                     multi = True, fits_dicts = fits_dicts,
                                     specdata = np.array(specdata),
-                                    slits = slits)
+                                    slits = slits, 
+                                    lines_pix_arr = lines_pix_arr,
+                                    lines_wav_arr = lines_wav_arr,
+                                    lines_fit_ord = np.array(lines_fit_ord) )
             
 
         # If we just want the normal one-trace output
