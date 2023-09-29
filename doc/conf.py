@@ -14,11 +14,11 @@
 
 from configparser import ConfigParser
 from importlib import metadata
-import os
+import pathlib
 
 # Get configuration information from setup.cfg
 conf = ConfigParser()
-conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+conf.read([pathlib.Path(__file__).resolve.parents[1] / 'setup.cfg'])
 setup_cfg = dict(conf.items('metadata'))
 
 #
