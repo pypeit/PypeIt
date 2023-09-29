@@ -138,6 +138,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'RL':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM1':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM2':
@@ -1097,7 +1099,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCRM'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
     header_name = 'KCRM'
-    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: RL, RM1, RM2, RH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
