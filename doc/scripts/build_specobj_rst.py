@@ -2,9 +2,8 @@
 Dynamically build the rst documentation for the specobj and spec2dobj objects
 """
 
-import os
-import time
 from importlib import resources
+import time
 
 import numpy
 
@@ -26,7 +25,7 @@ if __name__ == '__main__':
     # Iterate through all the specobj classes
     for obj in [specobj.SpecObj, spec2dobj.Spec2DObj, coadd1d.OneSpec]:
 
-        ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
+        ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
 
         lines = []
         lines += ['']

@@ -2,18 +2,17 @@
 Construct an rst table with the detector properties
 """
 
-import os
 from importlib import resources
-
-from IPython import embed
 
 import numpy
 
 from pypeit.utils import string_table
 from pypeit.spectrographs import spectrograph_classes
-from pypeit.images.detector_container import DetectorContainer
+
+from IPython import embed
 
 #def write_detector_datamodel(ofile):
+#    from pypeit.images.detector_container import DetectorContainer
 #    det_dm = DetectorContainer.datamodel
 #    keys = numpy.sort(list(det_dm.keys()))
 #    nkeys = len(keys)
@@ -74,13 +73,13 @@ def write_detector_table(ofile):
 
 def main():
     output_root = resources.files('pypeit').parent / 'doc' / 'include'
-    if not os.path.isdir(output_root):
+    if not output_root.is_dir():
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-#    ofile = os.path.join(output_root, 'datamodel_detector.rst')
+#    ofile = output_root / 'datamodel_detector.rst'
 #    write_detector_datamodel(ofile)
 
-    ofile = os.path.join(output_root, 'inst_detector_table.rst')
+    ofile = output_root / 'inst_detector_table.rst'
     write_detector_table(ofile)
 
 

@@ -2,16 +2,14 @@
 Construct an rst table with the dependencies
 """
 
-import os
 from importlib import resources
-
-from IPython import embed
 
 import numpy
 
 from pypeit.utils import string_table
 from pypeit.par.pypeitpar import ProcessImagesPar, PypeItPar
-from pypeit.spectrographs import spectrograph_classes
+
+from IPython import embed
 
 
 def write_imgproc_def_table(ofile, spec=None):
@@ -75,15 +73,15 @@ def write_imgproc_def_table(ofile, spec=None):
 
 def main():
     output_root = resources.files('pypeit').parent / 'doc' / 'include'
-    if not os.path.isdir(output_root):
+    if not output_root.is_dir():
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-    ofile = os.path.join(output_root, 'imgproc_defaults_table.rst')
+    ofile = output_root / 'imgproc_defaults_table.rst'
     write_imgproc_def_table(ofile)
 
 #    allspec = spectrograph_classes()
 #    for key, spec_c in allspec.items():
-#        ofile = os.path.join(output_root, f'imgproc_{key}_table.rst')
+#        ofile = output_root / f'imgproc_{key}_table.rst'
 #        write_imgproc_def_table(ofile, spec=spec_c())
 
 if __name__ == '__main__':

@@ -2,9 +2,8 @@
 Dynamically build tables for the bitmasks.
 """
 
-import os
-import time
 from importlib import resources
+import time
 
 import numpy
 
@@ -16,7 +15,7 @@ from IPython import embed
 
 def write_bitmask_table(obj, path):
     bm = obj()
-    ofile = os.path.join(path, '{0}_table.rst'.format(obj.__name__.lower()))
+    ofile = path / f'{obj.__name__.lower()}_table.rst'
 
     data_table = numpy.empty((bm.nbits+1, 4), dtype=object)
     data_table[0,:] = ['Bit Name', 'Bit Number', 'Decimal Value', 'Description']
@@ -35,9 +34,9 @@ def write_bitmask_table(obj, path):
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    path = str(resources.files('pypeit').parent / 'doc' / 'include')
-    if not os.path.isdir(path):
-        os.makedirs(path)
+    path = resources.files('pypeit').parent / 'doc' / 'include'
+    if not path.is_dir():
+        path.mkdir(parents=True)
 
     from pypeit.images.imagebitmask import ImageBitMask
     write_bitmask_table(ImageBitMask, path)
