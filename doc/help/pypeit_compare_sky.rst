@@ -2,7 +2,7 @@
 
     $ pypeit_compare_sky -h
     usage: pypeit_compare_sky [-h] [--exten EXTEN] [--optimal]
-                              [--scale_user SCALE_USER] [--test]
+                              [--scale_user SCALE_USER]
                               file skyfile
     
     Compare the extracted sky spectrum against an archived sky model maintained by
@@ -18,5 +18,4 @@
       --optimal             Show Optimal? Default is boxcar (default: False)
       --scale_user SCALE_USER
                             Scale user spectrum by a factor (default: 1.0)
-      --test                Load files but do not show plot (default: False)
     

@@ -15,6 +15,7 @@ Version History
 1.1         Debora Pelliccia   02 Apr 2021  1.3.4dev
 1.2         Debora Pelliccia   28 Jul 2021  1.4.3dev
 1.3         Debora Pelliccia   21 Oct 2021  1.6.1dev
+1.4         Debora Pelliccia    6 Sep 2023  1.13.1dev
 =========   ================   =========== ===========
 
 ----
@@ -23,7 +24,7 @@ Basics
 ------
 
 The procedure used to assign RA, Dec and object name to each 1D extracted spectrum
-is currently available for Keck/DEIMOS and Keck/MOSFIRE only and is performed right after
+is currently available for these :ref:`slitmask_info_instruments` only and is performed right after
 the object finding procedure described in :ref:`object_finding`.
 
 
@@ -83,7 +84,7 @@ and one is for the RA, Dec and object name assignment. They are the following.
   compute the slitmask offset. This is the default behaviour for DEIMOS unless **slitmask_offset**,
   **bright_maskdef_id** or **use_alignbox** is set. Default value is **snr_thrshd=50**.
 
-- **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` and ``Slit_Number`` in the DEIMOS
+- **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` and ``Slit_Number`` in the DEIMOS/LRIS
   and MOSFIRE slitmask design, respectively) of a slit containing a bright object that will be used
   to compute the slitmask offset. This parameter is optional (default value is **bright_maskdef_id=None**)
   and is ignored if **slitmask_offset** is provided or **use_dither_offset = True**. However,
