@@ -244,7 +244,6 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
                 dloglam_pix = dloglam
             else:
                 dloglam_pix = dloglam_data
-
             # Generate wavelength array
             wave_grid, wave_grid_mid, dsamp = wavegrid(wave_grid_min, wave_grid_max, dloglam_pix,
                                  spec_samp_fact=spec_samp_fact, log10=True)

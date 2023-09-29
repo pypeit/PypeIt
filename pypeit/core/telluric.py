@@ -722,7 +722,8 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spec
     wave_gpm = wave > 1.0
 
     spec = onespec.OneSpec(wave=wave[wave_gpm], wave_grid_mid=None if wave_grid_mid is None else wave_grid_mid[wave_gpm],
-                           flux=flux[wave_gpm], PYP_SPEC=spectrograph, ivar=ivar[wave_gpm], mask=gpm[wave_gpm].astype(int),
+                           flux=flux[wave_gpm], PYP_SPEC=spectrograph, ivar=ivar[wave_gpm], sigma=np.sqrt(utils.inverse(ivar[wave_gpm])),
+                           mask=gpm[wave_gpm].astype(int),
                            telluric=None if telluric is None else telluric[wave_gpm],
                            obj_model=None if obj_model is None else obj_model[wave_gpm],
                            ext_mode=ex_value, fluxed=True)

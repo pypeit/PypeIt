@@ -16,11 +16,13 @@ from astropy import stats
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
+from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import coadd, flux_calib
 from pypeit.history import History
+
 
 
 class CoAdd1D:
@@ -123,11 +125,12 @@ class CoAdd1D:
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
-        wave_gpm = self.wave_coadd > 1.0
+        #wave_gpm = self.wave_grid_mid > 1.0
         # Generate the spectrum container object
-        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
-                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
-                          mask=self.gpm_coadd[wave_gpm].astype(int),
+        onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
+                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
+                          sigma = np.sqrt(utils.inverse(self.ivar_coadd)),
+                          mask=self.gpm_coadd.astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
         # TODO This is a hack, not sure how to merge the headers at present
@@ -139,9 +142,9 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric  = telluric[wave_gpm]
+            onespec.telluric  = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model[wave_gpm]
+            onespec.obj_model = obj_model
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -267,8 +270,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
-            # Evaluate the sn_weights.
-            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, const_weights=True)
+            # Evaluate the rms_sn
+            rms_sn, _ = coadd.calc_snr(_fluxes, _ivars, _gpms)
             # some stats
             mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
             _sigrej = self.par['sigrej_exp'] if self.par['sigrej_exp'] is not None else 10.0
