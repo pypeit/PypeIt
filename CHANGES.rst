@@ -1,5 +1,12 @@
-1.13.1dev
+
+1.14.1dev
 ---------
+
+PLEASE ADD TO doc/releases/1.14.1dev.rst!
+
+
+1.14.0 (18 Sep 2023)
+--------------------
 
 - Add support for Gemini/GNIRS (IFU)
 - Add support for Keck/KCRM
