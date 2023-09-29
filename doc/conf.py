@@ -13,13 +13,13 @@
 # serve to show the default.
 
 from configparser import ConfigParser
-from importlib import metadata, resources
+from importlib import metadata
+import os
 
 # Get configuration information from setup.cfg
-pypeit_root = resources.files("pypeit").parent
 conf = ConfigParser()
-conf.read([pypeit_root / "setup.cfg"])
-setup_cfg = dict(conf.items("metadata"))
+conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+setup_cfg = dict(conf.items('metadata'))
 
 #
 ## If extensions (or modules to document with autodoc) are in another directory,
