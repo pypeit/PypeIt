@@ -8,6 +8,8 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Added support for Keck/KCRM RL data reduction
+
 Instrument-specific Updates
 ---------------------------
 
