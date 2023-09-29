@@ -136,7 +136,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Wave FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 

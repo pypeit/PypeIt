@@ -210,7 +210,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # using OH lines
         if 'long2pos_specphot' not in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             par['calibrations']['wavelengths']['sigdetect'] = 10.
             # templates
             if filter == 'Y':
@@ -233,7 +232,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         elif 'long2pos_specphot' in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             # templates
             if filter == 'Y':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'

@@ -326,7 +326,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
 

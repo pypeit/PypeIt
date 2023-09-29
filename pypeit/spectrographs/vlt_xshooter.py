@@ -956,7 +956,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # This is for 1x1
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.184
         par['calibrations']['wavelengths']['fwhm'] = 3.8
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         #
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters

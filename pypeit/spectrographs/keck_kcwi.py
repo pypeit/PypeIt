@@ -1221,7 +1221,6 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         # KCWI has non-uniform spectral resolution across the field-of-view
         par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
         par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'

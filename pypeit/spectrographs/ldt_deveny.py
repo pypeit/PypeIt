@@ -289,7 +289,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Set this as default... but use `holy-grail` for DV4, DV8
         par['calibrations']['wavelengths']['method'] = 'full_template'
         # The DeVeny arc line FWHM varies based on slitwidth used
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
         # Because of the wide wavelength range, solution more non-linear; user higher orders
         par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2

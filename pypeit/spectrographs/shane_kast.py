@@ -457,7 +457,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
 
         # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
         # algorithm is not the default.

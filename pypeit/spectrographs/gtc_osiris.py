@@ -460,9 +460,6 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
-        # wavecalib
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
-
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
