@@ -876,7 +876,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
 
     weights = []
 
-    weight_method_used = [] if weight_method is 'auto' else nexp*[weight_method]
+    weight_method_used = [] if weight_method == 'auto' else nexp*[weight_method]
     if weight_method == 'relative':
         # Relative weights are requested, use the highest S/N spectrum as a reference
         ref_spec = np.argmax(sn2)
