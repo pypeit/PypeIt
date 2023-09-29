@@ -2,19 +2,19 @@
 Dynamically build example files included in the documentation.
 """
 
-from importlib import resources
-import os
 from pathlib import Path
-import shutil
 import sys
+import os
 import time
-
-from pypeit.scripts import setup
-from pypeit import pypeitsetup
+import shutil 
+import glob
+from importlib import resources
 
 from IPython import embed
 
-DEV_ROOT = Path(os.getenv('PYPEIT_DEV')).resolve()
+from pypeit.tests.tstutils import data_path
+from pypeit.scripts import setup
+from pypeit import pypeitsetup
 
 #-----------------------------------------------------------------------------
 
@@ -22,7 +22,8 @@ def make_example_kast_pypeit_file(version, date):
 
     oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
-    droot =  DEV_ROOT / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() \
+                / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'shane_kast_blue', '-c', 'all',
                                     '-d', str(oroot),
@@ -47,7 +48,7 @@ def make_example_deimos_pypeit_file(version, date):
 
     oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
-    droot = DEV_ROOT / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_deimos', '-c', 'all',
                                     '-d', str(oroot),
@@ -73,7 +74,8 @@ def make_example_gnirs_pypeit_files(version, date):
     oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     # Create the default pypeit file
-    droot = DEV_ROOT / 'RAW_DATA' / 'gemini_gnirs_echelle' / '32_SB_SXD'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs_echelle' \
+                / '32_SB_SXD'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs_echelle', '-b',
                                     '-c', 'A', '-d', str(oroot),
@@ -94,7 +96,8 @@ def make_example_gnirs_pypeit_files(version, date):
     shutil.rmtree(oroot / 'gemini_gnirs_echelle_A')
 
     # Copy over the one that is actually used by the dev-suite
-    dev = DEV_ROOT / 'pypeit_files' / 'gemini_gnirs_echelle_32_sb_sxd.pypeit'
+    dev = Path(os.getenv('PYPEIT_DEV')).resolve() \
+                / 'pypeit_files' / 'gemini_gnirs_echelle_32_sb_sxd.pypeit'
 
     ofile = oroot / 'gemini_gnirs_echelle_A_corrected.pypeit.rst'
     with open(ofile, 'w') as f:
@@ -112,7 +115,7 @@ def make_example_nires_pypeit_files(version, date):
     oroot = resources.files('pypeit').parent / 'doc' / 'include'
 
     # Create the default pypeit file
-    droot = DEV_ROOT / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_nires', '-b', '-c', 'A',
                                     '-d', str(oroot),
@@ -133,7 +136,8 @@ def make_example_nires_pypeit_files(version, date):
     shutil.rmtree(oroot / 'keck_nires_A')
 
     # Copy over the one that is actually used by the dev-suite
-    dev = DEV_ROOT / 'pypeit_files' / 'keck_nires_abba_wstandard.pypeit'
+    dev = Path(os.getenv('PYPEIT_DEV')).resolve() \
+                / 'pypeit_files' / 'keck_nires_abba_wstandard.pypeit'
 
     ofile = oroot / 'keck_nires_A_corrected.pypeit.rst'
     with open(ofile, 'w') as f:
@@ -148,9 +152,9 @@ def make_example_nires_pypeit_files(version, date):
 
 def make_example_sorted_file():
 
-    root = DEV_ROOT / 'RAW_DATA' / 'keck_deimos'
-    files = sorted(root.joinpath('830G_L_8100').glob('*fits*'))
-    files += sorted(root.joinpath('830G_L_8400').glob('*fits*'))
+    root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
+    files = glob.glob(os.path.join(root, '830G_L_8100', '*fits*'))
+    files += glob.glob(os.path.join(root, '830G_L_8400', '*fits*'))
 
     ps = pypeitsetup.PypeItSetup(files, spectrograph_name='keck_deimos')
     ps.run(setup_only=True)
@@ -212,4 +216,6 @@ if __name__ == '__main__':
     make_example_sorted_file()
     print('Make meta examples')
     make_meta_examples()
-    print(f'Elapsed time: {time.perf_counter() - t} seconds')
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
+
+

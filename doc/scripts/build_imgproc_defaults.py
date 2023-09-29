@@ -2,14 +2,16 @@
 Construct an rst table with the dependencies
 """
 
+import os
 from importlib import resources
 
-import numpy as np
+from IPython import embed
+
+import numpy
 
 from pypeit.utils import string_table
 from pypeit.par.pypeitpar import ProcessImagesPar, PypeItPar
-
-from IPython import embed
+from pypeit.spectrographs import spectrograph_classes
 
 
 def write_imgproc_def_table(ofile, spec=None):
@@ -52,7 +54,7 @@ def write_imgproc_def_table(ofile, spec=None):
     procpar = ProcessImagesPar()
     par = PypeItPar() if spec is None else spec.default_pypeit_par()
 
-    data_table = np.empty((len(par_list)+1, len(frame_list)+2), dtype=object)
+    data_table = numpy.empty((len(par_list)+1, len(frame_list)+2), dtype=object)
     data_table[0,:] = ['Parameter', 'Default'] \
                         + [f'``{t}``'.replace('frame','') for t in frame_list]
     # Parameter names and defaults
@@ -68,20 +70,20 @@ def write_imgproc_def_table(ofile, spec=None):
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:
         f.write(lines)
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 def main():
     output_root = resources.files('pypeit').parent / 'doc' / 'include'
-    if not output_root.is_dir():
+    if not os.path.isdir(output_root):
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-    ofile = output_root / 'imgproc_defaults_table.rst'
+    ofile = os.path.join(output_root, 'imgproc_defaults_table.rst')
     write_imgproc_def_table(ofile)
 
 #    allspec = spectrograph_classes()
 #    for key, spec_c in allspec.items():
-#        ofile = output_root / f'imgproc_{key}_table.rst'
+#        ofile = os.path.join(output_root, f'imgproc_{key}_table.rst')
 #        write_imgproc_def_table(ofile, spec=spec_c())
 
 if __name__ == '__main__':

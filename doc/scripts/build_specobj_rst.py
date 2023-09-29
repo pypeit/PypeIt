@@ -2,10 +2,11 @@
 Dynamically build the rst documentation for the specobj and spec2dobj objects
 """
 
-from importlib import resources
+import os
 import time
+from importlib import resources
 
-import numpy as np
+import numpy
 
 from pypeit.utils import to_string, string_table
 from pypeit import specobj
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     # Iterate through all the specobj classes
     for obj in [specobj.SpecObj, spec2dobj.Spec2DObj, coadd1d.OneSpec]:
 
-        ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
+        ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
 
         lines = []
         lines += ['']
@@ -38,7 +39,7 @@ if __name__ == '__main__':
         keys = list(obj.datamodel.keys())
         keys.sort()
 
-        data_table = np.empty((len(obj.datamodel)+1, 4), dtype=object)
+        data_table = numpy.empty((len(obj.datamodel)+1, 4), dtype=object)
         data_table[0,:] = ['Obj Key', 'Obj Type', 'Array Type', 'Description']
         for i,k in enumerate(keys):
             # Key
@@ -70,5 +71,8 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print(f'Wrote: {ofile}')
-    print(f'Elapsed time: {time.perf_counter() - t} seconds')
+        print('Wrote: {}'.format(ofile))
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
+
+
+

@@ -2,10 +2,11 @@
 Dynamically build tables for the bitmasks.
 """
 
+import os
 import time
 from importlib import resources
 
-import numpy as np
+import numpy
 
 from pypeit.utils import to_string, string_table
 
@@ -15,9 +16,9 @@ from IPython import embed
 
 def write_bitmask_table(obj, path):
     bm = obj()
-    ofile = path / f'{obj.__name__.lower()}_table.rst'
+    ofile = os.path.join(path, '{0}_table.rst'.format(obj.__name__.lower()))
 
-    data_table = np.empty((bm.nbits+1, 4), dtype=object)
+    data_table = numpy.empty((bm.nbits+1, 4), dtype=object)
     data_table[0,:] = ['Bit Name', 'Bit Number', 'Decimal Value', 'Description']
     for i,k in enumerate(bm.bits.keys()):
         data_table[i+1,0] = k
@@ -28,20 +29,20 @@ def write_bitmask_table(obj, path):
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:
         f.write(lines)
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    path = resources.files('pypeit').parent / 'doc' / 'include'
-    if not path.is_dir():
-        path.mkdir(parents=True)
+    path = str(resources.files('pypeit').parent / 'doc' / 'include')
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
     from pypeit.images.imagebitmask import ImageBitMask
     write_bitmask_table(ImageBitMask, path)
 
-    print(f'Elapsed time: {time.perf_counter() - t} seconds')
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
 

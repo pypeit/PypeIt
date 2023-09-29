@@ -4,19 +4,24 @@ Dynamically build the rst documentation for the Calibration Images
 
 from importlib import resources
 
-import numpy as np
+import numpy
 
-from pypeit.utils import string_table
+from pypeit.utils import to_string, string_table
+from pypeit.datamodel import DataContainer
+from pypeit.images import buildimage
+from pypeit.flatfield import FlatImages
+from pypeit.edgetrace import EdgeTraceSet
+from pypeit.slittrace import SlitTraceSet
 
 from IPython import embed
 
 def link_string(p):
-    return f'`{type(p).__name__} Keywords`_'
+    return '`{0} Keywords`_'.format(type(p).__name__)
 
 #-----------------------------------------------------------------------------
 
 def type_name(t):
-    if t is np.bool_:
+    if t is numpy.bool_:
         return 'np.bool'
     return t.__name__
 
@@ -36,7 +41,7 @@ def column_type(t):
 
 def single_table_datamodel(obj, output_root, ext, descr):
 
-    data_table = np.empty((3, 4), dtype=object)
+    data_table = numpy.empty((3, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -48,15 +53,16 @@ def single_table_datamodel(obj, output_root, ext, descr):
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 def sens_datamodel(output_root):
 
     from pypeit.sensfunc import SensFunc
     from pypeit.core.telluric import Telluric
+    from astropy import table
 
-    hdu_table = np.empty((7, 4), dtype=object)
+    hdu_table = numpy.empty((7, 4), dtype=object)
     hdu_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     hdu_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                       'Empty data HDU.  Contains basic header information.']
@@ -78,14 +84,14 @@ def sens_datamodel(output_root):
 
     telluric = Telluric.empty_model_table(1, 1)
     ncol = len(telluric.keys())
-    tell_table = np.empty((ncol+1, 3), dtype=object)
+    tell_table = numpy.empty((ncol+1, 3), dtype=object)
     tell_table[0,:] = ['Column', 'Data Type', 'Description']
     for i,key in enumerate(telluric.keys()):
         tell_table[i+1,:] = [f'``{key}``', column_type(telluric[key]), telluric[key].description]
 
     sens = SensFunc.empty_sensfunc_table(1, 1, 1)
     ncol = len(sens.keys())
-    sens_table = np.empty((ncol+1, 3), dtype=object)
+    sens_table = numpy.empty((ncol+1, 3), dtype=object)
     sens_table[0,:] = ['Column', 'Data Type', 'Description']
     for i,key in enumerate(sens.keys()):
         sens_table[i+1,:] = [f'``{key}``', column_type(sens[key]), sens[key].description]
@@ -106,8 +112,9 @@ def sens_datamodel(output_root):
 def telluric_datamodel(output_root):
 
     from pypeit.core.telluric import Telluric
+    from astropy import table
 
-    hdu_table = np.empty((3, 4), dtype=object)
+    hdu_table = numpy.empty((3, 4), dtype=object)
     hdu_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     hdu_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                       'Empty data HDU.  Contains basic header information.']
@@ -116,7 +123,7 @@ def telluric_datamodel(output_root):
 
     telluric = Telluric.empty_model_table(1, 1)
     ncol = len(telluric.keys())
-    tell_table = np.empty((ncol+1, 3), dtype=object)
+    tell_table = numpy.empty((ncol+1, 3), dtype=object)
     tell_table[0,:] = ['Column', 'Data Type', 'Description']
     for i,key in enumerate(telluric.keys()):
         tell_table[i+1,:] = [f'``{key}``', column_type(telluric[key]), telluric[key].description]
@@ -129,7 +136,7 @@ def telluric_datamodel(output_root):
     ofile = output_root / f'datamodel_{Telluric.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 if __name__ == '__main__':
@@ -145,3 +152,6 @@ if __name__ == '__main__':
     from pypeit.onespec import OneSpec
     single_table_datamodel(OneSpec, output_root, 'Spectrum',
                            'Single spectrum data; see :class:`~pypeit.onespec.OneSpec`.')
+
+
+

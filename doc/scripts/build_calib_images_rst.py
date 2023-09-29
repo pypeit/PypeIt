@@ -4,21 +4,24 @@ Dynamically build the rst documentation for the Calibration Images
 
 from importlib import resources
 
-import numpy as np
+import numpy
 
 from pypeit.utils import to_string, string_table
 from pypeit.datamodel import DataContainer
 from pypeit.images import buildimage
+from pypeit.flatfield import FlatImages
+from pypeit.edgetrace import EdgeTraceSet
+from pypeit.slittrace import SlitTraceSet
 
 from IPython import embed
 
 def link_string(p):
-    return f'`{type(p).__name__} Keywords`_'
+    return '`{0} Keywords`_'.format(type(p).__name__)
 
 #-----------------------------------------------------------------------------
 
 def type_name(t):
-    if t is np.bool_:
+    if t is numpy.bool_:
         return 'np.bool'
     return t.__name__
 
@@ -39,7 +42,7 @@ def basic_pypeitimage_datamodel(obj):
     keys = list(data_model.keys())
     keys.sort()
 
-    data_table = np.empty((len(keys)+2, 4), dtype=object)
+    data_table = numpy.empty((len(keys)+2, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -61,7 +64,7 @@ def basic_pypeitimage_datamodel(obj):
                 and issubclass(data_model[k]['otype'], DataContainer):
             data_table[j,1] = '`astropy.io.fits.BinTableHDU`_'
             data_table[j,2] = ''
-        elif data_model[k]['otype'] is np.ndarray:
+        elif data_model[k]['otype'] is numpy.ndarray:
             data_table[j,1] = '`astropy.io.fits.ImageHDU`_'
             data_table[j,2] = type_names(data_model[k]['atype'])
         data_table[j,3] = to_string(data_model[k]['descr'])
@@ -72,15 +75,15 @@ def basic_pypeitimage_datamodel(obj):
         for _k in obj.output_to_disk:
             keep_rows.append(alternate_keys.index(_k)+2)
     else:
-        keep_rows = np.arange(len(data_table)).astype(int)
+        keep_rows = numpy.arange(len(data_table)).astype(int)
 
     # Parse
-    data_table = data_table[np.asarray(keep_rows)]
+    data_table = data_table[numpy.asarray(keep_rows)]
     return [string_table(data_table, delimeter='rst')]
 
 def single_table_datamodel(obj, output_root, ext, descr):
 
-    data_table = np.empty((3, 4), dtype=object)
+    data_table = numpy.empty((3, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -92,13 +95,13 @@ def single_table_datamodel(obj, output_root, ext, descr):
     ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 def edges_datamodel(output_root):
 
     from pypeit.edgetrace import EdgeTraceSet
 
-    data_table = np.empty((21, 4), dtype=object)
+    data_table = numpy.empty((21, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -148,7 +151,7 @@ def edges_datamodel(output_root):
     ofile = output_root / f'datamodel_{EdgeTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 def slits_datamodel(output_root):
@@ -157,7 +160,7 @@ def slits_datamodel(output_root):
     from pypeit.slittrace import SlitTraceSet
     from astropy import table
 
-    hdu_table = np.empty((4, 4), dtype=object)
+    hdu_table = numpy.empty((4, 4), dtype=object)
     hdu_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     hdu_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                       'Empty data HDU.  Contains basic header information.']
@@ -175,7 +178,7 @@ def slits_datamodel(output_root):
     combined['TRACEID'].description = design['TRACEID'].description
     ncol = len(combined.keys())
 
-    data_table = np.empty((ncol+1, 3), dtype=object)
+    data_table = numpy.empty((ncol+1, 3), dtype=object)
     data_table[0,:] = ['Column', 'Data Type', 'Description']
     for i,key in enumerate(combined.keys()):
         t = 'str' if combined[key].dtype.type.__name__ == 'str_' \
@@ -190,7 +193,7 @@ def slits_datamodel(output_root):
     ofile = output_root / f'datamodel_{SlitTraceSet.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 def wavecalib_datamodel(output_root):
@@ -198,7 +201,7 @@ def wavecalib_datamodel(output_root):
     from pypeit.wavecalib import WaveCalib
     from pypeit.core.wavecal.wv_fitting import WaveFit
 
-    data_table = np.empty((7, 4), dtype=object)
+    data_table = numpy.empty((7, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -224,14 +227,14 @@ def wavecalib_datamodel(output_root):
     ofile = output_root / f'datamodel_{WaveCalib.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 def flatfield_datamodel(output_root):
 
     from pypeit.flatfield import FlatImages
 
-    data_table = np.empty((19, 4), dtype=object)
+    data_table = numpy.empty((19, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'HDU Type', 'Data Type', 'Description']
     data_table[1,:] = ['``PRIMARY``', '`astropy.io.fits.PrimaryHDU`_', '...',
                        'Empty data HDU.  Contains basic header information.']
@@ -278,7 +281,7 @@ def flatfield_datamodel(output_root):
     ofile = output_root / f'datamodel_{FlatImages.__name__.lower()}.rst'
     with open(ofile, 'w') as f:
         f.write('\n'.join(lines))
-    print(f'Wrote: {ofile}')
+    print('Wrote: {}'.format(ofile))
 
 
 if __name__ == '__main__':
@@ -297,7 +300,7 @@ if __name__ == '__main__':
         with open(ofile, 'w') as f:
             f.write('\n'.join(lines))
 
-        print(f'Wrote: {ofile}')
+        print('Wrote: {}'.format(ofile))
 
 
     # All data written to a single extension for Alignments and Tilts
@@ -319,3 +322,7 @@ if __name__ == '__main__':
 
     # Flat
     flatfield_datamodel(output_root)
+
+
+
+
