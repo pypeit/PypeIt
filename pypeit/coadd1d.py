@@ -323,9 +323,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
-            sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
-            lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug=self.debug, show=self.show)
+            sn_min_polyscale=self.par['sn_min_polyscale'], weight_method = self.par['weight_method'],
+            maxiter_reject=self.par['maxiter_reject'], lower=self.par['lower'], upper=self.par['upper'],
+            maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'], debug=self.debug, show=self.show)
 
 
 
