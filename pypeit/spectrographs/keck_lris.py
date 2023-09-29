@@ -1162,7 +1162,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             t2020_1 = time.Time("2020-06-30", format='isot')  # First run
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
             # Check for the new detector (Mark4) upgrade
-            t2021_upgrade = time.Time("2021-04-15", format='isot') 
+            t2021_upgrade = time.Time("2021-04-22", format='isot')
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), 
                              format='mjd')
 
@@ -1174,7 +1174,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 detector_dict2['gain'] = np.atleast_1d([1.26])
                 detector_dict1['ronoise'] = np.atleast_1d([99.])
                 detector_dict2['ronoise'] = np.atleast_1d([5.2])
-            elif date > t2021_upgrade: 
+            elif date >= t2021_upgrade:
                 # Note:  We are unlikely to trip this.  Other things probably failed first
                 msgs.error("This is the new detector.  Use keck_lris_red_mark4")
             else: # This is the 2020 July 29 run
@@ -1522,7 +1522,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             return detector_container.DetectorContainer(**detector_dict1)
 
         # Date of Mark4 installation
-        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        t2021_upgrade = time.Time("2021-04-22", format='isot')
         # TODO -- Update with the date we transitioned to the correct ones
         t_gdhead = time.Time("2029-01-01", format='isot')
         date = time.Time(hdu[0].header['MJD'], format='mjd')
