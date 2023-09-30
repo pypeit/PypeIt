@@ -31,5 +31,7 @@ Bug Fixes
 
 - Fixed bug associated with finding more than one file with the same name (but
   presumably different extensions).
+- Fixed a bug associated with an incorrect date for the transition to the Mark4
+  detector for Keck/LRIS RED.
 
 
