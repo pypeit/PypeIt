@@ -25,6 +25,7 @@ from pypeit.scripts import install_extinctfile
 from pypeit.scripts import install_linelist
 from pypeit.scripts import install_ql_calibs
 from pypeit.scripts import install_telluric
+from pypeit.scripts import install_wvarxiv
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog

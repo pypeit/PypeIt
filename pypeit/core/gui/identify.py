@@ -801,7 +801,8 @@ class Identify:
     def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None, multi = False, 
                        fits_dicts = None, specdata = None, slits = None, 
-                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None):
+                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None, 
+                       custom_wav = None, custom_wav_ind = None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -862,32 +863,41 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 if multi:
-                                            # prompt the user to give the orders that were used here
-                    while True:
-                        try:
-                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
-                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
-                        except ValueError:
-                            print("Sorry, syntax may be invalid...")
-                            #better try again... Return to the start of the loop
-                            continue
-                        else:
-                            #age was successfully parsed!
-                            #we're ready to exit the loop.
-                            break
-
+                    # prompt the user to give the orders that were used here
+                    if '"echelle": true' in wvcalib.strpar:
+                        while True:
+                            try:
+                                order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                                order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                            except ValueError:
+                                print("Sorry, syntax may be invalid...")
+                                #better try again... Return to the start of the loop
+                                continue
+                            else:
+                                #orders were successfully parsed!
+                                #we're ready to exit the loop.
+                                break
+                    else: order_vec = None
                     make_arxiv = ''
+                    if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
+                        make_arxiv = 'n'
+                        msgs.info('Skipping arxiv save because there are not enough orders for full template')
+#                        msgs.info(f'There are ')
                     while make_arxiv != 'y' and make_arxiv != 'n': 
                         make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
-                        print(make_arxiv == 'y', make_arxiv)
                     if make_arxiv != 'n':
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
                         for iord in range(norder):
                             fitdict = fits_dicts[iord]
-                            print(np.shape(specdata), norder)
-                            wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
-                                                                    (specdata[iord,:].size - 1))
+                            if fitdict is not None and fitdict['full_fit'] is not None:
+                                wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
+                                                                        (specdata[iord,:].size - 1))
+                            else:
+                                if wvcalib is not None:
+                                    if wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
+                                        wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+
                         #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")

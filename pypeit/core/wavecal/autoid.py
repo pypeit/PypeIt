@@ -1179,6 +1179,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                             imn = np.argmin(np.abs(iwave-line_lists['wave']))
                             #print(imn, line_lists['ion'])
                             all_idsion.append(line_lists['ion'][imn])
+                        else:
+                            all_idsion.append('UNKNWN')
                     all_idsion = np.array(all_idsion)
 
                     ions = all_idsion
@@ -1197,7 +1199,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
                     for kk,ion in enumerate(ions):
                         ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
-
                     # DataContainer time
                     # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
                     final_fit = wv_fitting.WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=dets[gd_det], wave_fit=IDs[gd_det],

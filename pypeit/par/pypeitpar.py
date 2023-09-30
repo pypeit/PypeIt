@@ -2523,7 +2523,7 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None, 
-                 xcorr_percent_ceil = None, echelle_pad = None, xcorr_offset_minmax = None):
+                 xcorr_percent_ceil = None, echelle_pad = None, xcorr_offset_minmax = None, no_2dfit = False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2573,6 +2573,10 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
                            'wavelength fit will be performed as a function of spectral pixel ' \
                            'and order number to improve the wavelength solution'
+        defaults['no_2dfit'] = False
+        dtypes['no_2dfit'] = bool
+        descr['no_2dfit'] = 'Even if this is an echelle spectrograph, the 2-d fit will not be generated. ' \
+                            'Use this to allow using an arxiv solution exactly as it was saved with pypeit_identify'
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
@@ -2817,7 +2821,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log', 'xcorr_percent_ceil', 'echelle_pad', 'xcorr_offset_minmax']
+                   'redo_slits', 'qa_log', 'xcorr_percent_ceil', 'echelle_pad', 'xcorr_offset_minmax', 'no_2dfit']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
