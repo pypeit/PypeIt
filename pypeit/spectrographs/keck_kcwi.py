@@ -300,7 +300,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
 
@@ -1313,7 +1313,6 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.4
         par['reduce']['skysub']['joint_fit'] = False
 
