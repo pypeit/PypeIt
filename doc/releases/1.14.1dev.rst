@@ -24,8 +24,12 @@ Script Changes
 Datamodel Changes
 -----------------
 
+- A wavelength array is now stored for DataCube()
+
 Under-the-hood Improvements
 ---------------------------
+
+- The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 
 Bug Fixes
 ---------
