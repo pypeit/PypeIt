@@ -204,6 +204,7 @@ def make_meta_examples():
     if otmp.exists():
         otmp.unlink()
 
+
 if __name__ == '__main__':
     t = time.perf_counter()
     print('Making shane_kast_blue_A.pypeit.rst')

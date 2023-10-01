@@ -1881,7 +1881,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
         skysub_default = cubepar['skysub_frame']
-        skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
+        skyImgDef = spec2DObj.sciimg/skysub_exptime  # Sky counts/second
         skySclDef = spec2DObj.scaleimg
 
     # Load all spec2d files and prepare the data for making a datacube
@@ -1894,8 +1894,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Load the header
         hdr = spec2DObj.head0
-        ifu_ra = np.append(ifu_ra, spec.compound_meta([hdr], 'ra'))
-        ifu_dec = np.append(ifu_dec, spec.compound_meta([hdr], 'dec'))
+        ifu_ra = np.append(ifu_ra, spec.get_meta_value([hdr], 'ra'))
+        ifu_dec = np.append(ifu_dec, spec.get_meta_value([hdr], 'dec'))
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -1933,7 +1933,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     this_skysub = "image"  # Use the current spec2d for sky subtraction
                 else:
                     skyImg = skyImgDef.copy() * exptime
-                    skyScl = skySclDef.copy() * exptime
+                    skyScl = skySclDef.copy()
                     this_skysub = skysub_default  # Use the global value for sky subtraction
             elif opts['skysub_frame'][ff].lower() == 'image':
                 skyImg = spec2DObj.skymodel
@@ -1953,7 +1953,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
                 # TODO :: Consider allowing the actual frame (instead of the skymodel) to be used as the skysub image - make sure the BPM is carried over.
                 #      :: Allow sky data fitting (i.e. scale the flux of a skysub frame to the science frame data)
-                skyImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
+                skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
+                # skyImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
                 skyScl = spec2DObj_sky.scaleimg
                 this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
         if this_skysub == "none":
