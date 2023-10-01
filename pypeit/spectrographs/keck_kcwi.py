@@ -73,6 +73,10 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['posang'] = dict(card=None, compound=True)
+        self.meta['ra_off'] = dict(ext=0, card='RAOFF')
+        self.meta['dec_off'] = dict(ext=0, card='DECOFF')
+
 
         # Extras for config and frametyping
         self.meta['hatch'] = dict(ext=0, card='HATPOS')
@@ -102,6 +106,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Add in the dome lamp
         self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -133,6 +138,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'RL':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM1':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM2':
@@ -164,7 +171,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'decker', 'binning', 'cenwave']
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -240,6 +247,20 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
+        elif meta_key == 'posang':
+            hdr = headarr[0]
+            # Get rotator position
+            if 'ROTPOSN' in hdr:
+                rpos = hdr['ROTPOSN']
+            else:
+                rpos = 0.
+            if 'ROTREFAN' in hdr:
+                rref = hdr['ROTREFAN']
+            else:
+                rref = 0.
+            # Get the offset and PA
+            skypa = rpos + rref  # IFU position angle (degrees)
+            return skypa
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -302,7 +323,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['idname', 'calpos']
+        return  super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -577,18 +598,20 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Create a coordinate
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
+        skypa = self.compound_meta([hdr], 'posang')
+        # Now in compont_meta
         # Get rotator position
-        if 'ROTPOSN' in hdr:
-            rpos = hdr['ROTPOSN']
-        else:
-            rpos = 0.
-        if 'ROTREFAN' in hdr:
-            rref = hdr['ROTREFAN']
-        else:
-            rref = 0.
+        #if 'ROTPOSN' in hdr:
+        #    rpos = hdr['ROTPOSN']
+        #else:
+        #    rpos = 0.
+        #if 'ROTREFAN' in hdr:
+        #    rref = hdr['ROTREFAN']
+        #else:
+        #    rref = 0.
         # Get the offset and PA
+        #skypa = rpos + rref  # IFU position angle (degrees)
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
-        skypa = rpos + rref  # IFU position angle (degrees)
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
@@ -852,6 +875,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='BCWAVE', rtol=0.01)
+
 
     def raw_header_cards(self):
         """
@@ -1120,7 +1145,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCRM'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
     header_name = 'KCRM'
-    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: RL, RM1, RM2, RH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1170,7 +1195,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        spatflip        = False,
+                        spatflip        = True, # TODO There is a flip in the slices relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
@@ -1215,6 +1240,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='RGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='RGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='RCWAVE', rtol=0.01)
 
     def raw_header_cards(self):
         """
@@ -1285,6 +1311,11 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
         par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = False
+        par['reduce']['skysub']['bspline_spacing'] = 0.4
+        par['reduce']['skysub']['joint_fit'] = False
 
         return par
 

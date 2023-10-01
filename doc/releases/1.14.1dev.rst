@@ -10,6 +10,7 @@ Functionality/Performance Improvements and Additions
 
 - Started the development of instrument-specific scattered light removal. In this
   release, we only model KCWI/KCRM scattered light.
+- Added support for Keck/KCRM RL data reduction
 
 Instrument-specific Updates
 ---------------------------
