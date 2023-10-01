@@ -395,7 +395,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Objects FWHM
         # Find objects
