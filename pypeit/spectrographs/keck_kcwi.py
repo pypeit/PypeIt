@@ -1195,7 +1195,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        spatflip        = True, # TODO There is a flip in the slices relative to KCWI
+                        spatflip        = True,  # Due to the extra mirror, the slices are flipped relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
