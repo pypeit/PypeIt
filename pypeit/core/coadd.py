@@ -2690,7 +2690,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # For the first iteration use the scale_method input as an argument (default=None, which will allow
     # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
     # we are then applying tiny corrections and median scaling is much faster
-    scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
+    scale_method_iter = ['median']*(2) + [scale_method]  + ['median']*(niter_order_scale - 3)
     # Iteratively scale and stack the entire set of spectra arcoss all setups, orders, and exposures
     for iteration in range(niter_order_scale):
         # JFH This scale_spec_stack routine takes a list of [(nspec1,), (nspec2,), ...] arrays, so a loop needs to be
