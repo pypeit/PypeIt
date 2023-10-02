@@ -227,9 +227,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['fwhm'] = 3.1
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Parse the lamps used from the image header.
         par['calibrations']['wavelengths']['lamps'] = ['use_header']

@@ -329,10 +329,9 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.5
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
@@ -444,8 +443,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.04  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4

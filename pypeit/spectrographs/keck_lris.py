@@ -75,7 +75,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Remove slits that are too short
         par['calibrations']['slitedges']['minimum_slit_length'] = 3.
         # 1D wavelengths
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -136,7 +136,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Wave FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
@@ -843,7 +842,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
 
         # 1D wavelength solution -- Additional parameters are grism dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.06  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -1162,7 +1161,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             t2020_1 = time.Time("2020-06-30", format='isot')  # First run
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
             # Check for the new detector (Mark4) upgrade
-            t2021_upgrade = time.Time("2021-04-15", format='isot') 
+            t2021_upgrade = time.Time("2021-04-22", format='isot')
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), 
                              format='mjd')
 
@@ -1174,7 +1173,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 detector_dict2['gain'] = np.atleast_1d([1.26])
                 detector_dict1['ronoise'] = np.atleast_1d([99.])
                 detector_dict2['ronoise'] = np.atleast_1d([5.2])
-            elif date > t2021_upgrade: 
+            elif date >= t2021_upgrade:
                 # Note:  We are unlikely to trip this.  Other things probably failed first
                 msgs.error("This is the new detector.  Use keck_lris_red_mark4")
             else: # This is the 2020 July 29 run
@@ -1522,7 +1521,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             return detector_container.DetectorContainer(**detector_dict1)
 
         # Date of Mark4 installation
-        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        t2021_upgrade = time.Time("2021-04-22", format='isot')
         # TODO -- Update with the date we transitioned to the correct ones
         t_gdhead = time.Time("2029-01-01", format='isot')
         date = time.Time(hdu[0].header['MJD'], format='mjd')
