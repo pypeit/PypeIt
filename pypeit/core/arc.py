@@ -179,7 +179,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=300)
         plt.close()
     else:
         plt.show()
@@ -291,9 +291,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1, 0.9, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
-                ax0.text(0.1, 0.8, r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
                 ax0.get_yaxis().set_label_coords(-0.15, 0.5)
 
@@ -311,7 +311,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=200)
         plt.close()
     else:
         plt.show()
