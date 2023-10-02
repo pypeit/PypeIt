@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     pypeit_root = resources.files('pypeit').parent
     path = pypeit_root / 'doc' / 'help'
-    if path.is_dir():
+    if not path.is_dir():
         path.mkdir(parents=True)
 
     # Get the list of script names and script classes

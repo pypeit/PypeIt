@@ -18,7 +18,7 @@ import pathlib
 
 # Get configuration information from setup.cfg
 conf = ConfigParser()
-conf.read([pathlib.Path(__file__).resolve.parents[1] / 'setup.cfg'])
+conf.read([pathlib.Path(__file__).resolve().parents[1] / 'setup.cfg'])
 setup_cfg = dict(conf.items('metadata'))
 
 #
