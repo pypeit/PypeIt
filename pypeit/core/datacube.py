@@ -288,10 +288,14 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
         ss_file (:obj:`str`_):
             The relative path and filename of the standard star datacube. It should be fits format, and
             for full functionality, should ideally of the form `pypeit.coadd3d.DataCube`_
-        slitimg (`numpy.ndarray`_):
-            An image of the slit indicating which slit each pixel belongs to
-        tilts (`numpy.ndarray`_):
-            Spectral tilts.
+        senspar (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
+            The parameters required for the sensitivity function computation.
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array used to construct blaze_spline
+        blaze_spline (`scipy.interpolate.interp1d`_, optional):
+            Spline representation of the reference blaze function (based on the illumflat).
+        grating_corr (:obj:`bool`_, optional):
+            If a grating correction should be performed, set this variable to True.
 
     Returns:
         `numpy.ndarray`_: A mask of the good sky pixels (True = good)
