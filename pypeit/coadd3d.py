@@ -459,7 +459,6 @@ class CoAdd3D:
         self.skyImgDef, self.skySclDef = None, None  # This is the default behaviour (i.e. to use the "image" for the sky subtraction)
         self.set_default_skysub()
 
-
     def check_outputs(self):
         """
         Check if any of the intended output files already exist. This check should be done near the
@@ -553,55 +552,17 @@ class CoAdd3D:
         Generate the sensitivity function to be used for the flux calibration.
         """
         self.fluxcal = True
-        ss_file = self.cubepar['standard_cube']
-        if not os.path.exists(ss_file):
-            msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
-        msgs.info(f"Loading standard star cube: {ss_file:s}")
-        # Load the standard star cube and retrieve its RA + DEC
-        stdcube = fits.open(ss_file)
-        star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
-
-        # Extract a spectrum of the standard star
-        wave, Nlam_star, Nlam_ivar_star, gpm_star = datacube.extract_standard_spec(stdcube)
-
-        # Extract the information about the blaze
-        if self.cubepar['grating_corr']:
-            blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-            blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+        # The first standard star cube is used as the reference blaze spline
+        if self.cubepar['grating_corr'] and self.blaze_spline is None:
+            # Load the blaze spline
+            stdcube = fits.open(self.cubepar['standard_cube'])
+            self.blaze_wave, self.blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+            self.blaze_spline = interp1d(self.blaze_wave, self.blaze_spec,
                                          kind='linear', bounds_error=False, fill_value="extrapolate")
-            # The first standard star cube is used as the reference blaze spline
-            if self.blaze_spline is None:
-                self.blaze_wave, self.blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-                self.blaze_spline = interp1d(self.blaze_wave, self.blaze_spec,
-                                             kind='linear', bounds_error=False, fill_value="extrapolate")
-            # Perform a grating correction
-            grat_corr = datacube.correct_grating_shift(wave.value, blaze_wave_curr, blaze_spline_curr, self.blaze_wave,
-                                              self.blaze_spline)
-            # Apply the grating correction to the standard star spectrum
-            Nlam_star /= grat_corr
-            Nlam_ivar_star *= grat_corr ** 2
-
-        # Read in some information above the standard star
-        std_dict = flux_calib.get_standard_spectrum(star_type=self.senspar['star_type'],
-                                                    star_mag=self.senspar['star_mag'],
-                                                    ra=star_ra, dec=star_dec)
-        # Calculate the sensitivity curve
-        # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
-        msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
-        zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
-            flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
-                                     mask_hydrogen_lines=self.senspar['mask_hydrogen_lines'],
-                                     mask_helium_lines=self.senspar['mask_helium_lines'],
-                                     hydrogen_mask_wid=self.senspar['hydrogen_mask_wid'],
-                                     nresln=self.senspar['UVIS']['nresln'],
-                                     resolution=self.senspar['UVIS']['resolution'],
-                                     trans_thresh=self.senspar['UVIS']['trans_thresh'],
-                                     polyorder=self.senspar['polyorder'],
-                                     polycorrect=self.senspar['UVIS']['polycorrect'],
-                                     polyfunc=self.senspar['UVIS']['polyfunc'])
-        wgd = np.where(zeropoint_fit_gpm)
-        sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
-        self.flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Generate a spline representation of the sensitivity function
+        self.flux_spline = datacube.make_sensfunc(self.cubepar['standard_cube'], self.senspar,
+                                                  blaze_wave=self.blaze_wave, blaze_spline=self.blaze_spline,
+                                                  grating_corr=self.cubepar['grating_corr'])
 
     def set_default_scalecorr(self):
         """
