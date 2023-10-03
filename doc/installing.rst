@@ -563,7 +563,7 @@ same in bash) that will locate a test spec1D file and attempt to use
 
 .. code-block:: console
 
-    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+    python -c "from importlib import resources; print(resources.files('pypeit') / 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits')" | xargs -I {} pypeit_show_1dspec {}
 
 If ``pyqt6`` or another Qt backend is correctly installed, this should show a test
 spectrum from the Shane/KAST spectrograph.
