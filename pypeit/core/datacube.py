@@ -563,6 +563,52 @@ def load_imageWCS(filename, ext=0):
     return image, imgwcs
 
 
+def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec_offset):
+    """
+    Align the RA and DEC of all input frames, and then
+    manually shift the cubes based on user-provided offsets.
+    The offsets should be specified in arcseconds, and the
+    ra_offset should include the cos(dec) factor.
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            A 1D array containing the RA values of each detector pixel of every frame.
+        all_dec (`numpy.ndarray`_):
+            A 1D array containing the Dec values of each detector pixel of every frame.
+            Same size as all_ra.
+        all_idx (`numpy.ndarray`_):
+            A 1D array containing an ID value for each detector frame (0-indexed).
+            Same size as all_ra.
+        ifu_ra (`numpy.ndarray`_):
+            A list of RA values of the IFU (one value per frame)
+        ifu_dec (`numpy.ndarray`_):
+            A list of Dec values of the IFU (one value per frame)
+        ra_offset (`numpy.ndarray`_):
+            A list of RA offsets to be applied to the input pixel values (one value per frame).
+            Note, the ra_offset MUST contain the cos(dec) factor. This is the number of arcseconds
+            on the sky that represents the telescope offset.
+        dec_offset (`numpy.ndarray`_):
+            A list of Dec offsets to be applied to the input pixel values (one value per frame).
+
+    Returns:
+        `numpy.ndarray`_: A new set of RA values that have been aligned
+        `numpy.ndarray`_: A new set of Dec values that has been aligned
+    """
+    # First, translate all coordinates to the coordinates of the first frame
+    # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
+    #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
+    ref_shift_ra = ifu_ra[0] - ifu_ra
+    ref_shift_dec = ifu_dec[0] - ifu_dec
+    numfiles = ra_offset.size
+    for ff in range(numfiles):
+        # Apply the shift
+        all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
+        all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
+        msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
+                  "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, ra_offset[ff], dec_offset[ff]))
+    return all_ra, all_dec
+
+
 def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):

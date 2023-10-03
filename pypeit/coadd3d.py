@@ -796,27 +796,6 @@ class CoAdd3D:
             # Finally, if a reference blaze spline has not been set, do that now.
             self.set_blaze_spline(wave_spl, spec_spl)
 
-    def align_user_offsets(self):
-        """
-        Align the RA and DEC of all input frames, and then
-        manually shift the cubes based on user-provided offsets.
-        The offsets should be specified in arcseconds, and the
-        ra_offset should include the cos(dec) factor.
-        """
-        # First, translate all coordinates to the coordinates of the first frame
-        # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
-        #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
-        ref_shift_ra = self.ifu_ra[0] - self.ifu_ra
-        ref_shift_dec = self.ifu_dec[0] - self.ifu_dec
-        for ff in range(self.numfiles):
-            # Apply the shift
-            self.all_ra[self.all_idx == ff] += ref_shift_ra[ff] + self.opts['ra_offset'][ff] / 3600.0
-            self.all_dec[self.all_idx == ff] += ref_shift_dec[ff] + self.opts['dec_offset'][ff] / 3600.0
-            msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
-                      "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1,
-                                                                           self.opts['ra_offset'][ff],
-                                                                           self.opts['dec_offset'][ff]))
-
     def coadd(self):
         """
         Main entry routine to set the order of operations to coadd the data. For specific
@@ -1180,14 +1159,26 @@ class SlicerIFUCoAdd3D(CoAdd3D):
     def run_align(self):
         """
         This routine aligns multiple cubes by using manual input offsets or by cross-correlating white light images.
+
+        Returns:
+            `numpy.ndarray`_: A new set of RA values that have been aligned
+            `numpy.ndarray`_: A new set of Dec values that has been aligned
         """
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.all_dec) * np.pi / 180.0)
-
         # Register spatial offsets between all frames
         if self.opts['ra_offset'] is not None:
-            self.align_user_offsets()
+            # Fill in some offset arrays
+            ra_offset, dec_offset = np.zeros(self.numfiles), np.zeros(self.numfiles)
+            for ff in range(self.numfiles):
+                ra_offset[ff] = self.opts['ra_offset'][ff]
+                dec_offset[ff] = self.opts['dec_offset'][ff]
+            # Calculate the offsets
+            new_ra, new_dec = datacube.align_user_offsets(self.all_ra, self.all_dec, self.all_idx,
+                                                          self.ifu_ra, self.ifu_dec,
+                                                          ra_offset, dec_offset)
         else:
+            new_ra, new_dec = self.all_ra.copy(), self.all_dec.copy()
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
                                                            np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
@@ -1200,12 +1191,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
                 # Setup the WCS to use for all white light images
                 ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
-                image_wcs, voxedge, reference_image = self.create_wcs(self.all_ra[ww], self.all_dec[ww], self.all_wave[ww],
+                image_wcs, voxedge, reference_image = self.create_wcs(new_ra[ww], new_dec[ww], self.all_wave[ww],
                                                                       self._dspat, wavediff, collapse=True)
                 if voxedge[2].size != 2:
                     msgs.error("Spectral range for WCS is incorrect for white light image")
 
-                wl_imgs = generate_image_subpixel(image_wcs, self.all_ra[ww], self.all_dec[ww], self.all_wave[ww],
+                wl_imgs = generate_image_subpixel(image_wcs, new_ra[ww], new_dec[ww], self.all_wave[ww],
                                                   self.all_sci[ww], self.all_ivar[ww], self.all_wghts[ww],
                                                   self.all_spatpos[ww], self.all_specpos[ww], self.all_spatid[ww],
                                                   self.all_tilts, self.all_slits, self.all_align, voxedge,
@@ -1228,17 +1219,21 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     dec_shift *= self._dspat
                     msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
                     # Apply the shift
-                    self.all_ra[self.all_idx == ff] += ra_shift
-                    self.all_dec[self.all_idx == ff] += dec_shift
+                    new_ra[self.all_idx == ff] += ra_shift
+                    new_dec[self.all_idx == ff] += dec_shift
+        return new_ra, new_dec
 
     def compute_weights(self):
         """
         Compute the relative weights to apply to pixels that are collected into the voxels of the output DataCubes
+
+        Returns:
+            `numpy.ndarray`_: The individual pixel weights for each detector pixel, and every frame.
         """
         # Calculate the relative spectral weights of all pixels
         if self.numfiles == 1:
             # No need to calculate weights if there's just one frame
-            self.all_wghts = np.ones_like(self.all_sci)
+            all_wghts = np.ones_like(self.all_sci)
         else:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
@@ -1256,8 +1251,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                               self.all_tilts, self.all_slits, self.all_align, self.all_dar, voxedge,
                                               all_idx=self.all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
             # Compute the weights
-            self.all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar, self.all_idx, wl_full[:, :, 0],
+            all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar, self.all_idx, wl_full[:, :, 0],
                                                       self._dspat, self._dwv, relative_weights=self.cubepar['relative_weights'])
+        return all_wghts
 
     def coadd(self):
         """
@@ -1307,7 +1303,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.run_align()
 
         # Compute the relative weights on the spectra
-        self.compute_weights()
+        self.all_wghts = self.compute_weights()
 
         # Generate the WCS, and the voxel edges
         cube_wcs, vox_edges, _ = self.create_wcs(self.all_ra, self.all_dec, self.all_wave, self._dspat, self._dwv)
