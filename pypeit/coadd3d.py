@@ -823,6 +823,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
+        # Loop through all of the frames, load the data, and save datacubes if no combining is required
+        self.load()
 
     def get_alignments(self, spec2DObj, slits, spat_flexure=None):
         """
@@ -1287,9 +1289,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
           Note, there are several algorithms used to combine multiple frames. Refer to the subpixellate() routine for
           more details about the combination options.
         """
-        # First loop through all of the frames, load the data, and save datacubes if no combining is required
-        self.load()
-
         # No need to continue if we are not combining nor aligning frames
         if not self.combine and not self.align:
             return
