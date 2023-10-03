@@ -425,7 +425,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 3.0 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 3.0
         par['calibrations']['wavelengths']['fwhm_fromlines']= False
@@ -446,7 +446,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         
         # Trace ID parameters
         par['calibrations']['slitedges']['edge_thresh'] = 100.0
-        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['left_right_pca'] = True
@@ -846,7 +846,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 3.0 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 3.0
         par['calibrations']['wavelengths']['fwhm_fromlines']= False

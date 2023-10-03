@@ -40,7 +40,7 @@ from pypeit import data
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
+def spat_flexure_shift(sciimg, slits, debug=False, maxlag=60):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -90,11 +90,15 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
+    #If xcorr is broad but has a defined peak, use that since detect_lines might fail
+    # NOTE: This is definitely a kludge, but necessary for NIRSPEC - ASC
+    if xcorr_max < np.max(xcorr_norm):
+        lag_max = [lags[np.argmax(xcorr_norm)]]
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
 
     if debug:
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr', linewidth=1.0)
+        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr')
         plt.plot(lag_max[0], xcorr_max[0], 'g+', markersize=6.0, label='peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(xcorr_max[0]))
         plt.legend()
@@ -116,7 +120,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, mxshft=90, excess_shft="crash",
                     method="boxcar"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
@@ -399,7 +403,7 @@ def flexure_interp(shift, wave):
 
 def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
                            return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None,
-                           mxshft=20, excess_shft="crash", method='slitcen'):
+                           mxshft=90, excess_shft="crash", method='slitcen'):
     """ Calculate flexure shifts using the sky spectrum extracted at the center of the slit
 
     Args:
@@ -468,7 +472,7 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
 
 
 def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
-                          return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None, mxshft=20,
+                          return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None, mxshft=90,
                           excess_shft="crash", method='boxcar'):
     """ Calculate flexure shifts using the sky spectrum boxcar-extracted at the location of the detected objects
 

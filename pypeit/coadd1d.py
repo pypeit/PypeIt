@@ -38,7 +38,7 @@ class CoAdd1D:
             debug=debug, show=show)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+                 debug=False, show=False, save_multi = False):
         """
 
         Args:
@@ -60,6 +60,8 @@ class CoAdd1D:
                 different echelle setups is performed.  If None, it will be
                 assumed that all the input files, objids, and sensfuncfiles
                 correspond to the same setup.
+            save_multi (bool, optional)
+                Save order stacks from coadds, in addition to 1d coadded spectra? Default = False
             debug (bool, optional)
                 Debug. Default = False
             show (bool, optional):
@@ -82,6 +84,7 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
+        self.save_multi = save_multi
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
         self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
@@ -92,7 +95,12 @@ class CoAdd1D:
         """
 
         # Coadd the data
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        if self.save_multi:
+            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
+        else:
+            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+            self.order_stacks = None
+
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -128,7 +136,8 @@ class CoAdd1D:
         onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
-                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
+                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
+                          order_stacks = self.order_stacks)
 
         # TODO This is a hack, not sure how to merge the headers at present
         onespec.head0 = self.headers[0]
@@ -157,7 +166,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
+                 debug=False, show=False, save_multi = False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
@@ -332,14 +342,14 @@ class EchelleCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+                 debug=False, show=False, save_multi = False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
 
 
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+                         setup_id=setup_id, debug = debug, show = show, save_multi=save_multi)
 
         if sensfuncfile is None:
             msgs.error('sensfuncfile is a required argument for echelle coadding')
@@ -411,8 +421,10 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
 
-
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+        if self.save_multi:
+            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
+        else:
+            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
 
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
