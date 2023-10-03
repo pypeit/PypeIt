@@ -253,7 +253,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.00008,  # e-/s/pix
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -315,6 +315,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
@@ -323,7 +324,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         #par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        #par['calibrations']['biasframe']['exprng'] = [None, 1]
+        #par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         #par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]
@@ -462,7 +463,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.15,
-            darkcurr=0.00008,  # e-/s/pix
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=1.0,
             mincounts=-1e10,
@@ -520,7 +521,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         # par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        # par['calibrations']['biasframe']['exprng'] = [None, 1]
+        # par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         # par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         # par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]

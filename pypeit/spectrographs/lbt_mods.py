@@ -14,7 +14,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 
 # TODO: FW: test MODS1B and MODS2B
 
@@ -43,7 +43,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
@@ -299,7 +299,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -310,7 +310,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -463,7 +463,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -474,7 +474,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -620,7 +620,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -631,7 +631,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -782,7 +782,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -793,7 +793,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):

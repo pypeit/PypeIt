@@ -2,8 +2,8 @@
 Version 1.13.0
 ==============
 
-Funtionality/Performance Improvements and Additions
----------------------------------------------------
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
 
 - Allow user control of the local sky subtraction window
 - Implemented a resample algorithm when generating datacubes

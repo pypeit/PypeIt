@@ -99,7 +99,7 @@ def test_flux_calib(tmp_path, monkeypatch):
         return {"DISPNAME": "600ZD",
                 "PYP_SPEC": "keck_deimos" }
 
-    def mock_get_flux_calib_instance(*args, **kwargs):
+    def mock_flux_calib(spec1d_files, sens_files, par):
         # The flux_calib caller doesn't use the output, it just
         # depends on the side effect of fluxing
         return None 
@@ -107,7 +107,7 @@ def test_flux_calib(tmp_path, monkeypatch):
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
-        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+        monkeypatch.setattr(fluxcalibrate, "flux_calibrate", mock_flux_calib)
 
         # Test with a flux file missing "flux end"
 
@@ -195,7 +195,7 @@ def extinction_correction_tester(algorithm):
     sensobj = sensfunc.SensFunc.get_instance(spec1d_file, sens_file, par['sensfunc'])
 
     sensobj.wave = np.linspace(3000, 6000, 300).reshape((300, 1))
-    sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape)
+    sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape, 0)
     # make the zeropoint such that the sensfunc is flat
     sensobj.zeropoint = 30 - np.log10(sensobj.wave ** 2) / 0.4
 
@@ -203,7 +203,7 @@ def extinction_correction_tester(algorithm):
 
     # now flux our N_lam = 1 specobj
     par['fluxcalib']['extinct_correct'] = None
-    fluxCalibrate = fluxcalibrate.MultiSlitFC([spec1d_file], [sens_file], par=par['fluxcalib'])
+    fluxCalibrate = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'])
     # without extinction correction, we should get constant F_lam
     # with extinction correction, the spectrum will be blue
 

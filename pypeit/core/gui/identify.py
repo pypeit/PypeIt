@@ -1,3 +1,6 @@
+"""
+.. include:: ../include/links.rst
+"""
 from datetime import datetime
 import os
 import copy
@@ -18,7 +21,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
-from pypeit import data, msgs
+from pypeit import msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
 
@@ -199,12 +202,12 @@ class Identify:
 
         Parameters
         ----------
-        arccen : ndarray
+        arccen : `numpy.ndarray`_
             Arc spectrum
         lamps : :obj:`list`
             List of arc lamps to be used for wavelength calibration.
             E.g., ['ArI','NeI','KrI','XeI']
-        slits : :class:`SlitTraceSet`
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Data container with slit trace information
         slit : int, optional
             The slit to be used for wavelength calibration
@@ -272,11 +275,7 @@ class Identify:
         detns = tdetns[icut]
 
         # Load line lists
-        if 'ThAr' in lamps:
-            line_lists_all = waveio.load_line_lists(lamps)
-            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        else:
-            line_lists = waveio.load_line_lists(lamps)
+        line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
         # Trim the wavelength scale if requested
         if wavelim is not None:
@@ -408,7 +407,7 @@ class Identify:
         Note, only the LMB works.
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         if event.button == 1:
             self.update_line_id()
@@ -594,7 +593,7 @@ class Identify:
         """Draw the lines and annotate with their IDs
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -624,10 +623,11 @@ class Identify:
         """Calculate the y locations of the annotated IDs
 
         Args:
-            scale (float): Scale the location relative to the maximum value of the spectrum
+            scale (float):
+                Scale the location relative to the maximum value of the spectrum
 
         Returns:
-            ypos (ndarray): y locations of the annotations
+            `numpy.ndarray`_: y locations of the annotations
         """
         ypos = np.zeros(self._detns.size)
         for xx in range(self._detns.size):
@@ -644,10 +644,11 @@ class Identify:
         """Get the index of the line closest to the cursor
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
 
         Returns:
-            ind (int): Index of the spectrum where the event occurred
+            int: Index of the spectrum where the event occurred
         """
         ind = np.argmin(np.abs(self.plotx - event.xdata))
         return ind
@@ -656,10 +657,11 @@ class Identify:
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
 
         Returns:
-            axisID (int, None): Axis where the event has occurred
+            int: Axis where the event has occurred
         """
         if event.inaxes == self.axes['main']:
             return 0
@@ -680,7 +682,7 @@ class Identify:
         manually identified all lines.
 
         Returns:
-            wvcalib (dict): Dict of wavelength calibration solutions
+            dict: Dict of wavelength calibration solutions
         """
         wvcalib = {}
         # Check that a result exists:
@@ -763,22 +765,7 @@ class Identify:
                 # Instead of a generic name, save the wvarxiv with a unique identifier
                 date_str = datetime.now().strftime("%Y%m%dT%H%M")
                 wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', wvarxiv_name)
-
-                # Also copy the file to the cache for direct use
-                data.write_file_to_cache(wvarxiv_name,
-                                         wvarxiv_name,
-                                         "arc_lines/reid_arxiv")
-
-                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
-                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
-                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
-                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
-                          f" [calibrations]{msgs.newline()}"
-                          f"   [[wavelengths]]{msgs.newline()}"
-                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
-                          f"     method = full_template\n")
+                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
@@ -815,7 +802,8 @@ class Identify:
         """What to do when the mouse button is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -849,10 +837,8 @@ class Identify:
         """What to do when the mouse button is released
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         self._msedown = False
         if event.inaxes is None:
@@ -900,10 +886,8 @@ class Identify:
         """What to do when a key is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -1084,20 +1068,20 @@ class Identify:
         self._lineflg[rmid] = 0
 
     def fitsol_value(self, xfit=None, idx=None):
-        """Calculate the wavelength at a pixel
+        """
+        Calculate the wavelength at a pixel
 
         Parameters
         ----------
-
-        xfit : ndarray, float
+        xfit : `numpy.ndarray`_, float
             Pixel values that the user wishes to evaluate the wavelength
-        idx : ndarray, int
+        idx : `numpy.ndarray`_, int
             Index of the arc line detections that the user wishes to evaluate the wavelength
 
         Returns
         -------
-
-        disp : The wavelength (Angstroms) of the requested pixels
+        disp : `numpy.ndarray`_, float
+            The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -1114,11 +1098,15 @@ class Identify:
         """Calculate the dispersion as a function of wavelength
 
         Args:
-            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
-            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
+            xfit (`numpy.ndarray`_, float):
+                Pixel values that the user wishes to evaluate the wavelength
+            idx (int):
+                Index of the arc line detections that the user wishes to
+                evaluate the wavelength
 
         Returns:
-            disp (ndarray, float, None): The dispersion (Angstroms/pixel) as a function of wavelength
+            ndarray, float: The dispersion (Angstroms/pixel) as a function of
+            wavelength
         """
         if xfit is None:
             xfit = self._detns

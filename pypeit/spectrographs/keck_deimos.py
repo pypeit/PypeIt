@@ -30,7 +30,7 @@ from pypeit.core import framematch
 from pypeit.core import wave
 from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 from pypeit import data
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
@@ -137,7 +137,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1185,
-            darkcurr        = 3.30, # changed by DP. Taken from WMKO measurements on 2022-Apr-22
+            darkcurr        = 3.30, #  units are e-/pixel/hour... NOTE : changed by DP. Taken from WMKO measurements on 2022-Apr-22
             saturation      = 65535., # ADU
             nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
             mincounts       = -1e10,
@@ -150,7 +150,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict2.update(dict(
             det=2,
             dataext=2,
-            darkcurr=3.60,
+            darkcurr=3.60,  # e-/pixel/hour
             gain=np.atleast_1d(1.188),
             ronoise=np.atleast_1d(2.491),
         ))
@@ -159,7 +159,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict3.update(dict(
             det=3,
             dataext=3,
-            darkcurr=3.50,
+            darkcurr=3.50,  # e-/pixel/hour
             gain=np.atleast_1d(1.248),
             ronoise=np.atleast_1d(2.618),
         ))
@@ -168,7 +168,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict4.update(dict(
             det=4,
             dataext=4,
-            darkcurr=3.70,
+            darkcurr=3.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.220),
             ronoise=np.atleast_1d(2.557),
         ))
@@ -177,7 +177,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict5.update(dict(
             det=5,
             dataext=5,
-            darkcurr=2.70,
+            darkcurr=2.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.184),
             ronoise=np.atleast_1d(2.482),
         ))
@@ -186,7 +186,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict6.update(dict(
             det=6,
             dataext=6,
-            darkcurr=3.80,
+            darkcurr=3.80,  # e-/pixel/hour
             gain=np.atleast_1d(1.177),
             ronoise=np.atleast_1d(2.469),
         ))
@@ -195,7 +195,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict7.update(dict(
             det=7,
             dataext=7,
-            darkcurr=3.30,
+            darkcurr=3.30,  # e-/pixel/hour
             gain=np.atleast_1d(1.201),
             ronoise=np.atleast_1d(2.518),
         ))
@@ -204,7 +204,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detector_dict8.update(dict(
             det=8,
             dataext=8,
-            darkcurr=3.70,
+            darkcurr=3.70,  # e-/pixel/hour
             gain=np.atleast_1d(1.230),
             ronoise=np.atleast_1d(2.580),
         ))
@@ -251,7 +251,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
                      detector_dict5, detector_dict6, detector_dict7, detector_dict8]
         # Return
-        return detector_container.DetectorContainer(**detectors[det-1])
+        return DetectorContainer(**detectors[det-1])
 
     @classmethod
     def default_pypeit_par(cls):
@@ -561,7 +561,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'dateobs', 'dark': 'dateobs'}
+        return {'bias': ['dateobs', 'binning', 'amp'], 'dark': ['dateobs', 'binning', 'amp']}
 
     def pypeit_file_keys(self):
         """
@@ -1524,11 +1524,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        if mosaic:
-            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-        else:
-            return np.array([detector_container.DetectorContainer.get_name(i+1)
-                             for i in range(self.ndet)]).reshape(2,-1)
+        dets = super().list_detectors(mosaic=mosaic)
+        return dets if mosaic else dets.reshape(2,-1)
 
     def spec1d_match_spectra(self, sobjs):
         """
@@ -1549,7 +1546,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # MATCH RED TO BLUE VIA RA/DEC
 #        mb = sobjs['DET'] <=4
 #        mr = sobjs['DET'] >4
-        det = np.array([detector_container.DetectorContainer.parse_name(d) for d in sobjs.DET])
+        det = np.array([DetectorContainer.parse_name(d) for d in sobjs.DET])
         mb = det <= 4
         mr = det > 4
 

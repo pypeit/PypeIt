@@ -11,6 +11,7 @@ import pickle
 import pathlib
 import itertools
 import glob
+import colorsys
 import collections.abc
 
 from IPython import embed
@@ -19,6 +20,7 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
 import scipy.ndimage
+from scipy import signal
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -28,6 +30,342 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit.move_median import move_median
+
+
+def zero_not_finite(array):
+    """
+    Set the elements of an array to zero which are inf or nan
+
+    Parameters
+    ----------
+    array : `numpy.ndarray`_
+        An numpy array of arbitrary shape that potentially has nans or
+        infinities.
+
+    Returns
+    -------
+    new_array : `numpy.ndarray`_
+        A copy of the array with the nans and infinities set to zero.
+    """
+    not_finite = np.logical_not(np.isfinite(array))
+    new_array = array.copy()
+    new_array[not_finite] = 0.0
+    return new_array
+
+
+def arr_setup_to_setup_list(arr_setup):
+    """
+    This utility routine converts an arr_setup list to a setup_list. The
+    arr_setup list and setup_lists are defined as follows, for e.g. echelle
+    wavelengths waves. See :func:`~pypeit.core.coadd.coadd1d.ech_combspec` for
+    further details.
+
+        - ``arr_setup`` is a list of length nsetups, one for each setup. Each
+          element is a numpy array with ``shape = (nspec, norder, nexp)``, which
+          is the data model for echelle spectra for an individual setup. The
+          utiltities :func:`~pypeit.utils.arr_setup_to_setup_list` and
+          :func:`~pypeit.utils.setup_list_to_arr` convert between ``arr_setup``
+          and ``setup_list``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
+
+    Parameters
+    ----------
+    arr_setup : :obj:`list`
+        A list of length nsetups echelle output arrays of shape=(nspec, norders,
+        nexp).
+
+    Returns
+    -------
+    setup_list : :obj:`list`
+        List of length nsetups. Each element of the setup list is a list of
+        length norder*nexp elements, each of which contains the shape =
+        (nspec1,) wavelength arrays for the order/exposure in setup1. The list
+        is arranged such that the nexp1 spectra for iorder=0 appear first, then
+        come nexp1 spectra for iorder=1, i.e. the outer or fastest varying
+        dimension in python array ordering is the exposure number.
+    """
+    return [echarr_to_echlist(arr)[0] for arr in arr_setup]
+
+
+def setup_list_to_arr_setup(setup_list, norders, nexps):
+    """
+    This utility routine converts an setup_list list to an arr_setup list. The arr_setup list and setup_lists are defined
+    as follows, for e.g. echelle wavelengths waves. See core.coadd.coadd1d.ech_combspec for further details.
+
+        - ``arr_setup`` is a list of length nsetups, one for each setup. Each
+          element is a numpy array with ``shape = (nspec, norder, nexp)``, which
+          is the data model for echelle spectra for an individual setup. The
+          utiltities :func:`~pypeit.utils.arr_setup_to_setup_list` and
+          :func:`~pypeit.utils.setup_list_to_arr` convert between ``arr_setup``
+          and ``setup_list``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
+
+    Parameters
+    ----------
+    setup_list : :obj:`list`
+        List of length nsteups. Each element of the setup list is a list of
+        length norder*nexp elements, each of which contains the shape =
+        (nspec1,) wavelength arrays for the order/exposure in setup1. The list
+        is arranged such that the nexp1 spectra for iorder=0 appear first, then
+        come nexp1 spectra for iorder=1, i.e. the outer or fastest varying
+        dimension in python array ordering is the exposure number.
+    norders : :obj:`list`
+        List containing the number of orders for each setup.
+    nexps : :obj:`list`
+        List containing the number of exposures for each setup
+
+    Returns
+    -------
+    arr_setup : :obj:`list`
+        List of length nsetups each element of which is a numpy array of
+        shape=(nspec, norders, nexp) which is the echelle spectra data model.
+    """
+    nsetups = len(setup_list)
+    arr_setup = []
+    for isetup in range(nsetups):
+        shape = (setup_list[isetup][0].size, norders[isetup], nexps[isetup])
+        arr_setup.append(echlist_to_echarr(setup_list[isetup], shape))
+    return arr_setup
+
+
+def concat_to_setup_list(concat, norders, nexps):
+    r"""
+    This routine converts from a ``concat`` list to a ``setup_list`` list. The
+    ``concat`` list and ``setup_lists`` are defined as follows. See
+    :func:`~pypeit.core.coadd.coadd1d.ech_combspec` for further details.
+
+        - ``concat`` is a list of length :math:`\Sum_i N_{{\rm order},i} N_{{\rm
+          exp},i}` where :math:`i` runs over the setups. The elements of the
+          list contains a numpy array of, e.g., wavelengths for the setup,
+          order, exposure in question. The utility routines
+          :func:`~pypeit.utils.setup_list_to_concat` and
+          :func:`~pypeit.utils.concat_to_setup_list` convert between
+          ``setup_lists`` and ``concat``.
+
+        - ``setup_list`` is a list of length ``nsetups``, one for each setup.
+          Each element is a list of length ``norder*nexp`` elements, each of
+          which contains the ``shape = (nspec1,)`` , e.g., wavelength arrays for
+          the order/exposure in ``setup1``. The list is arranged such that the
+          ``nexp1`` spectra for ``iorder=0`` appear first, then come ``nexp1``
+          spectra for ``iorder=1``, i.e. the outer or fastest varying dimension
+          in python array ordering is the exposure number. The utility functions
+          :func:`~pypeit.utils.echarr_to_echlist` and
+          :func:`~pypeit.utils.echlist_to_echarr` convert between the
+          multi-dimensional numpy arrays in the ``arr_setup`` and the lists of
+          numpy arrays in ``setup_list``.
+
+    Parameters
+    ----------
+    concat : :obj:`list`
+        List of length :math:`\Sum_i N_{{\rm orders},i} N_{{\rm exp},i}` of
+        numpy arrays describing an echelle spectrum where :math:`i` runs over
+        the number of setups.
+    norders : :obj:`list`
+        List of length nsetups containing the number of orders for each setup.
+    nexps : :obj:`list`
+        List of length nexp containing the number of exposures for each setup.
+
+    Parameters
+    ----------
+    setup_list : :obj:`list`, list of length nsetups
+        Each element of the setup list is a list of length norder*nexp elements,
+        each of which contains the shape = (nspec1,) wavelength arrays for the
+        order/exposure in setup1. The list is arranged such that the nexp1
+        spectra for iorder=0 appear first, then come nexp1 spectra for iorder=1,
+        i.e. the outer or fastest varying dimension in python array ordering is
+        the exposure number.
+    """
+    if len(norders) != len(nexps):
+        msgs.error('The number of elements in norders and nexps must match')
+    nsetups = len(norders)
+    setup_list = []
+    ind_start = 0
+    for isetup in range(nsetups):
+        ind_end = ind_start + norders[isetup] * nexps[isetup]
+        setup_list.append(concat[ind_start:ind_end])
+        ind_start = ind_end
+
+    return setup_list
+
+
+def setup_list_to_concat(lst):
+    """
+    Unravel a list of lists.
+
+    Parameters
+    ----------
+    lst : :obj:`list`
+        List to unravel.
+
+    Returns
+    -------
+    concat_list : :obj:`list`
+        A list of the elements of the input list, unraveled.
+    """
+    return list(itertools.chain.from_iterable(lst))
+
+
+def echarr_to_echlist(echarr):
+    """
+    Convert an echelle array to a list of 1d arrays.
+
+    Parameters
+    ----------
+    echarr : `numpy.ndarray`_
+        An echelle array of shape (nspec, norder, nexp).
+
+    Returns
+    -------
+    echlist : :obj:`list`
+        A unraveled list of 1d arrays of shape (nspec,) where the norder
+        dimension is the fastest varying dimension and the nexp dimension is the
+        slowest varying dimension.
+    shape : :obj:`tuple`
+        The shape of the provided echelle array (see ``echarr``).
+    """
+    shape = echarr.shape
+    nspec, norder, nexp = shape
+    echlist = [echarr[:, i, j] for i in range(norder) for j in range(nexp)]
+    return echlist, shape
+
+
+def echlist_to_echarr(echlist, shape):
+    """
+    Convert a list of 1d arrays to a 3d echelle array in the format in which echelle outputs are stored, i.e.
+    with shape (nspec, norder, nexp).
+
+    Parameters
+    ----------
+    echlist : :obj:`list`
+        A unraveled list of 1d arrays of shape (nspec,) where the norder
+        dimension is the fastest varying dimension and the nexp dimension is the
+        slowest varying dimension.
+    shape : :obj:`tuple`
+        The shape of the echelle array to be returned, i.e. a tuple containing (nspec, norder, nexp)
+
+    Returns
+    -------
+    echarr : `numpy.ndarray`_
+        An echelle spectral format array of shape (nspec, norder, nexp).
+    """
+    nspec, norder, nexp = shape
+    echarr = np.zeros(shape, dtype=echlist[0].dtype)
+    for i in range(norder):
+        for j in range(nexp):
+            echarr[:, i, j] = echlist[i * nexp + j]
+    return echarr
+
+
+def explist_to_array(explist, pad_value=0.0):
+    """
+    Embed a list of length nexp 1d arrays of arbitrary size in a 2d array.
+
+    Parameters
+    ----------
+    explist : :obj:`list`
+        List of length nexp containing 1d arrays of arbitrary size.
+    pad_value : scalar-like
+        Value to use for padding the missing locations in the 2d array. The data
+        type should match the data type of in the 1d arrays in nexp_list.
+
+    Returns
+    -------
+    array : `numpy.ndarray`_
+        A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum
+        size of any of the members of the input nexp_list. The data type is the
+        same as the data type in the original 1d arrays.
+    """
+
+    nexp = len(explist)
+    # Find the maximum array size in the list
+    nspec_list = [arr.size for arr in explist]
+    nspec_max = np.max(nspec_list)
+    array = np.full((nspec_max, nexp), pad_value, dtype=explist[0].dtype)
+    for i in range(nexp):
+        array[:nspec_list[i], i] = explist[i]
+
+    return array, nspec_list
+
+
+def array_to_explist(array, nspec_list=None):
+    """
+    Unfold a padded 2D array into a list of length nexp 1d arrays with sizes set by nspec_list
+
+    Parameters
+    ----------
+    array : `numpy.ndarray`_
+        A 2d array of shape (nspec_max, nexp) where nspec_max is the maximum
+        size of any of the spectra in the array.
+    nspec_list : :obj:`list`, optional
+        List containing the size of each of the spectra embedded in the array.
+        If None, the routine will assume that all the spectra are the same size
+        equal to array.shape[0]
+
+    Returns
+    -------
+    explist : :obj:`list`
+        A list of 1d arrays of shape (nspec_max, nexp) where nspec_max is the
+        maximum size of any of the members of the input nexp_list. The data type
+        is the same as the data type in the original 1d arrays.
+    """
+    nexp = array.shape[1]
+    if nspec_list is None:
+        _nspec_list = [array.shape[0]] * nexp
+    else:
+        _nspec_list = nspec_list
+
+    explist = []
+    for i in range(nexp):
+        explist.append(array[:_nspec_list[i], i])
+
+    return explist
+
+
+def distinct_colors(num_colors):
+    """
+    Return n distinct colors from the specified matplotlib colormap.  Taken
+    from:
+
+    https://stackoverflow.com/questions/470690/how-to-automatically-generate-n-distinct-colors
+
+    Args:
+        num_colors (int):
+            Number of colors to return.
+
+    Returns:
+        `numpy.ndarray`_: An array with shape (n,3) with the RGB values for
+         the requested number of colors.
+    """
+
+    colors = []
+    for i in np.arange(0., 360., 360. / num_colors):
+        hue = i / 360.
+        lightness = (50 + np.random.rand() * 10) / 100.
+        saturation = (90 + np.random.rand() * 10) / 100.
+        colors.append(colorsys.hls_to_rgb(hue, lightness, saturation))
+    return colors
 
 
 def get_time_string(codetime):
@@ -75,7 +413,7 @@ def all_subclasses(cls):
         intermediate base classes in the inheritance thread.
     """
     return set(cls.__subclasses__()).union(
-            [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
 
 
 def embed_header():
@@ -128,8 +466,8 @@ def to_string(data, use_repr=True, verbatim=False):
         return data if not verbatim else '``' + data + '``'
     if hasattr(data, '__len__'):
         return '[]' if isinstance(data, list) and len(data) == 0 \
-                    else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim) 
-                                        for d in data ])
+            else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim)
+                            for d in data])
     return data.__repr__() if use_repr else str(data)
 
 
@@ -164,28 +502,28 @@ def string_table(tbl, delimeter='print', has_header=True):
         _nrows += 1
         start += 1
 
-    row_string = ['']*_nrows
+    row_string = [''] * _nrows
 
-    for i in range(start,nrows+start-1):
-        row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
+    for i in range(start, nrows + start - 1):
+        row_string[i] = '  '.join([tbl[1 + i - start, j].ljust(col_width[j]) for j in range(ncols)])
     if delimeter == 'print':
         # Heading row
-        row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+        row_string[0] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
         # Delimiter
         if has_header:
-            row_string[1] = '-'*len(row_string[0])
-        return '\n'.join(row_string)+'\n'
+            row_string[1] = '-' * len(row_string[0])
+        return '\n'.join(row_string) + '\n'
 
     # For an rst table
-    row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
-    row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+    row_string[0] = '  '.join(['=' * col_width[j] for j in range(ncols)])
+    row_string[1] = '  '.join([tbl[0, j].ljust(col_width[j]) for j in range(ncols)])
     if has_header:
         row_string[2] = row_string[0]
     row_string[-1] = row_string[0]
-    return '\n'.join(row_string)+'\n'
+    return '\n'.join(row_string) + '\n'
 
 
-def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
+def spec_atleast_2d(wave, flux, ivar, gpm, log10_blaze_function=None, copy=False):
     """
     Force spectral arrays to be 2D.
 
@@ -209,9 +547,10 @@ def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
             forces the returned arrays to be copies instead.
 
     Returns:
-        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
-        wavelength, flux, inverse variance, and gpm arrays. The next two
-        give the length of each spectrum and the total number of spectra;
+        :obj:`tuple`: Returns 7 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. Next is the
+        log10_blaze_function, which is None if not provided as an input argument.
+        The next two give the length of each spectrum and the total number of spectra;
         i.e., the last two elements are identical to the shape of the
         returned flux array.
 
@@ -228,8 +567,12 @@ def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     if flux.ndim == 1:
         # Input flux is 1D
         # NOTE: These reshape calls return copies of the arrays
-        return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
-                    gpm.reshape(-1, 1), flux.size, 1
+        if log10_blaze_function is not None:
+            return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
+                   gpm.reshape(-1, 1), log10_blaze_function.reshape(-1, 1), flux.size, 1
+        else:
+            return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
+                   gpm.reshape(-1, 1), None, flux.size, 1
 
     # Input is 2D
     nspec, norders = flux.shape
@@ -237,7 +580,11 @@ def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     _flux = flux.copy() if copy else flux
     _ivar = ivar.copy() if copy else ivar
     _gpm = gpm.copy() if copy else gpm
-    return _wave, _flux, _ivar, _gpm, nspec, norders
+    if log10_blaze_function is not None:
+        _log10_blaze_function = log10_blaze_function.copy() if copy else log10_blaze_function
+    else:
+        _log10_blaze_function = None
+    return _wave, _flux, _ivar, _gpm, _log10_blaze_function, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
@@ -250,15 +597,15 @@ def nan_mad_std(data, axis=None, func=None):
     Args:
         data (array-like):
             Data array or object that can be converted to an array.
-        axis (int, sequence of int, None, optional):
+        axis (int, tuple, optional):
             Axis along which the robust standard deviations are
             computed.  The default (`None`) is to compute the robust
             standard deviation of the flattened array.
 
     Returns:
-        float, `numpy.ndarray`: The robust standard deviation of the
+        float, `numpy.ndarray`_: The robust standard deviation of the
         input data.  If ``axis`` is `None` then a scalar will be
-        returned, otherwise a `~numpy.ndarray` will be returned.
+        returned, otherwise a `numpy.ndarray`_ will be returned.
     """
     return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
 
@@ -294,19 +641,19 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
     # Set the starting and ending values based on a fraction of the
     # growth
     _lim = 1.0 if lim > 1.0 else lim
-    start, end = (len(_a)*(1.0+_lim*np.array([-1,1]))/2).astype(int)
+    start, end = (len(_a) * (1.0 + _lim * np.array([-1, 1])) / 2).astype(int)
     if end == len(_a):
         end -= 1
 
     # Set the full range and multiply it by the provided factor
     srt = np.ma.argsort(_a)
-    Da = (_a[srt[end]] - _a[srt[start]])*fac
+    Da = (_a[srt[end]] - _a[srt[start]]) * fac
 
     # Set the midpoint
-    mid = _a[srt[len(_a)//2]] if midpoint is None else midpoint
+    mid = _a[srt[len(_a) // 2]] if midpoint is None else midpoint
 
     # Return the range centered on the midpoint
-    return [ mid - Da/2, mid + Da/2 ]
+    return [mid - Da / 2, mid + Da / 2]
 
 
 def nearest_unmasked(arr, use_indices=False):
@@ -344,7 +691,7 @@ def nearest_unmasked(arr, use_indices=False):
         return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
 
     # Get the difference of each element with every other element
-    nearest = np.absolute(arr[None,:]-arr.data[:,None])
+    nearest = np.absolute(arr[None, :] - arr.data[:, None])
     # Ignore the diagonal
     nearest[np.diag_indices(arr.size)] = np.ma.masked
     # Return the location of the minimum value ignoring the masked values
@@ -418,14 +765,14 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
 
     # Construct the kernel for mean calculation
     _nave = np.fmin(nave, img.shape[0])
-    kernel = np.ones((_nave, 1))/float(_nave)
+    kernel = np.ones((_nave, 1)) / float(_nave)
 
     if wgt is None:
         # No weights so just smooth
         return scipy.ndimage.convolve(img, kernel, mode='nearest')
 
     # Weighted smoothing
-    cimg = scipy.ndimage.convolve(img*wgt, kernel, mode='nearest')
+    cimg = scipy.ndimage.convolve(img * wgt, kernel, mode='nearest')
     wimg = scipy.ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
     if replace == 'original':
@@ -435,6 +782,82 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     else:
         msgs.error('Unrecognized value of replace')
     return smoothed_img.data
+
+
+def convolve_fft(img, kernel, msk):
+    """
+    Convolve img with an input kernel using an FFT. Following the FFT,
+    a slower convolution is used to estimate the convolved image near
+    the masked pixels.
+
+    .. note::
+        For images following the PypeIt convention, this smooths the
+        data in the spectral direction for each spatial position.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image to convolve, shape = (nspec, nspat)
+        kernel (`numpy.ndarray`_):
+            1D kernel to use when convolving the image in the spectral direction
+        msk (`numpy.ndarray`_):
+            Mask of good pixels (True=good pixel). This should ideally be a slit mask,
+            where a True value represents a pixel on the slit, and a False value is a
+            pixel that is not on the slit. Image shape should be the same as img
+
+    Returns:
+        `numpy.ndarray`_: The convolved image, same shape as the input img
+    """
+    # Check the kernel shape
+    if kernel.ndim == 1:
+        kernel = kernel.reshape((kernel.size, 1))
+    # Start by convolving the image by the kernel
+    img_conv = signal.fftconvolve(img, kernel, mode='same', axes=0)
+    # Find the slit edge pixels in the spectral direction
+    rmsk = (msk != np.roll(msk, 1, axis=0))
+    # Remove the edges of the detector
+    rmsk[0, :] = False
+    rmsk[-1, :] = False
+    # Separate into up edges and down edges
+    wup = np.where(rmsk & msk)
+    wdn = np.where(rmsk & np.logical_not(msk))
+
+    # Setup some of the variables used in the slow convolution
+    nspec = img.shape[0]
+    kernsize = kernel.size
+    hwid = (kernsize - 1) // 2
+    harr = np.arange(-hwid, +hwid + 1)
+
+    # Create an inner function that deals with the convolution near masked pixels
+    def inner_conv(idx_i, idx_j):
+        slc = idx_i + harr
+        slc = slc[(slc >= 0) & (slc < nspec)]
+        wsl = np.where(msk[slc, idx_j])
+        return np.sum(img[slc[wsl], idx_j] * kernel[wsl]) / np.sum(kernel[wsl])
+
+    # Now calculate the convolution directly for these pixels
+    for ee in range(wup[0].size):
+        ii, jj = wup[0][ee], wup[1][ee]
+        for cc in range(ii, min(nspec - 1, ii + hwid + 1)):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    for ee in range(wdn[0].size):
+        ii, jj = wdn[0][ee], wdn[1][ee]
+        for cc in range(max(0, ii - hwid - 1), ii + 1):
+            img_conv[cc, jj] = inner_conv(cc, jj)
+    # Now recalculate the convolution near the spectral edges
+    rmsk = np.zeros(msk.shape, dtype=bool)
+    rmsk[:hwid + 1, :] = True
+    wlo = np.where(msk & rmsk)
+    rmsk[:hwid + 1, :] = False
+    rmsk[-hwid - 1:, :] = True
+    whi = np.where(msk & rmsk)
+    for ee in range(wlo[0].size):
+        ii, jj = wlo[0][ee], wlo[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    for ee in range(whi[0].size):
+        ii, jj = whi[0][ee], whi[1][ee]
+        img_conv[ii, jj] = inner_conv(ii, jj)
+    # Return the convolved image
+    return img_conv
 
 
 # TODO: Could this use bisect?
@@ -472,25 +895,26 @@ def index_of_x_eq_y(x, y, strict=False):
     return x2y
 
 
-def rebin(a, newshape):
+def rebin_slice(a, newshape):
     """
 
     Rebin an array to a new shape using slicing. This routine is taken
     from: https://scipy-cookbook.readthedocs.io/items/Rebinning.html.
     The image shapes need not be integer multiples of each other, but in
     this regime the transformation will not be reversible, i.e. if
-    a_orig = rebin(rebin(a,newshape), a.shape) then a_orig will not be
-    everywhere equal to a (but it will be equal in most places).
+    a_orig = rebin_slice(rebin_slice(a,newshape), a.shape) then a_orig will not be
+    everywhere equal to a (but it will be equal in most places). To rebin and
+    conserve flux, use the `pypeit.utils.rebinND()` function (see below).
 
     Args:
-        a (ndarray, any dtype):
+        a (`numpy.ndarray`_):
             Image of any dimensionality and data type
         newshape (tuple):
             Shape of the new image desired. Dimensionality must be the
             same as a.
 
     Returns:
-        ndarray: same dtype as input Image with same values as a
+        `numpy.ndarray`_: same dtype as input Image with same values as a
         rebinning to shape newshape
     """
     if not len(a.shape) == len(newshape):
@@ -501,28 +925,41 @@ def rebin(a, newshape):
     indices = coordinates.astype('i')  # choose the biggest smaller integer index
     return a[tuple(indices)]
 
-# TODO This function is only used by procimg.lacosmic. Can it be replaced by above?
-def rebin_evlist(frame, newshape):
-    # This appears to be from
-    # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
-    shape = frame.shape
-    lenShape = len(shape)
-    factor = (np.asarray(shape)/np.asarray(newshape)).astype(int)
-    evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),factor[%d],'% (i, i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
-             ['/factor[%d]' % i for i in range(lenShape)]
-    return eval(''.join(evList))
 
+def rebinND(img, shape):
+    """
+    Rebin a 2D image to a smaller shape. For example, if img.shape=(100,100),
+    then shape=(10,10) would take the mean of the first 10x10 pixels into a
+    single output pixel, then the mean of the next 10x10 pixels will be output
+    into the next pixel. Note that img.shape must be an integer multiple of the
+    elements in the new shape.
 
+    Args:
+        img (`numpy.ndarray`_):
+            A 2D input image
+        shape (:obj:`tuple`):
+            The desired shape to be returned. The elements of img.shape
+            should be an integer multiple of the elements of shape.
+
+    Returns:
+        `numpy.ndarray`_: The input image rebinned to shape
+    """
+    # First check that the old shape is an integer multiple of the new shape
+    rem0, rem1 = img.shape[0] % shape[0], img.shape[1] % shape[1]
+    if rem0 != 0 or rem1 != 0:
+        # In this case, the shapes are not an integer multiple... need to slice
+        msgs.warn("Input image shape is not an integer multiple of the requested shape. Flux is not conserved.")
+        return rebin_slice(img, shape)
+    # Convert input 2D image into a 4D array to make the rebinning easier
+    sh = shape[0], img.shape[0] // shape[0], shape[1], img.shape[1] // shape[1]
+    # Rebin to the 4D array and then average over the second and last elements.
+    img_out = img.reshape(sh).mean(-1).mean(1)
+    return img_out
 
 
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots
-
-    Returns:
-
     """
     # set some plotting parameters
     plt.rcParams["xtick.top"] = True
@@ -552,9 +989,6 @@ def pyplot_rcparams():
 def pyplot_rcparams_default():
     """
     restore default rcparams
-
-    Returns:
-
     """
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
@@ -572,13 +1006,17 @@ def smooth(x, window_len, window='flat'):
         the window parameter could be the window itself if an array instead of a string
 
     Args:
-        x: the input signal
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing., default is 'flat'
+        x (`numpy.ndarray`_):
+            the input signal
+        window_len (:obj:`int`):
+            the dimension of the smoothing window; should be an odd integer
+        window (:obj:`str`, optional):
+            the type of window from 'flat', 'hanning', 'hamming', 'bartlett',
+            'blackman' flat window will produce a moving average smoothing.
+            Default is 'flat'.
 
     Returns:
-        the smoothed signal, same shape as x
+        `numpy.ndarray`_: the smoothed signal, same shape as x
 
     Examples:
 
@@ -616,7 +1054,7 @@ def smooth(x, window_len, window='flat'):
 
     y = np.convolve(w / w.sum(), s, mode='same')
 
-    return y[(window_len-1):(y.size-(window_len-1))]
+    return y[(window_len - 1):(y.size - (window_len - 1))]
 
 
 def fast_running_median(seq, window_size):
@@ -634,36 +1072,39 @@ def fast_running_median(seq, window_size):
     scipy.ndimage.median_filter with the reflect boundary
     condition, but is ~ 100 times faster.
 
-    Args:
-        seq (list or 1-d numpy array of numbers):
-        window_size (int): size of running window.
-
-    Returns:
-        ndarray: median filtered values
-
     Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.median_filter by Joe Hennawi.
 
     Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
+
+    Args:
+        seq (list, `numpy.ndarray`_):
+            1D array of values
+        window_size (int):
+            size of running window.
+
+    Returns:
+        `numpy.ndarray`_: median filtered values
     """
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
 
-    if (window_size > (len(seq)-1)):
+    if (window_size > (len(seq) - 1)):
         msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
     if (window_size < 0):
-        msgs.warn('window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
+        msgs.warn(
+            'window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
 
-    window_size = int(np.fmax(np.fmin(int(window_size), len(seq)-1),1))
+    window_size = int(np.fmax(np.fmin(int(window_size), len(seq) - 1), 1))
     # pad the array for the reflection
-    seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
+    seq_pad = np.concatenate((seq[0:window_size][::-1], seq, seq[-1:(-1 - window_size):-1]))
 
     result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.medfilt
 
-    result = np.roll(result, -window_size//2 + 1)
+    result = np.roll(result, -window_size // 2 + 1)
     return result[window_size:-window_size]
 
 
@@ -680,24 +1121,24 @@ def cross_correlate(x, y, maxlag):
 
     Edges are padded with zeros using ``np.pad(mode='constant')``.
 
-    Args:
-        x (ndarray):
-            First vector of the cross-correlation.
-        y (ndarray):
-            Second vector of the cross-correlation. `x` and `y` must be
-            one-dimensional numpy arrays with the same length.
-        maxlag (int):
-            The maximum lag for which to compute the cross-correlation.
-            The cross correlation is computed at integer lags from
-            (-maxlag, maxlag)
+    Parameters
+    ----------
+    x : `numpy.ndarray`_
+        First vector of the cross-correlation.
+    y : `numpy.ndarray`_
+        Second vector of the cross-correlation. `x` and `y` must be
+        one-dimensional numpy arrays with the same length.
+    maxlag : :obj:`int`
+        The maximum lag for which to compute the cross-correlation.  The cross
+        correlation is computed at integer lags from (-maxlag, maxlag)
 
-    Returns:
-        tuple:  Returns are as follows:
-            - lags (ndarray):  shape = (2*maxlag + 1); Lags for the
-              cross-correlation. Integer spaced values from (-maxlag,
-              maxlag)
-            - xcorr (ndarray): shape = (2*maxlag + 1); Cross-correlation
-              at the lags
+    Returns
+    -------
+    lags : `numpy.ndarray`_, shape = (2*maxlag + 1)
+        Lags for the cross-correlation. Integer spaced values from (-maxlag,
+        maxlag).
+    xcorr : `numpy.ndarray`_, shape = (2*maxlag + 1)
+        Cross-correlation at the lags
     """
 
     x = np.asarray(x)
@@ -707,13 +1148,12 @@ def cross_correlate(x, y, maxlag):
     if y.ndim != 1:
         msgs.error('y must be one-dimensional.')
 
-
-    #py = np.pad(y.conj(), 2*maxlag, mode=mode)
-    py = np.pad(y, 2*maxlag, mode='constant')
-    T = as_strided(py[2*maxlag:], shape=(2*maxlag+1, len(y) + 2*maxlag),
+    # py = np.pad(y.conj(), 2*maxlag, mode=mode)
+    py = np.pad(y, 2 * maxlag, mode='constant')
+    T = as_strided(py[2 * maxlag:], shape=(2 * maxlag + 1, len(y) + 2 * maxlag),
                    strides=(-py.strides[0], py.strides[0]))
     px = np.pad(x, maxlag, mode='constant')
-    lags = np.arange(-maxlag, maxlag + 1,dtype=float)
+    lags = np.arange(-maxlag, maxlag + 1, dtype=float)
     return lags, T.dot(px)
 
 
@@ -754,8 +1194,8 @@ def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
     _gpm = ivar > 0.
     if gpm is not None:
         _gpm &= gpm
-    adderr = 1.0/sn_clip
-    ivar_cap = _gpm/(1.0/(ivar + np.logical_not(_gpm)) + adderr**2*(np.abs(flux))**2)
+    adderr = 1.0 / sn_clip
+    ivar_cap = _gpm / (1.0 / (ivar + np.logical_not(_gpm)) + adderr ** 2 * (np.abs(flux)) ** 2)
     return np.minimum(ivar, ivar_cap)
 
 
@@ -777,7 +1217,7 @@ def inverse(array):
     Returns:
         `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
-    return (array > 0.0)/(np.abs(array) + (array == 0.0))
+    return (array > 0.0) / (np.abs(array) + (array == 0.0))
 
 
 def calc_ivar(varframe):
@@ -788,15 +1228,13 @@ def calc_ivar(varframe):
     Wrapper to inverse()
 
     Args:
-        varframe (ndarray):  Variance image
+        varframe (`numpy.ndarray`_):  Variance image
 
     Returns:
-        ndarray:  Inverse variance image
+        `numpy.ndarray`_:  Inverse variance image
     """
     # THIS WILL BE DEPRECATED!!
     return inverse(varframe)
-
-
 
 
 def robust_meanstd(array):
@@ -804,29 +1242,20 @@ def robust_meanstd(array):
     Determine a robust measure of the mean and dispersion of array
 
     Args:
-        array (ndarray): an array of values
+        array (`numpy.ndarray`_): an array of values
 
     Returns:
         tuple: Median of the array and a robust estimate of the standand
         deviation (assuming a symmetric distribution).
     """
     med = np.median(array)
-    mad = np.median(np.abs(array-med))
-    return med, 1.4826*mad
-
+    mad = np.median(np.abs(array - med))
+    return med, 1.4826 * mad
 
 
 def polyfitter2d(data, mask=None, order=2):
     """
     2D fitter
-
-    Args:
-        data:
-        mask:
-        order:
-
-    Returns:
-
     """
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
     if isinstance(mask, (float, int)):
@@ -861,21 +1290,12 @@ def polyfitter2d(data, mask=None, order=2):
 def polyfit2d(x, y, z, order=3):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        z:
-        order:
-
-    Returns:
-
     """
-    ncols = (order + 1)**2
+    ncols = (order + 1) ** 2
     G = np.zeros((x.size, ncols))
-    ij = itertools.product(range(order+1), range(order+1))
-    for k, (i,j) in enumerate(ij):
-        G[:,k] = x**i * y**j
+    ij = itertools.product(range(order + 1), range(order + 1))
+    for k, (i, j) in enumerate(ij):
+        G[:, k] = x ** i * y ** j
     m, null, null, null = np.linalg.lstsq(G, z)
     return m
 
@@ -883,20 +1303,12 @@ def polyfit2d(x, y, z, order=3):
 def polyval2d(x, y, m):
     """
     Generate 2D polynomial
-
-    Args:
-        x:
-        y:
-        m:
-
-    Returns:
-
     """
     order = int(np.sqrt(len(m))) - 1
-    ij = itertools.product(range(order+1), range(order+1))
+    ij = itertools.product(range(order + 1), range(order + 1))
     z = np.zeros_like(x)
     for a, (i, j) in zip(m, ij):
-        z += a * x**i * y**j
+        z += a * x ** i * y ** j
     return z
 
 
@@ -905,14 +1317,15 @@ def subsample(frame):
     Used by LACosmic
 
     Args:
-        frame (ndarray):
+        frame (`numpy.ndarray`_):
+            Array of data to subsample.
 
     Returns:
-        ndarray: Sliced image
+        `numpy.ndarray`_: Sliced image
 
     """
-    newshape = (2*frame.shape[0], 2*frame.shape[1])
-    slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
+    newshape = (2 * frame.shape[0], 2 * frame.shape[1])
+    slices = [slice(0, old, float(old) / new) for old, new in zip(frame.shape, newshape)]
     coordinates = np.mgrid[slices]
     indices = coordinates.astype('i')
     return frame[tuple(indices)]
@@ -923,14 +1336,15 @@ def find_nearest(array, values):
 
     Parameters
     ----------
-    array : numpy.ndarray
+    array : `numpy.ndarray`_
         Array of values
-    values : numpy.ndarray
+    values : `numpy.ndarray`_
         Values to be compared with the elements of `array`
 
-    Return
-    ------
-    numpy.ndarray : indices of `array` that are closest to each element of value
+    Returns
+    -------
+    idxs : `numpy.ndarray`_
+        indices of ``array`` that are closest to each element of value
     """
     # Make sure the input is a numpy array
     array = np.array(array)
@@ -968,10 +1382,10 @@ def yamlify(obj, debug=False):
 
     Returns
     -------
-    obj: :class:`object`
+    obj : :class:`object`
         An object suitable for yaml serialization.  For example
-        :class:`numpy.ndarray` is converted to :class:`list`,
-        :class:`numpy.int64` is converted to :class:`int`, etc.
+        `numpy.ndarray`_ is converted to :class:`list`,
+        ``numpy.int64`` is converted to :class:`int`, etc.
     """
     # TODO: Change to np.floating?
     if isinstance(obj, (np.float64, np.float32)):
@@ -981,12 +1395,12 @@ def yamlify(obj, debug=False):
         obj = int(obj)
     elif isinstance(obj, np.bool_):
         obj = bool(obj)
-#    elif isinstance(obj, bytes):
-#        obj = obj.decode('utf-8')
+    #    elif isinstance(obj, bytes):
+    #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
         # Worry about colons!
         if ':' in obj:
-            obj = '"'+str(obj)+'"'
+            obj = '"' + str(obj) + '"'
         else:
             obj = str(obj)
     elif isinstance(obj, units.Quantity):
@@ -1128,7 +1542,7 @@ def load_pickle(fname):
 
 ## Python version taken from https://pythonhosted.org/pyDOE/randomized.html by JFH
 
-def lhs(n, samples=None, criterion=None, iterations=None):
+def lhs(n, samples=None, criterion=None, iterations=None, seed_or_rng=12345):
     """
     Generate a latin-hypercube design
 
@@ -1151,7 +1565,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
 
     Returns
     -------
-    H : 2d-array
+    H : `numpy.ndarray`_
         An n-by-samples design matrix that has been normalized so factor values
         are uniformly spaced between zero and one.
 
@@ -1198,6 +1612,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
         >>> lhs(4, samples=5, criterion='correlate', iterations=10)
 
     """
+    rng = np.random.default_rng(seed_or_rng)
     H = None
 
     if samples is None:
@@ -1208,7 +1623,7 @@ def lhs(n, samples=None, criterion=None, iterations=None):
                                      'centermaximin', 'cm', 'correlation',
                                      'corr'), 'Invalid value for "criterion": {}'.format(criterion)
     else:
-        H = _lhsclassic(n, samples)
+        H = _lhsclassic(rng, n, samples)
 
     if criterion is None:
         criterion = 'center'
@@ -1218,92 +1633,101 @@ def lhs(n, samples=None, criterion=None, iterations=None):
 
     if H is None:
         if criterion.lower() in ('center', 'c'):
-            H = _lhscentered(n, samples)
+            H = _lhscentered(rng, n, samples)
         elif criterion.lower() in ('maximin', 'm'):
-            H = _lhsmaximin(n, samples, iterations, 'maximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'maximin')
         elif criterion.lower() in ('centermaximin', 'cm'):
-            H = _lhsmaximin(n, samples, iterations, 'centermaximin')
+            H = _lhsmaximin(rng, n, samples, iterations, 'centermaximin')
         elif criterion.lower() in ('correlate', 'corr'):
-            H = _lhscorrelate(n, samples, iterations)
+            H = _lhscorrelate(rng, n, samples, iterations)
 
     return H
 
+
 ################################################################################
 
-def _lhsclassic(n, samples):
+def _lhsclassic(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    # u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
     rdpoints = np.zeros_like(u)
     for j in range(n):
-        rdpoints[:, j] = u[:, j ] *( b -a) + a
+        rdpoints[:, j] = u[:, j] * (b - a) + a
 
     # Make the random pairings
     H = np.zeros_like(rdpoints)
     for j in range(n):
-        order = np.random.permutation(range(samples))
+        order = rng.permutation(range(samples))
+        # order = np.random.permutation(range(samples))
         H[:, j] = rdpoints[order, j]
 
     return H
 
+
 ################################################################################
 
-def _lhscentered(n, samples):
+def _lhscentered(rng, n, samples):
     # Generate the intervals
     cut = np.linspace(0, 1, samples + 1)
 
     # Fill points uniformly in each interval
-    u = np.random.rand(samples, n)
+    u = rng.random((samples, n))
+    # u = np.random.rand(samples, n)
     a = cut[:samples]
     b = cut[1:samples + 1]
-    _center = (a + b ) /2
+    _center = (a + b) / 2
 
     # Make the random pairings
     H = np.zeros_like(u)
     for j in range(n):
-        H[:, j] = np.random.permutation(_center)
+        H[:, j] = rng.permutation(_center)
+        # H[:, j] = np.random.permutation(_center)
 
     return H
 
+
 ################################################################################
 
-def _lhsmaximin(n, samples, iterations, lhstype):
+def _lhsmaximin(rng, n, samples, iterations, lhstype):
     maxdist = 0
 
     # Maximize the minimum distance between points
     for i in range(iterations):
-        if lhstype=='maximin':
-            Hcandidate = _lhsclassic(n, samples)
+        if lhstype == 'maximin':
+            Hcandidate = _lhsclassic(rng, n, samples)
         else:
-            Hcandidate = _lhscentered(n, samples)
+            Hcandidate = _lhscentered(rng, n, samples)
 
         d = _pdist(Hcandidate)
-        if maxdist <np.min(d):
+        if maxdist < np.min(d):
             maxdist = np.min(d)
             H = Hcandidate.copy()
 
     return H
 
+
 ################################################################################
 
-def _lhscorrelate(n, samples, iterations):
+def _lhscorrelate(rng, n, samples, iterations):
     mincorr = np.inf
 
     # Minimize the components correlation coefficients
     for i in range(iterations):
         # Generate a random LHS
-        Hcandidate = _lhsclassic(n, samples)
+        Hcandidate = _lhsclassic(rng, n, samples)
         R = np.corrcoef(Hcandidate)
-        if np.max(np.abs(R[ R!=1]) ) <mincorr:
-            mincorr = np.max(np.abs( R -np.eye(R.shape[0])))
+        if np.max(np.abs(R[R != 1])) < mincorr:
+            mincorr = np.max(np.abs(R - np.eye(R.shape[0])))
             print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
             H = Hcandidate.copy()
 
     return H
+
 
 ################################################################################
 
@@ -1313,12 +1737,12 @@ def _pdist(x):
 
     Parameters
     ----------
-    x : 2d-array
+    x : `numpy.ndarray`_
         An m-by-n array of scalars, where there are m points in n dimensions.
 
     Returns
     -------
-    d : array
+    d : `numpy.ndarray`_
         A 1-by-b array of scalars, where b = m*(m - 1)/2. This array contains
         all the pair-wise point distances, arranged in the order (1, 0),
         (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).
@@ -1339,10 +1763,10 @@ def _pdist(x):
     """
 
     x = np.atleast_2d(x)
-    assert len(x.shape )==2, 'Input array must be 2d-dimensional'
+    assert len(x.shape) == 2, 'Input array must be 2d-dimensional'
 
     m, n = x.shape
-    if m< 2:
+    if m < 2:
         return []
 
     d = []
@@ -1364,6 +1788,7 @@ def is_float(s):
 
     return True
 
+
 def find_single_file(file_pattern) -> pathlib.Path:
     """Find a single file matching a wildcard pattern.
 
@@ -1384,6 +1809,7 @@ def find_single_file(file_pattern) -> pathlib.Path:
         msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
         return pathlib.Path(files[0])
 
+
 def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
     """
     Depth-First Search of graph given by matrix `adj` starting from `v`.
@@ -1398,7 +1824,7 @@ def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
             visited in THIS CALL of DFS. After DFS returns, `group` contains
             all members of the connected component containing v. `i in group`
             is True iff vertex `i` has been visited in THIS CALL of DFS.
-        adj (np.ndarray): Adjacency matrix description of the graph. `adj[i,j]`
+        adj (`numpy.ndarray`_): Adjacency matrix description of the graph. `adj[i,j]`
             is True iff there is a vertex between `i` and `j`.
     """
     stack = []
@@ -1408,47 +1834,48 @@ def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):
         if not visited[u]:
             visited[u] = True
             group.append(u)
-            neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
+            neighbors = [i for i in range(len(adj[u])) if adj[u, i]]
             for neighbor in neighbors:
                 stack.append(neighbor)
 
+
+# TODO: Describe returned arrays
 def list_of_spectral_lines():
     """ Generate a list of spectral lines
 
     Returns:
-        tuple: np.ndarray, np.ndarray
+        tuple: Two `numpy.ndarray`_ objects.
     """
     # spectral features
-    CIVnam1, CIVwav1='CIV', 1548.
-    CIVnam2, CIVwav2='CIV', 1550.
+    CIVnam1, CIVwav1 = 'CIV', 1548.
+    CIVnam2, CIVwav2 = 'CIV', 1550.
 
-    HeIInam0, HeIIwav0='HeII', 1640.
+    HeIInam0, HeIIwav0 = 'HeII', 1640.
 
-    OIIInam01, OIIIwav01='OIII]', 1661.
-    OIIInam02, OIIIwav02='OIII]', 1666.
+    OIIInam01, OIIIwav01 = 'OIII]', 1661.
+    OIIInam02, OIIIwav02 = 'OIII]', 1666.
 
-    SiIIInam1, SiIIIwav1='SiIII]', 1882.
-    SiIIInam2, SiIIIwav2='SiIII]', 1892.
+    SiIIInam1, SiIIIwav1 = 'SiIII]', 1882.
+    SiIIInam2, SiIIIwav2 = 'SiIII]', 1892.
 
-    CIIInam1, CIIIwav1='CIII]', 1907.
-    CIIInam2, CIIIwav2='CIII]', 1909.
+    CIIInam1, CIIIwav1 = 'CIII]', 1907.
+    CIIInam2, CIIIwav2 = 'CIII]', 1909.
 
-    Lyalphanam, Lyalphawav='Lyalpha', 1215.7
-    OIInam1, OIIwav1='[OII]', 3726
-    OIInam2, OIIwav2='[OII]', 3729
-    OIIInam1, OIIIwav1='[OIII]', 5007.
-    OIIInam2, OIIIwav2='[OIII]', 4959.
-    OIIInam3, OIIIwav3='[OIII]', 4363.
-    Halphanam, Halphawav='Halpha', 6563.
-    Hbetanam, Hbetawav='Hbeta', 4861.
-    Hdeltanam, Hdeltawav='Hdelta', 4101.
-    Hgammanam, Hgammawav='Hgamma', 4341.
+    Lyalphanam, Lyalphawav = 'Lyalpha', 1215.7
+    OIInam1, OIIwav1 = '[OII]', 3726
+    OIInam2, OIIwav2 = '[OII]', 3729
+    OIIInam1, OIIIwav1 = '[OIII]', 5007.
+    OIIInam2, OIIIwav2 = '[OIII]', 4959.
+    OIIInam3, OIIIwav3 = '[OIII]', 4363.
+    Halphanam, Halphawav = 'Halpha', 6563.
+    Hbetanam, Hbetawav = 'Hbeta', 4861.
+    Hdeltanam, Hdeltawav = 'Hdelta', 4101.
+    Hgammanam, Hgammawav = 'Hgamma', 4341.
 
     NeIIInam, NeIIIwav = '[NeIII]', 3869.
     NeVnam, NeVwav = '[NeV]', 3426.
     SIInam1, SIIwav1 = '[SII]', 6716.
     SIInam2, SIIwav2 = '[SII]', 6716.
-
 
     ##absorption
     H13nam, H13wav = 'H13', 3734.
@@ -1464,16 +1891,16 @@ def list_of_spectral_lines():
 
     Gbandnam, Gbandwav = 'Gband', 4305.
 
-    line_names=np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
-                         CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
-                         OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
-                         SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
-                         CAII_Knam, CAII_Hnam, Gbandnam])
+    line_names = np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
+                           CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
+                           OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
+                           SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
+                           CAII_Knam, CAII_Hnam, Gbandnam])
 
     line_wav = np.array([CIVwav2, CIVwav2, HeIIwav0, OIIIwav01, OIIIwav02, SiIIIwav1, SiIIIwav2,
                          CIIIwav1, CIIIwav2, Lyalphawav, OIIwav1, OIIwav2, OIIIwav1, OIIIwav2,
                          OIIIwav3, Halphawav, Hbetawav, Hdeltawav, Hgammawav, NeIIIwav, NeVwav,
-                         SIIwav1,SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
+                         SIIwav1, SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
                          CaII_Kwav, CaII_Hwav, Gbandwav])
 
     return line_names, line_wav

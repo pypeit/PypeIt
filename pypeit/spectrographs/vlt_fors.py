@@ -241,7 +241,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # These numbers are from the ESO FORS2 user manual at: 0
         # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
         # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
 
         # CHIP1
         detector_dict1 = dict(
@@ -252,7 +252,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 2.1,
+            darkcurr        = 2.1,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -272,7 +272,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 1.4,
+            darkcurr        = 1.4,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -335,6 +335,26 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
 
         return par
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': 'detector', 'dark': 'detector'}
 
     def configuration_keys(self):
         """

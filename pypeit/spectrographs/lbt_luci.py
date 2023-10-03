@@ -43,7 +43,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 #                        use_darkimage=False)
 #        par.reset_all_processimages_par(**turn_off)
 #
-#        par['calibrations']['biasframe']['exprng'] = [None, 1]
+#        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
 #        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
 #        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
 #        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
@@ -288,7 +288,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             platescale      = 0.25,
             # Dark current nominally is < 360 electrons per hours
             # but the dark subtraction will effectively bring this to 0
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation      = 1e+8,
@@ -417,7 +417,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.25,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation=1e+8,

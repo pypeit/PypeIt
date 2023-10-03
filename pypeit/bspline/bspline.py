@@ -700,7 +700,7 @@ def uniq(x, index=None):
 
     Returns
     -------
-    `np.ndarray`
+    result : `numpy.ndarray`_
         The indices of the last occurence in `x` of its unique
         values.
 

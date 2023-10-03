@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_flux_calib -h
-    usage: pypeit_flux_calib [-h] [--debug] [--par_outfile] [-v VERBOSITY] flux_file
+    usage: pypeit_flux_calib [-h] [--par_outfile] [-v VERBOSITY] flux_file
     
     Flux calibrate 1D spectra produced by PypeIt
     
@@ -48,7 +48,6 @@
     
     options:
       -h, --help            show this help message and exit
-      --debug               show debug plots?
       --par_outfile         Output to save the parameters
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
