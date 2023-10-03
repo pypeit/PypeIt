@@ -749,7 +749,7 @@ class CoAdd3D:
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
-    def get_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
+    def add_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
         """
         Calculate the relative spectral sensitivity correction due to grating shifts with the
         input frames.
@@ -811,10 +811,32 @@ class SlicerIFUCoAdd3D(CoAdd3D):
     Child of CoAdd3D for SlicerIFU data reduction. For documentation, see CoAdd3d parent class above.
 
     This child class of the IFU datacube creation performs the series of steps that are specific to
-    slicer-based IFUs, including the following steps:
+    slicer-based IFUs, including the following steps
 
-    * Calculates the astrometric correction that is needed to align spatial positions along the slices
-    *
+    Data preparation:
+
+    * Loads individual spec2d files
+    * If requested, subtract the sky (either from a dedicated sky frame, or use the sky model stored in the science spec2d file)
+    * The sky regions near the spectral edges of the slits are masked
+    * Apply a relative spectral illumination correction (scalecorr) that registers all input frames to the scale illumination.
+    * Generate a WCS of each individual frame, and calculate the RA and DEC of each individual detector pixel
+    * Calculate the astrometric correction that is needed to align spatial positions along the slices
+    * Compute the differential atmospheric refraction correction
+    * Apply the extinction correction
+    * Apply a grating correction (gratcorr) - This corrects for the relative spectral efficiency of combining data taken with multiple different grating angles
+    * Flux calibrate
+
+    Data cube generation:
+
+    * If frames are not being combined, individual data cubes are generated and saved as a DataCube object. A white light image is also produced, if requested
+    * If frames are being aligned and/or combined, the following steps are followed:
+        - The output voxel sampling is computed (this must be consistent for all frames)
+        - Frames are aligned (either by user-specified offsets, or by a fancy cross-correlation)
+        - The relative weights to each for each detector pixel is computed
+        - If frames are not being combined, individual DataCube's will be generated for each frame
+        - If frames are being combined, a single DataCube will be generated.
+        - White light images are also produced, if requested.
+
     """
     def __init__(self, spec2dfiles, opts, spectrograph=None, par=None, det=1, overwrite=False,
                  show=False, debug=False):
@@ -965,6 +987,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             waveimg = spec2DObj.waveimg
             bpmmask = spec2DObj.bpmmask
 
+            # Mask the edges of the spectrum where the sky model is bad
+            sky_is_good = datacube.make_good_skymask(slitid_img_init, spec2DObj.tilts)
+
             # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
             # TODO :: Include a flexure correction from the sky frame? Note, you cannot use the waveimg from a sky frame,
@@ -1000,20 +1025,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
                 self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
-            # Remove edges of the spectrum where the sky model is bad
-            sky_is_good = datacube.make_good_skymask(slitid_img_init, spec2DObj.tilts)
-
-            # Construct a good pixel mask
-            # TODO: This should use the mask function to figure out which elements are masked.
-            onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
-
-            # Grab the WCS of this frame
-            frame_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
-            self.all_wcs.append(copy.deepcopy(frame_wcs))
-
             # Find the largest spatial scale of all images being combined
             # TODO :: probably need to put this in the DetectorContainer
-            pxscl = detector.platescale * parse.parse_binning(detector.binning)[1] / 3600.0  # This should be degrees/pixel
+            pxscl = detector.platescale * parse.parse_binning(detector.binning)[1] / 3600.0  # This is degrees/pixel
             slscl = self.spec.get_meta_value([spec2DObj.head0], 'slitwid')
             self._spatscale[ff, 0] = pxscl
             self._spatscale[ff, 1] = slscl
@@ -1028,8 +1042,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.warn("Spatial scale requested ({0:f} arcsec) is less than the slicer scale ({1:f} arcsec)".format(
                         3600.0 * self._dspat, 3600.0 * slscl))
 
-            # Generate the alignment splines, and then
-            # retrieve images of the RA and Dec of every pixel,
+            # Construct a good pixel mask
+            # TODO: This should use the mask function to figure out which elements are masked.
+            onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
+
+            # Grab the WCS of this frame
+            frame_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
+            self.all_wcs.append(copy.deepcopy(frame_wcs))
+
+            # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
             alignSplines = self.get_alignments(spec2DObj, slits, spat_flexure=spat_flexure)
             raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
@@ -1075,7 +1096,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.error('Processed flat calibration file not recorded by spec2d file!')
                 flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 # Setup the grating correction
-                self.get_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
+                self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],
