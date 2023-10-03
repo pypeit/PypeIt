@@ -451,6 +451,51 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
     spec.BOX_NPIX = pixtot-pixmsk
 
 
+def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
+    """
+    Generate a quick spectrum using the nearest grid point (histogram) algorithm.
+
+    Args:
+        waveimg (`numpy.ndarray`_):
+            A 2D image of the wavelength at each pixel.
+        frame (`numpy.ndarray`_):
+            The frame to use to extract a spectrum. Shape should be the same as waveimg
+        gpm (`numpy.ndarray`_, optional):
+            A boolean array indicating the pixels to include in the histogram (True = include)
+        bins (`numpy.ndarray`_, int, optional):
+            Either a 1D array indicating the bin edges to be used for the histogram,
+            or an integer that specifies the number of bin edges to generate
+
+    Returns:
+        `numpy.ndarray`_: The wavelength at the centre of each histogram bin
+        `numpy.ndarray`_: The spectrum at each pixel of the returned wavelength array
+    """
+    # Check the inputs
+    if waveimg.shape != frame.shape:
+        msgs.error("Wavelength image is not the same shape as the input frame")
+    # Check the GPM
+    _gpm = gpm if gpm is not None else waveimg > 0
+    if waveimg.shape != _gpm.shape:
+        msgs.error("Wavelength image is not the same shape as the GPM")
+    # Set the bins
+    if type(bins) is int:
+        _bins = np.linspace(np.min(waveimg[_gpm]), np.max(waveimg[_gpm]), bins)
+    elif type(bins) is np.ndarray:
+        _bins = bins
+    else:
+        msgs.error("Argument 'bins' should be an integer or a numpy array")
+
+    # Construct a histogram and the normalisation
+    hist, edge = np.histogram(waveimg[gpm], bins=_bins, weights=frame[gpm])
+    cntr, edge = np.histogram(waveimg[gpm], bins=_bins)
+    # Normalise
+    cntr = cntr.astype(float)
+    spec = hist * utils.inverse(cntr)
+    # Generate the corresponding wavelength array - set it to be the bin centre
+    wave = 0.5 * (_bins[1:] + _bins[:-1])
+    return wave, spec
+
+
 def findfwhm(model, sig_x):
     r""" Calculate the spatial FWHM of an object profile.
     This is utility routine is used in :func:`~pypeit.core.extract.fit_profile`.

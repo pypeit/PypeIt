@@ -16,7 +16,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, flux_calib, parse, ref_index
+from pypeit.core import datacube, extract, flux_calib, parse, ref_index
 from pypeit.spectrographs.util import load_spectrograph
 
 # Use a fast histogram for speed!
@@ -441,6 +441,7 @@ class CoAdd3D:
         self.fluxcal = False
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
+        self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
         if self.cubepar['standard_cube'] is not None:
             self.make_sensfunc()
 
@@ -547,18 +548,36 @@ class CoAdd3D:
                                    reference=self.cubepar['reference_image'], collapse=collapse, equinox=equinox,
                                    specname=specname)
 
+    def set_blaze_spline(self, wave_spl, spec_spl):
+        """
+        Generate a spline that represents the blaze function. This only needs to be done once,
+        because it is used as the reference blaze. It is only important if you are combining
+        frames that require a grating correction (i.e. have slightly different grating angles).
+
+        Args:
+            wave_spl (`numpy.ndarray`_):
+                1D wavelength array where the blaze has been evaluated
+            spec_spl (`numpy.ndarray`_):
+                1D array (same size as wave_spl), that represents the blaze function for each wavelength.
+        """
+        # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
+        # exposure in this for loop)
+        if self.blaze_spline is None:
+            self.blaze_wave, self.blaze_spec = wave_spl, spec_spl
+            self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
+                                         bounds_error=False, fill_value="extrapolate")
+
     def make_sensfunc(self):
         """
         Generate the sensitivity function to be used for the flux calibration.
         """
         self.fluxcal = True
         # The first standard star cube is used as the reference blaze spline
-        if self.cubepar['grating_corr'] and self.blaze_spline is None:
-            # Load the blaze spline
+        if self.cubepar['grating_corr']:
+            # Load the blaze information
             stdcube = fits.open(self.cubepar['standard_cube'])
-            self.blaze_wave, self.blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
-            self.blaze_spline = interp1d(self.blaze_wave, self.blaze_spec,
-                                         kind='linear', bounds_error=False, fill_value="extrapolate")
+            # If a reference blaze spline has not been set, do that now.
+            self.set_blaze_spline(stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data)
         # Generate a spline representation of the sensitivity function
         self.flux_spline = datacube.make_sensfunc(self.cubepar['standard_cube'], self.senspar,
                                                   blaze_wave=self.blaze_wave, blaze_spline=self.blaze_spline,
@@ -730,6 +749,53 @@ class CoAdd3D:
         # Return the skysub params for this frame
         return this_skysub, skyImg, skyScl
 
+    def get_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
+        """
+        Calculate the relative spectral sensitivity correction due to grating shifts with the
+        input frames.
+
+        Parameters
+        ----------
+        flatfile : :obj:`str`
+            Unique path of a flatfield frame used to calculate the relative spectral sensitivity
+            of the corresponding science frame.
+        waveimg : `numpy.ndarray`_
+            2D image (same shape as the science frame) indicating the wavelength of each detector pixel.
+        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+            Class containing information about the slits
+        spat_flexure: :obj:`float`, optional:
+            Spatial flexure in pixels
+        """
+        if flatfile not in self.flat_splines.keys():
+            msgs.info("Calculating relative sensitivity for grating correction")
+            # Check if the Flat file exists
+            if not os.path.exists(flatfile):
+                msgs.error("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
+            # Load the Flat file
+            flatimages = flatfield.FlatImages.from_file(flatfile)
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
+            flatframe = flatimages.pixelflat_raw / total_illum
+            if flatimages.pixelflat_spec_illum is None:
+                # Calculate the relative scale
+                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                                                               slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
+                                                               model=None,
+                                                               skymask=None, trim=self.flatpar['slit_trim'],
+                                                               flexure=spat_flexure,
+                                                               smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+            else:
+                msgs.info("Using relative spectral illumination from FlatImages")
+                scale_model = flatimages.pixelflat_spec_illum
+            # Extract a quick spectrum of the flatfield
+            wave_spl, spec_spl = extract.extract_hist_spectrum(waveimg, flatframe*utils.inverse(scale_model),
+                                                               gpm=waveimg != 0, bins=slits.nspec)
+            # Store the result
+            self.flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear', bounds_error=False, fill_value="extrapolate")
+            self.flat_splines[flatfile + "_wave"] = wave_spl.copy()
+            # Finally, if a reference blaze spline has not been set, do that now.
+            self.set_blaze_spline(wave_spl, spec_spl)
+
     def align_user_offsets(self):
         """
         Align the RA and DEC of all input frames, and then
@@ -764,15 +830,17 @@ class CoAdd3D:
 class SlicerIFUCoAdd3D(CoAdd3D):
     """
     Child of CoAdd3D for SlicerIFU data reduction. For documentation, see CoAdd3d parent class above.
-    spec2dfiles, opts, spectrograph=None, par=None, det=1, overwrite=False,
-                     show=False, debug=False
 
+    This child class of the IFU datacube creation performs the series of steps that are specific to
+    slicer-based IFUs, including the following steps:
+
+    * Calculates the astrometric correction that is needed to align spatial positions along the slices
+    *
     """
     def __init__(self, spec2dfiles, opts, spectrograph=None, par=None, det=1, overwrite=False,
                  show=False, debug=False):
         super().__init__(spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
                          show=show, debug=debug)
-        self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
@@ -823,67 +891,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
         # Return the alignment splines
         return alignSplines
-
-    def get_grating_shift(self, flatfile, waveimg, slits, spat_flexure=None):
-        """
-        Calculate the relative spectral sensitivity correction due to grating shifts with the
-        input frames.
-
-        Parameters
-        ----------
-        flatfile : :obj:`str`
-            Unique path of a flatfield frame used to calculate the relative spectral sensitivity
-            of the corresponding science frame.
-        waveimg : `numpy.ndarray`_
-            2D image (same shape as the science frame) indicating the wavelength of each detector pixel.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
-            Class containing information about the slits
-        spat_flexure: :obj:`float`, optional:
-            Spatial flexure in pixels
-        """
-        if flatfile not in self.flat_splines.keys():
-            msgs.info("Calculating relative sensitivity for grating correction")
-            # Check if the Flat file exists
-            if not os.path.exists(flatfile):
-                msgs.error("Grating correction requested, but the following file does not exist:" +
-                           msgs.newline() + flatfile)
-            # Load the Flat file
-            flatimages = flatfield.FlatImages.from_file(flatfile)
-            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True,
-                                                   spat_flexure=spat_flexure) * \
-                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True,
-                                                   spat_flexure=spat_flexure)
-            flatframe = flatimages.pixelflat_raw / total_illum
-            if flatimages.pixelflat_spec_illum is None:
-                # Calculate the relative scale
-                scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
-                                                               slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                                               model=None,
-                                                               skymask=None, trim=self.flatpar['slit_trim'],
-                                                               flexure=spat_flexure,
-                                                               smooth_npix=self.flatpar['slit_illum_smooth_npix'])
-            else:
-                msgs.info("Using relative spectral illumination from FlatImages")
-                scale_model = flatimages.pixelflat_spec_illum
-            # Apply the relative scale and generate a 1D "spectrum"
-            onslit = waveimg != 0
-            wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
-            hist, edge = np.histogram(waveimg[onslit], bins=wavebins,
-                                      weights=flatframe[onslit] / scale_model[onslit])
-            cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
-            cntr = cntr.astype(float)
-            norm = (cntr != 0) / (cntr + (cntr == 0))
-            spec_spl = hist * norm
-            wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
-            self.flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
-                                                   bounds_error=False, fill_value="extrapolate")
-            self.flat_splines[flatfile + "_wave"] = wave_spl.copy()
-            # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
-            # exposure in this for loop)
-            if self.blaze_spline is None:
-                self.blaze_wave, self.blaze_spec = wave_spl, spec_spl
-                self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
-                                             bounds_error=False, fill_value="extrapolate")
 
     def set_voxel_sampling(self):
         """
@@ -1087,7 +1094,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.error('Processed flat calibration file not recorded by spec2d file!')
                 flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 # Setup the grating correction
-                self.get_grating_shift(flatfile, waveimg, slits, spat_flexure=spat_flexure)
+                self.get_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],
