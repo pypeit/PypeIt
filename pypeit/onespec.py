@@ -32,6 +32,7 @@ class OneSpec(datamodel.DataContainer):
         PYP_SPEC
         ivar
         mask
+        order_stack
         telluric
         obj_model
         ext_mode

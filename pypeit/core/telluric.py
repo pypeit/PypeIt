@@ -753,6 +753,7 @@ def general_spec_reader(specfile, ret_flam=False):
     bonus = {}
     # Figure out which flavor input file
     hdul = fits.open(specfile)
+    order_stacks = None
     if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
         # Load
         spec = onespec.OneSpec.from_file(specfile)
@@ -767,6 +768,7 @@ def general_spec_reader(specfile, ret_flam=False):
         counts_gpm = spec.mask.astype(bool)
         spect_dict = spec.spect_meta
         head = spec.head0
+        order_stacks = spec.order_stacks
     else:
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
         if np.sum(sobjs.OPT_WAVE) is None:
@@ -796,6 +798,9 @@ def general_spec_reader(specfile, ret_flam=False):
     meta_spec = dict(bonus=bonus)
     meta_spec['core'] = spect_dict
 
+    if order_stacks is not None:
+        print('File contains order_stacks, so outputting those as well')
+        return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head, order_stacks
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 
 def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spectrograph=None, telluric=None,

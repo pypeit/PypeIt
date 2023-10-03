@@ -27,7 +27,7 @@ class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                     debug=False, show=False):
+                     debug=False, show=False, save_multi = False):
         """
         Superclass factory method which generates the subclass instance. See :class:`CoAdd1D` instantiation for
         argument descriptions.
@@ -35,7 +35,7 @@ class CoAdd1D:
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
-            debug=debug, show=show)
+            debug=debug, show=show, save_multi = save_multi)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
                  debug=False, show=False, save_multi = False):
@@ -96,6 +96,7 @@ class CoAdd1D:
 
         # Coadd the data
         if self.save_multi:
+            msgs.info('saving order stacks, too')
             self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
         else:
             self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
@@ -116,7 +117,7 @@ class CoAdd1D:
         msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
 
 
-    def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
+    def save(self, coaddfile, telluric=None, obj_model=None, order_stacks = None, overwrite=True):
         """
         Generate a :class:`~pypeit.onespec.OneSpec` object and write it to disk.
 
@@ -136,8 +137,7 @@ class CoAdd1D:
         onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
-                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
-                          order_stacks = self.order_stacks)
+                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
         # TODO This is a hack, not sure how to merge the headers at present
         onespec.head0 = self.headers[0]
@@ -151,6 +151,10 @@ class CoAdd1D:
             onespec.telluric  = telluric[wave_gpm]
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
+        if order_stacks is not None:
+            onespec.order_stacks = order_stacks
+        elif order_stacks is None:
+            onespec.order_stacks = None
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -411,7 +415,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      wave_grid_max=self.par['wave_grid_max'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
                                      ref_percentile=self.par['ref_percentile'],
-                                     maxiter_scale=self.par['maxiter_scale'],
+                                     maxiter_scale=self.par['maxiter_scale'], 
                                      sigrej_scale=self.par['sigrej_scale'],
                                      scale_method=self.par['scale_method'],
                                      sn_min_medscale=self.par['sn_min_medscale'],
@@ -422,9 +426,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      debug=self.debug, show=self.show, show_exp=self.show)
 
         if self.save_multi:
-            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
-        else:
-            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, np.array(order_stacks)[:,0,:,:]
+
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
 
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):

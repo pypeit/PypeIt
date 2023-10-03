@@ -219,6 +219,7 @@ class SpecObjs:
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
         # Test
+        msgs.info(f'checking that flux_key {flux_key} is available')
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #
