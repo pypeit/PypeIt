@@ -1127,6 +1127,20 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             this_specpos, this_spatpos = np.where(onslit_gpm)
             this_spatid = slitid_img_init[onslit_gpm]
 
+            ##################################
+            # Astrometric alignment to HST frames
+            # TODO :: RJC requests this remains here... it is only used by RJC
+            _ra_sort, _dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
+                                              np.ones(ra_sort.size), this_spatpos[wvsrt], this_specpos[wvsrt],
+                                              this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines, darcorr)
+            ra_del = np.median(_ra_sort-ra_sort)
+            dec_del = np.median(_dec_sort-dec_sort)
+            ra_sort = _ra_sort
+            dec_sort = _dec_sort
+            spec2DObj.head0['RA'] += ra_del
+            spec2DObj.head0['DEC'] += dec_del
+            ##################################
+
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
             numpix = ra_sort.size
@@ -1319,7 +1333,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         self.set_voxel_sampling()
 
         # Align the frames
-        if self.align:
+        if self.align and False:
             self.run_align()
 
         # Compute the relative weights on the spectra
@@ -1824,3 +1838,54 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
         residcube *= nc_inverse
         return flxcube, varcube, bpmcube, residcube
     return flxcube, varcube, bpmcube
+
+def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwave,
+                  wghts, spatpos, specpos,
+                  all_spatid, tilts, slits, astrom_trans, all_dar,
+                  spat_subpixel=10, spec_subpixel=10):
+    """
+    This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
+    to align the daatcubes to an HST image.
+
+    Process:
+    * Send away pixel RA, Dec, wave, flux, error.
+    * ------
+    * Compute emission line map
+      - Need to generate full cube around H I gamma
+      - Fit to continuum and subtract it off
+      - Sum all flux above continuum
+      - Estimate error
+    * MPFIT HST emission line map to
+    * ------
+    * Return updated pixel RA, Dec
+    """
+    from pypeit import astrometry
+    ############
+    ## STEP 1 ## - Create a datacube around Hgamma
+    ############
+    # Only use a small wavelength range
+    wv_mask = (wave_sort > 4346.0) & (wave_sort < 4358.0)
+    # Create a WCS for this subcube
+    subcube_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
+                                                                dspat, dwave)
+    # Create the subcube
+    flxcube, varcube, bpmcube = subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
+                                             wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
+                                             all_spatid[wv_mask], tilts, slits, astrom_trans, all_dar,
+                                             voxedge, all_idx=None,
+                                             spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=False)
+    if False:
+        hdu = fits.PrimaryHDU(flxcube)
+        hdu.writeto("tstHg.fits", overwrite=True)
+
+    ############
+    ## STEP 2 ## - Create an emission line map of Hgamma
+    ############
+    # Compute an emission line map that is as consistent as possible to an archival HST image
+    HgMap, HgMapErr = astrometry.fit_cube(flxcube.T, varcube.T, subcube_wcs)
+    ############
+    ## STEP 3 ## - Map the emission line map to an HST image, and vice-versa
+    ############
+    ra_corr, dec_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, ra_sort, dec_sort)
+    # embed()
+    return ra_corr, dec_corr
