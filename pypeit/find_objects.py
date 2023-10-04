@@ -1244,7 +1244,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.
         """
-        # Skip the sky subtraction, if requested by the user
         if self.par['reduce']['findobj']['skip_skysub']:
             msgs.info("Skipping global sky sub as per user request")
             return np.zeros_like(self.sciImg.image)

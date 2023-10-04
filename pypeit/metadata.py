@@ -103,6 +103,10 @@ class PypeItMetaData:
 
         # Initialize internals
         self.spectrograph = spectrograph
+        if files is not None:
+            # check if the spectrograph selected is correct for the data. NOTE: this is defined
+            # for each spectrograph independently, so it's currently not defined for all spectrographs
+            self.spectrograph.check_spectrograph(files if isinstance(files, str) else files[0])
         self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
@@ -909,6 +913,16 @@ class PypeItMetaData:
                         new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
                 self.table['setup'][indx] = new_cfg_key
 
+        # Check if still any of the configurations are not set. If yes, we want
+        # these frames to still be present in the .sorted file
+        not_setup = self.table['setup'] == 'None'
+        if np.any(not_setup):
+            cfg_gen = self.configuration_generator(start=len(np.unique(self.table['setup'][np.logical_not(not_setup)])))
+            nw_setup = next(cfg_gen)
+            self.configs[nw_setup] = {}
+            msgs.warn('All files that did not match any setup are grouped into a single configuration.')
+            self.table['setup'][not_setup] = nw_setup
+
     def clean_configurations(self):
         """
         Ensure that configuration-defining keywords all have values
@@ -994,8 +1008,11 @@ class PypeItMetaData:
         # may not be integers instead of strings.
         self['calib'] = np.array([str(c) for c in self['calib']], dtype=object)
         # Collect and expand any lists
-        group_names = np.unique(np.concatenate(
-                        [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # group_names = np.unique(np.concatenate(
+        #                 [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # DP changed to below because np.concatenate does not accept an empty list,
+        # which is the case when calib is None for all frames. This should avoid the code to crash
+        group_names = np.unique(sum([s.split(',') for s in self['calib'] if s not in ['all', 'None']], []))
         # Expand any ranges
         keep_group = np.ones(group_names.size, dtype=bool)
         added_groups = []
@@ -1419,6 +1436,11 @@ class PypeItMetaData:
                 msgs.info(f)
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
+            msgs.warn("These files are commented out and will be ignored during the reduction.")
+            # Comment out the frames that could not be identified
+            # first change the dtype of the filename column to be able to add a #
+            self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
+            self['filename'][indx] = ['# ' + fname for fname in self['filename'][indx]]
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")

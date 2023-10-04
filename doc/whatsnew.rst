@@ -15,6 +15,14 @@ For a detailed log of code edits (including releases earlier than version
 
 ----
 
+.. include:: releases/1.14.1dev.rst
+
+----
+
+.. include:: releases/1.14.0.rst
+
+----
+
 .. include:: releases/1.13.0.rst
 
 ----

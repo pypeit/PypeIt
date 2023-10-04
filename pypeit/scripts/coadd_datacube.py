@@ -53,10 +53,10 @@ class CoAddDataCube(scriptbase.ScriptBase):
             parset['rdx']['detnum'] = int(args.det)
 
         # Instantiate CoAdd3d
+        tstart = time.time()
         coadd = CoAdd3D.get_instance(coadd3dfile.filenames, coadd3dfile.options, spectrograph=spectrograph, par=parset,
                                      det=args.det, overwrite=args.overwrite)
 
         # Coadd the files
-        tstart = time.time()
         coadd.coadd()
         msgs.info(utils.get_time_string(time.time()-tstart))
