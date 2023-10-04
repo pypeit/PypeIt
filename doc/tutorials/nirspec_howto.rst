@@ -51,7 +51,7 @@ since the dataset only has one configuration, using ``-c A`` would be equivalent
 This will make a directory called ``keck_nirspec_high_A`` that holds a pypeit file
 called ``keck_nirspec_high_A.pypeit`` that looks like this:
 
-.. include:: ../include/keck_nires_A.pypeit.rst
+.. include:: ../include/keck_nirspec_high_A.pypeit.rst
 
 
 At the moment, NIRSPEC does not keep track of the nod pattern that was used in observing and where in the nod pattern the exposure 
@@ -69,7 +69,7 @@ The corrections we'll need to make are:
 
 The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
 
-.. include:: ../include/keck_nires_A_corrected.pypeit.rst
+.. include:: ../include/keck_nirspec_high_A_corrected.pypeit.rst
 
 
 
@@ -212,6 +212,11 @@ and the calibration metadata can be check with:
     pypeit_chk_wavecalib Calibrations/WaveCalib_A_0_DET01.fits
 
 
+In general, we recommend users check the automated wavelength calibration, even for J band (where it is most
+reliable) to ensure an accurate wavelength solution. The steps to check and edit the solution with :ref:`pypeit_identify`
+are given below. 
+
+
 
 Manual Wavelength Calibration
 ++++++++++++++++++++++++++++++++++++++
@@ -284,12 +289,217 @@ lines, or clear all lines and start the identification in the order from the beg
 is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
 ``?`` key. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
 
-Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. 
+Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. The dialog will also
+give an instruction for how to use the newly created (or edited) ``wvarxiv``, which will require adding the following to the parameter block
+of the :ref:`pypeit_file`:
+
+.. code-block:: bash
+
+    [calibrations]
+        [[wavelengths]]
+            method = 'full_template'
+            reid_arxiv = <arxiv_name>.fits
+
+
+
+.. note:: 
+    A template made in this way for NIRSPEC can be resused for different datasets that were taken with the same echelle and cross-disperser
+    angle settings (the instrument shifts will be accounted for in applying the solution) but we do not recommend attempting to use the solution
+    for data taken in different settings. It is best to compute a new template for each different setting used. 
+
 
 
 FILL IN EXAMPLE DIALOG BELOW
 
 
+
+
+Checking the Wavelength Calibration 
++++++++++++++++++++++++++++++++++
+
+The wavelength calibration can be checked by looking at the automatically generaged
+QA plots; see :ref:`qa-wave-fit`. Below is the wavelenght calibration QA plot for the 
+automated wavelength calibration featured in this tutorial. The RMS of the wavelength 
+solution will depend on the number of lines availble in a given order and 
+may vary significantly from order to order. 
+
+
+
+
+More importantly, you should check the result of the wavelength calibration
+using the automatically generated QA file; see :ref:`qa-wave-fit`.  Below is the
+wavelength-calibration QA plot for the reddest order (order=3).  The RMS of the
+wavelength solution should be of order 0.1-0.2 pixels.  Such a plot is produced
+for each order of each the combined arc image used for each calibration group.
+
+.. figure:: ../figures/nirspec/Arc_1dfit_A_0_DET01_S0060.png
+   :width: 70%
+
+   The wavelength-calibration QA plot for a Keck/NIRSPEC J band order
+   (order=60), called ``Arc_1dfit_A_0_DET01_S0060.png``.  The left panel shows
+   the arc spectrum extracted down the center of the order, with green text and
+   lines marking lines used by the wavelength calibration.  Gray lines mark
+   detected features that were *not* included in the wavelength solution.  The
+   top-right panel shows the fit (red) to the observed trend in wavelength as a
+   function of spectral pixel (blue crosses); gray circles are features that
+   were rejected by the wavelength solution.  The bottom-right panel shows the
+   fit residuals (i.e., data - model).
+
+For echelle spectrographs, the automated wavelength calibration procedure will also 
+perform a 2d fit to attempt to improve on the 1d fits. The result of this 2d fit can
+also be viewed in the appropriate QA plots, like the two shown below for the J band example.
+
+.. figure:: ../figures/nirspec/Arc_2dfit_global_A_0_DET01.png
+   :width: 40%
+
+   The wavelength-calibration QA plot for the Keck/NIRSPEC Jband 2d fit.  
+   The expected wavelength function for all of the orders is shown.
+
+.. figure:: ../figures/nirspec/Arc_2dfit_orders_A_0_DET01.png
+   :width: 40%
+
+   The wavelength-calibration QA plot for the Keck/NIRSPEC Jband 2d fit
+   showing the new solutions and resulting residuals for all of the orders. 
+
+
+
+.. tip::
+    When you create an wavelength template, with the intention of using the ``full_template`` method,
+    and want to use the exact wavelength solution you computed, you may not want to allow the 2d fit,
+    since it could change the solutions you have created. This can be avoided by adding the ``no_2dfit = True``
+    keyword in the wavelength calibration parameter block.
+
+
+
+
+
+
+
+Core Processing (in calibration mode)
+----------------------------------------------
+
+Once the :ref:`pypeit_file` is ready, the core processing can begin. We recommend the user first run
+PypeIt in calibration mode, so that the calibrations can be inspected (and corrected, if necessary) 
+before attempting to reduce an entire dataset. The call for this would be:
+.. code-block:: bash
+    run_pypeit keck_nirspec_high_A.pypeit -c
+
+For the example dataset, this should run without issue, producing the Edges, Arcs, Flats, Tilts, and WaveCalib files
+described above. Several QA plots will be generated and saved in the directory ``QA/PNGs/``. The user should inspect 
+these outputs before proceding to be sure that the calibrations are satisfactory. 
+
+Once ready, the core processing can be performed on the entire dataset using the call 
+.. code-block:: bash
+    run_pypeit keck_nirspec_high_A.pypeit
+
+PypeIt will perform the calibrations reusing the already-generated calibration files and proceed to object extraction. 
+
+
+Object Extraction
++++++++++++++++++++++++++++++++++++++++++++
+PypeIt will perform both a box extraction and optimal extraction by default. It will attempt to identify objects in 
+the slit according to where the spectrally collapsed spatial profile (which can be inspected in the ``QA/PNGs/pos_***.png``
+plots) exceeds a certain SNR treshold.
+
+If the SNR threshold is too low, PypeIt may identify spurious features as potential objects and attempt to extract them. 
+Users should inspect the profiles in the QA plots and determine if they should re-run the extraction with a higher extraction
+SNR threshold, which can be set by adding the following to the parameter block:
+.. code-block:: bash
+    [reduce]
+    [[findobj]]
+        snr_thresh = 100
+
+The above will set the snr threshold to 100. In our experience, for a standard star exposure that yields an SNR/pix of 150 
+in each order, the spatially collapsed SNR can be as high as 2500, so it is best to check the profiles to know what threshold
+will be best. 
+
+For extended sources, the width of the box extraction can be set and the optimal extraction can be disabled if necessary. 
+
+
+
+
+
+
+
+Common Challenges Reducing Other Bands
+==============================================
+
+Y Band
+--------------------------
+
+Edge detection
++++++++++++++++++++++++++++
+
+Y Band commonly suffers from 2 issues: the significant scattered light in orders blueward of order 76 (which makes them 
+mostly unusable) and the proximity of the orders, which can confuse the edge-finding algorithm. 
+
+For this reason, we recommend using ``pypeit_trace_edges`` with the ``--debug`` and ``--show`` flags enabled to be able to 
+see which traces exactly the edge-finding algorithm is identifying. This will be most clear in the final two plots the 
+script shows.
+
+
+
+If the algorithm is identifying any of the orders in the scattered light region as valid traces, they can be removed by adding 
+the following to the parameter block:
+.. code-block:: bash
+
+    [calibrations]
+        [[slitedges]]
+            rm_slits = 1:1000:1800
+
+Where we select the trace to remove by giving a reference pixel that falls in the trace. Here, 1 gives the detector number 
+(NIRSPEC only has 1), 1000 gives the y value (spectral direction) of the reference pixel in the trace to remove, and 1800 
+gives the x value (spatial direction) of the reference pixel. Multiple traces can be specified by adding other reference pixel
+locations, separated by commas, with no spaces. For example: ``1:1000:1500,1:1000:1650,1:1000:1800`` would remove three traces,
+if there are three traces that contain those pixels.  
+
+It may also be possible to avoid those traces by raising the ``edge_thresh`` parameter, which gives the SNR value for identifying a 
+possible trace edge. This would be done with a similar set of code:
+.. code-block:: bash
+
+    [calibrations]
+        [[slitedges]]
+            edge_thresh = 450
+
+Where it is set to SNR = 450 here. The choice of ``edge_thresh`` value should be guided by the SNR of the edges, which is given in 
+one of the plots shown by ``pypeit_trace_edges`` if the ``--debug`` flag is used. 
+
+.. figure:: ../figures/nirspec/Yband_debug_picketFence.png
+   :width: 70%
+
+    The plot from ``pypeit_trace_edges`` showing the SNR of each of the detected left edges in the Flat exposure. 
+
+
+In this case, we have set the threshold to 450 because that is just between the edge at x = 805 that we want to keep and the high signal edge
+at x = 445, which we do not want. This may not be the case for all lamp exposures, so checking this plot is necessary to making sure 
+the user understands how to remove specific traces. 
+
+If the user wants to extract the traces with the scattered light, this can be done by carefully manipulating the ``edge_thresh`` to allow the 
+low SNR edges with scattered light, while potentially using ``rm_slits`` to remove possible spurious detections. The user may then have to 
+manually calibrate those traces because they are not included in the references used by the automated wavelength calibration. 
+
+If the observation was done in the default setup, which has an echelle angle of 63.0 and a XD angle of 34.95, 
+
+
+Wavelength Calibration
+++++++++++++++++++++++++++++++++++++++++++++
+The default wavelength calibration method for Y band is set to ``full_template`` and uses a default ``wvarxiv`` file, which only 
+has solutions redward of order 76. For users attempting to extract the bluer orders (77-81), this may be done manually using the
+procedure described above with :ref:`pypeit_identify`. 
+
+
+
+
+H Band 
+------------------------------------------------
+
+The H band reduction commonly suffers from three potential problems: the edge finder identifies too many traces, there may be overlap
+in the traces when using the 24" slit, and the paucity of lines in order 45 may lead the wavelenght calibration to fail. 
+
+Edge detection
++++++++++++++++++++++++++++
+The procedure outlined for Y band above can be followed to ensure that only the desired orders are identified. If in the default setup
+for H band, with echelle = 63.0 and XD angle = 36.72, the trace for order 43 is removed by default using the ``rm_slits`` keyword. 
 
 
 
