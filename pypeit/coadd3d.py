@@ -1222,7 +1222,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 wl_imgs = generate_image_subpixel(image_wcs, new_ra[ww], new_dec[ww], self.all_wave[ww],
                                                   self.all_sci[ww], self.all_ivar[ww], self.all_wghts[ww],
                                                   self.all_spatpos[ww], self.all_specpos[ww], self.all_spatid[ww],
-                                                  self.all_tilts, self.all_slits, self.all_align, voxedge,
+                                                  self.all_tilts, self.all_slits, self.all_align, self.all_dar, voxedge,
                                                   all_idx=self.all_idx[ww],
                                                   spec_subpixel=self.spec_subpixel, spat_subpixel=self.spat_subpixel)
                 if reference_image is None:
