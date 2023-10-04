@@ -288,7 +288,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -322,8 +322,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
 
             # Wavelengths
-            par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.4
+            par['calibrations']['wavelengths']['sigdetect'] = 10.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
             # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
@@ -354,7 +354,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
             # Wavelengths
-            par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
             par['calibrations']['wavelengths']['sigdetect'] = 5.0
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_GNIRS']
             # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']

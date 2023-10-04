@@ -664,9 +664,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     corr_norm = corr/corr_denom
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30, nfind=1)
+                                                                                     cont_frac_fwhm=1.0, cont_samp=30, 
+                                                                                     nfind=1)
     #max_lag_allowed_inds = np.abs(lags) < 0.25*nspec
-    #print(f'pixmax = {pix_max}')
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -683,7 +683,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.75,1.25), sigdetect = 5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac = 1.0, debug=False, toler=1e-5, seed = None):
+                        fwhm = 4.0, max_lag_frac = 1.0, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -751,6 +751,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         Tolerance for differential evolution optimizaiton.
     debug = False
         Show plots to the screen useful for debugging.
+    stretch_func : stre, default = 'quad'
+        Use quadratic ('quad') or linear ('linear') stretch.
 
     Returns
     -------
@@ -806,7 +808,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     if y1 is None or y2 is None:
         msgs.warn('No lines detected punting on shift/stretch')
-        return 0, None, None, None, None, None
+        return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, 
@@ -819,16 +821,30 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx, (-1.0e-6, 1.0e-6)]
     x0_guess = np.array([shift_cc, 1.0, 0.0])
     # TODO Can we make the differential evolution run faster?
-    try:
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch2, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-    except PypeItError:
-        msgs.warn("Differential evolution failed.")
-        return 0, None, None, None, None, None
-    else:
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
-        stretch2_de = result.x[2]
+    if stretch_func == 'quad':
+        try:
+            result = scipy.optimize.differential_evolution(zerolag_shift_stretch2, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+        except PypeItError:
+            msgs.warn("Differential evolution failed.")
+            return 0, None, None, None, None, None, None
+        else:
+            corr_de = -result.fun
+            shift_de = result.x[0]
+            stretch_de = result.x[1]
+            stretch2_de = result.x[2]
+    if stretch_func == 'linear':
+        try:
+            bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
+            x0_guess = np.array([shift_cc, 1.0])
+            result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+        except PypeItError:
+            msgs.warn("Differential evolution failed.")
+            return 0, None, None, None, None, None, None
+        else:
+            corr_de = -result.fun
+            shift_de = result.x[0]
+            stretch_de = result.x[1]
+            stretch2_de = 0.0
 
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
@@ -931,7 +947,9 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-                   order=None, overwrite=True, cache=False):
+                   order=None, lines_pix_arr = None, lines_wav_arr = None,
+                   lines_fit_ord = None, 
+                   overwrite=True, cache=False):
     """
     Write the template spectrum into a binary FITS table
 
@@ -961,7 +979,10 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     tbl['flux'] = nwspec
     if order is not None:
         tbl['order'] = order
-
+    if lines_pix_arr is not None:
+        tbl['lines_pix'] = lines_pix_arr
+        tbl['lines_wav'] = lines_wav_arr
+        tbl['lines_fit_ord'] = lines_fit_ord
     tbl.meta['BINSPEC'] = binspec
     # Detector snippets??
     if det_cut is not None:

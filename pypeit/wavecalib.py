@@ -319,7 +319,7 @@ class WaveCalib(calibframe.CalibFrame):
             thismask = (slitmask == slit_spat)
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
-            if self.par['echelle']:
+            if self.par['echelle'] and not self.par['no_2dfit']:
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
                     ordr_det = slits.det_of_slit(
@@ -617,6 +617,7 @@ class BuildWaveCalib:
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, 
                                          ok_mask=ok_mask_idx,
+                                         measured_fwhms=self.measured_fwhms,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
@@ -654,7 +655,7 @@ class BuildWaveCalib:
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, 
+                                             self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
@@ -662,7 +663,8 @@ class BuildWaveCalib:
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
-                self.slits.ech_order = order_vec
+                self.slits.ech_order = order_vec#self.slits.slitord_id
+                #self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
@@ -703,6 +705,7 @@ class BuildWaveCalib:
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
+                measured_fwhms=self.measured_fwhms,
                 nonlinear_counts=self.nonlinear_counts,
                 debug_all=False, 
                 redo_slits=np.atleast_1d(self.par['redo_slits']) if self.par['redo_slits'] is not None else None)
@@ -724,8 +727,12 @@ class BuildWaveCalib:
             self.wv_calib.arc_spectra = arccen
             # Save the new fits (if they meet tolerance)
             for key in final_fit.keys():
-                if final_fit[key]['rms'] < self.par['rms_threshold']:
-                    idx = int(key)
+                idx = int(key)
+                # get FWHM for this slit
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[idx], verbose=True)
+                # get rms threshold for this slit
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+                if final_fit[key]['rms'] < wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
@@ -823,7 +830,10 @@ class BuildWaveCalib:
                 spec_vec_norm = np.linspace(0,1,nspec)
                 wv_order_mod = self.wv_calib.wv_fit2d[idet].eval(spec_vec_norm, 
                                     x2=np.ones_like(spec_vec_norm)*order)/order
-
+                # get FWHM for this order
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord], verbose=True)
+                # get rms threshold for this order
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
                 # Link me
                 tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                     self.lamps, self.arccen[:,iord], wv_order_mod, 
@@ -832,7 +842,7 @@ class BuildWaveCalib:
                 match_toler=self.par['match_toler'], 
                 nonlinear_counts=self.nonlinear_counts, 
                 sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
-                fwhm=self.par['fwhm'])
+                fwhm=fwhm)
 
                 if not patt_dict_slit['acceptable']:
                     msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
@@ -855,7 +865,7 @@ class BuildWaveCalib:
                 # Keep?
                 # TODO -- Make this a parameter?
                 increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
+                if final_fit['rms'] < increase_rms*wave_rms_thresh:
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -1101,12 +1111,15 @@ class BuildWaveCalib:
             prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
-        if self.par['echelle']:
+        if self.par['echelle'] and not self.par['no_2dfit']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            # Test and scale by measured_fwhms 
-            bad_rms = rms > (self.par['rms_threshold'] * np.median(self.measured_fwhms)/self.par['fwhm'])
-            #embed(header='line 975 of wavecalib.py')
+            # get used FWHM
+            fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
+                else self.measured_fwhms.astype(float)
+            # get rms threshold for all orders
+            wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            bad_rms = rms > wave_rms_thresh
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True
                 msgs.warn("Masking one or more bad orders (RMS)")

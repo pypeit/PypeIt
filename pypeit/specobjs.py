@@ -219,6 +219,7 @@ class SpecObjs:
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
         # Test
+        msgs.info(f'checking that flux_key {flux_key} is available')
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #
@@ -616,7 +617,8 @@ class SpecObjs:
                                              longitude=spectrograph.telescope['longitude'],
                                              latitude=spectrograph.telescope['latitude'],
                                              extinctfilepar=par['extinct_file'],
-                                             airmass=float(self.header['AIRMASS']))
+                                             airmass=float(self.header['AIRMASS']),
+                                             sens_fwhm = sens.sens['SENS_STD_SPAT_FWHM'][indx[0]])
                 elif indx.size == 0:
                     msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
                               'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))

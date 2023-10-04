@@ -800,7 +800,9 @@ class Identify:
 
     def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None, multi = False, 
-                       fits_dicts = None, specdata = None, slits = None):
+                       fits_dicts = None, specdata = None, slits = None, 
+                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None, 
+                       custom_wav = None, custom_wav_ind = None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -823,6 +825,10 @@ class Identify:
             Numpy array containing the flux information from all the traces
         wvcalib : :class:`pypeit.wavecalib.WaveCalib`
             Wavelength solution
+        lines_pix_arr : array
+            Numpy array containing the pixel locations of all ID'd lines
+        lines_wav_arr : array
+            Numpy array containing wavelengths of all the ID'd lines
 
         Returns
         -------
@@ -857,39 +863,65 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 if multi:
-                                            # prompt the user to give the orders that were used here
-                    while True:
-                        try:
-                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
-                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
-                        except ValueError:
-                            print("Sorry, syntax may be invalid...")
-                            #better try again... Return to the start of the loop
-                            continue
-                        else:
-                            #age was successfully parsed!
-                            #we're ready to exit the loop.
-                            break
-
+                    # prompt the user to give the orders that were used here
+                    if '"echelle": true' in wvcalib.strpar:
+                        while True:
+                            try:
+                                order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                                order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                            except ValueError:
+                                print("Sorry, syntax may be invalid...")
+                                #better try again... Return to the start of the loop
+                                continue
+                            else:
+                                #orders were successfully parsed!
+                                #we're ready to exit the loop.
+                                break
+                    else: order_vec = None
                     make_arxiv = ''
+                    if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
+                        make_arxiv = 'n'
+                        msgs.info('Skipping arxiv save because there are not enough orders for full template')
+#                        msgs.info(f'There are ')
                     while make_arxiv != 'y' and make_arxiv != 'n': 
                         make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
-                        print(make_arxiv == 'y', make_arxiv)
                     if make_arxiv != 'n':
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
                         for iord in range(norder):
                             fitdict = fits_dicts[iord]
-                            print(np.shape(specdata), norder)
-                            wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
-                                                                    (specdata[iord,:].size - 1))
+                            if fitdict is not None and fitdict['full_fit'] is not None:
+                                wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
+                                                                        (specdata[iord,:].size - 1))
+                            else:
+                                if wvcalib is not None:
+                                    if wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
+                                        wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+
                         #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")
                         wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-
+                        
+                        name_check = input(f'Do you want to use the default arxiv name? ({wvarxiv_name}) [y]/n: ')
+                        if name_check == 'n':
+                            wvarxiv_name_new = ''
+                            while len(wvarxiv_name_new) < 2:
+                                wvarxiv_name_new = input('Please enter the desired filename: ')
+                            if not ('.fits' in wvarxiv_name_new):
+                                wvarxiv_name_new += '.fits'
+                            wvarxiv_name = wvarxiv_name_new
+                        #wavelengths = np.flip(wavelengths, axis = 0)
+                        #specdata = np.flip(specdata, axis = 0)
+#                        if lines_pix_arr is not None:
+#                            lines_pix_arr = [lines_pix_arr[ii] for ii in range(len(lines_pix_arr)-1, -1, -1)]
+#                            lines_wav_arr = [lines_wav_arr[ii] for ii in range(len(lines_wav_arr)-1, -1, -1)]
+#                            lines_fit_ord = np.flip(lines_fit_ord)
+                        order_vec = np.flip(order_vec, axis = 0)
                         wvutils.write_template(wavelengths, specdata, binspec, './', 
-                                            wvarxiv_name, cache=True, order = order_vec)
+                                            wvarxiv_name, cache=True, order = order_vec, 
+                                            lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr, 
+                                            lines_fit_ord = lines_fit_ord)
                     
                     # Allow user to overwrite the existing WVCalib file
                     print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
@@ -919,6 +951,9 @@ class Identify:
                             slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
                             slits.ech_order = order_vec
                             slits.to_file()
+                        clean_calib = input('Clean up the Calibrations/ directory? y/[n]: ')
+                        if clean_calib == 'y':
+                            os.system('rm -rf Calibrations/Arc* Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:

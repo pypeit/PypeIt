@@ -263,7 +263,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 3
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.08  # Might be grating dependent..
+        par['calibrations']['wavelengths']['fwhm'] = 5.
         par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -325,7 +326,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
 
@@ -873,7 +873,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True

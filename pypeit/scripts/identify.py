@@ -146,16 +146,24 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 slits_inds = np.arange(slits.nslits)
             else:
-                slit_list = list(args.slits)
-                ii = 0
-                slits_inds = []
-                while 2*ii+1 < len(slit_list):
-                    slits_inds.append(int(slit_list[2*ii+1]))
-                    ii += 1
-                slits_inds = np.array(slits_inds)
+                if args.slits == 'all':
+                    slits_inds = np.arange(slits.nslits)
+                else:
+                    slit_list = list(args.slits)
+                    ii = 0
+                    slits_inds = []
+                    while 2*ii+1 < len(slit_list):
+                        slits_inds.append(int(slit_list[2*ii+1]))
+                        ii += 1
+                    slits_inds = np.array(slits_inds)
             fits_dicts = []
             specdata = []
             wv_fits_arr = []
+            lines_pix_arr = []
+            lines_wav_arr = []
+            lines_fit_ord = []
+            custom_wav = []
+            custom_wav_ind = []
             #print(args.slits, slits_inds)
             for slit_val in slits_inds:
                 # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
@@ -204,6 +212,10 @@ class Identify(scriptbase.ScriptBase):
                     #                        spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                     #                        PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
                     #else:
+
+                    lines_pix_arr.append(arcfitter._fitdict['WaveFit']['pixel_fit'])
+                    lines_wav_arr.append(arcfitter._fitdict['WaveFit']['wave_fit'])
+                    lines_fit_ord.append(arcfitter._fitdict['WaveFit']['pypeitfit']['order'])
                     if np.any(wv_calib.wv_fits):
                         wv_calib.wv_fits[slit_val] = arcfitter._fitdict['WaveFit']
                         wv_calib.wv_fits[slit_val].fwhm = measured_fwhms[slit_val]
@@ -211,10 +223,42 @@ class Identify(scriptbase.ScriptBase):
                         wv_fits_arr.append(arcfitter._fitdict['WaveFit'])
                         wv_fits_arr[-1].fwhm = measured_fwhms[slit_val]
                     waveCalib = wv_calib
+
             
                 else:
+                    if np.any(wv_calib.wv_fits):
+                        wv_calib.wv_fits[slit_val] = None
+                    else: 
+                        wv_fits_arr.append('None')
                     waveCalib = None
-                
+                    custom_wav_q = ''
+                    while custom_wav_q != 'y' and custom_wav_q != 'n':
+                        custom_wav_q = input('No solution made! Do you want to input an estimated linear solution? y/[n]: ')
+                    if custom_wav_q == 'y':
+                        while True:
+                            try:
+                                min_wav_str = input('Minimum Wavelength = ')
+                                min_wav = float(min_wav_str)
+                                max_wav_str = input('Maximum Wavelength = ')
+                                max_wav = float(max_wav_str)
+
+                            except ValueError:
+                                print("Sorry, try that again...")
+                                #better try again... Return to the start of the loop
+                                continue
+                            else:
+                                #age was successfully parsed!
+                                #we're ready to exit the loop.
+                                break
+                        nspec = np.shape(arccen)[0]
+                        wav_x = np.linspace(min_wav, max_wav, nspec)
+                        custom_wav.append(wav_x)
+                        custom_wav_ind.append(slit_val)
+                        # sample the new solution to make a fake IDs list:
+                        lines_pix_arr.append(np.linspace(0, nspec-1, 8)[1:-1])
+                        lines_wav_arr.append(np.linspace(min_wav, max_wav, 8)[1:-1])
+                        lines_fit_ord.append([1])
+
             if not np.any(wv_calib.wv_fits):
                 wv_calib.wv_fits = np.array(wv_fits_arr)
                 #wv_calib.to_file()
@@ -222,14 +266,22 @@ class Identify(scriptbase.ScriptBase):
                 wv_calib.wv_fit2d=None
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
-                # Ask the user if they wish to store the result in PypeIt calibrations
+
+            # TODO: Make the following more elegant:
+            # fill lines with dummy values to make this work
+            # Ask the user if they wish to store the result in PypeIt calibrations
             arcfitter.store_solution_multi(final_fit, slits.binspec,
                                     wvcalib=wv_calib,
                                     rmstol=args.rmstol,
                                     force_save=args.force_save, 
                                     multi = True, fits_dicts = fits_dicts,
                                     specdata = np.array(specdata),
-                                    slits = slits)
+                                    slits = slits, 
+                                    lines_pix_arr = lines_pix_arr,
+                                    lines_wav_arr = lines_wav_arr,
+                                    lines_fit_ord = np.array(lines_fit_ord), 
+                                    custom_wav = np.array(custom_wav), 
+                                    custom_wav_ind = np.array(custom_wav_ind) )
             
 
         # If we just want the normal one-trace output

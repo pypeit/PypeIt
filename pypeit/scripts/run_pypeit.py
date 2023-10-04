@@ -64,6 +64,9 @@ class RunPypeIt(scriptbase.ScriptBase):
                             action='store_false',
                             help='Do not load previously generated calibrations, even ones made '
                                  'during the run.')
+        parser.add_argument('--no_wave', default=False,
+                            action='store_true',
+                            help='Stop calibration steps before doing wavelength calibration or tilts.')
         parser.add_argument('-s', '--show', default=False, action='store_true',
                             help='Show reduction steps via plots (which will block further '
                                  'execution until clicked on) and outputs to ginga. Requires '
@@ -98,9 +101,10 @@ class RunPypeIt(scriptbase.ScriptBase):
                                reuse_calibs=args.reuse_calibs, overwrite=args.overwrite,
                                redux_path=args.redux_path, calib_only=args.calib_only,
                                logname=logname, show=args.show)
-
+        if args.no_wave and not args.calib_only:
+            msgs.error('no_wave flag is only usable in calibration only mode (using the -c flag, too)!')
         if args.calib_only:
-            calib_dict = pypeIt.calib_all()
+            calib_dict = pypeIt.calib_all(args.no_wave)
         else:
             pypeIt.reduce_all()
         msgs.info('Data reduction complete')

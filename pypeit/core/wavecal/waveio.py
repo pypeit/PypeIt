@@ -94,6 +94,17 @@ def load_template(arxiv_file, det, wvrng=None):
     except:
         tbl_order = None
 
+    #for solutions with saved line IDs and pixels
+    try:
+        tbl_line_pix = tbl['lines_pix'].data
+        tbl_line_wav = tbl['lines_wav'].data
+        tbl_line_fit_ord = tbl['lines_fit_ord'].data
+    except:
+        tbl_line_pix = None
+        tbl_line_wav = None
+        tbl_line_fit_ord = None
+
+
     # Cut down?
     if wvrng is not None:
         gd_wv = (tbl_wv >= wvrng[0]) & (tbl_wv <= wvrng[1])
@@ -101,7 +112,7 @@ def load_template(arxiv_file, det, wvrng=None):
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):

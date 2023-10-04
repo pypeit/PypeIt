@@ -32,6 +32,7 @@ class OneSpec(datamodel.DataContainer):
         PYP_SPEC
         ivar
         mask
+        order_stack
         telluric
         obj_model
         ext_mode
@@ -64,6 +65,9 @@ class OneSpec(datamodel.DataContainer):
                               descr='Inverse variance array (matches units of flux)'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Mask array (1=Good,0=Bad)'),
+                 'order_stacks': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Array containing the wavelengths, flux, ivar and masks for each order'),
+                 #'order_stacks': dict(otype = dict, descr = 'dictionary containing the wavelengths, flux, ivar and masks for each order'),
                  'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
                  'PYP_SPEC': dict(otype=str, descr='``PypeIt`` spectrograph designation'),
                  'obj_model': dict(otype=np.ndarray, atype=np.floating,

@@ -425,7 +425,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 3.0 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 3.0
         par['calibrations']['wavelengths']['fwhm_fromlines']= False
@@ -446,7 +446,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         
         # Trace ID parameters
         par['calibrations']['slitedges']['edge_thresh'] = 100.0
-        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['left_right_pca'] = True
@@ -505,7 +505,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
+    
         return par
     
 
@@ -540,7 +542,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         
         if filter1 == 'Kband-new' or filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
-            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.9
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
@@ -591,7 +593,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
         if decker == '0.144x12':
-            par['calibrations']['wavelengths']['fwhm'] = 1.5
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
         if decker == '0.288x12' or decker == '0.288x24':
             par['calibrations']['wavelengths']['fwhm'] = 3.0
         if decker == '0.432x12' or decker == '0.432x24':
@@ -844,7 +846,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 3.0 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 3.0
         par['calibrations']['wavelengths']['fwhm_fromlines']= False
@@ -922,7 +924,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
         return par
 
 
@@ -948,6 +951,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         headarr = self.get_headarr(scifile)
         filter1 = self.get_meta_value(headarr, 'filter1')
         filter2 = self.get_meta_value(headarr, 'filter2')
+        decker = self.get_meta_value(headarr, 'decker')
+
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
@@ -1003,6 +1008,16 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+        if decker == '0.144x12':
+            par['calibrations']['wavelengths']['fwhm'] = 2.0
+        if decker == '0.288x12' or decker == '0.288x24':
+            par['calibrations']['wavelengths']['fwhm'] = 2.0
+        if decker == '0.432x12' or decker == '0.432x24':
+            par['calibrations']['wavelengths']['fwhm'] = 3.0
+        if decker == '0.576x12':
+            par['calibrations']['wavelengths']['fwhm'] = 4.0
+        if decker == '0.720x12' or decker == '0.720x24':
+            par['calibrations']['wavelengths']['fwhm'] = 5.0
 
         # Return
         return par
@@ -1103,8 +1118,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_y_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-3':
-                angle_fits_file = 'keck_nirspec_preupgrade_j_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_preupgrade_j_composite_arc.fits'
+                angle_fits_file = 'keck_nirspec_j_preupgrade_angle_fits.fits'
+                composite_arc_file = 'keck_nirspec_j_preupgrade_composite_arc.fits'
             if band == 'NIRSPEC-5':
                 angle_fits_file = 'keck_nirspec_h_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_h_preupgrade_composite_arc.fits'

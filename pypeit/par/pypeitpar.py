@@ -219,7 +219,8 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_scattlight=None, subtract_continuum=None,
+                 spat_flexure_correct=None, spat_flexure_maxlag = None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -298,6 +299,12 @@ class ProcessImagesPar(ParSet):
                                       'be set to True to combine arcs with multiple different lamps. ' \
                                       'For all other cases, this parameter should probably be False.'
 
+        defaults['subtract_scattlight'] = False
+        dtypes['subtract_scattlight'] = bool
+        descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
+                                       'be set to True for spectrographs that have dedicated methods to subtract ' \
+                                       'scattered light. For all other cases, this parameter should be False.'
+
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
@@ -338,6 +345,9 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
 
+        defaults['spat_flexure_maxlag'] = 20
+        dtypes['spat_flexure_maxlag'] = int
+        descr['spat_flexure_maxlag'] = 'Maximum of possible flexure offsets, in pixels'
 
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
@@ -429,9 +439,9 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
-                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
+                   'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+                   'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
@@ -1254,8 +1264,8 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
-                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching ' \
+                           '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
@@ -2016,8 +2026,8 @@ class SlitMaskPar(ParSet):
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
-                                     'and MOSFIRE slitmask design, respectively) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` ' \
+                                     'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'
@@ -2082,7 +2092,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, tell_npca=None, teltype=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2107,6 +2117,17 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
+        
+        defaults['tell_npca'] = 4
+        dtypes['tell_npca'] = int
+        descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
+        
+        defaults['teltype'] = 'PCA'
+        dtypes['teltype'] = str
+        descr['teltype'] = 'Method used to evaluate telluric models, either PCA or grid. The grid option uses a ' \
+                           'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
+                           'observatory, whereas the PCA option uses principal components of a larger model grid ' \
+                           'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2127,12 +2148,12 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
-        defaults['resln_frac_bounds'] = (0.5,1.5)
+        defaults['resln_frac_bounds'] = (0.3,1.5)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
-                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'This range is in units of the resln_guess, so the (0.3, 1.5) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
-                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+                                     'bounds_resln = (0.3*resln_guess, 1.5*resln_guess)'
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
@@ -2335,7 +2356,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'tell_npca',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
@@ -2507,12 +2528,12 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
                  reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
+                 rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None, 
-                 xcorr_percent_ceil = None, echelle_pad = None, xcorr_offset_minmax = None):
+                 xcorr_percent_ceil = None, echelle_pad = None, xcorr_offset_minmax = None, no_2dfit = False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2562,6 +2583,10 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
                            'wavelength fit will be performed as a function of spectral pixel ' \
                            'and order number to improve the wavelength solution'
+        defaults['no_2dfit'] = False
+        dtypes['no_2dfit'] = bool
+        descr['no_2dfit'] = 'Even if this is an echelle spectrograph, the 2-d fit will not be generated. ' \
+                            'Use this to allow using an arxiv solution exactly as it was saved with pypeit_identify'
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
@@ -2627,12 +2652,13 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image'
 
-        defaults['fwhm_fromlines'] = False
+        defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
                                   'If True, the estimated FWHM will override ``fwhm`` only in '\
-                                  'the determination of the wavelength solution (`i.e.`, not in '\
-                                  'WaveTilts).'
+                                  'the determination of the wavelength solution (including the ' \
+                                  'calculation of the threshold for the solution RMS, see ' \
+                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
@@ -2699,12 +2725,15 @@ class WavelengthSolutionPar(ParSet):
                              'be added to it to make it odd.'
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
-                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
-                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
-                                     
+        defaults['rms_thresh_frac_fwhm'] = 0.15
+        dtypes['rms_thresh_frac_fwhm'] = float
+        descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
+                                        'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
+                                        'FWHM will be computed from the arc lines in each slits ' \
+                                        '(the median value among all the slits is used), otherwise ``fwhm`` ' \
+                                        'will be used. This parameter is used for the \'holy-grail\', ' \
+                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2803,10 +2832,10 @@ class WavelengthSolutionPar(ParSet):
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
-                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+                   'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log', 'xcorr_percent_ceil', 'echelle_pad', 'xcorr_offset_minmax']
+                   'redo_slits', 'qa_log', 'xcorr_percent_ceil', 'echelle_pad', 'xcorr_offset_minmax', 'no_2dfit']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2837,7 +2866,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid lamp ions
         """
-        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
+        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'FeAr']
 
     @staticmethod
     def valid_media():

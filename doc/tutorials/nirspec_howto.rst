@@ -40,7 +40,7 @@ the metadata corresponding to each file. This file is created and automatically 
 
 .. code-block:: bash
 
-    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nires/ABBA_wstandard/ -s keck_nirspec_high -b -c all
+    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nirspec_high/Jband/ -s keck_nirspec_high -b -c all
 
 where the ``-r`` argument should be replaced by your local directory and the
 ``-b`` indicates that the data uses background images and should include the
@@ -58,8 +58,13 @@ At the moment, NIRSPEC does not keep track of the nod pattern that was used in o
 was taken. This means that setting AB pairs in the data for background subtraction must be done manually. 
 
 The corrections we'll need to make are:
+    - Set the frametypes for ``nspec***.fits`` to only ``science`` (i.e. remove both the ``arcs`` and ``tilts``. Since we already have 
+    arclamp spectra for this dataset, we want to use those, rather than the sky lines. If you would like to use the sky lines, leave the 
+    ``arc`` and ``tilts`` in and remove the lamp spectrum from the file list. We will discuss other changes you'll need to make to the
+    parameter file below, in the Wavelength Calibration section.
 
-
+    - Assign the appropriate A/B nod combinations by setting the ``bkg_id`` of each A exposure to the ``comb_id`` of its B counterpart 
+    and vice versa. See :ref:`a-b_differencing` for other options for differencing and background subtraction.
 
 
 The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
@@ -68,58 +73,17 @@ The corrected version looks like this (pulled directly from the :ref:`dev-suite`
 
 
 
+The importance of standard frames
+---------------------------------
 
+We recommend the observer always take standard frames during the night, ideally 
+frequently enough to sample the airmass throughout the night, which will make the
+standards more useful for telluric removal later on. Note that the main data-reduction
+script (:ref:`run-pypeit`) does *not* perform the telluric correction. For that, users
+will use the :ref:`pypeit_tellfit` script or perform the removal using their standards,
+following the procedure discussed below. 
 
-
-
-
-
-
-For this example dataset, the details of the default pypeit file are not
-completely correct; see :ref:`here <nires_config_report>` for an example where the frame
-typing and dither pattern determinations *are* correct by default.
-
-The issue with this dataset is that only two pointings in the ABBA pattern for
-the standard star observations are available, the exposure time of the standard
-observations is longer than expected (and PypeIt set it as science frame),
-and the dither pattern of the science frames are set to MANUAL.
-PypeIt attempts to assign ``comb_id`` and ``bkg_id`` to the two standard star
-pointings, however, you need to edit the pypeit file to
-correct the other errors.  The corrections needed are:
-
-    - Set the frametypes for ``s190519_0059.fits`` and ``s190519_0060.fits`` to
-      ``standard``.
-
-    - Assign the same calibration group to the standard and science frames
-      (i.e., same ``calib`` value).
-
-    - Set the ``bkg_id`` for the ``science`` frames; see below
-      and :ref:`a-b_differencing`.
-
-The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
-
-.. include:: ../include/keck_nires_A_corrected.pypeit.rst
-
-Use of the standard frame
--------------------------
-
-By setting the science frames to also be ``arc`` and ``tilt``
-frames, we're indicating that the OH sky lines should be used to perform the
-wavelength calibration. Generally the standard star observations are not
-sufficiently long to have good signal in the sky lines to perform the
-wavelength calibration. This is why, generally, we do not
-set the standard frames to be also ``arc`` and ``tilt`` frames, but we use
-the wavelength calibration obtained from the science frame (this is why we
-give to the standard frames the same ``calib`` value as the science frames).
-
-We note, however, that in this specific case the observations of the standard star
-are sufficiently long to allow for good signal in the sky lines. Therefore, if
-desired, you could set the standard frames to be also ``arc`` and ``tilt`` frames.
-
-
-The main data-reduction script (:ref:`run-pypeit`) does *not* perform the
-telluric correction; this is done by a separate script.  Even if you don't
-intend to telluric-correct or flux-calibrate your data, it's useful to include
+However, even if you don't intend to telluric-correct or flux-calibrate your data, it's useful to include
 the standard star observations along with the reductions of your main science
 target, particularly if the science target is faint.  If your object is faint,
 tracing the object spectrum for extraction can be difficult using only the
@@ -129,18 +93,15 @@ tracing crutch used is the slit/order edge, which will not include the effects
 of differential atmospheric refraction on the object centroid and therefore
 yield a poorer spectral extraction.
 
+
+
 Dither sequence
 ---------------
 
 In this example dataset, the science object and the standard star are both only
-observed at two offset positions. Although PypeIt is able to correctly assign
-``comb_id`` and ``bkg_id`` for the standard frames (by using the information
-on the dither pattern and dither offset), the same is not possible for the
-science frames, for which a "MANUAL" dither pattern was used.
-We, therefore, edit the :ref:`pypeit_file` (see the
-corrected version above) to assign ``comb_id`` and ``bkg_id`` to the science frames
-as described by :ref:`a-b_differencing` (specifically, see
-:ref:`ab-image-differencing`).
+observed at two offset positions. Since NIRSPEC does not identify which exposure
+is taken in which position, we have to fill that information in manually, as discussed
+above.
 
 By setting ``comb_id=3`` and ``bkg_id=4`` for frame ``s190519_0067.fits``, we
 are indicating that this frame should be treated as frame A and that frame
@@ -161,8 +122,204 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 
 ----
 
+
 Core Processing
 ===============
+
+The reduction of NIRSPEC begins with the creation of a handful of critical calibration
+files: 
+    1) Edges*.fits.gz : an archive of files containing the information about the edge-detection for your traces (:doc:`../calibrations/edges`)
+    2) Slits*.fits.gz : an archive of files containing the information about the spatial location of each trace (:doc:`../calibrations/slits`
+    3) Arc*.fits : a file containing the extracted arc spectra (sky lines or lamp lines) (:doc:`../calibrations/arc`)
+    4) Flat*.fits : a file containing the master flat and fitted blaze function (:doc:`../calibrations/flat`)
+    5) WaveCAlib*.fits : a file containing the wavelength calibration to be applied to this dataset (:doc:`../calibrations/wvcalib`)
+
+
+There are a couple of steps in the core processing of NIRSPEC data that the user
+should be considerate of before running the main pypeit script, :ref:`run_pypeit`. 
+Those steps are:
+    1) Order/trace identification
+    2) Wavelength calibration 
+
+Due to the flexible range of configurations available to NIRSPEC, consistent trace 
+identification can be difficult to automate, particularly in H, K, and L bands. 
+Throughout the tutorial, we will point the user to several :ref:`parameters` that
+the user can modify in their :ref:`pypeit_file`. 
+
+Trace Identification
+------------------------
+
+To be sure of precisely which traces PypeIt will extract, the user should run 
+the :ref:`pypeit_trace_edges` script, which can perform the first calibration step,
+trace identification. The script will create an Edges*.fits.gz and a Slits*.fits.gz file, 
+which will be reused by the :ref:`run_pypeit` script. The user may also skip directly to 
+running :ref:`run_pypeit` if they are certain there will be no trouble with trace identification. 
+
+To use :ref:`pypeit_trace_edges`, the script should be called using:
+
+.. code-block:: bash
+    
+    pypeit_trace_edges -f keck_nirspec_high_A.pypeit
+
+To really see what the function is going and to diagnose where the trace identification
+may go wrong, the user can include the ``--debug`` and ``--show`` flags.
+
+The results of the trace can be checked using 
+.. code-block:: bash
+    
+    pypeit_chk_edges Calibrations/Edges_A_0_DET01.fits.gz
+
+if there is any trouble with ``ginga``, include a ``--mpl`` flag to see the output in a 
+``matplotlib`` Figure instead. 
+
+In the case of the example dataset given here, there should be no trouble with this step.
+However, there are several cases in our other example datasets provided here (especially 
+in the redder K and L band orders) where the trace identification fails. We discuss those
+and the necessary steps to correct the identification below. 
+
+
+Wavelength Calibration
+------------------------
+
+Once the trace identification is complete, either as part of a call to :ref:`run_pypeit` or 
+using :ref:`pypeit_trace_edges`, the next major step in the data reduction will be wavelength 
+calibration. 
+
+The example dataset provided here should best easily calibrated by the usual :ref:`run_pypeit`
+script, so if you are following the tutorial, feel free to skip this step for now and continue 
+one to the next section.
+
+The code by default coadds the lamp files provided to make a master ``arc`` file, which can be 
+checked by using:
+.. code-block:: bash
+
+    ginga Calibrations/Arc_A_0_DET01.fits
+
+
+By default, PypeIt will attempt to automatically identify the lines in the ``arc`` spectra it has 
+extracted, both for OH lines and the ArXeKrNe lamp lines. For NIRSPEC, it will also assume that the 
+``arcs`` provided are lamps. Users using the OH lines from their science exposure should see below
+for the necessary parameter changes. 
+
+For Y and J band data, the automatic line identification and wavelength calibration is relatively
+robust and will give good wavelength solutions in most cases. For H, K, and L bands, we recommend the user
+manually wavelength calibrate the data as outlined below. 
+
+The automated wavelength calibration will create a WaveCalib_A_0_DET01.fits file in the Calibrations/ directory
+and the calibration metadata can be check with:
+.. code-block:: bash
+
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_0_DET01.fits
+
+
+
+Manual Wavelength Calibration
+++++++++++++++++++++++++++++++++++++++
+
+Manual wavelength calibration may be necessary when the automatic wavelength calibration in PypeIt fails. 
+This happens most often when there are too few lines for the automatic identification to reliably produce a reliable 
+wavelength solution. The orders most succeptible to this are orders: H band order 45, K band orders 39, 37, and 33, 
+and most of the L band. 
+
+There are two main ways to begin the manual wavelength identification.
+    1) first, use the :ref:`run-pypeit` script in calibration only mode, as shown below. Assuming it is able to produce a 
+    ``WaveCalib`` file successfully (even if it crashes when computing the Tilts), the user need only edit the existing 
+    WaveCalib file following the Editing A WaveCalib File procedure below. 
+
+    2) To compute a manual wavelength solution without relying on the :ref:`run-pypeit` script's automatated first pass, 
+    follow the Making a New Wavelength Arxiv procedure below. 
+
+
+Editing A WaveCalib File
+++++++++++++++++++++++++++++++++++++++
+
+The :ref:`pypeit_identify` script can be used to edit an existing WaveCalib file (assuming it is in the Calibrations 
+directory).
+
+If the user is satisfied with the success of the automated calibration on most of the traces and would like to simply 
+correct a couple of them and procede with the data reduction, the orders to be corrected can be specified using the 
+``--slits`` flag as shown below:
+.. code-block:: bash
+
+    pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -s --slits [0,4,5]
+
+In the call above, we are using the ``-m`` flag to identify that there are multiple orders in this wavelength solution,
+the ``-s`` flag to indicate that there is an existing solution we want to edit, and the ``--slits`` flag, along with the list
+of orders (zero-indexed, with no spaces in between) to indicate which we want to edit. The IDs should match those from the 
+:ref:`pypeit_chk_wavecalib` script output. To check all of the orders and produce a reference set of line IDs that can be used
+as an ``arxiv``, use ``--slits all``. 
+
+The user will then be shown a :ref:`pypeit_identify` gui, with which they can identify any missed lines, corrected misidentified
+lines, or clear all lines and start the identification in the order from the beginning. The procedure for doing this for a single order
+is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
+``?`` key. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
+
+Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. The dialog is further
+detailed below. 
+
+
+Making a New Wavelength Arxiv
+++++++++++++++++++++++++++++++++++++++++++
+If the :ref:`run-pypeit` script fails to produce a WaveCalib file, or the user prefers to produce their own wavelength solution 
+without using any of the automated method, they can also do this with :ref:`pypeit_identify`. 
+
+The user should begin by running :ref:`run-pypeit` with the ``--no_wave`` flag, to produce the necessary inputs to :ref:`pypeit_identify`. 
+The command would then be:
+
+.. code-block:: bash
+
+    run_pypeit keck_nirspec_high_A.pypeit -c --no_wave
+
+
+The user can then launch the :ref:`pypeit_identify` gui using the following call
+.. code-block:: bash
+
+    pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -n 
+
+where the ``-m`` flag again indicates that there are multiple orders to be calibrated and the ``-n`` flag indicates
+that we are creating a new WaveCalib file and ``arxiv`` file from scratch. 
+
+The user will then be shown a :ref:`pypeit_identify` gui, with which they can identify any missed lines, corrected misidentified
+lines, or clear all lines and start the identification in the order from the beginning. The procedure for doing this for a single order
+is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
+``?`` key. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
+
+Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. 
+
+
+FILL IN EXAMPLE DIALOG BELOW
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 To perform the core processing of the NIRES data, use :ref:`run-pypeit`:
 
