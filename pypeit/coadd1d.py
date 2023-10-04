@@ -404,7 +404,7 @@ class EchelleCoAdd1D(CoAdd1D):
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
-        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
+        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks, \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
@@ -424,7 +424,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-
+        #(wave_stack, flux_stack, ivar_stack, gpm_stack) \
+        #order_stacks = {'wave_stack': wave_stack, 'flux_stack': flux_stack, 
+        #                'ivar_stack': ivar_stack, 'gpm_stack': gpm_stack}
         if self.save_multi:
             return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, np.array(order_stacks)[:,0,:,:]
 

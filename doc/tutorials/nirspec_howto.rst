@@ -126,6 +126,201 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 Core Processing
 ===============
 
+The reduction of NIRSPEC begins with the creation of a handful of critical calibration
+files: 
+    1) Edges*.fits.gz : an archive of files containing the information about the edge-detection for your traces (:doc:`../calibrations/edges`)
+    2) Slits*.fits.gz : an archive of files containing the information about the spatial location of each trace (:doc:`../calibrations/slits`
+    3) Arc*.fits : a file containing the extracted arc spectra (sky lines or lamp lines) (:doc:`../calibrations/arc`)
+    4) Flat*.fits : a file containing the master flat and fitted blaze function (:doc:`../calibrations/flat`)
+    5) WaveCAlib*.fits : a file containing the wavelength calibration to be applied to this dataset (:doc:`../calibrations/wvcalib`)
+
+
+There are a couple of steps in the core processing of NIRSPEC data that the user
+should be considerate of before running the main pypeit script, :ref:`run_pypeit`. 
+Those steps are:
+    1) Order/trace identification
+    2) Wavelength calibration 
+
+Due to the flexible range of configurations available to NIRSPEC, consistent trace 
+identification can be difficult to automate, particularly in H, K, and L bands. 
+Throughout the tutorial, we will point the user to several :ref:`parameters` that
+the user can modify in their :ref:`pypeit_file`. 
+
+Trace Identification
+------------------------
+
+To be sure of precisely which traces PypeIt will extract, the user should run 
+the :ref:`pypeit_trace_edges` script, which can perform the first calibration step,
+trace identification. The script will create an Edges*.fits.gz and a Slits*.fits.gz file, 
+which will be reused by the :ref:`run_pypeit` script. The user may also skip directly to 
+running :ref:`run_pypeit` if they are certain there will be no trouble with trace identification. 
+
+To use :ref:`pypeit_trace_edges`, the script should be called using:
+
+.. code-block:: bash
+    
+    pypeit_trace_edges -f keck_nirspec_high_A.pypeit
+
+To really see what the function is going and to diagnose where the trace identification
+may go wrong, the user can include the ``--debug`` and ``--show`` flags.
+
+The results of the trace can be checked using 
+.. code-block:: bash
+    
+    pypeit_chk_edges Calibrations/Edges_A_0_DET01.fits.gz
+
+if there is any trouble with ``ginga``, include a ``--mpl`` flag to see the output in a 
+``matplotlib`` Figure instead. 
+
+In the case of the example dataset given here, there should be no trouble with this step.
+However, there are several cases in our other example datasets provided here (especially 
+in the redder K and L band orders) where the trace identification fails. We discuss those
+and the necessary steps to correct the identification below. 
+
+
+Wavelength Calibration
+------------------------
+
+Once the trace identification is complete, either as part of a call to :ref:`run_pypeit` or 
+using :ref:`pypeit_trace_edges`, the next major step in the data reduction will be wavelength 
+calibration. 
+
+The example dataset provided here should best easily calibrated by the usual :ref:`run_pypeit`
+script, so if you are following the tutorial, feel free to skip this step for now and continue 
+one to the next section.
+
+The code by default coadds the lamp files provided to make a master ``arc`` file, which can be 
+checked by using:
+.. code-block:: bash
+
+    ginga Calibrations/Arc_A_0_DET01.fits
+
+
+By default, PypeIt will attempt to automatically identify the lines in the ``arc`` spectra it has 
+extracted, both for OH lines and the ArXeKrNe lamp lines. For NIRSPEC, it will also assume that the 
+``arcs`` provided are lamps. Users using the OH lines from their science exposure should see below
+for the necessary parameter changes. 
+
+For Y and J band data, the automatic line identification and wavelength calibration is relatively
+robust and will give good wavelength solutions in most cases. For H, K, and L bands, we recommend the user
+manually wavelength calibrate the data as outlined below. 
+
+The automated wavelength calibration will create a WaveCalib_A_0_DET01.fits file in the Calibrations/ directory
+and the calibration metadata can be check with:
+.. code-block:: bash
+
+    pypeit_chk_wavecalib Calibrations/WaveCalib_A_0_DET01.fits
+
+
+
+Manual Wavelength Calibration
+++++++++++++++++++++++++++++++++++++++
+
+Manual wavelength calibration may be necessary when the automatic wavelength calibration in PypeIt fails. 
+This happens most often when there are too few lines for the automatic identification to reliably produce a reliable 
+wavelength solution. The orders most succeptible to this are orders: H band order 45, K band orders 39, 37, and 33, 
+and most of the L band. 
+
+There are two main ways to begin the manual wavelength identification.
+    1) first, use the :ref:`run-pypeit` script in calibration only mode, as shown below. Assuming it is able to produce a 
+    ``WaveCalib`` file successfully (even if it crashes when computing the Tilts), the user need only edit the existing 
+    WaveCalib file following the Editing A WaveCalib File procedure below. 
+
+    2) To compute a manual wavelength solution without relying on the :ref:`run-pypeit` script's automatated first pass, 
+    follow the Making a New Wavelength Arxiv procedure below. 
+
+
+Editing A WaveCalib File
+++++++++++++++++++++++++++++++++++++++
+
+The :ref:`pypeit_identify` script can be used to edit an existing WaveCalib file (assuming it is in the Calibrations 
+directory).
+
+If the user is satisfied with the success of the automated calibration on most of the traces and would like to simply 
+correct a couple of them and procede with the data reduction, the orders to be corrected can be specified using the 
+``--slits`` flag as shown below:
+.. code-block:: bash
+
+    pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -s --slits [0,4,5]
+
+In the call above, we are using the ``-m`` flag to identify that there are multiple orders in this wavelength solution,
+the ``-s`` flag to indicate that there is an existing solution we want to edit, and the ``--slits`` flag, along with the list
+of orders (zero-indexed, with no spaces in between) to indicate which we want to edit. The IDs should match those from the 
+:ref:`pypeit_chk_wavecalib` script output. To check all of the orders and produce a reference set of line IDs that can be used
+as an ``arxiv``, use ``--slits all``. 
+
+The user will then be shown a :ref:`pypeit_identify` gui, with which they can identify any missed lines, corrected misidentified
+lines, or clear all lines and start the identification in the order from the beginning. The procedure for doing this for a single order
+is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
+``?`` key. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
+
+Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. The dialog is further
+detailed below. 
+
+
+Making a New Wavelength Arxiv
+++++++++++++++++++++++++++++++++++++++++++
+If the :ref:`run-pypeit` script fails to produce a WaveCalib file, or the user prefers to produce their own wavelength solution 
+without using any of the automated method, they can also do this with :ref:`pypeit_identify`. 
+
+The user should begin by running :ref:`run-pypeit` with the ``--no_wave`` flag, to produce the necessary inputs to :ref:`pypeit_identify`. 
+The command would then be:
+
+.. code-block:: bash
+
+    run_pypeit keck_nirspec_high_A.pypeit -c --no_wave
+
+
+The user can then launch the :ref:`pypeit_identify` gui using the following call
+.. code-block:: bash
+
+    pypeit_identify Calibrations/Arc_A_0_DET01.fits Calibrations/Slits_A_0_DET01.fits.gz -m -n 
+
+where the ``-m`` flag again indicates that there are multiple orders to be calibrated and the ``-n`` flag indicates
+that we are creating a new WaveCalib file and ``arxiv`` file from scratch. 
+
+The user will then be shown a :ref:`pypeit_identify` gui, with which they can identify any missed lines, corrected misidentified
+lines, or clear all lines and start the identification in the order from the beginning. The procedure for doing this for a single order
+is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
+``?`` key. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
+
+Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. 
+
+
+FILL IN EXAMPLE DIALOG BELOW
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 To perform the core processing of the NIRES data, use :ref:`run-pypeit`:
 
 .. code-block:: bash
