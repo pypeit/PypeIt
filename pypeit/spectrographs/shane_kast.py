@@ -259,7 +259,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['flexure']['spectrum'] = 'sky_kastb_600.fits'
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
 
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -544,6 +544,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_300_7500.fits'
             # Add CdI
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
+        elif self.get_meta_value(scifile, 'dispname') == '600/7500':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_600_7500.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         elif self.get_meta_value(scifile, 'dispname') == '1200/5000':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_red_1200_5000.fits'
@@ -677,7 +681,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['use_instr_flag'] = True
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'

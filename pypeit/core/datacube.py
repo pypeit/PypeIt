@@ -1709,7 +1709,15 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
     align = cubepar['align']
     # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
     if numfiles == 1 and cubepar["reference_image"] is None:
+        if not align:
+            msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
+            msgs.info("Setting 'align' to False")
         align = False
+    if opts['ra_offset'] is not None:
+        if not align:
+            msgs.warn("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
+            msgs.info("Setting 'align' to True")
+        align = True
     # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
     #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
     #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
@@ -1819,6 +1827,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
             msgs.error("Reference image does not exist:" + msgs.newline() + cubepar['reference_image'])
 
     # Initialise arrays for storage
+    ifu_ra, ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
     all_spatpos, all_specpos, all_spatid = np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)
@@ -1872,9 +1881,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         except:
             msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + cubepar['skysub_frame'])
         skysub_default = cubepar['skysub_frame']
-        skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
+        skyImgDef = spec2DObj.sciimg/skysub_exptime  # Sky counts/second
         skySclDef = spec2DObj.scaleimg
-
 
     # Load all spec2d files and prepare the data for making a datacube
     for ff, fil in enumerate(files):
@@ -1886,6 +1894,8 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
         # Load the header
         hdr = spec2DObj.head0
+        ifu_ra = np.append(ifu_ra, spec.get_meta_value([hdr], 'ra'))
+        ifu_dec = np.append(ifu_dec, spec.get_meta_value([hdr], 'dec'))
 
         # Get the exposure time
         exptime = hdr['EXPTIME']
@@ -1923,7 +1933,7 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     this_skysub = "image"  # Use the current spec2d for sky subtraction
                 else:
                     skyImg = skyImgDef.copy() * exptime
-                    skyScl = skySclDef.copy() * exptime
+                    skyScl = skySclDef.copy()
                     this_skysub = skysub_default  # Use the global value for sky subtraction
             elif opts['skysub_frame'][ff].lower() == 'image':
                 skyImg = spec2DObj.skymodel
@@ -1941,7 +1951,10 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
                     skysub_exptime = fits.open(opts['skysub_frame'][ff])[0].header['EXPTIME']
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts['skysub_frame'][ff])
-                skyImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
+                # TODO :: Consider allowing the actual frame (instead of the skymodel) to be used as the skysub image - make sure the BPM is carried over.
+                #      :: Allow sky data fitting (i.e. scale the flux of a skysub frame to the science frame data)
+                skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
+                # skyImg = spec2DObj_sky.skymodel * exptime / skysub_exptime  # Sky counts
                 skyScl = spec2DObj_sky.scaleimg
                 this_skysub = opts['skysub_frame'][ff]  # User specified spec2d for sky subtraction
         if this_skysub == "none":
@@ -2111,9 +2124,13 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
         if key not in spec2DObj.calibs:
             msgs.error('Processed flat calibration file not recorded by spec2d file!')
         flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
-        # TODO: Check that the file exists?
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
+            # Check if the Flat file exists
+            if not os.path.exists(flatfile):
+                msgs.error("Grating correction requested, but the following file does not exist:" +
+                           msgs.newline() + flatfile)
+            # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
                           flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
@@ -2248,47 +2265,58 @@ def coadd_cube(files, opts, spectrograph=None, parset=None, overwrite=False):
 
     # Register spatial offsets between all frames
     if align:
-        # Find the wavelength range where all frames overlap
-        min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
-                                              np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
-                                              cubepar['whitelight_range'])  # The user-specified values (if any)
-        # Get the good whitelight pixels
-        ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
-        # Iterate over white light image generation and spatial shifting
-        numiter = 2
-        for dd in range(numiter):
-            msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
-            # Setup the WCS to use for all white light images
-            ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
-            image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww],
-                                                             dspat, wavediff, collapse=True)
-            if voxedge[2].size != 2:
-                msgs.error("Spectral range for WCS is incorrect for white light image")
-
-            wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
-                                              all_sci[ww], all_ivar[ww], all_wghts[ww],
-                                              all_spatpos[ww], all_specpos[ww], all_spatid[ww],
-                                              all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
-                                              spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
-            if reference_image is None:
-                # ref_idx will be the index of the cube with the highest S/N
-                ref_idx = np.argmax(weights)
-                reference_image = wl_imgs[:, :, ref_idx].copy()
-                msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-            else:
-                msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
-
-            # Calculate the image offsets relative to the reference image
+        if opts['ra_offset'] is not None:
+            # First, translate all coordinates to the coordinates of the first frame
+            # Note :: Don't need cosdec here, this just overrides the IFU coordinate centre of each frame
+            ref_shift_ra = ifu_ra[0] - ifu_ra
+            ref_shift_dec = ifu_dec[0] - ifu_dec
             for ff in range(numfiles):
-                # Calculate the shift
-                ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
-                # Convert pixel shift to degrees shift
-                ra_shift *= dspat/cosdec
-                dec_shift *= dspat
-                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
                 # Apply the shift
-                all_ra[all_idx == ff] += ra_shift
-                all_dec[all_idx == ff] += dec_shift
+                all_ra[all_idx == ff] += ref_shift_ra[ff] + opts['ra_offset'][ff]/3600.0
+                all_dec[all_idx == ff] += ref_shift_dec[ff] + opts['dec_offset'][ff]/3600.0
+                msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, opts['ra_offset'][ff], opts['dec_offset'][ff]))
+        else:
+            # Find the wavelength range where all frames overlap
+            min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                                  np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                                  cubepar['whitelight_range'])  # The user-specified values (if any)
+            # Get the good whitelight pixels
+            ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
+            # Iterate over white light image generation and spatial shifting
+            numiter = 2
+            for dd in range(numiter):
+                msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
+                # Setup the WCS to use for all white light images
+                ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
+                image_wcs, voxedge, reference_image = create_wcs(cubepar, all_ra[ww], all_dec[ww], all_wave[ww],
+                                                                 dspat, wavediff, collapse=True)
+                if voxedge[2].size != 2:
+                    msgs.error("Spectral range for WCS is incorrect for white light image")
+
+                wl_imgs = generate_image_subpixel(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                                  all_sci[ww], all_ivar[ww], all_wghts[ww],
+                                                  all_spatpos[ww], all_specpos[ww], all_spatid[ww],
+                                                  all_tilts, all_slits, all_align, voxedge, all_idx=all_idx[ww],
+                                                  spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+                if reference_image is None:
+                    # ref_idx will be the index of the cube with the highest S/N
+                    ref_idx = np.argmax(weights)
+                    reference_image = wl_imgs[:, :, ref_idx].copy()
+                    msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+                else:
+                    msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
+
+                # Calculate the image offsets relative to the reference image
+                for ff in range(numfiles):
+                    # Calculate the shift
+                    ra_shift, dec_shift = calculate_image_phase(reference_image.copy(), wl_imgs[:, :, ff], maskval=0.0)
+                    # Convert pixel shift to degrees shift
+                    ra_shift *= dspat/cosdec
+                    dec_shift *= dspat
+                    msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+                    # Apply the shift
+                    all_ra[all_idx == ff] += ra_shift
+                    all_dec[all_idx == ff] += dec_shift
 
     # Calculate the relative spectral weights of all pixels
     if numfiles == 1:

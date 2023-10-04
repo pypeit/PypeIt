@@ -7,6 +7,7 @@ import numpy as np
 
 import scipy.ndimage
 import scipy.special
+from scipy.interpolate import RegularGridInterpolator
 
 import matplotlib.pyplot as plt
 
@@ -1401,6 +1402,69 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Return
     return skymodel, objmodel, ivarmodel, outmask, sobjs
+
+
+def convolve_skymodel(input_img, fwhm_map, thismask, subpixel=5, nsample=10):
+    """Convolve an input image with a Gaussian function that ensures all pixels have
+    the same FWHM (i.e. the returned image has a spectral resolution corresponding to
+    the maximum FWHM specified in the input fwhm_map). To speed up the computation,
+    the input image is uniformly convolved by a grid of FWHM values, and the final
+    pixel-by-pixel convolved map is an interpolation of the grid point values.
+
+     Args:
+         input_img (`numpy.ndarray`_):
+             The science frame, shape = nspec, nspat
+         fwhm_map (`numpy.ndarray`_):
+             An array (same shape as input_img), that specifies the FWHM at every pixel
+             in the image.
+         thismask (`numpy.ndarray`_):
+             A boolean mask (True = good), same shape as input_img, of the detector pixels
+             that fall in a slit and have a measured FWHM.
+         subpixel (int, optional):
+             Divide each pixel into this many subpixels to improve the accuracy of the
+             convolution (a higher number gives a more accurate result, at the expense
+             of computational time).
+         nsample (int, optional):
+             Number of grid points that will be used to evaluate the convolved image.
+
+    Returns:
+        `numpy.ndarray`_: The convolved input_img, same shape as input_img.
+    """
+    fwhm_to_sig = 2 * np.sqrt(2 * np.log(2))
+    # Make a subpixellated input science image
+    _input_img = np.repeat(input_img, subpixel, axis=0)
+    _input_msk = np.repeat(thismask, subpixel, axis=0)
+    # Calculate the excess sigma (in subpixel coordinates)
+    sig_exc = subpixel * np.sqrt(np.max(fwhm_map[thismask])**2 - fwhm_map[thismask]**2)/fwhm_to_sig
+    nspec, nspat = _input_img.shape
+    # We need to loop over a range of kernel widths, and then interpolate. This assumes that the FWHM
+    # locally around every pixel is roughly constant to within +/-5 sigma of the profile width
+    kernwids = np.linspace(0.0, np.max(sig_exc), nsample)  # Need to include the zero index
+    # Setup the output array. Note that the first image is the input (i.e. no convolution)
+    conv_allkern = np.zeros(input_img.shape + (nsample,))
+    conv_allkern[:, :, 0] = input_img
+    for kk in range(nsample):
+        if kk == 0:
+            # The first element is the original image
+            continue
+        msgs.info(f"Image spectral convolution - Evaluating grid point {kk}/{nsample - 1}")
+        # Generate a kernel and normalise
+        kernsize = 2 * int(5 * kernwids[kk] + 0.5) + 1  # Use a Gaussian kernel, covering +/-5sigma
+        midp = (kernsize - 1) // 2
+        xkern = np.arange(kernsize, dtype=int) - midp
+        kern = np.exp(-0.5 * (xkern / kernwids[kk]) ** 2)
+        kern = kern / np.sum(kern)
+        conv_allkern[:, :, kk] = utils.rebinND(utils.convolve_fft(_input_img, kern, _input_msk), input_img.shape)
+
+    # Collect all of the images
+    msgs.info(f"Collating all convolution steps")
+    conv_interp = RegularGridInterpolator((np.arange(conv_allkern.shape[0]), np.arange(nspat), kernwids), conv_allkern)
+    msgs.info(f"Applying the convolution solution")
+    eval_spec, eval_spat = np.where(thismask)
+    sciimg_conv = np.copy(input_img)
+    sciimg_conv[thismask] = conv_interp((eval_spec, eval_spat, sig_exc))
+    # Return the convolved image
+    return sciimg_conv
 
 
 def read_userregions(skyreg, nslits, maxslitlength):

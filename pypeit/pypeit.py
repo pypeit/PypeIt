@@ -627,6 +627,14 @@ class PypeIt:
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
+
+            # Add calibration associations to the SpecObjs object
+            all_specobjs_extract.calibs = calibrations.Calibrations.get_association(
+                                    self.fitstbl, self.spectrograph, self.calibrations_path,
+                                    self.fitstbl[frames[0]]['setup'],
+                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], self.det,
+                                    must_exist=True, proc_only=True)
+
             # JFH TODO write out the background frame?
 
             # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
@@ -1001,9 +1009,8 @@ class PypeIt:
                                                   self.obstime, slitgpm=slitgpm, waveimg=waveImg, sobjs=sobjs)
 
         # TODO -- Do this upstream
-        # Tack on detector and wavelength RMS
+        # Tack on wavelength RMS
         for sobj in sobjs:
-            sobj.DETECTOR = sciImg.detector
             iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
             sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 

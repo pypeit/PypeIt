@@ -40,7 +40,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, 
+def arc_fit_qa(waveFit,
                outfile=None, ids_only=False, title=None,
                log=True):
     """
@@ -141,9 +141,7 @@ def arc_fit_qa(waveFit,
 
     # Title
     if title is not None:
-        ax_spec.text(0.04, 0.93, title, 
-                     transform=ax_spec.transAxes,
-                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
+        fig.suptitle(title, fontsize='x-large', va='top')
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         if outfile is None:
@@ -377,8 +375,8 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
     return
 
 
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, 
-               nreid_min, det_arxiv=None, 
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
+               nreid_min, det_arxiv=None,
                detections=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
@@ -519,7 +517,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
     # Search for lines no matter what to continuum subtract the input arc
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
-        spec, sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+        spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
     # If the detections were not passed in measure them
     if detections is None:
         detections = tcent[icut]
@@ -531,7 +529,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     det_arxiv1 = {}
     for iarxiv in range(narxiv):
         tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
-            spec_arxiv[:,iarxiv], sigdetect=sigdetect,nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+            spec_arxiv[:,iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
         spec_arxiv_cont_sub[:,iarxiv] = spec_cont_sub_now
         det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
 
@@ -718,7 +716,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
             Archival spectrum to match to
         wave_arxiv (`numpy.ndarray`_):
             Wavelegnth solution for the archival spectrum
-        nreid_min (int): 
+        nreid_min (int):
             Minimum number of times that a given candidate reidentified line
             must be properly matched with a line in the arxiv to be considered a
             good reidentification. If there is a lot of duplication in the arxiv
@@ -763,8 +761,8 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     # Search for lines in the input arc
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
         spec, sigdetect=sigdetect,
-        nonlinear_counts=nonlinear_counts, 
-        fwhm=fwhm, debug = debug_peaks)
+        nonlinear_counts=nonlinear_counts,
+        fwhm=fwhm, debug=debug_peaks)
     # If there are no lines in the input arc, return
     if tcent.size == 0:
         return None
@@ -772,21 +770,21 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     # Search for lines in the arxiv arc
     tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
             spec_arxiv, sigdetect=sigdetect,
-            nonlinear_counts=nonlinear_counts, fwhm = fwhm, debug = debug_peaks)
+            nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
     # If there are no lines in the arxiv arc, return
     if tcent_arxiv.size == 0:
         return None
 
     # Interpolate the input wavelengths
-    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess, 
-                                   kind='cubic', bounds_error=False, 
+    fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess,
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
     # Interpolate the arxiv both ways
-    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)), 
-                                   kind='cubic', bounds_error=False, 
+    fpix_arxiv = scipy.interpolate.interp1d(wave_arxiv, np.arange(len(wave_arxiv)),
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
-    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv, 
-                                   kind='cubic', bounds_error=False, 
+    fwv_arxiv = scipy.interpolate.interp1d(np.arange(len(wave_arxiv)), wave_arxiv,
+                                   kind='cubic', bounds_error=False,
                                    fill_value='extrapolate')
     # Find the wavelengths of the input arc lines and then the pixels
     wv_cent = fwv_guess(tcent)
@@ -833,7 +831,6 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
     return tcent, spec_cont_sub, patt_dict_slit, tot_line_list
 
 
-# TODO: Docstring missing box_rad and slit_bpm
 def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample=None, sigdetect=10., specord=1,
              spatord=0, fwhm=5., box_rad=3.0, slit_bpm=None):
     """
@@ -844,8 +841,12 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             Arc image (nspec, nspat)
         gpm (`numpy.ndarray`_):
             Good pixel mask corresponding to the input arc image (nspec, nspat)
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-            Slit edges
+        slits_left (`numpy.ndarray`_):
+            Left slit edges
+        slits_right (`numpy.ndarray`_):
+            Right slit edges
+        slitmask (`numpy.ndarray`_):
+            2D array indicating which pixels are on the slit
         npixel (int, optional):
             Number of spatial detector pixels between each estimate of the FWHM
             Only nsample or npixel should be specified. Precedence is given to nsample.
@@ -864,6 +865,12 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         fwhm (:obj:`float`, optional):
             Number of pixels per FWHM resolution element.
             Used by :func:`~pypeit.core.arc.detect_lines`.
+        box_rad (:obj:`float`, optional):
+            Half-width of the boxcar (floating-point pixels) in the spatial
+            direction used to extract the arc.
+        slit_bpm (`numpy.ndarray`_, bool, optional):
+            Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
+            spectra are filled with np.nan for masked slits.
 
     Returns:
         `numpy.ndarray`_: Numpy array of PypeItFit objects that provide the
@@ -872,29 +879,27 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         direction)
     """
     nslits = slits_left.shape[1]
-    scale = (2 * np.sqrt(2 * np.log(2)))
+    scale = 2 * np.sqrt(2 * np.log(2))
     _npixel = 10 if npixel is None else npixel  # Sample every 10 pixels unless the argument is set (Note: this is only used if nsample is not set)
     _ord = (specord, spatord)  # The 2D polynomial orders to fit to the resolution map.
     _slit_bpm = np.zeros(nslits, dtype=bool) if slit_bpm is None else slit_bpm
 
-    #slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=None)
-    #slitmask =
     # TODO deal with slits not being defined beyond the slitmask in spectral direction
     slit_lengths = np.mean(slits_right-slits_left, axis=0)
     resmap = [None for sl in range(nslits)]  # Setup the resmap
     for sl in range(nslits):
-        msgs.info(f"Calculating spectral resolution of slit {sl+1}/{nslits}")
         if _slit_bpm[sl]:
-            msgs.warn('Skipping FWHM map computation for masked slit {0:d}'.format(sl+1))
+            msgs.warn(f"Skipping FWHM map computation for masked slit {sl+1}/{nslits}")
             # Assign it an empty PypeItFit object so that we can still write to file
             resmap[sl] = fitting.PypeItFit()
             continue
+        msgs.info(f"Calculating spectral resolution of slit {sl + 1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
         slitsamp = np.linspace(0.01, 0.99, nmeas)
         this_samp, this_cent, this_fwhm = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):
-            spat_vec = np.atleast_2d(slitsamp[ss] * slits_left[:, sl] + (1 - slitsamp[ss]) * slits_right[:, sl]).T
+            spat_vec = np.atleast_2d((1-slitsamp[ss]) * slits_left[:, sl] + slitsamp[ss] * slits_right[:, sl]).T
             arc_spec, arc_spec_bpm, bpm_mask = arc.get_censpec(spat_vec, slitmask, image, gpm=gpm, box_rad=box_rad,
                                                                slit_bpm=np.array([_slit_bpm[sl]]), verbose=False)
             if bpm_mask[0]:
@@ -907,7 +912,6 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
         # Perform a 2D robust fit on the measures for this slit
         resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
-
 
     # Return an array containing the PypeIt fits
     return np.array(resmap)
@@ -956,7 +960,7 @@ def measure_fwhm(spec, sigdetect=10., fwhm=5.):
     return measured_fwhm
 
 
-def set_fwhm(par, measured_fwhm=None):
+def set_fwhm(par, measured_fwhm=None, verbose=False):
     """
     Set the value of the arc lines FWHM by choosing between the provided parset
     and the measured_fwhm
@@ -966,7 +970,10 @@ def set_fwhm(par, measured_fwhm=None):
             Key parameters that drive the behavior of the
             wavelength-solution algorithms.
         measured_fwhm (:obj:`float`):
-            Measured arc lines FWHM in binned pixels of the input arc image
+            Measured arc lines FWHM in binned pixels of the input arc image.
+            If None, the value provided by the user in the `fwhm` parset is used.
+        verbose (:obj:`bool`, optional):
+            Print a message to screen reporting the chosen FWHM
 
     Returns:
        :obj:`float`: Chosen arc lines FWHM in binned pixels of the input arc image
@@ -975,19 +982,22 @@ def set_fwhm(par, measured_fwhm=None):
     # Set FWHM for the methods that follow
     if par['fwhm_fromlines'] is False:
         fwhm = par['fwhm']
-        msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.info(f"User-provided arc lines FWHM: {fwhm:.1f} pixels")
     elif measured_fwhm is None:
         fwhm = par['fwhm']
-        msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.warn(f"Assumed arc lines FWHM: {fwhm:.1f} pixels")
     else:
         fwhm = measured_fwhm
-        msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
+        if verbose:
+            msgs.info(f"Measured arc lines FWHM: {fwhm:.1f} pixels")
 
     return fwhm
 
 
 # TODO: Docstring is missing many arguments
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
                   nonlinear_counts=1e10):
@@ -1019,8 +1029,11 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         Number of snippets to chop the input spectrum into when IDing lines.
         This deals with differences due to non-linearity between the template
         and input spectrum.
+    slit_ids: ndarray, optional
+        Array of slit/order IDs. Shape (nslit,)
     measured_fwhms : `numpy.ndarray`_, optional
-        Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
+        Array of FWHM (in binned pixels) measured from the arc lines. Shape (nslit,).
+        If None, the value provided by the user in the `fwhm` parset is used.
     x_percentile : float, optional
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
@@ -1071,12 +1084,13 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
             continue
-        msgs.info("Processing slit {0:d}/{1:d}".format(slit+1, nslits))
+        slit_txt = f'slit/order {slit_ids[slit]} ({slit+1}/{nslits})' if slit_ids is not None else f'slit {slit+1}/{nslits}'
+        msgs.info("Processing " + slit_txt)
         msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         obs_spec_i = spec[:,slit]
         # get FWHM for this slit
-        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit])
+        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[slit], verbose=True)
 
         # Find the shift
         ncomb = temp_spec.size
@@ -1108,7 +1122,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             ax = plt.gca()
             #
             ax.plot(xvals, tspec, label='template')  # Template
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
+            ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
             #embed(header='909 autoid')
@@ -1189,9 +1203,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Finish
     return wvcalib
 
-def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par, 
-                    ok_mask=None, use_unknowns=True, debug_all=False,
-                    debug_peaks=False, debug_xcorr=False, debug_reid=False, 
+def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
+                    ok_mask=None, measured_fwhms=None, use_unknowns=True, debug_all=False,
+                    debug_peaks=False, debug_xcorr=False, debug_reid=False,
                     debug_fits=False, nonlinear_counts=1e10,
                     redo_slits:list=None):
     r"""
@@ -1219,6 +1233,9 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     ok_mask : `numpy.ndarray`, optional
         Integer array with the list of valid spectra ``spec`` to use.
         If None, all spectra are used.
+    measured_fwhms: ndarray, optional
+        Array of FWHM (in binned pixels) measured from the arc lines. Shape :math:`(N_{\rm orders},)`.
+        If None, the value provided by the user in the `fwhm` parset is used.
     use_unknowns : bool, default = True, optional
         If True, arc lines that are known to be present in the
         spectra, but have not been attributed to an element+ion, will
@@ -1245,7 +1262,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         they cannot be accurately centroided
     redo_slits: list, optional
         If provided, only perform the wavelength calibration for the
-        given slit(s). 
+        given slit(s).
 
     Returns
     -------
@@ -1299,14 +1316,17 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)
         cc_thresh = wvutils.parse_param(par, 'cc_thresh', iord)
-        rms_threshold = wvutils.parse_param(par, 'rms_threshold', iord)
         msgs.info("Using sigdetect =  {}".format(sigdetect))
-        msgs.info("Using rms_threshold =  {}".format(rms_threshold))
+        # Set FWHM for this order
+        fwhm = set_fwhm(par, measured_fwhm=measured_fwhms[iord], verbose=True)
+        # get rms threshold for this slit
+        rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
+        msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
             cc_thresh=cc_thresh, match_toler=par['match_toler'],
             cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
-            nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=par['fwhm'],
+            nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
@@ -1321,12 +1341,12 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
 
         n_final = wvutils.parse_param(par, 'n_final', iord)
         final_fit = wv_fitting.fit_slit(
-            spec_cont_sub[:, iord], all_patt_dict[str(iord)], 
-            detections[str(iord)], tot_line_list, 
-            match_toler=par['match_toler'], 
+            spec_cont_sub[:, iord], all_patt_dict[str(iord)],
+            detections[str(iord)], tot_line_list,
+            match_toler=par['match_toler'],
             func=par['func'], n_first=par['n_first'],
-            sigrej_first=par['sigrej_first'], 
-            n_final=n_final, 
+            sigrej_first=par['sigrej_first'],
+            n_final=n_final,
             sigrej_final=par['sigrej_final'])
 
         # Did the fit succeed?
@@ -1336,7 +1356,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             bad_orders = np.append(bad_orders, iord)
             continue
         # Is the RMS below the threshold?
-        if final_fit['rms'] > rms_threshold:
+        if final_fit['rms'] > rms_thresh:
             msgs.warn('---------------------------------------------------' + msgs.newline() +
                       'Reidentify report for slit {0:d}/{1:d}:'.format(iord+1, norders) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
@@ -1351,15 +1371,15 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             arc_fit_qa(wv_calib[str(iord)], title='Silt: {}'.format(str(iord)), log=par['qa_log'])
 
     # Print the final report of all lines
-    report_final(norders, all_patt_dict, detections, 
+    report_final(norders, all_patt_dict, detections,
                  wv_calib, ok_mask, bad_orders,
                  redo_slits=redo_slits, orders=orders)
 
     return all_patt_dict, wv_calib
 
 
-def report_final(nslits, all_patt_dict, detections, 
-                 wv_calib, ok_mask, bad_slits, 
+def report_final(nslits, all_patt_dict, detections,
+                 wv_calib, ok_mask, bad_slits,
                  redo_slits:list=None,
                  orders:np.ndarray=None):
     """
@@ -1415,7 +1435,7 @@ def report_final(nslits, all_patt_dict, detections,
                       len(wv_calib[st]['pixel_fit'])) + msgs.newline() +
                   '  Central wavelength            = {:g}A'.format(cen_wave) + msgs.newline() +
                   '  Central dispersion            = {:g}A/pix'.format(cen_disp) + msgs.newline() +
-                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() + 
+                  '  Central wave/disp             = {:g}'.format(cen_wave / cen_disp) + msgs.newline() +
                   '  Final RMS of fit              = {:g}'.format(wv_calib[st]['rms']))
         if orders is not None:
             sreport + msgs.newline()+ f'  Echelle order                 = {orders[slit]}'
@@ -1445,7 +1465,8 @@ class ArchiveReid:
         Integer array with the list of valid spectra ``spec`` to use.
         If None, all spectra are used.
     measured_fwhms: ndarray, optional
-        Array of FWHM (in pixels) measured from the arc lines. Shape (nslit,)
+        Array of FWHM (in binned pixels) measured from the arc lines. Shape (nslit,).
+        If None, the value provided by the user in the `fwhm` parset is used.
     use_unknowns : bool, default = True, optional
         If True, arc lines that are known to be present in the
         spectra, but have not been attributed to an element+ion, will
@@ -1486,7 +1507,8 @@ class ArchiveReid:
 
     """
     # TODO: Because we're passing orders directly, we no longer need spectrograph...
-    def __init__(self, spec, lamps, par, ech_fixed_format=False, ok_mask=None,  measured_fwhms=None, use_unknowns=True, debug_all=False,
+    def __init__(self, spec, lamps, par, ech_fixed_format=False, ok_mask=None,
+                 measured_fwhms=None, use_unknowns=True, debug_all=False,
                  debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False,
                  orders=None, nonlinear_counts=1e10):
 
@@ -1610,13 +1632,14 @@ class ArchiveReid:
                 msgs.info(f'Order: {orders[slit]}')
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
-            rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
             msgs.info("Using sigdetect =  {}".format(sigdetect))
-            msgs.info("Using rms_threshold =  {}".format(rms_threshold))
             # get FWHM for this slit
-            fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit])
+            fwhm = set_fwhm(self.par, measured_fwhm=measured_fwhms[slit], verbose=True)
+            # get rms threshold for this slit
+            rms_thresh = round(par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {self.par['rms_thresh_frac_fwhm']}")
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
-                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], 
+                reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp],
                            self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
@@ -1642,7 +1665,7 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            if final_fit['rms'] > rms_threshold:
+            if final_fit['rms'] > rms_thresh:
                 order_str = '' if orders is None else ', order={}'.format(orders[slit])
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
@@ -1677,7 +1700,7 @@ class ArchiveReid:
         wave_soln_arxiv = []
         arcspec_arxiv = []
         for order in orders:
-            ind_sp = self.arxiv_orders.index(order) 
+            ind_sp = self.arxiv_orders.index(order)
             wave_soln_arxiv.append(self.wave_soln_arxiv[:,ind_sp])
             arcspec_arxiv.append(self.spec_arxiv[:,ind_sp])
 
@@ -1705,6 +1728,9 @@ class HolyGrail:
     islinelist : bool, optional
         Is lamps a linelist (True), or a list of ions (False)
         The former is not recommended except by expert users/developers
+    measured_fwhms : ndarray, optional
+        Array of FWHM (in binned pixels) measured from the arc lines. Shape (nslit,).
+        If None, the value provided by the user in the `fwhm` parset is used.
     outroot : str, optional
         Name of output file
     debug : bool, optional
@@ -1738,7 +1764,8 @@ class HolyGrail:
 
     """
 
-    def __init__(self, spec, lamps, par=None, ok_mask=None, islinelist=False,
+    def __init__(self, spec, lamps, par=None, ok_mask=None,
+                 islinelist=False, measured_fwhms=None,
                  outroot=None, debug=False, verbose=False,
                  binw=None, bind=None, nstore=1, use_unknowns=True, 
                  nonlinear_counts=None, spectrograph=None):
@@ -1751,6 +1778,7 @@ class HolyGrail:
         self._nstore = nstore
         self._binw = binw
         self._bind = bind
+        self._measured_fwhms = measured_fwhms
 
         # Mask info
         if ok_mask is None:
@@ -1788,7 +1816,7 @@ class HolyGrail:
             # Load the linelist to be used for pattern matching
             restrict = spectrograph if self._par['use_instr_flag'] else None
             self._tot_list, self._line_lists, self._unknwns = waveio.load_line_lists(
-                self._lamps, include_unknown=self._use_unknowns, 
+                self._lamps, include_unknown=self._use_unknowns,
                 restrict_on_instr=restrict)
 
 
@@ -1836,7 +1864,26 @@ class HolyGrail:
             self._ngridd = self._bind.size
         return
 
-    def run_brute_loop(self, slit, tcent_ecent, wavedata=None):
+    def run_brute_loop(self, slit, tcent_ecent, rms_thresh, wavedata=None):
+        """
+
+        Args:
+            slit (int):
+                Slit number
+            tcent_ecent (list):
+                List of `numpy.ndarray`_ objects, [tcent, ecent], which are the
+                centroids and errors of the detections to be used.
+            rms_thresh (float):
+                 RMS threshold for the wavelength solution fit
+            wavedata (`numpy.ndarray`_, optional):
+                Line list; see ``linelist`` argument in, e.g.,
+                :func:`~pypeit.core.wavecal.patterns.triangles`.
+
+        Returns:
+            tuple:  Returns two dictionaries, one containing information about the best pattern,
+            and the other containing the information about the best final fit.
+
+        """
         # Set the parameter space that gets searched
         rng_poly = [3, 4]            # Range of algorithms to check (only trigons+tetragons are supported)
         rng_list = range(3, 6)       # Number of lines to search over for the linelist
@@ -1845,8 +1892,7 @@ class HolyGrail:
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
                                      # an ID on either side of the spectrum)
 
-        rms_threshold = wvutils.parse_param(self._par, 'rms_threshold', slit)
-        msgs.info("Using rms_threshold =  {}".format(rms_threshold))
+        msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {self._par['rms_thresh_frac_fwhm']}")
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
@@ -1866,7 +1912,7 @@ class HolyGrail:
                             # First time a fit is found
                             best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             continue
-                        elif final_fit['rms'] < rms_threshold:
+                        elif final_fit['rms'] < rms_thresh:
                             # Has a better fit been identified (i.e. more lines identified)?
                             if len(final_fit['pixel_fit']) > len(best_final_fit['pixel_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
@@ -1901,10 +1947,16 @@ class HolyGrail:
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             msgs.info("Using sigdetect =  {}".format(sigdetect))
-            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _  =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
-            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
+            # get FWHM for this slit
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
+            # get rms threshold for this slit
+            rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, fwhm=fwhm,
+                                            nonlinear_counts=self._nonlinear_counts)
+            self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, fwhm=fwhm,
+                                            nonlinear_counts =self._nonlinear_counts)
 
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
@@ -1922,7 +1974,7 @@ class HolyGrail:
             self._det_stro[str(slit)] = [self._all_tcent[self._icut].copy(),self._all_ecent[self._icut].copy()]
 
             # Run brute force algorithm on the weak lines
-            best_patt_dict, best_final_fit = self.run_brute_loop(slit, self._det_weak[str(slit)])
+            best_patt_dict, best_final_fit = self.run_brute_loop(slit, self._det_weak[str(slit)], rms_thresh)
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
@@ -2007,12 +2059,16 @@ class HolyGrail:
             if slit not in self._ok_mask:
                 self._all_final_fit[str(slit)] = {}
                 continue
+            # get FWHM for this slit
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit], verbose=True)
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, fwhm=fwhm,
+                                            nonlinear_counts=self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, fwhm=fwhm,
+                                            nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue
@@ -2326,7 +2382,12 @@ class HolyGrail:
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
 
-            if final_fit['rms'] >  wvutils.parse_param(self._par, 'rms_threshold', bs):
+            # get FWHM for this slit
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[bs])
+            # get rms threshold for this slit
+            rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
+
+            if final_fit['rms'] > rms_thresh:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Cross-match report for slit {0:d}/{1:d}:'.format(bs + 1, self._nslit) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
@@ -2344,211 +2405,212 @@ class HolyGrail:
                 plt.show()
         return new_bad_slits
 
-    def cross_match_order(self, good_fit):
-        """Using the solutions of all orders, identify the good solutions, and refit the bad ones!
-
-        TODO: This function needs work... The first few lines of code successfully pick up the good orders,
-        but we need a new routine that (based on an estimated central wavelength and dispersion) can successfully
-        ID all of the lines.
-        """
-        # DEPRECATED (NOT USED)
-
-        # First determine the central wavelength and dispersion of every slit, using the known good solutions
-        xplt = np.arange(self._nslit)
-        yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
-        imsk = np.ones(self._nslit, dtype=int)
-        for slit in range(self._nslit):
-            if good_fit[slit]:
-                yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
-                dplt[slit] = self._all_patt_dict[str(slit)]['bdisp']
-                imsk[slit] = 0
-
-        mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
-                                         initialmask=imsk, forceimask=True)
-        good_fit[mask == 1] = False
-        wavemodel = utils.func_val(fit, xplt, 'polynomial')
-        disp = np.median(dplt[good_fit])
-
-        # TODO: maybe rethink the model at this point? Using the derived
-        # central wavelength and dispersion identify liens in all orders?
-
-        if self._debug:
-            plt.subplot(211)
-            plt.plot(xplt, wavemodel, 'r-')
-            ww = np.where(mask==0)
-            plt.plot(xplt[ww], yplt[ww], 'bx')
-            ww = np.where(mask==1)
-            plt.plot(xplt[ww], yplt[ww], 'rx')
-            plt.subplot(212)
-            plt.plot(xplt, dplt, 'bx')
-            plt.show()
-            #embed()
-
-        fact_nl = 1.2  # Non linear factor
-        new_good_fit = np.zeros(self._nslit, dtype=bool)
-        for slit in range(self._nslit):
-            wmin = wavemodel[slit] - fact_nl*disp*self._npix/2
-            wmax = wavemodel[slit] + fact_nl*disp*self._npix/2
-            ww = np.where((self._wvdata > wmin) & (self._wvdata < wmax))
-            wavedata = self._wvdata[ww]
-            msgs.info('Brute force ID for slit {0:d}/{1:d}'.format(slit+1, self._nslit))
-            best_patt_dict, best_final_fit =\
-                self.run_brute_loop(slit, arrerr=self._det_weak[str(slit)], wavedata=wavedata)
-
-            self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
-            self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
-            new_good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
-        return new_good_fit
-
-
-        # Set some fitting parameters
-        if self._n_final is None:
-            order = 4
-        else:
-            order = self._n_final
-
-        ofit = [5, 3, 1, 0]
-        lnpc = len(ofit) - 1
-
-        # Prepare the fitting coefficients
-        xv = np.arange(self._npix)/(self._npix-1)
-        ords = np.arange(self._nslit)
-        xcen = xv[:, np.newaxis].repeat(self._nslit, axis=1)
-        extrapord = ~good_fit
-        maskord = np.where(extrapord)[0]
-
-        coeffs = None
-        waves = np.zeros(xcen.shape, dtype=float)
-        for slit in range(self._nslit):
-            if good_fit[slit]:
-                func = self._all_final_fit[str(slit)]['function']
-                fmin = self._all_final_fit[str(slit)]['fmin']
-                fmax = self._all_final_fit[str(slit)]['fmax']
-                fitc = self._all_final_fit[str(slit)]['fitc']
-                if coeffs is None:
-                    coeffs = np.zeros((fitc.size, self._nslit))
-                coeffs[:, slit] = fitc.copy()
-                waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
-
-        msgs.info("Performing a PCA on the order wavelength solutions")
-        #embed()
-        pca_wave, outpar = pca.basis(xcen, waves, coeffs, lnpc, ofit, x0in=ords, mask=maskord, skipx0=False, function=func)
-
-        # Report the QA
-        # TODO: fix setup passing
-        setup = "BLAH"
-        pca.pca_plot(setup, outpar, ofit, "wave_cross_match", pcadesc="Wavelength calibration PCA")
-
-
-        # Extrapolate the remaining orders requested
-        #extrap_wave, outpar = pca.extrapolate(outpar, ords)
-
-        # Determine if pixels correlate and anti-correlate with wavelength
-        signs = np.zeros(self._nslit, dtype=int)
-        for slit in range(self._nslit):
-            wvval = pca_wave[:, slit]
-            if wvval[wvval.size//2] > wvval[wvval.size//2-1]:
-                signs[slit] = 1
-            else:
-                signs[slit] = -1
-        sign = 1
-        if np.sum(signs) < 0:
-            sign = -1
-
-        new_bad_slits = np.array([], dtype=int)
-        # Using the first guesses at the wavelength solution, identify lines
-        for slit in range(self._nslit):
-            # Get the detections
-            dets, _ = self.get_use_tcent(sign, self._det_weak[str(slit)])
-            lindex = np.array([], dtype=int)
-            dindex = np.array([], dtype=int)
-            # Calculate wavelengths for the gsdet detections
-            wvval = pca_wave[:, slit]
-            wvcen = wvval[wvval.size//2]
-            disp = abs(wvval[wvval.size//2] - wvval[wvval.size//2-1])
-            for dd in range(dets.size):
-                pdiff = np.abs(dets[dd] - xv)
-                bstpx = np.argmin(pdiff)
-                bstwv = np.abs(self._wvdata - wvval[bstpx])
-                if bstwv[np.argmin(bstwv)] > 10.0 * disp:
-                    # This is probably not a good match
-                    continue
-                lindex = np.append(lindex, np.argmin(bstwv))
-                dindex = np.append(dindex, dd)
-
-            # Finalize the best guess of each line
-            # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
-                             sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
-                             mask=np.zeros(dets.size, dtype=bool))
-            patt_dict['sign'] = sign
-            patt_dict['bwv'] = wvcen
-            patt_dict['bdisp'] = disp
-
-            patterns.solve_triangles(dets, self._wvdata, dindex, lindex, patt_dict)
-            # Check if a solution was found
-            if not patt_dict['acceptable']:
-                new_bad_slits = np.append(new_bad_slits, slit)
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
-                          '  Lines could not be identified! Will try cross matching iteratively' + msgs.newline() +
-                          '---------------------------------------------------')
-                continue
-            final_fit = self.fit_slit(slit, patt_dict, dets)
-            if final_fit is None:
-                # This pattern wasn't good enough
-                new_bad_slits = np.append(new_bad_slits, slit)
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
-                          '  Fit was not good enough! Will try cross matching iteratively' + msgs.newline() +
-                          '---------------------------------------------------')
-                continue
-            if final_fit['rms'] > wvutils.parse_param(self._par, 'rms_threshold', slit):
-                msgs.warn('---------------------------------------------------' + msgs.newline() +
-                          'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
-                          '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
-                          '---------------------------------------------------')
-                # Store this result in new_bad_slits, so the iteration can be performed,
-                # but make sure to store the result, as this might be the best possible.
-                new_bad_slits = np.append(new_bad_slits, slit)
-            self._all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
-            self._all_final_fit[str(slit)] = copy.deepcopy(final_fit)
-            if self._debug:
-                xplt = np.linspace(0.0, 1.0, self._npix)
-                yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minx=0.0, maxx=1.0)
-                plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
-                plt.plot(xplt, yplt, 'r-')
-                plt.show()
-                #embed()
-
-        # debugging
-        if self._debug:
-            # First determine the central wavelength and dispersion of every slit, using the known good solutions
-            xplt = np.arange(self._nslit)
-            yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
-            imsk = np.ones(self._nslit, dtype=int)
-            for slit in range(self._nslit):
-                if good_fit[slit]:
-                    yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
-                    dplt[slit] = self._all_patt_dict[str(slit)]['bdisp']
-                    imsk[slit] = 0
-
-            mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
-                                             initialmask=imsk, forceimask=True)
-
-            ymodel = utils.func_val(fit, xplt, 'polynomial')
-            plt.subplot(211)
-            plt.plot(xplt, ymodel, 'r-')
-            ww = np.where(mask==0)
-            plt.plot(xplt[ww], yplt[ww], 'bx')
-            ww = np.where(mask==1)
-            plt.plot(xplt[ww], yplt[ww], 'rx')
-            plt.subplot(212)
-            plt.plot(xplt, dplt, 'bx')
-            plt.show()
-            #embed()
-
-        return new_bad_slits
+    # This routine is commented out because it is not used.
+    # def cross_match_order(self, good_fit):
+    #     """Using the solutions of all orders, identify the good solutions, and refit the bad ones!
+    #
+    #     TODO: This function needs work... The first few lines of code successfully pick up the good orders,
+    #     but we need a new routine that (based on an estimated central wavelength and dispersion) can successfully
+    #     ID all of the lines.
+    #     """
+    #     # DEPRECATED (NOT USED)
+    #
+    #     # First determine the central wavelength and dispersion of every slit, using the known good solutions
+    #     xplt = np.arange(self._nslit)
+    #     yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
+    #     imsk = np.ones(self._nslit, dtype=int)
+    #     for slit in range(self._nslit):
+    #         if good_fit[slit]:
+    #             yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
+    #             dplt[slit] = self._all_patt_dict[str(slit)]['bdisp']
+    #             imsk[slit] = 0
+    #
+    #     mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
+    #                                      initialmask=imsk, forceimask=True)
+    #     good_fit[mask == 1] = False
+    #     wavemodel = utils.func_val(fit, xplt, 'polynomial')
+    #     disp = np.median(dplt[good_fit])
+    #
+    #     # TODO: maybe rethink the model at this point? Using the derived
+    #     # central wavelength and dispersion identify liens in all orders?
+    #
+    #     if self._debug:
+    #         plt.subplot(211)
+    #         plt.plot(xplt, wavemodel, 'r-')
+    #         ww = np.where(mask==0)
+    #         plt.plot(xplt[ww], yplt[ww], 'bx')
+    #         ww = np.where(mask==1)
+    #         plt.plot(xplt[ww], yplt[ww], 'rx')
+    #         plt.subplot(212)
+    #         plt.plot(xplt, dplt, 'bx')
+    #         plt.show()
+    #         #embed()
+    #
+    #     fact_nl = 1.2  # Non linear factor
+    #     new_good_fit = np.zeros(self._nslit, dtype=bool)
+    #     for slit in range(self._nslit):
+    #         wmin = wavemodel[slit] - fact_nl*disp*self._npix/2
+    #         wmax = wavemodel[slit] + fact_nl*disp*self._npix/2
+    #         ww = np.where((self._wvdata > wmin) & (self._wvdata < wmax))
+    #         wavedata = self._wvdata[ww]
+    #         msgs.info('Brute force ID for slit {0:d}/{1:d}'.format(slit+1, self._nslit))
+    #         best_patt_dict, best_final_fit =\
+    #             self.run_brute_loop(slit, arrerr=self._det_weak[str(slit)], wavedata=wavedata)
+    #
+    #         self._all_patt_dict[str(slit)] = copy.deepcopy(best_patt_dict)
+    #         self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
+    #         new_good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
+    #     return new_good_fit
+    #
+    #
+    #     # Set some fitting parameters
+    #     if self._n_final is None:
+    #         order = 4
+    #     else:
+    #         order = self._n_final
+    #
+    #     ofit = [5, 3, 1, 0]
+    #     lnpc = len(ofit) - 1
+    #
+    #     # Prepare the fitting coefficients
+    #     xv = np.arange(self._npix)/(self._npix-1)
+    #     ords = np.arange(self._nslit)
+    #     xcen = xv[:, np.newaxis].repeat(self._nslit, axis=1)
+    #     extrapord = ~good_fit
+    #     maskord = np.where(extrapord)[0]
+    #
+    #     coeffs = None
+    #     waves = np.zeros(xcen.shape, dtype=float)
+    #     for slit in range(self._nslit):
+    #         if good_fit[slit]:
+    #             func = self._all_final_fit[str(slit)]['function']
+    #             fmin = self._all_final_fit[str(slit)]['fmin']
+    #             fmax = self._all_final_fit[str(slit)]['fmax']
+    #             fitc = self._all_final_fit[str(slit)]['fitc']
+    #             if coeffs is None:
+    #                 coeffs = np.zeros((fitc.size, self._nslit))
+    #             coeffs[:, slit] = fitc.copy()
+    #             waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
+    #
+    #     msgs.info("Performing a PCA on the order wavelength solutions")
+    #     #embed()
+    #     pca_wave, outpar = pca.basis(xcen, waves, coeffs, lnpc, ofit, x0in=ords, mask=maskord, skipx0=False, function=func)
+    #
+    #     # Report the QA
+    #     # TODO: fix setup passing
+    #     setup = "BLAH"
+    #     pca.pca_plot(setup, outpar, ofit, "wave_cross_match", pcadesc="Wavelength calibration PCA")
+    #
+    #
+    #     # Extrapolate the remaining orders requested
+    #     #extrap_wave, outpar = pca.extrapolate(outpar, ords)
+    #
+    #     # Determine if pixels correlate and anti-correlate with wavelength
+    #     signs = np.zeros(self._nslit, dtype=int)
+    #     for slit in range(self._nslit):
+    #         wvval = pca_wave[:, slit]
+    #         if wvval[wvval.size//2] > wvval[wvval.size//2-1]:
+    #             signs[slit] = 1
+    #         else:
+    #             signs[slit] = -1
+    #     sign = 1
+    #     if np.sum(signs) < 0:
+    #         sign = -1
+    #
+    #     new_bad_slits = np.array([], dtype=int)
+    #     # Using the first guesses at the wavelength solution, identify lines
+    #     for slit in range(self._nslit):
+    #         # Get the detections
+    #         dets, _ = self.get_use_tcent(sign, self._det_weak[str(slit)])
+    #         lindex = np.array([], dtype=int)
+    #         dindex = np.array([], dtype=int)
+    #         # Calculate wavelengths for the gsdet detections
+    #         wvval = pca_wave[:, slit]
+    #         wvcen = wvval[wvval.size//2]
+    #         disp = abs(wvval[wvval.size//2] - wvval[wvval.size//2-1])
+    #         for dd in range(dets.size):
+    #             pdiff = np.abs(dets[dd] - xv)
+    #             bstpx = np.argmin(pdiff)
+    #             bstwv = np.abs(self._wvdata - wvval[bstpx])
+    #             if bstwv[np.argmin(bstwv)] > 10.0 * disp:
+    #                 # This is probably not a good match
+    #                 continue
+    #             lindex = np.append(lindex, np.argmin(bstwv))
+    #             dindex = np.append(dindex, dd)
+    #
+    #         # Finalize the best guess of each line
+    #         # Initialise the patterns dictionary
+    #         patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
+    #                          sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
+    #                          mask=np.zeros(dets.size, dtype=bool))
+    #         patt_dict['sign'] = sign
+    #         patt_dict['bwv'] = wvcen
+    #         patt_dict['bdisp'] = disp
+    #
+    #         patterns.solve_triangles(dets, self._wvdata, dindex, lindex, patt_dict)
+    #         # Check if a solution was found
+    #         if not patt_dict['acceptable']:
+    #             new_bad_slits = np.append(new_bad_slits, slit)
+    #             msgs.warn('---------------------------------------------------' + msgs.newline() +
+    #                       'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+    #                       '  Lines could not be identified! Will try cross matching iteratively' + msgs.newline() +
+    #                       '---------------------------------------------------')
+    #             continue
+    #         final_fit = self.fit_slit(slit, patt_dict, dets)
+    #         if final_fit is None:
+    #             # This pattern wasn't good enough
+    #             new_bad_slits = np.append(new_bad_slits, slit)
+    #             msgs.warn('---------------------------------------------------' + msgs.newline() +
+    #                       'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+    #                       '  Fit was not good enough! Will try cross matching iteratively' + msgs.newline() +
+    #                       '---------------------------------------------------')
+    #             continue
+    #         if final_fit['rms'] > rms_thresh:
+    #             msgs.warn('---------------------------------------------------' + msgs.newline() +
+    #                       'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
+    #                       '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
+    #                       '---------------------------------------------------')
+    #             # Store this result in new_bad_slits, so the iteration can be performed,
+    #             # but make sure to store the result, as this might be the best possible.
+    #             new_bad_slits = np.append(new_bad_slits, slit)
+    #         self._all_patt_dict[str(slit)] = copy.deepcopy(patt_dict)
+    #         self._all_final_fit[str(slit)] = copy.deepcopy(final_fit)
+    #         if self._debug:
+    #             xplt = np.linspace(0.0, 1.0, self._npix)
+    #             yplt = utils.func_val(final_fit['fitc'], xplt, 'legendre', minx=0.0, maxx=1.0)
+    #             plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
+    #             plt.plot(xplt, yplt, 'r-')
+    #             plt.show()
+    #             #embed()
+    #
+    #     # debugging
+    #     if self._debug:
+    #         # First determine the central wavelength and dispersion of every slit, using the known good solutions
+    #         xplt = np.arange(self._nslit)
+    #         yplt, dplt = np.zeros(self._nslit), np.zeros(self._nslit)
+    #         imsk = np.ones(self._nslit, dtype=int)
+    #         for slit in range(self._nslit):
+    #             if good_fit[slit]:
+    #                 yplt[slit] = self._all_patt_dict[str(slit)]['bwv']
+    #                 dplt[slit] = self._all_patt_dict[str(slit)]['bdisp']
+    #                 imsk[slit] = 0
+    #
+    #         mask, fit = utils.robust_polyfit(xplt, yplt, 2, function='polynomial', sigma=2,
+    #                                          initialmask=imsk, forceimask=True)
+    #
+    #         ymodel = utils.func_val(fit, xplt, 'polynomial')
+    #         plt.subplot(211)
+    #         plt.plot(xplt, ymodel, 'r-')
+    #         ww = np.where(mask==0)
+    #         plt.plot(xplt[ww], yplt[ww], 'bx')
+    #         ww = np.where(mask==1)
+    #         plt.plot(xplt[ww], yplt[ww], 'rx')
+    #         plt.subplot(212)
+    #         plt.plot(xplt, dplt, 'bx')
+    #         plt.show()
+    #         #embed()
+    #
+    #     return new_bad_slits
 
     def get_use_tcent_old(self, corr, cut=True, arr_err=None, weak=False):
         """
@@ -2870,6 +2932,12 @@ class HolyGrail:
             use_tcent, _ = self.get_use_tcent(tpatt_dict['sign'], tcent_ecent)
             tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists)
             # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
+
+            # get FWHM for this slit
+            fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
+            # get rms threshold for this slit
+            rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
+
             if tfinal_dict is None:
                 # This pattern wasn't good enough
                 continue
@@ -2878,7 +2946,7 @@ class HolyGrail:
                 # First time a fit is found
                 patt_dict, final_dict = tpatt_dict, tfinal_dict
                 continue
-            elif tfinal_dict['rms'] < wvutils.parse_param(self._par, 'rms_threshold', slit):
+            elif tfinal_dict['rms'] < rms_thresh:
                 # Has a better fit been identified (i.e. more lines ID)?
                 if len(tfinal_dict['pixel_fit']) > len(final_dict['pixel_fit']):
                     patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
@@ -2999,6 +3067,11 @@ class HolyGrail:
 
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
 
+        # get FWHM for this slit
+        fwhm = set_fwhm(self._par, measured_fwhm=self._measured_fwhms[slit])
+        # get rms threshold for this slit
+        rms_thresh = round(self._par['rms_thresh_frac_fwhm'] * fwhm, 3)
+
         good_fit = False
         # Report on the best preliminary result
         if best_final_fit is None:
@@ -3008,7 +3081,7 @@ class HolyGrail:
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = None
             self._all_final_fit[str(slit)] = None
-        elif best_final_fit['rms'] > wvutils.parse_param(self._par, 'rms_threshold', slit):
+        elif best_final_fit['rms'] > rms_thresh:
             msgs.warn('---------------------------------------------------' + msgs.newline() +
                       'Preliminary report for slit {0:d}/{1:d}:'.format(slit+1, self._nslit) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +

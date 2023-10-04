@@ -1,7 +1,15 @@
-1.13.1dev
----------
+
+****************************************************************************
+USE OF THIS FILE IS NOW DEPRECATED.  CHANGES SHOULD BE ADDED TO THE RELEVANT
+RELEASE FILE IN doc/releases
+****************************************************************************
+
+
+1.14.0 (18 Sep 2023)
+--------------------
 
 - Add support for Gemini/GNIRS (IFU)
+- Add support for Keck/KCRM
 - Added a script to convert a wavelength solution into something that can be placed in the reid archive.
 - Hotfix for GTC/OSIRIS lamp list
 - Hotfix for Arc1D stats annotations on the QA
@@ -11,6 +19,7 @@
 - Hotfix for skysub regions GUI that used np.bool
 - Hotfix to stop pypeit_setup from crashing on data from lbt_luci1, lbt_luci2, magellan_fire,
   magellan_fire_long, p200_tspec, or vlt_sinfoni.
+- Hotfix to set BPM for each type of calibration file.
 - Adds Keck/ESI to PypeIt
 - Instrumental FWHM map is calculated and output in ``Calibrations`` and ``spec1d`` files.
 - Adds Keck/ESI to PypeIt
@@ -40,6 +49,16 @@
 - HIRES wavelength solution improvements galor
 - Added `redo_slits` option
 - Refactored ``load_line_lists()`` yet again!
+- Improvements for keck/LRIS
+    - Generated wavelength templates for all the LRIS grism & grating
+    - Added FeAr line list
+    - Improved calibration association and frame typing
+    - Improved and added documentation
+    - Changes to ``metadata.py`` including commenting out, in the pypeit file,
+      files that have frametype None (this prevent ``run_pypeit`` to crash)
+    - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
+      that checks (during ``pypeit_setup``) if the selected spectrograph is the
+      corrected one for the data used. 
 
 
 1.13.0 (2 June 2023)
