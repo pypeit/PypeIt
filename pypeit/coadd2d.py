@@ -1749,7 +1749,7 @@ class EchelleCoAdd2D(CoAdd2D):
                         continue
                     if flux is not None:
                         rms_sn, _ = coadd.calc_snr([flux], [ivar], [mask])
-                        order_snr[iord, iobj] = rms_sn
+                        order_snr[iord, iobj] = rms_sn[0]
                         bpm[iord, iobj] = False
 
             # If there are orders that have bpm = True for some objs and not for others, set bpm = True for all objs

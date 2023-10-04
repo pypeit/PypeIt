@@ -771,8 +771,8 @@ def calc_snr(fluxes, ivars, gpms):
 
     Returns
     -------
-    rms_sn : list
-        List of length nexp root-mean-square S/N value for each input spectra where nexp=len(fluxes).
+    rms_sn (np.ndarray):
+        Array of shape (nexp,) of root-mean-square S/N value for each input spectra where nexp=len(fluxes).
     sn_val : list
         List of length nexp containing the wavelength dependent S/N arrays for each input spectrum, i.e.
         each element contains the array flux*sqrt(ivar)
@@ -794,7 +794,7 @@ def calc_snr(fluxes, ivars, gpms):
             sn2.append(sn2_iexp)
             rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
 
-    return rms_sn, sn_val
+    return np.array(rms_sn), sn_val
 
 def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):
 
@@ -1445,7 +1445,7 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult,
 
 # TODO: Change mask to gpm
 def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack, mask_stack,
-                  outmask, norder=None, title='', qafile=None):
+                  outmask, norder=None, title='', qafile=None, show_telluric=False):
     """
 
     Routine to creqate QA for showing the individual spectrum
@@ -1481,6 +1481,8 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
             Plot title
         qafile (:obj:`str`, optional):
             QA file name
+        show_telluric (:obj:`bool`, optional):
+            Show the atmospheric absorption if wavelengths > 9000A are covered by the spectrum
 
     """
 
@@ -1509,7 +1511,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
 
         # TODO Use one of our telluric models here instead
         # Plot transmission
-        if (np.max(wave[mask]) > 9000.0):
+        if (np.max(wave[mask]) > 9000.0) and show_telluric:
             skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
