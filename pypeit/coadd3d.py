@@ -1784,7 +1784,6 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
             # Calculate the DAR correction at each sub pixel
             ra_corr, dec_corr = _all_dar[fr].correction(this_wave)  # This routine needs the wavelengths to be expressed in Angstroms
             # Calculate spatial and spectral positions of the subpixels
-            embed()
             spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
             spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
             # Transform this to spatial location
