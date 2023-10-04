@@ -59,7 +59,6 @@ RELEASE FILE IN doc/releases
     - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
       that checks (during ``pypeit_setup``) if the selected spectrograph is the
       corrected one for the data used.
-- Refactored ``coadd3d()``
 
 
 1.13.0 (2 June 2023)

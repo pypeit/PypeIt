@@ -15,7 +15,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core import coadd
+from pypeit.core import coadd, flux_calib
 
 from IPython import embed
 
@@ -183,7 +183,7 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
+def extract_standard_spec(stdcube, subpixel=20):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -193,9 +193,6 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         An HDU list of fits files
     subpixel : int
         Number of pixels to subpixelate spectrum when creating mask
-    method : str
-        Method used to extract standard star spectrum. Currently, only 'boxcar'
-        is supported
 
     Returns
     -------
@@ -258,103 +255,22 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
     wl_img -= sky_val
 
-    if method == 'boxcar':
-        msgs.info("Extracting a boxcar spectrum of datacube")
-        # Construct an image that contains the fraction of flux included in the
-        # boxcar extraction at each wavelength interval
-        norm_flux = wl_img[:,:,np.newaxis] * mask
-        norm_flux /= np.sum(norm_flux)
-        # Extract boxcar
-        cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
-        flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
-        scimask = flxcube * cntmask
-        varmask = varcube * cntmask**2
-        nrmcnt = utils.inverse(flxscl)
-        box_flux = scimask.sum(0).sum(0) * nrmcnt
-        box_var = varmask.sum(0).sum(0) * nrmcnt**2
-        box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
-        # Setup the return values
-        ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
-    # elif method == 'gauss2d':
-    #     msgs.error("Use method=boxcar... this method has not been thoroughly tested")
-    #     # Generate a mask
-    #     fitmask = np.logical_not(bpmcube) * mask
-    #     # Setup the coordinates
-    #     x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
-    #     y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
-    #     z = np.linspace(0, flxcube.shape[2] - 1, flxcube.shape[2])
-    #     xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
-    #     # Normalise the flux in each wavelength channel
-    #     scispec = (flxcube * fitmask).sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
-    #     cntspec = fitmask.sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
-    #     # These operations are all inverted, because we need to divide flxcube by scispec
-    #     cntspec *= utils.inverse(scispec)
-    #     cubefit = flxcube * cntspec
-    #     cubesigfit = np.sqrt(varcube) * cntspec
-    #     # Setup the fit params
-    #     ww = np.where(fitmask)
-    #     initial_guess = (1, idx_max[0], idx_max[1], 0.0, 0.0, 2, 2, 0, 0)
-    #     bounds = ([-np.inf, 0, 0, -np.inf, -np.inf, 0.5, 0.5, -np.pi, -np.inf],
-    #               [np.inf,wl_img.shape[0],wl_img.shape[1],np.inf, np.inf, wl_img.shape[0],wl_img.shape[0],np.pi,np.inf])
-    #     msgs.info("Fitting a 2D Gaussian to the datacube")
-    #     popt, pcov = opt.curve_fit(gaussian2D_cube, (xx[ww], yy[ww], zz[ww]), cubefit[ww],
-    #                                sigma=cubesigfit[ww], bounds=bounds, p0=initial_guess)
-    #     # Subtract off the best-fitting continuum
-    #     popt[-1] = 0
-    #     # Generate the best-fitting model to be used as an optimal profile
-    #     model = gaussian2D_cube((xx, yy, zz), *popt).reshape(flxcube.shape)
-    #     numim = flxcube.shape[0]*flxcube.shape[1]
-    #
-    #     # Optimally extract
-    #     msgs.info("Optimally extracting...")
-    #     sciimg = (flxcube*mask).reshape((numim, numwave)).T
-    #     ivar = utils.inverse((varcube*mask**2).reshape((numim, numwave)).T)
-    #     optmask = fitmask.reshape((numim, numwave)).T
-    #     waveimg = np.ones((numwave, numim))  # Just a dummy array - not needed
-    #     skyimg = np.zeros((numwave, numim))  # Just a dummy array - not needed
-    #     thismask = np.ones((numwave, numim))  # Just a dummy array - not needed
-    #     oprof = model.reshape((numim, numwave)).T
-    #     sobj = specobj.SpecObj('SlicerIFU', 'DET01', SLITID=0)
-    #     extract.extract_optimal(sciimg, ivar, optmask, waveimg, skyimg, thismask, oprof, sobj)
-    #     opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG**2, sobj.OPT_MASK
-    #     # Setup the return values
-    #     ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
-    # elif method == 'optimal':
-    #     msgs.error("Use method=boxcar... this method has not been thoroughly tested")
-    #     # First do a boxcar along one dimension
-    #     msgs.info("Collapsing datacube to a 2D image")
-    #     omask = mask+smask
-    #     idx_sum = 0
-    #     cntmask = np.logical_not(bpmcube) * omask
-    #     scimask = flxcube * cntmask
-    #     varmask = varcube * cntmask**2
-    #     cnt_spec = cntmask.sum(idx_sum) * utils.inverse(omask.sum(idx_sum))
-    #     nrmcnt = utils.inverse(cnt_spec)
-    #     box_sciimg = scimask.sum(idx_sum) * nrmcnt
-    #     box_scivar = varmask.sum(idx_sum) * nrmcnt**2
-    #     box_sciivar = utils.inverse(box_scivar)
-    #     # Transpose for optimal
-    #     box_sciimg = box_sciimg.T
-    #     box_sciivar = box_sciivar.T
-    #
-    #     # Prepare for optimal
-    #     msgs.info("Starting optimal extraction")
-    #     thismask = np.ones(box_sciimg.shape, dtype=bool)
-    #     nspec, nspat = thismask.shape[0], thismask.shape[1]
-    #     slit_left = np.zeros(nspec)
-    #     slit_right = np.ones(nspec)*(nspat-1)
-    #     tilts = np.outer(np.linspace(0.0,1.0,nspec), np.ones(nspat))
-    #     waveimg = np.outer(wave.value, np.ones(nspat))
-    #     global_sky = np.zeros_like(box_sciimg)
-    #     # Find objects and then extract
-    #     sobj = findobj_skymask.objs_in_slit(box_sciimg, thismask, slit_left, slit_right)
-    #     skysub.local_skysub_extract(box_sciimg, box_sciivar, tilts, waveimg, global_sky, thismask, slit_left,
-    #                          slit_right, sobj, model_noise=False)
-    #     opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS[0,:], sobj.OPT_COUNTS_SIG[0,:]**2, sobj.OPT_MASK[0,:]
-    #     # Setup the return values
-    #     ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
-    else:
-        msgs.error("Unknown extraction method: ", method)
+    msgs.info("Extracting a boxcar spectrum of datacube")
+    # Construct an image that contains the fraction of flux included in the
+    # boxcar extraction at each wavelength interval
+    norm_flux = wl_img[:,:,np.newaxis] * mask
+    norm_flux /= np.sum(norm_flux)
+    # Extract boxcar
+    cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
+    flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
+    scimask = flxcube * cntmask
+    varmask = varcube * cntmask**2
+    nrmcnt = utils.inverse(flxscl)
+    box_flux = scimask.sum(0).sum(0) * nrmcnt
+    box_var = varmask.sum(0).sum(0) * nrmcnt**2
+    box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
+    # Setup the return values
+    ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
 
     # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
     arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
@@ -362,6 +278,72 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     ret_var *= arcsecSQ**2
     # Return the box extraction results
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
+
+
+def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_corr=False):
+    """
+    Generate the sensitivity function from a standard star DataCube.
+
+    Args:
+        ss_file (:obj:`str`_):
+            The relative path and filename of the standard star datacube. It should be fits format, and
+            for full functionality, should ideally of the form `pypeit.coadd3d.DataCube`_
+        senspar (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
+            The parameters required for the sensitivity function computation.
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array used to construct blaze_spline
+        blaze_spline (`scipy.interpolate.interp1d`_, optional):
+            Spline representation of the reference blaze function (based on the illumflat).
+        grating_corr (:obj:`bool`_, optional):
+            If a grating correction should be performed, set this variable to True.
+
+    Returns:
+        `numpy.ndarray`_: A mask of the good sky pixels (True = good)
+    """
+    # Check if the standard star datacube exists
+    if not os.path.exists(ss_file):
+        msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
+    msgs.info(f"Loading standard star cube: {ss_file:s}")
+    # Load the standard star cube and retrieve its RA + DEC
+    stdcube = fits.open(ss_file)
+    star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
+
+    # Extract a spectrum of the standard star
+    wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+
+    # Extract the information about the blaze
+    if grating_corr:
+        blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+        blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+                                     kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Perform a grating correction
+        grat_corr = correct_grating_shift(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+        # Apply the grating correction to the standard star spectrum
+        Nlam_star /= grat_corr
+        Nlam_ivar_star *= grat_corr ** 2
+
+    # Read in some information above the standard star
+    std_dict = flux_calib.get_standard_spectrum(star_type=senspar['star_type'],
+                                                star_mag=senspar['star_mag'],
+                                                ra=star_ra, dec=star_dec)
+    # Calculate the sensitivity curve
+    # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
+    msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
+    zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
+        flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                                 mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
+                                 mask_helium_lines=senspar['mask_helium_lines'],
+                                 hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
+                                 nresln=senspar['UVIS']['nresln'],
+                                 resolution=senspar['UVIS']['resolution'],
+                                 trans_thresh=senspar['UVIS']['trans_thresh'],
+                                 polyorder=senspar['polyorder'],
+                                 polycorrect=senspar['UVIS']['polycorrect'],
+                                 polyfunc=senspar['UVIS']['polyfunc'])
+    wgd = np.where(zeropoint_fit_gpm)
+    sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
+    flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
+    return flux_spline
 
 
 def make_good_skymask(slitimg, tilts):
@@ -579,6 +561,52 @@ def load_imageWCS(filename, ext=0):
     imgwcs = wcs.WCS(imghdu[ext].header)
     # Return required info
     return image, imgwcs
+
+
+def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec_offset):
+    """
+    Align the RA and DEC of all input frames, and then
+    manually shift the cubes based on user-provided offsets.
+    The offsets should be specified in arcseconds, and the
+    ra_offset should include the cos(dec) factor.
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            A 1D array containing the RA values of each detector pixel of every frame.
+        all_dec (`numpy.ndarray`_):
+            A 1D array containing the Dec values of each detector pixel of every frame.
+            Same size as all_ra.
+        all_idx (`numpy.ndarray`_):
+            A 1D array containing an ID value for each detector frame (0-indexed).
+            Same size as all_ra.
+        ifu_ra (`numpy.ndarray`_):
+            A list of RA values of the IFU (one value per frame)
+        ifu_dec (`numpy.ndarray`_):
+            A list of Dec values of the IFU (one value per frame)
+        ra_offset (`numpy.ndarray`_):
+            A list of RA offsets to be applied to the input pixel values (one value per frame).
+            Note, the ra_offset MUST contain the cos(dec) factor. This is the number of arcseconds
+            on the sky that represents the telescope offset.
+        dec_offset (`numpy.ndarray`_):
+            A list of Dec offsets to be applied to the input pixel values (one value per frame).
+
+    Returns:
+        `numpy.ndarray`_: A new set of RA values that have been aligned
+        `numpy.ndarray`_: A new set of Dec values that has been aligned
+    """
+    # First, translate all coordinates to the coordinates of the first frame
+    # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
+    #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
+    ref_shift_ra = ifu_ra[0] - ifu_ra
+    ref_shift_dec = ifu_dec[0] - ifu_dec
+    numfiles = ra_offset.size
+    for ff in range(numfiles):
+        # Apply the shift
+        all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
+        all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
+        msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
+                  "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, ra_offset[ff], dec_offset[ff]))
+    return all_ra, all_dec
 
 
 def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
@@ -1170,7 +1198,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
         :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
         datacube generated from the subpixellated inputs, (2) the corresponding
         variance cube, (3) the corresponding bad pixel mask cube, and (4) the
-        residual cube.  The latter is only returned if debug is True. 
+        residual cube.  The latter is only returned if debug is True.
     """
     # Check for combinations of lists or not
     if type(tilts) is list and type(slits) is list and type(astrom_trans) is list:

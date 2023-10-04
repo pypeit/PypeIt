@@ -12,9 +12,12 @@ Functionality/Performance Improvements and Additions
 
 - Started the development of instrument-specific scattered light removal. In this
   release, we only model KCWI/KCRM scattered light.
+- Added support for Keck/KCRM RL data reduction.
 
 Instrument-specific Updates
 ---------------------------
+
+- Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 
 Script Changes
 --------------
@@ -25,14 +28,21 @@ Script Changes
 Datamodel Changes
 -----------------
 
+- A wavelength array is now stored for DataCube()
+
 Under-the-hood Improvements
 ---------------------------
+
+- The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 
 Bug Fixes
 ---------
 
 - Fixed bug associated with finding more than one file with the same name (but
   presumably different extensions).
+- Fixed differential atmospheric refraction (DAR) correction bug. This bug affected
+  datacubes combined using CoAdd3D(). Previously, the DAR was being computed, applied,
+  and then later overwritten. The new routine is faster and more accurate.
 - Fixed a bug associated with an incorrect date for the transition to the Mark4
   detector for Keck/LRIS RED.
 

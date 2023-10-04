@@ -52,11 +52,18 @@ class CoAddDataCube(scriptbase.ScriptBase):
             msgs.info("Restricting to detector={}".format(args.det))
             parset['rdx']['detnum'] = int(args.det)
 
+        # Extract the options
+        ra_offsets = coadd3dfile.options['ra_offset']
+        dec_offsets = coadd3dfile.options['dec_offset']
+        skysub_frame = coadd3dfile.options['skysub_frame']
+        scale_corr = coadd3dfile.options['scale_corr']
+
         # Instantiate CoAdd3d
-        coadd = CoAdd3D.get_instance(coadd3dfile.filenames, coadd3dfile.options, spectrograph=spectrograph, par=parset,
+        tstart = time.time()
+        coadd = CoAdd3D.get_instance(coadd3dfile.filenames, parset, skysub_frame=skysub_frame, scale_corr=scale_corr,
+                                     ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
                                      det=args.det, overwrite=args.overwrite)
 
         # Coadd the files
-        tstart = time.time()
         coadd.coadd()
         msgs.info(utils.get_time_string(time.time()-tstart))

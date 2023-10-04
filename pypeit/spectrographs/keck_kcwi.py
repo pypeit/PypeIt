@@ -138,6 +138,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'RL':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM1':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM2':
@@ -298,7 +300,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
 
@@ -1143,7 +1145,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCRM'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
     header_name = 'KCRM'
-    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: RL, RM1, RM2, RH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1193,7 +1195,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        spatflip        = True, # TODO There is a flip in the slices relative to KCWI
+                        spatflip        = True,  # Due to the extra mirror, the slices are flipped relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
@@ -1311,7 +1313,6 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.4
         par['reduce']['skysub']['joint_fit'] = False
 
