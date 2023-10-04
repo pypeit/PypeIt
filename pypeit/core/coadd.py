@@ -1584,7 +1584,7 @@ def weights_qa(waves, weights, gpms, title='', colors=None):
     plt.show()
 
 def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
-             title=None, qafile=None):
+             title=None, qafile=None, show_telluric=False):
     """
     Routine to make QA plot of the final stacked spectrum. It works for both
     longslit/mulitslit, coadded individual order spectrum of the Echelle data
@@ -1609,6 +1609,8 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
         plot title
     qafile : str, optional
         QA file name
+    show_telluric : bool, optional
+        Show a telluric absorptoin model on top of the data if wavelengths cover > 9000A
     """
     #TODO: This routine should take a parset
 
@@ -1639,7 +1641,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     ymin, ymax = get_ylim(flux, ivar, gpm)
 
     # Plot transmission
-    if (np.max(wave[gpm])>9000.0) and (tell is None):
+    if (np.max(wave[gpm])>9000.0) and (tell is None) and show_telluric:
         skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
