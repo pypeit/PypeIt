@@ -5,14 +5,22 @@ Version 1.14.1dev
 Dependency Changes
 ------------------
 
+- Removes use of deprecated ``pkg_resources``.
+
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+
+- Started the development of instrument-specific scattered light removal. In this
+  release, we only model KCWI/KCRM scattered light.
 
 Instrument-specific Updates
 ---------------------------
 
 Script Changes
 --------------
+
+- When making datacubes, the user can select a separate frame to use for the sky subtraction.
+  In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
 
 Datamodel Changes
 -----------------
@@ -25,5 +33,7 @@ Bug Fixes
 
 - Fixed bug associated with finding more than one file with the same name (but
   presumably different extensions).
+- Fixed a bug associated with an incorrect date for the transition to the Mark4
+  detector for Keck/LRIS RED.
 
 
