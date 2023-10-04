@@ -37,8 +37,6 @@ class DataCube(datamodel.DataContainer):
     .. include:: ../include/class_datamodel_datacube.rst
 
     Args:
-        wave (`numpy.ndarray`_):
-            A 1D numpy array containing the wavelength array for convenience (nwave)
         flux (`numpy.ndarray`_):
             The science datacube (nwave, nspaxel_y, nspaxel_x)
         sig (`numpy.ndarray`_):
@@ -46,6 +44,8 @@ class DataCube(datamodel.DataContainer):
         bpm (`numpy.ndarray`_):
             The bad pixel mask of the datacube (nwave, nspaxel_y, nspaxel_x).
             True values indicate a bad pixel
+        wave (`numpy.ndarray`_):
+            A 1D numpy array containing the wavelength array for convenience (nwave)
         blaze_wave (`numpy.ndarray`_):
             Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
@@ -70,16 +70,16 @@ class DataCube(datamodel.DataContainer):
     """
     version = '1.2.0'
 
-    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating,
-                              descr='Wavelength of each slice in the spectral direction. '
-                                    'The units are Angstroms.'),
-                 'flux': dict(otype=np.ndarray, atype=np.floating,
+    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux datacube in units of counts/s/Ang/arcsec^2 or '
                                     '10^-17 erg/s/cm^2/Ang/arcsec^2'),
                  'sig': dict(otype=np.ndarray, atype=np.floating,
                              descr='Error datacube (matches units of flux)'),
                  'bpm': dict(otype=np.ndarray, atype=np.uint8,
                              descr='Bad pixel mask of the datacube (0=good, 1=bad)'),
+                 'wave': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Wavelength of each slice in the spectral direction. '
+                                    'The units are Angstroms.'),
                  'blaze_wave': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Wavelength array of the spectral blaze function'),
                  'blaze_spec': dict(otype=np.ndarray, atype=np.floating,
@@ -95,7 +95,7 @@ class DataCube(datamodel.DataContainer):
                  'spect_meta'
                 ]
 
-    def __init__(self, wave, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
+    def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
                  fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -203,39 +203,39 @@ class DARcorrection:
     """
     This class holds all of the functions needed to quickly compute the differential atmospheric refraction correction.
     """
-    def __init__(self, hdr0, cosdec, spectrograph=None, wave_ref=4500.0):
+    def __init__(self, airmass, parangle, pressure, temperature, humidity, cosdec, co2=400.0, wave_ref=4500.0):
         """
         Args:
-            hdr0 (`astropy.io.fits.Header`_):
-                Header of the spec2d file. This input should be retrieved from spec2DObj.head0
+            airmass (:obj:`float`):
+                The airmass of the observations (unitless)
+            parangle (:obj:`float`):
+                The parallactic angle of the observations (units=degree, relative to North, towards East is postive)
+            pressure (:obj:`float`):
+                The atmospheric pressure during the observations in Pascal. Valid range is from 10kPa - 140 kPa.
+            temperature (:obj:`float`):
+                Temperature in degree Celsius. Valid temperate range is -40 to
+                100 degree Celsius.
+            humidity (:obj:`float`):
+                The humidity during the observations (Expressed as a percentage, not a fraction!).
+                Valid range is 0 to 100.
             cosdec (:obj:`float`):
                 Cosine of the target declination.
-            spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
-                The name or instance of the spectrograph used to obtain the data.
-                If None, this is pulled from the file header.
+            co2 (:obj:`float`, optional):
+                Carbon dioxide concentration in µmole/mole. The default value
+                of 450 should be enough for most purposes. Valid range is from
+                0 - 2000 µmole/mole.
             wave_ref (:obj:`float`, optional):
                 Reference wavelength (The DAR correction will be performed relative to this wavelength)
         """
         msgs.info("Preparing the parameters for the DAR correction")
-        # Check on Spectrograph input
-        if spectrograph is None:
-            spectrograph = hdr0['PYP_SPEC']
-
-        if isinstance(spectrograph, str):
-            self.spec = load_spectrograph(spectrograph)
-            self.specname = spectrograph
-        else:
-            # Assume it's a Spectrograph instance
-            self.spec = spectrograph
-            self.specname = spectrograph.name
 
         # Get DAR parameters
-        self.airmass = self.spec.get_meta_value([hdr0], 'airmass')  # unitless
-        self.parangle = self.spec.get_meta_value([hdr0], 'parangle')
-        self.pressure = self.spec.get_meta_value([hdr0], 'pressure')  # units are pascals
-        self.temperature = self.spec.get_meta_value([hdr0], 'temperature')  # units are degrees C
-        self.humidity = self.spec.get_meta_value([hdr0], 'humidity')  # Expressed as a percentage (not a fraction!)
-        self.co2 = 400.0  # units are mu-mole/mole
+        self.airmass = airmass  # unitless
+        self.parangle = parangle
+        self.pressure = pressure
+        self.temperature = temperature
+        self.humidity = humidity
+        self.co2 = co2
         self.wave_ref = wave_ref  # This should be in Angstroms
         self.cosdec = cosdec
 
@@ -306,8 +306,8 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, opts, spectrograph=None, par=None, det=1, overwrite=False,
-                     show=False, debug=False):
+    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
+                     spectrograph=None, det=1, overwrite=False, show=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -323,27 +323,38 @@ class CoAdd3D:
 
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
+                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
+                        dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
                         show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, opts, spectrograph=None, par=None, det=None, overwrite=False,
-                 show=False, debug=False):
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
+                 spectrograph=None, det=None, overwrite=False, show=False, debug=False):
         """
 
         Args:
             spec2dfiles (:obj:`list`):
                 List of all spec2D files
-            opts (:obj:`dict`):
-                Options associated with each spec2d file
-            spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
-                The name or instance of the spectrograph used to obtain the data.
-                If None, this is pulled from the file header.
-            par (:class:`~pypeit.par.pypeitpar.PypeItPar`, optional):
+            par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
                 An instance of the parameter set.  If None, assumes that detector 1
                 is the one reduced and uses the default reduction parameters for the
                 spectrograph (see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
                 for the relevant spectrograph class).
+            skysub_frame (:obj:`list`, optional):
+                If not None, this should be a list of frames to use for the sky subtraction of each individual
+                entry of spec2dfiles. It should be the same length as spec2dfiles.
+            scale_corr (:obj:`list`, optional):
+                If not None, this should be a list of relative scale correction options. It should be the
+                same length as spec2dfiles.
+            ra_offsets (:obj:`list`, optional):
+                If not None, this should be a list of relative RA offsets of each frame. It should be the
+                same length as spec2dfiles.
+            dec_offsets (:obj:`list`, optional):
+                If not None, this should be a list of relative Dec offsets of each frame. It should be the
+                same length as spec2dfiles.
+            spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+                The name or instance of the spectrograph used to obtain the data.
+                If None, this is pulled from the file header.
             det (:obj:`int`_, optional):
                 Detector index
             overwrite (:obj:`bool`, optional):
@@ -356,24 +367,34 @@ class CoAdd3D:
         """
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
-        self.opts = opts
+        self.par = par
         self.overwrite = overwrite
+        # Do some quick checks on the input options
+        if skysub_frame is not None:
+            if len(skysub_frame) != len(spec2dfiles):
+                msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
+        if scale_corr is not None:
+            if len(scale_corr) != len(spec2dfiles):
+                msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
+        if ra_offsets is not None:
+            if len(ra_offsets) != len(spec2dfiles):
+                msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
+        if dec_offsets is not None:
+            if len(dec_offsets) != len(spec2dfiles):
+                msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
+        # Set the frame-specific options
+        self.skysub_frame = skysub_frame
+        self.scale_corr = scale_corr
+        self.ra_offsets = np.array(ra_offsets) if isinstance(ra_offsets, list) else ra_offsets
+        self.dec_offsets = np.array(dec_offsets) if isinstance(dec_offsets, list) else dec_offsets
 
         # Check on Spectrograph input
         if spectrograph is None:
             with fits.open(spec2dfiles[0]) as hdu:
                 spectrograph = hdu[0].header['PYP_SPEC']
 
-        if isinstance(spectrograph, str):
-            self.spec = load_spectrograph(spectrograph)
-            self.specname = spectrograph
-        else:
-            # Assume it's a Spectrograph instance
-            self.spec = spectrograph
-            self.specname = spectrograph.name
-
-        # Grab the parset, if not provided
-        self.par = self.spec.default_pypeit_par() if par is None else par
+        self.spec = load_spectrograph(spectrograph)
+        self.specname = self.spec.name
 
         # Extract some parsets for simplicity
         self.cubepar = self.par['reduce']['cube']
@@ -402,7 +423,7 @@ class CoAdd3D:
                 msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
                 msgs.info("Setting 'align' to False")
             self.align = False
-        if self.opts['ra_offset'] is not None:
+        if self.ra_offsets is not None:
             if not self.align:
                 msgs.warn("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
                 msgs.info("Setting 'align' to True")
@@ -596,17 +617,19 @@ class CoAdd3D:
                           msgs.newline() + self.cubepar['scale_corr'])
                 try:
                     spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'], self.detname)
-                    self.relScaleImgDef = spec2DObj.scaleimg
-                    self.scalecorr_default = self.cubepar['scale_corr']
-                except:
+                except Exception as e:
+                    msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
                               self.cubepar['scale_corr'] + msgs.newline() +
                               "scale correction will not be performed unless you have specified the correct" + msgs.newline() +
                               "scale_corr file in the spec2d block")
                     self.cubepar['scale_corr'] = None
                     self.scalecorr_default = "none"
+                else:
+                    self.relScaleImgDef = spec2DObj.scaleimg
+                    self.scalecorr_default = self.cubepar['scale_corr']
 
-    def get_current_scalecorr(self, spec2DObj, opts_scalecorr=None):
+    def get_current_scalecorr(self, spec2DObj, scalecorr=None):
         """
         Determine the scale correction that should be used to correct
         for the relative spectral scaling of the science frame
@@ -614,43 +637,46 @@ class CoAdd3D:
         Args:
             spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
                 2D PypeIt spectra object.
-            opts_scalecorr (:obj:`str`, optional):
+            scalecorr (:obj:`str`, optional):
                 A string that describes what mode should be used for the sky subtraction. The
                 allowed values are:
-                default - Use the default value, as defined in self.set_default_scalecorr()
-                image - Use the relative scale that was derived from the science frame
-                none - Do not perform relative scale correction
+
+                * default: Use the default value, as defined in self.set_default_scalecorr()
+                * image: Use the relative scale that was derived from the science frame
+                * none: Do not perform relative scale correction
 
         Returns:
-            :obj:`str`_: A string that describes the scale correction mode to be used (see opts_scalecorr description)
-            `numpy.ndarray`_: 2D image (same shape as science frame) containing the relative spectral scaling to apply to the science frame
+            A tuple (this_scalecorr, relScaleImg) where this_scalecorr is a :obj:`str`_ that describes the
+            scale correction mode to be used (see scalecorr description) and relScaleImg is a `numpy.ndarray`_
+            (2D, same shape as science frame) containing the relative spectral scaling to apply to the science frame.
         """
         this_scalecorr = self.scalecorr_default
         relScaleImg = self.relScaleImgDef.copy()
-        if opts_scalecorr is not None:
-            if opts_scalecorr.lower() == 'default':
+        if scalecorr is not None:
+            if scalecorr.lower() == 'default':
                 if self.scalecorr_default == "image":
                     relScaleImg = spec2DObj.scaleimg
                     this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
                 else:
                     this_scalecorr = self.scalecorr_default  # Use the default value for the scale correction
-            elif opts_scalecorr.lower() == 'image':
+            elif scalecorr.lower() == 'image':
                 relScaleImg = spec2DObj.scaleimg
                 this_scalecorr = "image"  # Use the current spec2d for the relative spectral illumination scaling
-            elif opts_scalecorr.lower() == 'none':
+            elif scalecorr.lower() == 'none':
                 relScaleImg = np.array([1])
                 this_scalecorr = "none"  # Don't do relative spectral illumination scaling
             else:
                 # Load a user specified frame for sky subtraction
                 msgs.info("Loading the following frame for the relative spectral illumination correction:" +
-                          msgs.newline() + opts_scalecorr)
+                          msgs.newline() + scalecorr)
                 try:
-                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(opts_scalecorr, self.detname)
-                except:
-                    msgs.error(
-                        "Could not load skysub image from spec2d file:" + msgs.newline() + opts_scalecorr)
-                relScaleImg = spec2DObj_scl.scaleimg
-                this_scalecorr = opts_scalecorr
+                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname)
+                except Exception as e:
+                    msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
+                    msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + scalecorr)
+                else:
+                    relScaleImg = spec2DObj_scl.scaleimg
+                    this_scalecorr = scalecorr
         if this_scalecorr == "none":
             msgs.info("Relative spectral illumination correction will not be performed.")
         else:
@@ -677,12 +703,13 @@ class CoAdd3D:
             try:
                 spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
                 skysub_exptime = fits.open(self.cubepar['skysub_frame'])[0].header['EXPTIME']
+            except:
+                msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
+            else:
                 self.skysub_default = self.cubepar['skysub_frame']
                 self.skyImgDef = spec2DObj.sciimg / skysub_exptime  # Sky counts/second
                 # self.skyImgDef = spec2DObj.skymodel/skysub_exptime  # Sky counts/second
                 self.skySclDef = spec2DObj.scaleimg
-            except:
-                msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
 
     def get_current_skysub(self, spec2DObj, exptime, opts_skysub=None):
         """
@@ -701,9 +728,11 @@ class CoAdd3D:
                 none - Do not perform sky subtraction
 
         Returns:
-            :obj:`str`_: A string that describes the sky subtration mode to be used (see opts_skysub description)
-            `numpy.ndarray`_: 2D image (same shape as science frame) containing the sky frame to be subtracted from the science frame
-            `numpy.ndarray`_: 2D image (same shape as science frame) containing the relative spectral scaling that has been applied to the returned sky frame
+            A tuple (this_skysub, skyImg, skyScl) where this_skysub is a :obj:`str`_ that describes the sky subtration
+            mode to be used (see opts_skysub description), skyImg is a `numpy.ndarray`_ (2D, same shape as science
+            frame) containing the sky frame to be subtracted from the science frame, and skyScl is a `numpy.ndarray`_
+            (2D, same shape as science frame) containing the relative spectral scaling that has been applied to the
+            returned sky frame.
         """
         this_skysub = self.skysub_default
         if self.skysub_default == "image":
@@ -803,7 +832,6 @@ class CoAdd3D:
         """
         msgs.bug("This routine should be overridden by child classes.")
         msgs.error("Cannot proceed without coding the coadd routine.")
-        return
 
 
 class SlicerIFUCoAdd3D(CoAdd3D):
@@ -838,9 +866,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, opts, spectrograph=None, par=None, det=1, overwrite=False,
-                 show=False, debug=False):
-        super().__init__(spec2dfiles, opts, spectrograph=spectrograph, par=par, det=det, overwrite=overwrite,
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
+                 spectrograph=None, det=1, overwrite=False, show=False, debug=False):
+        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
+                         dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
                          show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
@@ -889,11 +918,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         else:
             locations = self.par['calibrations']['alignment']['locations']
             traces = alignments.traces
-        # Generate an RA/DEC image
-        msgs.info("Generating RA/DEC image")
-        alignSplines = alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
-        # Return the alignment splines
-        return alignSplines
+        msgs.info("Generating alignment splines")
+        return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
 
     def set_voxel_sampling(self):
         """
@@ -950,8 +976,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.ifu_dec = np.append(self.ifu_dec, self.spec.compound_meta([hdr0], 'dec'))
 
             # Get the exposure time
-            # TODO :: Surely this should be retrieved from metadata... although it's coming from spec2d file?
-            exptime = hdr0['EXPTIME']
+            exptime = self.spec.compound_meta([hdr0], 'exptime')
 
             # Setup for PypeIt imports
             msgs.reset(verbosity=2)
@@ -971,12 +996,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Set the default behaviour if a global skysub frame has been specified
             this_skysub, skyImg, skyScl = self.get_current_skysub(spec2DObj, exptime,
-                                                                  opts_skysub=self.opts['skysub_frame'][ff])
+                                                                  opts_skysub=self.skysub_frame[ff])
 
             # Load the relative scale image, if something other than the default has been provided
             this_scalecorr, relScaleImg = self.get_current_scalecorr(spec2DObj,
-                                                                     opts_scalecorr=self.opts['scale_corr'][ff])
-
+                                                                     scalecorr=self.scale_corr[ff])
             # Prepare the relative scaling factors
             relSclSky = skyScl / spec2DObj.scaleimg  # This factor ensures the sky has the same relative scaling as the science frame
             relScale = spec2DObj.scaleimg / relScaleImg  # This factor is applied to the sky subtracted science frame
@@ -1075,13 +1099,17 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Compute the DAR correction
             cosdec = np.cos(np.mean(dec_sort) * np.pi / 180.0)
-            darcorr = DARcorrection(spec2DObj.head0, cosdec, spectrograph=self.spec)
+            airmass = self.spec.get_meta_value([spec2DObj.head0], 'airmass')  # unitless
+            parangle = self.spec.get_meta_value([spec2DObj.head0], 'parangle')
+            pressure = self.spec.get_meta_value([spec2DObj.head0], 'pressure')  # units are pascals
+            temperature = self.spec.get_meta_value([spec2DObj.head0], 'temperature')  # units are degrees C
+            humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
+            darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
 
             # Perform extinction correction
             msgs.info("Applying extinction correction")
             longitude = self.spec.telescope['longitude']
             latitude = self.spec.telescope['latitude']
-            airmass = spec2DObj.head0[self.spec.meta['airmass']['card']]
             extinct = flux_calib.load_extinction_data(longitude, latitude, self.senspar['UVIS']['extinct_file'])
             # extinction_correction requires the wavelength is sorted
             extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
@@ -1190,16 +1218,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.all_dec) * np.pi / 180.0)
         # Register spatial offsets between all frames
-        if self.opts['ra_offset'] is not None:
-            # Fill in some offset arrays
-            ra_offset, dec_offset = np.zeros(self.numfiles), np.zeros(self.numfiles)
-            for ff in range(self.numfiles):
-                ra_offset[ff] = self.opts['ra_offset'][ff]
-                dec_offset[ff] = self.opts['dec_offset'][ff]
+        if self.ra_offsets is not None:
             # Calculate the offsets
             new_ra, new_dec = datacube.align_user_offsets(self.all_ra, self.all_dec, self.all_idx,
                                                           self.ifu_ra, self.ifu_dec,
-                                                          ra_offset, dec_offset)
+                                                          self.ra_offsets, self.dec_offsets)
         else:
             new_ra, new_dec = self.all_ra.copy(), self.all_dec.copy()
             # Find the wavelength range where all frames overlap
@@ -1624,7 +1647,7 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
 
     # Write out the datacube
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(wave, flxcube.T, np.sqrt(varcube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
+    final_cube = DataCube(flxcube.T, np.sqrt(varcube.T), bpmcube.T, wave, specname, blaze_wave, blaze_spec,
                           sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
