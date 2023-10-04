@@ -220,7 +220,7 @@ class ProcessImagesPar(ParSet):
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, subtract_scattlight=None, subtract_continuum=None,
-                 spat_flexure_correct=None):
+                 spat_flexure_correct=None, spat_flexure_maxlag = None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -345,6 +345,9 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
 
+        defaults['spat_flexure_maxlag'] = 20
+        dtypes['spat_flexure_maxlag'] = int
+        descr['spat_flexure_maxlag'] = 'Maximum of possible flexure offsets, in pixels'
 
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
@@ -438,7 +441,7 @@ class ProcessImagesPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
                    'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',

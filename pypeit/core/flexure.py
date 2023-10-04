@@ -40,7 +40,7 @@ from pypeit import data
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag=60):
+def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -72,30 +72,40 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=60):
     mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
     thresh =  med_sci + 5.0*stddev_sci
     corr_sci = np.fmin(_sciimg.flatten(), thresh)
-
+    #plt.figure()
+    #plt.plot(corr_sci/np.nanmedian(corr_sci), label = 'corr_sci')
+    #plt.plot(corr_slits, label = 'corr_slits')
+    #plt.legend()
+    #plt.show()
     lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom
     # TODO -- Generate a QA plot
+    #debug = True
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
             = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
                                cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
-        msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
+#        msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
+        msgs.warn('No peak found in spatial flexure.  Trying with lower SNR')
+        tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
+                = arc.detect_lines(xcorr_norm, sigdetect=3.0e-2, fit_frac_fwhm=1.5, fwhm=5.0,
+                                cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
+                
 #        if debug:
 #            embed(header='68 of flexure')
         return 0.
-
+    
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
     #If xcorr is broad but has a defined peak, use that since detect_lines might fail
     # NOTE: This is definitely a kludge, but necessary for NIRSPEC - ASC
     if xcorr_max < np.max(xcorr_norm):
-        lag_max = [lags[np.argmax(xcorr_norm)]]
+        lag_max = [lags[lags > 0][np.argmax(xcorr_norm[lags > 0])]]
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
-
+    #debug = True
     if debug:
         plt.figure(figsize=(14, 6))
         plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr')
@@ -109,6 +119,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=60):
 
     #slitmask_shift = pixels.tslits2mask(tslits_shift)
     #slitmask_shift = slits.slit_img(flexure=lag_max[0])
+    debug = False
     if debug:
         # Now translate the slits in the tslits_dict
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
