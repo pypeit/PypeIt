@@ -12,6 +12,9 @@ Functionality/Performance Improvements and Additions
 
 - Started the development of instrument-specific scattered light removal. In this
   release, we only model KCWI/KCRM scattered light.
+- Turned on use_2dmodel_mask for echelle spectrographs
+- Allow one to turn off reinit of reduce_bpm in global_skysub and made this 
+  the default for the final pass
 
 Instrument-specific Updates
 ---------------------------
