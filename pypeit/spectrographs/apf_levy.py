@@ -33,6 +33,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
     name = 'apf_levy'
     camera = 'apf'
     header_name = 'apf'
+    ech_fixed_format = True
     
     @classmethod
     def default_pypeit_par(cls):
@@ -101,10 +102,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             specaxis=0,
             specflip=False,
             spatflip=False,
-            platescale=0.39,
-            saturation=65535.,
+            platescale=0.39, # SV made a very fast camera and the thing takes a f/3 beam
+            saturation=65535., 
             mincounts=-1e10,
-            nonlinear=0.99,
+            nonlinear=0.99, # the full well is like 300k and the gain is 1.031
             numamplifiers=1,
             gain=np.asarray([1.031]),
             ronoise=np.asarray([3.75]),
@@ -216,7 +217,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat') 
         if ftype in ['trace']:
-            return good_exp & (fitstbl['idname'] == 'Iodine') 
+            return good_exp & (fitstbl['idname'] == 'WideFlat') 
         if ftype in ['pinhole']:
             return good_exp & (fitstbl['idname'] == 'NarrowFlat') 
         if ftype in ['arc', 'tilt']:
@@ -246,7 +247,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(60, 125)
+        return np.arange(60, 125, dtype=int)
 
     @property
     def order_spat_pos(self):
