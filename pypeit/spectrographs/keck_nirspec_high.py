@@ -591,6 +591,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['slitedges']['rm_slits'] = '1:'
+            
 
         if decker == '0.144x12':
             par['calibrations']['wavelengths']['fwhm'] = 3.0

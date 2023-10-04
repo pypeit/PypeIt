@@ -152,9 +152,12 @@ class CoAdd1D:
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
         if order_stacks is not None:
-            onespec.order_stacks = order_stacks
-        elif order_stacks is None:
-            onespec.order_stacks = None
+            onespec.wave_stack = order_stacks[0,:,:]
+            onespec.flux_stack = order_stacks[1,:,:]
+            onespec.ivar_stack = order_stacks[2,:,:]
+            onespec.mask_stack = order_stacks[3,:,:].astype(int)
+        #elif order_stacks is None:
+            #onespec.order_stacks = None
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
