@@ -30,7 +30,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
     camera = 'apf'
     header_name = 'apf'
     ech_fixed_format = True
-
     @classmethod
     def default_pypeit_par(cls):
         """
