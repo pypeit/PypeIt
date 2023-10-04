@@ -778,8 +778,8 @@ class CoAdd2D:
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-
+        # Enforce low order traces since we are rectified
+        parcopy['reduce']['findobj']['trace_npoly'] = int(np.clip(parcopy['reduce']['findobj']['trace_npoly'],None,3))
         # Manual extraction.
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
