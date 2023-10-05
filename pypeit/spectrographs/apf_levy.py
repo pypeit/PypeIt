@@ -217,7 +217,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat') 
         if ftype in ['trace']:
-            return good_exp & (fitstbl['idname'] == 'WideFlat') 
+            return good_exp & ((fitstbl['idname'] == 'WideFlat') |
+                                   (fitstbl['idname'] == 'Iodine'))
         if ftype in ['pinhole']:
             return good_exp & (fitstbl['idname'] == 'NarrowFlat') 
         if ftype in ['arc', 'tilt']:
