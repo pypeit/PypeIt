@@ -1,7 +1,7 @@
 
 .. include:: ../include/links.rst
 
-.. _nirspec_high_howto:
+.. _nirspec_howto:
 
 ================
 Keck/NIRSPEC High Resolution HOWTO
