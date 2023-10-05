@@ -61,7 +61,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        #par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -262,39 +262,39 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         return ord_spat_pos
 
 
-def apf_read_chip(hdu):
-    """ Read the APF detector
+# def apf_read_chip(hdu):
+#     """ Read the APF detector
 
-    Parameters
-    ----------
-    hdu : HDUList
+#     Parameters
+#     ----------
+#     hdu : HDUList
 
-    Returns
-    -------
-    data : ndarray
-    oscan : ndarray
-    """
+#     Returns
+#     -------
+#     data : ndarray
+#     oscan : ndarray
+#     """
 
-    # Extract datasec from header
-    datsec = hdu[0].header['DATASEC']
-    postpix = hdu[0].header['COVER']
+#     # Extract datasec from header
+#     datsec = hdu[0].header['DATASEC']
+#     postpix = hdu[0].header['COVER']
 
 
-    x1_dat, x2_dat, y1_dat, y2_dat = np.array(parse.load_sections(datsec)).flatten()
-    x1_det, x2_det, y1_det, y2_det = np.array(parse.load_sections(detsec)).flatten()
+#     x1_dat, x2_dat, y1_dat, y2_dat = np.array(parse.load_sections(datsec)).flatten()
+#     x1_det, x2_det, y1_det, y2_det = np.array(parse.load_sections(detsec)).flatten()
 
-    # This rotates the image to be increasing wavelength to the top
-    #data = np.rot90((hdu[0].data).T, k=2)
-    #nx=data.shape[0]
-    #ny=data.shape[1]
+#     # This rotates the image to be increasing wavelength to the top
+#     #data = np.rot90((hdu[0].data).T, k=2)
+#     #nx=data.shape[0]
+#     #ny=data.shape[1]
 
-    # Science data
-    fullimage = hdu[0].data
-    data = fullimage[x1_dat:x2_dat,y1_dat:y2_dat]
+#     # Science data
+#     fullimage = hdu[0].data
+#     data = fullimage[x1_dat:x2_dat,y1_dat:y2_dat]
 
-    # Overscan
-    oscan = fullimage[:,y2_dat:]
+#     # Overscan
+#     oscan = fullimage[:,y2_dat:]
 
-    # Return
-    return data, oscan
+#     # Return
+#     return data, oscan
 
