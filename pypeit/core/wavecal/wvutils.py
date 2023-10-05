@@ -1006,5 +1006,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
                   f"   [[wavelengths]]{msgs.newline()}"
                   f"     reid_arxiv = {outroot}{msgs.newline()}"
                   f"     method = full_template\n")
+        print("")  # Empty line for clarity
+        msgs.info(f"To use exactly the solutions created above {msgs.newline()}"
+                  f"disable the 2d fitting by adding the keyword no_2dfit = True")
     print("")  # Empty line for clarity
     msgs.info("Please consider sharing your solution with the PypeIt Developers.")
