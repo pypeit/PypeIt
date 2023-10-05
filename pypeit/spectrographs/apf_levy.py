@@ -100,9 +100,9 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             det=1,
             dataext=0,
             specaxis=0,
-            specflip=False,
-            spatflip=False,
-            platescale=0.39, # SV made a very fast camera and the thing takes a f/3 beam
+            specflip=True,
+            spatflip=True,
+            platescale=0.39, # SV made a very fast camera and the instrument takes a f/3 beam
             saturation=65535., 
             mincounts=-1e10,
             nonlinear=0.99, # the full well is like 300k and the gain is 1.031
