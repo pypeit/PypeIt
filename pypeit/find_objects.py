@@ -1245,12 +1245,19 @@ class IFUFindObjects(MultiSlitFindObjects):
         return _global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
+                      reinit_bpm:bool=True):
         """
         Perform global sky subtraction. This IFU-specific routine ensures that the
         edges of the slits are not trimmed, and performs a spatial and spectral
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.
+
+        Args:
+            reinit_bpm (:obj:`bool`, optional):
+                If True (default), the bpm is reinitialized to the initial bpm 
+                Should be False on the final run in case there was a failure
+                upstream and no sources were found in the slit/order
         """
         if self.par['reduce']['findobj']['skip_skysub']:
             msgs.info("Skipping global sky sub as per user request")
@@ -1259,7 +1266,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Generate a global sky sub for all slits separately
         global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
-                                               show_objs=show_objs)
+                                               show_objs=show_objs, reinit_bpm=reinit_bpm)
         # Check if any slits failed
         if np.any(global_sky_sep[self.slitmask >= 0] == 0) and not self.bkg_redux:
             # Cannot continue without a sky model for all slits
