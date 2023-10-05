@@ -115,7 +115,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             darkcurr=0.0008,
             # These are rows, columns on the raw frame, 1-indexed
             datasec=np.asarray(['[:, 1:2048]']),
-            oscansec=np.asarray(['[:, 2049:2080]']),
+            oscansec=np.asarray(['[:, 2049:2080]']),  # oscan is in the spatial direction
         )
         return detector_container.DetectorContainer(**detector_dict)
 
