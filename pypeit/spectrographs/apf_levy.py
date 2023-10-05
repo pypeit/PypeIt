@@ -185,7 +185,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        #par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
