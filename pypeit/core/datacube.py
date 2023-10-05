@@ -213,8 +213,9 @@ def extract_standard_spec(stdcube, subpixel=20):
 
     # Setup the WCS
     stdwcs = wcs.WCS(stdcube['FLUX'].header)
-    wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
-    wave = wcs_wav[:, 2] * 1.0E10 * units.AA
+
+    wcs_scale = (1.0 * stdwcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * stdwcs.spectral.wcs_pix2world(np.arange(numwave), 0)[0]
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     wl_img = make_whitelight_fromcube(flxcube)
@@ -342,8 +343,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
                                  polyfunc=senspar['UVIS']['polyfunc'])
     wgd = np.where(zeropoint_fit_gpm)
     sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
-    flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
-    return flux_spline
+    return interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
 
 
 def make_good_skymask(slitimg, tilts):
@@ -399,18 +399,14 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
         str: The output filename to use.
     """
     if combine:
-        if par_outfile == "":
-            par_outfile = "datacube.fits"
-        # Check the output files don't exist
-        outfile = par_outfile if ".fits" in par_outfile else par_outfile + ".fits"
-    else:
-        if par_outfile == "":
-            outfile = fil.replace("spec2d_", "spec3d_")
-        else:
-            # Use the output filename as a prefix
-            outfile = os.path.splitext(par_outfile)[0] + "_{0:03d}.fits".format(idx)
-    # Return the outfile
-    return outfile
+        if par_outfile == '':
+            par_outfile = 'datacube.fits'
+        # Check if we needs to append an extension
+        return par_outfile if '.fits' in par_outfile else f'{par_outfile}.fits'
+    if par_outfile == '':
+        return fil.replace('spec2d_', 'spec3d_')
+    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffic
+    return os.path.splitext(par_outfile)[0] + f'_{idx:03}.fits'
 
 
 def get_output_whitelight_filename(outfile):
@@ -423,10 +419,9 @@ def get_output_whitelight_filename(outfile):
             The output filename used for the datacube.
 
     Returns:
-        str: The output filename to use for the whitelight image.
+        A string containing the output filename to use for the whitelight image.
     """
-    out_wl_filename = os.path.splitext(outfile)[0] + "_whitelight.fits"
-    return out_wl_filename
+    return os.path.splitext(outfile)[0] + "_whitelight.fits"
 
 
 def get_whitelight_pixels(all_wave, min_wl, max_wl):
@@ -515,7 +510,7 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
             reduce the wavelength range.
 
     Returns:
-        `numpy.ndarray`_: Whitelight image of the input cube.
+        A whitelight image of the input cube (of type `numpy.ndarray`_).
     """
     # Make a wavelength cut, if requested
     cutcube = cube.copy()
@@ -591,8 +586,8 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
             A list of Dec offsets to be applied to the input pixel values (one value per frame).
 
     Returns:
-        `numpy.ndarray`_: A new set of RA values that have been aligned
-        `numpy.ndarray`_: A new set of Dec values that has been aligned
+        A tuple containing a new set of RA and Dec values that have been aligned. Both arrays
+        are of type `numpy.ndarray`_.
     """
     # First, translate all coordinates to the coordinates of the first frame
     # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
@@ -842,7 +837,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
-    wave_spec = wcs_res[:, 2] * 1.0E10
+    wcs_scale = (1.0 * whitelightWCS.wcs.cunit[2]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave_spec = wcs_scale * wcs_res[:, 2]
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))

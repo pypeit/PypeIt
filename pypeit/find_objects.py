@@ -42,7 +42,7 @@ class FindObjects:
             Specifies object being reduced.  Should be 'science',
             'standard', or 'science_coadd2d'.
         wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
-            This is only used for the SlicerIFU child when a joint sky subtraction
+            This is only used for the :class:`SlicerIFUFindObjects` child when a joint sky subtraction
             is requested.
         waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
             Calibration frame with arc/sky line tracing of the wavelength
@@ -471,7 +471,8 @@ class FindObjects:
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
+                slit spat_id (:class:`MultiSlitFindObjects`, :class:`SlicerIFUFindObjects`)
+                or ech_order (:class:`EchelleFindObjects`) value.
 
         Returns:
             :obj:`float`: plate scale in binned pixels

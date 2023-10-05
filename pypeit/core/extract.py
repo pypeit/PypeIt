@@ -467,8 +467,8 @@ def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
             or an integer that specifies the number of bin edges to generate
 
     Returns:
-        `numpy.ndarray`_: The wavelength at the centre of each histogram bin
-        `numpy.ndarray`_: The spectrum at each pixel of the returned wavelength array
+        A tuple containing the wavelength and spectrum at the centre of each histogram bin. Both
+        arrays returned in the tuple are `numpy.ndarray`_.
     """
     # Check the inputs
     if waveimg.shape != frame.shape:

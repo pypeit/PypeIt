@@ -599,18 +599,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         skypa = self.compound_meta([hdr], 'posang')
-        # Now in compont_meta
-        # Get rotator position
-        #if 'ROTPOSN' in hdr:
-        #    rpos = hdr['ROTPOSN']
-        #else:
-        #    rpos = 0.
-        #if 'ROTREFAN' in hdr:
-        #    rref = hdr['ROTREFAN']
-        #else:
-        #    rref = 0.
-        # Get the offset and PA
-        #skypa = rpos + rref  # IFU position angle (degrees)
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
         crota = np.radians(-(skypa + rotoff))
 

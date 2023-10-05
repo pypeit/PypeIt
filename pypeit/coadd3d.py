@@ -978,9 +978,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the exposure time
             exptime = self.spec.compound_meta([hdr0], 'exptime')
 
-            # Setup for PypeIt imports
-            msgs.reset(verbosity=2)
-
             # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
 
             # Initialise the slit edges
@@ -1158,6 +1155,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
             numpix = ra_sort.size
+            embed()
             if not self.combine and not self.align:
                 # Get the output filename
                 if self.numfiles == 1 and self.cubepar['output_filename'] != "":
@@ -1169,8 +1167,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
                 # Generate the output WCS for the datacube
-                crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else 1.0E10 * frame_wcs.wcs.crval[2]
-                cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else 1.0E10 * frame_wcs.wcs.cd[2, 2]
+                tmp_crval_wv = (frame_wcs.wcs.crval[2] * frame_wcs.wcs.cunit[2]).to(units.Angstrom).value
+                tmp_cd_wv = (frame_wcs.wcs.cd[2,2] * frame_wcs.wcs.cunit[2]).to(units.Angstrom).value
+                crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else tmp_crval_wv
+                cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else tmp_cd_wv
                 output_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
                 # Set the wavelength range of the white light image.
                 wl_wvrng = None
@@ -1353,9 +1353,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         sensfunc = None
         if self.flux_spline is not None:
-            # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+            # Get wavelength of each pixel
             numwav = vox_edges[2].size - 1
-            senswave = cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0] * 1.0E10
+            wcs_scale = (1.0 * cube_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+            senswave = wcs_scale * cube_wcs.spectral.wcs_pix2world(np.arange(numwav), 0)[0]
             sensfunc = self.flux_spline(senswave)
 
         # Generate a datacube
@@ -1623,9 +1624,10 @@ def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_s
     else:
         flxcube, varcube, bpmcube = subpix
 
-    # Get wavelength of each pixel, and note that the WCS gives this in m, so convert to Angstroms (x 1E10)
+    # Get wavelength of each pixel
     nspec = flxcube.shape[2]
-    wave = 1.0E10 * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]  # The factor 1.0E10 convert to Angstroms
+    wcs_scale = (1.0*output_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
 
     # Check if the user requested a white light image
     if whitelight_range is not None:
@@ -1742,7 +1744,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
         residual cube.  The latter is only returned if debug is True.
     """
     # Check for combinations of lists or not
-    if type(tilts) is list and type(slits) is list and type(astrom_trans) is list and type(all_dar) is list:
+    if all([isinstance(l, list) for l in [tilts, slits, astrom_trans, all_dar]]):
         # Several frames are being combined. Check the lists have the same length
         numframes = len(tilts)
         if len(slits) != numframes or len(astrom_trans) != numframes or len(all_dar) != numframes:
@@ -1760,8 +1762,7 @@ def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_w
                 msgs.warn("Indices in argument 'all_idx' does not match the number of frames expected.")
         # Store in the following variables
         _tilts, _slits, _astrom_trans, _all_dar = tilts, slits, astrom_trans, all_dar
-    elif type(tilts) is not list and type(slits) is not list and \
-            type(astrom_trans) is not list and type(all_dar) is not list:
+    elif all([not isinstance(l, list) for l in [tilts, slits, astrom_trans, all_dar]]):
         # Just a single frame - store as lists for this code
         _tilts, _slits, _astrom_trans, _all_dar = [tilts], [slits], [astrom_trans], [all_dar]
         all_idx = np.zeros(all_sci.size)
