@@ -1103,7 +1103,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             temperature = self.spec.get_meta_value([spec2DObj.head0], 'temperature')  # units are degrees C
             humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
             darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
-            darcorr.correction(wave_sort)
 
             # Perform extinction correction
             msgs.info("Applying extinction correction")
