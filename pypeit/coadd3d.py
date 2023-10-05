@@ -1156,7 +1156,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
             numpix = ra_sort.size
-            embed()
             if not self.combine and not self.align:
                 # Get the output filename
                 if self.numfiles == 1 and self.cubepar['output_filename'] != "":
