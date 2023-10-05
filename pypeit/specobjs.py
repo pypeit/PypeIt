@@ -5,6 +5,7 @@ Module for the SpecObjs and SpecObj classes
 .. include:: ../include/links.rst
 """
 import os
+from pathlib import Path
 import re
 from typing import List
 
@@ -75,49 +76,57 @@ class SpecObjs:
             provided fits file.
         """
         # HDUList
-        hdul = io.fits_open(fits_file)
-        # Init
-        slf = cls()
-        # Add on the header
-        slf.header = hdul[0].header
-        # Keep track of HDUList for closing later
+        with io.fits_open(fits_file) as hdul:
+            # Init
+            slf = cls()
+            # Add on the header
+            slf.header = hdul[0].header
 
-        # Catch common error of trying to read a OneSpec file
-        if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
-            msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
+            # Catch common error of trying to read a OneSpec file
+            if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
+                msgs.error('This is a OneSpec file.  You are treating it like a SpecObjs file.')
 
-        detector_hdus = {}
-        # Loop for Detectors first as we need to add these to the objects
-        for hdu in hdul[1:]:
-            if 'DETECTOR' not in hdu.name:
-                continue
-            if 'DMODCLS' not in hdu.header:
-                msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
-            try:
-                dmodcls = eval(hdu.header['DMODCLS'])
-            except:
-                msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
-            # NOTE: This requires that any "detector" datamodel class has a
-            # from_hdu method, and the name of the HDU must have a known format
-            # (e.g., 'DET01-DETECTOR').
-            _det = hdu.name.split('-')[0]
-            detector_hdus[_det] = dmodcls.from_hdu(hdu)
+            # Load the calibration association into the instance attribute `calibs`
+            if 'CLBS_DIR' in slf.header:
+                slf.calibs = {}
+                slf.calibs['DIR'] = slf.header['CLBS_DIR']
+                for key in slf.header.keys():
+                    if key.startswith('CLBS_') \
+                            and (Path(slf.calibs['DIR']).resolve() / slf.header[key]).exists():
+                        slf.calibs['_'.join(key.split('_')[1:])] = slf.header[key]
 
-        # Now the objects
-        for hdu in hdul[1:]:
-            if 'DETECTOR' in hdu.name:
-                continue
-            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
-            # Restrict on det?
-            if det is not None and sobj.DET != det:
-                continue
-            # Check for detector
-            if sobj.DET in detector_hdus.keys():
-                sobj.DETECTOR = detector_hdus[sobj.DET]
-            # Append
-            slf.add_sobj(sobj)
+            detector_hdus = {}
+            # Loop for Detectors first as we need to add these to the objects
+            for hdu in hdul[1:]:
+                if 'DETECTOR' not in hdu.name:
+                    continue
+                if 'DMODCLS' not in hdu.header:
+                    msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
+                try:
+                    dmodcls = eval(hdu.header['DMODCLS'])
+                except:
+                    msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
+                # NOTE: This requires that any "detector" datamodel class has a
+                # from_hdu method, and the name of the HDU must have a known format
+                # (e.g., 'DET01-DETECTOR').
+                _det = hdu.name.split('-')[0]
+                detector_hdus[_det] = dmodcls.from_hdu(hdu)
+
+            # Now the objects
+            for hdu in hdul[1:]:
+                if 'DETECTOR' in hdu.name:
+                    continue
+                sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
+                # Restrict on det?
+                if det is not None and sobj.DET != det:
+                    continue
+                # Check for detector
+                if sobj.DET in detector_hdus.keys():
+                    sobj.DETECTOR = detector_hdus[sobj.DET]
+                # Append
+                slf.add_sobj(sobj)
+
         # Return
-        hdul.close()
         return slf
 
 
@@ -133,6 +142,7 @@ class SpecObjs:
 
         self.header = header
         self.hdul = None
+        self.calibs = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -247,7 +257,7 @@ class SpecObjs:
         meta_spec['DET'] = np.array(detector)
         meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
-        if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
+        if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
@@ -272,7 +282,7 @@ class SpecObjs:
         """
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
-        if 'MultiSlit' in pypeline or 'IFU' in pypeline:
+        if 'MultiSlit' in pypeline or 'SlicerIFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
                 SNR = np.median(self.OPT_COUNTS * np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
@@ -354,7 +364,7 @@ class SpecObjs:
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
-        elif sobjs_neg[0].PYPELINE == 'IFU':
+        elif sobjs_neg[0].PYPELINE == 'SlicerIFU':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -375,7 +385,7 @@ class SpecObjs:
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
                 index = self.OBJID < 0
-            elif self[0].PYPELINE == 'IFU':
+            elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
                 msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -393,7 +403,7 @@ class SpecObjs:
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
                 index = self.OBJID < 0
-            elif self[0].PYPELINE == 'IFU':
+            elif self[0].PYPELINE == 'SlicerIFU':
                 index = self.OBJID < 0
             else:
                 msgs.error("Should not get here")
@@ -419,7 +429,7 @@ class SpecObjs:
             indx = self.ECH_ORDER == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
-        elif self[0].PYPELINE == 'IFU':
+        elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.SLITID == slitorder
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -441,7 +451,7 @@ class SpecObjs:
             indx = self.ECH_NAME == name
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.NAME == name
-        elif self[0].PYPELINE == 'IFU':
+        elif self[0].PYPELINE == 'SlicerIFU':
             indx = self.NAME == name
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -471,7 +481,7 @@ class SpecObjs:
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
             indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
-        elif self[0].PYPELINE == 'IFU':
+        elif self[0].PYPELINE == 'SlicerIFU':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
@@ -752,6 +762,10 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+        # Add calibration associations to Header
+        if self.calibs is not None:
+            for key, val in self.calibs.items():
+                header[f'CLBS_{key}'] = val
 
         # Init
         prihdu = fits.PrimaryHDU(header=header)
@@ -849,7 +863,7 @@ class SpecObjs:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
-            elif pypeline == 'IFU':
+            elif pypeline == 'SlicerIFU':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
@@ -874,11 +888,8 @@ class SpecObjs:
                 boxsize.append(0.)
 
             # Optimal profile (FWHM)
+            opt_fwhm.append(specobj.SPAT_FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
-                opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
-            else:  # Optimal is not required to occur
-                opt_fwhm.append(0.)
             # NOTE: Below requires that S2N not be None, otherwise the code will
             # fault.  If the code gets here and S2N is None, check that 1D
             # extractions have been performed.
@@ -898,7 +909,7 @@ class SpecObjs:
             if pypeline == 'MultiSlit':
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
-            elif pypeline == 'IFU':
+            elif pypeline == 'SlicerIFU':
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
             elif pypeline == 'Echelle':

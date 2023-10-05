@@ -17,7 +17,7 @@
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
                             gemini_gnirs_echelle, gemini_gnirs_ifu, gtc_maat,
                             gtc_osiris, gtc_osiris_plus, jwst_nircam, jwst_nirspec,
-                            keck_deimos, keck_esi, keck_hires, keck_kcwi,
+                            keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
                             keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
                             keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
                             keck_nires, keck_nirspec_low, lbt_luci1, lbt_luci2,
@@ -57,7 +57,9 @@
                             Include the manual extraction column for the user to
                             edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
-                            Level of verbosity from 0 to 2. (default: 2)
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename setup_YYYYMMDD-
+                            HHMM.log (default: 1)
       -k, --keep_bad_frames
                             Keep all frames, even if they are identified as having
                             bad/unrecognized configurations that cannot be reduced

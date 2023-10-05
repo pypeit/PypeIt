@@ -5,8 +5,6 @@ Module containing routines used by 3D datacubes.
 """
 
 import os
-import copy
-import inspect
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
@@ -16,382 +14,10 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
-from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import coadd, extract, findobj_skymask, flux_calib, parse, skysub
-from pypeit.core.procimg import grow_mask
-from pypeit.spectrographs.util import load_spectrograph
-
-# Use a fast histogram for speed!
-try:
-    from fast_histogram import histogramdd
-except ImportError:
-    histogramdd = None
+from pypeit import utils
+from pypeit.core import coadd, flux_calib
 
 from IPython import embed
-
-
-class DataCube(datamodel.DataContainer):
-    """
-    DataContainer to hold the products of a datacube
-
-    The datamodel attributes are:
-
-    .. include:: ../include/class_datamodel_datacube.rst
-
-    Args:
-        flux (`numpy.ndarray`_):
-            The science datacube (nwave, nspaxel_y, nspaxel_x)
-        sig (`numpy.ndarray`_):
-            The error datacube (nwave, nspaxel_y, nspaxel_x)
-        bpm (`numpy.ndarray`_):
-            The bad pixel mask of the datacube (nwave, nspaxel_y, nspaxel_x).
-            True values indicate a bad pixel
-        blaze_wave (`numpy.ndarray`_):
-            Wavelength array of the spectral blaze function
-        blaze_spec (`numpy.ndarray`_):
-            The spectral blaze function
-        sensfunc (`numpy.ndarray`_, None):
-            Sensitivity function (nwave,). Only saved if the data are fluxed.
-        PYP_SPEC (str):
-            Name of the PypeIt Spectrograph
-        fluxed (bool):
-            If the cube has been flux calibrated, this will be set to "True"
-
-    Attributes:
-        head0 (`astropy.io.fits.Header`_):
-            Primary header
-        filename (str):
-            Filename to use when loading from file
-        spect_meta (:obj:`dict`):
-            Parsed meta from the header
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Build from PYP_SPEC
-
-    """
-    version = '1.1.0'
-
-    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating,
-                              descr='Flux datacube in units of counts/s/Ang/arcsec^2 or '
-                                    '10^-17 erg/s/cm^2/Ang/arcsec^2'),
-                 'sig': dict(otype=np.ndarray, atype=np.floating,
-                             descr='Error datacube (matches units of flux)'),
-                 'bpm': dict(otype=np.ndarray, atype=np.uint8,
-                             descr='Bad pixel mask of the datacube (0=good, 1=bad)'),
-                 'blaze_wave': dict(otype=np.ndarray, atype=np.floating,
-                                    descr='Wavelength array of the spectral blaze function'),
-                 'blaze_spec': dict(otype=np.ndarray, atype=np.floating,
-                                    descr='The spectral blaze function'),
-                 'sensfunc': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='Sensitivity function 10^-17 erg/(counts/cm^2)'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
-                 'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
-
-    internals = ['head0',
-                 'filename',
-                 'spectrograph',
-                 'spect_meta'
-                ]
-
-    def __init__(self, flux, sig, bpm, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
-                 fluxed=None):
-
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k, values[k]) for k in args[1:]])
-        # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=_d)
-
-    def _bundle(self):
-        """
-        Over-write default _bundle() method to separate the DetectorContainer
-        into its own HDU
-
-        Returns:
-            :obj:`list`: A list of dictionaries, each list element is
-            written to its own fits extension. See the description
-            above.
-        """
-        d = []
-        # Rest of the datamodel
-        for key in self.keys():
-            # Skip Nones
-            if self[key] is None:
-                continue
-            # Array?
-            if self.datamodel[key]['otype'] == np.ndarray:
-                tmp = {}
-                if self.datamodel[key]['atype'] == np.floating:
-                    tmp[key] = self[key].astype(np.float32)
-                else:
-                    tmp[key] = self[key]
-                d.append(tmp)
-            else:
-                # Add to header of the primary image
-                d[0][key] = self[key]
-        # Return
-        return d
-
-    def to_file(self, ofile, primary_hdr=None, hdr=None, **kwargs):
-        """
-        Over-load :func:`~pypeit.datamodel.DataContainer.to_file`
-        to deal with the header
-
-        Args:
-            ofile (:obj:`str`):
-                Filename
-            primary_hdr (`astropy.io.fits.Header`_, optional):
-                Base primary header.  Updated with new subheader keywords.  If
-                None, initialized using :func:`~pypeit.io.initialize_header`.
-            wcs (`astropy.io.fits.Header`_, optional):
-                The World Coordinate System, represented by a fits header
-            kwargs (dict):
-                Keywords passed directly to parent ``to_file`` function.
-
-        """
-        if primary_hdr is None:
-            primary_hdr = io.initialize_header()
-        # Build the header
-        if self.head0 is not None and self.PYP_SPEC is not None:
-            spectrograph = load_spectrograph(self.PYP_SPEC)
-            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
-        else:
-            subheader = {}
-        # Add em in
-        for key in subheader:
-            primary_hdr[key] = subheader[key]
-        # Do it
-        super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
-
-    @classmethod
-    def from_file(cls, ifile):
-        """
-        Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
-        to deal with the header
-
-        Args:
-            ifile (str):  Filename holding the object
-        """
-        with io.fits_open(ifile) as hdu:
-            # Read using the base class
-            self = super().from_hdu(hdu)
-            # Internals
-            self.filename = ifile
-            self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
-            # Meta
-            self.spectrograph = load_spectrograph(self.PYP_SPEC)
-            self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
-        return self
-
-    @property
-    def ivar(self):
-        return utils.inverse(self.sig**2)
-
-    @property
-    def wcs(self):
-        return wcs.WCS(self.head0)
-
-
-def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure,
-                temperature, rel_humidity):
-    """
-    Generates a fitting function to calculate the offset due to differential
-    atmospheric refraction
-
-    Args:
-        radec (tuple):
-            A tuple containing two floats representing the shift in ra and dec
-            due to DAR.
-        coord_ra (float):
-            RA in degrees
-        coord_dec (float):
-            Dec in degrees
-        datfit (`numpy.ndarray`_):
-            The RA and DEC that the model needs to match
-        wave (float):
-            Wavelength to calculate the DAR
-        location (`astropy.coordinates.EarthLocation`_):
-            observatory location
-        pressure (float):
-            Outside pressure at `location`
-        temperature (float):
-            Outside ambient air temperature at `location`
-        rel_humidity (float):
-            Outside relative humidity at `location`. This should be between 0 to 1.
-
-    Returns:
-        float: chi-squared difference between datfit and model
-    """
-    (diff_ra, diff_dec) = radec
-    # Generate the coordinate with atmospheric conditions
-    coord_atmo = SkyCoord(coord_ra + diff_ra, coord_dec + diff_dec, unit=(units.deg, units.deg))
-    coord_altaz = coord_atmo.transform_to(AltAz(obstime=obstime, location=location, obswl=wave,
-                                          pressure=pressure, temperature=temperature,
-                                          relative_humidity=rel_humidity))
-    # Return chi-squared value
-    return np.sum((np.array([coord_altaz.alt.value, coord_altaz.az.value])-datfit)**2)
-
-
-def correct_dar(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
-                wave_ref=None, numgrid=10):
-    """
-    Apply a differental atmospheric refraction correction to the
-    input ra/dec.
-
-    This implementation is based on ERFA, which is called through
-    astropy.
-
-    .. todo::
-        There's probably going to be issues when the RA angle is
-        either side of RA=0.
-
-    Parameters
-    ----------
-    wave_arr : `numpy.ndarray`_
-        wavelengths to obtain ra and dec offsets
-    coord : `astropy.coordinates.SkyCoord`_
-        ra, dec positions at the centre of the field
-    obstime : `astropy.time.Time`_
-        time at the midpoint of observation
-    location : `astropy.coordinates.EarthLocation`_
-        observatory location
-    pressure : :obj:`float`
-        Outside pressure at `location`
-    temperature : :obj:`float`
-        Outside ambient air temperature at `location`
-    rel_humidity : :obj:`float`
-        Outside relative humidity at `location`. This should be between 0 to 1.
-    wave_ref : :obj:`float`
-        Reference wavelength (The DAR correction will be performed relative to this wavelength)
-    numgrid : :obj:`int`
-        Number of grid points to evaluate the DAR correction.
-
-    Returns
-    -------
-    ra_diff : `numpy.ndarray`_
-        Relative RA shift at each wavelength given by ``wave_arr``
-    dec_diff : `numpy.ndarray`_
-        Relative DEC shift at each wavelength given by ``wave_arr``
-    """
-    msgs.info("Performing differential atmospheric refraction correction")
-    if wave_ref is None:
-        wave_ref = 0.5*(wave_arr.min() + wave_arr.max())
-
-    # First create the reference frame and wavelength grid
-    coord_altaz = coord.transform_to(AltAz(obstime=obstime, location=location))
-    wave_grid = np.linspace(wave_arr.min(), wave_arr.max(), numgrid) * units.AA
-    # Prepare the fit
-    ra_grid, dec_grid = np.zeros(numgrid), np.zeros(numgrid)
-    datfit = np.array([coord_altaz.alt.value, coord_altaz.az.value])
-    # Loop through all wavelengths
-    for ww in range(numgrid):
-        # Fit the differential
-        args = (coord.ra.value, coord.dec.value, datfit, wave_grid[ww], obstime, location, pressure, temperature, rel_humidity)
-        #b_popt, b_pcov = opt.curve_fit(dar_fitfunc, tmp, datfit, p0=(0.0, 0.0))
-        res_lsq = opt.least_squares(dar_fitfunc, [0.0, 0.0], args=args, xtol=1.0e-10, ftol=None, gtol=None)
-        if not res_lsq.success:
-            msgs.warn("DAR correction failed")
-        # Store the result
-        ra_grid[ww] = res_lsq.x[0]
-        dec_grid[ww] = res_lsq.x[1]
-
-    # Generate spline of differentials
-    spl_ra = interp1d(wave_grid, ra_grid, kind='cubic')
-    spl_dec = interp1d(wave_grid, dec_grid, kind='cubic')
-
-    # Evaluate the differentials at the input wave_arr
-    ra_diff = spl_ra(wave_arr) - spl_ra(wave_ref)
-    dec_diff = spl_dec(wave_arr) - spl_dec(wave_ref)
-
-    return ra_diff, dec_diff
-
-
-def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, order=2):
-    """
-    Using spline representations of the blaze profile, calculate the grating
-    correction that should be applied to the current spectrum (suffix ``curr``)
-    relative to the reference spectrum (suffix ``ref``). The grating correction
-    is then evaluated at the wavelength array given by ``wave_eval``.
-
-    Args:
-        wave_eval (`numpy.ndarray`_):
-            Wavelength array to evaluate the grating correction
-        wave_curr (`numpy.ndarray`_):
-            Wavelength array used to construct spl_curr
-        spl_curr (`scipy.interpolate.interp1d`_):
-            Spline representation of the current blaze function (based on the illumflat).
-        wave_ref (`numpy.ndarray`_):
-            Wavelength array used to construct spl_ref
-        spl_ref (`scipy.interpolate.interp1d`_):
-            Spline representation of the reference blaze function (based on the illumflat).
-        order (int):
-            Polynomial order used to fit the grating correction.
-
-    Returns:
-        `numpy.ndarray`_: The grating correction to apply
-    """
-    msgs.info("Calculating the grating correction")
-    # Calculate the grating correction
-    grat_corr_tmp = spl_curr(wave_eval) / spl_ref(wave_eval)
-    # Determine the useful overlapping wavelength range
-    minw, maxw = max(np.min(wave_curr), np.min(wave_ref)), max(np.min(wave_curr), np.max(wave_ref))
-    # Perform a low-order polynomial fit to the grating correction (should be close to linear)
-    wave_corr = (wave_eval - minw) / (maxw - minw)  # Scale wavelengths to be of order 0-1
-    wblz = np.where((wave_corr > 0.1) & (wave_corr < 0.9))  # Remove the pixels that are within 10% of the edges
-    coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], order)
-    grat_corr = np.polyval(coeff_gratcorr, wave_corr)
-    # Return the estimates grating correction
-    return grat_corr
-
-
-def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
-    """
-    Fit a 2D Gaussian function to a datacube. This function assumes that each
-    wavelength slice of the datacube is well-fit by a 2D Gaussian. The centre of
-    the Gaussian is allowed to vary linearly as a function of wavelength.
-
-    .. note::
-
-        The integrated flux does not vary with wavelength.
-
-    Args:
-        tup (:obj:`tuple`):
-            A three element tuple containing the x, y, and z locations of each
-            pixel in the cube
-        intflux (float):
-            The Integrated flux of the Gaussian
-        xo (float):
-            The centre of the Gaussian along the x-coordinate when z=0
-        yo (float):
-            The centre of the Gaussian along the y-coordinate when z=0
-        dxdz (float):
-            The change of xo with increasing z
-        dydz (float):
-            The change of yo with increasing z
-        sigma_x (float):
-            The standard deviation in the x-direction
-        sigma_y (float):
-            The standard deviation in the y-direction
-        theta (float):
-            The orientation angle of the 2D Gaussian
-        offset (float):
-            Constant offset
-
-    Returns:
-        `numpy.ndarray`_: The 2D Gaussian evaluated at the coordinate (x, y, z)
-    """
-    # Extract the (x, y, z) coordinates of each pixel from the tuple
-    (x, y, z) = tup
-    # Calculate the centre of the Gaussian for each z coordinate
-    xo = float(xo) + z*dxdz
-    yo = float(yo) + z*dydz
-    # Account for a rotated 2D Gaussian
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    # Normalise so that the integrated flux is a parameter, instead of the amplitude
-    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
-    gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
-    return gtwod.ravel()
 
 
 def gaussian2D(tup, intflux, xo, yo, sigma_x, sigma_y, theta, offset):
@@ -479,7 +105,85 @@ def fitGaussian2D(image, norm=False):
     return popt, pcov
 
 
-def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
+def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure,
+                temperature, rel_humidity):
+    """
+    Generates a fitting function to calculate the offset due to differential
+    atmospheric refraction
+
+    Args:
+        radec (tuple):
+            A tuple containing two floats representing the shift in ra and dec
+            due to DAR.
+        coord_ra (float):
+            RA in degrees
+        coord_dec (float):
+            Dec in degrees
+        datfit (`numpy.ndarray`_):
+            The RA and DEC that the model needs to match
+        wave (float):
+            Wavelength to calculate the DAR
+        location (`astropy.coordinates.EarthLocation`_):
+            observatory location
+        pressure (float):
+            Outside pressure at `location`
+        temperature (float):
+            Outside ambient air temperature at `location`
+        rel_humidity (float):
+            Outside relative humidity at `location`. This should be between 0 to 1.
+
+    Returns:
+        float: chi-squared difference between datfit and model
+    """
+    (diff_ra, diff_dec) = radec
+    # Generate the coordinate with atmospheric conditions
+    coord_atmo = SkyCoord(coord_ra + diff_ra, coord_dec + diff_dec, unit=(units.deg, units.deg))
+    coord_altaz = coord_atmo.transform_to(AltAz(obstime=obstime, location=location, obswl=wave,
+                                          pressure=pressure, temperature=temperature,
+                                          relative_humidity=rel_humidity))
+    # Return chi-squared value
+    return np.sum((np.array([coord_altaz.alt.value, coord_altaz.az.value])-datfit)**2)
+
+
+def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, order=2):
+    """
+    Using spline representations of the blaze profile, calculate the grating
+    correction that should be applied to the current spectrum (suffix ``curr``)
+    relative to the reference spectrum (suffix ``ref``). The grating correction
+    is then evaluated at the wavelength array given by ``wave_eval``.
+
+    Args:
+        wave_eval (`numpy.ndarray`_):
+            Wavelength array to evaluate the grating correction
+        wave_curr (`numpy.ndarray`_):
+            Wavelength array used to construct spl_curr
+        spl_curr (`scipy.interpolate.interp1d`_):
+            Spline representation of the current blaze function (based on the illumflat).
+        wave_ref (`numpy.ndarray`_):
+            Wavelength array used to construct spl_ref
+        spl_ref (`scipy.interpolate.interp1d`_):
+            Spline representation of the reference blaze function (based on the illumflat).
+        order (int):
+            Polynomial order used to fit the grating correction.
+
+    Returns:
+        `numpy.ndarray`_: The grating correction to apply
+    """
+    msgs.info("Calculating the grating correction")
+    # Calculate the grating correction
+    grat_corr_tmp = spl_curr(wave_eval) / spl_ref(wave_eval)
+    # Determine the useful overlapping wavelength range
+    minw, maxw = max(np.min(wave_curr), np.min(wave_ref)), max(np.min(wave_curr), np.max(wave_ref))
+    # Perform a low-order polynomial fit to the grating correction (should be close to linear)
+    wave_corr = (wave_eval - minw) / (maxw - minw)  # Scale wavelengths to be of order 0-1
+    wblz = np.where((wave_corr > 0.1) & (wave_corr < 0.9))  # Remove the pixels that are within 10% of the edges
+    coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], order)
+    grat_corr = np.polyval(coeff_gratcorr, wave_corr)
+    # Return the estimates grating correction
+    return grat_corr
+
+
+def extract_standard_spec(stdcube, subpixel=20):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -489,9 +193,6 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
         An HDU list of fits files
     subpixel : int
         Number of pixels to subpixelate spectrum when creating mask
-    method : str
-        Method used to extract standard star spectrum. Currently, only 'boxcar'
-        is supported
 
     Returns
     -------
@@ -512,8 +213,9 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
 
     # Setup the WCS
     stdwcs = wcs.WCS(stdcube['FLUX'].header)
-    wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
-    wave = wcs_wav[:, 2] * 1.0E10 * units.AA
+
+    wcs_scale = (1.0 * stdwcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * stdwcs.spectral.wcs_pix2world(np.arange(numwave), 0)[0]
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     wl_img = make_whitelight_fromcube(flxcube)
@@ -551,106 +253,25 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     flxcube -= skyspec.reshape((1, 1, numwave))
 
     # Subtract the residual sky from the whitelight image
-    sky_val = np.sum(wl_img[:,:,np.newaxis] * smask) / np.sum(smask)
+    sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
     wl_img -= sky_val
 
-    if method == 'boxcar':
-        msgs.info("Extracting a boxcar spectrum of datacube")
-        # Construct an image that contains the fraction of flux included in the
-        # boxcar extraction at each wavelength interval
-        norm_flux = wl_img[:,:,np.newaxis] * mask
-        norm_flux /= np.sum(norm_flux)
-        # Extract boxcar
-        cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
-        flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
-        scimask = flxcube * cntmask
-        varmask = varcube * cntmask**2
-        nrmcnt = utils.inverse(flxscl)
-        box_flux = scimask.sum(0).sum(0) * nrmcnt
-        box_var = varmask.sum(0).sum(0) * nrmcnt**2
-        box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
-        # Setup the return values
-        ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
-    elif method == 'gauss2d':
-        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
-        # Generate a mask
-        fitmask = np.logical_not(bpmcube) * mask
-        # Setup the coordinates
-        x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0])
-        y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1])
-        z = np.linspace(0, flxcube.shape[2] - 1, flxcube.shape[2])
-        xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
-        # Normalise the flux in each wavelength channel
-        scispec = (flxcube * fitmask).sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
-        cntspec = fitmask.sum(0).sum(0).reshape((1, 1, flxcube.shape[2]))
-        # These operations are all inverted, because we need to divide flxcube by scispec
-        cntspec *= utils.inverse(scispec)
-        cubefit = flxcube * cntspec
-        cubesigfit = np.sqrt(varcube) * cntspec
-        # Setup the fit params
-        ww = np.where(fitmask)
-        initial_guess = (1, idx_max[0], idx_max[1], 0.0, 0.0, 2, 2, 0, 0)
-        bounds = ([-np.inf, 0, 0, -np.inf, -np.inf, 0.5, 0.5, -np.pi, -np.inf],
-                  [np.inf,wl_img.shape[0],wl_img.shape[1],np.inf, np.inf, wl_img.shape[0],wl_img.shape[0],np.pi,np.inf])
-        msgs.info("Fitting a 2D Gaussian to the datacube")
-        popt, pcov = opt.curve_fit(gaussian2D_cube, (xx[ww], yy[ww], zz[ww]), cubefit[ww],
-                                   sigma=cubesigfit[ww], bounds=bounds, p0=initial_guess)
-        # Subtract off the best-fitting continuum
-        popt[-1] = 0
-        # Generate the best-fitting model to be used as an optimal profile
-        model = gaussian2D_cube((xx, yy, zz), *popt).reshape(flxcube.shape)
-        numim = flxcube.shape[0]*flxcube.shape[1]
-
-        # Optimally extract
-        msgs.info("Optimally extracting...")
-        sciimg = (flxcube*mask).reshape((numim, numwave)).T
-        ivar = utils.inverse((varcube*mask**2).reshape((numim, numwave)).T)
-        optmask = fitmask.reshape((numim, numwave)).T
-        waveimg = np.ones((numwave, numim))  # Just a dummy array - not needed
-        skyimg = np.zeros((numwave, numim))  # Just a dummy array - not needed
-        thismask = np.ones((numwave, numim))  # Just a dummy array - not needed
-        oprof = model.reshape((numim, numwave)).T
-        sobj = specobj.SpecObj('IFU', 'DET01', SLITID=0)
-        extract.extract_optimal(sciimg, ivar, optmask, waveimg, skyimg, thismask, oprof, sobj)
-        opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG**2, sobj.OPT_MASK
-        # Setup the return values
-        ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
-    elif method == 'optimal':
-        msgs.error("Use method=boxcar... this method has not been thoroughly tested")
-        # First do a boxcar along one dimension
-        msgs.info("Collapsing datacube to a 2D image")
-        omask = mask+smask
-        idx_sum = 0
-        cntmask = np.logical_not(bpmcube) * omask
-        scimask = flxcube * cntmask
-        varmask = varcube * cntmask**2
-        cnt_spec = cntmask.sum(idx_sum) * utils.inverse(omask.sum(idx_sum))
-        nrmcnt = utils.inverse(cnt_spec)
-        box_sciimg = scimask.sum(idx_sum) * nrmcnt
-        box_scivar = varmask.sum(idx_sum) * nrmcnt**2
-        box_sciivar = utils.inverse(box_scivar)
-        # Transpose for optimal
-        box_sciimg = box_sciimg.T
-        box_sciivar = box_sciivar.T
-
-        # Prepare for optimal
-        msgs.info("Starting optimal extraction")
-        thismask = np.ones(box_sciimg.shape, dtype=bool)
-        nspec, nspat = thismask.shape[0], thismask.shape[1]
-        slit_left = np.zeros(nspec)
-        slit_right = np.ones(nspec)*(nspat-1)
-        tilts = np.outer(np.linspace(0.0,1.0,nspec), np.ones(nspat))
-        waveimg = np.outer(wave.value, np.ones(nspat))
-        global_sky = np.zeros_like(box_sciimg)
-        # Find objects and then extract
-        sobj = findobj_skymask.objs_in_slit(box_sciimg, thismask, slit_left, slit_right)
-        skysub.local_skysub_extract(box_sciimg, box_sciivar, tilts, waveimg, global_sky, thismask, slit_left,
-                             slit_right, sobj, model_noise=False)
-        opt_flux, opt_var, opt_gpm = sobj.OPT_COUNTS[0,:], sobj.OPT_COUNTS_SIG[0,:]**2, sobj.OPT_MASK[0,:]
-        # Setup the return values
-        ret_flux, ret_var, ret_gpm = opt_flux, opt_var, opt_gpm
-    else:
-        msgs.error("Unknown extraction method: ", method)
+    msgs.info("Extracting a boxcar spectrum of datacube")
+    # Construct an image that contains the fraction of flux included in the
+    # boxcar extraction at each wavelength interval
+    norm_flux = wl_img[:,:,np.newaxis] * mask
+    norm_flux /= np.sum(norm_flux)
+    # Extract boxcar
+    cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
+    flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
+    scimask = flxcube * cntmask
+    varmask = varcube * cntmask**2
+    nrmcnt = utils.inverse(flxscl)
+    box_flux = scimask.sum(0).sum(0) * nrmcnt
+    box_var = varmask.sum(0).sum(0) * nrmcnt**2
+    box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
+    # Setup the return values
+    ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
 
     # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
     arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
@@ -658,6 +279,71 @@ def extract_standard_spec(stdcube, subpixel=20, method='boxcar'):
     ret_var *= arcsecSQ**2
     # Return the box extraction results
     return wave, ret_flux, utils.inverse(ret_var), ret_gpm
+
+
+def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_corr=False):
+    """
+    Generate the sensitivity function from a standard star DataCube.
+
+    Args:
+        ss_file (:obj:`str`_):
+            The relative path and filename of the standard star datacube. It should be fits format, and
+            for full functionality, should ideally of the form `pypeit.coadd3d.DataCube`_
+        senspar (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
+            The parameters required for the sensitivity function computation.
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array used to construct blaze_spline
+        blaze_spline (`scipy.interpolate.interp1d`_, optional):
+            Spline representation of the reference blaze function (based on the illumflat).
+        grating_corr (:obj:`bool`_, optional):
+            If a grating correction should be performed, set this variable to True.
+
+    Returns:
+        `numpy.ndarray`_: A mask of the good sky pixels (True = good)
+    """
+    # Check if the standard star datacube exists
+    if not os.path.exists(ss_file):
+        msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
+    msgs.info(f"Loading standard star cube: {ss_file:s}")
+    # Load the standard star cube and retrieve its RA + DEC
+    stdcube = fits.open(ss_file)
+    star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
+
+    # Extract a spectrum of the standard star
+    wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+
+    # Extract the information about the blaze
+    if grating_corr:
+        blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+        blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+                                     kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Perform a grating correction
+        grat_corr = correct_grating_shift(wave, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+        # Apply the grating correction to the standard star spectrum
+        Nlam_star /= grat_corr
+        Nlam_ivar_star *= grat_corr ** 2
+
+    # Read in some information above the standard star
+    std_dict = flux_calib.get_standard_spectrum(star_type=senspar['star_type'],
+                                                star_mag=senspar['star_mag'],
+                                                ra=star_ra, dec=star_dec)
+    # Calculate the sensitivity curve
+    # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
+    msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
+    zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
+        flux_calib.fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                                 mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
+                                 mask_helium_lines=senspar['mask_helium_lines'],
+                                 hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
+                                 nresln=senspar['UVIS']['nresln'],
+                                 resolution=senspar['UVIS']['resolution'],
+                                 trans_thresh=senspar['UVIS']['trans_thresh'],
+                                 polyorder=senspar['polyorder'],
+                                 polycorrect=senspar['UVIS']['polycorrect'],
+                                 polyfunc=senspar['UVIS']['polyfunc'])
+    wgd = np.where(zeropoint_fit_gpm)
+    sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
+    return interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
 
 
 def make_good_skymask(slitimg, tilts):
@@ -693,6 +379,49 @@ def make_good_skymask(slitimg, tilts):
         # Mask all values below this maximum
         gpm[ww] = (tilts[ww] >= maxtlt) & (tilts[ww] <= mintlt)  # The signs are correct here.
     return gpm
+
+
+def get_output_filename(fil, par_outfile, combine, idx=1):
+    """
+    Get the output filename of a datacube, given the input
+
+    Args:
+        fil (str):
+            The spec2d filename.
+        par_outfile (str):
+            The user-specified output filename (see cubepar['output_filename'])
+        combine (bool):
+            Should the input frames be combined into a single datacube?
+        idx (int, optional):
+            Index of filename to be saved. Required if combine=False.
+
+    Returns:
+        str: The output filename to use.
+    """
+    if combine:
+        if par_outfile == '':
+            par_outfile = 'datacube.fits'
+        # Check if we needs to append an extension
+        return par_outfile if '.fits' in par_outfile else f'{par_outfile}.fits'
+    if par_outfile == '':
+        return fil.replace('spec2d_', 'spec3d_')
+    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffic
+    return os.path.splitext(par_outfile)[0] + f'_{idx:03}.fits'
+
+
+def get_output_whitelight_filename(outfile):
+    """
+    Given the output filename of a datacube, create an appropriate whitelight
+    fits file name
+
+    Args:
+        outfile (str):
+            The output filename used for the datacube.
+
+    Returns:
+        A string containing the output filename to use for the whitelight image.
+    """
+    return os.path.splitext(outfile)[0] + "_whitelight.fits"
 
 
 def get_whitelight_pixels(all_wave, min_wl, max_wl):
@@ -781,7 +510,7 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
             reduce the wavelength range.
 
     Returns:
-        `numpy.ndarray`_: Whitelight image of the input cube.
+        A whitelight image of the input cube (of type `numpy.ndarray`_).
     """
     # Make a wavelength cut, if requested
     cutcube = cube.copy()
@@ -829,120 +558,61 @@ def load_imageWCS(filename, ext=0):
     return image, imgwcs
 
 
-def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None, trim=1):
+def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec_offset):
     """
-    Generate a whitelight image using the individual pixels of every input frame
+    Align the RA and DEC of all input frames, and then
+    manually shift the cubes based on user-provided offsets.
+    The offsets should be specified in arcseconds, and the
+    ra_offset should include the cos(dec) factor.
 
     Args:
         all_ra (`numpy.ndarray`_):
-            1D flattened array containing the RA values of each pixel from all
-            spec2d files
+            A 1D array containing the RA values of each detector pixel of every frame.
         all_dec (`numpy.ndarray`_):
-            1D flattened array containing the DEC values of each pixel from all
-            spec2d files
-        all_wave (`numpy.ndarray`_):
-            1D flattened array containing the wavelength values of each pixel
-            from all spec2d files
-        all_sci (`numpy.ndarray`_):
-            1D flattened array containing the counts of each pixel from all
-            spec2d files
-        all_wghts (`numpy.ndarray`_):
-            1D flattened array containing the weights attributed to each pixel
-            from all spec2d files
+            A 1D array containing the Dec values of each detector pixel of every frame.
+            Same size as all_ra.
         all_idx (`numpy.ndarray`_):
-            1D flattened array containing an integer identifier indicating which
-            spec2d file each pixel originates from. For example, a 0 would
-            indicate that a pixel originates from the first spec2d frame listed
-            in the input file. a 1 would indicate that this pixel originates
-            from the second spec2d file, and so forth.
-        dspat (float):
-            The size of each spaxel on the sky (in degrees)
-        all_ivar (`numpy.ndarray`_, optional):
-            1D flattened array containing of the inverse variance of each pixel
-            from all spec2d files.  If provided, inverse variance images will be
-            calculated and returned for each white light image.
-        whitelightWCS (`astropy.wcs.WCS`_, optional):
-            The WCS of a reference white light image. If supplied, you must also
-            supply numra and numdec.
-        numra (int, optional):
-            Number of RA spaxels in the reference white light image
-        numdec (int, optional):
-            Number of DEC spaxels in the reference white light image
-        trim (int, optional):
-            Number of pixels to grow around a masked region
+            A 1D array containing an ID value for each detector frame (0-indexed).
+            Same size as all_ra.
+        ifu_ra (`numpy.ndarray`_):
+            A list of RA values of the IFU (one value per frame)
+        ifu_dec (`numpy.ndarray`_):
+            A list of Dec values of the IFU (one value per frame)
+        ra_offset (`numpy.ndarray`_):
+            A list of RA offsets to be applied to the input pixel values (one value per frame).
+            Note, the ra_offset MUST contain the cos(dec) factor. This is the number of arcseconds
+            on the sky that represents the telescope offset.
+        dec_offset (`numpy.ndarray`_):
+            A list of Dec offsets to be applied to the input pixel values (one value per frame).
 
     Returns:
-        tuple: two 3D arrays will be returned, each of shape [N, M, numfiles],
-        where N and M are the spatial dimensions of the combined white light
-        images.  The first array is a white light image, and the second array is
-        the corresponding inverse variance image. If all_ivar is None, this will
-        be an empty array.
+        A tuple containing a new set of RA and Dec values that have been aligned. Both arrays
+        are of type `numpy.ndarray`_.
     """
-    # Determine number of files
-    numfiles = np.unique(all_idx).size
-
-    if whitelightWCS is None:
-        # Generate a 2D WCS to register all frames
-        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
-        coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
-        whitelightWCS = generate_WCS(coord_min, coord_dlt)
-
-        # Generate coordinates
-        cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-        numra = 1+int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
-        numdec = 1+int((np.max(all_dec) - np.min(all_dec)) / dspat)
-    else:
-        # If a WCS is supplied, the numra and numdec must be specified
-        if (numra is None) or (numdec is None):
-            msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
-                       "numra and numdec must also be specified")
-    xbins = np.arange(1 + numra) - 1
-    ybins = np.arange(1 + numdec) - 1
-    spec_bins = np.arange(2) - 1
-    bins = (xbins, ybins, spec_bins)
-
-    whitelight_Imgs = np.zeros((numra, numdec, numfiles))
-    whitelight_ivar = np.zeros((numra, numdec, numfiles))
+    # First, translate all coordinates to the coordinates of the first frame
+    # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
+    #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
+    ref_shift_ra = ifu_ra[0] - ifu_ra
+    ref_shift_dec = ifu_dec[0] - ifu_dec
+    numfiles = ra_offset.size
     for ff in range(numfiles):
-        msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
-        ww = (all_idx == ff)
-        # Make the cube
-        pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
-        wlcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww] * all_wghts[ww])
-        norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts[ww])
-        nrmCube = (norm > 0) / (norm + (norm == 0))
-        whtlght = (wlcube * nrmCube)[:, :, 0]
-        # Create a mask of good pixels (trim the edges)
-        gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
-        whtlght *= gpm
-        # Set the masked regions to the minimum value
-        minval = np.min(whtlght[gpm == 1])
-        whtlght[gpm == 0] = minval
-        # Store the white light image
-        whitelight_Imgs[:, :, ff] = whtlght.copy()
-        # Now operate on the inverse variance image
-        if all_ivar is not None:
-            ivar_img, _ = np.histogramdd(pix_coord, bins=bins, weights=all_ivar[ww])
-            ivar_img = ivar_img[:, :, 0]
-            ivar_img *= gpm
-            minval = np.min(ivar_img[gpm == 1])
-            ivar_img[gpm == 0] = minval
-            whitelight_ivar[:, :, ff] = ivar_img.copy()
-    return whitelight_Imgs, whitelight_ivar, whitelightWCS
+        # Apply the shift
+        all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
+        all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
+        msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
+                  "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, ra_offset[ff], dec_offset[ff]))
+    return all_ra, all_dec
 
 
-def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, equinox=2000.0,
-               specname="PYP_SPEC"):
+def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
+               ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+               reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
     """
     Create a WCS and the expected edges of the voxels, based on user-specified
     parameters or the extremities of the data.
 
     Parameters
     ----------
-    cubepar : :class:`~pypeit.par.pypeitpar.CubePar`
-        An instance of the CubePar parameter set, contained parameters of the
-        datacube reduction
     all_ra : `numpy.ndarray`_
         1D flattened array containing the RA values of each pixel from all
         spec2d files
@@ -955,8 +625,22 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
     dspat : float
         Spatial size of each square voxel (in arcsec). The default is to use the
         values in cubepar.
-    dwv : float
+    dwave : float
         Linear wavelength step of each voxel (in Angstroms)
+    ra_min : float, optional
+        Minimum RA of the WCS (degrees)
+    ra_max : float, optional
+        Maximum RA of the WCS (degrees)
+    dec_min : float, optional
+        Minimum Dec of the WCS (degrees)
+    dec_max : float, optional
+        Maximum Dec of the WCS (degrees)
+    wave_min : float, optional
+        Minimum wavelength of the WCS (degrees)
+    wave_max : float, optional
+        Maximum wavelength of the WCS (degrees)
+    reference : str, optional
+        Filename of a fits file that contains a WCS in the Primary HDU.
     collapse : bool, optional
         If True, the spectral dimension will be collapsed to a single channel
         (primarily for white light images)
@@ -979,35 +663,35 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
-    reference_image = None  # The default behaviour is that the reference image is not used
-    ra_min = cubepar['ra_min'] if cubepar['ra_min'] is not None else np.min(all_ra)
-    ra_max = cubepar['ra_max'] if cubepar['ra_max'] is not None else np.max(all_ra)
-    dec_min = cubepar['dec_min'] if cubepar['dec_min'] is not None else np.min(all_dec)
-    dec_max = cubepar['dec_max'] if cubepar['dec_max'] is not None else np.max(all_dec)
-    wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
-    wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
-    dwave = cubepar['wave_delta'] if cubepar['wave_delta'] is not None else dwv
+    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
+    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
+    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
+    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
+    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
+    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
+    # dwave = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
 
     # Number of voxels in each dimension
-    numra = int((ra_max-ra_min) * cosdec / dspat)
-    numdec = int((dec_max-dec_min)/dspat)
-    numwav = int(np.round((wav_max-wav_min)/dwave))
+    numra = int((_ra_max - _ra_min) * cosdec / dspat)
+    numdec = int((_dec_max - _dec_min) / dspat)
+    numwav = int(np.round((_wav_max - _wav_min) / dwave))
 
     # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
-        wav_min = np.min(all_wave)
-        wav_max = np.max(all_wave)
-        dwave = wav_max - wav_min
+        _wav_min = np.min(all_wave)
+        _wav_max = np.max(all_wave)
+        dwave = _wav_max - _wav_min
         numwav = 1
 
     # Generate a master WCS to register all frames
-    coord_min = [ra_min, dec_min, wav_min]
+    coord_min = [_ra_min, _dec_min, _wav_min]
     coord_dlt = [dspat, dspat, dwave]
 
     # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
-    if cubepar["reference_image"] is not None:
+    reference_image = None
+    if reference is not None:
         # Load the requested reference image
-        reference_image, imgwcs = load_imageWCS(cubepar["reference_image"])
+        reference_image, imgwcs = load_imageWCS(reference)
         # Update the celestial WCS
         coord_min[:2] = imgwcs.wcs.crval
         coord_dlt[:2] = imgwcs.wcs.cdelt
@@ -1018,15 +702,15 @@ def create_wcs(cubepar, all_ra, all_dec, all_wave, dspat, dwv, collapse=False, e
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min = {0:f}".format(coord_min[0]) +
               msgs.newline() + "DEC  min = {0:f}".format(coord_min[1]) +
-              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
-              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0*dspat) +
+              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(_wav_min, _wav_max) +
+              msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0 * dspat) +
               msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
               msgs.newline() + "-" * 40)
 
     # Generate the output binning
-    xbins = np.arange(1+numra)-0.5
-    ybins = np.arange(1+numdec)-0.5
-    spec_bins = np.arange(1+numwav)-0.5
+    xbins = np.arange(1 + numra) - 0.5
+    ybins = np.arange(1 + numdec) - 0.5
+    spec_bins = np.arange(1 + numwav) - 0.5
     voxedges = (xbins, ybins, spec_bins)
     return cubewcs, voxedges, reference_image
 
@@ -1153,7 +837,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
-    wave_spec = wcs_res[:, 2] * 1.0E10
+    wcs_scale = (1.0 * whitelightWCS.wcs.cunit[2]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave_spec = wcs_scale * wcs_res[:, 2]
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
