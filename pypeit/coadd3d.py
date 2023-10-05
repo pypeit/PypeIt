@@ -10,13 +10,14 @@ import inspect
 
 from astropy import wcs, units
 from astropy.io import fits
+import erfa
 from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
 from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
-from pypeit.core import datacube, extract, flux_calib, parse, ref_index
+from pypeit.core import datacube, extract, flux_calib, parse
 from pypeit.spectrographs.util import load_spectrograph
 
 # Use a fast histogram for speed!
@@ -203,7 +204,7 @@ class DARcorrection:
     """
     This class holds all of the functions needed to quickly compute the differential atmospheric refraction correction.
     """
-    def __init__(self, airmass, parangle, pressure, temperature, humidity, cosdec, co2=400.0, wave_ref=4500.0):
+    def __init__(self, airmass, parangle, pressure, temperature, humidity, cosdec, wave_ref=4500.0):
         """
         Args:
             airmass (:obj:`float`):
@@ -220,10 +221,6 @@ class DARcorrection:
                 Valid range is 0 to 100.
             cosdec (:obj:`float`):
                 Cosine of the target declination.
-            co2 (:obj:`float`, optional):
-                Carbon dioxide concentration in µmole/mole. The default value
-                of 450 should be enough for most purposes. Valid range is from
-                0 - 2000 µmole/mole.
             wave_ref (:obj:`float`, optional):
                 Reference wavelength (The DAR correction will be performed relative to this wavelength)
         """
@@ -232,12 +229,15 @@ class DARcorrection:
         # Get DAR parameters
         self.airmass = airmass  # unitless
         self.parangle = parangle
-        self.pressure = pressure
-        self.temperature = temperature
-        self.humidity = humidity
-        self.co2 = co2
+        self.pressure = pressure * units.mbar
+        self.temperature = temperature * units.Celsius
+        self.humidity = humidity/100.0
         self.wave_ref = wave_ref  # This should be in Angstroms
         self.cosdec = cosdec
+
+        # Calculate the coefficients of the correction
+        self.refa, self.refb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
+                                          self.humidity, (self.wave_ref*units.Angstrom).to_value(units.micron))
 
         # Print out the DAR parameters
         msgs.info("DAR correction parameters:" + msgs.newline() +
@@ -261,13 +261,13 @@ class DARcorrection:
             The atmospheric dispersion (in degrees) for each wavelength input
         """
 
-        # Calculate
+        # Calculate the zenith angle
         z = np.arccos(1.0/self.airmass)
 
-        n0 = ref_index.ciddor(wave=self.wave_ref/10.0, t=self.temperature, p=self.pressure, rh=self.humidity, co2=self.co2)
-        n1 = ref_index.ciddor(wave=waves/10.0, t=self.temperature, p=self.pressure, rh=self.humidity, co2=self.co2)
-
-        return (180.0/np.pi) * (n0 - n1) * np.tan(z)  # This is in degrees
+        # Calculate the coefficients of the correction
+        cnsa, cnsb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
+                                self.humidity, (waves*units.Angstrom).to_value(units.micron))
+        return (180.0/np.pi) * (self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3
 
     def correction(self, waves):
         """
@@ -289,6 +289,7 @@ class DARcorrection:
         corr_ang = self.parangle - np.pi/2
         # Calculate the full amount of refraction
         dar_full = self.calculate_dispersion(waves)
+
         # Calculate the correction in dec and RA for each detector pixel
         # These numbers should be ADDED to the original RA and Dec values
         ra_corr = (dar_full/self.cosdec)*np.cos(corr_ang)
@@ -1102,6 +1103,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             temperature = self.spec.get_meta_value([spec2DObj.head0], 'temperature')  # units are degrees C
             humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
             darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
+            darcorr.correction(wave_sort)
 
             # Perform extinction correction
             msgs.info("Applying extinction correction")

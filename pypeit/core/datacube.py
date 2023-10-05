@@ -318,7 +318,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
         blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
                                      kind='linear', bounds_error=False, fill_value="extrapolate")
         # Perform a grating correction
-        grat_corr = correct_grating_shift(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+        grat_corr = correct_grating_shift(wave, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
         # Apply the grating correction to the standard star spectrum
         Nlam_star /= grat_corr
         Nlam_ivar_star *= grat_corr ** 2
@@ -331,7 +331,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
     # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
     msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
     zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
-        flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+        flux_calib.fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                                  mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
                                  mask_helium_lines=senspar['mask_helium_lines'],
                                  hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
