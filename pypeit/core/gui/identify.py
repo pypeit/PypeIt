@@ -840,6 +840,8 @@ class Identify:
         wvarxiv_name = None
 
         # Line IDs
+        # not implemented for the multi trace procedure
+        '''
         ans = ''
         if not force_save:
             while ans != 'y' and ans != 'n':
@@ -848,6 +850,7 @@ class Identify:
             ans = 'y'
         if ans == 'y':
             self.save_IDs()
+        '''
         # Solution
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
@@ -867,8 +870,14 @@ class Identify:
                     if '"echelle": true' in wvcalib.strpar:
                         while True:
                             try:
+                                print('    ')
                                 order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
                                 order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                                if len(order_vec) != len(wvcalib.wv_fits):
+                                    print(f'The number of orders in this list, {order_vec} ')
+                                    print(f'does not match the number of traces: {len(wvcalib.wv_fits)}')
+                                    print('Please try again...')
+                                    continue
                             except ValueError:
                                 print("Sorry, syntax may be invalid...")
                                 #better try again... Return to the start of the loop
@@ -881,10 +890,12 @@ class Identify:
                     make_arxiv = ''
                     if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
                         make_arxiv = 'n'
-                        msgs.info('Skipping arxiv save because there are not enough orders for full template')
+                        msgs.warn('Skipping arxiv save because there are not enough orders for full template')
+                        msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
 #                        msgs.info(f'There are ')
                     while make_arxiv != 'y' and make_arxiv != 'n': 
-                        make_arxiv = input("Save this is a multi-trace arxiv? ([y]/n): ")
+                        print('          ')
+                        make_arxiv = input("Save this as a multi-trace arxiv? ([y]/n): ")
                     if make_arxiv != 'n':
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
@@ -911,12 +922,6 @@ class Identify:
                             if not ('.fits' in wvarxiv_name_new):
                                 wvarxiv_name_new += '.fits'
                             wvarxiv_name = wvarxiv_name_new
-                        #wavelengths = np.flip(wavelengths, axis = 0)
-                        #specdata = np.flip(specdata, axis = 0)
-#                        if lines_pix_arr is not None:
-#                            lines_pix_arr = [lines_pix_arr[ii] for ii in range(len(lines_pix_arr)-1, -1, -1)]
-#                            lines_wav_arr = [lines_wav_arr[ii] for ii in range(len(lines_wav_arr)-1, -1, -1)]
-#                            lines_fit_ord = np.flip(lines_fit_ord)
                         order_vec = np.flip(order_vec, axis = 0)
                         wvutils.write_template(wavelengths, specdata, binspec, './', 
                                             wvarxiv_name, cache=True, order = order_vec, 
@@ -924,9 +929,11 @@ class Identify:
                                             lines_fit_ord = lines_fit_ord)
                     
                     # Allow user to overwrite the existing WVCalib file
+                    print('          ')
                     print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
-                    print('NOTE: To use this calibration the user will need to delete the other Calibration/ files')
+                    print('NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ ')
                     print(' and re-run run_pypeit. ')
+                    print('        ')
                     ow_wvcalib = ''
                     while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
                         ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
@@ -938,7 +945,8 @@ class Identify:
                                 slit_list_str += str(islit) + ','
                             else: slit_list_str += str(islit)
                         
-
+                        '''
+                        This should no longer be necessary
                         msgs.info(f"Your WaveCalib solution has also been saved.{msgs.newline()}"
                                 f"To utilize this wavelength solution, insert the{msgs.newline()}"
                                 f"following block in your PypeIt Reduction File:{msgs.newline()}"
@@ -946,14 +954,19 @@ class Identify:
                                 f"   [[wavelengths]]{msgs.newline()}"
                                 f"     redo_slits = [{slit_list_str}]{msgs.newline()}"
                                 f"     \n")
+                        '''
                         if slits:
+                            print('               ')
                             msgs.info('Unflagging Slits from WaveCalib: ')
                             slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
                             slits.ech_order = order_vec
                             slits.to_file()
-                        clean_calib = input('Clean up the Calibrations/ directory? y/[n]: ')
+                            print('               ')
+                        print('         ')
+                        clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
+                                            ' calibrations except the Arcs, Slits, and WaveCalib files. y/[n]: ')
                         if clean_calib == 'y':
-                            os.system('rm -rf Calibrations/Arc* Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
+                            os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:
