@@ -58,14 +58,8 @@ At the moment, NIRSPEC does not keep track of the nod pattern that was used in o
 was taken. This means that setting AB pairs in the data for background subtraction must be done manually. 
 
 The corrections we'll need to make are:
-    - Set the frametypes for ``nspec***.fits`` to only ``science`` (i.e. remove both the ``arcs`` and ``tilts``. Since we already have 
-    arclamp spectra for this dataset, we want to use those, rather than the sky lines. If you would like to use the sky lines, leave the 
-    ``arc`` and ``tilts`` in and remove the lamp spectrum from the file list. We will discuss other changes you'll need to make to the
-    parameter file below, in the Wavelength Calibration section.
-
-    - Assign the appropriate A/B nod combinations by setting the ``bkg_id`` of each A exposure to the ``comb_id`` of its B counterpart 
-    and vice versa. See :ref:`a-b_differencing` for other options for differencing and background subtraction.
-
+    - Set the frametypes for ``nspec***.fits`` to only ``science`` (i.e. remove both the ``arcs`` and ``tilts``. Since we already have arclamp spectra for this dataset, we want to use those, rather than the sky lines. If you would like to use the sky lines, leave the ``arc`` and ``tilts`` in and remove the lamp spectrum from the file list. We will discuss other changes you'll need to make to the parameter file below, in the Wavelength Calibration section.
+    - Assign the appropriate A/B nod combinations by setting the ``bkg_id`` of each A exposure to the ``comb_id`` of its B counterpart and vice versa. See :ref:`a-b_differencing` for other options for differencing and background subtraction.
 
 The corrected version looks like this (pulled directly from the :ref:`dev-suite`):
 
@@ -126,8 +120,7 @@ for many, more complicated dithering scenarios; see :ref:`a-b_differencing`.
 Core Processing
 ===============
 
-The reduction of NIRSPEC begins with the creation of a handful of critical calibration
-files: 
+The reduction of NIRSPEC begins with the creation of a handful of critical calibration files: 
     1) Edges*.fits.gz : an archive of files containing the information about the edge-detection for your traces (:doc:`../calibrations/edges`)
     2) Slits*.fits.gz : an archive of files containing the information about the spatial location of each trace (:doc:`../calibrations/slits`
     3) Arc*.fits : a file containing the extracted arc spectra (sky lines or lamp lines) (:doc:`../calibrations/arc`)
@@ -135,9 +128,7 @@ files:
     5) WaveCAlib*.fits : a file containing the wavelength calibration to be applied to this dataset (:doc:`../calibrations/wvcalib`)
 
 
-There are a couple of steps in the core processing of NIRSPEC data that the user
-should be considerate of before running the main pypeit script, :ref:`run_pypeit`. 
-Those steps are:
+There are a couple of steps in the core processing of NIRSPEC data that the user should be considerate of before running the main pypeit script, :ref:`run-pypeit`. Those steps are:
     1) Order/trace identification
     2) Wavelength calibration 
 
@@ -152,8 +143,8 @@ Trace Identification
 To be sure of precisely which traces PypeIt will extract, the user should run 
 the :ref:`pypeit_trace_edges` script, which can perform the first calibration step,
 trace identification. The script will create an Edges*.fits.gz and a Slits*.fits.gz file, 
-which will be reused by the :ref:`run_pypeit` script. The user may also skip directly to 
-running :ref:`run_pypeit` if they are certain there will be no trouble with trace identification. 
+which will be reused by the :ref:`run-pypeit` script. The user may also skip directly to 
+running :ref:`run-pypeit` if they are certain there will be no trouble with trace identification. 
 
 To use :ref:`pypeit_trace_edges`, the script should be called using:
 
@@ -180,19 +171,18 @@ and the necessary steps to correct the identification below.
 
 Running PypeIt and Extraction
 -----------------------------
-Once the trace identification is complete, either as part of a call to :ref:`run_pypeit` or 
+Once the trace identification is complete, either as part of a call to :ref:`run-pypeit` or 
 using :ref:`pypeit_trace_edges`, the next major step in the data reduction is wavelength 
 calibration. The example dataset provided here should be easily automatically wavelength calibrated 
-by the usual :ref:`run_pypeit` script, so at this stage, as long as the traces have been properly identified, 
+by the usual :ref:`run-pypeit` script, so at this stage, as long as the traces have been properly identified, 
 there is no needto worry about that step. 
 
 Running in calibration mode
 +++++++++++++++++++++++++++
 
-Once the :ref:`pypeit_file` is ready, the core processing can begin. We recommend the user first run
-PypeIt in calibration mode, so that the calibrations can be inspected (and corrected, if necessary) 
-before attempting to reduce an entire dataset. The call for this would be:
+Once the :ref:`pypeit_file` is ready, the core processing can begin. We recommend the user first run PypeIt in calibration mode, so that the calibrations can be inspected (and corrected, if necessary) before attempting to reduce an entire dataset. The call for this would be:
 .. code-block:: bash
+
     run_pypeit keck_nirspec_high_A.pypeit -c
 
 For the example dataset, this should run without issue, producing the Edges, Arcs, Flats, Tilts, and WaveCalib files
@@ -202,6 +192,7 @@ M2 Max chip, this took around 4 min 30 s.
 
 Once ready, the core processing can be performed on the entire dataset using the call 
 .. code-block:: bash
+
     run_pypeit keck_nirspec_high_A.pypeit
 
 PypeIt will perform the calibrations reusing the already-generated calibration files and proceed to object extraction. 
@@ -217,9 +208,10 @@ If the SNR threshold is too low, PypeIt may identify spurious features as potent
 Users should inspect the profiles in the QA plots and determine if they should re-run the extraction with a higher extraction
 SNR threshold, which can be set by adding the following to the parameter block:
 .. code-block:: bash
+
     [reduce]
-    [[findobj]]
-        snr_thresh = 100
+        [[findobj]]
+            snr_thresh = 100
 
 The above will set the snr threshold to 100. In our experience, for a standard star exposure that yields an SNR/pix of 150 
 in each order, the spatially collapsed SNR can be as high as 2500, so it is best to check the profiles to know what threshold
@@ -240,7 +232,7 @@ described in more detail below. These naming conventions are followed through th
 
 
 Checking the Wavelength Calibration 
-+++++++++++++++++++++++++++++++++++
+-----------------------------------
 
 The code by coadds the lamp files provided to make a master ``arc`` file, which can be checked by using:
 .. code-block:: bash
@@ -495,7 +487,7 @@ one of the plots shown by ``pypeit_trace_edges`` if the ``--debug`` flag is used
 .. figure:: ../figures/nirspec/Yband_debug_picketFence.png
    :width: 70%
 
-    The plot from ``pypeit_trace_edges`` showing the SNR of each of the detected left edges in the Flat exposure. 
+   The plot from ``pypeit_trace_edges`` showing the SNR of each of the detected left edges in the Flat exposure. 
 
 
 In this case, we have set the threshold to 450 because that is just between the edge at x = 805 that we want to keep and the high signal edge
@@ -564,22 +556,15 @@ should confirm the line IDs by referencing the plots in the arc line tool on the
 `<page https://www2.keck.hawaii.edu/inst/nirspec/cals.html>`. 
 
 
-Once the ``pypeit_identify`` GUI appears, as in the image shown below, the user will see 5 main elements of the user interface. 
-Those are: 
+Once the ``pypeit_identify`` GUI appears, as in the image shown below, the user will see 5 main elements of the user interface. Those are: 
     1) The Spectrum - the primary plot showing:
         a) The extracted arc line spectrum
         b) Grey vertical lines marking the potential lines that have been identified but have not yet been given wavelength IDs.
-        c) Yellow vertical lines marking lines that have been automatically ID'd by PypeIt (in the automatic wavelength calibration that
-        was performed to create this ``WaveCalib`` file). 
+        c) Yellow vertical lines marking lines that have been automatically ID'd by PypeIt (in the automatic wavelength calibration that was performed to create this ``WaveCalib`` file). 
         d) Blue numbers showing the wavelengths assigned to the identified lines.
-
-    2) The Fit - A plot in the upper right showing the current fit to the ID'd lines (shown in red), in wavelength vs. pixel space. automatically
-    ID'd lines appear here as yellow x's. 
-
+    2) The Fit - A plot in the upper right showing the current fit to the ID'd lines (shown in red), in wavelength vs. pixel space. automatically ID'd lines appear here as yellow x's. 
     3) The Residuals - A plot in the lower right showing the residuals of the fit, in pixels
-
     4) The Info Box - An information box at the top, where relevant information will be printed as you interact with the GUI 
-
     5) The Slider - A slider under the information box, with which the user can select a wavelength to assign to an identified line.
 
 
@@ -644,21 +629,24 @@ The prompts are reproduced below and briefly explained.
 
 
 .. code-block:: bash
+
     Would you like to write this wavelength solution to disk? (y/n):
 
 If ``n``, the script will exit and not save anything. If ``y``, the dialog continues.
 
 .. code-block:: bash
+
     Which orders were we fitting? e.g. (32:39):
 
 The user should give the orders that were being fit, if this is an echelle spectrograph. The order numbers should be 
 from smallest to largest, as shown in the example, and should be given in parentheses as shown. In the case of the J band
 example here, the user would enter ``(55:66)``. 
 
-If the user has used the ``--slits all`` option, they will be prompted to save the wavelength solution in a ``wvarxiv` file,
+If the user has used the ``--slits all`` option, they will be prompted to save the wavelength solution in a ``wvarxiv`` file,
 which will contain the template necessary to use this exact solution to calibrate their data. 
 
 .. code-block:: bash
+
     Save this as a multi-trace arxiv? ([y]/n):
 
 If the user opts to save this file, they will be given instructions for how to use the file for wavelength calibration. 
@@ -671,6 +659,7 @@ If the user is only correcting a few traces and did not use the ``--slits all`` 
 ``arxiv`` saving option and procede directly to questions about overwriting the ``WaveCalib`` file.
 
 .. code-block:: bash
+
     Proceed with overwrite? (y/[n]):
 
 This will allow the user to overwrite the WaveCalib file they were editting and replace it with the new solutions 
