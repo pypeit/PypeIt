@@ -36,11 +36,12 @@ Setup
 =====
 
 PypeIt uses a special input file, the :ref:`pypeit_file`, to organize any user supplied keywords, the locations of the input data files, and 
-the metadata corresponding to each file. This file is created and automatically populated by running :ref:`pypeit_setup`:
+the metadata corresponding to each file. This file is created and automatically populated by running :ref:`pypeit_setup` and pointing it to the 
+directory where the data are stored, ``<data_dir>``:
 
 .. code-block:: bash
 
-    pypeit_setup -r $HOME/Work/packages/PypeIt-development-suite/RAW_DATA/keck_nirspec_high/Jband/ -s keck_nirspec_high -b -c all
+    pypeit_setup -r <data_dir> -s keck_nirspec_high -b -c all
 
 where the ``-r`` argument should be replaced by your local directory and the
 ``-b`` indicates that the data uses background images and should include the
@@ -311,12 +312,12 @@ Even the wavelength calibration performed on this example dataset has one order 
 in which only 2 lines were identified. There are in fact 5 lines that should be identified and used for wavelength
 calibration in that order.
 
-The steps to check and edit the solution with :ref:`pypeit_identify` are given below. 
+The steps to check and edit the solution with :ref:`pypeit_identify` are given below, in the section :ref:`manual_wvcal`. 
 
 We strongly recommend users follow the procedure below to construct their own wavelength calibration, which can then
 be used for any other NIRSPEC dataset taken in the same setup (i.e. same filters and echelle/XD angles). 
 
-
+.. _manual_wvcal:
 
 Manual Wavelength Calibration
 -----------------------------
@@ -374,7 +375,7 @@ as an ``arxiv``, use ``--slits all``.
 
 The user will then be shown a :ref:`pypeit_identify` GUI, with which they can identify any missed lines, corrected misidentified
 lines, or clear all lines and start the identification in the order from the beginning. A detailed walkthrough of how to use 
-:ref:`pypeit_identify` is given below. The procedure for a single order is also documented in :ref:`pypeit_identify` and a helpful 
+:ref:`pypeit_identify` is given in :ref:`identify_walkthrough`. The procedure for a single order is also documented in :ref:`pypeit_identify` and a helpful 
 reference of useful commands can be called at any time from the gui by pressing the ``?`` key and inspecting the terminal from which 
 the ``pypeit_identify`` script was launched. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
 
@@ -382,8 +383,8 @@ Once the selected orders are corrected, the user will be guided through a dialog
 detailed below. 
 
 
-Making a New Wavelength Arxiv
-+++++++++++++++++++++++++++++
+Making a New Wavelength Solution 
+++++++++++++++++++++++++++++++++
 If the :ref:`run-pypeit` script fails to produce a WaveCalib file, or the user prefers to produce their own wavelength solution 
 without using any of the automated method, they can also do this with :ref:`pypeit_identify`. 
 
@@ -403,11 +404,8 @@ The user can then launch the :ref:`pypeit_identify` gui using the following call
 where the ``-m`` flag again indicates that there are multiple orders to be calibrated and the ``-n`` flag indicates
 that we are creating a new WaveCalib file and ``arxiv`` file from scratch. 
 
-The user will then be shown a :ref:`pypeit_identify` gui, with which they can identify any missed lines, corrected misidentified
-lines, or clear all lines and start the identification in the order from the beginning. The procedure for doing this for a single order
-is documented in :ref:`pypeit_identify` and helpful reference of useful commands can be called at any time from the gui by pressing the
-``?`` key. This will print the commands and some documentation of the function to the terminal from which the script was launched. 
-Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
+This will launch the :ref:`pypeit_identify` gui and the user will follow the procedure outlined in :ref:`identify_walkthough` to construct the 
+wavelength solution for every order in the arc lamp spectrum. Plots showing the spectra of arc lamps and OH lines can be accessed at the `NIRSPEC instrument page <https://www2.keck.hawaii.edu/inst/nirspec/cals.html>`,
 
 Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. The dialog will also
 give an instruction for how to use the newly created (or edited) ``wvarxiv``, which will require adding the following to the parameter block
@@ -527,7 +525,7 @@ for H band, with echelle = 63.0 and XD angle = 36.72, the trace for order 43 is 
 
 
 
-
+.. _identify_walkthrough:
 
 Using pypeit_identify on multi-trace data
 =========================================
@@ -596,6 +594,10 @@ selected line and add this ID'd line to the Fit plot.
 
 To un-assign a mis-identified line, the select that line and press the ``z`` key. This will remove that line ID. To recalculate the 
 fit (if this was not done automatically already) the user can press the ``f`` key. This will update the Fit plot and the Residuals.
+
+Once there are at least two lines identified so that a linear fit can be made, the user can toggle the horizontal axis to change from 
+a pixel scale to the current wavelength scale by pressing the `w` key. The vertical axis can also be changed from linear scale to 
+logarithmic scale by pressing the `y` key. 
 
 
 Changing the polynomial order of the fit
