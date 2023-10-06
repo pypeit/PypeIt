@@ -175,7 +175,7 @@ Once the trace identification is complete, either as part of a call to :ref:`run
 using :ref:`pypeit_trace_edges`, the next major step in the data reduction is wavelength 
 calibration. The example dataset provided here should be easily automatically wavelength calibrated 
 by the usual :ref:`run-pypeit` script, so at this stage, as long as the traces have been properly identified, 
-there is no needto worry about that step. 
+there is no need to worry about that step. 
 
 Running in calibration mode
 +++++++++++++++++++++++++++
@@ -368,15 +368,15 @@ correct a couple of them and procede with the data reduction, the orders to be c
 
 In the call above, we are using the ``-m`` flag to identify that there are multiple orders in this wavelength solution,
 the ``-s`` flag to indicate that there is an existing solution we want to edit, and the ``--slits`` flag, along with the list
-of orders (zero-indexed, with no spaces in between) to indicate which we want to edit. The IDs should match those from the 
+of orders (zero-indexed, with no spaces in between, e.g., [3,4,5]) to indicate which we want to edit. The IDs should match those from the 
 :ref:`pypeit_chk_wavecalib` script output. To check all of the orders and produce a reference set of line IDs that can be used
 as an ``arxiv``, use ``--slits all``. 
 
 The user will then be shown a :ref:`pypeit_identify` GUI, with which they can identify any missed lines, corrected misidentified
 lines, or clear all lines and start the identification in the order from the beginning. A detailed walkthrough of how to use 
 :ref:`pypeit_identify` is given below. The procedure for a single order is also documented in :ref:`pypeit_identify` and a helpful 
-reference of useful commands can be called at any time from the gui by pressing the ``?`` key. Pressing the ``q`` key will 
-complete the identification in the order and continue to the next one. 
+reference of useful commands can be called at any time from the gui by pressing the ``?`` key and inspecting the terminal from which 
+the ``pypeit_identify`` script was launched. Pressing the ``q`` key will complete the identification in the order and continue to the next one. 
 
 Once the selected orders are corrected, the user will be guided through a dialog for saving the wavelength solution. The dialog is further
 detailed below. 
@@ -423,7 +423,7 @@ of the :ref:`pypeit_file`:
 
 
 .. note:: 
-    A template made in this way for NIRSPEC can be resused for different datasets that were taken with the same echelle and cross-disperser
+    A template made in this way for NIRSPEC can be reused for different datasets that were taken with the same echelle and cross-disperser
     angle settings (the instrument shifts will be accounted for in applying the solution) but we do not recommend attempting to use the solution
     for data taken in different settings. It is best to compute a new template for each different setting used. 
 
@@ -605,7 +605,7 @@ N.B.: the polynomial order of the fit is given in the convention that the number
 linear fit is an order 1 fit. 
 
 To increase the order of the fit, click on the Fit plot and press the ``+`` key (including holding the ``SHIFT`` key 
-if the ``+`` is above the ``=``).
+if the ``+`` is above the ``=`` on your keyboard).
 
 To decrease the order of the fit, click on the Fit plot and press the ``-`` key. 
 
