@@ -3,9 +3,9 @@
 
 .. _nirspec_high_howto:
 
-================
+==================================
 Keck/NIRSPEC High Resolution HOWTO
-================
+==================================
 
 Overview
 ========
@@ -20,17 +20,17 @@ See :ref:`here <dev-suite>` to find the example dataset, please join our `PypeIt
 to ask for help, and/or `Submit an issue`_ to Github if you find a bug!
 
 
-----
+----------------------
 
 Directory Organization
-=====
+======================
 
 Before starting the reduction, we recommend creating a directory in which to store all of the PypeIt output files. PypeIt will 
 create its own directory structure within that, but it is good to have a dedicated place to work. PypeIt will also reuse directory names
 so creating a dedicated directory for a given reduction run is recommended. 
 
 
-----
+-----
 
 Setup
 =====
@@ -147,7 +147,7 @@ Throughout the tutorial, we will point the user to several :ref:`parameters` tha
 the user can modify in their :ref:`pypeit_file`. 
 
 Trace Identification
-------------------------
+--------------------
 
 To be sure of precisely which traces PypeIt will extract, the user should run 
 the :ref:`pypeit_trace_edges` script, which can perform the first calibration step,
@@ -179,7 +179,7 @@ and the necessary steps to correct the identification below.
 
 
 Running PypeIt and Extraction
------------------------------------------
+-----------------------------
 Once the trace identification is complete, either as part of a call to :ref:`run_pypeit` or 
 using :ref:`pypeit_trace_edges`, the next major step in the data reduction is wavelength 
 calibration. The example dataset provided here should be easily automatically wavelength calibrated 
@@ -187,7 +187,7 @@ by the usual :ref:`run_pypeit` script, so at this stage, as long as the traces h
 there is no needto worry about that step. 
 
 Running in calibration mode
-+++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++
 
 Once the :ref:`pypeit_file` is ready, the core processing can begin. We recommend the user first run
 PypeIt in calibration mode, so that the calibrations can be inspected (and corrected, if necessary) 
@@ -208,7 +208,7 @@ PypeIt will perform the calibrations reusing the already-generated calibration f
 
 
 Object Extraction
-+++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++
 PypeIt will perform both a box extraction and optimal extraction by default. It will attempt to identify objects in 
 the slit according to where the spectrally collapsed spatial profile (which can be inspected in the ``QA/PNGs/pos_***.png``
 plots) exceeds a certain SNR treshold.
@@ -230,7 +230,7 @@ For extended sources, the width of the box extraction can be set and the optimal
 
 
 Wavelength Calibration
-================================
+======================
 
 There are two main file types that are relevant to the the wavelength calibration procedure in PypeIt. One 
 is the ``WaveCalib`` file, which contains all of the information necessary for PypeIt to wavelength calibrate
@@ -240,7 +240,7 @@ described in more detail below. These naming conventions are followed through th
 
 
 Checking the Wavelength Calibration 
-+++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++
 
 The code by coadds the lamp files provided to make a master ``arc`` file, which can be checked by using:
 .. code-block:: bash
@@ -327,7 +327,7 @@ be used for any other NIRSPEC dataset taken in the same setup (i.e. same filters
 
 
 Manual Wavelength Calibration
---------------------------------------
+-----------------------------
 
 .. note::
     The manual wavelength calibration should be done inside the ``keck_nirspec_high_A`` directory but outside 
@@ -362,7 +362,7 @@ of the page have been carefully vetted by instrument specialist Greg Doppmann an
 
 
 Editing A WaveCalib File
-++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++
 
 The :ref:`pypeit_identify` script can be used to edit an existing WaveCalib file (assuming it is in the Calibrations 
 directory).
@@ -391,7 +391,7 @@ detailed below.
 
 
 Making a New Wavelength Arxiv
-++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++
 If the :ref:`run-pypeit` script fails to produce a WaveCalib file, or the user prefers to produce their own wavelength solution 
 without using any of the automated method, they can also do this with :ref:`pypeit_identify`. 
 
@@ -450,13 +450,13 @@ of the :ref:`pypeit_file`:
 
 
 Common Challenges Reducing Other Bands
-==============================================
+======================================
 
 Y Band
---------------------------
+------
 
 Edge detection
-+++++++++++++++++++++++++++
+++++++++++++++
 
 Y Band commonly suffers from 2 issues: the significant scattered light in orders blueward of order 76 (which makes them 
 mostly unusable) and the proximity of the orders, which can confuse the edge-finding algorithm. 
@@ -510,7 +510,7 @@ If the observation was done in the default setup, which has an echelle angle of 
 
 
 Wavelength Calibration
-++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++
 The default wavelength calibration method for Y band is set to ``full_template`` and uses a default ``wvarxiv`` file, which only 
 has solutions redward of order 76. For users attempting to extract the bluer orders (77-81), this may be done manually using the
 procedure described above with :ref:`pypeit_identify`. 
@@ -519,13 +519,13 @@ procedure described above with :ref:`pypeit_identify`.
 
 
 H Band 
-------------------------------------------------
+------
 
 The H band reduction commonly suffers from three potential problems: the edge finder identifies too many traces, there may be overlap
 in the traces when using the 24" slit, and the paucity of lines in order 45 may lead the wavelenght calibration to fail. 
 
 Edge detection
-+++++++++++++++++++++++++++
+++++++++++++++
 The procedure outlined for Y band above can be followed to ensure that only the desired orders are identified. If in the default setup
 for H band, with echelle = 63.0 and XD angle = 36.72, the trace for order 43 is removed by default using the ``rm_slits`` keyword. 
 
@@ -538,7 +538,7 @@ for H band, with echelle = 63.0 and XD angle = 36.72, the trace for order 43 is 
 
 
 Using pypeit_identify on multi-trace data
-==========================================================
+=========================================
 
 The following walkthrough assumes that the user has completed the tutorial with the sample J band data
 or have run an initial reduction on their own dataset so that there are valid ``Arcs`` and ``Slits`` files 
@@ -551,7 +551,7 @@ The walkthrough will give instructions for the basic procedure of identifying li
 lines, and selecting the polynomial order of the fit. For more advanced usage, see the help page for :ref:`pypeit_identify`.
 
 Opening the User Interface
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+--------------------------
 
 We launch the :ref:`pypeit_identify` GUI with the following command
 .. code-block:: bash
@@ -592,7 +592,7 @@ Those are:
 
 
 Selecting and IDing a line
-+++++++++++++++++++++++++++++++++++++++++++
+--------------------------
 
 To select a line that has already been found by PypeIt the user need only click on the grey (or yellow) vertical line plotted 
 over it. The grey vertical line will then become red to indicate it is the currently selected line. 
@@ -614,7 +614,7 @@ fit (if this was not done automatically already) the user can press the ``f`` ke
 
 
 Changing the polynomial order of the fit
-++++++++++++++++++++++++++++++++++++++++++++
+----------------------------------------
 
 N.B.: the polynomial order of the fit is given in the convention that the number of terms = order + 1. So a 
 linear fit is an order 1 fit. 
@@ -628,7 +628,7 @@ The current polynomial order of the fit is printed in the Info Box.
 
 
 Saving the fit
-++++++++++++++++++++++++++++++++++
+--------------
 
 Once satisfied with the fit, the GUI can be dismissed by pressing the ``q`` key. If there are more traces to correct 
 or inspect, a new GUI containing the information for the next trace will appear. If the user is satisfied with the fit
