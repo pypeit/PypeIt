@@ -139,7 +139,18 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-BEG']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        
+
+        if meta_key == 'decker':
+            decker_str = headarr[0]['DECKRNAM']
+            if ":8" in decker_str:
+                return '8.0'
+            elif ":3" in decker_str:
+                return '3.0'
+            elif "Pinhole" in decker_str:
+                return 'Pinhole'
+            else:
+                msgs.error("Unrecognized decker {0}".format(decker_str))
+
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
