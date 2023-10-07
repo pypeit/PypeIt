@@ -50,7 +50,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
-        par['calibrations']['slitedges']['smash_range'] = 0.4,0.6
+        par['calibrations']['slitedges']['smash_range'] = [0.4,0.6]
 
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
