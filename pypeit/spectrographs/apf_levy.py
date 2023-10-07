@@ -174,7 +174,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # we will treat deckers separately
         return ['decker']
 
-   def order_platescale(self, order_vec, binning=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Return the platescale for each echelle order.
 
