@@ -4,19 +4,13 @@ Implements APF-specific functions
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import glob
-
-from IPython import embed
 
 import numpy as np
 from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import io
-from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -34,7 +28,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
     camera = 'apf'
     header_name = 'apf'
     ech_fixed_format = True
-    
+
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -105,7 +99,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             specflip=True,
             spatflip=True,
             platescale=0.39, # SV made a very fast camera and the instrument takes a f/3 beam
-            saturation=65535., 
+            saturation=65535.,
             mincounts=-1e10,
             nonlinear=0.99, # the full well is like 300k and the gain is 1.031
             numamplifiers=1,
@@ -120,8 +114,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             oscansec=np.asarray(['[:, 2049:2080]']),  # oscan is in the spatial direction
         )
         return detector_container.DetectorContainer(**detector_dict)
-
-    
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -202,7 +194,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # 124 0.43146
         plate_scale = np.zeros_like(order_vec)
         plate_scale += (0.43346 + 0.43767 + 0.43551 + 0.42944 + 0.42552 + 0.43146)/6.0
-        
+
         return plate_scale
 
     def init_meta(self):
@@ -261,7 +253,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat')
         if ftype in ['trace', 'illumflat']:
-            return good_exp & ((fitstbl['idname'] == 'WideFlat') |              
+            return good_exp & ((fitstbl['idname'] == 'WideFlat') |
                                    (fitstbl['idname'] == 'NarrowFlat'))
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ThAr')
@@ -270,6 +262,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
     def is_science(self, fitstbl):
+        """
+        Return a boolean array selecting science frames.
+        """
+
         rv = fitstbl['idname'] != 'WideFlat'
 
         for filetype in ['NarrowFlat','ThAr','Dark','Bias','Iodine']:
@@ -349,4 +345,3 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
 #     # Return
 #     return data, oscan
-
