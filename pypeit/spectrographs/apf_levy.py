@@ -257,12 +257,11 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype in ['pixelflat','illumflat']:
+        if ftype in ['pixelflat']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat')
-        if ftype in ['trace']:
-            return good_exp & ((fitstbl['idname'] == 'WideFlat') |
-                                   (fitstbl['idname'] == 'Iodine') |
+        if ftype in ['trace', 'illumflat']:
+            return good_exp & ((fitstbl['idname'] == 'WideFlat') |              
                                    (fitstbl['idname'] == 'NarrowFlat'))
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ThAr')
