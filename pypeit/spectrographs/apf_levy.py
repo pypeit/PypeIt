@@ -50,6 +50,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['smash_range'] = 0.4,0.6
 
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
@@ -59,6 +60,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 2.0
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['ech_fix_format'] = True
