@@ -185,7 +185,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='TOBJECT')
-        self.meta['decker'] = dict(ext=0, card='DECKRNAM')
+        self.meta['decker'] = dict(ext=0, card=None, compound=True)
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
