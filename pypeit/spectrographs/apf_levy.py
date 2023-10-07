@@ -174,7 +174,37 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # we will treat deckers separately
         return ['decker']
 
-    
+   def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        # TODO: Fit something
+        # Current values are
+        # Order Value
+        # 58 0.43346
+        # 66 0.43767
+        # 77 0.43551
+        # 93 0.42944
+        # 108 0.42552
+        # 124 0.43146
+        plate_scale = np.zeros_like(order_vec)
+        plate_scale += (0.43346 + 0.43767 + 0.43551 + 0.42944 + 0.42552 + 0.43146)/6.0
+        
+        return plate_scale
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
