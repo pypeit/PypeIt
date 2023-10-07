@@ -169,7 +169,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         # its a fixed format spectrometer
         # different deckers are used for different kinds of calibrations
-        return []
+        # we will treat deckers separately
+        return ['decker']
 
     
     def init_meta(self):
