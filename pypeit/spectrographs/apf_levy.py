@@ -149,7 +149,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             elif "Pinhole" in decker_str:
                 return 'Pinhole'
             else:
-                msgs.error("Unrecognized decker {0}".format(decker_str))
+                msgs.error(f"Unrecognized decker {decker_str}")
 
         msgs.error("Not ready for this compound meta")
 
