@@ -137,8 +137,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             try:
                 return headarr[0]['PRESSUR2']  # Must be in astropy.units.pascal
             except KeyError:
-                msgs.warn("Pressure is not in header - The default pressure (61.1 kPa) will be assumed")
-                return 61.1E3
+                msgs.warn("Pressure is not in header - The default pressure (0.611 mbar) will be assumed")
+                return 0.611
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C

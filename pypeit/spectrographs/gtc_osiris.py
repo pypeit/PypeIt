@@ -176,8 +176,8 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['PRESSURE']  # Must be in astropy.units.pascal
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 61.1 kPa")
-                return 61.1E3
+                msgs.info("The default pressure will be assumed: 0.611 mbar")
+                return 0.611
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C

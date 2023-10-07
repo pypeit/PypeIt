@@ -230,22 +230,22 @@ class DARcorrection:
         self.airmass = airmass  # unitless
         self.parangle = parangle
         self.pressure = pressure * units.mbar
-        self.temperature = temperature * units.Celsius
+        self.temperature = temperature * units.deg_C
         self.humidity = humidity/100.0
-        self.wave_ref = wave_ref  # This should be in Angstroms
+        self.wave_ref = wave_ref*units.Angstrom
         self.cosdec = cosdec
 
         # Calculate the coefficients of the correction
         self.refa, self.refb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
-                                          self.humidity, (self.wave_ref*units.Angstrom).to_value(units.micron))
+                                          self.humidity, self.wave_ref.to_value(units.micron))
 
         # Print out the DAR parameters
         msgs.info("DAR correction parameters:" + msgs.newline() +
                   "   Airmass = {0:.2f}".format(self.airmass) + msgs.newline() +
-                  "   Pressure = {0:.2f} Pa".format(self.pressure) + msgs.newline() +
-                  "   Humidity = {0:.2f} %".format(self.humidity) + msgs.newline() +
-                  "   Temperature = {0:.2f} deg C".format(self.temperature) + msgs.newline() +
-                  "   Reference wavelength = {0:.2f}".format(self.wave_ref))
+                  "   Pressure = {0:.2f} mbar".format(self.pressure.to_value(units.mbar)) + msgs.newline() +
+                  "   Humidity = {0:.2f} %".format(self.humidity*100.0) + msgs.newline() +
+                  "   Temperature = {0:.2f} deg C".format(self.temperature.to_value(units.deg_C)) + msgs.newline() +
+                  "   Reference wavelength = {0:.2f} Angstroms".format(self.wave_ref.to_value(units.Angstrom)))
 
     def calculate_dispersion(self, waves):
         """ Calculate the total atmospheric dispersion relative to the reference wavelength
@@ -265,9 +265,12 @@ class DARcorrection:
         z = np.arccos(1.0/self.airmass)
 
         # Calculate the coefficients of the correction
+        # self.refa, self.refb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
+        #                                   self.humidity, self.wave_ref.to_value(units.micron))
         cnsa, cnsb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
                                 self.humidity, (waves*units.Angstrom).to_value(units.micron))
-        return (180.0/np.pi) * (self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3
+        dar_full =  (180.0/np.pi) * ((self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3)
+        return dar_full
 
     def correction(self, waves):
         """
