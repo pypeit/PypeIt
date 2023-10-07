@@ -227,10 +227,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Dark')
         if ftype in ['pixelflat','illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & (fitstbl['idname'] == 'WideFlat') 
+            return good_exp & (fitstbl['idname'] == 'WideFlat')
         if ftype in ['trace']:
             return good_exp & ((fitstbl['idname'] == 'WideFlat') |
-                                   (fitstbl['idname'] == 'Iodine') | 
+                                   (fitstbl['idname'] == 'Iodine') |
                                    (fitstbl['idname'] == 'NarrowFlat'))
         if ftype in ['pinhole']:
             return good_exp & (fitstbl['idname'] == 'NarrowFlat') 
@@ -242,10 +242,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
     def is_science(self, fitstbl):
         rv = fitstbl['idname'] != 'WideFlat'
-        
+
         for filetype in ['NarrowFlat','ThAr','Dark','Bias','Iodine']:
             rv = rv & (fitstbl['idname'] != filetype)
-            
+
         return rv
 
     @property
