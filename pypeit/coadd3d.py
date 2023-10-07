@@ -210,7 +210,7 @@ class DARcorrection:
             airmass (:obj:`float`):
                 The airmass of the observations (unitless)
             parangle (:obj:`float`):
-                The parallactic angle of the observations (units=degree, relative to North, towards East is postive)
+                The parallactic angle of the observations (units=radians, relative to North, towards East is postive)
             pressure (:obj:`float`):
                 The atmospheric pressure during the observations in Pascal. Valid range is from 10kPa - 140 kPa.
             temperature (:obj:`float`):
@@ -269,7 +269,7 @@ class DARcorrection:
         #                                   self.humidity, self.wave_ref.to_value(units.micron))
         cnsa, cnsb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
                                 self.humidity, (waves*units.Angstrom).to_value(units.micron))
-        dar_full =  (180.0/np.pi) * ((self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3)
+        dar_full = (180.0/np.pi) * ((self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3)
         return dar_full
 
     def correction(self, waves):

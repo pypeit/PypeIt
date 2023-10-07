@@ -222,8 +222,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['WXPRESS']  # Must be in astropy.units.mbar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 0.611 mbar")
-                return 0.611
+                msgs.info("The default pressure will be assumed: 611 mbar")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
@@ -242,7 +242,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'parangle':
             try:
                 # Parallactic angle expressed in radians
-                return headarr[0]['PARANG'] * np.pi / 180
+                return headarr[0]['PARANG'] * np.pi / 180.0
             except KeyError:
                 msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
