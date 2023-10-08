@@ -245,7 +245,7 @@ class DARcorrection:
                   "   Pressure = {0:.2f} mbar".format(self.pressure.to_value(units.mbar)) + msgs.newline() +
                   "   Humidity = {0:.2f} %".format(self.humidity*100.0) + msgs.newline() +
                   "   Temperature = {0:.2f} deg C".format(self.temperature.to_value(units.deg_C)) + msgs.newline() +
-                  "   Reference wavelength = {0:.2f} Angstroms".format(self.wave_ref.to_value(units.Angstrom)))
+                  "   Reference wavelength = {0:.2f} Angstrom".format(self.wave_ref.to_value(units.Angstrom)))
 
     def calculate_dispersion(self, waves):
         """ Calculate the total atmospheric dispersion relative to the reference wavelength
@@ -269,7 +269,7 @@ class DARcorrection:
         #                                   self.humidity, self.wave_ref.to_value(units.micron))
         cnsa, cnsb = erfa.refco(self.pressure.to_value(units.hPa), self.temperature.to_value(units.deg_C),
                                 self.humidity, (waves*units.Angstrom).to_value(units.micron))
-        dar_full = (180.0/np.pi) * ((self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3)
+        dar_full = np.rad2deg((self.refa-cnsa) * np.tan(z) + (self.refb-cnsb) * np.tan(z)**3)
         return dar_full
 
     def correction(self, waves):

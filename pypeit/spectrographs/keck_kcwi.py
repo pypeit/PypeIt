@@ -592,11 +592,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
-
-        # Create a coordinate
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+        ra = self.compound_meta([hdr], 'ra')
+        dec = self.compound_meta([hdr], 'dec')
 
         skypa = self.compound_meta([hdr], 'posang')
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
@@ -605,13 +602,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Calculate the fits coordinates
         cdelt1 = -slscl
         cdelt2 = pxscl
-        if coord is None:
-            ra = 0.
-            dec = 0.
-            crota = 1
-        else:
-            ra = coord.ra.degree
-            dec = coord.dec.degree
+
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
