@@ -604,6 +604,61 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
     return all_ra, all_dec
 
 
+def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
+    """
+    This function checks if the spatial and spectral scales of all frames are consistent.
+    If the user has not specified either the spatial or spectral scales, they will be set here.
+
+    Parameters
+    ----------
+    spatscale : `numpy.ndarray`_
+        2D array, shape is (N, 2), listing the native spatial scales of N spec2d frames.
+        spatscale[:,0] refers to the spatial pixel scale of each frame
+        spatscale[:,1] refers to the slicer scale of each frame
+        Each element of the array must be in degrees
+    specscale : `numpy.ndarray`_
+        1D array listing the native spectral scales of multiple frames. The length of this array should be equal
+        to the number of frames you are using. Each element of the array must be in Angstrom
+    dspat: :obj:`float`, optional
+        Spatial scale to use as the voxel spatial sampling. If None, a new value will be derived based on the inputs
+    dwv: :obj:`float`, optional
+        Spectral scale to use as the voxel spectral sampling. If None, a new value will be derived based on the inputs
+
+    Returns
+    -------
+    _dspat : :obj:`float`
+        Spatial sampling
+    _dwv : :obj:`float`
+        Wavelength sampling
+    """
+    # Make sure all frames have consistent pixel scales
+    ratio = (spatscale[:, 0] - spatscale[0, 0]) / spatscale[0, 0]
+    if np.any(np.abs(ratio) > 1E-4):
+        msgs.warn("The pixel scales of all input frames are not the same!")
+        spatstr = ", ".join(["{0:.6f}".format(ss) for ss in spatscale[:,0]*3600.0])
+        msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
+    # Make sure all frames have consistent slicer scales
+    ratio = (spatscale[:, 1] - spatscale[0, 1]) / spatscale[0, 1]
+    if np.any(np.abs(ratio) > 1E-4):
+        msgs.warn("The slicer scales of all input frames are not the same!")
+        spatstr = ", ".join(["{0:.6f}".format(ss) for ss in spatscale[:,1]*3600.0])
+        msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
+    # Make sure all frames have consistent wavelength sampling
+    ratio = (specscale - specscale[0]) / specscale[0]
+    if np.any(np.abs(ratio) > 1E-2):
+        msgs.warn("The wavelength samplings of the input frames are not the same!")
+        specstr = ", ".join(["{0:.6f}".format(ss) for ss in specscale])
+        msgs.info("Wavelength samplings of all input frames:" + msgs.newline() + specstr + "Angstrom")
+
+    # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
+    _dspat = np.max(spatscale) if dspat is None else dspat
+    msgs.info("Adopting a square pixel spatial scale of {0:f} arcsec".format(3600.0 * _dspat))
+    # If the user has not specified the spectral sampling, then set it now to the largest value
+    _dwv = np.max(specscale) if dwv is None else dwv
+    msgs.info("Adopting a wavelength sampling of {0:f} Angstrom".format(_dwv))
+    return _dspat, _dwv
+
+
 def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):

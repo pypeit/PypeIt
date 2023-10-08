@@ -323,7 +323,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return  super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
+        return super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

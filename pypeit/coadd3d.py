@@ -888,11 +888,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         Parameters
         ----------
-        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_:
+        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_
             2D PypeIt spectra object.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_:
+        slits : :class:`pypeit.slittrace.SlitTraceSet`_
             Class containing information about the slits
-        spat_flexure: :obj:`float`, optional:
+        spat_flexure: :obj:`float`, optional
             Spatial flexure in pixels
 
         Returns
@@ -924,39 +924,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             traces = alignments.traces
         msgs.info("Generating alignment splines")
         return alignframe.AlignmentSplines(traces, locations, spec2DObj.tilts)
-
-    def set_voxel_sampling(self):
-        """
-        This function checks if the spatial and spectral scales of all frames are consistent.
-        If the user has not specified either the spatial or spectral scales, they will be set here.
-        """
-        # Make sure all frames have consistent pixel scales
-        ratio = (self._spatscale[:, 0] - self._spatscale[0, 0]) / self._spatscale[0, 0]
-        if np.any(np.abs(ratio) > 1E-4):
-            msgs.warn("The pixel scales of all input frames are not the same!")
-            spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,0]*3600.0])
-            msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
-        # Make sure all frames have consistent slicer scales
-        ratio = (self._spatscale[:, 1] - self._spatscale[0, 1]) / self._spatscale[0, 1]
-        if np.any(np.abs(ratio) > 1E-4):
-            msgs.warn("The slicer scales of all input frames are not the same!")
-            spatstr = ", ".join(["{0:.6f}".format(ss) for ss in self._spatscale[:,1]*3600.0])
-            msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
-        # Make sure all frames have consistent wavelength sampling
-        ratio = (self._specscale - self._specscale[0]) / self._specscale[0]
-        if np.any(np.abs(ratio) > 1E-2):
-            msgs.warn("The wavelength samplings of the input frames are not the same!")
-            specstr = ", ".join(["{0:.6f}".format(ss) for ss in self._specscale])
-            msgs.info("Wavelength samplings of all input frames:" + msgs.newline() + specstr)
-
-        # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
-        if self._dspat is None:
-            self._dspat = np.max(self._spatscale)
-            msgs.info("Adopting a square pixel spatial scale of {0:f} arcsec".format(3600.0 * self._dspat))
-        # If the user has not specified the spectral sampling, then set it now to the largest value
-        if self._dwv is None:
-            self._dwv = np.max(self._specscale)
-            msgs.info("Adopting a wavelength sampling of {0:f} Angstrom".format(self._dwv))
 
     def load(self):
         """
@@ -1342,11 +1309,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         # If the user is aligning or combining, the spatial scale of the output cubes needs to be consistent.
         # Set the spatial and spectral scales of the output datacube
-        self.set_voxel_sampling()
+        self._dspat, self._dwv = datacube.set_voxel_sampling(self._spatscale, self._specscale,
+                                                             dspat=self._dspat, dwv=self._dwv)
 
         # Align the frames
         if self.align:
-            self.run_align()
+            self.all_ra, self.all_dec = self.run_align()
 
         # Compute the relative weights on the spectra
         self.all_wghts = self.compute_weights()
@@ -1363,7 +1331,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             sensfunc = self.flux_spline(senswave)
 
         # Generate a datacube
-        outfile = datacube.get_output_filename("", self.cubepar['output_filename'], True, -1)
         if self.method in ['subpixel', 'ngp']:
             # Generate the datacube
             wl_wvrng = None
@@ -1372,6 +1339,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 np.min(self.mnmx_wv[:, :, 1]),
                                                 self.cubepar['whitelight_range'])
             if self.combine:
+                outfile = datacube.get_output_filename("", self.cubepar['output_filename'], True, -1)
                 generate_cube_subpixel(outfile, cube_wcs, self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
                                        np.ones(self.all_wghts.size),  # all_wghts,
                                        self.all_spatpos, self.all_specpos, self.all_spatid, self.all_tilts, self.all_slits, self.all_align, self.all_dar, vox_edges,
