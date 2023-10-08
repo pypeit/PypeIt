@@ -16,6 +16,8 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- We now support the reduction of VLT/FORS2 data taken in MOS mode.
+
 Script Changes
 --------------
 
