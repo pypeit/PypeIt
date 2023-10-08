@@ -65,5 +65,5 @@ class CoAddDataCube(scriptbase.ScriptBase):
                                      det=args.det, overwrite=args.overwrite)
 
         # Coadd the files
-        coadd.coadd()
+        coadd.run()
         msgs.info(utils.get_time_string(time.time()-tstart))
