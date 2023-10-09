@@ -1007,7 +1007,7 @@ def ech_pca_traces(
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order_vec,
                 spec_min_max, det='DET01', inmask=None,
-                fof_link=1.5, plate_scale=0.2,
+                fof_link=0.3, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, 
                 coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, 

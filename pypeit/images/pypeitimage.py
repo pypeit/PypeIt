@@ -784,7 +784,7 @@ class PypeItImage(datamodel.DataContainer):
         if other.spat_flexure is not None and spat_flexure is not None \
                 and other.spat_flexure != spat_flexure:
             msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
 
         # Create the new image.
         # TODO: We should instead *copy* the detector object; otherwise, it's
