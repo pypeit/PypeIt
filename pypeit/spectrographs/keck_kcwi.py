@@ -717,6 +717,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # KCWI --> AMPMODE = 'ALL', 'TBO', 'TUP'
         # KCRM --> AMPMODE = 'L2U2', 'L2U2L1U1'
         bc = None
+        embed()
         if ampmode == 'ALL':
             # TODO: There are several bad columns in this mode, but this is typically only used for arcs.
             #       It's the same set of bad columns seen in the TBO and TUP amplifier modes.
@@ -748,9 +749,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                       [1838, 1838,  933, 2055]]
         elif ampmode == 'L2U2':
             if binning == '1,1':
-                bc = [[3458, 3462, 0, 613]]
+                bc = [[649, 651, 0, 613]]  # This accounts for the spatflip - not sure if the 649-651 is too broad though...
             elif binning == '2,2':
-                bc = [[1730, 1730, 0, 307]]
+                bc = [[325, 325, 0, 307]]  # This accounts for the spatflip
         elif ampmode == "L2U2L1U1":
             pass
             # Currently unchecked...
