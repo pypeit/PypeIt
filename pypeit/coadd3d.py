@@ -998,13 +998,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
 
             # Grab the WCS of this frame
-            frame_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
-            self.all_wcs.append(copy.deepcopy(frame_wcs))
+            self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv))
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
             alignSplines = self.get_alignments(spec2DObj, slits, spat_flexure=spat_flexure)
-            raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignSplines, spec2DObj.tilts,
+            raimg, decimg, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts,
                                                           initial=True, flexure=spat_flexure)
 
             # Get copies of arrays to be saved
@@ -1069,8 +1068,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
-            sl_deg = np.sqrt(frame_wcs.wcs.cd[0, 0] ** 2 + frame_wcs.wcs.cd[1, 0] ** 2)
-            px_deg = np.sqrt(frame_wcs.wcs.cd[1, 1] ** 2 + frame_wcs.wcs.cd[0, 1] ** 2)
+            sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
+            px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
             scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
             flux_sort /= scl_units
             ivar_sort *= scl_units ** 2
@@ -1096,8 +1095,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
                 # Generate the output WCS for the datacube
-                tmp_crval_wv = (frame_wcs.wcs.crval[2] * frame_wcs.wcs.cunit[2]).to(units.Angstrom).value
-                tmp_cd_wv = (frame_wcs.wcs.cd[2,2] * frame_wcs.wcs.cunit[2]).to(units.Angstrom).value
+                tmp_crval_wv = (self.all_wcs[ff].wcs.crval[2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
+                tmp_cd_wv = (self.all_wcs[ff].wcs.cd[2,2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
                 crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else tmp_crval_wv
                 cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else tmp_cd_wv
                 output_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
