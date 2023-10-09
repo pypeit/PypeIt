@@ -1456,6 +1456,7 @@ class CubePar(ParSet):
                                     'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
+        options['method'] = ["subpixel", "ngp"]
         dtypes['method'] = str
         descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
                           '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames ' \
@@ -1588,19 +1589,12 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        # Check the method options
-        allowed_methods = ["subpixel", "ngp"]
-        if self.data['method'] not in allowed_methods:
-            # Check if the supplied name exists
-            if not os.path.exists(self.data['method']):
-                raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods) +
-                                 "\nor, the relative path to a spec2d file.")
         # Check the skysub options
         allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
         if self.data['skysub_frame'] not in allowed_skysub_options:
             # Check if the supplied name exists
             if not os.path.exists(self.data['method']):
-                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_methods) +
+                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
                                  "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")

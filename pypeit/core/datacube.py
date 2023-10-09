@@ -17,6 +17,9 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import coadd, flux_calib
 
+# Use a fast histogram for speed!
+from fast_histogram import histogramdd
+
 from IPython import embed
 
 
@@ -213,8 +216,9 @@ def extract_standard_spec(stdcube, subpixel=20):
 
     # Setup the WCS
     stdwcs = wcs.WCS(stdcube['FLUX'].header)
-    wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
-    wave = wcs_wav[:, 2] * 1.0E10 * units.AA
+
+    wcs_scale = (1.0 * stdwcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * stdwcs.spectral.wcs_pix2world(np.arange(numwave), 0)[0]
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     wl_img = make_whitelight_fromcube(flxcube)
@@ -317,7 +321,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
         blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
                                      kind='linear', bounds_error=False, fill_value="extrapolate")
         # Perform a grating correction
-        grat_corr = correct_grating_shift(wave.value, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+        grat_corr = correct_grating_shift(wave, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
         # Apply the grating correction to the standard star spectrum
         Nlam_star /= grat_corr
         Nlam_ivar_star *= grat_corr ** 2
@@ -330,7 +334,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
     # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
     msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
     zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
-        flux_calib.fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+        flux_calib.fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                                  mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
                                  mask_helium_lines=senspar['mask_helium_lines'],
                                  hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
@@ -342,8 +346,7 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
                                  polyfunc=senspar['UVIS']['polyfunc'])
     wgd = np.where(zeropoint_fit_gpm)
     sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
-    flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
-    return flux_spline
+    return interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
 
 
 def make_good_skymask(slitimg, tilts):
@@ -399,18 +402,14 @@ def get_output_filename(fil, par_outfile, combine, idx=1):
         str: The output filename to use.
     """
     if combine:
-        if par_outfile == "":
-            par_outfile = "datacube.fits"
-        # Check the output files don't exist
-        outfile = par_outfile if ".fits" in par_outfile else par_outfile + ".fits"
-    else:
-        if par_outfile == "":
-            outfile = fil.replace("spec2d_", "spec3d_")
-        else:
-            # Use the output filename as a prefix
-            outfile = os.path.splitext(par_outfile)[0] + "_{0:03d}.fits".format(idx)
-    # Return the outfile
-    return outfile
+        if par_outfile == '':
+            par_outfile = 'datacube.fits'
+        # Check if we needs to append an extension
+        return par_outfile if '.fits' in par_outfile else f'{par_outfile}.fits'
+    if par_outfile == '':
+        return fil.replace('spec2d_', 'spec3d_')
+    # Finally, if nothing else, use the output filename as a prefix, and a numerical suffic
+    return os.path.splitext(par_outfile)[0] + f'_{idx:03}.fits'
 
 
 def get_output_whitelight_filename(outfile):
@@ -423,10 +422,9 @@ def get_output_whitelight_filename(outfile):
             The output filename used for the datacube.
 
     Returns:
-        str: The output filename to use for the whitelight image.
+        A string containing the output filename to use for the whitelight image.
     """
-    out_wl_filename = os.path.splitext(outfile)[0] + "_whitelight.fits"
-    return out_wl_filename
+    return os.path.splitext(outfile)[0] + "_whitelight.fits"
 
 
 def get_whitelight_pixels(all_wave, min_wl, max_wl):
@@ -515,7 +513,7 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
             reduce the wavelength range.
 
     Returns:
-        `numpy.ndarray`_: Whitelight image of the input cube.
+        A whitelight image of the input cube (of type `numpy.ndarray`_).
     """
     # Make a wavelength cut, if requested
     cutcube = cube.copy()
@@ -591,8 +589,8 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
             A list of Dec offsets to be applied to the input pixel values (one value per frame).
 
     Returns:
-        `numpy.ndarray`_: A new set of RA values that have been aligned
-        `numpy.ndarray`_: A new set of Dec values that has been aligned
+        A tuple containing a new set of RA and Dec values that have been aligned. Both arrays
+        are of type `numpy.ndarray`_.
     """
     # First, translate all coordinates to the coordinates of the first frame
     # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
@@ -604,9 +602,119 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
         # Apply the shift
         all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
         all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
-        msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
-                  "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, ra_offset[ff], dec_offset[ff]))
+        msgs.info("Spatial shift of cube #{0:d}:".format(ff + 1) + msgs.newline() +
+                  "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_offset[ff], dec_offset[ff]))
     return all_ra, all_dec
+
+
+def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
+    """
+    This function checks if the spatial and spectral scales of all frames are consistent.
+    If the user has not specified either the spatial or spectral scales, they will be set here.
+
+    Parameters
+    ----------
+    spatscale : `numpy.ndarray`_
+        2D array, shape is (N, 2), listing the native spatial scales of N spec2d frames.
+        spatscale[:,0] refers to the spatial pixel scale of each frame
+        spatscale[:,1] refers to the slicer scale of each frame
+        Each element of the array must be in degrees
+    specscale : `numpy.ndarray`_
+        1D array listing the native spectral scales of multiple frames. The length of this array should be equal
+        to the number of frames you are using. Each element of the array must be in Angstrom
+    dspat: :obj:`float`, optional
+        Spatial scale to use as the voxel spatial sampling. If None, a new value will be derived based on the inputs
+    dwv: :obj:`float`, optional
+        Spectral scale to use as the voxel spectral sampling. If None, a new value will be derived based on the inputs
+
+    Returns
+    -------
+    _dspat : :obj:`float`
+        Spatial sampling
+    _dwv : :obj:`float`
+        Wavelength sampling
+    """
+    # Make sure all frames have consistent pixel scales
+    ratio = (spatscale[:, 0] - spatscale[0, 0]) / spatscale[0, 0]
+    if np.any(np.abs(ratio) > 1E-4):
+        msgs.warn("The pixel scales of all input frames are not the same!")
+        spatstr = ", ".join(["{0:.6f}".format(ss) for ss in spatscale[:,0]*3600.0])
+        msgs.info("Pixel scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
+    # Make sure all frames have consistent slicer scales
+    ratio = (spatscale[:, 1] - spatscale[0, 1]) / spatscale[0, 1]
+    if np.any(np.abs(ratio) > 1E-4):
+        msgs.warn("The slicer scales of all input frames are not the same!")
+        spatstr = ", ".join(["{0:.6f}".format(ss) for ss in spatscale[:,1]*3600.0])
+        msgs.info("Slicer scales of all input frames:" + msgs.newline() + spatstr + "arcseconds")
+    # Make sure all frames have consistent wavelength sampling
+    ratio = (specscale - specscale[0]) / specscale[0]
+    if np.any(np.abs(ratio) > 1E-2):
+        msgs.warn("The wavelength samplings of the input frames are not the same!")
+        specstr = ", ".join(["{0:.6f}".format(ss) for ss in specscale])
+        msgs.info("Wavelength samplings of all input frames:" + msgs.newline() + specstr + "Angstrom")
+
+    # If the user has not specified the spatial scale, then set it appropriately now to the largest spatial scale
+    _dspat = np.max(spatscale) if dspat is None else dspat
+    msgs.info("Adopting a square pixel spatial scale of {0:f} arcsec".format(3600.0 * _dspat))
+    # If the user has not specified the spectral sampling, then set it now to the largest value
+    _dwv = np.max(specscale) if dwv is None else dwv
+    msgs.info("Adopting a wavelength sampling of {0:f} Angstrom".format(_dwv))
+    return _dspat, _dwv
+
+
+def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
+    """
+    Create a WCS and the expected edges of the voxels, based on user-specified
+    parameters or the extremities of the data. This is a convenience function
+    that calls the core function in `pypeit.core.datacube`_.
+
+    Parameters
+    ----------
+    all_ra : `numpy.ndarray`_
+        1D flattened array containing the RA values of each pixel from all
+        spec2d files
+    all_dec : `numpy.ndarray`_
+        1D flattened array containing the DEC values of each pixel from all
+        spec2d files
+    all_wave : `numpy.ndarray`_
+        1D flattened array containing the wavelength values of each pixel from
+        all spec2d files
+    ra_min : :obj:`float`, optional
+        Minimum RA of the WCS
+    ra_max : :obj:`float`, optional
+        Maximum RA of the WCS
+    dec_min : :obj:`float`, optional
+        Minimum Dec of the WCS
+    dec_max : :obj:`float`, optional
+        Maximum RA of the WCS
+    wav_min : :obj:`float`, optional
+        Minimum wavelength of the WCS
+    wav_max : :obj:`float`, optional
+        Maximum RA of the WCS
+
+    Returns
+    -------
+    _ra_min : :obj:`float`
+        Minimum RA of the WCS
+    _ra_max : :obj:`float`
+        Maximum RA of the WCS
+    _dec_min : :obj:`float`
+        Minimum Dec of the WCS
+    _dec_max : :obj:`float`
+        Maximum RA of the WCS
+    _wav_min : :obj:`float`
+        Minimum wavelength of the WCS
+    _wav_max : :obj:`float`
+        Maximum RA of the WCS
+    """
+    # Setup the cube ranges
+    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
+    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
+    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
+    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
+    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
+    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
+    return _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max
 
 
 def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
@@ -668,13 +776,9 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
-    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
-    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
-    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
-    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
-    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
-    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
-    # dwave = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
+    _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max = \
+        wcs_bounds(all_ra, all_dec, all_wave, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
+                   wave_min=wave_min, wave_max=wave_max)
 
     # Number of voxels in each dimension
     numra = int((_ra_max - _ra_min) * cosdec / dspat)
@@ -754,6 +858,120 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
     w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
     w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
     return w
+
+
+def compute_weights_frompix(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, dspat, dwv, mnmx_wv, all_wghts,
+                            all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, all_dar,
+                            ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+                            sn_smooth_npix=None, relative_weights=False, reference_image=None, whitelight_range=None,
+                            specname="PYPSPEC"):
+    r"""
+    Calculate wavelength dependent optimal weights. The weighting is currently
+    based on a relative :math:`(S/N)^2` at each wavelength. Note, this function
+    first prepares a whitelight image, and then calls compute_weights() to
+    determine the appropriate weights of each pixel.
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the RA values of each pixel from all
+            spec2d files
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the DEC values of each pixel from all
+            spec2d files
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength values of each pixel
+            from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel
+            from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            1D flattened array containing an integer identifier indicating which
+            spec2d file each pixel originates from. For example, a 0 would
+            indicate that a pixel originates from the first spec2d frame listed
+            in the input file. a 1 would indicate that this pixel originates
+            from the second spec2d file, and so forth.
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        dwv (float):
+            The size of each wavelength pixel (in Angstroms)
+        mnmx_wv (`numpy.ndarray`_):
+            The minimum and maximum wavelengths of every slit and frame. The shape is (Nframes, Nslits, 2),
+            The minimum and maximum wavelengths are stored in the [:,:,0] and [:,:,1] indices, respectively.
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used
+            in the combination
+        all_spatpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spatial direction
+        all_specpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spectral direction
+        all_spatid (`numpy.ndarray`_):
+            1D flattened array containing the spatid of each pixel
+        tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet (see
+            all_idx)
+        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        ra_min (float, optional):
+            Minimum RA of the WCS (degrees)
+        ra_max (float, optional):
+            Maximum RA of the WCS (degrees)
+        dec_min (float, optional):
+            Minimum Dec of the WCS (degrees)
+        dec_max (float, optional):
+            Maximum Dec of the WCS (degrees)
+        wave_min (float, optional):
+            Minimum wavelength of the WCS (degrees)
+        wave_max (float, optional):
+            Maximum wavelength of the WCS (degrees)
+        sn_smooth_npix (float, optional):
+            Number of pixels used for determining smoothly varying S/N ratio
+            weights.  This is currently not required, since a relative weighting
+            scheme with a polynomial fit is used to calculate the S/N weights.
+        relative_weights (bool, optional):
+            Calculate weights by fitting to the ratio of spectra?
+        reference_image (`numpy.ndarray`_):
+            Reference image to use for the determination of the highest S/N spaxel in the image.
+        specname (str):
+            Name of the spectrograph
+
+    Returns:
+        `numpy.ndarray`_ : a 1D array the same size as all_sci, containing
+        relative wavelength dependent weights of each input pixel.
+    """
+    # Find the wavelength range where all frames overlap
+    min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                          np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                          whitelight_range)  # The user-specified values (if any)
+    # Get the good white light pixels
+    ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
+
+    # Generate the WCS
+    image_wcs, voxedge, reference_image = \
+        create_wcs(all_ra, all_dec, all_wave, dspat, wavediff,
+                   ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max,
+                   reference=reference_image, collapse=True, equinox=2000.0,
+                   specname=specname)
+
+    # Generate the white light image
+    # NOTE: hard-coding subpixel=1 in both directions for speed, and combining into a single image
+    wl_full = generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                                      all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, all_dar,
+                                      voxedge, all_idx=all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
+    # Compute the weights
+    return compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, wl_full[:, :, 0], dspat, dwv,
+                           sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
 
 
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
@@ -842,7 +1060,8 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
-    wave_spec = wcs_res[:, 2] * 1.0E10
+    wcs_scale = (1.0 * whitelightWCS.wcs.cunit[2]).to_value(units.Angstrom)  # Ensures the WCS is in Angstroms
+    wave_spec = wcs_scale * wcs_res[:, 2]
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
@@ -857,3 +1076,440 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
     msgs.info("Optimal weighting complete")
     return all_wghts
+
+
+def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                            all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
+                            all_idx=None, spec_subpixel=10, spat_subpixel=10, combine=False):
+    """
+    Generate a white light image from the input pixels
+
+    Args:
+        image_wcs (`astropy.wcs.WCS`_):
+            World coordinate system to use for the white light images.
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the right ascension of each pixel
+            (units = degrees)
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the declination of each pixel (units =
+            degrees)
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength of each pixel (units =
+            Angstroms)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel
+            from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used
+            in the combination
+        all_spatpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spatial direction
+        all_specpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spectral direction
+        all_spatid (`numpy.ndarray`_):
+            1D flattened array containing the spatid of each pixel
+        tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet (see
+            all_idx)
+        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
+            and z wavelength coordinates
+        all_idx (`numpy.ndarray`_, optional):
+            If tilts, slits, and astrom_trans are lists, this should contain a
+            1D flattened array, of the same length as all_sci, containing the
+            index the tilts, slits, and astrom_trans lists that corresponds to
+            each pixel. Note that, in this case all of these lists need to be
+            the same length.
+        spec_subpixel (:obj:`int`, optional):
+            What is the subpixellation factor in the spectral direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spectral
+            direction.
+        spat_subpixel (:obj:`int`, optional):
+            What is the subpixellation factor in the spatial direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spatial
+            direction.
+        combine (:obj:`bool`, optional):
+            If True, all of the input frames will be combined into a single
+            output. Otherwise, individual images will be generated.
+
+    Returns:
+        `numpy.ndarray`_: The white light images for all frames
+    """
+    # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
+    _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
+    if combine:
+        numfr = 1
+    else:
+        numfr = np.unique(_all_idx).size
+        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr or len(all_dar) != numfr:
+            msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
+                       + msgs.newline() + "tilts, slits, astrom_trans, all_dar")
+    # Prepare the array of white light images to be stored
+    numra = bins[0].size-1
+    numdec = bins[1].size-1
+    all_wl_imgs = np.zeros((numra, numdec, numfr))
+
+    # Loop through all frames and generate white light images
+    for fr in range(numfr):
+        msgs.info(f"Creating image {fr+1}/{numfr}")
+        if combine:
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra, all_dec, all_wave,
+                                     all_sci, all_ivar, all_wghts, all_spatpos,
+                                     all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, all_idx=_all_idx)
+        else:
+            ww = np.where(_all_idx == fr)
+            # Subpixellate
+            img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
+                                     all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
+                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr],
+                                     all_dar[fr], bins, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+        all_wl_imgs[:, :, fr] = img[:, :, 0]
+    # Return the constructed white light images
+    return all_wl_imgs
+
+
+def generate_cube_subpixel(outfile, output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                           all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
+                           all_idx=None, spec_subpixel=10, spat_subpixel=10, overwrite=False,
+                           whitelight_range=None, debug=False):
+    """
+    Save a datacube using the subpixel algorithm. Refer to the subpixellate()
+    docstring for further details about this algorithm
+
+    Args:
+        outfile (str):
+            Filename to be used to save the datacube
+        output_wcs (`astropy.wcs.WCS`_):
+            Output world coordinate system.
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the right ascension of each pixel
+            (units = degrees)
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the declination of each pixel (units =
+            degrees)
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength of each pixel (units =
+            Angstroms)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel
+            from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used
+            in the combination
+        all_spatpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spatial direction
+        all_specpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spectral direction
+        all_spatid (`numpy.ndarray`_):
+            1D flattened array containing the spatid of each pixel
+        tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet (see
+            all_idx)
+        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
+            and z wavelength coordinates
+        all_idx (`numpy.ndarray`_, optional):
+            If tilts, slits, and astrom_trans are lists, this should contain a
+            1D flattened array, of the same length as all_sci, containing the
+            index the tilts, slits, and astrom_trans lists that corresponds to
+            each pixel. Note that, in this case all of these lists need to be
+            the same length.
+        spec_subpixel (int, optional):
+            What is the subpixellation factor in the spectral direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spectral
+            direction.
+        spat_subpixel (int, optional):
+            What is the subpixellation factor in the spatial direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spatial
+            direction.
+        overwrite (bool, optional):
+            If True, the output cube will be overwritten.
+        whitelight_range (None, list, optional):
+            A two element list that specifies the minimum and maximum
+            wavelengths (in Angstroms) to use when constructing the white light
+            image (format is: [min_wave, max_wave]). If None, the cube will be
+            collapsed over the full wavelength range. If a list is provided an
+            either element of the list is None, then the minimum/maximum
+            wavelength range of that element will be set by the minimum/maximum
+            wavelength of all_wave.
+        debug (bool, optional):
+            If True, a residuals cube will be output. If the datacube generation
+            is correct, the distribution of pixels in the residual cube with no
+            flux should have mean=0 and std=1.
+
+    Returns:
+        :obj:`tuple`: Four `numpy.ndarray`_ objects containing
+        (1) the datacube generated from the subpixellated inputs,
+        (2) the corresponding error cube (standard deviation),
+        (3) the corresponding bad pixel mask cube, and
+        (4) a 1D array containing the wavelength at each spectral coordinate of the datacube.
+    """
+    # Prepare the header, and add the unit of flux to the header
+    hdr = output_wcs.to_header()
+
+    # Subpixellate
+    subpix = subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
+                          all_spatid, tilts, slits, astrom_trans, all_dar, bins, all_idx=all_idx,
+                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, debug=debug)
+    # Extract the variables that we need
+    if debug:
+        flxcube, varcube, bpmcube, residcube = subpix
+        # Save a residuals cube
+        outfile_resid = outfile.replace(".fits", "_resid.fits")
+        msgs.info("Saving residuals datacube as: {0:s}".format(outfile_resid))
+        hdu = fits.PrimaryHDU(residcube.T, header=hdr)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
+    else:
+        flxcube, varcube, bpmcube = subpix
+
+    # Get wavelength of each pixel
+    nspec = flxcube.shape[2]
+    wcs_scale = (1.0*output_wcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * output_wcs.spectral.wcs_pix2world(np.arange(nspec), 0)[0]
+
+    # Check if the user requested a white light image
+    if whitelight_range is not None:
+        # Grab the WCS of the white light image
+        whitelight_wcs = output_wcs.celestial
+        # Determine the wavelength range of the whitelight image
+        if whitelight_range[0] is None:
+            whitelight_range[0] = np.min(all_wave)
+        if whitelight_range[1] is None:
+            whitelight_range[1] = np.max(all_wave)
+        msgs.info("White light image covers the wavelength range {0:.2f} A - {1:.2f} A".format(
+            whitelight_range[0], whitelight_range[1]))
+        # Get the output filename for the white light image
+        out_whitelight = get_output_whitelight_filename(outfile)
+        whitelight_img = make_whitelight_fromcube(flxcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
+        msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
+        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
+        img_hdu.writeto(out_whitelight, overwrite=overwrite)
+    # TODO :: Avoid transposing these large cubes
+    return flxcube.T, np.sqrt(varcube.T), bpmcube.T, wave
+
+
+def subpixellate(output_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_spatpos, all_specpos,
+                 all_spatid, tilts, slits, astrom_trans, all_dar, bins, all_idx=None,
+                 spec_subpixel=10, spat_subpixel=10, debug=False):
+    r"""
+    Subpixellate the input data into a datacube. This algorithm splits each
+    detector pixel into multiple subpixels, and then assigns each subpixel to a
+    voxel. For example, if ``spec_subpixel = spat_subpixel = 10``, then each
+    detector pixel is divided into :math:`10^2=100` subpixels. Alternatively,
+    when spec_subpixel = spat_subpixel = 1, this corresponds to the nearest grid
+    point (NGP) algorithm.
+
+    Important Note: If spec_subpixel > 1 or spat_subpixel > 1, the errors will
+    be correlated, and the covariance is not being tracked, so the errors will
+    not be (quite) right. There is a tradeoff one has to make between sampling
+    and better looking cubes, versus no sampling and better behaved errors.
+
+    Args:
+        output_wcs (`astropy.wcs.WCS`_):
+            Output world coordinate system.
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the right ascension of each pixel
+            (units = degrees)
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the declination of each pixel (units =
+            degrees)
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength of each pixel (units =
+            Angstroms)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel
+            from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used
+            in the combination
+        all_spatpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spatial direction
+        all_specpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spectral direction
+        all_spatid (`numpy.ndarray`_):
+            1D flattened array containing the spatid of each pixel
+        tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet (see
+            all_idx)
+        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
+            and z wavelength coordinates
+        all_idx (`numpy.ndarray`_, optional):
+            If tilts, slits, and astrom_trans are lists, this should contain a
+            1D flattened array, of the same length as all_sci, containing the
+            index the tilts, slits, and astrom_trans lists that corresponds to
+            each pixel. Note that, in this case all of these lists need to be
+            the same length.
+        spec_subpixel (:obj:`int`, optional):
+            What is the subpixellation factor in the spectral direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spectral
+            direction.
+        spat_subpixel (:obj:`int`, optional):
+            What is the subpixellation factor in the spatial direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
+            which divides each detector pixel into 5 subpixels in the spatial
+            direction.
+        debug (bool):
+            If True, a residuals cube will be output. If the datacube generation
+            is correct, the distribution of pixels in the residual cube with no
+            flux should have mean=0 and std=1.
+
+    Returns:
+        :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
+        datacube generated from the subpixellated inputs, (2) the corresponding
+        variance cube, (3) the corresponding bad pixel mask cube, and (4) the
+        residual cube.  The latter is only returned if debug is True.
+    """
+    # Check for combinations of lists or not
+    if all([isinstance(l, list) for l in [tilts, slits, astrom_trans, all_dar]]):
+        # Several frames are being combined. Check the lists have the same length
+        numframes = len(tilts)
+        if len(slits) != numframes or len(astrom_trans) != numframes or len(all_dar) != numframes:
+            msgs.error("The following lists must have the same length:" + msgs.newline() +
+                       "tilts, slits, astrom_trans, all_dar")
+        # Check all_idx has been set
+        if all_idx is None:
+            if numframes != 1:
+                msgs.error("Missing required argument for combining frames: all_idx")
+            else:
+                all_idx = np.zeros(all_sci.size)
+        else:
+            tmp = np.unique(all_idx).size
+            if tmp != numframes:
+                msgs.warn("Indices in argument 'all_idx' does not match the number of frames expected.")
+        # Store in the following variables
+        _tilts, _slits, _astrom_trans, _all_dar = tilts, slits, astrom_trans, all_dar
+    elif all([not isinstance(l, list) for l in [tilts, slits, astrom_trans, all_dar]]):
+        # Just a single frame - store as lists for this code
+        _tilts, _slits, _astrom_trans, _all_dar = [tilts], [slits], [astrom_trans], [all_dar]
+        all_idx = np.zeros(all_sci.size)
+        numframes = 1
+    else:
+        msgs.error("The following input arguments should all be of type 'list', or all not be type 'list':" +
+                   msgs.newline() + "tilts, slits, astrom_trans, all_dar")
+    # Prepare the output arrays
+    outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
+    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
+    flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
+    if debug:
+        residcube = np.zeros(outshape)
+    # Divide each pixel into subpixels
+    spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
+    spat_x, spec_y = np.meshgrid(spat_offs, spec_offs)
+    num_subpixels = spec_subpixel * spat_subpixel
+    area = 1 / num_subpixels
+    all_wght_subpix = all_wghts * area
+    all_var = utils.inverse(all_ivar)
+    # Loop through all exposures
+    for fr in range(numframes):
+        # Extract tilts and slits for convenience
+        this_tilts = _tilts[fr]
+        this_slits = _slits[fr]
+        # Loop through all slits
+        for sl, spatid in enumerate(this_slits.spat_id):
+            if numframes == 1:
+                msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits}")
+            else:
+                msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits} of frame {fr+1}/{numframes}")
+            this_sl = np.where((all_spatid == spatid) & (all_idx == fr))
+            wpix = (all_specpos[this_sl], all_spatpos[this_sl])
+            # Generate a spline between spectral pixel position and wavelength
+            yspl = this_tilts[wpix]*(this_slits.nspec - 1)
+            tiltpos = np.add.outer(yspl, spec_y).flatten()
+            wspl = all_wave[this_sl]
+            asrt = np.argsort(yspl)
+            wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # Calculate the wavelength at each subpixel
+            this_wave = wave_spl(tiltpos)
+            # Calculate the DAR correction at each sub pixel
+            ra_corr, dec_corr = _all_dar[fr].correction(this_wave)  # This routine needs the wavelengths to be expressed in Angstroms
+            # Calculate spatial and spectral positions of the subpixels
+            spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
+            spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
+            # Transform this to spatial location
+            spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
+            spatpos = _astrom_trans[fr].transform(sl, all_spatpos[this_sl], all_specpos[this_sl])
+            # Interpolate the RA/Dec over the subpixel spatial positions
+            ssrt = np.argsort(spatpos)
+            tmp_ra = all_ra[this_sl]
+            tmp_dec = all_dec[this_sl]
+            ra_spl = interp1d(spatpos[ssrt], tmp_ra[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            dec_spl = interp1d(spatpos[ssrt], tmp_dec[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            this_ra = ra_spl(spatpos_subpix)
+            this_dec = dec_spl(spatpos_subpix)
+            # Now apply the DAR correction
+            this_ra += ra_corr
+            this_dec += dec_corr
+            # Convert world coordinates to voxel coordinates, then histogram
+            vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra, this_dec, this_wave * 1.0E-10)).T, 0)
+            # Use the "fast histogram" algorithm, that assumes regular bin spacing
+            flxcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * all_wght_subpix[this_sl], num_subpixels))
+            varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_var[this_sl] * all_wght_subpix[this_sl]**2, num_subpixels))
+            normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_wght_subpix[this_sl], num_subpixels))
+            if debug:
+                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(all_sci[this_sl] * np.sqrt(all_ivar[this_sl]), num_subpixels))
+    # Normalise the datacube and variance cube
+    nc_inverse = utils.inverse(normcube)
+    flxcube *= nc_inverse
+    varcube *= nc_inverse**2
+    bpmcube = (normcube == 0).astype(np.uint8)
+    if debug:
+        residcube *= nc_inverse
+        return flxcube, varcube, bpmcube, residcube
+    return flxcube, varcube, bpmcube

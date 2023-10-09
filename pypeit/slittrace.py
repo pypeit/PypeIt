@@ -447,6 +447,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
+        msgs.info("Generating an RA/DEC image")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))

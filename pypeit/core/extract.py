@@ -467,8 +467,8 @@ def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
             or an integer that specifies the number of bin edges to generate
 
     Returns:
-        `numpy.ndarray`_: The wavelength at the centre of each histogram bin
-        `numpy.ndarray`_: The spectrum at each pixel of the returned wavelength array
+        A tuple containing the wavelength and spectrum at the centre of each histogram bin. Both
+        arrays returned in the tuple are `numpy.ndarray`_.
     """
     # Check the inputs
     if waveimg.shape != frame.shape:
@@ -478,9 +478,9 @@ def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
     if waveimg.shape != _gpm.shape:
         msgs.error("Wavelength image is not the same shape as the GPM")
     # Set the bins
-    if type(bins) is int:
+    if isinstance(bins, int):
         _bins = np.linspace(np.min(waveimg[_gpm]), np.max(waveimg[_gpm]), bins)
-    elif type(bins) is np.ndarray:
+    elif isinstance(bins, np.ndarray):
         _bins = bins
     else:
         msgs.error("Argument 'bins' should be an integer or a numpy array")

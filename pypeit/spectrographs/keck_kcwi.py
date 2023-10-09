@@ -219,11 +219,11 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['WXPRESS'] * 100.0  # Must be in astropy.units.pascal
+                return headarr[0]['WXPRESS']  # Must be in astropy.units.mbar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 61.1 kPa")
-                return 61.1E3
+                msgs.info("The default pressure will be assumed: 611 mbar")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
@@ -242,7 +242,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         elif meta_key == 'parangle':
             try:
                 # Parallactic angle expressed in radians
-                return headarr[0]['PARANG'] * np.pi / 180
+                return headarr[0]['PARANG'] * np.pi / 180.0
             except KeyError:
                 msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
@@ -323,7 +323,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return  super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
+        return super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -592,38 +592,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
-
-        # Create a coordinate
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+        ra = self.compound_meta([hdr], 'ra')
+        dec = self.compound_meta([hdr], 'dec')
 
         skypa = self.compound_meta([hdr], 'posang')
-        # Now in compont_meta
-        # Get rotator position
-        #if 'ROTPOSN' in hdr:
-        #    rpos = hdr['ROTPOSN']
-        #else:
-        #    rpos = 0.
-        #if 'ROTREFAN' in hdr:
-        #    rref = hdr['ROTREFAN']
-        #else:
-        #    rref = 0.
-        # Get the offset and PA
-        #skypa = rpos + rref  # IFU position angle (degrees)
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
         cdelt1 = -slscl
         cdelt2 = pxscl
-        if coord is None:
-            ra = 0.
-            dec = 0.
-            crota = 1
-        else:
-            ra = coord.ra.degree
-            dec = coord.dec.degree
+
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
@@ -769,9 +748,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                       [1838, 1838,  933, 2055]]
         elif ampmode == 'L2U2':
             if binning == '1,1':
-                bc = [[3458, 3462, 0, 613]]
+                bc = [[649, 651, 0, 613]]  # This accounts for the spatflip - not sure if the 649-651 is too broad though...
             elif binning == '2,2':
-                bc = [[1730, 1730, 0, 307]]
+                bc = [[325, 325, 0, 307]]  # This accounts for the spatflip
         elif ampmode == "L2U2L1U1":
             pass
             # Currently unchecked...
