@@ -503,49 +503,6 @@ class CoAdd3D:
                     if os.path.exists(out_whitelight) and self.cubepar['save_whitelight'] and not self.overwrite:
                         msgs.error("Output filename already exists:" + msgs.newline() + out_whitelight)
 
-    def wcs_bounds(self, all_ra, all_dec, all_wave):
-        """
-        Create a WCS and the expected edges of the voxels, based on user-specified
-        parameters or the extremities of the data. This is a convenience function
-        that calls the core function in `pypeit.core.datacube`_.
-
-        Parameters
-        ----------
-        all_ra : `numpy.ndarray`_
-            1D flattened array containing the RA values of each pixel from all
-            spec2d files
-        all_dec : `numpy.ndarray`_
-            1D flattened array containing the DEC values of each pixel from all
-            spec2d files
-        all_wave : `numpy.ndarray`_
-            1D flattened array containing the wavelength values of each pixel from
-            all spec2d files
-
-        Returns
-        -------
-        ra_min : :obj:`float`
-            Minimum RA of the WCS
-        ra_max : :obj:`float`
-            Maximum RA of the WCS
-        dec_min : :obj:`float`
-            Minimum Dec of the WCS
-        dec_max : :obj:`float`
-            Maximum RA of the WCS
-        wav_min : :obj:`float`
-            Minimum wavelength of the WCS
-        wav_max : :obj:`float`
-            Maximum RA of the WCS
-        """
-        # Setup the cube ranges
-        reference_image = None  # The default behaviour is that the reference image is not used
-        ra_min = self.cubepar['ra_min'] if self.cubepar['ra_min'] is not None else np.min(all_ra)
-        ra_max = self.cubepar['ra_max'] if self.cubepar['ra_max'] is not None else np.max(all_ra)
-        dec_min = self.cubepar['dec_min'] if self.cubepar['dec_min'] is not None else np.min(all_dec)
-        dec_max = self.cubepar['dec_max'] if self.cubepar['dec_max'] is not None else np.max(all_dec)
-        wav_min = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else np.min(all_wave)
-        wav_max = self.cubepar['wave_max'] if self.cubepar['wave_max'] is not None else np.max(all_wave)
-        return ra_min, ra_max, dec_min, dec_max, wav_min, wav_max
-
     def set_blaze_spline(self, wave_spl, spec_spl):
         """
         Generate a spline that represents the blaze function. This only needs to be done once,
@@ -1190,15 +1147,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             for dd in range(numiter):
                 msgs.info(f"Iterating on spatial translation - ITERATION #{dd+1}/{numiter}")
                 ref_idx = None  # Don't use an index - This is the default behaviour when a reference image is supplied
-                # Determine the bounds of the WCS
-                ra_min, ra_max, dec_min, dec_max, wav_min, wav_max = \
-                    self.wcs_bounds(new_ra[ww], new_dec[ww], self.all_wave[ww])
                 # Generate the WCS
                 image_wcs, voxedge, reference_image = \
                     datacube.create_wcs(new_ra[ww], new_dec[ww], self.all_wave[ww], self._dspat, wavediff,
-                                        ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
-                                        wave_min=wav_min, wave_max=wav_max, reference=self.cubepar['reference_image'],
-                                        collapse=True, equinox=2000.0, specname=self.specname)
+                                        ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                        dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                        wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                        reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
+                                        specname=self.specname)
                 if voxedge[2].size != 2:
                     msgs.error("Spectral range for WCS is incorrect for white light image")
 
@@ -1249,25 +1205,25 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the good white light pixels
             ww, wavediff = datacube.get_whitelight_pixels(self.all_wave, min_wl, max_wl)
 
-            # Determine the bounds of the WCS
-            ra_min, ra_max, dec_min, dec_max, wav_min, wav_max = \
-                self.wcs_bounds(self.all_ra, self.all_dec, self.all_wave)
             # Generate the WCS
             image_wcs, voxedge, reference_image = \
                 datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, self._dspat, wavediff,
-                                    ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
-                                    wave_min=wav_min, wave_max=wav_max, reference=self.cubepar['reference_image'],
-                                    collapse=True, equinox=2000.0, specname=self.specname)
+                                    ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                    dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                    wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                    reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
+                                    specname=self.specname)
 
-            # Generate the white light image (note: hard-coding subpixel=1 in both directions, and combining into a single image)
+            # Generate the white light image (note: hard-coding subpixel=1 in both directions for speed, and combining into a single image)
             wl_full = datacube.generate_image_subpixel(image_wcs, self.all_ra, self.all_dec, self.all_wave,
                                                        self.all_sci, self.all_ivar, self.all_wghts,
                                                        self.all_spatpos, self.all_specpos, self.all_spatid,
                                                        self.all_tilts, self.all_slits, self.all_align, self.all_dar, voxedge,
                                                        all_idx=self.all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
             # Compute the weights
-            all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar, self.all_idx, wl_full[:, :, 0],
-                                                      self._dspat, self._dwv, relative_weights=self.cubepar['relative_weights'])
+            all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
+                                                 self.all_idx, wl_full[:, :, 0], self._dspat, self._dwv,
+                                                 relative_weights=self.cubepar['relative_weights'])
         return all_wghts
 
     def run(self):
@@ -1318,15 +1274,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Compute the relative weights on the spectra
         self.all_wghts = self.compute_weights()
 
-        # Determine the bounds of the WCS
-        ra_min, ra_max, dec_min, dec_max, wav_min, wav_max = \
-            self.wcs_bounds(self.all_ra, self.all_dec, self.all_wave)
         # Generate the WCS, and the voxel edges
         cube_wcs, vox_edges, _ = \
             datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, self._dspat, self._dwv,
-                                ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
-                                wave_min=wav_min, wave_max=wav_max, reference=self.cubepar['reference_image'],
-                                collapse=False, equinox=2000.0, specname=self.specname)
+                                ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
+                                specname=self.specname)
 
         sensfunc = None
         if self.flux_spline is not None:

@@ -662,6 +662,61 @@ def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
     return _dspat, _dwv
 
 
+def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
+    """
+    Create a WCS and the expected edges of the voxels, based on user-specified
+    parameters or the extremities of the data. This is a convenience function
+    that calls the core function in `pypeit.core.datacube`_.
+
+    Parameters
+    ----------
+    all_ra : `numpy.ndarray`_
+        1D flattened array containing the RA values of each pixel from all
+        spec2d files
+    all_dec : `numpy.ndarray`_
+        1D flattened array containing the DEC values of each pixel from all
+        spec2d files
+    all_wave : `numpy.ndarray`_
+        1D flattened array containing the wavelength values of each pixel from
+        all spec2d files
+    ra_min : :obj:`float`, optional
+        Minimum RA of the WCS
+    ra_max : :obj:`float`, optional
+        Maximum RA of the WCS
+    dec_min : :obj:`float`, optional
+        Minimum Dec of the WCS
+    dec_max : :obj:`float`, optional
+        Maximum RA of the WCS
+    wav_min : :obj:`float`, optional
+        Minimum wavelength of the WCS
+    wav_max : :obj:`float`, optional
+        Maximum RA of the WCS
+
+    Returns
+    -------
+    _ra_min : :obj:`float`
+        Minimum RA of the WCS
+    _ra_max : :obj:`float`
+        Maximum RA of the WCS
+    _dec_min : :obj:`float`
+        Minimum Dec of the WCS
+    _dec_max : :obj:`float`
+        Maximum RA of the WCS
+    _wav_min : :obj:`float`
+        Minimum wavelength of the WCS
+    _wav_max : :obj:`float`
+        Maximum RA of the WCS
+    """
+    # Setup the cube ranges
+    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
+    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
+    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
+    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
+    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
+    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
+    return _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max
+
+
 def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
@@ -721,13 +776,9 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
     # Setup the cube ranges
-    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
-    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
-    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
-    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
-    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
-    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
-    # dwave = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
+    _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max = \
+        wcs_bounds(all_ra, all_dec, all_wave, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
+                   wave_min=wave_min, wave_max=wave_max)
 
     # Number of voxels in each dimension
     numra = int((_ra_max - _ra_min) * cosdec / dspat)
