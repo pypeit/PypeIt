@@ -1221,11 +1221,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             `numpy.ndarray`_: The individual pixel weights for each detector pixel, and every frame.
         """
         # Calculate the relative spectral weights of all pixels
-        if self.numfiles == 1:
-            # No need to calculate weights if there's just one frame
-            all_wghts = np.ones_like(self.all_sci)
-        else:
-            all_wghts = datacube.compute_weights_frompix(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
+        return np.ones_like(self.all_sci) if self.numfiles == 1 else \
+            datacube.compute_weights_frompix(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
                                                          self.all_idx, self._dspat, self._dwv, self.mnmx_wv, self.all_wghts,
                                                          self.all_spatpos, self.all_specpos, self.all_spatid,
                                                          self.all_tilts, self.all_slits, self.all_align, self.all_dar,
@@ -1236,7 +1233,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                          whitelight_range=self.cubepar['whitelight_range'],
                                                          reference_image=self.cubepar['reference_image'],
                                                          specname=self.specname)
-        return all_wghts
 
     def run(self):
         """
