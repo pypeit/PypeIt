@@ -1225,11 +1225,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # No need to calculate weights if there's just one frame
             all_wghts = np.ones_like(self.all_sci)
         else:
-            # TODO :: Need to decide if this can be moved to core or not...
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
-                                                  np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
-                                                  self.cubepar['whitelight_range'])  # The user-specified values (if any)
+                                                           np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
+                                                           self.cubepar['whitelight_range'])  # The user-specified values (if any)
             # Get the good white light pixels
             ww, wavediff = datacube.get_whitelight_pixels(self.all_wave, min_wl, max_wl)
 
