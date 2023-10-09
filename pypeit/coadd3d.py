@@ -1225,32 +1225,17 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # No need to calculate weights if there's just one frame
             all_wghts = np.ones_like(self.all_sci)
         else:
-            # Find the wavelength range where all frames overlap
-            min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
-                                                           np.min(self.mnmx_wv[:, :, 1]),  # The min red wavelength
-                                                           self.cubepar['whitelight_range'])  # The user-specified values (if any)
-            # Get the good white light pixels
-            ww, wavediff = datacube.get_whitelight_pixels(self.all_wave, min_wl, max_wl)
-
-            # Generate the WCS
-            image_wcs, voxedge, reference_image = \
-                datacube.create_wcs(self.all_ra, self.all_dec, self.all_wave, self._dspat, wavediff,
-                                    ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
-                                    dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
-                                    wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                    reference=self.cubepar['reference_image'], collapse=True, equinox=2000.0,
-                                    specname=self.specname)
-
-            # Generate the white light image (note: hard-coding subpixel=1 in both directions for speed, and combining into a single image)
-            wl_full = datacube.generate_image_subpixel(image_wcs, self.all_ra, self.all_dec, self.all_wave,
-                                                       self.all_sci, self.all_ivar, self.all_wghts,
-                                                       self.all_spatpos, self.all_specpos, self.all_spatid,
-                                                       self.all_tilts, self.all_slits, self.all_align, self.all_dar, voxedge,
-                                                       all_idx=self.all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
-            # Compute the weights
-            all_wghts = datacube.compute_weights(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
-                                                 self.all_idx, wl_full[:, :, 0], self._dspat, self._dwv,
-                                                 relative_weights=self.cubepar['relative_weights'])
+            all_wghts = datacube.compute_weights_frompix(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
+                                                         self.all_idx, self._dspat, self._dwv, self.mnmx_wv, self.all_wghts,
+                                                         self.all_spatpos, self.all_specpos, self.all_spatid,
+                                                         self.all_tilts, self.all_slits, self.all_align, self.all_dar,
+                                                         ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                                         dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                                         wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                                         relative_weights=self.cubepar['relative_weights'],
+                                                         whitelight_range=self.cubepar['whitelight_range'],
+                                                         reference_image=self.cubepar['reference_image'],
+                                                         specname=self.specname)
         return all_wghts
 
     def run(self):

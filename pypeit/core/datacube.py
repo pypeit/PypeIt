@@ -860,6 +860,119 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
     return w
 
 
+def compute_weights_frompix(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, dspat, dwv, mnmx_wv, all_wghts,
+                            all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, all_dar,
+                            ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+                            sn_smooth_npix=None, relative_weights=False, reference_image=None, whitelight_range=None,
+                            specname="PYPSPEC"):
+    r"""
+    Calculate wavelength dependent optimal weights. The weighting is currently
+    based on a relative :math:`(S/N)^2` at each wavelength. Note, this function
+    first prepares a whitelight image, and then calls compute_weights() to
+    determine the appropriate weights of each pixel.
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the RA values of each pixel from all
+            spec2d files
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the DEC values of each pixel from all
+            spec2d files
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength values of each pixel
+            from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel
+            from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            1D flattened array containing an integer identifier indicating which
+            spec2d file each pixel originates from. For example, a 0 would
+            indicate that a pixel originates from the first spec2d frame listed
+            in the input file. a 1 would indicate that this pixel originates
+            from the second spec2d file, and so forth.
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        dwv (float):
+            The size of each wavelength pixel (in Angstroms)
+        mnmx_wv (`numpy.ndarray`_):
+            TODO
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used
+            in the combination
+        all_spatpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spatial direction
+        all_specpos (`numpy.ndarray`_):
+            1D flattened array containing the detector pixel location in the
+            spectral direction
+        all_spatid (`numpy.ndarray`_):
+            1D flattened array containing the spatid of each pixel
+        tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames (see all_idx)
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet (see
+            all_idx)
+        astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines (see all_idx)
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        ra_min (float, optional):
+            Minimum RA of the WCS (degrees)
+        ra_max (float, optional):
+            Maximum RA of the WCS (degrees)
+        dec_min (float, optional):
+            Minimum Dec of the WCS (degrees)
+        dec_max (float, optional):
+            Maximum Dec of the WCS (degrees)
+        wave_min (float, optional):
+            Minimum wavelength of the WCS (degrees)
+        wave_max (float, optional):
+            Maximum wavelength of the WCS (degrees)
+        sn_smooth_npix (float, optional):
+            Number of pixels used for determining smoothly varying S/N ratio
+            weights.  This is currently not required, since a relative weighting
+            scheme with a polynomial fit is used to calculate the S/N weights.
+        relative_weights (bool, optional):
+            Calculate weights by fitting to the ratio of spectra?
+        reference_image (`numpy.ndarray`_):
+            Reference image to use for the determination of the highest S/N spaxel in the image.
+        specname (str):
+            Name of the spectrograph
+
+    Returns:
+        `numpy.ndarray`_ : a 1D array the same size as all_sci, containing
+        relative wavelength dependent weights of each input pixel.
+    """
+    # Find the wavelength range where all frames overlap
+    min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
+                                          np.min(mnmx_wv[:, :, 1]),  # The min red wavelength
+                                          whitelight_range)  # The user-specified values (if any)
+    # Get the good white light pixels
+    ww, wavediff = get_whitelight_pixels(all_wave, min_wl, max_wl)
+
+    # Generate the WCS
+    image_wcs, voxedge, reference_image = \
+        create_wcs(all_ra, all_dec, all_wave, dspat, wavediff,
+                   ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max,
+                   reference=reference_image, collapse=True, equinox=2000.0,
+                   specname=specname)
+
+    # Generate the white light image
+    # NOTE: hard-coding subpixel=1 in both directions for speed, and combining into a single image
+    wl_full = generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                                      all_spatpos, all_specpos, all_spatid, all_tilts, all_slits, all_align, all_dar,
+                                      voxedge, all_idx=all_idx, spec_subpixel=1, spat_subpixel=1, combine=True)
+    # Compute the weights
+    return compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, wl_full[:, :, 0], dspat, dwv,
+                           sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
+
+
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
                     sn_smooth_npix=None, relative_weights=False):
     r"""
