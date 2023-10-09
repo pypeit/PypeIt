@@ -898,7 +898,8 @@ def compute_weights_frompix(all_ra, all_dec, all_wave, all_sci, all_ivar, all_id
         dwv (float):
             The size of each wavelength pixel (in Angstroms)
         mnmx_wv (`numpy.ndarray`_):
-            TODO
+            The minimum and maximum wavelengths of every slit and frame. The shape is (Nframes, Nslits, 2),
+            The minimum and maximum wavelengths are stored in the [:,:,0] and [:,:,1] indices, respectively.
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used
             in the combination
