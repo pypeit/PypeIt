@@ -363,6 +363,7 @@ class CoAdd3D:
                 Show QA for debugging.
 
         """
+        # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
@@ -860,9 +861,39 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         This is the main function that loads in the data, and performs several frame-specific corrections.
         If the user does not wish to align or combine the individual datacubes, then this routine will also
         produce a spec3d file, which is a DataCube representation of a PypeIt spec2d frame for SlicerIFU data.
+
+        This function should be called in the __init__ method, and initialises multiple variables. The variables
+        initialised by this function include:
+
+        * self.ifu_ra  -  The RA of the IFU pointing
+        * self.ifu_dec  -  The Dec of the IFU pointing
+        * self.mnmx_wv  -  The minimum and maximum wavelengths of every slit and frame.
+        * self._spatscale  -  The native spatial scales of all spec2d frames.
+        * self._specscale  -  The native spectral scales of all spec2d frames.
+        * self.weights  -  Weights to use when combining cubes
+        * self.flat_splines  -  Spline representations of the blaze function (based on the illumflat).
+        * self.blaze_spline  -  Spline representation of the reference blaze function
+        * self.blaze_wave  -  Wavelength array used to construct the reference blaze function
+        * self.blaze_spec  -  Spectrum used to construct the reference blaze function
+
+        As well as the primary arrays that store the pixel information for multiple spec2d frames, including:
+
+        * self.all_ra
+        * self.all_dec
+        * self.all_wave
+        * self.all_sci
+        * self.all_ivar
+        * self.all_idx
+        * self.all_wghts
+        * self.all_spatpos
+        * self.all_specpos
+        * self.all_spatid
+        * self.all_tilts
+        * self.all_slits
+        * self.all_align
+        * self.all_dar
+        * self.all_wcs
         """
-        # Initialise variables
-        wave_ref = None
         # Load all spec2d files and prepare the data for making a datacube
         for ff, fil in enumerate(self.spec2d):
             # Load it up
@@ -878,8 +909,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Get the exposure time
             exptime = self.spec.compound_meta([hdr0], 'exptime')
-
-            # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
 
             # Initialise the slit edges
             msgs.info("Constructing slit image")

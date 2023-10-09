@@ -946,7 +946,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
-    wcs_scale = (1.0 * whitelightWCS.wcs.cunit[2]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wcs_scale = (1.0 * whitelightWCS.wcs.cunit[2]).to_value(units.Angstrom)  # Ensures the WCS is in Angstroms
     wave_spec = wcs_scale * wcs_res[:, 2]
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
@@ -962,7 +962,6 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
     msgs.info("Optimal weighting complete")
     return all_wghts
-
 
 
 def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
