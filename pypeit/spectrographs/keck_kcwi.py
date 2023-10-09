@@ -717,7 +717,6 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # KCWI --> AMPMODE = 'ALL', 'TBO', 'TUP'
         # KCRM --> AMPMODE = 'L2U2', 'L2U2L1U1'
         bc = None
-        embed()
         if ampmode == 'ALL':
             # TODO: There are several bad columns in this mode, but this is typically only used for arcs.
             #       It's the same set of bad columns seen in the TBO and TUP amplifier modes.
