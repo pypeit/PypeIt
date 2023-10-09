@@ -1207,7 +1207,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     # Convert pixel shift to degrees shift
                     ra_shift *= self._dspat/cosdec
                     dec_shift *= self._dspat
-                    msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+                    msgs.info("Spatial shift of cube #{0:d}:".format(ff + 1) + msgs.newline() +
+                              "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_shift*3600.0, dec_shift*3600.0))
                     # Apply the shift
                     new_ra[self.all_idx == ff] += ra_shift
                     new_dec[self.all_idx == ff] += dec_shift

@@ -602,8 +602,8 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
         # Apply the shift
         all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
         all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
-        msgs.info("Spatial shift of cube #{0:d}:" + msgs.newline() +
-                  "RA, DEC (arcsec) = {1:+0.3f} E, {2:+0.3f} N".format(ff + 1, ra_offset[ff], dec_offset[ff]))
+        msgs.info("Spatial shift of cube #{0:d}:".format(ff + 1) + msgs.newline() +
+                  "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_offset[ff], dec_offset[ff]))
     return all_ra, all_dec
 
 
