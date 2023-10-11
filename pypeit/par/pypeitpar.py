@@ -1593,7 +1593,7 @@ class CubePar(ParSet):
         allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
         if self.data['skysub_frame'] not in allowed_skysub_options:
             # Check if the supplied name exists
-            if not os.path.exists(self.data['method']):
+            if not os.path.exists(self.data['skysub_frame']):
                 raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
                                  "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:

@@ -664,7 +664,7 @@ def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
 
 def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
     """
-    Create a WCS and the expected edges of the voxels, based on user-specified
+    Calculate the bounds of the WCS and the expected edges of the voxels, based on user-specified
     parameters or the extremities of the data. This is a convenience function
     that calls the core function in `pypeit.core.datacube`_.
 

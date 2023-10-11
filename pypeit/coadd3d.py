@@ -61,6 +61,10 @@ class DataCube(datamodel.DataContainer):
             Parsed meta from the header
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
+        _ivar (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
+        _wcs (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
 
     """
     version = '1.2.0'
@@ -87,7 +91,9 @@ class DataCube(datamodel.DataContainer):
     internals = ['head0',
                  'filename',
                  'spectrograph',
-                 'spect_meta'
+                 'spect_meta',
+                 '_ivar',  # This is set internally, and should be accessed with self.ivar
+                 '_wcs'  # This is set internally, and should be accessed with self.wcs
                 ]
 
     def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
@@ -97,6 +103,9 @@ class DataCube(datamodel.DataContainer):
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+        # Initialise the internals
+        self._ivar = None
+        self._wcs = None
 
     def _bundle(self):
         """
@@ -177,21 +186,39 @@ class DataCube(datamodel.DataContainer):
             # Meta
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
+            self._ivar = None
+            self._wcs = None
         return self
 
     @property
     def ivar(self):
         """
         Utility function to compute the inverse variance cube
+
+        Returns
+        -------
+        self._ivar : `numpy.ndarray`_
+            The inverse variance of the datacube. Note that self._ivar should
+            not be accessed directly, and you should only call self.ivar
         """
-        return utils.inverse(self.sig**2)
+        if self._ivar is None:
+            self._ivar = utils.inverse(self.sig**2)
+        return self._ivar
 
     @property
     def wcs(self):
         """
         Utility function to provide the world coordinate system of the datacube
+
+        Returns
+        -------
+        self._wcs : `astropy.wcs.WCS`_
+            The WCS based on the stored header information. Note that self._wcs should
+            not be accessed directly, and you should only call self.wcs
         """
-        return wcs.WCS(self.head0)
+        if self._wcs is None:
+            self._wcs = wcs.WCS(self.head0)
+        return self._wcs
 
 
 class DARcorrection:
@@ -637,7 +664,7 @@ class CoAdd3D:
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
                 spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
-                skysub_exptime = fits.open(self.cubepar['skysub_frame'])[0].header['EXPTIME']
+                skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
                 msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
             else:
@@ -700,7 +727,7 @@ class CoAdd3D:
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
-                    skysub_exptime = fits.open(opts_skysub)[0].header['EXPTIME']
+                    skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts_skysub)
                 skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
