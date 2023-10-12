@@ -20,6 +20,7 @@ from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
+from pypeit import scattlight
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
@@ -536,6 +537,95 @@ class Calibrations:
                                            msbias=self.msbias if self.par['bpm_usebias'] else None)
         # Return
         return self.msbpm
+
+    def get_scattlight(self):
+        """
+        Load or generate the scattered light model.
+
+        Returns:
+            :class:`~pypeit.scattlight.ScatteredLight`: The processed calibration image including the model.
+        """
+        # Initialise to None
+        self.msscattlight = None
+
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'slits']):
+            msgs.warn('Must have the bpm and the slits defined to make a scattered light image!  '
+                      'Skipping and may crash down the line')
+            return self.msscattlight
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        frame = {'type': 'trace', 'class': scattlight.ScatteredLight}
+        raw_scattlight_files, cal_file, calib_key, setup, calib_id, detname = \
+            self.find_calibrations(frame['type'], frame['class'])
+        # raw_lampoff_files = self.fitstbl.find_frame_files('scattlight', calib_ID=self.calib_ID)
+
+        if len(raw_scattlight_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
+            return self.msscattlight
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.msscattlight = frame['class'].from_file(cal_file)
+            return self.msscattlight
+
+        # Scattered light model does not exist or we're not reusing it.
+        # Need to build everything from scratch.  Start with the trace image.
+        msgs.info('Creating edge tracing calibration frame using files: ')
+        for f in raw_scattlight_files:
+            msgs.prindent(f'{Path(f).name}')
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_scattlight_files[0])
+
+        scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                         self.par['scattlightframe'], raw_scattlight_files,
+                                                         bias=self.msbias, bpm=self.msbpm,
+                                                         dark=self.msdark, calib_dir=self.calib_dir,
+                                                         setup=setup, calib_id=calib_id)
+
+        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage, self.slits, binning=binning)
+
+        if not success:
+            # Something went amiss
+            msgs.warn('Scattered light computation failed.  Continuing, but likely to fail soon...')
+            self.success = False
+            return self.msscattlight
+
+        # The model has been generated. Store the result in the DataModel
+        self.msscattlight = scattlight.ScatteredLight(scattlight_raw=scattlightImage,
+                                                      scattlight_model=model,
+                                                      scattlight_param=modelpar)
+        # TODO :: Need to add these to the line above
+        # datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+        #              'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
+        #              'detname': dict(otype=str, descr='Identifier for detector or mosaic'),
+        #              'nspec': dict(otype=int,
+        #                            descr='Number of pixels in the image spectral direction.'),
+        #              'nspat': dict(otype=int,
+        #                            descr='Number of pixels in the image spatial direction.'),
+        #              'binspec': dict(otype=int,
+        #                              descr='Number of pixels binned in the spectral direction.'),
+        #              'binspat': dict(otype=int,
+        #                              descr='Number of pixels binned in the spatial direction.'),
+        #              'pad': dict(otype=int,
+        #                          descr='Integer number of pixels to mask beyond the slit edges.'),
+
+        # Show the result if requested
+        if self.show:
+            self.msscattlight.show()
+
+        if self.msscattlight is not None:
+            self.msscattlight.set_paths(self.calib_dir, setup, calib_id, detname)
+            # Save the master scattered light model
+            self.msscattlight.to_file()
+
+        return self.msscattlight
 
     def get_flats(self):
         """
@@ -1254,7 +1344,7 @@ class MultiSlitCalibrations(Calibrations):
         # Order matters!  And the name must match a viable "get_{step}" method
         # in Calibrations.
         # TODO: Does the bpm need to be done after the dark?
-        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'scattlight', 'flats']
 
 
 class IFUCalibrations(Calibrations):
@@ -1272,7 +1362,7 @@ class IFUCalibrations(Calibrations):
         """
         # Order matters!
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
-                'flats']
+                'scattlight', 'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):

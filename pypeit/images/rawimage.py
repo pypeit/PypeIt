@@ -373,7 +373,7 @@ class RawImage:
                                             digitization=digitization)
         return np.array(rn2)
 
-    def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, dark=None,
+    def process(self, par, bpm=None, scattlight=None, flatimages=None, bias=None, slits=None, dark=None,
                 mosaic=False, debug=False):
         """
         Process the data.
@@ -445,6 +445,9 @@ class RawImage:
             #. :func:`spatial_flexure_shift`: Measure any spatial shift due to
                flexure.
 
+            #. :func:`subtract_scattlight`: Generate a model of the scattered light
+               contribution and subtract it.
+
             #. :func:`flatfield`: Divide by the pixel-to-pixel, spatial and
                spectral response functions.
 
@@ -468,6 +471,8 @@ class RawImage:
                 The bad-pixel mask.  This is used to *overwrite* the default
                 bad-pixel mask for this spectrograph.  The shape must match a
                 trimmed and oriented processed image.
+            scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
+                Scattered light model to be used to determine scattered light.
             flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
                 Flat-field images used to apply flat-field corrections.
             bias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
@@ -512,6 +517,8 @@ class RawImage:
             msgs.error('No bias available for bias subtraction!')
         if self.par['use_darkimage'] and dark is None:
             msgs.error('No dark available for dark subtraction!')
+        if self.par['subtract_scattlight'] and scattlight is None:
+            msgs.error('Scattered light subtraction requested, but scattered light model provided.')
         if self.par['spat_flexure_correct'] and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
