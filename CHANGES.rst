@@ -1,8 +1,8 @@
 
-1.14.1dev
----------
-
-PLEASE ADD TO doc/releases/1.14.1dev.rst!
+****************************************************************************
+USE OF THIS FILE IS NOW DEPRECATED.  CHANGES SHOULD BE ADDED TO THE RELEVANT
+RELEASE FILE IN doc/releases
+****************************************************************************
 
 
 1.14.0 (18 Sep 2023)

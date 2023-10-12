@@ -5,6 +5,8 @@ Version 1.14.1dev
 Dependency Changes
 ------------------
 
+- Removes use of deprecated ``pkg_resources``.
+
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
