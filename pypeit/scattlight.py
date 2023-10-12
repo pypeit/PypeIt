@@ -44,29 +44,19 @@ class ScatteredLight(calibframe.CalibFrame):
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
                  'detname': dict(otype=str, descr='Identifier for detector or mosaic'),
-                 'nspec': dict(otype=int,
-                               descr='Number of pixels in the image spectral direction.'),
-                 'nspat': dict(otype=int,
-                               descr='Number of pixels in the image spatial direction.'),
-                 'binspec': dict(otype=int,
-                                 descr='Number of pixels binned in the spectral direction.'),
-                 'binspat': dict(otype=int,
-                                 descr='Number of pixels binned in the spatial direction.'),
-                 'pad': dict(otype=int,
-                             descr='Integer number of pixels to mask beyond the slit edges.'),
-                 'scattlight_raw': dict(otype=np.ndarray, atype=np.floating,
-                                        descr='Processed, combined scattered light image'),
-                 'scattlight_model': dict(otype=np.ndarray, atype=np.floating,
-                                          descr='Model of the scattered light in scattlight_raw'),
-                 'scattlight_param': dict(otype=np.ndarray, atype=np.floating,
-                                          descr='Model parameters that define the scattered light model')}
+                 'nspec': dict(otype=int, descr='Number of pixels in the image spectral direction.'),
+                 'nspat': dict(otype=int, descr='Number of pixels in the image spatial direction.'),
+                 'binning': dict(otype=str, descr='Binning in PypeIt orientation (not the original)'),
+                 'pad': dict(otype=int, descr='Integer number of pixels to mask beyond the slit edges.'),
+                 'scattlight_raw': dict(otype=np.ndarray, atype=np.floating, descr='Processed, combined scattered light image'),
+                 'scattlight_model': dict(otype=np.ndarray, atype=np.floating, descr='Model of the scattered light in scattlight_raw'),
+                 'scattlight_param': dict(otype=np.ndarray, atype=np.floating, descr='Model parameters that define the scattered light model')}
     """Provides the class data model."""
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
-    def __init__(self, pypeline, detname=None, nspec=None, nspat=None,
-                 PYP_SPEC=None, binspec=1, binspat=1, pad=0,
+    def __init__(self, pypeline=None, detname=None, nspec=None, nspat=None, PYP_SPEC=None, binning=None, pad=0,
                  scattlight_raw=None, scattlight_model=None, scattlight_param=None):
 
         # Instantiate the DataContainer

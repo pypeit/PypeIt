@@ -979,7 +979,66 @@ class AlignPar(ParSet):
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for AlignPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+
+class ScatteredLightPar(ParSet):
+    """
+    The parameter set used to hold arguments for modelling the scattered light.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`parameters`.
+    """
+
+    def __init__(self, pad=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['pad'] = 5
+        dtypes['pad'] = int
+        descr['pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits.'
+
+        # Instantiate the parameter set
+        super(ScatteredLightPar, self).__init__(list(pars.keys()),
+                                                values=list(pars.values()),
+                                                defaults=list(defaults.values()),
+                                                options=list(options.values()),
+                                                dtypes=list(dtypes.values()),
+                                                descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+        parkeys = ['pad']
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ScatteredLightPar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -4070,8 +4129,8 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
+                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 flatfield=None, wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4121,6 +4180,14 @@ class CalibrationsPar(ParSet):
                                                                        mask_cr=True))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
+
+        defaults['scattlightframe'] = FrameGroupPar(frametype='scattlight',
+                                                    process=ProcessImagesPar(satpix='nothing',
+                                                                             use_pixelflat=False,
+                                                                             use_illumflat=False,
+                                                                             use_specillum=False))
+        dtypes['scattlightframe'] = [ ParSet, dict ]
+        descr['scattlightframe'] = 'The frames and combination rules for the scattered light frames'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
@@ -4201,6 +4268,10 @@ class CalibrationsPar(ParSet):
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
 
+        defaults['scattlight'] = ScatteredLightPar()
+        dtypes['scattlight'] = [ ParSet, dict ]
+        descr['scattlight'] = 'Define the procedure for modelling the scattered light'
+
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
         descr['flatfield'] = 'Parameters used to set the flat-field procedure'
@@ -4234,7 +4305,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe',
+                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
                              'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
@@ -4262,6 +4333,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
+        pk = 'scattlightframe'
+        kwargs[pk] = FrameGroupPar.from_dict('scattlight', cfg[pk]) if pk in k else None
         pk = 'alignframe'
         kwargs[pk] = FrameGroupPar.from_dict('align', cfg[pk]) if pk in k else None
         pk = 'alignment'

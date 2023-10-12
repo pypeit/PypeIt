@@ -643,7 +643,7 @@ class RawImage:
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
-            self.subtract_scattlight()
+            self.subtract_scattlight(scattlight)
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -1118,7 +1118,7 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
-    def subtract_scattlight(self):
+    def subtract_scattlight(self, scattlight):
         """
         Analyze and subtract the scattered light from the image.
 
@@ -1135,6 +1135,8 @@ class RawImage:
         # Loop over the images
         for ii in range(self.nimg):
             binning = self.detector[0].binning
+            # TODO :: Need to pass in scattlight or scattlight.scattlight_param
+            embed()
             scatt_img = self.spectrograph.scattered_light(self.image[ii, ...], binning)
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True

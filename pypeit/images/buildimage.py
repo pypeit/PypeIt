@@ -77,6 +77,18 @@ class TiltImage(pypeitimage.PypeItCalibrationImage):
     calib_type = 'Tiltimg'
 
 
+class ScatteredLightImage(pypeitimage.PypeItCalibrationImage):
+    """
+    Simple DataContainer for the Scattered Light Image
+    """
+    # version is inherited from PypeItImage
+
+    # I/O
+    output_to_disk = ('SCATTLIGHT_IMAGE', 'SCATTLIGHT_FULLMASK', 'SCATTLIGHT_DETECTOR')
+    hdu_prefix = 'SCATTLIGHT_'
+    calib_type = 'ScattLight'
+
+
 class TraceImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Trace Image
@@ -133,6 +145,7 @@ frame_image_classes = dict(
     arc=ArcImage,
     tilt=TiltImage,
     trace=TraceImage,
+    scattlight=ScatteredLightImage,
     align=AlignImage)
 """
 The list of classes that :func:`buildimage_fromlist` should use to decorate the

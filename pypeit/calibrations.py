@@ -558,10 +558,10 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        frame = {'type': 'trace', 'class': scattlight.ScatteredLight}
+        frame = {'type': 'scattlight', 'class': scattlight.ScatteredLight}
         raw_scattlight_files, cal_file, calib_key, setup, calib_id, detname = \
             self.find_calibrations(frame['type'], frame['class'])
-        # raw_lampoff_files = self.fitstbl.find_frame_files('scattlight', calib_ID=self.calib_ID)
+        scatt_idx = self.fitstbl.find_frames(frame['type'], calib_ID=self.calib_ID, index=True)
 
         if len(raw_scattlight_files) == 0 and cal_file is None:
             msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
@@ -583,38 +583,34 @@ class Calibrations:
         # Reset the BPM
         self.get_bpm(frame=raw_scattlight_files[0])
 
+        binning = self.fitstbl[scatt_idx[0]]['binning']
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['scattlightframe'], raw_scattlight_files,
                                                          bias=self.msbias, bpm=self.msbpm,
                                                          dark=self.msdark, calib_dir=self.calib_dir,
                                                          setup=setup, calib_id=calib_id)
 
+        embed()
+        # TODO :: Need to figure out where `pad` is stored for the call below, and work on scattered_light call on the next line
         model, modelpar, success = self.spectrograph.scattered_light(scattlightImage, self.slits, binning=binning)
 
         if not success:
-            # Something went amiss
-            msgs.warn('Scattered light computation failed.  Continuing, but likely to fail soon...')
+            # Something went awry
+            msgs.warn('Scattered light modelling failed.  Continuing, but likely to fail soon...')
             self.success = False
             return self.msscattlight
 
-        # The model has been generated. Store the result in the DataModel
-        self.msscattlight = scattlight.ScatteredLight(scattlight_raw=scattlightImage,
+        # Now generate the DataModel
+        self.msscattlight = scattlight.ScatteredLight(PYP_SPEC=self.spectrograph.name,
+                                                      pypeline=self.spectrograph.pypeline,
+                                                      detname=scattlightImage.detector.name,
+                                                      nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
+                                                      binning=scattlightImage.detector.binning,
+                                                      # TODO :: Need to set this padding correctly
+                                                      pad=self.par[''],
+                                                      scattlight_raw=scattlightImage,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
-        # TODO :: Need to add these to the line above
-        # datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
-        #              'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
-        #              'detname': dict(otype=str, descr='Identifier for detector or mosaic'),
-        #              'nspec': dict(otype=int,
-        #                            descr='Number of pixels in the image spectral direction.'),
-        #              'nspat': dict(otype=int,
-        #                            descr='Number of pixels in the image spatial direction.'),
-        #              'binspec': dict(otype=int,
-        #                              descr='Number of pixels binned in the spectral direction.'),
-        #              'binspat': dict(otype=int,
-        #                              descr='Number of pixels binned in the spatial direction.'),
-        #              'pad': dict(otype=int,
-        #                          descr='Integer number of pixels to mask beyond the slit edges.'),
 
         # Show the result if requested
         if self.show:

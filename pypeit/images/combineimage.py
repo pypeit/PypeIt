@@ -63,8 +63,8 @@ class CombineImage:
             msgs.error('CombineImage requires a list of files to instantiate')
 
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean',
-            mosaic=False):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, scattlight=None,
+            combine_method='mean', mosaic=False):
         r"""
         Process and combine all images.
 
