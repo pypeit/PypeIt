@@ -309,7 +309,10 @@ coadded order arrays in addition to the flattened 1d vectors. This way, the user
 
 NOTE: This issue with handling the overlap regions can be largely mitigated by computing an independent sensitivity function for each exposure. However, this can take a long time (at least 15 min/exposure). 
 
-
+NOTE 2: When coadding, the depending on the nature of the objects being observed (i.e., if they are challenging to extract via optimal extraction), there may be an error during the steps 
+when the code is reading in the ``OPT_FLAM`` columns of the fluxed exposures. If the code encounters a file that is missing an ``OPT_FLAM`` column for one of the traces, the script will choke. 
+The way to ensure this does not happen is to include the ``ex_value = BOX`` option in the parameter block (see :doc:`pypeit_par` for more details) to select the boxcar extraction, or re-run the 
+calibration and object extraction without the problematic order. 
 
 
 
@@ -615,6 +618,33 @@ for H band, with echelle = 63.0 and XD angle = 36.72, the trace for order 43 is 
 
 
 
+K Band 
+------
+
+The K band reduction often has trouble with the automated wavelength calibration (we encourage the user to make their own manual solution for 
+most K band settings). 
+
+Another source of trouble can be the edge detection if the user is in a setup where relatively few of the orders are 
+easily visible (e.g. with an XD angle > 36.5 degrees). In that case, the edge detection may fail and the user is recommended to include the 
+following in their parameter block of the ``.pypeit`` file:
+.. code-block:: bash
+
+    [calibrations]
+        [[slitedges]]
+            sync_predict = 'nearest'
+
+
+L Band 
+------
+
+L band similarly suffers from having relatively few orders available, so the user may need to change the ``sync_predict`` parameter as described above. 
+The automatic wavelength solutions are often problematic for L band and rarely even manage to produce a WaveCalib file. L band data reduction will require 
+that the user produce manual solutions, as described in :ref:`manual_wvcal`. 
+
+Also, we note that for echelle angles > 64 degrees, there are no available arc lines for wavelength calibration in Order 24. When computing the manual wavelength solution
+for this order, the user should press ``q`` when shown the order in :ref:`pypeit_identify` to skip the order. They will be prompted by :ref:`pypeit_identify` to provide the 
+estimated start and end wavelengths for the order, and PypeIt will compute a linear solution for this order. The solution may not be precise but will allow PypeIt to continue with
+the data reduction, coadding, etc. 
 
 
 
