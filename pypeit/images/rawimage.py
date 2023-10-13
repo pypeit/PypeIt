@@ -1132,12 +1132,13 @@ class RawImage:
             msgs.warn("The scattered light has already been subtracted from the image!")
             return
 
+        if scattlight.scattlight_param is None:
+            msgs.warn("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
+            return
+
         # Loop over the images
         for ii in range(self.nimg):
-            binning = self.detector[0].binning
-            # TODO :: Need to pass in scattlight or scattlight.scattlight_param
-            embed()
-            scatt_img = self.spectrograph.scattered_light(self.image[ii, ...], binning)
+            scatt_img = self.spectrograph.scattered_light_model(scattlight.scattlight_param, self.image[ii, ...])
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 

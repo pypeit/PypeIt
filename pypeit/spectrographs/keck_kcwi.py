@@ -1032,7 +1032,68 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def scattered_light(self, frame, slitmask, tbl, nspecpad=300):
+    def scattered_light_model(self, param, img, kernel='gaussian'):
+        """ Model used to calculate the scattered light
+
+        Parameters
+        ----------
+        param : `numpy.ndarray`_
+            Model parameters that determine the scattered light based on the input img.
+            For KCWI there are 9 model parameters that need to be input, and these are:
+
+            * param[0] = Kernel width in the spectral direction
+            * param[1] = Kernel width in the spatial direction
+            * param[2] = Pixel shift of the scattered light in the spectral direction
+            * param[3] = Pixel shift of the scattered light in the spatial direction
+            * param[4] = Zoom factor of the scattered light (~1)
+            * param[5] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**0)
+            * param[6] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**1)
+            * param[7] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**2)
+            * param[8] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**3)
+        img : `numpy.ndarray`_
+            Raw image that you want to compute the scattered light model.
+            shape is (nspec, nspat)
+            Model used to calculate the scattered light. This function is used to
+            generate a model of the scattered light, based on a set of model parameters
+            that have been optimized using self.scattered_light().
+        kernel : :obj:`str`_, optional
+            The shape of the kernel to use. The allowed values for KCWI are 'gaussian' and 'lorentzian',
+            but the default value ('gaussian') is known to provide the best fit.
+
+        Returns
+        -------
+        model : `numpy.ndarray`_
+            Model of the scattered light for the input
+        """
+        # For clarity, unpack the parameters
+        assert param.size == 9  # For KCWI, the scattered light model requires 9 model parameters
+        sigmx, sigmy, shft_spec, shft_spat, zoom = param[0], param[1], param[2], param[3], param[4]
+        term0, term1, term2, term3 = param[5], param[6], param[7], param[8]
+        # Generate a 2D smoothing kernel
+        if kernel == 'gaussian':
+            # Gaussian
+            subkrnx = np.exp(-0.5 * (np.arange(int(6 * sigmx)) - 3 * sigmx) ** 2 / sigmx ** 2)
+            subkrny = np.exp(-0.5 * (np.arange(int(6 * sigmy)) - 3 * sigmy) ** 2 / sigmy ** 2)
+        elif kernel == 'lorentzian':
+            # Lorentzian
+            subkrnx = sigmx / ((np.arange(int(10 * sigmx)) - 5 * sigmx) ** 2 + sigmx ** 2)
+            subkrny = sigmy / ((np.arange(int(10 * sigmy)) - 5 * sigmy) ** 2 + sigmy ** 2)
+        else:
+            msgs.error(f"Unknown kernel: {kernel}")
+        kernel = np.outer(subkrnx, subkrny)
+        kernel /= np.sum(kernel)
+        # Make a grid of coordinates
+        specvec, spatvec = np.arange(img.shape[0]), np.arange(img.shape[1])
+        spat, spec = np.meshgrid(spatvec, specvec / (specvec.size - 1))
+        # Convolve the input image (note: most of the time is spent here)
+        # oaconvolve is the fastest option when the kernel is much smaller dimensions than the image
+        # scale_img = (term0 + term1 * spec + term2*spec**2 + term3*spec**3) * signal.fftconvolve(img, kernel, mode='same')
+        scale_img = (term0 + term1 * spec + term2 * spec ** 2 + term3 * spec ** 3) * signal.oaconvolve(img, kernel,
+                                                                                                       mode='same')
+        spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
+        return spl(zoom * (specvec + shft_spec), zoom * (spatvec + shft_spat))
+
+    def scattered_light(self, frame, offslitmask, tbl, detpad=300):
         """ Calculate a model of the scattered light of the input frame.
 
         For KCWI, the main contributor to the scattered light is referred to as the "narcissistic ghost"
@@ -1045,7 +1106,13 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         ----------
         frame : `numpy.ndarray`_
             Raw 2D data frame to be used to compute the scattered light.
-        TODO :: complete docstring
+        offslitmask : `numpy.ndarray`_
+            A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+        tbl : :class:`~pypeit.metadata.PypeItMetaData`_
+            One row of the fitstbl PypeItMetaData that contains metadata about the file being used to
+            optimize the scattered light model parameters.
+        detpad : :obj:`int`_, optional
+            Number of pixels to pad to each of the detector edges to reduce edge effects.
 
         Returns
         -------
@@ -1070,7 +1137,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             resid : `numpy.ndarray`_
                 A 1D vector of the residuals
             """
-            return img[wpix] - scattered_light_model(param, img)[wpix]
+            return img[wpix] - self.scattered_light_model(param, img)[wpix]
 
         # Grab the binning for convenience
         specbin, spatbin = parse.parse_binning(tbl['binning'])
@@ -1079,10 +1146,10 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Do a median filter near the edges
         frame[0, :] = np.median(frame[0:10, :], axis=0)
         frame[-1, :] = np.median(frame[-10:, :], axis=0)
-        img = np.pad(frame, nspecpad, mode='edge')
-        slitmask_pad = np.pad(slitmask, nspecpad, mode='edge')
+        img = np.pad(frame, detpad, mode='edge')
+        offslitmask_pad = np.pad(offslitmask, detpad, mode='edge')
         # Grab the pixels to be included in the fit
-        wpix = np.where(slitmask_pad == -1)
+        wpix = np.where(offslitmask_pad)
 
         # Get some starting parameters (these were determined by fitting spectra,
         # and should be close to the final fitted values to reduce computational time)
@@ -1118,7 +1185,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         success = res_lsq.success
         if success:
             msgs.info("Generating best-fitting scattered light model")
-            scatt_img = scattered_light_model(res_lsq.x, img)[nspecpad:-nspecpad, nspecpad:-nspecpad]
+            scatt_img = self.scattered_light_model(res_lsq.x, img)[detpad:-detpad, detpad:-detpad]
         else:
             msgs.warn("Scattered light model fitting failed")
             scatt_img = np.zeros_like(frame)
@@ -1442,58 +1509,3 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
-
-
-def scattered_light_model(param, img, kernel='gaussian'):
-    """ Model used to calculate the scattered light
-
-    Parameters
-    ----------
-    param : `numpy.ndarray`_
-        Model parameters that determine the scattered light based on the input img.
-        For KCWI there are 9 model parameters that need to be input, and these are:
-
-        * param[0] = Kernel width in the spectral direction
-        * param[1] = Kernel width in the spatial direction
-        * param[2] = Pixel shift of the scattered light in the spectral direction
-        * param[3] = Pixel shift of the scattered light in the spatial direction
-        * param[4] = Zoom factor of the scattered light (~1)
-        * param[5] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**0)
-        * param[6] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**1)
-        * param[7] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**2)
-        * param[8] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**3)
-    img : `numpy.ndarray`_
-        Raw image that you want to compute the scattered light model.
-        shape is (nspec, nspat)
-
-    Returns
-    -------
-    model : `numpy.ndarray`_
-        Model of the scattered light for the input
-    """
-    # For clarity, unpack the parameters
-    assert param.size == 9  # For KCWI, the scattered light model requires 9 model parameters
-    sigmx, sigmy, shft_spec, shft_spat, zoom = param[0], param[1], param[2], param[3], param[4]
-    term0, term1, term2, term3 = param[5], param[6], param[7], param[8]
-    # Generate a 2D smoothing kernel
-    if kernel == 'gaussian':
-        # Gaussian
-        subkrnx = np.exp(-0.5*(np.arange(int(6*sigmx))-3*sigmx)**2/sigmx**2)
-        subkrny = np.exp(-0.5*(np.arange(int(6*sigmy))-3*sigmy)**2/sigmy**2)
-    elif kernel == 'lorentzian':
-        # Lorentzian
-        subkrnx = sigmx / ((np.arange(int(10*sigmx))-5*sigmx)**2 + sigmx**2)
-        subkrny = sigmy / ((np.arange(int(10*sigmy))-5*sigmy)**2 + sigmy**2)
-    else:
-        msgs.error(f"Unknown kernel: {kernel}")
-    kernel = np.outer(subkrnx, subkrny)
-    kernel /= np.sum(kernel)
-    # Make a grid of coordinates
-    specvec, spatvec = np.arange(img.shape[0]), np.arange(img.shape[1])
-    spat, spec = np.meshgrid(spatvec, specvec/(specvec.size-1))
-    # Convolve the input image (note: most of the time is spent here)
-    # oaconvolve is the fastest option when the kernel is much smaller dimensions than the image
-    # scale_img = (term0 + term1 * spec + term2*spec**2 + term3*spec**3) * signal.fftconvolve(img, kernel, mode='same')
-    scale_img = (term0 + term1 * spec + term2*spec**2 + term3*spec**3) * signal.oaconvolve(img, kernel, mode='same')
-    spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
-    return spl(zoom*(specvec+shft_spec), zoom*(spatvec+shft_spat))

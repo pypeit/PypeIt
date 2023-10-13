@@ -73,10 +73,8 @@ class ScatteredLight(calibframe.CalibFrame):
         Validate the slit traces.
         """
         # Allow the object to be empty
-        if self.scattlight_model is None:
+        if self.scattlight_param is None:
             return
-
-        self.nspec, self.nslits = self.left_init.shape
 
         if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'

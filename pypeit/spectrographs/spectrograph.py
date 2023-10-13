@@ -1891,21 +1891,50 @@ class Spectrograph:
         patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
-        msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))
+        msgs.warn(f"Pattern noise removal is not implemented for spectrograph {self.name}")
         return []
 
-    def scattered_light(self, frame, binning):
+    def scattered_light_model(self, param, img, kernel='gaussian'):
+        """ Model used to calculate the scattered light. This function is used to
+        generate a model of the scattered light, based on a set of model parameters
+        that have been optimized using self.scattered_light().
+
+        Parameters
+        ----------
+        param : `numpy.ndarray`_
+            Model parameters that determine the scattered light based on the input img.
+            Every spectrograph is allowed a different number of model parameters.
+        img : `numpy.ndarray`_
+            Raw image that you want to compute the scattered light model.
+            shape is (nspec, nspat)
+        kernel : :obj:`str`_, optional
+            The shape of the kernel to use. The allowed values depend on the spectrograph
+            scattered light model.
+
+        Returns
+        -------
+        model : `numpy.ndarray`_
+            Model of the scattered light for the input
         """
-        Calculate a model of the scattered light of the input frame.
+        msgs.warn(f"Scattered light subtraction is not setup for {self.name}")
+        return np.zeros_like(img)
+
+    def scattered_light(self, frame, offslitmask, tbl, detpad=300):
+        """ Calculate the scattered light model parameters of the input frame.
+        This function is used to optimize the model parameters. See also
+        self.scattered_light_model()
 
         Parameters
         ----------
         frame : `numpy.ndarray`_
             Raw 2D data frame to be used to compute the scattered light.
-        binning : str, `numpy.ndarray`_, tuple
-            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
-            direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
+        offslitmask : `numpy.ndarray`_
+            A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+        tbl : :class:`~pypeit.metadata.PypeItMetaData`_
+            One row of the fitstbl PypeItMetaData that contains metadata about the file being used to
+            optimize the scattered light model parameters.
+        detpad : :obj:`int`_, optional
+            Number of pixels to pad to each of the detector edges to reduce edge effects.
 
         Returns
         -------
@@ -1925,5 +1954,4 @@ class Spectrograph:
         txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
-
 

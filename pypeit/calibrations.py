@@ -593,9 +593,10 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight']['pad'] // spatbin
-        slitid_img_init = self.slits.slit_img(pad=pad, initial=True, flexure=None)
+        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None)==-1
 
-        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage.image, slitid_img_init, self.fitstbl[scatt_idx[0]])
+        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage.image, offslitmask,
+                                                                     self.fitstbl[scatt_idx[0]])
 
         if not success:
             # Something went awry
@@ -610,7 +611,7 @@ class Calibrations:
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
                                                       pad=self.par['scattlight']['pad'],
-                                                      scattlight_raw=scattlightImage,
+                                                      scattlight_raw=scattlightImage.image,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
 
