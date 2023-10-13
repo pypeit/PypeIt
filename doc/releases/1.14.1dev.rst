@@ -24,6 +24,8 @@ Script Changes
 
 - When making datacubes, the user can select a separate frame to use for the sky subtraction.
   In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
+- A new script has been written (``chk_scattlight``) to check the generation of the scattered
+  light calibration frame model.
 
 Datamodel Changes
 -----------------
