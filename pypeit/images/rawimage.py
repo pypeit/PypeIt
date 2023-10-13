@@ -643,7 +643,7 @@ class RawImage:
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
-            self.subtract_scattlight(scattlight)
+            self.subtract_scattlight(scattlight, slits)
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -1118,7 +1118,7 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
-    def subtract_scattlight(self, scattlight):
+    def subtract_scattlight(self, scattlight, slits):
         """
         Analyze and subtract the scattered light from the image.
 
@@ -1138,7 +1138,19 @@ class RawImage:
 
         # Loop over the images
         for ii in range(self.nimg):
-            scatt_img = self.spectrograph.scattered_light_model(scattlight.scattlight_param, self.image[ii, ...])
+            # Calculate a model specific for this frame
+            spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
+            # TODO :: Need to pass in the fitstbl here... currently this is a dummy value
+            tbl = dict(binning=self.detector[0]['binning'], dispname='BL')
+            pad = scattlight.pad // spatbin
+            offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+            scatt_img, _, success = self.spectrograph.scattered_light(self.image[ii, ...], offslitmask, tbl)
+            # If failure, revert back to the Scattered Light calibration frame model parameters
+            if not success:
+                msgs.warn("Scattered light model failed - using predefined model parameters")
+                # Use predefined model parameters
+                scatt_img = self.spectrograph.scattered_light_model(scattlight.scattlight_param, self.image[ii, ...])
+            # Subtract the scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
