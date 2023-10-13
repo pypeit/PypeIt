@@ -4130,7 +4130,7 @@ class CalibrationsPar(ParSet):
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
                  lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
-                 flatfield=None, wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
+                 scattlight=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4307,7 +4307,7 @@ class CalibrationsPar(ParSet):
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
-                             'flatfield', 'wavelengths', 'slitedges', 'tilts']
+                             'scattlight', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
