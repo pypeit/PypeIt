@@ -15,6 +15,7 @@ from pypeit import msgs
 from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.display import display
+from pypeit.spectrographs.util import load_spectrograph
 
 
 class ScatteredLight(calibframe.CalibFrame):
@@ -97,10 +98,12 @@ class ScatteredLight(calibframe.CalibFrame):
         if self.scattlight_param is None:
             msgs.warn("No scattered light parameters are available")
             return np.zeros_like(image)
+        # Load the spectrograph
+        spec = load_spectrograph(self.PYP_SPEC)
         # Return the model of the scattered light
-        return self.spec.scattered_light_model(self.scattlight_param, image)
+        return spec.scattered_light_model(self.scattlight_param, image)
 
-    def show(self, image=None, slits=None, wcs_match=True):
+    def show(self, image=None, slits=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.
 
         Parameters
@@ -110,13 +113,23 @@ class ScatteredLight(calibframe.CalibFrame):
             the master Scattered Light frame wil be displayed by default
         slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
             The current slit traces
+        mask : :obj:`bool`_
+            If True, the slits will be masked to show only the scattered light regions
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.
         """
+        offslitmask = slits.slit_img(pad=0, initial=True, flexure=None) == -1 if mask else 1
+
         # Prepare the frames
         _data = self.scattlight_raw if image is None else image
         _model = self.scattlight_model if image is None else self.get_model(image)
-        _resid = _data - _model
+        _resid = (_data - _model)
+
+        # Fold in the mask
+        _data *= offslitmask
+        _model *= offslitmask
+        _resid *= offslitmask
+
         modmax = np.max(_model)
         image_list = zip([_data, _model, _resid],
                              ['data', 'model', 'data-model'],
