@@ -96,14 +96,11 @@ class ScatteredLight(calibframe.CalibFrame):
             A model of the expected scattered light in the input image. Shape is (nspec, nspat).
         """
         msgs.info("Generating a scattered light image")
-        # Initialise the output
-        model = None
-
-        # Generate the model
-        self.spec
-
+        if self.scattlight_param is None:
+            msgs.warn("No scattered light parameters are available")
+            return np.zeros_like(image)
         # Return the model of the scattered light
-        return model
+        return self.spec.scattered_light_model(self.scattlight_param, image)
 
     def show(self, image=None, slits=None, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.

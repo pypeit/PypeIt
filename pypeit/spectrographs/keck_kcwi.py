@@ -12,8 +12,9 @@ import numpy as np
 from astropy import wcs, units
 from astropy.io import fits
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation
-from scipy.optimize import curve_fit
+from astropy.coordinates import EarthLocation
+from scipy.optimize import curve_fit, least_squares
+from scipy import signal, interpolate
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -1031,46 +1032,97 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def scattered_light(self, frame, binning):
-        """
-        Calculate a model of the scattered light of the input frame.
+    def scattered_light(self, frame, slitmask, tbl, nspecpad=300):
+        """ Calculate a model of the scattered light of the input frame.
+
+        For KCWI, the main contributor to the scattered light is referred to as the "narcissistic ghost"
+        by Morrissey et al. (2018), ApJ, 864, 93. This scattered light is thought to be a reflection off the
+        detector that travels back through the optical system. Some fraction gets sent back out to space, while
+        the remained comes back through the optical system and a fuzzy version of this is re-imaged onto the
+        detector. The current KCWI scattered light model is designed to account for these effects.
 
         Parameters
         ----------
         frame : `numpy.ndarray`_
             Raw 2D data frame to be used to compute the scattered light.
-        binning : str, `numpy.ndarray`_, tuple
-            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
-            direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
+        TODO :: complete docstring
 
         Returns
         -------
         scatt_img : `numpy.ndarray`_
             A 2D image of the scattered light determined from the input frame
         """
-        # Determine the spatial binning. Currently, we hard-code the regions on the KCWI detector
-        # to be used for the determination of the scattered light. This is crude, and a better model
-        # is currently under development (RJC)
-        spatbin = parse.parse_binning(binning)[1]
-        ym = 4096 // (2 * spatbin)
-        y0 = ym - 180 // spatbin
-        y1 = ym + 180 // spatbin
-        # Obtain a robust (median) "spectrum" of the scattered light at the left, right, and middle of the detector
-        scattlightl = np.nanmedian(frame[:, :20//spatbin], axis=1)[:, None]
-        scattlightr = np.nanmedian(frame[:, -40//spatbin:], axis=1)[:, None]
-        scattlight = np.nanmedian(frame[:, y0:y1], axis=1)[:, None]
-        # The following algorithm is a polynomial fit to:
-        # (1) The left half of the detector (using the left and middle scattered light spectrum)
-        # (2) The right half of the detector (using the right and middle scattered light spectrum)
-        # We then ensure that the model is continuous and smooth at the middle of the detector.
-        medl = np.median(scattlightl / scattlight)
-        medr = np.median(scattlightr / scattlight)
-        spatimg = np.meshgrid(np.arange(frame.shape[1]), np.arange(frame.shape[0]))[0]
-        scatt_img = np.outer(scattlight, np.ones(frame.shape[1]))
-        scatt_img[spatimg < ym] *= 1 + (medl - 1) * (spatimg[spatimg < ym] / ym - 1) ** 2
-        scatt_img[spatimg >= ym] *= 1 + (medr - 1) * (spatimg[spatimg >= ym] / (4095//spatbin - ym) - ym / (4095//spatbin - ym)) ** 2
-        return scatt_img
+        def resid(param, wpix, img):
+            """ Residual function used to optimize the model parameters
+
+            Parameters
+            ----------
+            param : `numpy.ndarray`_
+                1D array of model parameters to use for the fitting function.
+            wpix : tuple
+                A tuple containing the x,y coordinates of the pixels in img
+                to be used for computing the residual.
+            img : `numpy.ndarray`_
+                Data image to be used to compute the residual. Shape is (nspec, nspat)
+
+            Returns
+            -------
+            resid : `numpy.ndarray`_
+                A 1D vector of the residuals
+            """
+            return img[wpix] - scattered_light_model(param, img)[wpix]
+
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(tbl['binning'])
+
+        # First pad the edges to minimize edge effects
+        # Do a median filter near the edges
+        frame[0, :] = np.median(frame[0:10, :], axis=0)
+        frame[-1, :] = np.median(frame[-10:, :], axis=0)
+        img = np.pad(frame, nspecpad, mode='edge')
+        slitmask_pad = np.pad(slitmask, nspecpad, mode='edge')
+        # Grab the pixels to be included in the fit
+        wpix = np.where(slitmask_pad == -1)
+
+        # Get some starting parameters (these were determined by fitting spectra,
+        # and should be close to the final fitted values to reduce computational time)
+        # Note :: These values need to be originally based on data that uses 1x1 binning,
+        # and are now scaled here according to the binning of the current data to be analysed.
+        # if tbl['dispname'] == 'BH2':
+        #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+        # elif tbl['dispname'] == 'BM':
+        #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+        if tbl['dispname'] == 'BL':
+            x0 = np.array([3.55797869e+02/specbin, 2.38333349e+02/spatbin,  # kernel widths
+                           2.52262744e+01/specbin, 1.97022975e+02/spatbin,  # pixel offsets
+                           9.41621820e-01, 1.02049301e-01, -2.10895495e-01, 2.36542387e-01,
+                           -9.83331029e-02])
+        else:
+            msgs.warn(f"Initial scattered light model parameters have not been setup for grating {tbl['dispname']}")
+            sigmx = 400.0 / specbin  # This is the spectral direction
+            sigmy = 200.0 / spatbin  # This is the spatial direction
+            shft_spec = -60.0 / specbin  # Shift of the scattered light in the spectral direction
+            shft_spat = 0.0 / spatbin  # Shift of the scattered light in the spatial direction
+            zoom = 1.0  # Zoom factor of the scattered light
+            term0, term1, term2, term3 = 0.1, -0.2, 0.3, -0.1  # Polynomial coefficients
+            x0 = [sigmx, sigmy, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+
+        # Compute the best-fitting model parameters
+        msgs.info("Computing best-fitting model parameters of the scattered light")
+        res_lsq = least_squares(resid, x0,
+                                bounds=([1, 1, -200 / specbin, -200 / spatbin, 0, -10, -10, -10, -10],
+                                        [600 / specbin, 600 / spatbin, 200 / specbin, 200 / spatbin, 2, 10, 10, 10,
+                                         10]),
+                                args=(wpix, img), verbose=2)
+        # Store if this is a successful fit
+        success = res_lsq.success
+        if success:
+            msgs.info("Generating best-fitting scattered light model")
+            scatt_img = scattered_light_model(res_lsq.x, img)[nspecpad:-nspecpad, nspecpad:-nspecpad]
+        else:
+            msgs.warn("Scattered light model fitting failed")
+            scatt_img = np.zeros_like(frame)
+        return scatt_img, res_lsq.x, success
 
     def fit_2d_det_response(self, det_resp, gpmask):
         r"""
@@ -1311,7 +1363,6 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         """
         return 'Mask' in hdr['RNASNAM']
 
-
     def get_rawimage(self, raw_file, det):
         """
         Read a raw KCRM data frame
@@ -1391,3 +1442,58 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+
+def scattered_light_model(param, img, kernel='gaussian'):
+    """ Model used to calculate the scattered light
+
+    Parameters
+    ----------
+    param : `numpy.ndarray`_
+        Model parameters that determine the scattered light based on the input img.
+        For KCWI there are 9 model parameters that need to be input, and these are:
+
+        * param[0] = Kernel width in the spectral direction
+        * param[1] = Kernel width in the spatial direction
+        * param[2] = Pixel shift of the scattered light in the spectral direction
+        * param[3] = Pixel shift of the scattered light in the spatial direction
+        * param[4] = Zoom factor of the scattered light (~1)
+        * param[5] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**0)
+        * param[6] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**1)
+        * param[7] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**2)
+        * param[8] = Polynomial scaling coefficient in the spectral direction (coefficient of spec_pixel**3)
+    img : `numpy.ndarray`_
+        Raw image that you want to compute the scattered light model.
+        shape is (nspec, nspat)
+
+    Returns
+    -------
+    model : `numpy.ndarray`_
+        Model of the scattered light for the input
+    """
+    # For clarity, unpack the parameters
+    assert param.size == 9  # For KCWI, the scattered light model requires 9 model parameters
+    sigmx, sigmy, shft_spec, shft_spat, zoom = param[0], param[1], param[2], param[3], param[4]
+    term0, term1, term2, term3 = param[5], param[6], param[7], param[8]
+    # Generate a 2D smoothing kernel
+    if kernel == 'gaussian':
+        # Gaussian
+        subkrnx = np.exp(-0.5*(np.arange(int(6*sigmx))-3*sigmx)**2/sigmx**2)
+        subkrny = np.exp(-0.5*(np.arange(int(6*sigmy))-3*sigmy)**2/sigmy**2)
+    elif kernel == 'lorentzian':
+        # Lorentzian
+        subkrnx = sigmx / ((np.arange(int(10*sigmx))-5*sigmx)**2 + sigmx**2)
+        subkrny = sigmy / ((np.arange(int(10*sigmy))-5*sigmy)**2 + sigmy**2)
+    else:
+        msgs.error(f"Unknown kernel: {kernel}")
+    kernel = np.outer(subkrnx, subkrny)
+    kernel /= np.sum(kernel)
+    # Make a grid of coordinates
+    specvec, spatvec = np.arange(img.shape[0]), np.arange(img.shape[1])
+    spat, spec = np.meshgrid(spatvec, specvec/(specvec.size-1))
+    # Convolve the input image (note: most of the time is spent here)
+    # oaconvolve is the fastest option when the kernel is much smaller dimensions than the image
+    # scale_img = (term0 + term1 * spec + term2*spec**2 + term3*spec**3) * signal.fftconvolve(img, kernel, mode='same')
+    scale_img = (term0 + term1 * spec + term2*spec**2 + term3*spec**3) * signal.oaconvolve(img, kernel, mode='same')
+    spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
+    return spl(zoom*(specvec+shft_spec), zoom*(spatvec+shft_spat))

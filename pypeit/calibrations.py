@@ -28,6 +28,7 @@ from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
+from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
@@ -590,9 +591,11 @@ class Calibrations:
                                                          dark=self.msdark, calib_dir=self.calib_dir,
                                                          setup=setup, calib_id=calib_id)
 
-        embed()
-        # TODO :: Need to figure out where `pad` is stored for the call below, and work on scattered_light call on the next line
-        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage, self.slits, binning=binning)
+        spatbin = parse.parse_binning(binning)[1]
+        pad = self.par['scattlight']['pad'] // spatbin
+        slitid_img_init = self.slits.slit_img(pad=pad, initial=True, flexure=None)
+
+        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage.image, slitid_img_init, self.fitstbl[scatt_idx[0]])
 
         if not success:
             # Something went awry
@@ -606,11 +609,12 @@ class Calibrations:
                                                       detname=scattlightImage.detector.name,
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
-                                                      # TODO :: Need to set this padding correctly
-                                                      pad=self.par[''],
+                                                      pad=self.par['scattlight']['pad'],
                                                       scattlight_raw=scattlightImage,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
+
+        # TODO :: Should we go back and recalculate the slit edges once the scattered light is known?
 
         # Show the result if requested
         if self.show:
