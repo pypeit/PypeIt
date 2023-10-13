@@ -62,9 +62,8 @@ class CombineImage:
         if self.nfiles == 0:
             msgs.error('CombineImage requires a list of files to instantiate')
 
-    def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, scattlight=None,
-            combine_method='mean', mosaic=False):
+    def run(self, bias=None, scattlight=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean', mosaic=False):
         r"""
         Process and combine all images.
 
@@ -137,6 +136,8 @@ class CombineImage:
             bias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
                 Bias image for bias subtraction; passed directly to
                 :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+            scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
+                Scattered light model to be used to determine scattered light.
             flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
                 Flat-field images for flat fielding; passed directly to
                 :func:`~pypeit.images.rawimage.RawImage.process` for all images.

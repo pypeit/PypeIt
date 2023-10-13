@@ -183,6 +183,7 @@ class Calibrations:
         self.msbpm = None
         self.wv_calib = None
         self.slits = None
+        self.msscattlight = None
 
         self.wavetilts = None
         self.flatimages = None
@@ -323,8 +324,8 @@ class Calibrations:
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['arcframe'], raw_files,
                                                     bias=self.msbias, bpm=self.msbpm,
-                                                    dark=self.msdark, calib_dir=self.calib_dir,
-                                                    setup=setup, calib_id=calib_id)
+                                                    dark=self.msdark, scattlight=self.msscattlight,
+                                                    calib_dir=self.calib_dir, setup=setup, calib_id=calib_id)
         # Save the result
         self.msarc.to_file()
         # Return it
@@ -367,6 +368,7 @@ class Calibrations:
                                                      self.par['tiltframe'], raw_files,
                                                      bias=self.msbias, bpm=self.msbpm,
                                                      dark=self.msdark, slits=self.slits,
+                                                     scattlight=self.msscattlight,
                                                      calib_dir=self.calib_dir, setup=setup,
                                                      calib_id=calib_id)
         # Save the result
@@ -416,7 +418,8 @@ class Calibrations:
                                                  self.par['alignframe'], raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
                                                  dark=self.msdark, calib_dir=self.calib_dir,
-                                                 setup=setup, calib_id=calib_id)
+                                                 setup=setup, calib_id=calib_id,
+                                                 scattlight=self.msscattlight)
 
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
@@ -713,7 +716,8 @@ class Calibrations:
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         raw_pixel_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        scattlight=self.msscattlight)
             if len(raw_lampoff_files) > 0:
                 # Reset the BPM
                 self.get_bpm(frame=raw_lampoff_files[0])
@@ -724,7 +728,7 @@ class Calibrations:
                                                               self.par['lampoffflatsframe'],
                                                               raw_lampoff_files,
                                                               dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm)
+                                                              bpm=self.msbpm, scattlight=self.msscattlight)
                 pixel_flat = pixel_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
@@ -747,7 +751,7 @@ class Calibrations:
                 msgs.prindent(f'{Path(f).name}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
-                                                        dark=self.msdark, bias=self.msbias,
+                                                        dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
                                                         flatimages=self.flatimages, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
@@ -758,7 +762,9 @@ class Calibrations:
                                                                   self.par['lampoffflatsframe'],
                                                                   raw_lampoff_files,
                                                                   dark=self.msdark,
-                                                                  bias=self.msbias, bpm=self.msbpm)
+                                                                  bias=self.msbias,
+                                                                  scattlight=self.msscattlight,
+                                                                  bpm=self.msbpm)
                 illum_flat = illum_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
@@ -867,6 +873,7 @@ class Calibrations:
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
+                                                    scattlight=self.msscattlight,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id)
         if len(raw_lampoff_files) > 0:
@@ -880,7 +887,8 @@ class Calibrations:
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
-                                                          bias=self.msbias, bpm=self.msbpm)
+                                                          bias=self.msbias, scattlight=self.msscattlight,
+                                                          bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
