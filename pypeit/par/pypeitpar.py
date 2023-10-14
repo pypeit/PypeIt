@@ -3707,7 +3707,7 @@ class FindObjPar(ParSet):
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3767,6 +3767,10 @@ class FindObjPar(ParSet):
         defaults['find_fwhm'] = 5.0
         dtypes['find_fwhm'] = [int, float]
         descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
+
+        defaults['fof_link'] = 1.5
+        dtypes['fof_link'] = [int, float]
+        descr['fof_link'] = 'The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs. '
 
         defaults['ech_find_max_snr'] = 1.0
         dtypes['ech_find_max_snr'] = [int, float]
@@ -3854,7 +3858,7 @@ class FindObjPar(ParSet):
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d']
+                   'std_spec1d', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

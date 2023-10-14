@@ -462,6 +462,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['findobj']['fof_link'] = 0.2
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
@@ -507,7 +508,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         par['sensfunc']['polyorder'] = 8
         #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
-    
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_9300_55100_R60000.fits'
+
         return par
     
 
@@ -592,7 +594,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             par['calibrations']['slitedges']['rm_slits'] = '1:'
-            
+
 
         if decker == '0.144x12':
             par['calibrations']['wavelengths']['fwhm'] = 3.0
@@ -884,6 +886,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['findobj']['fof_link'] = 0.2
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'

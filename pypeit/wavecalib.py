@@ -394,8 +394,8 @@ class WaveCalib(calibframe.CalibFrame):
         diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'
         # FWHM
-        diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
-        diag['mesured_fwhm'].format = '0.1f'
+        diag['measured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['measured_fwhm'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
@@ -663,7 +663,7 @@ class BuildWaveCalib:
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
-                self.slits.ech_order = order_vec#self.slits.slitord_id
+                self.slits.ech_order = order_vec[:self.slits.nslits]#self.slits.slitord_id
                 #self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
