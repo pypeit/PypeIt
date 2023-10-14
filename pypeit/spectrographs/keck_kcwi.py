@@ -40,7 +40,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
     supported = True
 
     def __init__(self):
@@ -73,6 +73,10 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['posang'] = dict(card=None, compound=True)
+        self.meta['ra_off'] = dict(ext=0, card='RAOFF')
+        self.meta['dec_off'] = dict(ext=0, card='DECOFF')
+
 
         # Extras for config and frametyping
         self.meta['hatch'] = dict(ext=0, card='HATPOS')
@@ -86,6 +90,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps
@@ -101,6 +106,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Add in the dome lamp
         self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
         self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -132,6 +138,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'RL':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RL.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM1':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcrm_RM1.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'RM2':
@@ -163,7 +171,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'decker', 'binning', 'cenwave']
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -211,11 +219,11 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['WXPRESS']  # Must be in astropy.units.mbar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 0.611 bar")
-                return 0.611
+                msgs.info("The default pressure will be assumed: 611 mbar")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
@@ -225,13 +233,34 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
-                return headarr[0]['WXOUTHUM'] / 100.0
+                # Humidity expressed as a percentage, not a fraction
+                return headarr[0]['WXOUTHUM']
             except KeyError:
                 msgs.warn("Humidity is not in header")
                 msgs.info("The default relative humidity will be assumed: 20 %")
-                return 0.2  # van Kooten & Izett, arXiv:2208.11794
+                return 20.0  # van Kooten & Izett, arXiv:2208.11794
+        elif meta_key == 'parangle':
+            try:
+                # Parallactic angle expressed in radians
+                return headarr[0]['PARANG'] * np.pi / 180.0
+            except KeyError:
+                msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
+        elif meta_key == 'posang':
+            hdr = headarr[0]
+            # Get rotator position
+            if 'ROTPOSN' in hdr:
+                rpos = hdr['ROTPOSN']
+            else:
+                rpos = 0.
+            if 'ROTREFAN' in hdr:
+                rref = hdr['ROTREFAN']
+            else:
+                rref = 0.
+            # Get the offset and PA
+            skypa = rpos + rref  # IFU position angle (degrees)
+            return skypa
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -271,7 +300,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = False
 
@@ -294,7 +323,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['idname', 'calpos']
+        return super().pypeit_file_keys() + ['posang', 'ra_off', 'dec_off', 'idname', 'calpos']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -563,36 +592,17 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
+        ra = self.compound_meta([hdr], 'ra')
+        dec = self.compound_meta([hdr], 'dec')
 
-        # Create a coordinate
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-
-        # Get rotator position
-        if 'ROTPOSN' in hdr:
-            rpos = hdr['ROTPOSN']
-        else:
-            rpos = 0.
-        if 'ROTREFAN' in hdr:
-            rref = hdr['ROTREFAN']
-        else:
-            rref = 0.
-        # Get the offset and PA
+        skypa = self.compound_meta([hdr], 'posang')
         rotoff = 0.0  # IFU-SKYPA offset (degrees)
-        skypa = rpos + rref  # IFU position angle (degrees)
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
         cdelt1 = -slscl
         cdelt2 = pxscl
-        if coord is None:
-            ra = 0.
-            dec = 0.
-            crota = 1
-        else:
-            ra = coord.ra.degree
-            dec = coord.dec.degree
+
         # Calculate the CD Matrix
         cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
         cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
@@ -738,9 +748,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                       [1838, 1838,  933, 2055]]
         elif ampmode == 'L2U2':
             if binning == '1,1':
-                bc = [[3458, 3462, 0, 613]]
+                bc = [[649, 651, 0, 613]]  # This accounts for the spatflip - not sure if the 649-651 is too broad though...
             elif binning == '2,2':
-                bc = [[1730, 1730, 0, 307]]
+                bc = [[325, 325, 0, 307]]  # This accounts for the spatflip
         elif ampmode == "L2U2L1U1":
             pass
             # Currently unchecked...
@@ -844,6 +854,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='BCWAVE', rtol=0.01)
+
 
     def raw_header_cards(self):
         """
@@ -1112,7 +1124,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCRM'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'  # TODO :: Need to update this website
     header_name = 'KCRM'
-    comment = 'Supported setups: RM1, RM2, RH3; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: RL, RM1, RM2, RH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1162,7 +1174,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
                         dataext         = 0,
                         specaxis        = 0,
                         specflip        = specflip,
-                        spatflip        = False,
+                        spatflip        = True,  # Due to the extra mirror, the slices are flipped relative to KCWI
                         platescale      = 0.145728,  # arcsec/pixel TODO :: Need to double check this
                         darkcurr        = None,  # e-/pixel/hour  TODO :: Need to check this.
                         mincounts       = -1e10,
@@ -1207,6 +1219,7 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         super().init_meta()
         self.meta['dispname'] = dict(ext=0, card='RGRATNAM')
         self.meta['dispangle'] = dict(ext=0, card='RGRANGLE', rtol=0.01)
+        self.meta['cenwave'] = dict(ext=0, card='RCWAVE', rtol=0.01)
 
     def raw_header_cards(self):
         """
@@ -1277,6 +1290,10 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
         par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['bspline_spacing'] = 0.4
+        par['reduce']['skysub']['joint_fit'] = False
 
         return par
 

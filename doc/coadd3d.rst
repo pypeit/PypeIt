@@ -155,13 +155,13 @@ Sky Subtraction
 
 The default behaviour of PypeIt is to subtract the model sky that is
 derived from the science frame during the reduction. If you would like
-to turn off sky subtraction, set the following keyword argument:
+to turn off sky subtraction, set the following keyword argument (all lowercase):
 
 .. code-block:: ini
 
     [reduce]
         [[cube]]
-            skysub_frame = None
+            skysub_frame = none
 
 If you would like to use a dedicated sky frame for sky subtraction
 that is separate from the science frame, then you need to provide
@@ -330,7 +330,7 @@ plot a wavelength slice of the cube:
 
     from matplotlib import pyplot as plt
     from astropy.visualization import ZScaleInterval, ImageNormalize
-    from pypeit.core.datacube import DataCube
+    from pypeit.coadd3d import DataCube
 
     filename = "datacube.fits"
     cube = DataCube.from_file(filename)
