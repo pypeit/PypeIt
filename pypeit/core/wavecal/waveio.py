@@ -87,6 +87,23 @@ def load_template(arxiv_file, det, wvrng=None):
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
+    
+    #for echelle spectrographs
+    try:
+        tbl_order = tbl['order'].data
+    except:
+        tbl_order = None
+
+    #for solutions with saved line IDs and pixels
+    try:
+        tbl_line_pix = tbl['lines_pix'].data
+        tbl_line_wav = tbl['lines_wav'].data
+        tbl_line_fit_ord = tbl['lines_fit_ord'].data
+    except:
+        tbl_line_pix = None
+        tbl_line_wav = None
+        tbl_line_fit_ord = None
+
 
     # Cut down?
     if wvrng is not None:
@@ -95,7 +112,7 @@ def load_template(arxiv_file, det, wvrng=None):
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):
@@ -200,6 +217,7 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
             lamps.append(line_file[i0+1:i1])
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
+    #print(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
     # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
     #       will exit with msgs.error().

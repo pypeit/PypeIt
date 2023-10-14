@@ -83,15 +83,21 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
         indx = order - angle_fits_params['order_min']
+        #print(indx, order, order_vec)
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
-        for ic in range(angle_fits_params['ech_n_final'] + 1):
+        for ic in range(int(angle_fits_params['ech_n_final'] + 1)):
+            #print(fitting.evaluate_fit(
+            #    ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
+            #    ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax']))
             coeff_predict[ic] = fitting.evaluate_fit(
-                ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
+                ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
-
+        #print('coeff_predict = ', coeff_predict)
+        #print('xnspec = ', xnspec)
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
+        #print('wave_soln_guess = ', wave_soln_guess[:,iord])
 
 
     return wave_soln_guess
@@ -162,13 +168,15 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
         arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
                                                       kind='cubic', bounds_error=False,
                                                       fill_value=-1e10)(wave_soln_guess[:, iord])
-
+        ibad = np.abs(arcspec_guess[:,iord]) > 1e9
+        arcspec_guess[ibad, iord] = np.nanmedian(arcspec_guess[:,iord])
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
-                        composite_arc_file, debug=False, pad=3):
+                        composite_arc_file, debug=False, 
+                        xcorr_percent_ceil = 50.0, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -210,16 +218,31 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
         nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
-
+    msgs.info(f'initial orders vec guess = {order_vec_guess}')
+    #print(np.shape(wave_soln_guess_pad))
+    #print(wave_soln_guess_pad.T)
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
+    debug=True
+    import matplotlib.pyplot as plt
+    for ii in range(norders):
+        plt.figure()
+        plt.plot(arcspec[:,ii])
+        plt.title(order_vec_guess[ii])
+        plt.show()
+    plt.figure()
+    plt.plot(arccen_pad.flatten('F'))
+    plt.plot(arcspec_guess_pad.flatten('F'))
+    plt.ylim(0.0, np.max(arccen_pad))
+    plt.show()
 
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        percent_ceil=xcorr_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, 
+        max_lag_frac = 2*float(nspec)/float(len(arccen_pad.flatten('F'))), debug=debug)
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

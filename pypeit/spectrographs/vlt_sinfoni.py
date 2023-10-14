@@ -76,7 +76,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
@@ -157,7 +157,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 

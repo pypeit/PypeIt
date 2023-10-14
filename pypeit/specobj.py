@@ -488,7 +488,7 @@ class SpecObj(datamodel.DataContainer):
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None,
-                         extrap_sens=False):
+                         extrap_sens=False, sens_fwhm = None):
         """
         Apply a sensitivity function to our spectrum
 
@@ -517,6 +517,10 @@ class SpecObj(datamodel.DataContainer):
                 Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
+            sens_fwhm (`numpy.ndarray`_, optional):
+                Use the fwhm from the sensitivity function to estimate the slit loss
+            dat_fwhm (`numpy.ndarray`_, optional):
+                Use the fwhm from the data to estimate the slit loss
 
         """
         # Loop on extraction modes
@@ -529,7 +533,8 @@ class SpecObj(datamodel.DataContainer):
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
                 wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct, airmass=airmass,
-                longitude=longitude, latitude=latitude, extinctfilepar=extinctfilepar, extrap_sens=extrap_sens)
+                longitude=longitude, latitude=latitude, extinctfilepar=extinctfilepar, extrap_sens=extrap_sens, 
+                sens_fwhm = sens_fwhm, dat_fwhm = self.SPAT_FWHM)
             flam = self[attr+'_COUNTS']*sens_factor
             flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
             flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2

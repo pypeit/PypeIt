@@ -84,7 +84,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.11 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
@@ -127,7 +127,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     # NOTE: This function is used by the dev-suite
@@ -210,7 +210,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # using OH lines
         if 'long2pos_specphot' not in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             par['calibrations']['wavelengths']['sigdetect'] = 10.
             # templates
             if filter == 'Y':
@@ -233,7 +232,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         elif 'long2pos_specphot' in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             # templates
             if filter == 'Y':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'

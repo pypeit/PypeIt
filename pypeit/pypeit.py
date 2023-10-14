@@ -256,7 +256,7 @@ class PypeIt:
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self):
+    def calib_all(self, no_wave = False):
         """
         Process all calibration frames.
 
@@ -292,7 +292,8 @@ class PypeIt:
                 # Do it
                 # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-
+                if no_wave:
+                    self.caliBrate.steps = ['bias', 'dark', 'bpm', 'slits', 'arc', 'flats'] 
                 self.caliBrate.run_the_steps()
                 if not self.caliBrate.success:
                     msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
