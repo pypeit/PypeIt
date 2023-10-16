@@ -106,32 +106,6 @@ overscan regions. Also note that this pattern noise is different
 from the detector structure mentioned above for pixelflats. The
 pattern noise is additive, the detector structure is multiplicative.
 
-Scattered Light Removal
------------------------
-
-KCWI suffers from mild scattered light (at the level of ~1 percent),
-and this appears to be worse near regions of the detector where there
-is brighter illumination. We are currently working towards building a
-full model of the scattered light. For the moment, PypeIt uses a robust
-piecewise polynomial to model the scattered light that is detected on
-the left of slice 1, the unilluminated region between slices 12 and 13,
-and the right of slice 24. The model is smooth and continuous, and is
-determined for each spectral pixel. By default, the scattered light is
-subtracted from the science frame, the pixel flat, and the illumination
-flat. To turn off the scattered light subtraction, you can add the
-following lines to your :ref:`pypeit_file`:
-
-.. code-block:: ini
-
-    [scienceframe]
-        [[process]]
-            subtract_scattlight = False
-    [calibrations]
-        [[pixelflatframe]]
-            [[[process]]]
-                subtract_scattlight = False
-
-
 Relative spectral illumination correction
 -----------------------------------------
 

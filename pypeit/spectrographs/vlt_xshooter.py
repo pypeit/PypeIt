@@ -295,9 +295,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.60
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.
+        par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -344,11 +344,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
-        par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
-        
-        # Telluric parameters
-        par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
@@ -686,8 +682,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
         # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.2
         par['calibrations']['wavelengths']['fwhm'] = 8.0
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
@@ -723,11 +720,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
-        par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
-        
-        # Telluric parameters
-        par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
@@ -962,8 +955,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
         # This is for 1x1
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.184
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.70 
         par['calibrations']['wavelengths']['fwhm'] = 3.8
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         #
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
@@ -1015,11 +1009,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] =  8
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
-        par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
-        
-        # Telluric parameters
-        par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        # This is a hack until we we have a Paranal file generated that covers the UVB wavelength range.
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'

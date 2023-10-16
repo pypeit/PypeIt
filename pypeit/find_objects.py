@@ -815,10 +815,9 @@ class EchelleFindObjects(FindObjects):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
-        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype and spectrograph.orders \
+        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
                             else self.slits.ech_order
 #                            else self.spectrograph.order_vec(self.spatial_coo)
-        print(self.objtype, print(spectrograph), print(spectrograph.orders))
         if self.order_vec is None:
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
@@ -924,7 +923,6 @@ class EchelleFindObjects(FindObjects):
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-            fof_link = self.par['reduce']['findobj']['fof_link'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             nperorder=nperorder,
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
@@ -1246,10 +1244,6 @@ class IFUFindObjects(MultiSlitFindObjects):
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.
         """
-        if self.par['reduce']['findobj']['skip_skysub']:
-            msgs.info("Skipping global sky sub as per user request")
-            return np.zeros_like(self.sciImg.image)
-
         # Generate a global sky sub for all slits separately
         global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,

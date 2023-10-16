@@ -2,7 +2,7 @@
 Register the ginga global plugin(s).
 """
 import os.path
-from importlib import metadata
+from pkg_resources import iter_entry_points
 import numpy
 
 from ginga.misc.Bunch import Bunch
@@ -11,8 +11,7 @@ required_plugins = ['SlitWavelength']
 
 def plugins_available(return_report=False):
     available_plugins = []
-    # TODO: metadata.entry_points(group='ginga.rv.plugins') doesn't work in python3.9!!
-    for entry_point in metadata.entry_points()['ginga.rv.plugins']:
+    for entry_point in iter_entry_points(group='ginga.rv.plugins', name=None):
         spec = entry_point.load()()
         available_plugins += [spec.get('name', spec.get('menu',
                                                         spec.get('klass', spec.get('module'))))]

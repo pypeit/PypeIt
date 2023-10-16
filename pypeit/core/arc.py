@@ -179,7 +179,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=300)
+        plt.savefig(outfile, dpi=800)
         plt.close()
     else:
         plt.show()
@@ -291,9 +291,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.9, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
-                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.8, r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
                 ax0.get_yaxis().set_label_coords(-0.15, 0.5)
 
@@ -311,7 +311,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=800)
         plt.close()
     else:
         plt.show()
@@ -496,36 +496,11 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             arc_spec[:,islit] = np.nan
             continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
-        '''
-        crappy diagnostic code, can delete
-        print('will use this mask: ', np.invert(arcmask[:,left:right]))
-        print('which has shape: ', np.shape(np.invert(arcmask[:,left:right])))
-        print(np.shape(arcimg[:,left:right]))
-        arcimg_testplot = np.copy(arcimg)
-        arcimg_testplot[np.where(np.invert(arcmask[:,left:right]))] = -1e10
-        print(np.shape(np.where(arcmask[:,left:right])))
-        plt.figure()
-        #plt.plot(np.nanmedian(arcimg[:,left:right], axis=1))
-        #plt.plot(arcimg_testplot[:,left:right])
-        #plt.plot(arcimg[:,left:right]/np.nanstd(arcimg[:,left:right]))
-        plt.imshow(gpm)
-        plt.show()
-        '''
-        
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.invert(arcmask[:,left:right]),
-                                                      sigma=3.0, axis=1, 
-                                                      cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
-        '''
-        Crappy diagnostic code, can remove
-        print('ARC SPEC HAS SHAPE', np.shape(arc_spec))
-        print('islit = ', islit)
-        plt.figure()
-        plt.plot(arc_spec[:,islit])
-        plt.title('After sigma clipping')
-        plt.show()
-        '''
+                                                      sigma=3.0, axis=1)[1]
+
     # Get the mask, set the masked values to 0, and return
     arc_spec_bpm = np.isnan(arc_spec)
     arc_spec[arc_spec_bpm] = 0.0
@@ -1023,9 +998,6 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     if input_thresh is None:
         (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
-        if stddev == 0.0:
-            msgs.warn('stddev = 0.0, so resetting to 1.0')
-            stddev = 1.0
     else:
         med = 0.0
         if isinstance(input_thresh,(float, int)):
@@ -1050,7 +1022,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # TODO: Why does this interpolate to pixt and not tcent?
     tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
-    
+
     # Find the lines that meet the following criteria:
     #   - Amplitude is in the linear regime of the detector response
     #   - Center is within the limits of the spectrum
@@ -1060,6 +1032,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
+
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1

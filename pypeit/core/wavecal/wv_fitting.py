@@ -367,7 +367,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                     ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
-        #msgs.warn(f'Using {ifit} lines in the fit')
         # Increment order?
         if n_order < n_final:
             n_order += 1
@@ -375,10 +374,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             flg_penultimate = True
 
     # Final fit (originals can now be rejected)
-    if len(ifit) <= n_final:
-        n_order = len(ifit)-1
-        msgs.warn(f'Not enough lines for n_final! Fit order = {n_order}')
-            
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,

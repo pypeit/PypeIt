@@ -91,8 +91,9 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         # This is for 1x1
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.103
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30   
         par['calibrations']['wavelengths']['fwhm'] = 2.9
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'NeI', 'HgI', 'XeI', 'ArII']

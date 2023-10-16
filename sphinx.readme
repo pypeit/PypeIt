@@ -1,8 +1,5 @@
 # Buiding the docs:
 
-# First, make sure that you have the PypeIt Development Suite installed
-# on your system. Then execute the following commands in a terminal:
-#
 # ./update_docs
 # cd doc
 # make html
@@ -11,7 +8,7 @@
 We use Sphinx to build our documentation:
 https://www.sphinx-doc.org/en/master/index.html
 
-Docstrings should be in rst format:
+Dostrings should be in rst format:
 http://docutils.sourceforge.net/rst.html
 
 Google format example (preferred):

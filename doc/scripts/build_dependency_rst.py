@@ -2,18 +2,18 @@
 Construct an rst table with the dependencies
 """
 
+from IPython import embed
+import os
 import configparser
-from importlib import resources
+from pkg_resources import resource_filename
 
 import numpy
 
 from pypeit.utils import string_table
 
-from IPython import embed
-
 
 def write_dependency_table(setup_file, path):
-    ofile = path / 'dependencies_table.rst'
+    ofile = os.path.join(path, 'dependencies_table.rst')
 
     setup = configparser.ConfigParser()
     setup.read(setup_file)
@@ -34,13 +34,14 @@ def write_dependency_table(setup_file, path):
 
 
 def main():
-    pypeit_root = resources.files('pypeit').parent
-    output_root = pypeit_root / 'doc' / 'include'
-    if not output_root.is_dir():
+    output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                               'doc', 'include')
+    if not os.path.isdir(output_root):
         raise NotADirectoryError(f'{output_root} does not exist!')
 
-    setup_file = pypeit_root / 'setup.cfg'
-    if not setup_file.is_file():
+    setup_file = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                               'setup.cfg')
+    if not os.path.isfile(setup_file):
         raise FileNotFoundError(f'{setup_file} does not exist!')
     write_dependency_table(setup_file, output_root)
 

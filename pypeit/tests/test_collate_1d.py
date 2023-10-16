@@ -14,7 +14,6 @@ from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
 from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
 from pypeit.images.detector_container import DetectorContainer
@@ -482,9 +481,6 @@ def test_flux(monkeypatch):
             # depends on the side effect of fluxing
             return None 
 
-    def mock_get_archived_sensfunc(self, fitsfile, symlink_in_pkgdir=False):
-        return "dummy_sensfunc.fits"
-
     # Test success
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
@@ -497,20 +493,17 @@ def test_flux(monkeypatch):
         par = pypeitpar.PypeItPar()
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
 
+        # Test success
         failed_messages = []
+        flux(par, spectrograph, ["no_fail.fits"], failed_messages)
+
+        assert len(failed_messages) == 0
 
         # Test failure due to no archived sensfunc
         flux(par, spectrograph, ["fail_grating.fits"], failed_messages)
         assert failed_messages[0] == "Could not find archived sensfunc to flux fail_grating.fits, skipping it."
-        
-        # Now patch out get_archived_sensfile since we aren't testing whether it can download
-        # the sensfuncs
-        monkeypatch.setattr(SensFileArchive, "get_archived_sensfile", mock_get_archived_sensfunc)
 
-        # Test success
         failed_messages = []
-        flux(par, spectrograph, ["no_fail.fits"], failed_messages)
-        assert len(failed_messages) == 0
 
         # Test failure in fluxing
         flux(par, spectrograph, ["fail_flux.fits"], failed_messages)

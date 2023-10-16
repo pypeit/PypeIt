@@ -202,8 +202,6 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                             help="show QA during coadding process")
         parser.add_argument("--par_outfile", default='coadd1d.par',
                             help="Output to save the parameters")
-        parser.add_argument("-m", '--save_multi', default = False, action = 'store_true', 
-                            help = "save coadded order arrays in addition to 1d coadded vector?")
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename coadd_1dspec_YYYYMMDD-HHMM.log')
@@ -260,15 +258,11 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                par=par['coadd1d'],
                                                sensfuncfile=coadd1dFile.sensfiles,
                                                setup_id=coadd1dFile.setup_id,
-                                               debug=args.debug, show=args.show,
-                                               save_multi = args.save_multi)
+                                               debug=args.debug, show=args.show)
         # Run
         coAdd1d.run()
         # Save to file
-        if args.save_multi:
-            coAdd1d.save(coaddfile, order_stacks = coAdd1d.order_stacks)
-        else:
-            coAdd1d.save(coaddfile)
+        coAdd1d.save(coaddfile)
         msgs.info('Coadding complete')
 
 

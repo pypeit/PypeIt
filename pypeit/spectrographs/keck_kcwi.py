@@ -5,6 +5,8 @@ Implements KCWI-specific functions.
 .. include:: ../include/links.rst
 """
 
+import glob
+
 from IPython import embed
 
 import numpy as np
@@ -14,10 +16,8 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
 from scipy.optimize import curve_fit
-
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -886,11 +886,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
-        # Subtract scattered light, but only for the pixel and illum flats,
-        # as well as and science/standard star data.
-        par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
-        par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
-        par['scienceframe']['process']['subtract_scattlight'] = True
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
@@ -974,11 +969,14 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        fil = utils.find_single_file(f'{raw_file}*', required=True)
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
 
         # Read
-        msgs.info(f'Reading KCWI file: {fil}')
-        hdu = io.fits_open(fil)
+        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
+        hdu = io.fits_open(fil[0])
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
@@ -1018,47 +1016,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
-
-    def scattered_light(self, frame, binning):
-        """
-        Calculate a model of the scattered light of the input frame.
-
-        Parameters
-        ----------
-        frame : `numpy.ndarray`_
-            Raw 2D data frame to be used to compute the scattered light.
-        binning : str, `numpy.ndarray`_, tuple
-            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
-            direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
-
-        Returns
-        -------
-        scatt_img : `numpy.ndarray`_
-            A 2D image of the scattered light determined from the input frame
-        """
-        # Determine the spatial binning. Currently, we hard-code the regions on the KCWI detector
-        # to be used for the determination of the scattered light. This is crude, and a better model
-        # is currently under development (RJC)
-        spatbin = parse.parse_binning(binning)[1]
-        ym = 4096 // (2 * spatbin)
-        y0 = ym - 180 // spatbin
-        y1 = ym + 180 // spatbin
-        # Obtain a robust (median) "spectrum" of the scattered light at the left, right, and middle of the detector
-        scattlightl = np.nanmedian(frame[:, :20//spatbin], axis=1)[:, None]
-        scattlightr = np.nanmedian(frame[:, -40//spatbin:], axis=1)[:, None]
-        scattlight = np.nanmedian(frame[:, y0:y1], axis=1)[:, None]
-        # The following algorithm is a polynomial fit to:
-        # (1) The left half of the detector (using the left and middle scattered light spectrum)
-        # (2) The right half of the detector (using the right and middle scattered light spectrum)
-        # We then ensure that the model is continuous and smooth at the middle of the detector.
-        medl = np.median(scattlightl / scattlight)
-        medr = np.median(scattlightr / scattlight)
-        spatimg = np.meshgrid(np.arange(frame.shape[1]), np.arange(frame.shape[0]))[0]
-        scatt_img = np.outer(scattlight, np.ones(frame.shape[1]))
-        scatt_img[spatimg < ym] *= 1 + (medl - 1) * (spatimg[spatimg < ym] / ym - 1) ** 2
-        scatt_img[spatimg >= ym] *= 1 + (medr - 1) * (spatimg[spatimg >= ym] / (4095//spatbin - ym) - ym / (4095//spatbin - ym)) ** 2
-        return scatt_img
 
     def fit_2d_det_response(self, det_resp, gpmask):
         r"""
@@ -1325,11 +1282,14 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        fil = utils.find_single_file(f'{raw_file}*', required=True)
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
 
         # Read
-        msgs.info(f'Reading KCWI file: {fil}')
-        hdu = io.fits_open(fil)
+        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
+        hdu = io.fits_open(fil[0])
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)

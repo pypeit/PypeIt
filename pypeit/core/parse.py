@@ -101,14 +101,16 @@ def binning2string(binspectral, binspatial):
     convention order, spectral then spatial.
 
     Args:
-        binspectral (:obj:`int`): Number of on-detector pixels binned in the spectral
+        binspectral (:obj:`int`):
+            Number of on-detector pixels binned in the spectral
             direction (along the first axis in the PypeIt convention).
-        binspatial (:obj:`int`): Number of on-detector pixels binned in the spatial direction
+        binspatial (int):
+            Number of on-detector pixels binned in the spatial direction
             (along the second axis in the PypeIt convention).
 
     Returns:
         str: Comma-separated binning along the spectral and spatial
-        directions; e.g., ``2,1``
+        directions; e.g., '2,1'
     """
     return '{0},{1}'.format(binspectral, binspatial)
 
@@ -121,28 +123,7 @@ def parse_binning(binning:str):
     parsed directly from the Header.  The developer needs to react accordingly..
 
     Args:
-        binning (:obj:`str`, `numpy.ndarray`_, :obj:`tuple`): The spectral and spatial binning.
-            Several formats are supported, including the following examples. Note that in all
-            examples, the binning in the spectral direction is 2, and the binning in the
-            spatial direction is 1:
-
-            - string format
-
-                *  comma delimited string (e.g. ``2,1``)
-
-                *  x delimited string (e.g. ``2x1``)
-
-                *  space delimited string (e.g. ``2 1``)
-
-                *  ``'None'`` will always assume 1x1 binning
-
-            - tuple format
-
-                * this must be of the form of tuple, for example: ``(2,1)``
-
-            - numpy array
-
-                * this must be of the form of tuple, for example: ``np.array([2,1])``
+        binning (str, `numpy.ndarray`_, tuple):
 
     Returns:
         tuple: binspectral, binspatial as integers
@@ -195,7 +176,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     a list of slice objects.
 
     Args:
-        subarray (:obj:`str`):
+        subarray (str):
             The string to convert.  Should have the form of normal slice
             operation, 'start:stop:step'.  The parser ignores whether or
             not the string has the brackets '[]', but the string must

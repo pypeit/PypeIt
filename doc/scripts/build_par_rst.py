@@ -2,16 +2,19 @@
 Dynamically build the rst documentation of the pypeit parameters.
 """
 
-from importlib import resources
+import os
 import time
 import textwrap
 
+from IPython import embed
+
+import numpy
+
+from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import available_spectrographs
-
-from IPython import embed
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -45,8 +48,8 @@ if __name__ == '__main__':
 
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
-    pypeit_root = resources.files('pypeit').parent 
-    input_base = pypeit_root / 'doc' / 'scripts' / 'base_par.rst'
+    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
+    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_par.rst')
     with open(input_base, 'r') as f:
         lines = [ l.replace('\n','') for l in f.readlines() ]
     lines += ['']
@@ -96,7 +99,7 @@ if __name__ == '__main__':
         lines += ['']
     lines += ['']
 
-    output_rst = pypeit_root / 'doc' / 'pypeit_par.rst'
+    output_rst = os.path.join(pypeit_root, 'doc', 'pypeit_par.rst')
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
     

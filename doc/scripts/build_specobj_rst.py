@@ -2,11 +2,11 @@
 Dynamically build the rst documentation for the specobj and spec2dobj objects
 """
 
-from importlib import resources
+import os
 import time
-
 import numpy
 
+from pkg_resources import resource_filename
 from pypeit.utils import to_string, string_table
 from pypeit import specobj
 from pypeit import spec2dobj
@@ -20,12 +20,13 @@ if __name__ == '__main__':
     t = time.perf_counter()
 
     # Set the output directory
-    output_root = resources.files('pypeit').parent / 'doc' / 'include'
+    output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                               'doc', 'include')
 
     # Iterate through all the specobj classes
     for obj in [specobj.SpecObj, spec2dobj.Spec2DObj, coadd1d.OneSpec]:
 
-        ofile = output_root / f'datamodel_{obj.__name__.lower()}.rst'
+        ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
 
         lines = []
         lines += ['']

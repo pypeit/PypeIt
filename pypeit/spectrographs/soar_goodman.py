@@ -312,7 +312,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
@@ -332,7 +332,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         #par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
         # fix.
@@ -510,7 +510,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm'] = 5.0
 
@@ -529,7 +529,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         # par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         return par
 

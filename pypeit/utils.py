@@ -1789,27 +1789,25 @@ def is_float(s):
     return True
 
 
-def find_single_file(file_pattern, required: bool=False) -> pathlib.Path:
-    """
-    Find a single file matching a wildcard pattern.
+def find_single_file(file_pattern) -> pathlib.Path:
+    """Find a single file matching a wildcard pattern.
 
     Args:
-        file_pattern (str):
-            A filename pattern, see the python 'glob' module.
-        required (:obj:`bool`, optional):
-            If True and no files are found, an error is raised.
+        file_pattern (str): A filename pattern, see the python 'glob' module.
 
     Returns:
-        :obj:`pathlib.Path`: A file name, or None if no filename was found. This
-        will give a warning if multiple files are found and return the first
-        one.
+        :obj:`pathlib.Path`: A file name, or None if no filename was found. This will give a warning
+             if multiple files are found and return the first one.
     """
-    files = sorted(glob.glob(file_pattern))
-    if len(files) > 1:
-        msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
-    if len(files) == 0 and required:
-        msgs.error(f'No files matching pattern: {file_pattern}')
-    return None if len(files) == 0 else pathlib.Path(files[0])
+
+    files = glob.glob(file_pattern)
+    if len(files) == 1:
+        return pathlib.Path(files[0])
+    elif len(files) == 0:
+        return None
+    else:
+        msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
+        return pathlib.Path(files[0])
 
 
 def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):

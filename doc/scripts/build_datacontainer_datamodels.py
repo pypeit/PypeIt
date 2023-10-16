@@ -2,7 +2,8 @@
 Dynamically build the rst documentation for the Calibration Images
 """
 
-from importlib import resources
+from pathlib import Path
+from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -58,7 +59,7 @@ def build_datamodel_tbl(obj):
 if __name__ == '__main__':
 
     # Set the output directory
-    output_root = resources.files('pypeit').parent / 'doc' / 'include'
+    output_root = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
 
     # All DataContainer objects
     # TODO: automate this?
