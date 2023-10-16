@@ -491,18 +491,19 @@ class FindObjects:
         Wrapper to skysub.global_skysub
 
         Args:
-            skymask (`numpy.ndarray`_, None):
+            skymask (`numpy.ndarray`_, optional):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
-                ??
+                Update the crmask in the science image
             trim_edg (tuple, optional):
                  A two tuple of ints that specify the number of pixels to trim from the slit edges
+                 Only used by the IFU child
             show_fit (bool, optional):
-                ??
+                Show the sky fits?
             show (bool, optional):
-                ??
+                Show the sky image generated?
             show_objs (bool, optional):
-                ??
+                If show=True, show the objects on the sky image?
             previous_sky (`numpy.ndarray`_, optional):
                 Sky model estimate from a previous run of global_sky
                 Used to generate an improved estimated of the variance
@@ -1252,6 +1253,8 @@ class IFUFindObjects(MultiSlitFindObjects):
         edges of the slits are not trimmed, and performs a spatial and spectral
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.
+
+        See base class method for description of parameters.
 
         Args:
             reinit_bpm (:obj:`bool`, optional):
