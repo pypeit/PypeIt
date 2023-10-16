@@ -45,5 +45,7 @@ Bug Fixes
   and then later overwritten. The new routine is faster and more accurate.
 - Fixed a bug associated with an incorrect date for the transition to the Mark4
   detector for Keck/LRIS RED.
+- Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
+  the sigdetect parameter was a list of all orders, instead of a single value.
 
 
