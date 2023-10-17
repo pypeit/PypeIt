@@ -1034,6 +1034,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              slitmask, sobjs, spat_pix=None,
                              fit_fwhm=False,
                              min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
+                             use_2dmodel_mask=True, 
                              niter=4, sigrej=3.5, bkpts_optimal=True,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
@@ -1119,6 +1120,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         light profile like elliptical galaxies. If prof_nsigma is
         set then the profiles will no longer be apodized by an
         exponential at large distances from the trace.
+    use_2dmodel_mask : bool, optional
+        Use the mask made from profile fitting when extracting?
     niter : int, optional
         Number of iterations for successive profile fitting and local sky-subtraction
     sigrej : :obj:`float`, optional
@@ -1377,6 +1380,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
                                        sigrej=sigrej,
+                                       use_2dmodel_mask=use_2dmodel_mask, 
                                        bkpts_optimal=bkpts_optimal, force_gauss=force_gauss,
                                        sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
