@@ -40,14 +40,14 @@ class SpecObj(datamodel.DataContainer):
     Args:
         PYPELINE (:obj:`str`):
             Name of the ``PypeIt`` pipeline method.  Allowed options are
-            MultiSlit, Echelle, or IFU.
+            MultiSlit, Echelle, or SlicerIFU.
         DET (:obj:`str`):
             The name of the detector or mosaic from which the spectrum was
             extracted.  For example, DET01.
         OBJTYPE (:obj:`str`, optional):
             Object type.  For example: 'unknown', 'standard', 'science'.
         SLITID (:obj:`int`, optional):
-            For multislit and IFU reductions, this is an identifier for the slit
+            For multislit and SlicerIFU reductions, this is an identifier for the slit
             (max=9999).
         ECH_ORDER (:obj:`int`, optional):
             Physical order number.
@@ -265,7 +265,7 @@ class SpecObj(datamodel.DataContainer):
         """
         Validate the object.
         """
-        pypelines = ['MultiSlit', 'IFU', 'Echelle']
+        pypelines = ['MultiSlit', 'SlicerIFU', 'Echelle']
         if self.PYPELINE not in pypelines:
             msgs.error(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
                        f"{', '.join(pypelines)}")
@@ -310,7 +310,7 @@ class SpecObj(datamodel.DataContainer):
             return self.ECH_ORDER
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
-        elif self.PYPELINE == 'IFU':
+        elif self.PYPELINE == 'SlicerIFU':
             return self.SLITID
         else:
             msgs.error("Bad PYPELINE")
@@ -322,7 +322,7 @@ class SpecObj(datamodel.DataContainer):
             return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
-        elif self.PYPELINE == 'IFU':
+        elif self.PYPELINE == 'SlicerIFU':
             return self.SLITID
         else:
             msgs.error("Bad PYPELINE")
@@ -377,7 +377,7 @@ class SpecObj(datamodel.DataContainer):
 
         The ``PypeIt`` name depends on the type of data being processed:
 
-            - For multislit and IFU data, the name is
+            - For multislit and SlicerIFU data, the name is
               ``SPATnnnn-SLITmmmm-{DET}``, where ``nnnn`` is the nearest integer
               pixel in the spatial direction (at the spectral midpoint) where
               the object was extracted, ``mmmm`` is the slit identification
@@ -414,7 +414,7 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif self.PYPELINE in ['MultiSlit', 'IFU']:
+        elif self.PYPELINE in ['MultiSlit', 'SlicerIFU']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS'] is None:

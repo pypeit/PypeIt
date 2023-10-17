@@ -443,7 +443,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
-               rotate=False, pstep=50, yval=None, color='blue'):
+               rotate=False, pstep=3, yval=None, color='blue'):
     r"""
 
     Args:

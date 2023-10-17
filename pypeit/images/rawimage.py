@@ -177,6 +177,7 @@ class RawImage:
                           subtract_pattern=False,
                           subtract_overscan=False,
                           subtract_continuum=False,
+                          subtract_scattlight=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -632,6 +633,10 @@ class RawImage:
         # correction, so no need to do it again here.
         self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
                                     if self.par['spat_flexure_correct'] else None
+
+        #   - Subtract scattered light... this needs to be done before flatfielding.
+        if self.par['subtract_scattlight']:
+            self.subtract_scattlight()
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -1108,6 +1113,27 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
+    def subtract_scattlight(self):
+        """
+        Analyze and subtract the scattered light from the image.
+
+        This is primarily a wrapper for
+        :func:`~pypeit.spectrographs.spectrograph.scattered_light`.
+
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step]:
+            # Already pattern subtracted
+            msgs.warn("The scattered light has already been subtracted from the image!")
+            return
+
+        # Loop over the images
+        for ii in range(self.nimg):
+            binning = self.detector[0].binning
+            scatt_img = self.spectrograph.scattered_light(self.image[ii, ...], binning)
+            self.image[ii, ...] -= scatt_img
+        self.steps[step] = True
+
     def trim(self, force=False):
         """
         Trim image attributes to include only the science data.
@@ -1246,5 +1272,3 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
-
-
