@@ -297,7 +297,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     waveimg : `numpy.ndarray`_
         Wavelength image
     slitmask : `numpy.ndarray`_
-        A 2D int mask, the same shape as rawimg, indicating which pixels are on a slit. A zero value
+        A 2D int mask, the same shape as rawimg, indicating which pixels are on a slit. A -1 value
         indicates not on a slit, while any pixels on a slit should have the value of the slit spatial ID
         number.
     slitmask_trim :
@@ -321,7 +321,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     """
     msgs.info(f"Performing relative spectral sensitivity correction (reference slit = {slit_illum_ref_idx})")
     # Generate the mask
-    _thismask = thismask if (thismask is not None) else slitmask
+    _thismask = thismask if (thismask is not None) else (slitmask > 0)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)
@@ -348,7 +348,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
         coeff = np.polyfit(wavcen[wgd], scale_bin[wgd], w=1/scale_err[wgd], deg=2)
         scaleImg[this_slit] *= np.polyval(coeff, waveimg[this_slit])
         if sl == slit_illum_ref_idx:
-            scaleImg[_thismask] /= np.polyval(coeff, waveimg[_thismask])
+            scaleImg[_thismask] *= utils.inverse(np.polyval(coeff, waveimg[_thismask]))
     minv, maxv = np.min(scaleImg[_thismask]), np.max(scaleImg[_thismask])
     msgs.info("Minimum/Maximum scales = {0:.5f}, {1:.5f}".format(minv, maxv))
     return scaleImg

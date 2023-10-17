@@ -135,21 +135,30 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 return 0.0
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['PRESSURE'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['PRESSUR2']/100.0  # Must be in astropy.units.mbar
             except KeyError:
-                msgs.warn("Pressure is not in header")
-                return 0.0
+                msgs.warn("Pressure is not in header - The default pressure (611 mbar) will be assumed")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
-                msgs.warn("Temperature is not in header")
-                return 0.0
+                msgs.warn("Temperature is not in header - The default temperature (1.5 deg C) will be assumed")
+                return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
+                # Humidity expressed as a percentage, not a fraction
                 return headarr[0]['HUMIDITY']
             except KeyError:
-                msgs.warn("Humidity is not in header")
+                msgs.warn("Humidity is not in header - The default relative humidity (20 %) will be assumed")
+                return 20.0  # van Kooten & Izett, arXiv:2208.11794
+        elif meta_key == 'parangle':
+            try:
+                # Humidity expressed as a percentage, not a fraction
+                msgs.warn("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
+                return headarr[0]['PARANGLE']  # Must be expressed in radians
+            except KeyError:
+                msgs.warn("Parallactic angle is not in header - The default parallactic angle (0 degrees) will be assumed")
                 return 0.0
         else:
             msgs.error("Not ready for this compound meta")
@@ -577,7 +586,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     #   * Have a high threshold for detecting slit edges (par['calibrations']['slitedges']['edge_thresh'] = 100.), and have an option when inserting new traces to be the median of all other slit lengths (or a fit to the slit lengths).
     #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
 
     def init_meta(self):
         super().init_meta()
@@ -585,6 +594,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
 
     @classmethod
     def default_pypeit_par(cls):
