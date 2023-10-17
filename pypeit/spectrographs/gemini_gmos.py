@@ -263,7 +263,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 3
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.08  # Might be grating dependent..
+        par['calibrations']['wavelengths']['fwhm'] = 5.
         par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -325,7 +326,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Allow for various binning
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         return par
 

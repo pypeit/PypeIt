@@ -259,7 +259,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['flexure']['spectrum'] = 'sky_kastb_600.fits'
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
 
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -681,7 +681,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['use_instr_flag'] = True
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'

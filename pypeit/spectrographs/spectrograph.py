@@ -1894,6 +1894,28 @@ class Spectrograph:
         msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))
         return []
 
+    def scattered_light(self, frame, binning):
+        """
+        Calculate a model of the scattered light of the input frame.
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw 2D data frame to be used to compute the scattered light.
+        binning : str, `numpy.ndarray`_, tuple
+            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
+            direction, and a binning of 1 in the spatial direction). For the supported
+            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
+
+        Returns
+        -------
+        scatt_img : `numpy.ndarray`_, float
+            A 2D image of the scattered light determined from the input frame.
+            Alternatively, if a constant value is used, a constant floating point
+            value can be returned as well.
+        """
+        msgs.info("Scattered light removal is not implemented for spectrograph {0:s}".format(self.name))
+        return 0.0
 
     def __repr__(self):
         """Return a string representation of the instance."""

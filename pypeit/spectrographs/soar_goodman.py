@@ -310,7 +310,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
@@ -508,7 +508,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm'] = 5.0
 
