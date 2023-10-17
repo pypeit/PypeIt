@@ -14,13 +14,14 @@ Functionality/Performance Improvements and Additions
   release, we only model KCWI/KCRM scattered light.
 - Turned on usage of the use_2dmodel_mask parameter for echelle spectrographs
 - Added support for Keck/KCRM RL data reduction.
-- Allow one to turn off reinit of reduce_bpm in global_skysub and made this 
+- Allow one to turn off reinit of reduce_bpm in global_skysub and made this
   the default for the final pass
 
 Instrument-specific Updates
 ---------------------------
 
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
+- We now support the reduction of VLT/FORS2 data taken in MOS mode.
 
 Script Changes
 --------------
