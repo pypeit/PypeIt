@@ -10,6 +10,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.time import Time
+import datetime
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -157,7 +158,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         
         self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -166,6 +167,11 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps -- Have varied in time..
+        # From Jim Lyke in the PypeIt slack:
+        # HgNe = LAMPAR1 = on
+        # CuAr = LAMPCU1 = on
+        # Xe   = LAMPNE1 = on
+
         self.meta['lampstat01'] = dict(ext=0, card='LAMPAR1')
         self.meta['lampstat02'] = dict(ext=0, card='LAMPCU1')
         self.meta['lampstat03'] = dict(ext=0, card='LAMPNE1')
@@ -194,6 +200,20 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
+        elif meta_key == 'mjd':
+            mjd = headarr[0].get('MJD-OBS', None)
+            if mjd is not None:
+                mjd_time = Time(mjd,format="mjd")
+                # The MJD header value is often invalid in a way that gives it a year > 9000, So sanity check it
+                try:
+                    mjd_year = mjd_time.to_value(format="decimalyear") 
+                    if mjd_year >= datetime.MINYEAR and mjd_year < 9000:
+                        return mjd_time.mjd
+                except Exception as e:
+                    # A problem parsing the MJD, we'll try DATE-OBS and UT
+                    msgs.warn("Problem parsing MJD-OBS, trying DATE-OBS and UT instead.")
+                    pass             
+            return Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UT'])).mjd
         elif meta_key == 'dispname':
             if headarr[0]['PRISMNAM'] == 'in':
                 dname = 'Echellette'
