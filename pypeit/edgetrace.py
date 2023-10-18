@@ -105,6 +105,7 @@ exposure in a fits file called `trace_file`:
 import os
 import time
 import inspect
+from pathlib import Path
 from collections import OrderedDict
 
 from IPython import embed
@@ -132,6 +133,7 @@ from pypeit.bitmask import BitMask
 from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace, slitdesign_matching
+from pypeit.core import fitting
 from pypeit.images.buildimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.spectrograph import Spectrograph
@@ -5037,6 +5039,62 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if self.spectrograph.pypeline != 'Echelle':
             msgs.warn('Parameter add_missed_orders only valid for Echelle spectrographs.')
             return
+        
+        if not self.can_pca():
+            msgs.error('Refining the orders currently requires a PCA decomposition of the '
+                       'order edges.')
+
+        # Update the PCA
+        self.build_pca()
+
+        if self.spectrograph.ech_fixed_format:
+            # TODO: Shouldn't this also need reference_row?
+            add_left, add_right = self.order_refine_fixed_format(debug=debug)
+        else:
+            reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
+                                else self.pca.reference_row
+            add_left, add_right \
+                    = self.order_refine_free_format(reference_row, debug=debug)
+
+        if add_left is None or add_right is None:
+            msgs.info('No additional orders found to add')
+            return
+        
+        # Deal with overlapping orders among the ones to be added.  The edges
+        # are adjusted equally on both sides to avoid changing the order center
+        # and exclude the overlap regions from the reduction.
+        if np.any(add_left[1:] - add_right[:-1] < 0):
+            # Loop sequentially so that each pair is updated as the loop progresses
+            for i in range(1, add_left.size):
+                # *Negative* of the gap; i.e., positives values means there's
+                # overlap
+                ngap = add_right[i-1] - add_left[i]
+                if ngap > 0:
+                    # Adjust both order edges to avoid the overlap region but
+                    # keep the same center coordinate
+                    add_left[i-1] += ngap
+                    add_right[i-1] -= ngap
+                    add_left[i] += ngap
+                    add_right[i] -= ngap
+
+        # Get the predicted traces
+        side = np.append(np.full(add_left.size, -1, dtype=int),
+                         np.full(add_right.size, 1, dtype=int))
+        missed_traces = self.predict_traces(np.append(add_left, add_right), side=side)
+
+        # Insert them
+        self.insert_traces(side, missed_traces, mode='order', nudge=False)
+
+        # If fixed-format, rematch the orders
+        if self.spectrograph.ech_fixed_format:
+            self.match_order()
+
+    def order_refine_fixed_format(self, debug=False):
+        """
+        Refine the order locations for fixed-format Echelles.
+        """
+        if not self.spectrograph.ech_fixed_format:
+            msgs.error('order_refine_fixed_format can only be used with fixed-format Echelles!')
 
         # TODO: What happens if *more* edges are detected than there are
         # archived order positions?
@@ -5048,13 +5106,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         missed_orders = np.setdiff1d(self.spectrograph.orders, available_orders)
         if missed_orders.size == 0:
             # No missing orders, we're done
-            return
-
-        # TODO: Vet good traces
-
-        # Update the PCA
-        # TODO: Check that the edges can be PCA'd somewhere before this?
-        self.build_pca()
+            return None, None
 
         # Find the indices of the missing orders
         missed_orders_indx = utils.index_of_x_eq_y(self.spectrograph.orders, missed_orders)
@@ -5067,18 +5119,144 @@ class EdgeTraceSet(calibframe.CalibFrame):
         add_left_edges = (self.spectrograph.order_spat_pos[missed_orders_indx]
                             - self.spectrograph.order_spat_width[missed_orders_indx]/2.
                             + spat_offset) * self.nspat
+        
+        return add_left_edges, add_right_edges
 
-        side = np.append(np.full(add_left_edges.size, -1, dtype=int),
-                            np.full(add_right_edges.size, 1, dtype=int))
+    def order_refine_free_format(self, reference_row, debug=False):
+        """
+        Refine the order locations for "free-format" Echelles.
+        """
+        # Select the left/right traces
+        # TODO: This is pulled from get_slits.  Maybe want a function for this.
+        gpm = self.synced_selection(self.good_traces(), mode='neither')
+        left = self.edge_fit[:,gpm & self.is_left]
+        right = self.edge_fit[:,gpm & self.is_right]
 
-        missed_traces = self.predict_traces(np.append(add_left_edges, add_right_edges),
-                                            side=side)
+        # TODO: Pull the mask too?
 
-        # Insert the traces
-        self.insert_traces(side, missed_traces, mode='order', nudge=False)
+        # Use the trace locations at the middle of the spectral shape of the
+        # detector/mosaic
+        left = left[reference_row]
+        right = right[reference_row]
 
-        # Rematch the orders
-        self.match_order()
+        # Get the order centers, widths, and gaps
+        cen = (right + left)/2
+        width = right - left
+        gap = left[1:] - right[:-1]
+
+        # Create the polynomial models.
+        # TODO:
+        #   - Expose the rejection parameters to the user?
+        #   - Be more strict with upper rejection, to preferentially ignore
+        #     measurements biased by missing orders?
+        width_fit = fitting.robust_fit(cen, width, self.par['order_width_poly'],
+                                       function='legendre', lower=3., upper=3., maxiter=5,
+                                       sticky=True)
+        # Connection of center to gap uses the gap spatially *after* the order.
+        gap_fit = fitting.robust_fit(cen[:-1], gap, self.par['order_gap_poly'],
+                                     function='legendre', lower=3., upper=3., maxiter=5,
+                                     sticky=True)
+
+        # Interpolate any missing orders
+        # TODO: Expose tolerances to the user?
+        order_cen, order_missing = trace.find_missing_orders(cen, width_fit, gap_fit)
+
+        # Extrapolate orders
+        lower_order_cen, upper_order_cen \
+                    = trace.extrapolate_orders(cen, width_fit, gap_fit,
+                                               self.par['order_spat_range'][0],
+                                               self.par['order_spat_range'][1])
+
+        # Combine the results
+        order_cen = np.concatenate((lower_order_cen, order_cen, upper_order_cen))
+        order_missing = np.concatenate((np.ones(lower_order_cen.size, dtype=bool),
+                                        order_missing, np.ones(upper_order_cen.size, dtype=bool)))
+
+        # If nothing is missing, return
+        if not np.any(order_missing):
+            return None, None
+
+        # QA Plot
+        ofile = None if debug else Path(self.qa_path) / 'PNGs' \
+                    / f'{self.get_path().name.split(".")[0]}_orders_qa.png'
+        # TODO: Making this directory should probably be done elsewhere
+        if ofile is not None and not ofile.parent.is_dir():
+            ofile.parent.mkdir(parents=True)
+        self.order_refine_free_format_qa(cen, width, gap, width_fit, gap_fit, order_cen,
+                                         order_missing, ofile=ofile)
+
+        # Return the coordinates for the left and right edges to add
+        add_width = width_fit.eval(order_cen[order_missing])
+        return order_cen[order_missing] - add_width / 2, order_cen[order_missing] + add_width / 2
+        
+    def order_refine_free_format_qa(self, cen, width, gap, width_fit, gap_fit,
+                                    order_cen, order_missing, ofile=None):
+        """
+        QA plot for order placements
+        """
+        w,h = plt.figaspect(1)
+        fig = plt.figure(figsize=(1.5*w,1.5*h))
+
+        ax = fig.add_axes([0.15, 0.35, 0.8, 0.6])
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in', top=True, right=True)
+        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        ax.set_xlim([0, self.nspat])
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+
+        ax.scatter(cen, width, 
+                   marker='.', color='C0', s=50, lw=0, label='measured widths',
+                   zorder=3)
+        ax.scatter(order_cen[order_missing], width_fit.eval(order_cen[order_missing]),
+                   marker='x', color='C0', s=80, lw=1, label='missing widths', zorder=3)
+        ax.plot(order_cen, width_fit.eval(order_cen), color='C0', alpha=0.3, lw=3, zorder=2)
+        ax.scatter(cen[:-1], gap, marker='.', color='C2', s=50, lw=0, label='measured gaps',
+                   zorder=3)
+        ax.scatter(order_cen[order_missing], gap_fit.eval(order_cen[order_missing]),
+                   marker='x', color='C2', s=80, lw=1, label='missing gaps', zorder=3)
+        ax.plot(order_cen, gap_fit.eval(order_cen), color='C2', alpha=0.3, lw=3, zorder=2)
+        ax.set_ylabel('Order Width/Gap [pix]')
+        ax.legend()
+
+        width_resid = width - width_fit.eval(cen)
+        med_wr = np.median(width_resid)
+        mad_wr = np.median(np.absolute(width_resid - med_wr))
+        width_lim = [med_wr - 10*mad_wr, med_wr + 10*mad_wr]
+
+        gap_resid = gap - gap_fit.eval(cen[:-1])
+        med_gr = np.median(gap_resid)
+        mad_gr = np.median(np.absolute(gap_resid - med_gr))
+        gap_lim = [med_gr - 10*mad_gr, med_gr + 10*mad_gr]
+
+        ax = fig.add_axes([0.15, 0.25, 0.8, 0.1])
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in', top=True, right=True)
+        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        ax.set_xlim([0, self.nspat])
+        ax.set_ylim(width_lim)
+        ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.scatter(cen, width_resid, marker='.', color='C0', s=50, lw=0, zorder=3)
+        ax.axhline(0, color='C0', alpha=0.3, lw=3, zorder=2)
+        ax.set_ylabel('Width resid')
+
+        ax = fig.add_axes([0.15, 0.15, 0.8, 0.1])
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in', top=True, right=True)
+        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        ax.set_xlim([0, self.nspat])
+        ax.set_ylim(gap_lim)
+        ax.scatter(cen[:-1], gap_resid, marker='.', color='C2', s=50, lw=0, zorder=3)
+        ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
+        ax.set_ylabel('Gap resid')
+
+        ax.set_xlabel('Spatial pixel')
+
+        if ofile is None:
+            plt.show()
+        else:
+            fig.canvas.print_figure(ofile, bbox_inches='tight')
+        fig.clear()
+        plt.close(fig)
 
     def slit_spatial_center(self, normalized=True, spec=None, use_center=False, 
                             include_box=False):
@@ -5131,9 +5309,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Match synchronized slits to the expected echelle orders.
 
-        For non-Echelle spectrographs (selected based on the
-        ``pypeline`` attribute of :attr:`spectrograph`), this simply
-        returns without doing anything.
+        This function will fault if called for non-Echelle spectrographs!
 
         For Echelle spectrographs, this finds the best matching order
         for each left-right trace pair; the traces must have already
