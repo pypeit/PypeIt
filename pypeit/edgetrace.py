@@ -5162,10 +5162,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         order_cen, order_missing = trace.find_missing_orders(cen, width_fit, gap_fit)
 
         # Extrapolate orders
+        rng = [0., float(self.nspat)] if self.par['order_spat_range'] is None \
+                    else self.par['order_spat_range']
         lower_order_cen, upper_order_cen \
-                    = trace.extrapolate_orders(cen, width_fit, gap_fit,
-                                               self.par['order_spat_range'][0],
-                                               self.par['order_spat_range'][1])
+                    = trace.extrapolate_orders(cen, width_fit, gap_fit, rng[0], rng[1])
 
         # Combine the results
         order_cen = np.concatenate((lower_order_cen, order_cen, upper_order_cen))
