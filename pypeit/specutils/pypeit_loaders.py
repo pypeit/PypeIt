@@ -67,8 +67,8 @@ def enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
         Edited inverse variance vector.  This may be an unchanged reference to
         the original vector.
     """
-    indx = np.diff(wave) < 0
-    if not np.any(indx):
+    indx = np.diff(wave) > 0
+    if np.all(indx):
         # Wavelengths are monotonic, so we're done
         return wave, flux, ivar
 
@@ -84,8 +84,20 @@ def enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
               'measurements after a negative step in wavelength are removed from the constructed '
               'spectrum.  BEWARE that this is likely the result of an error in the data '
               'reduction!')
-    indx = np.append([True], np.logical_not(indx))
-    return wave[indx], flux[indx], None if ivar is None else ivar[indx]
+
+    # NOTE: This is the brute force approach.  If this becomes something that we
+    # want to be more acceptable, we should consider instead fitting a low-order
+    # polynomial to the pixel vs. wavelength function and rejecting strong
+    # outliers.
+    _wave = wave.copy()
+    pix = np.arange(wave.size)
+    indx = np.append([True], indx)
+    while not np.all(indx):
+        pix = pix[indx]
+        wave = wave[indx]
+        indx = np.append([True], np.diff(wave) > 0)
+
+    return wave, flux[pix], None if ivar is None else ivar[pix]
 
 
 # Identifier Functions =======================================================#
