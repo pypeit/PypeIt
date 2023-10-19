@@ -16,6 +16,8 @@ Version History
 
 from IPython import embed
 
+import numpy as np
+
 import astropy.io.fits
 import astropy.nddata
 import astropy.units
@@ -33,6 +35,57 @@ from pypeit.pypmsgs import PypeItError
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import onespec
+
+
+def enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
+    """
+    Force the spectrum to have a monotonically increasing wavelength vector.
+
+    Parameters
+    ----------
+    wave : `numpy.ndarray`_
+        Spectrum wavelengths
+    flux : `numpy.ndarray`_
+        Spectrum flux
+    ivar : `numpy.ndarray`_
+        Spectrum inverse variance. Can be None.
+    strict : bool, optional
+        Check that the wavelength vector is monotonically increasing.  If not,
+        raise an error (as would be done by the `specutils.SpectrumList`_ class).
+        If False, wavelengths that are *not* monotonically increasing are masked
+        in the construction of the returned `specutils.SpectrumList`_ object.
+
+    Returns
+    -------
+    wave : `numpy.ndarray`_
+        Edited wavelength vector.  This may be an unchanged reference to the
+        original vector.
+    flux : `numpy.ndarray`_
+        Edited flux vector.  This may be an unchanged reference to the original
+        vector.
+    ivar : `numpy.ndarray`_
+        Edited inverse variance vector.  This may be an unchanged reference to
+        the original vector.
+    """
+    indx = np.diff(wave) < 0
+    if not np.any(indx):
+        # Wavelengths are monotonic, so we're done
+        return wave, flux, ivar
+
+    if strict:
+        # Wavelengths are not monotonic, but the user expects them to be, so
+        # fault.
+        msgs.error('Wavelengths are not monotonically increasing!  Circumvent this fault by '
+                   'setting strict=False, but BEWARE that this is likely the result of an '
+                   'error in the data reduction!')
+
+    # Wavelengths are not monotonic, but the user wants to keep going.
+    msgs.warn('Wavelengths are not monotonically increasing!  Strict was set to False, so '
+              'measurements after a negative step in wavelength are removed from the constructed '
+              'spectrum.  BEWARE that this is likely the result of an error in the data '
+              'reduction!')
+    indx = np.append([True], np.logical_not(indx))
+    return wave[indx], flux[indx], None if ivar is None else ivar[indx]
 
 
 # Identifier Functions =======================================================#
@@ -81,7 +134,7 @@ def identify_pypeit_onespec(origin, *args, **kwargs):
              extensions=["fits"],
              priority=10,
              dtype=SpectrumList)
-def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
+def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwargs):
     """
     Load spectra from a PypeIt spec1d file into a SpectrumList.
 
@@ -98,6 +151,14 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
         If True, return the flux-calibrated spectrum, if it exists.  If the flux
         calibration hasn't been performed or ``fluxed=False``, the spectrum is
         returned in counts.
+    strict : bool, optional
+        Check that the wavelength vector is monotonically increasing.  If not,
+        raise an error (as would be done by the `specutils.SpectrumList`_ class).
+        If False, wavelengths that are *not* monotonically increasing are masked
+        in the construction of the returned `specutils.SpectrumList`_ object.
+    kwargs : dict, optional
+        **Ignored!**  Used to catch spurious arguments passed to the base class
+        *that are ignored by this function.
 
     Returns
     -------
@@ -121,7 +182,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
         _ext, _cal = sobj.best_ext_match(extract=extract, fluxed=fluxed)
         _wave, _flux, _ivar, _gpm = sobj.get_box_ext(fluxed=_cal) if _ext == 'BOX' \
                                         else sobj.get_opt_ext(fluxed=_cal)
-
+        _wave, _flux, _ivar = enforce_monotonic_wavelengths(_wave, _flux, _ivar, strict=strict)
         flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
         spec += \
             [Spectrum1D(flux=astropy.units.Quantity(_flux * flux_unit),
@@ -138,7 +199,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
              extensions=["fits"],
              priority=10,
              dtype=Spectrum1D)
-def pypeit_onespec_loader(filename, grid=False, **kwargs):
+def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
     """
     Load a spectrum from a PypeIt OneSpec file into a Spectrum1D object.
 
@@ -149,6 +210,14 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
     grid : bool, optional
         Use the uniform grid wavelengths, instead of the contribution-weighted
         center.
+    strict : bool, optional
+        Check that the wavelength vector is monotonically increasing.  If not,
+        raise an error (as would be done by the `specutils.Spectrum1D`_ class).
+        If False, wavelengths that are *not* monotonically increasing are masked
+        in the construction of the returned `specutils.Spectrum1D`_ object.
+    kwargs : dict, optional
+        **Ignored!**  Used to catch spurious arguments passed to the base class
+        *that are ignored by this function.
 
     Returns
     -------
@@ -168,6 +237,8 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
+    wave, flux, ivar = enforce_monotonic_wavelengths(wave, spec.flux, spec.ivar, strict=strict)
+
     # If the input filename is actually a string, assign it as the spectrum
     # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
     # doesn't work assign an empty string as the name.
@@ -179,9 +250,9 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
         except AttributeError:
             name = ''
 
-    return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
-                      uncertainty=None if spec.ivar is None 
-                        else astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
+    return Spectrum1D(flux=astropy.units.Quantity(flux * flux_unit),
+                      uncertainty=None if ivar is None 
+                        else astropy.nddata.InverseVariance(ivar / flux_unit**2),
                       meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
                             'grid': grid},
                       spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
