@@ -132,7 +132,6 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                         return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
             elif mode == 'IMG':
                 # This is for the bias frames
-                print("IMG!!! - None!")
                 return None
             else:
                 msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
