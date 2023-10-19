@@ -122,18 +122,17 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return binning
         elif meta_key == 'decker':
             mode = headarr[0]['HIERARCH ESO INS MODE']
-            if mode == 'LSS':
+            if mode in ['LSS', 'MOS']:
                 try:  # Science
                     return headarr[0]['HIERARCH ESO INS SLIT NAME']
                 except KeyError:  # Standard!
                     try:
                         return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
                     except KeyError:
-                        return None
-            elif mode == 'MOS':
-                return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+                        return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
             elif mode == 'IMG':
                 # This is for the bias frames
+                print("IMG!!! - None!")
                 return None
             else:
                 msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
@@ -287,7 +286,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.70),
             ronoise         = np.atleast_1d(3.15),  # High gain
-            datasec=np.atleast_1d('[11:2059,:]'),
+            datasec=np.atleast_1d('[12:2059,:]'),
             oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
             #datasec=np.atleast_1d('[20:,0:2048]'),
             #oscansec=np.atleast_1d('[4:20,4:2044]'),
