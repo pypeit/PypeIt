@@ -1704,7 +1704,7 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
                         + gap_fit.eval(upper_spat[-1])]
 
     # Return arrays after removing the first and last spatial position (which
-    # are either repeats of calues in `cen` or outside the spatial range)
+    # are either repeats of values in `cen` or outside the spatial range)
     return np.array(lower_spat[-2:0:-1]), np.array(upper_spat[1:-1])
     
 

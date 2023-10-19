@@ -107,10 +107,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
 
-        par['calibrations']['slitedges']['add_missed_orders'] = True
-        par['calibrations']['slitedges']['order_width_poly'] = 2
-        par['calibrations']['slitedges']['order_gap_poly'] = 3
-        par['calibrations']['slitedges']['order_spat_range'] = [200., 3100.]
+        # TODO: Order extrapolation is OFF by default.  Need to test how well adding orders plays with trying to account for overlap...
+        # par['calibrations']['slitedges']['add_missed_orders'] = True
+        # par['calibrations']['slitedges']['order_width_poly'] = 2
+        # par['calibrations']['slitedges']['order_gap_poly'] = 3
+        # NOTE: With add_missed_orders set to True and order_spat_range set to the
+        # default (None), the code will try to add missing orders over the full
+        # range of the detector mosaic!
+        #par['calibrations']['slitedges']['order_spat_range'] = [50., 3100.]
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15

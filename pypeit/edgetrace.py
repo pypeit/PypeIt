@@ -271,7 +271,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         par (:class:`~pypeit.par.pypeitpar.EdgeTracePar`):
             The parameters used to guide slit tracing. Used to set
             :attr:`par`.
-        qa_path (:obj:`str`, optional):
+        qa_path (:obj:`str`, `Path`_, optional):
             Directory for QA output. If None, no QA plots are
             provided.
         auto (:obj:`bool`, optional):
@@ -362,7 +362,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         objects (`astropy.table.Table`_):
             Collated object ID and coordinate information matched to
             the design table.
-        qa_path (:obj:`str`):
+        qa_path (`Path`_):
             Directory for QA output. If None, no QA plots are
             provided.
         log (:obj:`list`):
@@ -513,7 +513,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.PYP_SPEC = spectrograph.name               # For the Header.  Will be in datamodel
         self.dispname = spectrograph.dispname           # Spectrograph disperser
         self.par = par                                  # Parameters used for slit edge tracing
-        self.qa_path = qa_path                          # Directory for QA plots
+        self.qa_path = Path(qa_path).resolve()          # Directory for QA plots
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
 
@@ -1133,7 +1133,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             all HDU extensions.
         """
         _hdr = super(EdgeTraceSet, self)._base_header(hdr=hdr)
-        _hdr['QAPATH'] = 'None' if self.qa_path is None else self.qa_path
+        _hdr['QAPATH'] = 'None' if self.qa_path is None else str(self.qa_path)
         self.par.to_header(_hdr)
         self.bitmask.to_header(_hdr)
         return _hdr
@@ -1303,7 +1303,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.spectrograph = load_spectrograph(hdu['SOBELSIG'].header['PYP_SPEC'])
         self.spectrograph.dispname = self.dispname
         self.par = EdgeTracePar.from_header(hdu['SOBELSIG'].header)
-        self.qa_path = hdu['SOBELSIG'].header['QAPATH']
+        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).resolve()
 
         # Check the bitmasks
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
@@ -1678,8 +1678,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                     plt.show()
                 else:
                     page += 1
-                    ofile = os.path.join(self.qa_path, 'PNGs',
-                                         '{0}_{1}.png'.format(fileroot, str(page).zfill(ndig)))
+                    ofile = self.qa_path / 'PNGs', f'{fileroot}_{str(page).zfill(ndig)}.png'
                     fig.canvas.print_figure(ofile, bbox_inches='tight')
                     msgs.info('Finished page {0}/{1}'.format(page, npages))
                 fig.clear()
@@ -5177,7 +5176,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             return None, None
 
         # QA Plot
-        ofile = None if debug else Path(self.qa_path) / 'PNGs' \
+        ofile = None if debug else self.qa_path / 'PNGs' \
                     / f'{self.get_path().name.split(".")[0]}_orders_qa.png'
         # TODO: Making this directory should probably be done elsewhere
         if ofile is not None and not ofile.parent.is_dir():
@@ -5255,6 +5254,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             plt.show()
         else:
             fig.canvas.print_figure(ofile, bbox_inches='tight')
+            msgs.info(f'Missing order QA written to: {ofile}')
         fig.clear()
         plt.close(fig)
 

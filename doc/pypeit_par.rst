@@ -2751,8 +2751,6 @@ Alterations to the default parameters are:
           max_nudge = 0.0
           dlength_range = 0.25
           length_range = 0.3
-          add_missed_orders = True
-          order_spat_range = 200.0, 3100.0,
           overlap = True
       [[tilts]]
           tracethresh = 15
