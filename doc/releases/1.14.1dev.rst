@@ -16,6 +16,10 @@ Functionality/Performance Improvements and Additions
 - Added support for Keck/KCRM RL data reduction.
 - Allow one to turn off reinit of reduce_bpm in global_skysub and made this
   the default for the final pass
+- Allow pypeit Spectrum1D loaders to circumvent the requirement that reduced
+  spectrum have monotonically increasing wavelength data.  Non-monotonic
+  wavelength data usually indicate a problem with the data reduction, but this
+  at least lets users ingest the spectrum.
 
 Instrument-specific Updates
 ---------------------------
