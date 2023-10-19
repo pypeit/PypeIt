@@ -31,8 +31,6 @@ class ChkScattLight(scriptbase.ScriptBase):
         parser.add_argument('--mask', type=bool, default=False,
                             help='If True, the detector pixels that are considered on the slit will be '
                                  'masked to highlight the scattered light regions')
-        parser.add_argument("--type", type=str, default='all',
-                            help="Which flats to display. Must be one of: pixel, illum, all")
         return parser
 
     @staticmethod
