@@ -1,6 +1,6 @@
 """
-Provides methods common to :class:`pypeit.metadata.PypeItMetaData` and
-:class:`pypeit.spectographs.spectrograph.Spectrograph` that define the
+Provides methods common to :class:`~pypeit.metadata.PypeItMetaData` and
+:class:`~pypeit.spectrographs.spectrograph.Spectrograph` that define the
 common metadata used for all spectrographs.
 
 .. include common links, assuming primary doc root is up one directory
@@ -143,27 +143,34 @@ def define_additional_meta(nlamps=20):
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
                        'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
+                       # TODO what is the difference between dither and dithoff? Also, we should rename these to be
+                       # more clearly the offset along the slit to distinguish from the IFU case of RA_off and DEC_off
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
+                       'dithoff': dict(dtype=float, comment='Dither offset'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),
-                       'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'posang': dict(dtype=float, comment='Position angle of the observation (degrees, positive is East from North)'),
+                       'ra_off': dict(dtype=float, comment='Dither offset in RA'),
+                       'dec_off': dict(dtype=float, comment='Dither offset in DEC'),
                        'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
-                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
+                       'humidity': dict(dtype=float, comment='Humidity at observation time (as a percentage, not a fraction)'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
                        'instrument': dict(dtype=str, comment='Header supplied instrument name'),
                        'mode': dict(dtype=str, comment='Observing mode'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
-                       'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
+                       'parangle': dict(dtype=float, comment='Parallactic angle (units.radian)'),
+                       'pressure': dict(dtype=float, comment='Pressure (units.pascal) at observation time'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'slitlength': dict(dtype=float, comment='Slit length, used only for long slits'),
                        'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
                        'utc': dict(dtype=str, comment='UTC of observation'),
+                       'mirror': dict(dtype=str, comment='Position of an instrument mirror (e.g. IN or OUT)'),
                        'xd': dict(dtype=float, comment='Cross disperser (e.g. red or blue for HIRES)'),
                        'xdangle':dict(dtype=float, comment='Cross disperser angle'),
                        }

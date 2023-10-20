@@ -38,7 +38,7 @@ Setup a clean python environment
 
 Both methods discussed below for installing PypeIt (via `pip`_ or `conda`_)
 also install or upgrade its :ref:`dependencies`.  For this reason, we highly
-(!!) recommended you first set up a clean python environment in which to install
+(!!) recommend you first set up a clean python environment in which to install
 PypeIt.  This mitigates any possible dependency conflicts with other
 packages you use.
 
@@ -130,8 +130,8 @@ and then reinstalling.
     version after upgrading to a new version.  **The best approach is to always
     re-reduce data you're still working with anytime you update PypeIt.**
 
-Install via ``conda`` (recommended overall)
--------------------------------------------
+Install via ``conda``
+---------------------
 
 `conda`_ is a popular and widely-used package and environment manager. We
 provide a yaml file that can be used to setup a conda environment called
@@ -563,7 +563,7 @@ same in bash) that will locate a test spec1D file and attempt to use
 
 .. code-block:: console
 
-    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+    python -c "from importlib import resources; print(resources.files('pypeit') / 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits')" | xargs -I {} pypeit_show_1dspec {}
 
 If ``pyqt6`` or another Qt backend is correctly installed, this should show a test
 spectrum from the Shane/KAST spectrograph.

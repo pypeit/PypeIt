@@ -38,7 +38,7 @@ You can access the bit flag names using:
 Bit access
 ++++++++++
 
-You can flag bits using :func:`~pypeit.bitmaskarray.BitMaskArray.turn_on`.  For
+You can flag bits using :func:`~pypeit.images.bitmaskarray.BitMaskArray.turn_on`.  For
 example, the following code flags the center column of the image as being
 part of the detector bad-pixel mask:
 

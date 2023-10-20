@@ -94,7 +94,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             specflip        = True,     # DeVeny CCD has blue at the right
             spatflip        = False,
             platescale      = 0.34,     # Arcsec / pixel
-            darkcurr        = 4.5,      # Electrons per hour
+            darkcurr        = 4.5,      # e-/pixel/hour
             saturation      = 65535.,   # 16-bit ADC
             nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,
@@ -289,7 +289,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Set this as default... but use `holy-grail` for DV4, DV8
         par['calibrations']['wavelengths']['method'] = 'full_template'
         # The DeVeny arc line FWHM varies based on slitwidth used
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
         # Because of the wide wavelength range, solution more non-linear; user higher orders
         par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
@@ -492,7 +491,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15  # Default: 0.15
              # Start with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
@@ -527,7 +526,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25  # Default: 0.15
             # Start/end with a lower-order Legendre polymonial for the wavelength fit
             par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
@@ -638,7 +637,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
         This routine is for performing instrument- and/or disperser-specific
         tweaks to standard stars so that sensitivity function fits will be
@@ -660,6 +659,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
 
         Returns
         -------
@@ -671,6 +672,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
         # First, simply chop off the wavelengths outside physical limits:
         valid_wave = (wave_in >= 2900.0) & (wave_in <= 11000.0)
@@ -679,9 +682,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         counts_ivar_out = counts_ivar_in[valid_wave]
         gpm_out = gpm_in[valid_wave]
 
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function[valid_wave]
+        else:
+            log10_blaze_function_out = None
+
+
         # Next, build a gpm based on other reasonable wavelengths and filters
         edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
         neg_counts = counts_out <= 0
+
 
         # If an order-blocking filter was in use, mask blocked region
         #  at "nominal" cutoff value
@@ -708,7 +718,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             & np.logical_not(block_region)
         )
 
-        return wave_out, counts_out, counts_ivar_out, gpm_out
+        return wave_out, counts_out, counts_ivar_out, gpm_out, log10_blaze_function_out
 
     @staticmethod
     def rotate_trimsections(section_string: str, nspecpix: int):

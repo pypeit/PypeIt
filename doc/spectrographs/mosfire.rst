@@ -58,7 +58,7 @@ Multi-slits
 
 PypeIt is able to match the traced slit to the slit-mask design information
 contained as metadata in the MOSFIRE observations. This functionality at the moment is
-implemented only for MOSFIRE and DEIMOS and is switched on by setting ``use_maskdesign`` flag in
+implemented only for these :ref:`slitmask_info_instruments` and is switched on by setting ``use_maskdesign`` flag in
 :ref:`edgetracepar` to True.  This is, already, the default for MOSFIRE,
 except when the ``LONGSLIT`` mask is used.
 

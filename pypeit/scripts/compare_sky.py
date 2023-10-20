@@ -6,6 +6,7 @@ exploring sky spectra in the blue
 .. include:: ../include/links.rst
 """
 
+import argparse
 from pypeit.scripts import scriptbase
 
 
@@ -25,18 +26,16 @@ class CompareSky(scriptbase.ScriptBase):
         parser.add_argument('--scale_user', default=1., type=float,
                             help='Scale user spectrum by a factor')
         parser.add_argument('--test', default=False, action='store_true',
-                            help='Load files but do not show plot')
+                            help=argparse.SUPPRESS)
         return parser
 
     # Script to run XSpec from the command line or ipython
     @staticmethod
     def main(args):
 
-        import os
+        import matplotlib.pyplot as plt
 
-        from matplotlib import pyplot as plt
-
-        from linetools.spectra.io import readspec
+        import linetools.spectra.io
         from pypeit import data
 
 
@@ -57,7 +56,7 @@ class CompareSky(scriptbase.ScriptBase):
             ikwargs['sig_tag'] = 'BOX_COUNTS_SIG'
 
         # Load user file
-        user_sky = readspec(args.file, exten=exten, **ikwargs)
+        user_sky = linetools.spectra.io.readspec(args.file, exten=exten, **ikwargs)
         # Load sky spec
         arx_sky = data.load_sky_spectrum(args.skyfile)
 

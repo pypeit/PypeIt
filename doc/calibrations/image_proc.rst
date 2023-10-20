@@ -198,7 +198,7 @@ in our documentation as ``(nspec,nspat)``.  The operations required to
 flip/transpose the image arrays to match the PypeIt convention are dictated by
 instrument-specific :class:`~pypeit.images.detector_container.DetectorContainer`
 parameters and performed by
-:func:`~pypeit.spectrograph.spectrographs.Spectrograph.orient_image`.  Image
+:func:`~pypeit.spectrographs.spectrograph.Spectrograph.orient_image`.  Image
 orientation will be performed if the ``orient`` parameter is true.
 
 .. warning::

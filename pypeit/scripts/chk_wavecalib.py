@@ -29,8 +29,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
 
         try:
             # Load
-            waveCalib = wavecalib.WaveCalib.from_file(args.input_file)
-                                                    #, chk_version=(not args.try_old))
+            waveCalib = wavecalib.WaveCalib.from_file(args.input_file, chk_version=False)
         # TODO: Should this specify the type of exception to pass?
         except:
             pass

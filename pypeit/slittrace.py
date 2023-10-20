@@ -72,8 +72,10 @@ class SlitTraceSet(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_slittraceset.rst
 
     Attributes:
-        left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
-        right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
+        left_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected left
+        right_flexure (`numpy.ndarray`_):
+            Convenient spot to hold flexure corrected right
     """
     calib_type = 'Slits'
     """Name for type of calibration frame."""
@@ -328,16 +330,31 @@ class SlitTraceSet(calibframe.CalibFrame):
     @property
     def slitord_id(self):
         """
-        Return array of slit_spatId (MultiSlit, IFU) or ech_order (Echelle) values
+        Return array of slit_spatId (MultiSlit, SlicerIFU) or ech_order (Echelle) values
 
         Returns:
             `numpy.ndarray`_:
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return self.spat_id
         if self.pypeline == 'Echelle':
             return self.ech_order
+        msgs.error(f'Unrecognized Pypeline {self.pypeline}')
+
+    @property
+    def slitord_txt(self):
+        """
+        Return string indicating if the logs/QA should use "slit" (MultiSlit, SlicerIFU) or "order" (Echelle)
+
+        Returns:
+            str: Either 'slit' or 'order'
+
+        """
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
+            return 'slit'
+        if self.pypeline == 'Echelle':
+            return 'order'
         msgs.error(f'Unrecognized Pypeline {self.pypeline}')
 
     def spatid_to_zero(self, spat_id):
@@ -364,7 +381,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             int: zero-based index of the input spat_id
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return np.where(self.spat_id == slitord)[0][0]
         elif self.pypeline in ['Echelle']:
             return np.where(self.ech_order == slitord)[0][0]
@@ -401,16 +418,16 @@ class SlitTraceSet(calibframe.CalibFrame):
 
     def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for IFU reductions.
+        NOTE: This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
-        wcs : astropy.wcs
+        wcs : `astropy.wcs.WCS`_
             The World Coordinate system of a science frame
         alignSplines : :class:`pypeit.alignframe.AlignmentSplines`
             An instance of the AlignmentSplines class that allows one to build and
             transform between detector pixel coordinates and WCS pixel coordinates.
-        tilts : `numpy.ndarray`
+        tilts : `numpy.ndarray`_
             Spectral tilts.
         initial : bool
             Select the initial slit edges?
@@ -419,13 +436,18 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         Returns
         -------
-        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
-                of shape (nspec, nspat), where the first ndarray is the RA image, and the
-                second ndarray is the DEC image. RA and DEC are in units degrees. The third
-                element of the tuple stores the minimum and maximum difference (in pixels)
-                between the WCS reference (usually the centre of the slit) and the edges of
-                the slits. The third array has a shape of (nslits, 2).
+        raimg : `numpy.ndarray`_
+            Image with the RA coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        decimg : `numpy.ndarray`_
+            Image with the DEC coordinates of each pixel in degrees.  Shape is
+            (nspec, nspat).
+        minmax : `numpy.ndarray`_
+            The minimum and maximum difference (in pixels) between the WCS
+            reference (usually the centre of the slit) and the edges of the
+            slits. Shape is (nslits, 2).
         """
+        msgs.info("Generating an RA/DEC image")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -1285,16 +1307,18 @@ class SlitTraceSet(calibframe.CalibFrame):
         will be computed using the average fwhm of the detected objects.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced.
             platescale (:obj:`float`):
                 Platescale.
             fwhm_parset (:obj:`float`, optional):
-                Parset that guides the determination of the fwhm of the maskdef_extract objects.
-                If None (default) the fwhm are computed as the averaged from the detected objects,
+                :class:`~pypeit.par.parset.Parset` that guides the determination
+                of the fwhm of the maskdef_extract objects.  If None (default)
+                the fwhm are computed as the averaged from the detected objects,
                 if it is a number it will be adopted as the fwhm.
             find_fwhm (:obj:`float`):
-            Initial guess of the objects fwhm in pixels (used in object finding)
+                Initial guess of the objects fwhm in pixels (used in object
+                finding)
 
         Returns:
             :obj:`float`: FWHM in pixels to be used in the optimal extraction
@@ -1366,10 +1390,10 @@ class SlitTraceSet(calibframe.CalibFrame):
 
     def mask_flats(self, flatImages):
         """
-        Mask from a :class:`pypeit.flatfield.Flats` object
+        Mask based on a :class:`~pypeit.flatfield.FlatImages` object.
 
         Args:
-            flatImages (:class:`pypeit.flatfield.FlatImages`):
+            flatImages (:class:`~pypeit.flatfield.FlatImages`):
 
         """
         # Loop on all the FLATFIELD BPM keys

@@ -4,6 +4,7 @@ for one of the outputs of PypeIt
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
+
 """
 import numpy as np
 

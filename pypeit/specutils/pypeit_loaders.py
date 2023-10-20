@@ -103,7 +103,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, **kwargs):
 
     Returns
     -------
-    spec : SpectrumList
+    spec : `specutils.SpectrumList`_
         Contains all spectra in the PypeIt spec1d file
     """
     # Try to load the file and ignoring any version mismatch
@@ -154,7 +154,7 @@ def pypeit_onespec_loader(filename, grid=False, **kwargs):
 
     Returns
     -------
-    spec : Spectrum1D
+    spec : `specutils.Spectrum1D`_
         Spectrum in the PypeIt OneSpec file
     """
     # Try to load the file and ignoring any version mismatch

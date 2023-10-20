@@ -57,8 +57,8 @@ class FluxCalib(scriptbase.ScriptBase):
                                  "specify no sensfiles and use an archived one.\n"
                                  "Archived sensfiles are available for the following spectrographs: " 
                                  + ",".join(SensFileArchive.supported_spectrographs()) + "\n\n")
-        parser.add_argument("--debug", default=False, action="store_true",
-                            help="show debug plots?")
+#        parser.add_argument("--debug", default=False, action="store_true",
+#                            help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -109,9 +109,7 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(
-            fluxFile.filenames, sensfiles, 
-            par=par['fluxcalib'], debug=args.debug)
+        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'])
         msgs.info('Flux calibration complete')
         return 0
 

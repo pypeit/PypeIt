@@ -9,7 +9,8 @@
     Telluric correct a spectrum
     
     positional arguments:
-      spec1dfile            spec1d file that will be used for telluric correction.
+      spec1dfile            spec1d or coadd file that will be used for telluric
+                            correction.
     
     options:
       -h, --help            show this help message and exit

@@ -106,6 +106,32 @@ overscan regions. Also note that this pattern noise is different
 from the detector structure mentioned above for pixelflats. The
 pattern noise is additive, the detector structure is multiplicative.
 
+Scattered Light Removal
+-----------------------
+
+KCWI suffers from mild scattered light (at the level of ~1 percent),
+and this appears to be worse near regions of the detector where there
+is brighter illumination. We are currently working towards building a
+full model of the scattered light. For the moment, PypeIt uses a robust
+piecewise polynomial to model the scattered light that is detected on
+the left of slice 1, the unilluminated region between slices 12 and 13,
+and the right of slice 24. The model is smooth and continuous, and is
+determined for each spectral pixel. By default, the scattered light is
+subtracted from the science frame, the pixel flat, and the illumination
+flat. To turn off the scattered light subtraction, you can add the
+following lines to your :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [scienceframe]
+        [[process]]
+            subtract_scattlight = False
+    [calibrations]
+        [[pixelflatframe]]
+            [[[process]]]
+                subtract_scattlight = False
+
+
 Relative spectral illumination correction
 -----------------------------------------
 
@@ -161,7 +187,14 @@ Sky subtraction
 ---------------
 
 See :doc:`../skysub` for useful hints to define the sky regions
-using an interactive GUI.
+using an interactive GUI. You can use the joint_fit parameter (see above)
+to jointly fit the sky in all slits (and compute the relative spectral
+sensitivity variation for each slice). However, note that some modes of
+KCWI and KCRM have significant variation of the instrument FWHM across
+the field of view. The current implementation of this joint sky subtraction
+does not account for the variation of the FWHM across the field of view.
+This will be addressed in the future (refer to Issue #1660 for any updates
+regarding this).
 
 Flexure corrections
 -------------------

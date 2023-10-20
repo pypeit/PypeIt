@@ -45,10 +45,10 @@ This will show a table that looks like this:
         322     699091   248.21048545837402 .. 278.352352142334   345.8145122528076 .. 376.4430561065674   251.7797389884793 .. 281.9216056724392   345.8145122528076 .. 376.4430561065674   297.0124988555908 .. 327.3977041244507         0     0    -inf     inf
         457     699080  350.76593017578125 .. 379.9788398742676   514.4993572235107 .. 544.0507583618164  355.0206685112119 .. 384.23357820969824    513.3126446738094 .. 542.864045812115     432.632643699646 .. 462.014799118042         0     0    -inf     inf
 
-In addition, if reducing :doc:`../spectrographs/deimos` or
-:doc:`../spectrographs/mosfire` data and slit-mask design matching is performed
-(see :ref:`deimos-mask-matching` for DEIMOS and :ref:`mosfire-edge-tracing` for
-MOSFIRE), a second `astropy.io.fits.BinTableHDU`_ is written to disk.
+In addition, if reducing data from these :ref:`slitmask_info_instruments`
+and slit-mask design matching is performed (see e.g., :ref:`deimos-mask-matching`
+for DEIMOS and :ref:`mosfire-edge-tracing` for MOSFIRE), a second
+`astropy.io.fits.BinTableHDU`_ is written to disk.
 
 .. code-block:: console
 
