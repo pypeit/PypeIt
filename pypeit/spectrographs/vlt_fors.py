@@ -360,7 +360,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'detector', 'dark': 'detector', 'standard':['detector', 'dispangle', 'dispname']}
+        return {'bias': 'detector', 'dark': 'detector'}
 
     def configuration_keys(self):
         """
