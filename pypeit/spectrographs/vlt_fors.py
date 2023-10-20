@@ -285,7 +285,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.70),
             ronoise         = np.atleast_1d(3.15),  # High gain
-            datasec=np.atleast_1d('[12:2059,:]'),
+            datasec=np.atleast_1d('[11:2059,:]'),
             oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
             #datasec=np.atleast_1d('[20:,0:2048]'),
             #oscansec=np.atleast_1d('[4:20,4:2044]'),
