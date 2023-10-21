@@ -518,7 +518,7 @@ class RawImage:
         if self.par['use_darkimage'] and dark is None:
             msgs.error('No dark available for dark subtraction!')
         if self.par['subtract_scattlight'] and scattlight is None:
-            msgs.error('Scattered light subtraction requested, but scattered light model provided.')
+            msgs.error('Scattered light subtraction requested, but scattered light model not provided.')
         if self.par['spat_flexure_correct'] and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
@@ -1136,15 +1136,17 @@ class RawImage:
             msgs.warn("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
             return
 
+        # Obtain some information that is needed for the scattered light
+        binning = self.detector[0]['binning']
+        dispname = self.spectrograph.get_meta_value(self.spectrograph.get_headarr(self.filename), 'dispname')
         # Loop over the images
         for ii in range(self.nimg):
             # Calculate a model specific for this frame
             spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
-            # TODO :: Need to pass in the fitstbl here... currently this is a dummy value
-            tbl = dict(binning=self.detector[0]['binning'], dispname='BL')
             pad = scattlight.pad // spatbin
             offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
-            scatt_img, _, success = self.spectrograph.scattered_light(self.image[ii, ...], offslitmask, tbl)
+            scatt_img, _, success = self.spectrograph.scattered_light(self.image[ii, ...], offslitmask,
+                                                                      binning=binning, dispname=dispname)
             # If failure, revert back to the Scattered Light calibration frame model parameters
             if not success:
                 msgs.warn("Scattered light model failed - using predefined model parameters")
