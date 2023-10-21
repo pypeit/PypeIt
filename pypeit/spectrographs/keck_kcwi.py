@@ -351,7 +351,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                     & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'Open')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
-        if ftype in ['pixelflat', 'scattlight']:
+        if ftype in ['pixelflat', 'scattlight']:  # Scattered light needs lots of counts - so set it to the pixelflat by default
             # Use internal lamp
             return good_exp & (fitstbl['idname'] == 'FLATLAMP') & (fitstbl['calpos'] == 'Mirror') \
                     & self.lamps(fitstbl, 'cont_noarc')
