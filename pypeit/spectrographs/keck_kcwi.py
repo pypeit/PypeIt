@@ -1093,7 +1093,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
         return spl(zoom * (specvec + shft_spec), zoom * (spatvec + shft_spat))
 
-    def scattered_light(self, frame, offslitmask, tbl, detpad=300):
+    def scattered_light(self, frame, offslitmask, binning=None, dispname=None, detpad=300):
         """ Calculate a model of the scattered light of the input frame.
 
         For KCWI, the main contributor to the scattered light is referred to as the "narcissistic ghost"
@@ -1108,9 +1108,10 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             Raw 2D data frame to be used to compute the scattered light.
         offslitmask : `numpy.ndarray`_
             A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
-        tbl : :class:`~pypeit.metadata.PypeItMetaData`_
-            One row of the fitstbl PypeItMetaData that contains metadata about the file being used to
-            optimize the scattered light model parameters.
+        binning : :obj:`str`_, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`_, optional
+            Name of the disperser
         detpad : :obj:`int`_, optional
             Number of pixels to pad to each of the detector edges to reduce edge effects.
 
@@ -1140,7 +1141,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             return img[wpix] - self.scattered_light_model(param, img)[wpix]
 
         # Grab the binning for convenience
-        specbin, spatbin = parse.parse_binning(tbl['binning'])
+        specbin, spatbin = parse.parse_binning(binning)
 
         # First pad the edges to minimize edge effects
         # Do a median filter near the edges
@@ -1159,13 +1160,13 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
         # elif tbl['dispname'] == 'BM':
         #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
-        if tbl['dispname'] == 'BL':
+        if dispname == 'BL':
             x0 = np.array([3.55797869e+02/specbin, 2.38333349e+02/spatbin,  # kernel widths
                            2.52262744e+01/specbin, 1.97022975e+02/spatbin,  # pixel offsets
                            9.41621820e-01, 1.02049301e-01, -2.10895495e-01, 2.36542387e-01,
                            -9.83331029e-02])
         else:
-            msgs.warn(f"Initial scattered light model parameters have not been setup for grating {tbl['dispname']}")
+            msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
             sigmx = 400.0 / specbin  # This is the spectral direction
             sigmy = 200.0 / spatbin  # This is the spatial direction
             shft_spec = -60.0 / specbin  # Shift of the scattered light in the spectral direction

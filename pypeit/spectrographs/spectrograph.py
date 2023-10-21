@@ -1919,7 +1919,7 @@ class Spectrograph:
         msgs.warn(f"Scattered light subtraction is not setup for {self.name}")
         return np.zeros_like(img)
 
-    def scattered_light(self, frame, offslitmask, tbl, detpad=300):
+    def scattered_light(self, frame, offslitmask, binning=None, dispname=None, detpad=300):
         """ Calculate the scattered light model parameters of the input frame.
         This function is used to optimize the model parameters. See also
         self.scattered_light_model()
@@ -1930,9 +1930,10 @@ class Spectrograph:
             Raw 2D data frame to be used to compute the scattered light.
         offslitmask : `numpy.ndarray`_
             A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
-        tbl : :class:`~pypeit.metadata.PypeItMetaData`_
-            One row of the fitstbl PypeItMetaData that contains metadata about the file being used to
-            optimize the scattered light model parameters.
+        binning : :obj:`str`_, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`_, optional
+            Name of the disperser
         detpad : :obj:`int`_, optional
             Number of pixels to pad to each of the detector edges to reduce edge effects.
 
