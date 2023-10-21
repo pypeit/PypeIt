@@ -1066,7 +1066,9 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             Model of the scattered light for the input
         """
         # For clarity, unpack the parameters
-        assert param.size == 9  # For KCWI, the scattered light model requires 9 model parameters
+        if param.size != 9:
+            msgs.error("For KCWI, the scattered light model requires 9 model parameters")
+        # Extract the parameters into more conveniently named variables
         sigmx, sigmy, shft_spec, shft_spat, zoom = param[0], param[1], param[2], param[3], param[4]
         term0, term1, term2, term3 = param[5], param[6], param[7], param[8]
         # Generate a 2D smoothing kernel
@@ -1119,6 +1121,10 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         -------
         scatt_img : `numpy.ndarray`_
             A 2D image of the scattered light determined from the input frame
+        modelpar : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        success : :obj:`bool`_
+            True if the fit was successful, False otherwise
         """
         def resid(param, wpix, img):
             """ Residual function used to optimize the model parameters
