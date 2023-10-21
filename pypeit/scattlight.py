@@ -16,6 +16,7 @@ from pypeit import datamodel
 from pypeit import calibframe
 from pypeit.display import display
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.images.buildimage import ScatteredLightImage
 
 
 class ScatteredLight(calibframe.CalibFrame):
@@ -49,9 +50,14 @@ class ScatteredLight(calibframe.CalibFrame):
                  'nspat': dict(otype=int, descr='Number of pixels in the image spatial direction.'),
                  'binning': dict(otype=str, descr='Binning in PypeIt orientation (not the original)'),
                  'pad': dict(otype=int, descr='Integer number of pixels to mask beyond the slit edges.'),
-                 'scattlight_raw': dict(otype=np.ndarray, atype=np.floating, descr='Processed, combined scattered light image'),
-                 'scattlight_model': dict(otype=np.ndarray, atype=np.floating, descr='Model of the scattered light in scattlight_raw'),
-                 'scattlight_param': dict(otype=np.ndarray, atype=np.floating, descr='Model parameters that define the scattered light model')}
+                 'scattlight_raw': dict(otype=ScatteredLightImage,
+                                  descr='Image used to construct the edge traces; see '
+                                        ':class:`~pypeit.images.buildimage.ScatteredLightImage` and '
+                                        ':class:`~pypeit.images.pypeitimage.PypeItImage`.'),
+                 'scattlight_model': dict(otype=np.ndarray, atype=np.floating,
+                                          descr='Model of the scattered light in scattlight_raw'),
+                 'scattlight_param': dict(otype=np.ndarray, atype=np.floating,
+                                          descr='Model parameters that define the scattered light model')}
     """Provides the class data model."""
 
     # TODO: Allow tweaked edges to be arguments?

@@ -32,7 +32,7 @@ class FrameTypeBitMask(BitMask):
                 ('lampoffflats', 'Flat-field exposure with lamps off used to remove '
                                  'persistence from lamp on flat exposures and/or thermal emission '
                                  'from the telescope and dome'),
-                  ('scattlight', 'Frame (usually similar to pixelflat) used to determine scattered light model'),
+                  ('scattlight', 'Frame (ideally with lots of counts) used to determine the scattered light model'),
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),

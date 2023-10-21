@@ -324,8 +324,8 @@ class Calibrations:
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['arcframe'], raw_files,
                                                     bias=self.msbias, bpm=self.msbpm,
-                                                    dark=self.msdark, scattlight=self.msscattlight,
-                                                    calib_dir=self.calib_dir, setup=setup, calib_id=calib_id)
+                                                    dark=self.msdark, calib_dir=self.calib_dir,
+                                                    setup=setup, calib_id=calib_id)
         # Save the result
         self.msarc.to_file()
         # Return it
@@ -368,7 +368,6 @@ class Calibrations:
                                                      self.par['tiltframe'], raw_files,
                                                      bias=self.msbias, bpm=self.msbpm,
                                                      dark=self.msdark, slits=self.slits,
-                                                     scattlight=self.msscattlight,
                                                      calib_dir=self.calib_dir, setup=setup,
                                                      calib_id=calib_id)
         # Save the result
@@ -418,8 +417,7 @@ class Calibrations:
                                                  self.par['alignframe'], raw_files,
                                                  bias=self.msbias, bpm=self.msbpm,
                                                  dark=self.msdark, calib_dir=self.calib_dir,
-                                                 setup=setup, calib_id=calib_id,
-                                                 scattlight=self.msscattlight)
+                                                 setup=setup, calib_id=calib_id)
 
         # Instantiate
         # TODO: From JFH: Do we need the bpm here?  Check that this was in the previous code.
@@ -549,9 +547,6 @@ class Calibrations:
         Returns:
             :class:`~pypeit.scattlight.ScatteredLight`: The processed calibration image including the model.
         """
-        # Initialise to None
-        self.msscattlight = None
-
         # Check for existing data
         if not self._chk_objs(['msbpm', 'slits']):
             msgs.warn('Must have the bpm and the slits defined to make a scattered light image!  '
@@ -614,19 +609,19 @@ class Calibrations:
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
                                                       pad=self.par['scattlight']['pad'],
-                                                      scattlight_raw=scattlightImage.image,
+                                                      scattlight_raw=scattlightImage,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
 
         # TODO :: Should we go back and recalculate the slit edges once the scattered light is known?
 
-        # Show the result if requested
-        if self.show:
-            self.msscattlight.show()
-
         if self.msscattlight is not None:
-            self.msscattlight.set_paths(self.calib_dir, setup, calib_id, detname)
+            # Show the result if requested
+            if self.show:
+                self.msscattlight.show()
+
             # Save the master scattered light model
+            self.msscattlight.set_paths(self.calib_dir, setup, calib_id, detname)
             self.msscattlight.to_file()
 
         return self.msscattlight
