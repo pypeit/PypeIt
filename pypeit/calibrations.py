@@ -583,6 +583,7 @@ class Calibrations:
         self.get_bpm(frame=raw_scattlight_files[0])
 
         binning = self.fitstbl[scatt_idx[0]]['binning']
+        dispname = self.fitstbl[scatt_idx[0]]['dispname']
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['scattlightframe'], raw_scattlight_files,
                                                          bias=self.msbias, bpm=self.msbpm,
@@ -591,10 +592,10 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight']['pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None)==-1
+        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
 
         model, modelpar, success = self.spectrograph.scattered_light(scattlightImage.image, offslitmask,
-                                                                     self.fitstbl[scatt_idx[0]])
+                                                                     binning=binning, dispname=dispname)
 
         if not success:
             # Something went awry
