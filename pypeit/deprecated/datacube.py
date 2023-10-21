@@ -20,7 +20,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        frame_wcs (`astropy.wcs.wcs.WCS`_):
+        frame_wcs (`astropy.wcs.WCS`_):
             World coordinate system for this frame.
         slits (:class:`pypeit.slittrace.SlitTraceSet`_)
             Information stored about the slits
@@ -47,7 +47,7 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
             when evaluating the voxel geometry in detector coordinates
         overwrite (bool, optional):
             If the output file exists, it will be overwritten if this parameter is True.
-        output_wcs (`astropy.wcs.wcs.WCS`_, optional):
+        output_wcs (`astropy.wcs.WCS`_, optional):
             World coordinate system for the output datacube. If None, frame_wcs will be used.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array of the spectral blaze function
@@ -214,3 +214,232 @@ def generate_cube_resample(outfile, frame_wcs, slits, fluximg, ivarimg, raimg, d
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datcube.T, varcube.T, specname, blaze_wave, blaze_spec, sensfunc=sensfunc, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+
+def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, vox_coord, bins,
+                      overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+                      sensfunc=None, specname="PYP_SPEC", debug=False):
+    """
+    TODO :: Deprecate this routine once subpixellate works for combining cubes
+
+    Save a datacube using the Nearest Grid Point (NGP) algorithm.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        hdr (`astropy.io.fits.header_`):
+            Header of the output datacube (must contain WCS)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        vox_coord (`numpy.ndarray`_):
+            The voxel coordinates of each pixel in the spec2d frames. vox_coord is returned by the
+            function `astropy.wcs.WCS.wcs_world2pix_` once a WCS is setup and every spec2d detector
+            pixel has an RA, DEC, and WAVELENGTH.
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates
+        overwrite (`bool`):
+            If True, the output cube will be overwritten.
+        blaze_wave (`numpy.ndarray`_):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_):
+            Spectral blaze function
+        fluxcal (bool):
+            Are the data flux calibrated?
+        sensfunc (`numpy.ndarray`_, None):
+            Sensitivity function that has been applied to the datacube
+        specname (str):
+            Name of the spectrograph
+        debug (bool):
+            Debug the code by writing out a residuals cube?
+    """
+    # Add the unit of flux to the header
+    if fluxcal:
+        hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
+
+    # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
+    datacube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * all_wghts)
+    normcube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_wghts)
+    nc_inverse = utils.inverse(normcube)
+    datacube *= nc_inverse
+    # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
+    all_var = utils.inverse(all_ivar)
+    var_cube, edges = np.histogramdd(vox_coord, bins=bins, weights=all_var * all_wghts ** 2)
+    var_cube *= nc_inverse**2
+    bpmcube = (normcube == 0).astype(np.uint8)
+
+    # Save the datacube
+    if debug:
+        datacube_resid, edges = np.histogramdd(vox_coord, bins=bins, weights=all_sci * np.sqrt(all_ivar))
+        normcube, edges = np.histogramdd(vox_coord, bins=bins)
+        nc_inverse = utils.inverse(normcube)
+        outfile_resid = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
+        hdu = fits.PrimaryHDU((datacube_resid*nc_inverse).T, header=hdr)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
+
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datacube.T, np.sqrt(var_cube.T), bpmcube.T, specname, blaze_wave, blaze_spec,
+                          sensfunc=sensfunc, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+
+def gaussian2D_cube(tup, intflux, xo, yo, dxdz, dydz, sigma_x, sigma_y, theta, offset):
+    """
+    Fit a 2D Gaussian function to a datacube. This function assumes that each
+    wavelength slice of the datacube is well-fit by a 2D Gaussian. The centre of
+    the Gaussian is allowed to vary linearly as a function of wavelength.
+
+    .. note::
+
+        The integrated flux does not vary with wavelength.
+
+    Args:
+        tup (:obj:`tuple`):
+            A three element tuple containing the x, y, and z locations of each
+            pixel in the cube
+        intflux (float):
+            The Integrated flux of the Gaussian
+        xo (float):
+            The centre of the Gaussian along the x-coordinate when z=0
+        yo (float):
+            The centre of the Gaussian along the y-coordinate when z=0
+        dxdz (float):
+            The change of xo with increasing z
+        dydz (float):
+            The change of yo with increasing z
+        sigma_x (float):
+            The standard deviation in the x-direction
+        sigma_y (float):
+            The standard deviation in the y-direction
+        theta (float):
+            The orientation angle of the 2D Gaussian
+        offset (float):
+            Constant offset
+
+    Returns:
+        `numpy.ndarray`_: The 2D Gaussian evaluated at the coordinate (x, y, z)
+    """
+    # Extract the (x, y, z) coordinates of each pixel from the tuple
+    (x, y, z) = tup
+    # Calculate the centre of the Gaussian for each z coordinate
+    xo = float(xo) + z*dxdz
+    yo = float(yo) + z*dydz
+    # Account for a rotated 2D Gaussian
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    # Normalise so that the integrated flux is a parameter, instead of the amplitude
+    norm = 1/(2*np.pi*np.sqrt(a*c-b*b))
+    gtwod = offset + norm*intflux*np.exp(-(a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
+    return gtwod.ravel()
+
+
+def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                               all_ivar=None, whitelightWCS=None, numra=None, numdec=None, trim=1):
+    """
+    Generate a whitelight image using the individual pixels of every input frame
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            1D flattened array containing the RA values of each pixel from all
+            spec2d files
+        all_dec (`numpy.ndarray`_):
+            1D flattened array containing the DEC values of each pixel from all
+            spec2d files
+        all_wave (`numpy.ndarray`_):
+            1D flattened array containing the wavelength values of each pixel
+            from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all
+            spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights attributed to each pixel
+            from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            1D flattened array containing an integer identifier indicating which
+            spec2d file each pixel originates from. For example, a 0 would
+            indicate that a pixel originates from the first spec2d frame listed
+            in the input file. a 1 would indicate that this pixel originates
+            from the second spec2d file, and so forth.
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        all_ivar (`numpy.ndarray`_, optional):
+            1D flattened array containing of the inverse variance of each pixel
+            from all spec2d files.  If provided, inverse variance images will be
+            calculated and returned for each white light image.
+        whitelightWCS (`astropy.wcs.WCS`_, optional):
+            The WCS of a reference white light image. If supplied, you must also
+            supply numra and numdec.
+        numra (int, optional):
+            Number of RA spaxels in the reference white light image
+        numdec (int, optional):
+            Number of DEC spaxels in the reference white light image
+        trim (int, optional):
+            Number of pixels to grow around a masked region
+
+    Returns:
+        tuple: two 3D arrays will be returned, each of shape [N, M, numfiles],
+        where N and M are the spatial dimensions of the combined white light
+        images.  The first array is a white light image, and the second array is
+        the corresponding inverse variance image. If all_ivar is None, this will
+        be an empty array.
+    """
+    # Determine number of files
+    numfiles = np.unique(all_idx).size
+
+    if whitelightWCS is None:
+        # Generate a 2D WCS to register all frames
+        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+        coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
+        whitelightWCS = generate_WCS(coord_min, coord_dlt)
+
+        # Generate coordinates
+        cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
+        numra = 1+int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+        numdec = 1+int((np.max(all_dec) - np.min(all_dec)) / dspat)
+    else:
+        # If a WCS is supplied, the numra and numdec must be specified
+        if (numra is None) or (numdec is None):
+            msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
+                       "numra and numdec must also be specified")
+    xbins = np.arange(1 + numra) - 1
+    ybins = np.arange(1 + numdec) - 1
+    spec_bins = np.arange(2) - 1
+    bins = (xbins, ybins, spec_bins)
+
+    whitelight_Imgs = np.zeros((numra, numdec, numfiles))
+    whitelight_ivar = np.zeros((numra, numdec, numfiles))
+    for ff in range(numfiles):
+        msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
+        ww = (all_idx == ff)
+        # Make the cube
+        pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
+        wlcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww] * all_wghts[ww])
+        norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts[ww])
+        nrmCube = (norm > 0) / (norm + (norm == 0))
+        whtlght = (wlcube * nrmCube)[:, :, 0]
+        # Create a mask of good pixels (trim the edges)
+        gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
+        whtlght *= gpm
+        # Set the masked regions to the minimum value
+        minval = np.min(whtlght[gpm == 1])
+        whtlght[gpm == 0] = minval
+        # Store the white light image
+        whitelight_Imgs[:, :, ff] = whtlght.copy()
+        # Now operate on the inverse variance image
+        if all_ivar is not None:
+            ivar_img, _ = np.histogramdd(pix_coord, bins=bins, weights=all_ivar[ww])
+            ivar_img = ivar_img[:, :, 0]
+            ivar_img *= gpm
+            minval = np.min(ivar_img[gpm == 1])
+            ivar_img[gpm == 0] = minval
+            whitelight_ivar[:, :, ff] = ivar_img.copy()
+    return whitelight_Imgs, whitelight_ivar, whitelightWCS
+

@@ -171,7 +171,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             #platescale      = 15.0/18.0,
             platescale      = 0.2,
-            darkcurr        = 5.4,
+            darkcurr        = 5.4,  # e-/hour/unbinned pixel
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -231,9 +231,9 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'HeI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.19
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.6
 
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
@@ -243,7 +243,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -277,11 +277,6 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
 
         Args:
             filename (:obj:`str` or None):

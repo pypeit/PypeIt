@@ -3,13 +3,13 @@ Module for MMT/Blue Channel specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 from astropy.io import fits
 from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -55,14 +55,14 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             binning = '1,1'
             gain = None
             ronoise = None
-            darkcurr = None
+            darkcurr = None  # e-/pixel/hour
             datasec = None
             oscansec = None
         else:
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
-            darkcurr = hdu[0].header['DARKCUR']
+            darkcurr = hdu[0].header['DARKCUR']  # units are e-/pixel/hour
             datasec = np.atleast_1d(hdu[0].header['DATASEC'])
             oscansec = np.atleast_1d(hdu[0].header['BIASSEC'])
 
@@ -78,7 +78,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.3,
-            darkcurr        = darkcurr, #header['DARKCUR'],
+            darkcurr        = darkcurr,  # units are e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.95,  # need to look up and update
             mincounts       = -1e10,
@@ -227,9 +227,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['fwhm'] = 3.1
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Parse the lamps used from the image header.
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
@@ -493,14 +493,11 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read FITS image
-        msgs.info("Reading MMT Blue Channel file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        msgs.info(f'Reading MMT Blue Channel file: {fil}')
+        hdu = fits.open(fil)
         hdr = hdu[0].header
 
         # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the

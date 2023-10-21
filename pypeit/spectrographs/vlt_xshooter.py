@@ -83,6 +83,26 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return parse.binning2string(binspec, binspatial)
         msgs.error("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {}
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -94,7 +114,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            and used to construct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
         return ['arm']
@@ -211,7 +231,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.197, # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -275,9 +295,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -290,6 +310,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['qa_log'] = False
 
         # Flats
         #par['calibrations']['standardframe']['process']['illumflatten'] = False
@@ -324,6 +345,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 
@@ -598,7 +623,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.16, # average from order 17 and order 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -657,15 +682,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
         # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['fwhm'] = 8.0
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
-        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        # TODO: the arxived solution is for 1x1 binning. It needs to be
-        # generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
@@ -675,6 +698,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['qa_log'] = True
+
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
@@ -693,8 +718,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 8 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def init_meta(self):
@@ -880,7 +909,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             specflip        = True,
             spatflip        = True,
             platescale      = 0.161, # average from order 14 and order 24, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 0.86,  
             mincounts       = -1e10,
@@ -924,7 +953,10 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.60 
+        # This is for 1x1
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.184
+        par['calibrations']['wavelengths']['fwhm'] = 3.8
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -938,6 +970,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        par['calibrations']['wavelengths']['qa_log'] = True
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
@@ -962,6 +999,21 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         #par['reduce']['findobj']['find_cont_fit'] = False
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is a max of 2 objects on the slit
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] =  8
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        # This is a hack until we we have a Paranal file generated that covers the UVB wavelength range.
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
 
         return par
 

@@ -61,11 +61,11 @@ def recursive_dict_evaluate(d):
     Recursively run :func:`eval` on each element of the provided
     dictionary.
 
-    A raw read of a configuration file with `ConfigObj` results in a
+    A raw read of a configuration file with `configobj`_ results in a
     dictionary that contains strings or lists of strings.  However, when
     assigning the values for the various ParSets, the `from_dict`
     methods expect the dictionary values to have the appropriate type.
-    E.g., the ConfigObj will have something like d['foo'] = '1', when
+    E.g., the `configobj`_ will have something like d['foo'] = '1', when
     the `from_dict` method expects the value to be an integer (d['foo']
     = 1).
 
@@ -77,8 +77,9 @@ def recursive_dict_evaluate(d):
 
     raises an exception is returned as the original string.
 
-    This is currently only used in :func:`PypitPar.from_cfg_file`; see
-    further comments there.
+    This is currently only used in
+    :func:`~pypeit.par.pypeitpar.PypitPar.from_cfg_file`; see further comments
+    there.
 
     Args:
         d (dict):
@@ -122,7 +123,7 @@ def recursive_dict_evaluate(d):
     return d
 
 
-
+# TODO: I don't think this is used.  We should deprecate it.
 def get_parset_list(cfg, pk, parsetclass):
     """
     Create a list of ParSets based on a root keyword for a set of
@@ -143,7 +144,7 @@ def get_parset_list(cfg, pk, parsetclass):
         kwargs['detector'] = get_parset_list(cfg, 'detector', DetectorPar)
 
     Args:
-        cfg (:class:`ConfigObj`, :obj:`dict`):
+        cfg (`configobj`_, :obj:`dict`):
             The top-level configuration that defines a list of
             sub-ParSets.
         pk (str):

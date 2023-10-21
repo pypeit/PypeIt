@@ -59,7 +59,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.1798,
-            darkcurr        = 0.8,
+            darkcurr        = 28.8,  # e-/pixel/hour  (=0.008 e-/pixel/s)
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -84,7 +84,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.11 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
@@ -210,7 +210,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # using OH lines
         if 'long2pos_specphot' not in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             par['calibrations']['wavelengths']['sigdetect'] = 10.
             # templates
             if filter == 'Y':
@@ -233,7 +232,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         elif 'long2pos_specphot' in decker and filter in supported_filters:
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['fwhm_fromlines'] = True
             # templates
             if filter == 'Y':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_mosfire_arcs_Y.fits'
@@ -757,7 +755,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             offset_arcsec[ifile] = hdr['YOFFSET']
         return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None, debug=False):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -779,6 +777,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Table containing meta data that is slupred from the :class:`~pypeit.specobjs.SpecObjs`
             object.  See :meth:`~pypeit.specobjs.SpecObjs.unpack_object` for the
             contents of this table.
+        log10_blaze_function: `numpy.ndarray`_ or None
+            Input blaze function to be tweaked, optional. Default=None.
+
 
         Returns
         -------
@@ -790,6 +791,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             Output inverse variance of standard star counts (:obj:`float`, ``shape = (nspec,)``)
         gpm_out: `numpy.ndarray`_
             Output good pixel mask for standard (:obj:`bool`, ``shape = (nspec,)``)
+        log10_blaze_function_out: `numpy.ndarray`_ or None
+            Output blaze function after being tweaked.
         """
 
         # Could check the wavelenghts here to do something more robust to header/meta data issues
@@ -840,8 +843,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
         wave = wave_in.copy()
         counts = counts_in.copy()
-        gpm = gpm_in.copy()
         counts_ivar = counts_ivar_in.copy()
+        gpm = gpm_in.copy()
+
         wave[second_order_region] = 0.0
         counts[second_order_region] = 0.0
         counts_ivar[second_order_region] = 0.0
@@ -849,6 +853,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
         # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
         gpm[second_order_region] = False
+
+        if log10_blaze_function is not None:
+            log10_blaze_function_out = log10_blaze_function.copy()
+            log10_blaze_function_out[second_order_region] = 0.0
+        else:
+            log10_blaze_function_out = None
+
+        return wave, counts, counts_ivar, gpm, log10_blaze_function_out
+
         #if debug:
         #    from matplotlib import pyplot as plt
         #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
@@ -859,41 +872,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #    plt.axvline(wave_red, color='red')
         #    plt.legend()
         #    plt.show()
-        return wave, counts, counts_ivar, gpm
-
-    def list_detectors(self, mosaic=False):
-        """
-        List the *names* of the detectors in this spectrograph.
-
-        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
-        to measure the mean offset between the measured and expected slit
-        locations.
-
-        Detectors separated along the dispersion direction should be ordered
-        along the first axis of the returned array.  For example, Keck/DEIMOS
-        returns:
-        
-        .. code-block:: python
-        
-            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
-                             ['DET05', 'DET06', 'DET07', 'DET08']])
-
-        such that all the bluest detectors are in ``dets[0]``, and the slits
-        found in detectors 1 and 5 are just from the blue and red counterparts
-        of the same slit.
-
-        Args:
-            mosaic (:obj:`bool`, optional):
-                Is this a mosaic reduction?
-                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
-
-        Returns:
-            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
-            the array is 2D, there are detectors separated along the dispersion
-            axis.
-        """
-        return np.array([detector_container.DetectorContainer.get_name(i+1) 
-                            for i in range(self.ndet)])
 
     def get_slitmask(self, filename):
         """

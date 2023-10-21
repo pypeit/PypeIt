@@ -63,7 +63,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             # plate scale in arcsec/pixel
             platescale      = 0.3,
             # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
-            darkcurr        = 1.00,
+            darkcurr        = 1.0,  # e-/pixel/hour
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,
@@ -94,7 +94,10 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # The following is for 1x1 binning
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.133
+        par['calibrations']['wavelengths']['fwhm'] = 3.0  
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
 
@@ -136,6 +139,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
     def init_meta(self):
