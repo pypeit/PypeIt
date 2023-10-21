@@ -1120,7 +1120,9 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         Returns
         -------
         scatt_img : `numpy.ndarray`_
-            A 2D image of the scattered light determined from the input frame
+            A 2D image of the scattered light determined from the input frame.
+            Alternatively, if a constant value is used, a constant floating point
+            value can be returned as well.
         modelpar : `numpy.ndarray`_
             A 1D array containing the best-fitting model parameters
         success : :obj:`bool`_

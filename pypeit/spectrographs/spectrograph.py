@@ -1943,6 +1943,10 @@ class Spectrograph:
             A 2D image of the scattered light determined from the input frame.
             Alternatively, if a constant value is used, a constant floating point
             value can be returned as well.
+        modelpar : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        success : :obj:`bool`_
+            True if the fit was successful, False otherwise
         """
         msgs.info("Scattered light removal is not implemented for spectrograph {0:s}".format(self.name))
         return 0.0
