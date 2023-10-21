@@ -51,5 +51,6 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
+- Add support for the R4K detector for MDM OSMOS
 
 
