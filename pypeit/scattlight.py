@@ -50,7 +50,7 @@ class ScatteredLight(calibframe.CalibFrame):
                  'nspat': dict(otype=int, descr='Number of pixels in the image spatial direction.'),
                  'binning': dict(otype=str, descr='Binning in PypeIt orientation (not the original)'),
                  'pad': dict(otype=int, descr='Integer number of pixels to mask beyond the slit edges.'),
-                 'scattlight_raw': dict(otype=np.ndarray, atype=np.floating,
+                 'scattlight_raw': dict(otype=ScatteredLightImage,
                                   descr='Image used to construct the edge traces; see '
                                         ':class:`~pypeit.images.buildimage.ScatteredLightImage` and '
                                         ':class:`~pypeit.images.pypeitimage.PypeItImage`.'),
