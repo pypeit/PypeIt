@@ -1095,7 +1095,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
         return spl(zoom * (specvec + shft_spec), zoom * (spatvec + shft_spat))
 
-    def scattered_light(self, frame, offslitmask, binning=None, dispname=None, detpad=300):
+    def scattered_light(self, frame, offslitmask, binning=None, dispname=None, detpad=300, debug=False):
         """ Calculate a model of the scattered light of the input frame.
 
         For KCWI, the main contributor to the scattered light is referred to as the "narcissistic ghost"
@@ -1116,6 +1116,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             Name of the disperser
         detpad : :obj:`int`_, optional
             Number of pixels to pad to each of the detector edges to reduce edge effects.
+        debug : :obj:`bool`_, optional
+            If True, debug the final model fit that's been output
 
         Returns
         -------
@@ -1146,7 +1148,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             resid : `numpy.ndarray`_
                 A 1D vector of the residuals
             """
-            return img[wpix] - self.scattered_light_model(param, img)[wpix]
+            model = self.scattered_light_model(param, img)
+            return (img[wpix] - model[wpix])*utils.inverse(np.sqrt(model[wpix]))
 
         # Grab the binning for convenience
         specbin, spatbin = parse.parse_binning(binning)
@@ -1155,8 +1158,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Do a median filter near the edges
         frame[0, :] = np.median(frame[0:10, :], axis=0)
         frame[-1, :] = np.median(frame[-10:, :], axis=0)
-        img = np.pad(frame, detpad, mode='edge')
-        offslitmask_pad = np.pad(offslitmask, detpad, mode='edge')
+        img = np.pad(frame, detpad, mode='edge')  # Model should be generated on padded data
+        offslitmask_pad = np.pad(offslitmask, detpad, mode='constant', constant_values=0)  # but don't include padded data in the fit
         # Grab the pixels to be included in the fit
         wpix = np.where(offslitmask_pad)
 
@@ -1164,20 +1167,26 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # and should be close to the final fitted values to reduce computational time)
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
-        # if tbl['dispname'] == 'BH2':
-        #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
-        # elif tbl['dispname'] == 'BM':
-        #     x0 = [sigmx, sigmy1, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
-        if dispname == 'BL':
-            x0 = np.array([3.55797869e+02/specbin, 2.38333349e+02/spatbin,  # kernel widths
-                           2.52262744e+01/specbin, 1.97022975e+02/spatbin,  # pixel offsets
-                           9.41621820e-01, 1.02049301e-01, -2.10895495e-01, 2.36542387e-01,
-                           -9.83331029e-02])
+        if dispname == 'BH2':
+            x0 = np.array([3.49128562e+02/specbin, 2.45833322e+02/spatbin,  # kernel widths
+                           -1.26958208e+02/specbin, 1.49033883e+01/spatbin,  # pixel offsets
+                           1.00229122e+00,  # Zoom factor
+                           1.87534428e-01, -2.75679127e-01, 4.08198109e-01, -1.87826458e-01])  # Polynomial terms
+        elif dispname == 'BM':
+            x0 = np.array([3.50037423e+02/specbin, 2.38662990e+02/spatbin,  # kernel widths
+                           -3.82935541e+01/specbin, -2.04645954e+01/spatbin,  # pixel offsets
+                           1.01042546e+00,  # Zoom factor
+                           1.15251491e-01, -1.59419953e-01,  1.30877795e-01, -1.84324642e-02])  # Polynomial terms
+        elif dispname == 'BL':
+            x0 = np.array([3.47000453e+02/specbin, 2.12462524e+02/spatbin,  # kernel widths
+                           -4.35179357e+01/specbin, 8.21150855e+00/spatbin,  # pixel offsets
+                           9.99651562e-01,  # Zoom factor
+                           1.18828616e-01, -3.22338051e-01, 5.07102665e-01, -2.85286699e-01])  # Polynomial terms
         else:
             msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
             sigmx = 400.0 / specbin  # This is the spectral direction
             sigmy = 200.0 / spatbin  # This is the spatial direction
-            shft_spec = -60.0 / specbin  # Shift of the scattered light in the spectral direction
+            shft_spec = 0.0 / specbin  # Shift of the scattered light in the spectral direction
             shft_spat = 0.0 / spatbin  # Shift of the scattered light in the spatial direction
             zoom = 1.0  # Zoom factor of the scattered light
             term0, term1, term2, term3 = 0.1, -0.2, 0.3, -0.1  # Polynomial coefficients
@@ -1198,6 +1207,25 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         else:
             msgs.warn("Scattered light model fitting failed")
             scatt_img = np.zeros_like(frame)
+        if debug:
+            # Do some checks on the results
+            embed()
+            scatt_img_alt = self.scattered_light_model(x0, img)[detpad:-detpad, detpad:-detpad]
+            vmin, vmax = 0, np.max(scatt_img_alt)
+            vmin, vmax = -3, 10.0
+            plt.subplot(231)
+            plt.imshow(frame, vmin=vmin, vmax=vmax)
+            plt.subplot(232)
+            plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
+            plt.subplot(233)
+            plt.imshow(frame-scatt_img, vmin=vmin, vmax=vmax)
+            plt.subplot(234)
+            plt.imshow(frame, vmin=vmin, vmax=vmax)
+            plt.subplot(235)
+            plt.imshow(scatt_img_alt, vmin=vmin, vmax=vmax)
+            plt.subplot(236)
+            plt.imshow(frame-scatt_img_alt, vmin=vmin, vmax=vmax)
+            plt.show()
         return scatt_img, res_lsq.x, success
 
     def fit_2d_det_response(self, det_resp, gpmask):

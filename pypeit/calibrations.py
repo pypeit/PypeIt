@@ -610,7 +610,7 @@ class Calibrations:
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
                                                       pad=self.par['scattlight']['pad'],
-                                                      scattlight_raw=scattlightImage,
+                                                      scattlight_raw=scattlightImage.image,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
 
