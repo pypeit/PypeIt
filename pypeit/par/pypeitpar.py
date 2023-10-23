@@ -219,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_scattlight=None, subtract_continuum=None,
+                 use_pattern=None, subtract_scattlight=None, scattlight_method=None, subtract_continuum=None,
                  spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
@@ -304,6 +304,20 @@ class ProcessImagesPar(ParSet):
         descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
                                        'be set to True for spectrographs that have dedicated methods to subtract ' \
                                        'scattered light. For all other cases, this parameter should be False.'
+
+        defaults['scattlight_method'] = 'model'
+        options['scattlight_method'] = ProcessImagesPar.valid_scattlight_methods()
+        dtypes['scattlight_method'] = str
+        descr['scattlight_method'] = 'Method used to fit the overscan. ' \
+                                     'Options are: {0}'.format(', '.join(options['scattlight_method'])) + '.' + \
+                                     '\'model\' will the scattered light model parameters derived from a ' \
+                                     'user-specified frame during their reduction (note, you will need to make sure ' \
+                                     'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
+                                     '\'frame\' will use each individual frame to determine the scattered light ' \
+                                     'that affects this frame. ' \
+                                     '\'archive\' will use an archival model parameter solution for the scattered ' \
+                                     'light (note that this option is not currently available for all spectrographs).'
+
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -437,8 +451,8 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
-                   'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'scattlight_method', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
@@ -460,6 +474,13 @@ class ProcessImagesPar(ParSet):
         Return the valid overscan methods.
         """
         return ['polynomial', 'savgol', 'median']
+
+    @staticmethod
+    def valid_scattlight_methods():
+        """
+        Return the valid overscan methods.
+        """
+        return ['model', 'frame', 'archive']
 
     @staticmethod
     def valid_combine_methods():
