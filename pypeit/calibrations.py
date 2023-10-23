@@ -575,7 +575,7 @@ class Calibrations:
 
         # Scattered light model does not exist or we're not reusing it.
         # Need to build everything from scratch.  Start with the trace image.
-        msgs.info('Creating edge tracing calibration frame using files: ')
+        msgs.info('Creating scattered light calibration frame using files: ')
         for f in raw_scattlight_files:
             msgs.prindent(f'{Path(f).name}')
 
