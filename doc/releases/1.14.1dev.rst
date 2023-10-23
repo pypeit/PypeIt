@@ -24,6 +24,7 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
+- Add support for the R4K detector for MDM OSMOS
 
 Instrument-specific Updates
 ---------------------------
@@ -59,6 +60,5 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
-- Add support for the R4K detector for MDM OSMOS
 
 

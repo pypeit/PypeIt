@@ -690,7 +690,6 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             if var is not None:
                 _var[data_slice] = osvar
             continue
-            ossub = np.zeros_like(osfit)
         elif method.lower() == 'odd_even':
             ossub = np.zeros_like(osfit)
             # Odd/even
@@ -701,7 +700,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 no_overscan[data_slice][:,1::2] -= odd[:,None]
                 no_overscan[data_slice][:,0::2] -= even[:,None]
             else:
-                msgs.error('Not ready for this yet')
+                msgs.error('Not ready for this approach, please contact the Developers')
             
 
         # Subtract along the appropriate axis

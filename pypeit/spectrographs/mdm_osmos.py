@@ -245,7 +245,7 @@ class MDMOSMOSR4KSpectrograph(MDMOSMOSMDM4KSpectrograph):
     url = 'https://www.astronomy.ohio-state.edu/martini.10/osmos/'
     header_name = 'OSMOS'
     supported = True
-    comment = 'MDM OSMOS spectrometer for the red. Requires calibratoins windowed down to the science frame.'
+    comment = 'MDM OSMOS spectrometer for the red. Requires calibrations windowed down to the science frame.'
 
     def get_detector_par(self, det, hdu=None):
         """

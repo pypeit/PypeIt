@@ -1017,7 +1017,7 @@ class RawImage:
         """
         Analyze and subtract the overscan from the image
 
-        If this is a mosaic, loop over the indvidual detectors
+        If this is a mosaic, loop over the individual detectors
 
         Args:
             force (:obj:`bool`, optional):
