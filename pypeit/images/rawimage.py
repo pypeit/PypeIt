@@ -19,6 +19,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
+from pypeit.core import scattlight
 from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
@@ -1118,12 +1119,12 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
-    def subtract_scattlight(self, scattlight, slits):
+    def subtract_scattlight(self, msscattlight, slits):
         """
         Analyze and subtract the scattered light from the image.
 
         This is primarily a wrapper for
-        :func:`~pypeit.spectrographs.spectrograph.scattered_light`.
+        :func:`~pypeit.core.scattered_light`.
 
         """
         step = inspect.stack()[0][3]
@@ -1132,7 +1133,7 @@ class RawImage:
             msgs.warn("The scattered light has already been subtracted from the image!")
             return
 
-        if scattlight.scattlight_param is None:
+        if self.par["scattlight_method"] == "model" and msscattlight.scattlight_param is None:
             msgs.warn("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
             return
 
@@ -1141,17 +1142,39 @@ class RawImage:
         dispname = self.spectrograph.get_meta_value(self.spectrograph.get_headarr(self.filename), 'dispname')
         # Loop over the images
         for ii in range(self.nimg):
-            # Calculate a model specific for this frame
-            spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
-            pad = scattlight.pad // spatbin
-            offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
-            scatt_img, _, success = self.spectrograph.scattered_light(self.image[ii, ...], offslitmask,
-                                                                      binning=binning, dispname=dispname)
-            # If failure, revert back to the Scattered Light calibration frame model parameters
-            if not success:
-                msgs.warn("Scattered light model failed - using predefined model parameters")
+            if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
-                scatt_img = self.spectrograph.scattered_light_model(scattlight.scattlight_param, self.image[ii, ...])
+                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
+            elif self.par["scattlight_method"] == "archive":
+                # Use archival model parameters
+                modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                if modpar is None:
+                    msgs.error(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
+                               f"set 'scattlight_method' to another option.")
+                scatt_img = scattlight.scattered_light_model(modpar, self.image[ii, ...])
+            elif self.par["scattlight_method"] == "frame":
+                # Calculate a model specific for this frame
+                spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
+                pad = msscattlight.pad // spatbin
+                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                # Get starting parameters for the scattered light model
+                x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
+                # Perform a fit to the scattered light
+                scatt_img, _, success = scattlight.scattered_light(self.image[ii, ...], self.bpm, offslitmask,
+                                                                   x0, bounds)
+                # If failure, revert back to the Scattered Light calibration frame model parameters
+                if not success:
+                    if msscattlight is not None:
+                        msgs.warn("Scattered light model failed - using predefined model parameters")
+                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
+                    else:
+                        msgs.warn("Scattered light model failed - using archival model parameters")
+                        # Use archival model parameters
+                        modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                        scatt_img = scattlight.scattered_light_model(modpar, self.image[ii, ...])
+            else:
+                msgs.warn("Scattered light not performed")
+                scatt_img = np.zeros(self.image[ii, ...].shape)
             # Subtract the scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True

@@ -29,6 +29,7 @@ from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
+from pypeit.core import scattlight as core_scattlight
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
@@ -594,8 +595,11 @@ class Calibrations:
         pad = self.par['scattlight']['pad'] // spatbin
         offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
 
-        model, modelpar, success = self.spectrograph.scattered_light(scattlightImage.image, offslitmask,
-                                                                     binning=binning, dispname=dispname)
+        # Get starting parameters for the scattered light model
+        x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
+        # Perform a fit to the scattered light
+        model, modelpar, success = core_scattlight.scattered_light(scattlightImage.image, self.msbpm, offslitmask,
+                                                                   x0, bounds)
 
         if not success:
             # Something went awry
@@ -610,7 +614,7 @@ class Calibrations:
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
                                                       pad=self.par['scattlight']['pad'],
-                                                      scattlight_raw=scattlightImage,
+                                                      scattlight_raw=scattlightImage.image,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
 
@@ -712,6 +716,7 @@ class Calibrations:
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         raw_pixel_files, dark=self.msdark,
+                                                        slits=self.slits,
                                                         bias=self.msbias, bpm=self.msbpm,
                                                         scattlight=self.msscattlight)
             if len(raw_lampoff_files) > 0:
@@ -723,6 +728,7 @@ class Calibrations:
                 lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                               self.par['lampoffflatsframe'],
                                                               raw_lampoff_files,
+                                                              slits=self.slits,
                                                               dark=self.msdark, bias=self.msbias,
                                                               bpm=self.msbpm, scattlight=self.msscattlight)
                 pixel_flat = pixel_flat.sub(lampoff_flat)

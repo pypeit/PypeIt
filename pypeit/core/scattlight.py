@@ -154,7 +154,8 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
 
     # Compute the best-fitting model parameters
     msgs.info("Computing best-fitting model parameters of the scattered light")
-    res_lsq = least_squares(scattlight_resid, x0, bounds=bounds, args=(wpix, img), verbose=2)
+    res_lsq = least_squares(scattlight_resid, x0, bounds=bounds, args=(wpix, img), verbose=2, ftol=1.0E-4)
+
     # Store if this is a successful fit
     success = res_lsq.success
     if success:
@@ -166,15 +167,15 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     if debug:
         # Do some checks on the results
         embed()
+        from matplotlib import pyplot as plt
         scatt_img_alt = scattered_light_model(x0, img)[detpad:-detpad, detpad:-detpad]
         vmin, vmax = 0, np.max(scatt_img_alt)
-        vmin, vmax = -3, 10.0
         plt.subplot(231)
         plt.imshow(_frame, vmin=vmin, vmax=vmax)
         plt.subplot(232)
         plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
         plt.subplot(233)
-        plt.imshow(_frame - scatt_img, vmin=vmin, vmax=vmax)
+        plt.imshow(_frame - scatt_img, vmin=-vmax/2, vmax=vmax/2)
         plt.subplot(234)
         plt.imshow(_frame, vmin=vmin, vmax=vmax)
         plt.subplot(235)

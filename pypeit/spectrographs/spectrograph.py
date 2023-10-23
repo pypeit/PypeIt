@@ -1894,62 +1894,43 @@ class Spectrograph:
         msgs.warn(f"Pattern noise removal is not implemented for spectrograph {self.name}")
         return []
 
-    def scattered_light_model(self, param, img, kernel='gaussian'):
-        """ Model used to calculate the scattered light. This function is used to
-        generate a model of the scattered light, based on a set of model parameters
-        that have been optimized using self.scattered_light().
+    def scattered_light_archive(self, binning, dispname):
+        """ Archival model parameters for the scattered light. These are based on best fits to currently available data.
 
         Parameters
         ----------
-        param : `numpy.ndarray`_
-            Model parameters that determine the scattered light based on the input img.
-            Every spectrograph is allowed a different number of model parameters.
-        img : `numpy.ndarray`_
-            Raw image that you want to compute the scattered light model.
-            shape is (nspec, nspat)
-        kernel : :obj:`str`_, optional
-            The shape of the kernel to use. The allowed values depend on the spectrograph
-            scattered light model.
-
-        Returns
-        -------
-        model : `numpy.ndarray`_
-            Model of the scattered light for the input
-        """
-        msgs.warn(f"Scattered light subtraction is not setup for {self.name}")
-        return np.zeros_like(img)
-
-    def scattered_light(self, frame, offslitmask, binning=None, dispname=None, detpad=300):
-        """ Calculate the scattered light model parameters of the input frame.
-        This function is used to optimize the model parameters. See also
-        self.scattered_light_model()
-
-        Parameters
-        ----------
-        frame : `numpy.ndarray`_
-            Raw 2D data frame to be used to compute the scattered light.
-        offslitmask : `numpy.ndarray`_
-            A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
         binning : :obj:`str`_, optional
             Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
         dispname : :obj:`str`_, optional
             Name of the disperser
-        detpad : :obj:`int`_, optional
-            Number of pixels to pad to each of the detector edges to reduce edge effects.
 
         Returns
         -------
-        scatt_img : `numpy.ndarray`_, float
-            A 2D image of the scattered light determined from the input frame.
-            Alternatively, if a constant value is used, a constant floating point
-            value can be returned as well.
-        modelpar : `numpy.ndarray`_
+        x0 : `numpy.ndarray`_
             A 1D array containing the best-fitting model parameters
-        success : :obj:`bool`_
-            True if the fit was successful, False otherwise
+        bounds : :obj:`tuple`_
+            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+            two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
+            bounds to consider on the scattered light model parameters.
         """
-        msgs.info("Scattered light removal is not implemented for spectrograph {0:s}".format(self.name))
-        return 0.0
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(binning)
+
+        msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname} of {self.name}")
+        sigmx = 400.0 / specbin  # This is the spectral direction
+        sigmy = 200.0 / spatbin  # This is the spatial direction
+        shft_spec = 0.0 / specbin  # Shift of the scattered light in the spectral direction
+        shft_spat = 0.0 / spatbin  # Shift of the scattered light in the spatial direction
+        zoom = 1.0  # Zoom factor of the scattered light
+        term0, term1, term2, term3 = 0.1, -0.2, 0.3, -0.1  # Polynomial coefficients
+        x0 = [sigmx, sigmy, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+
+        # Now set the bounds of the fitted parameters
+        bounds = ([1, 1, -200/specbin, -200/spatbin, 0, -10, -10, -10, -10],
+                  [600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 10, 10, 10, 10])
+
+        # Return the best-fitting archival parameters and the bounds
+        return x0, bounds
 
     def __repr__(self):
         """Return a string representation of the instance."""

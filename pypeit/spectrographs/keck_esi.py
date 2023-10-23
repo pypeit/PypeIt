@@ -306,6 +306,44 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
+    def scattered_light_archive(self, binning, dispname):
+        """Archival model parameters for the scattered light. These are based on best fits to currently available data.
+
+        Parameters
+        ----------
+        binning : :obj:`str`_, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`_, optional
+            Name of the disperser
+
+        Returns
+        -------
+        x0 : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        bounds : :obj:`tuple`_
+            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+            two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
+            bounds to consider on the scattered light model parameters.
+        """
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(binning)
+
+        # Get some starting parameters (these were determined by fitting spectra,
+        # and should be close to the final fitted values to reduce computational time)
+        # Note :: These values need to be originally based on data that uses 1x1 binning,
+        # and are now scaled here according to the binning of the current data to be analysed.
+        x0 = np.array([3.16544600e+02/specbin, 2.05443943e+02/spatbin,  # kernel widths
+                       -9.23121908e+01/specbin, 6.09000452e+01/spatbin,  # pixel offsets
+                       9.94913292e-01,  # Zoom factor
+                       2.23905249e-01, -1.86171132e-01, 8.55479705e-02, -1.26763813e-02])  # Polynomial terms
+
+        # Now set the bounds of the fitted parameters
+        bounds = ([1, 1, -200/specbin, -200/spatbin, 0, -10, -10, -10, -10],
+                  [600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 10, 10, 10, 10])
+
+        # Return the best-fitting archival parameters and the bounds
+        return x0, bounds
+
     @property
     def norders(self):
         """
