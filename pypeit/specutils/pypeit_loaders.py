@@ -38,7 +38,7 @@ from pypeit import specobjs
 from pypeit import onespec
 
 
-def enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
+def _enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
     """
     Force the spectrum to have a monotonically increasing wavelength vector.
 
@@ -90,7 +90,6 @@ def enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
     # want to be more acceptable, we should consider instead fitting a low-order
     # polynomial to the pixel vs. wavelength function and rejecting strong
     # outliers.
-    _wave = wave.copy()
     pix = np.arange(wave.size)
     indx = np.append([True], indx)
     while not np.all(indx):
@@ -196,7 +195,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
         _ext, _cal = sobj.best_ext_match(extract=extract, fluxed=fluxed)
         _wave, _flux, _ivar, _gpm = sobj.get_box_ext(fluxed=_cal) if _ext == 'BOX' \
                                         else sobj.get_opt_ext(fluxed=_cal)
-        _wave, _flux, _ivar = enforce_monotonic_wavelengths(_wave, _flux, _ivar, strict=strict)
+        _wave, _flux, _ivar = _enforce_monotonic_wavelengths(_wave, _flux, _ivar, strict=strict)
         flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
         spec += \
             [Spectrum1D(flux=astropy.units.Quantity(_flux * flux_unit),
@@ -251,7 +250,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
-    wave, flux, ivar = enforce_monotonic_wavelengths(wave, spec.flux, spec.ivar, strict=strict)
+    wave, flux, ivar = _enforce_monotonic_wavelengths(wave, spec.flux, spec.ivar, strict=strict)
 
     # If the input filename is actually a string, assign it as the spectrum
     # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
