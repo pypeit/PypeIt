@@ -420,12 +420,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         .. note::
 
-            There are some faint Cd and Hg lines in the DV9 spectra that are
-            helpful for nailing down the wavelength calibration for that
-            grating, but these lines are too faint / close to other lines for
-            use with other gratings.  This method loads the more detailed
-            lists for DV9, but loads the usual line lists for all other
-            gratings.
+            Between some faint Cd and Hg lines in the DV9 spectra that are
+            helpful for nailing down the wavelength calibration and various
+            additional lines in Ne and Ar that are not in the main line lists
+            that are regularly identified with DeVeny, use instrument-specific
+            line lists for all 4 lamps.
 
         Args:
             fitstbl (`astropy.table.Table`_):
@@ -433,11 +432,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list` : List of the used arc lamps
         """
-        grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
         return [
-            f"{lamp.strip()}_DeVeny1200"                         # Instrument-specific list
-            if grating == "DV9" and lamp.strip() in ["Cd", "Hg"] # Under these conditions
-            else f"{lamp.strip()}I"                              # Otherwise, the usuals
+            f"{lamp.strip()}I_DeVeny"       # Instrument-Specific List
             for lamp in np.unique(
                 np.concatenate([lname.split(",") for lname in fitstbl["lampstat01"]])
             )
