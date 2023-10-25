@@ -24,18 +24,24 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
+- Allow the specification of wavelength limits on the flexure cross-correlation
+  against a sky template to limit the effect of unconstrained wavelength
+  solutions at the ends of the spectrum.
 
 Instrument-specific Updates
 ---------------------------
 
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
+- Various updates to default parameters for LDT/DeVeny, plus updated wavelength
+  templates and instrument-specific line lists.
 
 Script Changes
 --------------
 
 - When making datacubes, the user can select a separate frame to use for the sky subtraction.
   In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
+- Allow a list of files to be passed to ``pypeit_chk_wavecalib``.
 
 Datamodel Changes
 -----------------
@@ -46,6 +52,8 @@ Under-the-hood Improvements
 ---------------------------
 
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
+- Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
+  deprecated ``numpy.polyfit()`` function.
 
 Bug Fixes
 ---------
@@ -59,5 +67,8 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
+- Aligned the documentation and parameters with the code for polynomial overscan
+  subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
+  ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
 
 
