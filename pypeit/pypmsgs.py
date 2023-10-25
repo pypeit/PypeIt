@@ -52,8 +52,8 @@ class Messages:
         1 = Minimal output
         2 = All output (default)
     colors : bool
-      If true, the screen output will have colors, otherwise
-      normal screen output will be displayed
+        If true, the screen output will have colors, otherwise normal screen
+        output will be displayed
     """
     def __init__(self, log=None, verbosity=None, colors=True):
 
@@ -253,15 +253,23 @@ class Messages:
 
         Parameters
         ----------
-        msglist: list of str
-          A list containing the pypeit parameters. The last element of the list
-          must be the argument and the variable. For example, to print:
+        msglist: list
+            A list containing the pypeit parameter strings. The last element of
+            the list must be the argument and the variable. For example, to
+            print:
 
-          [sensfunc]
-            [[UVIS]]
-              polycorrect = False
+            .. code-block:: ini
 
-        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+                [sensfunc]
+                    [[UVIS]]
+                        polycorrect = False
+
+            you should set ``msglist = ['sensfunc', 'UVIS', 'polycorrect = False']``.
+
+        Returns
+        -------
+        parstring : str
+            The parameter string
         """
         parstring = '\n'
         premsg = '             '
@@ -280,15 +288,19 @@ class Messages:
 
         Parameters
         ----------
-        msglist: list of str
-          A list containing the pypeit parameters. The last element of the list
-          must be the argument and the variable. For example, to print:
+        msglist: list
+            A list containing the pypeit parameter strings. The last element of
+            the list must be the argument and the variable. For example, to
+            print:
 
-          [sensfunc]
-            [[UVIS]]
-              polycorrect = False
+            .. code-block:: ini
 
-        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+                [sensfunc]
+                    [[UVIS]]
+                        polycorrect = False
+
+            you should set ``msglist = ['sensfunc', 'UVIS', 'polycorrect = False']``.
+
         """
         premsg = '             '
         for ll, lin in enumerate(msglist):
@@ -402,3 +414,4 @@ class Messages:
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs
         self.reset(log=logname, verbosity=verbosity)
+

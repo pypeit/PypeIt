@@ -2,8 +2,7 @@
 Dynamically build the rst documentation for the Calibration Images
 """
 
-from pathlib import Path
-from pkg_resources import resource_filename
+from importlib import resources
 
 import numpy
 
@@ -90,7 +89,7 @@ def sens_datamodel(output_root):
     for i,key in enumerate(telluric.keys()):
         tell_table[i+1,:] = [f'``{key}``', column_type(telluric[key]), telluric[key].description]
 
-    sens = SensFunc.empty_sensfunc_table(1, 1)
+    sens = SensFunc.empty_sensfunc_table(1, 1, 1)
     ncol = len(sens.keys())
     sens_table = numpy.empty((ncol+1, 3), dtype=object)
     sens_table[0,:] = ['Column', 'Data Type', 'Description']
@@ -142,7 +141,7 @@ def telluric_datamodel(output_root):
 
 if __name__ == '__main__':
     # Set the output directory
-    output_root = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+    output_root = resources.files('pypeit').parent / 'doc' / 'include'
 
     # Sensitivity file
     sens_datamodel(output_root)

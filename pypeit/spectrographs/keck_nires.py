@@ -55,7 +55,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 468.0,  # e-/pixel/hour  (=0.13 e-/pixel/s)
             saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
             nonlinear       = 0.76,
             mincounts       = -1e10,
@@ -80,9 +80,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.136
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.2  # Measured
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -111,9 +111,17 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-        # Extraction
+
+        # Reduce -- Sky-Subtraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
+        # Reduce -- Extraction
         par['reduce']['extraction']['sn_gauss'] = 4.0
+
+        # Reduce -- Object finding
+        #par['reduce']['findobj']['ech_find_nabove_min_snr'] = 1
+        # Require detection in a single order since given only 5 orders and slitlosses for NIRES, often
+        # things are only detected in the K-band? Decided not to make this the default.
+
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
@@ -134,9 +142,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
-        # COADD2D
-        # set offsets for coadd2d
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
         par['coadd2d']['offsets'] = 'header'
+
 
         return par
 

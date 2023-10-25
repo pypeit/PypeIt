@@ -242,7 +242,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
             slit index
 
     Returns:
-        tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
+        tuple: `numpy.ndarray`_, `numpy.ndarray`_, PypeItFit:  wave, flux, pypeitFitting
 
     """
     if '.json' in in_file:
@@ -351,12 +351,12 @@ def poly_val(coeff, x, nrm):
     IDL style function for polynomial
 
     Args:
-        coeff (np.ndarray):  Polynomial coefficients
-        x (np.ndarray):  x array
-        nrm (np.ndarray): Normalization terms
+        coeff (`numpy.ndarray`_):  Polynomial coefficients
+        x (`numpy.ndarray`_):  x array
+        nrm (`numpy.ndarray`_): Normalization terms
 
     Returns:
-        np.ndarray:  Same shape as x
+        `numpy.ndarray`_:  Same shape as x
 
     """
     #
@@ -446,9 +446,11 @@ def xidl_arcspec(xidl_file, slit):
     return wv_vac.value, spec
 
 
-def xidl_hires(xidl_file, specbin=1):
+def xidl_esihires(xidl_file, specbin=1, order_vec=None,
+                  log10=True):
     """
     Read an XIDL format solution for Keck/HIRES
+    or Keck/ESI
 
     Note:  They used air
 
@@ -457,10 +459,12 @@ def xidl_hires(xidl_file, specbin=1):
             Keck/HIRES save file
 
     Returns:
+        tuple: np.ndarray, np.ndarray, np.ndarray  of orders, wavelength, flux
 
     """
     xidl_dict = readsav(xidl_file)
-    order_vec = xidl_dict['guess_ordr']
+    if order_vec is None:
+        order_vec = xidl_dict['guess_ordr']
     norders = order_vec.size
     nspec = xidl_dict['sv_aspec'].shape[1]
 
@@ -485,6 +489,8 @@ def xidl_hires(xidl_file, specbin=1):
         else:
             order_mask[kk]=False
             continue
+        if not log10:
+            log10_wv_air = np.log10(log10_wv_air)
 
         wv_vac = airtovac(10**log10_wv_air * units.AA).value
         ispec = xidl_dict['sv_aspec'][kk,:]

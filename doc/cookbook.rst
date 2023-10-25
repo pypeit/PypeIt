@@ -13,6 +13,10 @@ should adhere to the following approach.
 
 Note that:
 
+  - Essentially all PypeIt reduction steps are done via executing command-line
+    scripts using a terminal window.  We provide specific commands below and
+    throughout our documentation.
+
   - This cookbook provides minimal detail, but serves as a basic introduction to
     the primary steps used to reduce your data with PypeIt.  We guide you to
     other parts of our documentation that explain specific functionality in more
@@ -27,8 +31,9 @@ Note that:
   - Specific advice on :doc:`spectrographs/spectrographs` is provided in their own doc page
     (although not every supported spectrograph has stand-alone documentation).
 
-  - Invariably something will be out of date.  When you see an egregious
-    example, please holler on GitHub or Slack.
+  - Invariably something will be out of date in our doc pages.  When you see an
+    egregious example, please holler on `GitHub
+    <https://github.com/pypeit/PypeIt>`__ or `Slack <https://pypeit-users.slack.com>`__.
 
 Finally, note that before you keep going, you should have already done the following:
 

@@ -19,11 +19,39 @@ task owing to the wide variety in:
 Developing a single algorithm to handle all of these edge cases (pun
 intended) is challenging if not impossible. Therefore, there are a number of
 user-input parameters that one may need to consider when running PypeIt (see
-below).
+below :ref:`slit_tracing_issues` and :ref:`slit_tracing_customizing`).
 
 Underlying the effort is the :class:`~pypeit.edgetrace.EdgeTraceSet` class; see
 :func:`~pypeit.edgetrace.EdgeTraceSet.auto_trace` for a description of the
 algorithm.
+
+Slit-mask design matching
+-------------------------
+
+PypeIt can incorporate information about the slit-mask design into the
+slit-tracing process. This is primarily performed by
+:func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`, which matches
+the slit edges traced by PypeIt to the slit edges predicted
+using the slit-mask design information stored in the observations.
+Moreover, :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+uses the predicted slit edges positions to add slit traces that have
+not been detected in the image.
+
+
+This functionality at the moment is implemented only for these
+:ref:`slitmask_info_instruments` and is switched on by setting
+``use_maskdesign`` flag in :ref:`edgetracepar` to True. Other parameters
+may need to be adjusted as well, depending on the instrument (see
+:ref:`slitmask_ids_report` and the relevant instrument documentation pages).
+
+.. _slitmask_info_instruments:
+
+Slit-mask design Spectrographs
+++++++++++++++++++++++++++++++
+- :doc:`../spectrographs/deimos`
+- :doc:`../spectrographs/mosfire`
+- :doc:`../spectrographs/lris` (limited)
+- :doc:`../spectrographs/gemini_gmos` (limited)
 
 Viewing
 =======
@@ -60,6 +88,8 @@ tracing after each main step in the process.  The ``--debug`` option provides
 additional output that can be used to diagnose the parameterized fits to the
 edge traces and the PCA decomposition.  Fair warning that, for images with many
 slits, these plots can be laborious to wade through...
+
+.. _slit_tracing_issues:
 
 Known Slit Tracing Issues
 =========================
@@ -189,6 +219,8 @@ For example:
 This will remove any slit on detector 2 that contains ``x_spat=2121``
 at ``y_spec=2000`` and similarly for the slit on ``det=3``.
 
+.. _slit_tracing_customizing:
+
 Slit Tracing Customizing
 ========================
 
@@ -207,7 +239,7 @@ Detection Threshold
 The detection threshold for identifying slits is set
 relatively low to err on the side of finding more as opposed to fewer slit edges.
 The algorithm can be fooled by scattered light and detector
-defects.  One can increase the threshold with the ``sigdetect``
+defects.  One can increase the threshold with the ``edge_thresh``
 parameter:
 
 .. code-block:: ini
@@ -219,11 +251,11 @@ parameter:
 Then monitor the number of slits detected by the algorithm.
 
 Presently, we recommend that you err on the conservative
-side regarding thresholds, i.e. higher values of ``sigdetect``,
+side regarding thresholds, i.e. higher values of ``edge_thresh``,
 unless you have especially faint trace flat frames.
 
 On the flip side, if slit defects (common) are being
-mistaken as slit edges then *increase* ``sigdetect``
+mistaken as slit edges then *increase* ``edge_thresh``
 and hope for the best.
 
 .. _trace-slit-mask_frac_thresh:

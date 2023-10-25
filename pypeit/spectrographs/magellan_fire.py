@@ -119,7 +119,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.18,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
             saturation      = 100000., # This is an arbitrary value.
             nonlinear       = 1.0, # high gain mode, low gain is 0.875
@@ -145,7 +145,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with OH lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25
         par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=[3,3,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
@@ -202,6 +202,10 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+
+        # Coadding. I'm not sure what this should be for PRISM mode?
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 
@@ -362,7 +366,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
             nonlinear       = 0.875,
             mincounts       = -1e10,
@@ -387,9 +391,9 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
         par['calibrations']['wavelengths']['sigdetect']=3
-        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['fwhm'] = 10
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']

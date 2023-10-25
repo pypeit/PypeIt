@@ -144,6 +144,11 @@ followed by a list of spec1d files. An example configuration file is shown below
     # current directory.
     #outdir = /work/output
     
+    # Whether to check that spec1d files and archival sensfunc files have an
+    # up to date datamodel version. If false (the default) version numbers are 
+    # not checked.
+    #chk_version = True
+
     # A list of the spec1d files. Wildcards are allowed.
     # This follows the input file data block format.
     spec1d read

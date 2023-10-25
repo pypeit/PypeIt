@@ -965,7 +965,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
 
         Returns:
             :class:`PypeItImage`: Image with the appropriate type and

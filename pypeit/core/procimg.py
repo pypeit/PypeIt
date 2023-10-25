@@ -217,7 +217,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         msgs.info("Convolving image with Laplacian kernel")
         deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
                          boundary='extend')
-        s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0 
+        s = utils.rebinND(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0
 
         # Remove the large structures
         sp = s - scipy.ndimage.median_filter(s, size=5, mode='mirror')
@@ -1084,7 +1084,7 @@ def trim_frame(frame, mask):
         `numpy.ndarray`_: Trimmed image
 
     Raises:
-        PypitError:
+        :class:`~pypeit.pypmsgs.PypeItError`:
             Error raised if the trimmed image includes masked values
             because the shape of the valid region is odd.
     """
