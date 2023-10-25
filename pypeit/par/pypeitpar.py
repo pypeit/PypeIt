@@ -268,10 +268,9 @@ class ProcessImagesPar(ParSet):
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
-                                '\'polynomial\', set overcan_par = order, number of pixels, ' \
-                                'number of repeats ; for \'savgol\', set overscan_par = ' \
-                                'order, window size ; for \'median\', set overscan_par = ' \
-                                'None or omit the keyword.'
+                                '\'polynomial\', set overcan_par = order; for \'savgol\', ' \
+                                'set overscan_par = order, window size ; for \'median\', set ' \
+                                'overscan_par = None or omit the keyword.'
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -499,9 +498,8 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
 
-        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
-            raise ValueError('For polynomial overscan method, set overscan_par = order, '
-                             'number of pixels, number of repeats')
+        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 1:
+            raise ValueError('For polynomial overscan method, set overscan_par = order')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')

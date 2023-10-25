@@ -604,10 +604,10 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             data, 1 for amplifier 1, 2 for amplifier 2, etc.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
-            polynomial, savgol, median.
+            polynomial (Chebyshev), savgol, median.
         params (:obj:`list`, optional):
             Parameters for the overscan subtraction.  For ``method=polynomial``,
-            set ``params`` to the order, number of pixels, number of repeats;
+            set ``params`` to the order;
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):
@@ -672,9 +672,8 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median' 
                              else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
         if method.lower() == 'polynomial':
-            # TODO: Use np.polynomial.polynomial.polyfit instead?
-            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
-            ossub = np.polyval(c, np.arange(osfit.size))
+            poly = np.polynomial.Chebyshev.fit(np.arange(osfit.size), osfit, params[0])
+            ossub = poly(np.arange(osfit.size))
         elif method.lower() == 'savgol':
             ossub = scipy.signal.savgol_filter(osfit, params[1], params[0])
         elif method.lower() == 'median':

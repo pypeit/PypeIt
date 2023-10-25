@@ -269,8 +269,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Turn off illumflat unless/until we can deal properly with flexure in
         #   the spatial direction.  All other defaults OK (as of v1.7.0)
-        set_use = dict(use_illumflat=False)
-        par.reset_all_processimages_par(**set_use)
+        #   Also, use an order=1 polynomial for fitting the overscan rather
+        #   a SavGol filter -- more appropriate for this CCD.
+        set_procpars = dict(use_illumflat=False, overscan_method='polynomial', overscan_par=1)
+        par.reset_all_processimages_par(**set_procpars)
 
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
@@ -633,6 +635,43 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        """
+        Calculate the pattern frequency using the overscan region that covers
+        the overscan and data sections. Using a larger range allows the
+        frequency to be pinned down with high accuracy.
+
+        .. todo::
+
+            Possibly implement this method with lessons learned from
+            https://lowellobservatory.github.io/LDTObserverTools/scrub_deveny_pickup.html
+
+            It is not yet clear whether it is better to scrub the pickup noise
+            with an external tool or subtract it during the PypeIt reduction.
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw data frame to be used to estimate the pattern frequency.
+        rawdatasec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier
+            number).
+        oscansec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the
+            amplifier number).
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file.
+
+        Returns
+        -------
+        patt_freqs : :obj:`list`
+            List of pattern frequencies.
+        """
+        msgs.error(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
+        return []
+
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
         This routine is for performing instrument- and/or disperser-specific
@@ -683,11 +722,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         else:
             log10_blaze_function_out = None
 
-
         # Next, build a gpm based on other reasonable wavelengths and filters
         edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
         neg_counts = counts_out <= 0
-
 
         # If an order-blocking filter was in use, mask blocked region
         #  at "nominal" cutoff value
