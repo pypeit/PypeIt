@@ -122,16 +122,14 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return binning
         elif meta_key == 'decker':
             mode = headarr[0]['HIERARCH ESO INS MODE']
-            if mode == 'LSS':
+            if mode in ['LSS', 'MOS']:
                 try:  # Science
                     return headarr[0]['HIERARCH ESO INS SLIT NAME']
                 except KeyError:  # Standard!
                     try:
                         return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
                     except KeyError:
-                        return None
-            elif mode == 'MOS':
-                return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+                        return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
             elif mode == 'IMG':
                 # This is for the bias frames
                 return None
@@ -362,7 +360,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': 'detector', 'dark': 'detector', 'standard':['detector', 'dispangle', 'dispname']}
+        return {'bias': 'detector', 'dark': 'detector'}
 
     def configuration_keys(self):
         """
