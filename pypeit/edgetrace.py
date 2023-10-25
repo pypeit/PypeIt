@@ -870,7 +870,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # like a long-slit observation. At best, that will lead to a lot of
             # wasted time in the reductions; at worst, it will just cause the code
             # to fault later on.
-            self.success = self.sync() #debug=True)
+            self.success = self.sync()
             if not self.success:
                 return
             if show_stages:
@@ -881,7 +881,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.order_refine(debug=debug)
             # Check that the edges are still sinked (not overkill if orders are
             # missed)
-            self.success = self.sync() #debug=True)
+            self.success = self.sync()
             if not self.success:
                 return
             if show_stages:
@@ -2615,8 +2615,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             for slc in short_slits:
                 # Remove the edges just before and after this region of short
                 # slits, if they inserted by the left-right syncing.
-#                rmtrace[max(0,slc.start-1)] = True
-#                rmtrace[min(self.ntrace-1, slc.stop)] = True
                 rmtrace[max(0,slc.start-1)] = sync_inserts[max(0,slc.start-1)]
                 rmtrace[min(self.ntrace-1, slc.stop)] = sync_inserts[min(self.ntrace-1, slc.stop)]
                 # Flip the sign of the edges (i.e., turn lefts into rights and
@@ -2625,13 +2623,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 # Turn off the masking
                 self.edge_msk[:,slc] \
                         = self.bitmask.turn_off(self.edge_msk[:,slc], 'ABNORMALSLIT_SHORT')
+
             # Remove the flagged traces, resort the edges, and rebuild the pca
             self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
-#            # This operation should lead to traces that are still synced.
-#            # There's a bug if they aren't!
-#            # TODO: We can remove this assert once we're satisfied we've caught
-#            # all the corner cases.
-#            assert self.is_synced, 'CODING ERROR: Overlapping slit strategy failed.'
 
             # If this de-synchronizes the traces, we effectively have to start
             # the synchronization process over again, with the adjustments for
@@ -3971,8 +3965,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
             return True
 
-        i = 0
+        # NOTE: The maximum number of iterations is hard-coded for now.  Testing
+        # is needed to know if we need this to be any larger than 3.
         maxiter = 3
+        i = 0
         while i < maxiter:
             msgs.info(f'Beginning syncing iteration : {i+1} (of at most {maxiter})')
 
@@ -4042,7 +4038,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
             i += 1
             if i == maxiter:
-#                embed(header='sync, hit maximum iterations')
                 msgs.error('Fatal left-right trace de-synchronization error.')
         self.log += [inspect.stack()[0][3]]
         return True
@@ -5100,25 +5095,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.info('No additional orders found to add')
             return
 
-# MOVED THIS TO order_refine_free_format, but I assume we need something similar
-# for order_refine_fixed_format?
-#        # Deal with overlapping orders among the ones to be added.  The edges
-#        # are adjusted equally on both sides to avoid changing the order center
-#        # and exclude the overlap regions from the reduction.
-#        if np.any(add_left[1:] - add_right[:-1] < 0):
-#            # Loop sequentially so that each pair is updated as the loop progresses
-#            for i in range(1, add_left.size):
-#                # *Negative* of the gap; i.e., positives values means there's
-#                # overlap
-#                ngap = add_right[i-1] - add_left[i]
-#                if ngap > 0:
-#                    # Adjust both order edges to avoid the overlap region but
-#                    # keep the same center coordinate
-#                    add_left[i-1] += ngap
-#                    add_right[i-1] -= ngap
-#                    add_left[i] += ngap
-#                    add_right[i] -= ngap
-
         if rmtraces is not None:
             self.remove_traces(rmtraces, rebuild_pca=True)
 
@@ -5224,7 +5200,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         
         # Interpolate any missing orders
         # TODO: Expose tolerances to the user?
-#        order_cen, order_missing = trace.find_missing_orders(cen, width_fit, gap_fit)
         individual_orders = np.logical_not(combined_orders)
         order_cen, order_missing \
                 = trace.find_missing_orders(cen[individual_orders], width_fit, gap_fit)
@@ -5232,8 +5207,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Extrapolate orders
         rng = [0., float(self.nspat)] if self.par['order_spat_range'] is None \
                     else self.par['order_spat_range']
-#        lower_order_cen, upper_order_cen \
-#                    = trace.extrapolate_orders(cen, width_fit, gap_fit, rng[0], rng[1])
         lower_order_cen, upper_order_cen \
                     = trace.extrapolate_orders(cen[individual_orders], width_fit, gap_fit,
                                                rng[0], rng[1])
