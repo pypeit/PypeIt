@@ -1293,6 +1293,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Instantiate
         self = super(EdgeTraceSet, cls).from_dict(d=d)
 
+        # Calibration frame attributes
+        # NOTE: If multiple HDUs are parsed, this assumes that the information
+        # necessary to set all the calib internals is always in *every* header.
+        # BEWARE!
+        self.calib_keys_from_header(hdu[parsed_hdus[0]].header)
+
         # Set the integer pixel values
         self.edge_img = None if self.traceid is None \
                             else (np.round(self.edge_cen if self.edge_fit is None
@@ -3917,7 +3923,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # function as completed
         if self.is_synced \
                 and self.check_synced(rebuild_pca=rebuild_pca and self.pcatype is not None):
-            self.log += [inspect.stack()[0][3]]
+            if self.log is not None:
+                self.log += [inspect.stack()[0][3]]
             return True
 
         # Edges are currently not synced, so check the input
@@ -4040,7 +4047,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
             i += 1
             if i == maxiter:
                 msgs.error('Fatal left-right trace de-synchronization error.')
-        self.log += [inspect.stack()[0][3]]
+        if self.log is not None:
+            self.log += [inspect.stack()[0][3]]
         return True
 
     def add_user_traces(self, user_traces, method='straight'):

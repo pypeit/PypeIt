@@ -22,23 +22,25 @@ class EdgeInspector(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        from pathlib import Path
         from matplotlib import pyplot
         from pypeit import edgetrace
         from pypeit.core.gui import edge_inspector
 
+        # Set the file name to the full path
+        trace_file = Path(args.trace_file).resolve()
         # Load
-        edges = edgetrace.EdgeTraceSet.from_file(args.trace_file)
+        edges = edgetrace.EdgeTraceSet.from_file(trace_file)
         # Inspector object
         pointer = edge_inspector.EdgeInspectorGUI(edges)
-        # Inspect
+        # Run.  Ends when window is closed
         pyplot.show()
         # Close (restore pyplot rc defaults)
         pointer.close()
 
         # Write the updated edges and slits
-
-        embed()
-        exit()
-        
+        edges.to_file(file_path=trace_file)
+        slits_file = trace_file.name.replace('Edges', 'Slits')
+        edges.get_slits().to_file(file_path=trace_file.parent / slits_file)
 
 

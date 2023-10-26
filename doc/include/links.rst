@@ -54,6 +54,7 @@
 .. _matplotlib: https://matplotlib.org/
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
+.. _matplotlib.image.AxesImage: https://matplotlib.org/stable/api/image_api.html#matplotlib.image.AxesImage
 .. _matplotlib.backend_bases.Event: https://matplotlib.org/stable/api/backend_bases_api.html#matplotlib.backend_bases.Event
 
 .. configobj
