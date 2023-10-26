@@ -247,6 +247,8 @@ class Identify:
 
         if sigdetect is None:
             sigdetect = par['sigdetect']
+            if isinstance(sigdetect, list):
+                sigdetect = sigdetect[slit]
         print(f"Using {sigdetect} for sigma detection")
 
         # If a wavelength calibration has been performed already, load it:
@@ -264,6 +266,7 @@ class Identify:
             msgs.warn("No wavelength calibration supplied!")
             msgs.info("No wavelength solution will be loaded.")
             wv_calib = None
+
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
