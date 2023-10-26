@@ -37,16 +37,16 @@ class EdgeInspectorGUI:
 
         # Figure
         w,h = pyplot.figaspect(1)
-        fig = pyplot.figure(figsize=(2*w,2*h))
+        self.fig = pyplot.figure(figsize=(2*w,2*h))
 
         # Axes
-        image_ax = fig.add_axes([sx, sy, dx, dy])
+        image_ax = self.fig.add_axes([sx, sy, dx, dy])
         image_ax.tick_params(which='both', top=True, right=True)
         image_ax.minorticks_on()
-        image_cax = fig.add_axes([sx + dx + 0.02, sy, 0.01, dy])
-        image_slider_ax = fig.add_axes([sx, sy-0.08, dx/1.2, 0.02])
-        image_change_button_ax = fig.add_axes([sx + dx - 0.1, sy - 0.1, 0.1, 0.05])
-        sync_button_ax = fig.add_axes([sx + dx + 0.01, sy - 0.1, 0.1, 0.05])
+        image_cax = self.fig.add_axes([sx + dx + 0.02, sy, 0.01, dy])
+        image_slider_ax = self.fig.add_axes([sx, sy-0.08, dx/1.2, 0.02])
+        image_change_button_ax = self.fig.add_axes([sx + dx - 0.1, sy - 0.1, 0.1, 0.05])
+        sync_button_ax = self.fig.add_axes([sx + dx + 0.01, sy - 0.1, 0.1, 0.05])
 
         # Extent
         ny, nx = edges.traceimg.image.shape
@@ -73,7 +73,7 @@ class EdgeInspectorGUI:
         self.ref_row_line = image_ax.axhline(self.reference_row, color='C1', lw=0.5)
 
         # Add the colorbar
-        self.image_cb = fig.colorbar(self.image_plot, cax=image_cax)
+        self.image_cb = self.fig.colorbar(self.image_plot, cax=image_cax)
         # And the colorbar slider
         self.image_slider = gui_util.UpdateableRangeSlider(image_slider_ax, 'Data Range',
                                                            lim[0], lim[1], valinit=lim)
@@ -106,8 +106,12 @@ class EdgeInspectorGUI:
         self.img_pointer.build_help()
 
     def close(self):
+        """
+        Close the GUI.  Restores matplotlib RC defaults and closes the figure.
+        """
         pyplot.rcdefaults()
-        pyplot.close()
+        self.fig.clear()
+        pyplot.close(self.fig)
 
     def _trace_color(self, side):
         """
