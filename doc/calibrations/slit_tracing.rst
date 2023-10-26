@@ -64,8 +64,8 @@ to get a terse description of the output.
 
 .. _pypeit_trace_edges:
 
-Script
-======
+Scripts
+=======
 
 Slit tracing is one of the steps in PypeIt that can be run independently of
 the full reduction, using the ``pypeit_trace_edges`` script.  **If you're having
@@ -88,6 +88,66 @@ tracing after each main step in the process.  The ``--debug`` option provides
 additional output that can be used to diagnose the parameterized fits to the
 edge traces and the PCA decomposition.  Fair warning that, for images with many
 slits, these plots can be laborious to wade through...
+
+We also provide a script that allows you to interact with and edit the traces by
+hand.  **This should only be used as a last resort!**  The automated tracing is
+deterministic and reproducible, whereas subjective by-eye adjustments to the
+traces are not.  If at all possible, you should use the parameters to fix the
+performance of the automated tracing.  Having said that, there will be cases
+where the limitations of the automated tracing algorithm(s) affect the quality
+of data reduction in a way that could be improved by simple by-hand adjustments.
+
+The ``pypeit_edge_inspector`` script provides a interactive window (using
+matplotlib) that allows you to move, add, and delete traces.  The script
+requires a valid ``Edges`` calibration file and will *overwrite* this file,
+regardless of whether or not you make any adjustments to the traces. For this
+reason, we recommend you make a copy of the ``Edges`` (and ``Slits``)
+calibration file(s) *before* executing the script.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: ../help/pypeit_edge_inspector.rst
+
+The interactive window looks like this:
+
+.. figure:: ../figures/edge_inspector.png
+   :width: 50%
+
+The trace image is shown in grayscale.  The left and right traces are green and
+magenta, respectively.  The orange horizontal line shows the "reference row"
+used when locating new traces.  Only the vertical line of the cursor (not shown)
+moves; the horizontal line always stays at the reference row.  Note that the
+vertical line marking the cursor may not appear if the typical matplotlib zoom
+or pan buttons are active.
+
+Pressing the ``?`` key anywhere in the window will print the key bindings:
+
+.. code-block:: console
+
+    --------------------------------------------------
+    Key bindings
+        m: Move the nearest trace to the cursor
+        d: Delete the nearest trace
+        l: Add a left trace
+        r: Add a right trace
+        U: Undo all changes since last sync
+        ?: Print this list of key bindings
+    --------------------------------------------------
+
+The typical matplotlib buttons work as usual.  The "Data Range" slider allows
+you to change the range of data shown, and appropriately adjusts the colorbar.
+The "Image" button at the bottom right allows you to toggle between the trace
+image and the sobel-filtered image used to detect the slit edges.  The "Sync"
+button consolidates all the changes you've made, saves them to the ``Edges``
+object, and attempts to synchronize left-right edges.  **Make sure you hit the
+sync button before closing the matplotlib window.**  Otherwise, any changes you
+have made will not be saved.  After closing the window, the code saves the new
+``Edges`` and ``Slits`` calibration files.  If you then re-execute
+``run_pypeit``, the code should recognize that the files exist and use them
+instead of redoing the edge tracing **as long as you don't tell the code to do
+otherwise.**
+
 
 .. _slit_tracing_issues:
 
