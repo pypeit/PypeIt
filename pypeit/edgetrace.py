@@ -3944,9 +3944,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Allow the edges to be synced, even if a fit hasn't been done yet
         trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
 
-        # Instantiate the traces to add
-        trace_add = np.zeros((self.nspec, np.sum(add_edge)), dtype=float)
-
         # If there was only one edge, just add the other one
         if side.size == 2:
             msgs.warn('Only one edge traced.  Ignoring center_mode and adding edge at the '
@@ -3961,6 +3958,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             offset = self.par['det_buffer'] - np.amin(trace_cen[:,0]) if add_edge[0] \
                         else self.nspat - np.amax(trace_cen[:,0]) - self.par['det_buffer']
             # Construct the trace to add and insert it
+            trace_add = np.zeros((self.nspec, np.sum(add_edge)), dtype=float)
             trace_add[:,0] = trace_cen[:,0] + offset
             self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
             return True
@@ -3971,6 +3969,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
         i = 0
         while i < maxiter:
             msgs.info(f'Beginning syncing iteration : {i+1} (of at most {maxiter})')
+
+            # Get the traces
+            trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
 
             # Find the edges to add, what side they're on, and where to insert
             # them into the existing trace array.  This is done again, in case
@@ -5218,7 +5219,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # If nothing is missing, return
         if not np.any(order_missing):
-            return None, None
+            return None, None, None
 
         # QA Plot
         ofile = None if debug else self.qa_path / 'PNGs' \
