@@ -478,7 +478,7 @@ class ProcessImagesPar(ParSet):
     @staticmethod
     def valid_scattlight_methods():
         """
-        Return the valid overscan methods.
+        Return the valid scattered light methods.
         """
         return ['model', 'frame', 'archive']
 

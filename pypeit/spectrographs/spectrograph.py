@@ -1917,17 +1917,17 @@ class Spectrograph:
         specbin, spatbin = parse.parse_binning(binning)
 
         msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname} of {self.name}")
-        sigmx = 400.0 / specbin  # This is the spectral direction
-        sigmy = 200.0 / spatbin  # This is the spatial direction
-        shft_spec = 0.0 / specbin  # Shift of the scattered light in the spectral direction
-        shft_spat = 0.0 / spatbin  # Shift of the scattered light in the spatial direction
-        zoom = 1.0  # Zoom factor of the scattered light
-        term0, term1, term2, term3 = 0.1, -0.2, 0.3, -0.1  # Polynomial coefficients
-        x0 = [sigmx, sigmy, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+        x0 = np.array([200/specbin, 100/spatbin,  # Gaussian kernel widths
+                       200/specbin, 100/spatbin,  # Lorentzian kernel widths
+                       0.0/specbin, 0.0/spatbin,  # pixel offsets
+                       1.0,  # Zoom factor
+                       0.0,  # kernel angle
+                       0.0,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       0.1, 0.0, 0.0, 0.0])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, -200/specbin, -200/spatbin, 0, -10, -10, -10, -10],
-                  [600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 10, 10, 10, 10])
+        bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
+                  [600/specbin, 600/spatbin, 600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 2*np.pi, 1000.0, 10, 10, 10, 10])
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds

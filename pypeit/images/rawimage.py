@@ -1140,18 +1140,37 @@ class RawImage:
         # Obtain some information that is needed for the scattered light
         binning = self.detector[0]['binning']
         dispname = self.spectrograph.get_meta_value(self.spectrograph.get_headarr(self.filename), 'dispname')
+
         # Loop over the images
         for ii in range(self.nimg):
+            # Mask bad pixels
+            _frame = self.image[ii, ...] * np.logical_not(self.bpm[ii, ...])
+            # Apply the requested method for the scattered light
             if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
+                scatt_img = scattlight.evaluate(msscattlight.scattlight_param, _frame)
+                debug = False  # RJC requests to keep this here for debugging
+                if debug:
+                    spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
+                    pad = msscattlight.pad // spatbin
+                    offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                    from matplotlib import pyplot as plt
+                    _frame = self.image[ii, ...]
+                    vmin, vmax = 0, np.max(scatt_img)
+                    plt.subplot(131)
+                    plt.imshow(_frame*offslitmask, vmin=vmin, vmax=vmax)
+                    plt.subplot(132)
+                    plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
+                    plt.subplot(133)
+                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax / 2, vmax=vmax / 2)
+                    plt.show()
             elif self.par["scattlight_method"] == "archive":
                 # Use archival model parameters
                 modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
                 if modpar is None:
                     msgs.error(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
                                f"set 'scattlight_method' to another option.")
-                scatt_img = scattlight.scattered_light_model(modpar, self.image[ii, ...])
+                scatt_img = scattlight.scattered_light_model(modpar, _frame)
             elif self.par["scattlight_method"] == "frame":
                 # Calculate a model specific for this frame
                 spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
@@ -1166,12 +1185,12 @@ class RawImage:
                 if not success:
                     if msscattlight is not None:
                         msgs.warn("Scattered light model failed - using predefined model parameters")
-                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
+                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _frame)
                     else:
                         msgs.warn("Scattered light model failed - using archival model parameters")
                         # Use archival model parameters
                         modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                        scatt_img = scattlight.scattered_light_model(modpar, self.image[ii, ...])
+                        scatt_img = scattlight.scattered_light_model(modpar, _frame)
             else:
                 msgs.warn("Scattered light not performed")
                 scatt_img = np.zeros(self.image[ii, ...].shape)
