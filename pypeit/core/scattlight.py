@@ -26,9 +26,7 @@ def scattered_light_model(param, img):
     ----------
     param : `numpy.ndarray`_
         Model parameters that determine the scattered light based on the input img.
-        The first 5 parameters are the same for all spectrographs. The sixth and all
-        subsequent parameters in this list are polynomial corrections to the spectral
-        direction. Here are the individual parameters:
+        Here is a list of the individual parameter meanings:
 
         * param[0] = Gaussian kernel width in the spectral direction
         * param[1] = Gaussian kernel width in the spatial direction

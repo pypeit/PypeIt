@@ -50,7 +50,6 @@ class ScatteredLight(calibframe.CalibFrame):
                  'nspat': dict(otype=int, descr='Number of pixels in the image spatial direction.'),
                  'binning': dict(otype=str, descr='Binning in PypeIt orientation (not the original)'),
                  'pad': dict(otype=int, descr='Integer number of pixels to mask beyond the slit edges'),
-                 'kernel': dict(otype=str, descr='Kernel used to generate scattered light image'),
                  'scattlight_raw': dict(otype=np.ndarray, atype=np.floating,
                                   descr='Image used to construct the edge traces; see '
                                         ':class:`~pypeit.images.buildimage.ScatteredLightImage` and '
@@ -65,7 +64,7 @@ class ScatteredLight(calibframe.CalibFrame):
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, pypeline=None, detname=None, nspec=None, nspat=None, PYP_SPEC=None, binning=None, pad=0,
-                 kernel=None, scattlight_raw=None, scattlight_model=None, scattlight_param=None):
+                 scattlight_raw=None, scattlight_model=None, scattlight_param=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -106,7 +105,7 @@ class ScatteredLight(calibframe.CalibFrame):
             msgs.warn("No scattered light parameters are available")
             return np.zeros_like(image)
         # Return the model of the scattered light
-        return scattlight.scattered_light_model(self.scattlight_param, image, kernel=self.kernel)
+        return scattlight.scattered_light_model(self.scattlight_param, image)
 
     def show(self, image=None, slits=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.
