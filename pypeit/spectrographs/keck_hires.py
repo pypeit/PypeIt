@@ -108,13 +108,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['dlength_range'] = 0.25
 
         # TODO: Order extrapolation is OFF by default.  Need to test how well adding orders plays with trying to account for overlap...
-        # par['calibrations']['slitedges']['add_missed_orders'] = True
-        # par['calibrations']['slitedges']['order_width_poly'] = 2
-        # par['calibrations']['slitedges']['order_gap_poly'] = 3
-        # NOTE: With add_missed_orders set to True and order_spat_range set to the
-        # default (None), the code will try to add missing orders over the full
-        # range of the detector mosaic!
-        #par['calibrations']['slitedges']['order_spat_range'] = [50., 3100.]
+        par['calibrations']['slitedges']['add_missed_orders'] = True
+        par['calibrations']['slitedges']['order_width_poly'] = 1
+        par['calibrations']['slitedges']['order_gap_poly'] = 3
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
@@ -123,17 +119,13 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
+        par['calibrations']['wavelengths']['n_final'] = 5 #[3] + 13 * [4] + [3]
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         par['calibrations']['wavelengths']['fwhm'] = 8.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        # TODO: the arxived solution is for 1x1 binning. It needs to be
-        # generalized for different binning!
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -165,6 +157,37 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
 
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+
+        bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+
+        # NOTE: With add_missed_orders set to True and order_spat_range set to the
+        # default (None), the code will try to add missing orders over the full
+        # range of the detector mosaic!
+        par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
+
+        # Return
         return par
 
     def init_meta(self):
