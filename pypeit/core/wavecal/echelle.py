@@ -224,6 +224,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
+    '''
     debug=True
     import matplotlib.pyplot as plt
     for ii in range(norders):
@@ -236,7 +237,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     plt.plot(arcspec_guess_pad.flatten('F'))
     plt.ylim(0.0, np.max(arccen_pad))
     plt.show()
-
+    '''
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(

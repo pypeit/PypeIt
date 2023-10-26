@@ -119,7 +119,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     #slitmask_shift = pixels.tslits2mask(tslits_shift)
     #slitmask_shift = slits.slit_img(flexure=lag_max[0])
-    debug = False
+    #debug = False
     if debug:
         # Now translate the slits in the tslits_dict
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
