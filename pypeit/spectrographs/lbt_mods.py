@@ -3,12 +3,12 @@ Module for LBT/MODS specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -206,14 +206,11 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LBT/MODS file: {fil}')
+        hdu = io.fits_open(fil)
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
@@ -327,7 +324,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -491,7 +488,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
@@ -648,7 +645,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.22
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -810,7 +807,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit

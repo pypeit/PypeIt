@@ -57,7 +57,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -121,14 +121,20 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            try:  # Science
-                decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
-            except KeyError:  # Standard!
-                try:
-                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                except KeyError:
-                    return None
-            return decker
+            mode = headarr[0]['HIERARCH ESO INS MODE']
+            if mode in ['LSS', 'MOS']:
+                try:  # Science
+                    return headarr[0]['HIERARCH ESO INS SLIT NAME']
+                except KeyError:  # Standard!
+                    try:
+                        return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                    except KeyError:
+                        return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+            elif mode == 'IMG':
+                # This is for the bias frames
+                return None
+            else:
+                msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -207,7 +213,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     camera = 'FORS2'
     header_name = 'FORS2'
     supported = True
-    comment = '300I, 300V gratings'
+    comment = '300I, 300V gratings. Supports LSS and MOS mode only.'
 
     def get_detector_par(self, det, hdu=None):
         """
