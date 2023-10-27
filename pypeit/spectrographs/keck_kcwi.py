@@ -215,7 +215,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 try:
                     hdrstr = 'TARGRA' if meta_key == 'ra' else 'TARGDEC'
                 except KeyError:
-                    hdrstr = ''
+                    msgs.error(f'Cannot determine the {meta_key} from the header')
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
@@ -1064,33 +1064,51 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
         if dispname == 'BH2':
-            x0 = np.array([3.49128562e+02/specbin, 2.45833322e+02/spatbin,  # kernel widths
-                           -1.26958208e+02/specbin, 1.49033883e+01/spatbin,  # pixel offsets
-                           1.00229122e+00,  # Zoom factor
-                           1.87534428e-01, -2.75679127e-01, 4.08198109e-01, -1.87826458e-01])  # Polynomial terms
+            x0 = np.array([ 2.67186394e+02/specbin, 1.60743078e+02/spatbin,  # Gaussian kernel widths
+                            2.98999820e+02/specbin, 1.45068103e+02/spatbin,  # Lorentzian kernel widths
+                            -1.37376475e+02/specbin, 6.07508615e+01/spatbin,  # pixel offsets
+                            9.86766634e-01,  # Zoom factor
+                            1.41130604e+00,  # kernel angle
+                            4.19246820e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                            7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
         elif dispname == 'BM':
-            x0 = np.array([3.50037423e+02/specbin, 2.38662990e+02/spatbin,  # kernel widths
-                           -3.82935541e+01/specbin, -2.04645954e+01/spatbin,  # pixel offsets
-                           1.01042546e+00,  # Zoom factor
-                           1.15251491e-01, -1.59419953e-01,  1.30877795e-01, -1.84324642e-02])  # Polynomial terms
+            # This solution had Cost: 8.8951e+07 and was based on a 1x1 dataset using pixelflat as the scattlight frame, and assuming pad=10
+
+       #      x0 = np.array([1.72694908e+02, 1.43224435e+01,
+       #                     1.55856081e+02,  1.18366623e+02,
+       # -6.32142819e+01,  1.52454051e+01,  9.96530165e-01,  1.30756297e+00,
+       #  7.81666600e-02,  8.25778311e-02, -2.91919118e-02, -3.24661854e-03,
+       #  4.32022859e-03])
+            x0 = np.array([ 60/specbin, 60/spatbin,  # Gaussian kernel widths
+                            60/specbin, 60/spatbin,  # Lorentzian kernel widths
+                            0/specbin, 0/spatbin,  # pixel offsets
+                            9.86766634e-01,  # Zoom factor
+                            1.41130604e+00,  # kernel angle
+                            4.19246820e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                            7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
         elif dispname == 'BL':
-            x0 = np.array([3.47000453e+02/specbin, 2.12462524e+02/spatbin,  # kernel widths
-                           -4.35179357e+01/specbin, 8.21150855e+00/spatbin,  # pixel offsets
-                           9.99651562e-01,  # Zoom factor
-                           1.18828616e-01, -3.22338051e-01, 5.07102665e-01, -2.85286699e-01])  # Polynomial terms
+            # This solution had Cost: 1.0184e+07 and was based on a 2x2 dataset using pixelflat as the scattlight frame, and assuming pad=10
+            x0 = np.array([1.45201474e+01/specbin, 1.34653515e+02/spatbin,  # Gaussian kernel widths
+                           1.32198875e+02/specbin, 1.60178190e+02/spatbin,  # Lorentzian kernel widths
+                           6.75891120e+01/specbin, 2.38622901e+01/spatbin,  # pixel offsets
+                           9.94430899e-01,  # Zoom factor
+                           2.02560248e-01,  # kernel angle
+                           1.90164026e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           7.00761436e-02, -3.67325245e-02, -2.55285293e-03, 2.41518440e-03])  # Polynomial terms
         else:
             msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
-            sigmx = 400.0 / specbin  # This is the spectral direction
-            sigmy = 200.0 / spatbin  # This is the spatial direction
-            shft_spec = 0.0 / specbin  # Shift of the scattered light in the spectral direction
-            shft_spat = 0.0 / spatbin  # Shift of the scattered light in the spatial direction
-            zoom = 1.0  # Zoom factor of the scattered light
-            term0, term1, term2, term3 = 0.1, -0.2, 0.3, -0.1  # Polynomial coefficients
-            x0 = [sigmx, sigmy, shft_spec, shft_spat, zoom, term0, term1, term2, term3]
+            x0 = np.array([200/specbin, 100/spatbin,  # Gaussian kernel widths
+                           200/specbin, 100/spatbin,  # Lorentzian kernel widths
+                           0.0/specbin, 0.0/spatbin,  # pixel offsets
+                           1.0,  # Zoom factor
+                           0.0,  # kernel angle
+                           0.0,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           0.1, 0.0, 0.0, 0.0])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, -200/specbin, -200/spatbin, 0, -10, -10, -10, -10],
-                  [600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 10, 10, 10, 10])
+        bounds = ([1, 1, 1, 1, -200 / specbin, -200 / spatbin, 0, -2 * np.pi, 0.0, -10, -10, -10, -10],
+                  [600 / specbin, 600 / spatbin, 600 / specbin, 600 / spatbin, 200 / specbin, 200 / spatbin, 2,
+                   2 * np.pi, 1000.0, 10, 10, 10, 10])
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
