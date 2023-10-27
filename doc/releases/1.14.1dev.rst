@@ -27,6 +27,10 @@ Functionality/Performance Improvements and Additions
 - Allow the specification of wavelength limits on the flexure cross-correlation
   against a sky template to limit the effect of unconstrained wavelength
   solutions at the ends of the spectrum.
+- Change ``overscan_method = 'polynomial'`` to ``overscan_method = 'chebyshev'``
+  to reflect the *type* of polynomial being fit.  Both names point to the same
+  code, but the name ``'polynomial'`` is deprecated and will be removed in the
+  future.
 
 Instrument-specific Updates
 ---------------------------
