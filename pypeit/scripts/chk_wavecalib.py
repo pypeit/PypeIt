@@ -16,7 +16,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument('input_file', type=str, nargs='+',
-                            help='PypeIt WaveCalib file [e.g. WaveCalib_A_1_DET01.fits] or '
+                            help='One or more PypeIt WaveCalib file [e.g. WaveCalib_A_1_DET01.fits] or '
                                  'spec2d file')
         return parser
 

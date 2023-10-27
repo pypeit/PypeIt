@@ -263,12 +263,13 @@ class ProcessImagesPar(ParSet):
         options['overscan_method'] = ProcessImagesPar.valid_overscan_methods()
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
-                            'Options are: {0}'.format(', '.join(options['overscan_method']))
+                            f'Options are: {", ".join(options["overscan_method"])}  Note: Method "polynomial" ' \
+                            'is identical to "chebyshev"; the former is be deprecated and will be removed.'
 
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
-                                '\'polynomial\', set overcan_par = order; for \'savgol\', ' \
+                                '\'chebyshev\', set overcan_par = order; for \'savgol\', ' \
                                 'set overscan_par = order, window size ; for \'median\', set ' \
                                 'overscan_par = None or omit the keyword.'
 
@@ -458,7 +459,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median']
+        return ['chebyshev', 'polynomial', 'savgol', 'median']
 
     @staticmethod
     def valid_combine_methods():

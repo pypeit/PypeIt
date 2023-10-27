@@ -5,14 +5,15 @@
 """
 from IPython import embed
 
+import warnings
+
+from astropy.convolution import convolve, Box2DKernel
+from astropy.timeseries import LombScargle
+import astropy.stats
 import numpy as np
 import scipy.ndimage
 import scipy.optimize
 import scipy.signal
-
-from astropy.convolution import convolve, Box2DKernel
-from astropy.timeseries import LombScargle
-from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -672,6 +673,9 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median' 
                              else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
         if method.lower() == 'polynomial':
+            warnings.warn('Method "polynomial" is identical to "chebyshev".  Former will be deprecated.',
+                          DeprecationWarning)
+        if method.lower() in ['polynomial', 'chebyshev']:
             poly = np.polynomial.Chebyshev.fit(np.arange(osfit.size), osfit, params[0])
             ossub = poly(np.arange(osfit.size))
         elif method.lower() == 'savgol':
@@ -874,8 +878,8 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         tmp = outframe.copy()
         tmp[osd_slice] -= model_pattern
         mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
-        old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
-        new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5)[-1]
+        new_ron = astropy.stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
         msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
         # Subtract the model pattern from the full datasec

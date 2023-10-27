@@ -142,11 +142,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
             Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
             In this routine, 'method' is only passed to final dict.
         minwave (:obj:`float`, optional):
-            Miniuim wavelength to use for the correlation.  If ``None`` or less than
+            Minimum wavelength to use for the correlation.  If ``None`` or less than
             the minumum wavelength of either ``obj_skyspec`` or ``arx_skyspec``,
             this has no effect.  Default is None.
         maxwave (:obj:`float`, optional):
-            Maximum wavelength to use for the correlation.  If ``None`` or grater than
+            Maximum wavelength to use for the correlation.  If ``None`` or greater than
             the maximum wavelength of either ``obj_skyspec`` or ``arx_skyspec``,
             this has no effect.  Default is None.
 
@@ -443,11 +443,11 @@ def spec_flex_shift_global(slit_specs, islit, sky_spectrum, arx_fwhm_pix, empty_
             Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
             Passed to spec_flex_shift().
         minwave (:obj:`float`, optional):
-            Miniuim wavelength to use for the correlation.  If ``None`` or less than
+            Minimum wavelength to use for the correlation.  If ``None`` or less than
             the minumum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
         maxwave (:obj:`float`, optional):
-            Maximum wavelength to use for the correlation.  If ``None`` or grater than
+            Maximum wavelength to use for the correlation.  If ``None`` or greater than
             the maximum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
 
@@ -524,11 +524,11 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwh
             Two methods are available: 'boxcar' and 'slitcen' (see spec_flexure_slit()).
             Passed to spec_flex_shift().
         minwave (:obj:`float`, optional):
-            Miniuim wavelength to use for the correlation.  If ``None`` or less than
+            Minimum wavelength to use for the correlation.  If ``None`` or less than
             the minumum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
         maxwave (:obj:`float`, optional):
-            Maximum wavelength to use for the correlation.  If ``None`` or grater than
+            Maximum wavelength to use for the correlation.  If ``None`` or greater than
             the maximum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
 
@@ -650,11 +650,11 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
         excess_shft (:obj:`str`, optional):
             Passed to spec_flex_shift()
         minwave (:obj:`float`, optional):
-            Miniuim wavelength to use for the correlation.  If ``None`` or less than
+            Minimum wavelength to use for the correlation.  If ``None`` or less than
             the minumum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
         maxwave (:obj:`float`, optional):
-            Maximum wavelength to use for the correlation.  If ``None`` or grater than
+            Maximum wavelength to use for the correlation.  If ``None`` or greater than
             the maximum wavelength of either this sky or ``sky_spectrum``,
             this has no effect.  Default is None.
 
