@@ -605,10 +605,11 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             data, 1 for amplifier 1, 2 for amplifier 2, etc.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
-            polynomial (Chebyshev), savgol, median.
+            chebyshev, polynomial, savgol, median.  ("polynomial" is deprecated
+            and will be removed)
         params (:obj:`list`, optional):
-            Parameters for the overscan subtraction.  For ``method=polynomial``,
-            set ``params`` to the order;
+            Parameters for the overscan subtraction.  For ``method=chebyshev``
+            or ``method=polynomial``set ``params`` to the order;
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):

@@ -264,14 +264,14 @@ class ProcessImagesPar(ParSet):
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
                             f'Options are: {", ".join(options["overscan_method"])}  Note: Method "polynomial" ' \
-                            'is identical to "chebyshev"; the former is be deprecated and will be removed.'
+                            'is identical to "chebyshev"; the former is deprecated and will be removed.'
 
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
-                                '\'chebyshev\', set overcan_par = order; for \'savgol\', ' \
-                                'set overscan_par = order, window size ; for \'median\', set ' \
-                                'overscan_par = None or omit the keyword.'
+                                '\'chebyshev\' or \'polynomial\', set overcan_par = order; ' \
+                                'for \'savgol\', set overscan_par = order, window size ; ' \
+                                'for \'median\', set overscan_par = None or omit the keyword.'
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -499,8 +499,8 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
 
-        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 1:
-            raise ValueError('For polynomial overscan method, set overscan_par = order')
+        if self.data['overscan_method'] in ['polynomial', 'chebyshev'] and len(self.data['overscan_par']) != 1:
+            raise ValueError('For chebyshev/polynomial overscan method, set overscan_par = order')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
@@ -862,13 +862,13 @@ class FlexurePar(ParSet):
 
         defaults['minwave'] = None
         dtypes['minwave'] = [int, float]
-        descr['minwave'] = 'Miniimum wavelength to use for the correlation.  If ``None`` or less than ' \
-                           'the minumum wavelength of either the object or archive sky spectrum, this ' \
+        descr['minwave'] = 'Minimum wavelength to use for the correlation.  If ``None`` or less than ' \
+                           'the minimum wavelength of either the object or archive sky spectrum, this ' \
                            'this parameter has no effect.'
 
         defaults['maxwave'] = None
         dtypes['maxwave'] = [int, float]
-        descr['maxwave'] = 'Maximum wavelength to use for the correlation.  If ``None`` or grater than ' \
+        descr['maxwave'] = 'Maximum wavelength to use for the correlation.  If ``None`` or greater than ' \
                            'the maximum wavelength of either the object or archive sky spectrum, this ' \
                            'this parameter has no effect.'
 
