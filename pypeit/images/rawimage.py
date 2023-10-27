@@ -1149,19 +1149,26 @@ class RawImage:
             if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
                 scatt_img = scattlight.evaluate(msscattlight.scattlight_param, _frame)
-                debug = False  # RJC requests to keep this here for debugging
+                debug = True  # RJC requests to keep this here for debugging
                 if debug:
+                    embed()
+                    tmp = msscattlight.scattlight_param.copy()
+                    tmp[:6] *= 2
+                    print("\n\n\n2x2 BINNING ASSUMED!!!\n\n\n")
+                    print(tmp)
                     spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
                     pad = msscattlight.pad // spatbin
                     offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
-                    plt.subplot(131)
+                    plt.subplot(221)
+                    plt.imshow(_frame, vmin=vmin, vmax=2*np.median(_frame))
+                    plt.subplot(222)
                     plt.imshow(_frame*offslitmask, vmin=vmin, vmax=vmax)
-                    plt.subplot(132)
+                    plt.subplot(223)
                     plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
-                    plt.subplot(133)
+                    plt.subplot(224)
                     plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax / 2, vmax=vmax / 2)
                     plt.show()
             elif self.par["scattlight_method"] == "archive":
