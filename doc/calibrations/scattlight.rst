@@ -50,17 +50,20 @@ example will pad the slits by 10 detector pixels, assuming 1x1 binning):
 Note: if your data are binned by 2 in the spatial direction, then setting ``pad=10`` would actually
 pad the slit edges by 5 pixels.
 
-The current scattered light model involves a 9 parameter fit to the inter-slit regions. The model
+The current scattered light model involves a 13 parameter fit to the inter-slit regions. The model
 utilises the observed 2D (trimmed+oriented+debiased) frame to estimate the scattered light. The
-scattered light model is essentially a blurred, shifted, flux-scaled, and zoomed version of the
-detector image. The amount of blurring and shifting in the spatial and spectral direction are done
-separately (2 parameters each), and there is a single parameter to estimate the zoom factor. The
-flux-scaling is a cubic polynomial (4 parameters) to the spectral direction. Once the best-fitting
+scattered light model is essentially a blurred, shifted, flux-scaled, rotated, and zoomed version of the
+detector image. The amount of blurring in the spatial and spectral direction include contributions from
+a Gaussian and a Lorentzian kernel. The relative importance of these kernels is controlled by scaling
+parameter (1 paramerer), and each kernel has two widths each (4 parameters total), and the joint kernel
+is rotated (1 additional parameter). The scattered light image is than shifted in the spectral and spatial
+directions (2 additional parameters), and there is a single parameter to estimate the zoom factor. Finally,
+the scattered light flux is scaled by a low order 2D polynomial (4 parameters). Once the best-fitting
 model parameters are determined, these can be applied to any other frame to estimate the scattered
 light contribution of this frame.
 
 Alternatively, the scattered light can be determined for each frame independently (i.e. you can
-derive a separate set of 9 model parameters for each frame that you wish to perform a scattered
+derive a separate set of 13 model parameters for each frame that you wish to perform a scattered
 light correction). To set this option, you can add the following arguments to your pypeit file:
 
 .. code-block:: ini
