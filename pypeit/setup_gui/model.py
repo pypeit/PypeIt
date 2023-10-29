@@ -376,6 +376,16 @@ class PypeItMetadataUniquePathsProxy(QAbstractListModel):
 
         return None    
 
+    def getPaths(self):
+        """Returns all the paths known to this model.
+        
+        Return: 
+            list of str: The list of paths, or an empty list of the model is empty.
+        """
+        if self.metadata is not None:
+            return list(self.metadata['directory'][self._unique_index])
+        else:
+            return []
 
 class PypeItMetadataModel(QAbstractTableModel):
     """
@@ -388,10 +398,14 @@ class PypeItMetadataModel(QAbstractTableModel):
         metadata (PypeItMetaData): The PypeItMetaData object being wrapped. If this is None, the
                                    model is in a "NEW" state.
     """
-    def __init__(self, metadata):
+    def __init__(self, metadata, spectrograph=None):
         super().__init__()
 
         self.metadata = metadata
+        if self.metadata is not None:
+            self.spectrograph = metadata.spectrograph
+        else:
+            self.spectrograph = spectrograph
         self.editable_columns=['calib', 'comb_id', 'bkg_id', 'frametype']
 
         self.colnames = []
@@ -592,10 +606,43 @@ class PypeItMetadataModel(QAbstractTableModel):
         """Sets the PypeItMetaData object being wrapped.
         
         Args:
-            metadata (PypeItMetaData): The metadata being wrapped.
+            metadata (:obj:`pypeit.metadata.PypeItMetaData`): The metadata being wrapped.
         """
         self.metadata=metadata
+        if self.metadata is None:
+            self.spectrograph=None
+        else:
+            self.spectrograph=metadata.spectrograph
         self.reset()
+
+    def setSpectrograph(self, spectrograph):
+        """Sets the spectrograph being used.
+        
+        Args:
+            spectrograph (str,:obj:`pypeit.spectrographs.spectrograph`): The spectrograph being wrapped.
+        """
+        # This is called as an signal handler when the clipboard model changes. In this case
+        # it receives a string
+        if isinstance(spectrograph, str):
+            if len(spectrograph) == 0:
+                # Qt will helpfully convert a None to an empty string
+                spectrograph = None
+            else:
+                spectrograph = spectrographs.util.load_spectrograph(spectrograph)
+
+        if self.metadata is None or self.spectrograph is None:
+            self.spectrograph = spectrograph
+            if spectrograph is not None:
+                # Setting the spectrograph on an empty metadata model
+                self.reset()
+        elif spectrograph is None or self.spectrograph.name != spectrograph.name:
+            # Changing the spectrograph of a non-empty metadata model. Clear the metadata and
+            # reset
+            self.spectrograph=spectrograph
+            self.metadata=None
+            self.reset()
+        
+        # Otherwise no change
 
     def removeMetadataRow(self, row):
         """Removes a row from the metadata
@@ -631,6 +678,62 @@ class PypeItMetadataModel(QAbstractTableModel):
         self.metadata.add_row(metadata_row)
         self.endInsertRows()
 
+    def pasteFrom(self, other_metadata_model):
+        if self.spectrograph is None and self.metadata is None:
+            # Pasting into an empty model, just copy from the other metadata
+            self.beginResetModel()
+            self.colnames = other_metadata_model.colnames
+            self.spectrograph = other_metadata_model.spectrograph
+            table_copy = other_metadata_model.metadata.table.copy(True)
+            self.metadata = PypeItMetaData(self.spectrograph, other_metadata_model.metadata.par, data=table_copy)
+            self.endResetModel()
+        else:
+            # Make sure the two metadata models are compatible
+            num_rows = len(other_metadata_model.metadata.table)
+            if num_rows == 0:
+                # Nothing to paste
+                return
+            elif self.spectrograph.name != other_metadata_model.spectrograph.name:
+                raise RuntimeError(f"Can't paste file metadata between different spectrographs.")
+            elif self.colnames != other_metadata_model.colnames:
+                raise RuntimeError(f"Can't paste file metadata with different columns.")
+            else:
+
+                # Paste the datas. First update the rows that have changed
+                first_updated_row = None
+                last_updated_row = None
+                indx = np.ones(self.rowCount(),dtype=bool)
+                current_files = self.metadata.frame_paths(indx)
+                indx = np.ones(other_metadata_model.rowCount(),dtype=bool)
+                other_files = other_metadata_model.metadata.frame_paths(indx)
+
+                
+                indices_to_add = [] # Keep track  of new rows to add
+
+                for i in range(len(other_files)):
+                    if other_files[i] in current_files:
+                        # Duplicate row, don't add a new row, rather overwrite
+                        indx = current_files.index(other_files[i])
+                        self.metadata.table[indx] = other_metadata_model.metadata.table[i]
+                        if first_updated_row is None:
+                            first_udpated_row = indx
+                        last_updated_row = indx
+                    else:
+                        indices_to_add.append(i)
+
+                # Signal clients for the range of updated rows. This may include extra rows
+                # but that's ok
+                if first_updated_row is not None:
+                    self.dataChanged.emit(self.index(first_udpated_row, 0),self.index(last_updated_row,self.columnCount()-1))
+                
+                # Now add new rows
+                if len(indices_to_add) > 0:
+                    self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount()+len(indices_to_add)-1)
+                    for i in indices_to_add:
+                        self.metadata.table.add_row(other_metadata_model.metadata.table[i])
+                    self.endInsertRows()
+                
+
     def createCopyForConfig(self, config_name):
         """Create a new copy of this metadata model containing only rows for a given config.
         
@@ -654,9 +757,13 @@ class PypeItMetadataModel(QAbstractTableModel):
         Return:
             PypeItMetadataModel: A deep copy of the meatdata in the given rows.
         """
-        table_copy = self.metadata.table[rows].copy(True)                
-        copy = PypeItMetadataModel(metadata=PypeItMetaData(self.metadata.spectrograph, self.metadata.par, data=table_copy))
-        return copy
+        # If this is an empty model, return another empty model
+        if self.spectrograph is None or self.metadata is None:
+            return PypeItMetadataModel(metadata=self.metadata, spectrograph=self.spectrograph)
+        else: # Copy the selected rows
+            table_copy = self.metadata.table[rows].copy(True)                
+            copy = PypeItMetadataModel(metadata=PypeItMetaData(self.spectrograph, self.metadata.par, data=table_copy))
+            return copy
     
     def getPathsModel(self):
         """Returns a model for displaying the paths in this metadata.
@@ -773,13 +880,18 @@ class PypeItParamsProxy(QAbstractItemModel):
         pypeit_setup (PypeItSetup): The PypeItSetup object containing the parameters to represent.
 
     """
-    def __init__(self, pypeit_setup):
+    def __init__(self, par, cfg_lines=None):
         super().__init__(None)
 
         # TODO is this needed? Currently self.par isn't used but maybe it could be used
         # to show default values to clients? Or help info?
-        self.par = pypeit_setup.par 
-        self._userConfigTree = _UserConfigTreeNode(ConfigObj(pypeit_setup.user_cfg))
+        self.par = par 
+        if cfg_lines is None:
+            # Create default config lines
+            cfg_lines = ["[rdx]",f"    spectrograph = {par['rdx']['spectrograph']}"]
+
+        self.cfg_lines = cfg_lines
+        self._userConfigTree = _UserConfigTreeNode(ConfigObj(cfg_lines))
 
     def getConfigLines(self):
         return self._userConfigTree.getConfigLines()
@@ -933,31 +1045,6 @@ class PypeItParamsProxy(QAbstractItemModel):
             # Column is always 0, because 1 is reserved for leaf nodes which can't be parents
             return super().createIndex(row, 0, node.parent)
 
-class ObservingConfigModel(QObject):
-    """A model representing an observing configuration, which contains a spectrogrpah and configuration values.
-
-    Args:
-        spectrograph (Spectrograph): The spectrograph used for the observation.
-        config_dict (dict): The configuration values for the observation.
-    """
-    def __init__(self, config_name, config_keys, config_dict):
-        self.name = config_name
-        self.config_keys = config_keys
-        self.config_dict = config_dict
-
-
-    @property
-    def spectrograph(self):
-        """str: Get the spectrograph name for this observing config."""
-        return self._spectrograph.name
-
-    def get_config_keys(self):
-        """Return the configuration keys for this observing config. They are returned
-        in the order they are displayed in by the view.
-        Returns:
-            list of str: The configuration keys for this observing config.
-        """
-        return self._spectrograph.configuration_keys()
 
 class PypeItFileModel(QObject):
     """
@@ -975,31 +1062,41 @@ class PypeItFileModel(QObject):
     stateChanged = Signal(str, ModelState)
     """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
 
-    def __init__(self, config_name, config_dict, metadata_model, params_model, state):
+    def __init__(self, metadata_model, state, name_stem, config_dict=None, params_model=None):
         super().__init__()
-        self._spectrograph = metadata_model.metadata.spectrograph
-        self.config_name = config_name 
-        self.metadata_model = metadata_model
-        self.params_model = params_model
-        self.save_location = None
         self.state = state
+        self.params_model=params_model
+        self.setMetadataModel(name_stem, config_dict, metadata_model)
+        self.save_location = None
 
-        # Build a list of the configuration key/value pairs, to avoid displaying them in the
-        # arbitrary order chosen by the dict
-        self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
+    def setMetadataModel(self, name_stem, config_dict, metadata_model):
 
-        # A paths model for the paths in this PypeIt file
+        self.metadata_model = metadata_model
+        self.name_stem = name_stem 
         self.paths_model = metadata_model.getPathsModel()
+
+        self._spectrograph = metadata_model.spectrograph
+
+        if self.state == ModelState.NEW:
+            self.config_values = []
+        else:            
+
+            # Build a list of the configuration key/value pairs, to avoid displaying them in the
+            # arbitrary order chosen by the dict
+            self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
+
 
     @property
     def filename(self):
         """Return the name of the pypeit file.
         """
-        save_dir = "" if self.save_location is None else os.path.join(self.save_location ,  f"{self._spectrograph.name}_{self.config_name}")
-        return os.path.join(save_dir, f"{self._spectrograph.name}_{self.config_name}.pypeit")
+        # TODO figure out when to use default name, vs a set name, vs "New Name.pypeit" or whatever.        
+        # If name is key in parent model, how do we change it???
+        save_dir = "" if self.save_location is None else os.path.join(self.save_location ,  f"{self.spec_name}_{self.name_stem}")
+        return os.path.join(save_dir, f"{self.spec_name}_{self.name_stem}.pypeit")
 
     @property
-    def spectrograph(self):
+    def spec_name(self):
         return self._spectrograph.name
 
     def save(self):
@@ -1007,15 +1104,23 @@ class PypeItFileModel(QObject):
         location must be set before calling this method.
         """
         try:
-            self.metadata_model.metadata.write_pypeit(self.save_location, cfg_lines=self.params_model.getConfigLines(),
-                                                      configs = [self.config_name], write_bkg_pairs=True)
+            if self.metadata_model.metadata is None:
+                metadata_table = None
+                setup_dict = {}
+            else:
+                metadata_table = self.metadata_model.metadata.table
+                setup_dict = self.metadata_model.metadata.unique_configurations()[self.name_stem]
+    
+            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False)    
+            pf.write(self.filename)
+            
         except Exception as e:
-            msgs.warn(f"Failed saving setup {self.config_name} to {self.save_location}.")
+            msgs.warn(f"Failed saving setup {self.name_stem} to {self.save_location}.")
             msgs.warn(traceback.format_exc())
             # Raise an exception that will look nice when displayed to the GUI
-            raise RuntimeError(f"Failed saving setup {self.config_name} to {self.save_location}.\nException: {e}")
+            raise RuntimeError(f"Failed saving setup {self.name_stem} to {self.save_location}.\nException: {e}")
         self.state = ModelState.UNCHANGED
-        self.stateChanged.emit(self.config_name, self.state)
+        self.stateChanged.emit(self.name_stem, self.state)
         
 
 class PypeItObsLogModel(QObject):
@@ -1050,20 +1155,25 @@ class PypeItObsLogModel(QObject):
         """
         msgs.info(f"Spectrograph is now {new_spec}")
         self._spectrograph = spectrographs.util.load_spectrograph(new_spec)
+        self.metadata_model.setSpectrograph(self._spectrograph)
         self.spectrograph_changed.emit(self._spectrograph.name)
-
 
     def setMetadata(self, metadata):
         """Sets the obslog to reflect a new PypeItMetadata object."""
         self.metadata_model.setMetadata(metadata)
-        self._spectrograph = metadata.spectrograph
+        self._spectrograph = self.metadata_model.spectrograph
         self.paths_model.setStringList(np.unique(metadata.table['directory']))
         self.spectrograph_changed.emit(self._spectrograph.name)
 
     @property
-    def spectrograph(self):
-        """str: The name of the current spectrograph. """
+    def spec_name(self):
+        """str: The name of the current spectrograph, or None if not set. """
         return None if self._spectrograph is None else self._spectrograph.name
+
+    @property
+    def spectrograph(self):
+        """:obj:`pypeit.spectrographs.spectrograph`: The currently selected spectrograph, or None if not set."""
+        return self._spectrograph
 
     @property
     def raw_data_directories(self):
@@ -1144,6 +1254,8 @@ class PypeItSetupGUIModel(QObject):
         self.pypeit_files = dict()
         self.log_buffer = None
         self.obslog_model = PypeItObsLogModel()
+        self._clipboard = PypeItMetadataModel(None,None)
+        self.obslog_model.spectrograph_changed.connect(self.clipboard.setSpectrograph)
 
     def setup_logging(self, logname, verbosity):
         """
@@ -1162,9 +1274,10 @@ class PypeItSetupGUIModel(QObject):
     def state(self):
         """ModelState: The state of the model.
         """
-        if self.obslog_model.state == ModelState.NEW:
-            msgs.info("GUI state is NEW")
-            return ModelState.NEW
+        if len(self.pypeit_files) == 0:
+            # No pypeit files, just use the obslog state
+            msgs.info(f"GUI state is {self.obslog_model.state}")
+            return self.obslog_model.state
         else:
             if any([file.state!=ModelState.UNCHANGED for file in self.pypeit_files.values()]):
                 msgs.info("GUI state is CHANGED")
@@ -1181,6 +1294,18 @@ class PypeItSetupGUIModel(QObject):
         self.obslog_model.reset()
         self.stateChanged.emit()
 
+    @property
+    def clipboard(self):
+        return self._clipboard
+    
+    @clipboard.setter
+    def clipboard(self,value):
+        # Don't overwrite the clipboard instance, so that views can keep their signals attached
+        if value is None or value.metadata is None:
+            self._clipboard.setMetadata(None)
+        else:
+            self._clipboard.setMetadata(value.metadata)
+
     def run_setup(self):
         """Run setup on the raw data in the obslog."""
 
@@ -1189,11 +1314,10 @@ class PypeItSetupGUIModel(QObject):
         if len(raw_data_files) == 0:
             raise ValueError("Could not find any files in any of the raw data paths.")
 
-        self._pypeit_setup = PypeItSetup.from_rawfiles(raw_data_files, self.obslog_model.spectrograph)
+        self._pypeit_setup = PypeItSetup.from_rawfiles(raw_data_files, self.obslog_model.spec_name)
 
         # These were taken from the default parameters in pypeit_obslog
         self._pypeit_setup.run(setup_only=True,
-                               write_files=False, 
                                groupings=True,
                                clean_config=False)
 
@@ -1207,59 +1331,80 @@ class PypeItSetupGUIModel(QObject):
         Args:
             pypeit_file (str): The pypeit file to open.
         """
-        pf = PypeItFile.from_file(pypeit_file)
+        pf = PypeItFile.from_file(pypeit_file, vet=False)
 
-        if len(pf.file_paths) == 0:
-            raise ValueError(f"PypeIt input file {pypeit_file} is missing a path entry.")
+        if pf.config is not None:
+            try:
+                spec_name = pf.config['rdx']['spectrograph']
+            except:
+                raise ValueError(f"PypeIt input file {pypeit_file} is missing a spectrograph.")
+        else:
+            raise ValueError(f"PypeIt input file {pypeit_file} is missing a configuration section with a spectrograph specified.")
 
-        self._pypeit_setup = PypeItSetup(pf.filenames,
-                                         usrdata=pf.data,
-                                         setups=[pf.setup_name],
-                                         cfg_lines=pf.cfg_lines,
-                                         pypeit_file=pypeit_file,
-                                         setup_dict=pf.setup)
+        if spec_name not in available_spectrographs():
+            raise ValueError(f"PypeIt input file {pypeit_file} contains an unknown spectrograph name: '{spec_name}'")
 
-        # Setup our proxy models and notify the view widgets
-        self._pypeit_setup.build_fitstbl()        
-        self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
-        self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
-        self.obslog_model.setMetadata(self._pypeit_setup.fitstbl)        
-        self.createFilesForConfigs()
-        self.stateChanged.emit()
+
+        if pf.data is not None:
+            # If the data block is fully setup, it won't have all of the metadata fields originally created by
+            # PypeItSetup, so re-create it
+
+            self._pypeit_setup = PypeItSetup(pf.filenames,
+                                            usrdata=pf.data,
+                                            setups=[pf.setup_name],
+                                            cfg_lines=pf.cfg_lines,
+                                            pypeit_file=pypeit_file)
+
+            # Setup our proxy models and notify the view widgets
+            self._pypeit_setup.build_fitstbl()        
+            self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
+            self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
+            self.obslog_model.setMetadata(self._pypeit_setup.fitstbl)        
+            self.createFilesForConfigs()
+            self.stateChanged.emit()
+        else:
+            # Create an empty file and add what information (paths, name, parameters) we do have
+            self.obslog_model.reset()
+            self.obslog_model.set_spectrograph(spec_name)
+            if len(pf.file_paths) > 0:
+                for path in len(pf.file_paths):
+                    self.obslog_model.add_raw_data_directory(path)
+                
+            params = PypeItParamsProxy(self.obslog_model.spectrograph.default_pypeit_par(),pf.cfg_lines)
+            if pf.setup is not None and len(pf.setup) != 0:
+                setup_name = pf.setup_name
+            else:
+                setup_name = "A"
+            empty_metadata = self.obslog_model.metadata_model.createCopyForRows([])
+            pf_model = PypeItFileModel(empty_metadata,
+                                       ModelState.NEW,
+                                       setup_name,
+                                       params_model=params)
+
+            pf_model.stateChanged.connect(self.stateChanged)
+
+            self.pypeit_files[setup_name] = pf_model            
+
+            self.filesAdded.emit([pf_model])
+            self.stateChanged.emit()
+
 
     def removeFile(self, name):
         del self.pypeit_files[name]
         self.filesDeleted.emit([name])
 
-    def createNewPypeItFile(self, config_name, selectedRows):
+    def createEmptyPypeItFile(self, new_name):
         # Create a new empty configuration.
-        # First figure out the name
-        # This is assuming a single letter name
-        if len(self.pypeit_files) == 0:
-            # No configs, just add "A"
-            new_name = "A"
-        else:
-            largest_name = max(self.pypeit_files.keys())
-            if largest_name == 'z':
-                raise ValueError("Failed to create new setup because there are too many loaded.")
-            new_name = chr(ord(largest_name)+1)
         msgs.info(f"Creating new pypeit file model for {new_name}")
 
-        # Get the metadata model for the given config_name
-        if config_name == 'ObsLog':
-            model = self.obslog_model.metadata_model
-        else:
-            model = self.pypeit_files[config_name].metadata_model
-
-        # Get the configuration for the first row
-        config_dict = model.metadata.get_configuration(selectedRows[0])
-        # TODO warn about mismatches in other rows?
-
-        pf_model = PypeItFileModel(new_name, 
-                                   config_dict, 
-                                   model.createCopyForRows(selectedRows),
-                                   PypeItParamsProxy(self._pypeit_setup),
-                                   state=ModelState.NEW)
+        # Create an empty copy of the obslog metadata for the new file
+        empty_metadata = self.obslog_model.metadata_model.createCopyForRows([])
+        default_params = PypeItParamsProxy(self.obslog_model.spectrograph.default_pypeit_par())
+        
+        pf_model = PypeItFileModel(empty_metadata,
+                                   ModelState.NEW,
+                                   new_name,
+                                   params_model=default_params)
 
         pf_model.stateChanged.connect(self.stateChanged)
 
@@ -1267,6 +1412,7 @@ class PypeItSetupGUIModel(QObject):
 
         self.filesAdded.emit([pf_model])
         self.stateChanged.emit()
+        return pf_model
 
     def closeAllFiles(self):
         # Delete all files
@@ -1294,11 +1440,12 @@ class PypeItSetupGUIModel(QObject):
         # Create a new PypeItFileModel for each unique configuration
         config_names = list(configs.keys())
         for config_name in config_names:
-            pf_model = PypeItFileModel(config_name, 
-                                       configs[config_name], 
-                                       self.obslog_model.metadata_model.createCopyForConfig(config_name),
-                                       PypeItParamsProxy(self._pypeit_setup),
-                                       state=state)
+            pf_model = PypeItFileModel(metadata_model=self.obslog_model.metadata_model.createCopyForConfig(config_name),
+                                       state=state,
+                                       name_stem=config_name,
+                                       config_dict=configs[config_name],
+                                       params_model=PypeItParamsProxy(self._pypeit_setup.par, self._pypeit_setup.user_cfg),
+                                       )
 
             # Any change to the file models can change the over all state, so connect the signals
             pf_model.stateChanged.connect(self.stateChanged)

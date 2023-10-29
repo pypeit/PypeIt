@@ -37,10 +37,9 @@ class OperationThread(QThread):
 
     completed = Signal(bool, tuple)
 
-    def __init__(self, main_window):
+    def __init__(self):
         super().__init__()
         self._operation = None
-        self._main_window = main_window
         self._max_progress = None
 
     def run(self):
@@ -68,13 +67,12 @@ class OperationThread(QThread):
         if self._max_progress is None:
             if max_progress is not None:
                 self._max_progress = max_progress
-                self._main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
+                SetupGUIController.main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
             else:
                 # Ignore the progress if there's no max progress yet
                 return
             
-        self._main_window.show_operation_progress(increase=1, 
-                                                  message = progress_message)
+        SetupGUIController.main_window.show_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, canceled, exc_info):
         """Signal handler that is notified when a background operation completes.
@@ -86,7 +84,7 @@ class OperationThread(QThread):
         msgs.info("Op complete")
         if self._operation is not None:
             self._operation.progressMade.disconnect(self._op_progress)
-            self._main_window.operation_complete()
+            SetupGUIController.main_window.operation_complete()
             self._operation.postRun(canceled, exc_info)
             self._operation = None
             self._max_progress = None
@@ -103,10 +101,9 @@ class MetadataOperation(QObject):
 
     progressMade = Signal(int, str)
 
-    def __init__(self, model, main_window):
+    def __init__(self, model):
         super().__init__()
         self._model=model
-        self.main_window = main_window
         self.name = "Run Setup"
         self._max_progress = None
 
@@ -139,7 +136,7 @@ class MetadataOperation(QObject):
         if exc_info[0] is not None:
             traceback_string = "".join(traceback.format_exception(*exc_info))
             msgs.warn(f"Failed to {self.name.lower()}:\n" + traceback_string)
-            self.main_window.display_error(f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
+            SetupGUIController.main_window.display_error(f"Failed to {self.name.lower()} {exc_info[0]}: {exc_info[1]}")
             self._model.reset()
         elif canceled:
             self._model.reset()
@@ -149,47 +146,103 @@ class MetadataOperation(QObject):
 
 class SetupOperation(MetadataOperation):
 
-    def __init__(self, model, main_window):
-        super().__init__(model, main_window)
+    def __init__(self, model):
+        super().__init__(model)
 
     def run(self):
         self._model.run_setup()
 
 class OpenFileOperation(MetadataOperation):
 
-    def __init__(self, model, main_window, file):
-        super().__init__(model, main_window)
+    def __init__(self, model, file):
+        super().__init__(model)
         self._file = file
 
     def run(self):
         self._model.open_pypeit_file(self._file)
 
+class MetadataReadOnlyAction(QAction):
+
+    def __init__(self, controller, menu_text, handler, shortcut=None):
+        super().__init__(menu_text)
+        self.triggered.connect(handler)
+        if shortcut is not None:
+            self.setShortcut(shortcut)
+        self._controller=controller
+
+    def updateEnabledStatus(self):
+        if self._controller._view is not None and len(self._controller._view.selectedRows()) > 0:
+            self.setEnabled(True)
+        else:
+            self.setEnabled(False)
+
+class MetadataWriteAction(QAction):
+
+    def __init__(self, controller, menu_text, handler, shortcut=None):
+        super().__init__(menu_text)
+        self.triggered.connect(handler)
+        if shortcut is not None:
+            self.setShortcut(shortcut)
+        self._controller=controller
+
+    def updateEnabledStatus(self):
+        if self._controller._is_pypeit_file:
+            if self._controller._view is not None and len(self._controller._view.selectedRows()) > 0:
+                self.setEnabled(True)
+            else:
+                self.setEnabled(False)
+        else:
+            self.setEnabled(False)
+
+class MetadataPasteAction(QAction):
+
+    def __init__(self, controller, menu_text, handler, shortcut=None):
+        super().__init__(menu_text)
+        self.triggered.connect(handler)
+        if shortcut is not None:
+            self.setShortcut(shortcut)
+        self._controller=controller
+
+    def updateEnabledStatus(self):
+        if self._controller._is_pypeit_file:
+            if SetupGUIController.model.clipboard.rowCount() > 0:
+                self.setEnabled(True)
+            else:
+                self.setEnabled(False)
+        else:
+            self.setEnabled(False)
+
 class PypeItMetadataController(QObject):
 
-    def __init__(self, main_window, model, is_pypeit_file):
-        self._main_window = main_window
+    def __init__(self, model, is_pypeit_file):
+        super().__init__()
         self._model = model
-        self.action_info = [("View File",   True,            None,                            self.view_file),
-                            ("View Header", True,            None,                            self.view_header),
-                            ("Copy",        True,            QKeySequence.StandardKey.Copy,   self.copy_metadata_rows),
-                            ("Cut",         is_pypeit_file,  QKeySequence.StandardKey.Cut,    self.cut_metadata_rows),
-                            ("Paste",       is_pypeit_file,  QKeySequence.StandardKey.Paste,  self.paste_metadata_rows),
-                            ("Comment Out", is_pypeit_file,  None,                            self.comment_out_metadata_rows),
-                            ("Uncomment",   is_pypeit_file,  None,                            self.uncomment_metadata_rows),
-                            ("Delete",      is_pypeit_file,  QKeySequence.StandardKey.Delete, self.delete_metadata_rows) ]
+        self._view = None
+        self._is_pypeit_file = is_pypeit_file
+
+        # Build actions
+        self._action_list = [MetadataReadOnlyAction(self, "View File",   self.view_file),
+                             MetadataReadOnlyAction(self, "View Header", self.view_header),
+                             MetadataReadOnlyAction(self, "Copy",        self.copy_metadata_rows,       shortcut=QKeySequence.StandardKey.Copy),
+                                MetadataWriteAction(self, "Cut",         self.cut_metadata_rows,        shortcut=QKeySequence.StandardKey.Cut),
+                                MetadataPasteAction(self, "Paste",       self.paste_metadata_rows,      shortcut=QKeySequence.StandardKey.Paste),
+                                MetadataWriteAction(self, "Comment Out", self.comment_out_metadata_rows),
+                                MetadataWriteAction(self, "Uncomment",   self.uncomment_metadata_rows),
+                                MetadataWriteAction(self, "Delete",      self.delete_metadata_rows,     shortcut=QKeySequence.StandardKey.Delete) ]
+        SetupGUIController.model.clipboard.modelReset.connect(self.updatedEnabledActions)
+        self.updatedEnabledActions()
 
     def getActions(self, parent):
-        action_list = []
-        for info in self.action_info:
-            action = QAction(text=info[0], parent=parent)
-            action.setEnabled(info[1])
-            if info[2] is not None:
-                action.setShortcut(info[2])
-            action.triggered.connect(info[3])
-            action_list.append(action)
-        return action_list
+        return self._action_list
             
+    def setView(self, view):
+        self._view = view
+        view.selectionUpdated.connect(self.updatedEnabledActions)
 
+    def updatedEnabledActions(self):
+        for action in self._action_list:
+            action.updateEnabledStatus()
+                    
     def view_file(self):
         pass
 
@@ -197,13 +250,31 @@ class PypeItMetadataController(QObject):
         pass
 
     def copy_metadata_rows(self):
-        pass
+        if self._view is not None:
+            row_indices = self._view.selectedRows()
+            msgs.info(f"Copying {len(row_indices)} rows to the clipboard.")
+            if len(row_indices) > 0:
+                row_model = self._model.createCopyForRows(row_indices)
+                SetupGUIController.model.clipboard = row_model
+        else:
+            msgs.warn("Copy from controller with no view")
+
 
     def cut_metadata_rows(self):
         pass
 
     def paste_metadata_rows(self):
-        pass
+        clipboard = SetupGUIController.model.clipboard
+        if clipboard.rowCount() > 0:
+            try:
+                msgs.info(f"Pasting {clipboard.rowCount()} rows")
+                self._model.pasteFrom(clipboard)
+            except Exception as e:
+                traceback_string = "".join(traceback.format_exc())
+                msgs.warn(f"Failed to paste metadata rows:\n" + traceback_string)
+                SetupGUIController.main_window.display_error(f"Could not paste rows to this PypeIt file: {e}")
+
+
 
     def comment_out_metadata_rows(self):
         pass
@@ -226,17 +297,16 @@ class PypeItObsLogController(QObject):
         operation_thread (:obj:`pypeit.setup_gui.controller.SetupGUIController`): The main Setup GUI controller.
     """
 
-    def __init__(self, main_window, model, setup_gui_controller):
+    def __init__(self, model, setup_gui_controller):
         super().__init__()
         self._model = model
-        self._main_window = main_window
         self.setup_gui_controller = setup_gui_controller
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(self._main_window, model, is_pypeit_file=False)
+        return PypeItMetadataController(model, is_pypeit_file=False)
 
 
     def setSpectrograph(self, spectrograph_name):
@@ -268,15 +338,14 @@ class PypeItFileController(QObject):
         model (:obj:`PypeItFileModel`): The model for the obs log.
     """
 
-    def __init__(self, main_window, model):
+    def __init__(self, model):
         self._model = model
-        self._main_window = main_window
 
     def setModel(self, model):
         self._model = model
 
     def getMetadataController(self, model):
-        return PypeItMetadataController(self._main_window, model, is_pypeit_file=True)
+        return PypeItMetadataController(model, is_pypeit_file=True)
 
 
 class SetupGUIController(QObject):
@@ -286,6 +355,10 @@ class SetupGUIController(QObject):
     Args:
         args (:class:`argparse.Namespace`): The non-QT command line arguments used to start the GUI.
     """
+
+
+    main_window = None
+    model = PypeItSetupGUIModel()
 
     def __init__(self, args):
         super().__init__()
@@ -301,7 +374,6 @@ class SetupGUIController(QObject):
                 old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
                 logpath.rename(old_log)
                 
-        self.model = PypeItSetupGUIModel()
         self.model.setup_logging(args.logfile, verbosity=args.verbosity)
         if args.spectrograph is not None:
             self.model.obslog_model.set_spectrograph(args.spectrograph)
@@ -313,17 +385,18 @@ class SetupGUIController(QObject):
             self.run_setup_at_startup = False
 
         self.model.obslog_model.default_extension = args.extension
-        self.main_window = SetupGUIMainWindow(self.model, self)
-        self.operation_thread = OperationThread(self.main_window)
+        SetupGUIController.main_window = SetupGUIMainWindow(self.model, self)
+        self.operation_thread = OperationThread()
 
-    def getObsLogController(self, model, main_window):
+
+    def getObsLogController(self, model):
         """Create the PypeItObsLogController as part of a MVC triplet.
 
         Args:
             model (:obj:`PypeItObsLogModel`): The model for the obs log.
             main_window (:obj:`SetupGUIMainWindow`): The mainwindow of the setup GUI.
         """
-        return PypeItObsLogController(main_window, model, self)
+        return PypeItObsLogController(model, self)
     
     def getPypeItFileController(self, model):
         """Create the PypeItObsLogController as part of a MVC triplet.
@@ -331,7 +404,7 @@ class SetupGUIController(QObject):
         Args:
             model (:obj:`PypeItFileModel`): The model for the obs log.
         """
-        return PypeItFileController(self.main_window, model)
+        return PypeItFileController(model)
 
     def start(self, app):
         """
@@ -362,7 +435,7 @@ class SetupGUIController(QObject):
             for file_model in self.model.pypeit_files.values():
                 if file_model.save_location is None:
                     if location is None or response != DialogResponses.ACCEPT_FOR_ALL:
-                        (location, response) = self.main_window.prompt_for_save_location(file_model.config_name, True)
+                        (location, response) = self.main_window.prompt_for_save_location(file_model.name_stem, True)
                         if response == DialogResponses.CANCEL:
                             # Cancel was pressed
                             return
@@ -371,17 +444,16 @@ class SetupGUIController(QObject):
                 file_model.save()
 
         except Exception as e:
-            self.view.display_error(str(e))
+            self.main_window.display_error(str(e))
 
     def save_one(self):
         """ Saves the currently selected configuration as a pypeit file. Called in response to the user
         clicking the "Save Tab" button."""
         try:
             config_name = self.main_window.tab_widget.currentWidget().name
+            self._save_tab(config_name)
         except Exception as e:
             self.main_window.display_error(str(e))
-
-        self._save_tab(config_name)
     
     def _save_tab(self, config_name):
         msgs.info(f"Saving config {config_name}")
@@ -455,7 +527,31 @@ class SetupGUIController(QObject):
             elif response == DialogResponses.CANCEL:
                 return
 
-        self.operation_thread.startOperation(SetupOperation(self.model, self.main_window))
+        self.operation_thread.startOperation(SetupOperation(self.model))
+
+    def createNewPypeItFile(self):
+        # First figure out the name
+        # TODO, use New File convention as above, which forces "save as" when saving a new file,
+        # or current default single letter naming scheme?
+        # If we use letters, use base 26 numbers to support more than 1 letter?
+        #new_name = "New File"
+        #i = 1
+        #while new_name in self.pypeit_files.keys():
+        #    i += 1
+        #    new_name = f"New File{i}"
+
+
+        if len(self.model.pypeit_files) == 0:
+            # No configs, just add "A"
+            new_name = "A"
+        else:
+            largest_name = max(self.model.pypeit_files.keys())
+            if largest_name == 'z':
+                raise ValueError("Failed to create new setup because there are too many loaded.")
+            new_name = chr(ord(largest_name)+1)
+
+        self.model.createEmptyPypeItFile(new_name)
+
 
     def open_pypeit_file(self):
         """Opens a PypeIt file. Called in response to the user the clicking the "Open" button. 
@@ -473,4 +569,4 @@ class SetupGUIController(QObject):
         file_to_open = self.main_window.prompt_for_open_file("Select PypeIt File", filter="PypeIt input files (*.pypeit)")
 
         if file_to_open is not None:
-            self.operation_thread.startOperation(OpenFileOperation(self.model, self.main_window, file_to_open))
+            self.operation_thread.startOperation(OpenFileOperation(self.model, file_to_open))

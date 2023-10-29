@@ -43,6 +43,9 @@ class InputFile:
         setup (:obj:`dict`):
             dict defining the Setup
             The first key contains the name
+        vet (bool,Optional):
+            Whether or not to vet the file after iniitialization. Defaults to True.
+            The vet() method can be called after initialization if needed.
     """
     flavor = 'Generic' # Type of InputFile
 
@@ -57,7 +60,8 @@ class InputFile:
                  config=None, 
                  file_paths:list=None,
                  data_table:Table=None,
-                 setup:dict=None):
+                 setup:dict=None,
+                 vet:bool=True):
         # Load up
         self.data = data_table
         self.file_paths = file_paths
@@ -65,7 +69,8 @@ class InputFile:
         self.config = None if config is None else configobj.ConfigObj(config)
 
         # Vet
-        self.vet()
+        if vet:
+            self.vet()
 
     @staticmethod
     def readlines(ifile:str):
@@ -98,13 +103,16 @@ class InputFile:
         return np.array([ l.split('#')[0] for l in lines ])
         
     @classmethod
-    def from_file(cls, input_file:str): 
+    def from_file(cls, input_file:str, vet:bool=True): 
         """
         Parse the user-provided input file.
 
         Args:
             input_file (:obj:`str`):
                 Name of input file
+            vet (bool,Optional):
+                Whether or not to vet the file after iniitialization. Defaults to True.
+                The vet() method can be called after initialization if needed.
 
         Returns:
             :class:`InputFile`: An instance of the InputFile class
@@ -130,8 +138,6 @@ class InputFile:
             paths, usrtbl = cls._read_data_file_table(lines[s:e])
             is_config[s-1:e+1] = False
         else:
-            if cls.datablock_required:
-                msgs.error("You have not specified the data block!")
             paths, usrtbl = [], None
 
         # Parse the setup block
@@ -158,17 +164,24 @@ class InputFile:
         return cls(config=list(lines[is_config]), 
                   file_paths=paths, 
                   data_table=usrtbl, 
-                  setup=sdict)
+                  setup=sdict,
+                  vet=vet)
 
     def vet(self):
         """ Check for required bits and pieces of the Input file
         besides the input objects themselves
         """
         # Data table
-        for key in self.required_columns:
-            if key not in self.data.keys():
-                msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
+        if self.data is None:
+            if self.datablock_required:
+                msgs.error("You have not specified the data block!")
+        else:
+            for key in self.required_columns:
+                if key not in self.data.keys():
+                    msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
 
+        if self.setup_required and self.setup is None:
+            msgs.error("Add setup info to your PypeIt file in the setup block!")
 
     @property
     def setup_name(self):
@@ -238,8 +251,6 @@ class InputFile:
         # Check
         if len(setups) > 1:
             msgs.error("Setup block contains more than one Setup!")
-        elif len(setups) != 1:
-            msgs.error("Add setup info to your PypeIt file in the setup block!")
 
         return setups, sdict
 
