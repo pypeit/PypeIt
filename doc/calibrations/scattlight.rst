@@ -50,6 +50,8 @@ example will pad the slits by 10 detector pixels, assuming 1x1 binning):
 Note: if your data are binned by 2 in the spatial direction, then setting ``pad=10`` would actually
 pad the slit edges by 5 pixels.
 
+# TODO :: Make sure this description is up-to-date!
+
 The current scattered light model involves a 13 parameter fit to the inter-slit regions. The model
 utilises the observed 2D (trimmed+oriented+debiased) frame to estimate the scattered light. The
 scattered light model is essentially a blurred, shifted, flux-scaled, rotated, and zoomed version of the
