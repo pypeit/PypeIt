@@ -1148,9 +1148,8 @@ class RawImage:
             # Apply the requested method for the scattered light
             if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...],
-                                                             np.logical_not(self.bpm[ii, ...]))
-                debug = True  # RJC requests to keep this here for debugging
+                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
+                debug = False  # RJC requests to keep this here for debugging
                 if debug:
                     embed()
                     tmp = msscattlight.scattlight_param.copy()

@@ -6,14 +6,13 @@
 import numpy as np
 
 from scipy.optimize import least_squares
-from scipy import signal, interpolate
-
+from scipy import signal, interpolate, ndimage
 from IPython import embed
 
 from pypeit import msgs, utils
 
 
-def scattered_light_model(param, img, gpm):
+def scattered_light_model(param, img):
     """ Model used to calculate the scattered light.
 
     The current model to generate the scattered light is a shifted, scaled, and blurred version of the
@@ -46,9 +45,6 @@ def scattered_light_model(param, img, gpm):
         Model used to calculate the scattered light. This function is used to
         generate a model of the scattered light, based on a set of model parameters
         that have been optimized using self.scattered_light().
-    gpm : `numpy.ndarray`_
-        Mask containing good pixels that should be included in the fit
-        shape is (nspec, nspat)
 
     Returns
     -------
@@ -74,8 +70,8 @@ def scattered_light_model(param, img, gpm):
 
     # Generate a 2D smoothing kernel, composed of a 2D Gaussian and a 2D Lorentzian
     sigmx, sigmy = max(sigmx_g, sigmx_l), max(sigmy_g, sigmy_l),
-    xkern, ykern = np.meshgrid(np.arange(int(6 * sigmx)) - 3 * sigmx,
-                               np.arange(int(6 * sigmy)) - 3 * sigmy)
+    xkern, ykern = np.meshgrid(np.arange(int(10 * sigmx)) - 5 * sigmx,
+                               np.arange(int(10 * sigmy)) - 5 * sigmy)
     # Rotate the kernel
     xkernrot = (xkern * np.cos(kern_angle) - ykern * np.sin(kern_angle))
     ykernrot = (xkern * np.sin(kern_angle) + ykern * np.cos(kern_angle))
@@ -91,18 +87,12 @@ def scattered_light_model(param, img, gpm):
     kernel = kernel_lorentzian + kern_scale * kernel_gaussian
     kernel /= np.sum(kernel)
 
-    # Convolve the GPM, and use this to reduce edge effects
-    gpm_weights = signal.oaconvolve(gpm, kernel, mode='same')
-    # gpm_weights = signal.fftconvolve(gpm, kernel, mode='same')
-    # Convolve the input image (note: most of the time is spent here)
-    # oaconvolve is the fastest option when the kernel is much smaller dimensions than the image
-    # scale_img = polyscale * signal.fftconvolve(img*gpm, kernel, mode='same') * utils.inverse(gpm_weights)
-    scale_img = polyscale * signal.oaconvolve(img*gpm, kernel, mode='same') * utils.inverse(gpm_weights)
+    scale_img = polyscale * signal.oaconvolve(img, kernel, mode='same')
     spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
     return spl(zoom_spec * (specvec + shft_spec), zoom_spat * (spatvec + shft_spat))
 
 
-def scattlight_resid(param, wpix, img, gpm):
+def scattlight_resid(param, wpix, img):
     """ Residual function used to optimize the model parameters
 
     Parameters
@@ -114,15 +104,13 @@ def scattlight_resid(param, wpix, img, gpm):
         to be used for computing the residual.
     img : `numpy.ndarray`_
         Data image to be used to compute the residual. Shape is (nspec, nspat)
-    gpm : `numpy.ndarray`_
-        Good pixel mask to use for the fit. Shape is (nspec, nspat)
 
     Returns
     -------
     resid : `numpy.ndarray`_
         A 1D vector of the residuals
     """
-    model = scattered_light_model(param, img, gpm)
+    model = scattered_light_model(param, img)
     return img[wpix] - model[wpix]
 
 
@@ -157,35 +145,39 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     success : :obj:`bool`_
         True if the fit was successful, False otherwise
     """
+    # Convert the BPM to a GPM for convenience
     gpm = np.logical_not(bpm)
-    _frame = frame * gpm
+
+    # Replace bad pixels with the nearest (good) neighbour
+    ind = ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
+    _frame = frame[tuple(ind)]
+
+    # Pad the edges of the data
     _frame[0, :] = np.median(_frame[0:10, :], axis=0)
     _frame[-1, :] = np.median(_frame[-10:, :], axis=0)
     _frame_pad = np.pad(_frame, detpad, mode='edge')  # Model should be generated on padded data
-    gpm_pad = np.pad(gpm, detpad, mode='constant', constant_values=0)  # but don't include padded data in the fit
     offslitmask_pad = np.pad(offslitmask * gpm, detpad, mode='constant', constant_values=0)  # but don't include padded data in the fit
     # Grab the pixels to be included in the fit
     wpix = np.where(offslitmask_pad)
 
     # Compute the best-fitting model parameters
     msgs.info("Performing a least-squares fit to the scattered light")
-    res_lsq = least_squares(scattlight_resid, x0, bounds=bounds, args=(wpix, _frame_pad, gpm_pad),
-                            verbose=2, ftol=1.0E-3)
+    res_lsq = least_squares(scattlight_resid, x0, bounds=bounds, args=(wpix, _frame_pad),
+                            verbose=2, ftol=1.0E-4)
 
     # Store if this is a successful fit
     success = res_lsq.success
     if success:
         msgs.info("Generating best-fitting scattered light model")
-        scatt_img = scattered_light_model(res_lsq.x, _frame_pad, gpm_pad)[detpad:-detpad, detpad:-detpad]
+        scatt_img = scattered_light_model(res_lsq.x, _frame_pad)[detpad:-detpad, detpad:-detpad]
     else:
         msgs.warn("Scattered light model fitting failed")
         scatt_img = np.zeros_like(frame)
 
-    debug = True
     if debug:
         # Do some checks on the results
         embed()
-        scatt_img_alt = scattered_light_model(x0, _frame_pad, gpm_pad)[detpad:-detpad, detpad:-detpad]
+        scatt_img_alt = scattered_light_model(x0, _frame_pad)[detpad:-detpad, detpad:-detpad]
         from matplotlib import pyplot as plt
         vmin, vmax = 0, 40.0#np.max(scatt_img)#40
         plt.imshow(frame - scatt_img, vmin=-vmax/2, vmax=vmax/2)

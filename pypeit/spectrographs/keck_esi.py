@@ -337,17 +337,14 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # and should be close to the final fitted values to reduce computational time)
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
-       #  x0 = np.array([ 2.99899335e+02,  2.01422930e+02,  2.18511169e+02,  1.95963738e+02,
-       # -4.96314134e+01,  5.64219402e+01,  9.68966612e-01, -1.79304303e+00,
-       #  5.24082933e-01,  3.73084496e-01, -2.93388226e-01, -3.00799508e-01,
-       #  2.86810088e-01])
-        x0 = np.array([2.66062476e+02/specbin, 1.57687605e+02/spatbin,  # Gaussian kernel widths
-                       2.65852665e+02/specbin, 1.77129333e+02/spatbin,  # Lorentzian kernel widths
-                       -50/specbin, 50.0/spatbin,  # pixel offsets (spec, spat)
-                       1.0, 1.0,  # Zoom factor (spec, spat)
-                       0.0,  # kernel angle
-                       0.05,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                       2.98836062e-01, -2.48646829e-01, -1.31752297e-01, 2.25868369e-01])  # Polynomial terms
+        # These parameters give a cost of 8.0833e+08 with the science frame used as scattlight (1x1 binning, pad=5)
+        x0 = np.array([2.63726939e+02/specbin, 1.57625683e+02/spatbin,  # Gaussian kernel widths
+                       2.63911253e+02/specbin, 1.74452723e+02/spatbin,  # Lorentzian kernel widths
+                       -1.38026314e+02/specbin, 7.72883842e+01/spatbin,  # pixel offsets
+                       9.59395069e-01, 1.04452747e+00,  # Zoom factor (spec, spat)
+                       6.00977118e-01,  # kernel angle
+                       7.70958895e-02,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       3.41914530e-01, -3.15033809e-01, -1.15238092e-01,  1.80022435e-01])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
         bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
