@@ -1067,7 +1067,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             x0 = np.array([ 2.67186394e+02/specbin, 1.60743078e+02/spatbin,  # Gaussian kernel widths
                             2.98999820e+02/specbin, 1.45068103e+02/spatbin,  # Lorentzian kernel widths
                             -1.37376475e+02/specbin, 6.07508615e+01/spatbin,  # pixel offsets
-                            9.86766634e-01,  # Zoom factor
+                            9.86766634e-01, 9.86766634e-01,  # Zoom factor
                             1.41130604e+00,  # kernel angle
                             4.19246820e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
                             7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
@@ -1088,12 +1088,17 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
                             7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
         elif dispname == 'BL':
             # This solution had Cost: 1.0184e+07 and was based on a 2x2 dataset using pixelflat as the scattlight frame, and assuming pad=10
-            x0 = np.array([1.45201474e+01/specbin, 1.34653515e+02/spatbin,  # Gaussian kernel widths
+            #1.1357e+07
+            # array([1.46747486e+01, 1.33657850e+02, 1.65940119e+02, 1.63479652e+02,
+            #        1.06998939e+02, -2.10911731e+01, 9.72422938e-01, 1.02567767e+00,
+            #        1.57990253e+00, 5.66603960e-03, 5.08362982e-02, 1.83209211e-03,
+            #        -3.83980954e-03, -2.89908954e-02])
+            x0 = np.array([1.05201474e+02/specbin, 1.34653515e+02/spatbin,  # Gaussian kernel widths
                            1.32198875e+02/specbin, 1.60178190e+02/spatbin,  # Lorentzian kernel widths
                            6.75891120e+01/specbin, 2.38622901e+01/spatbin,  # pixel offsets
-                           9.94430899e-01,  # Zoom factor
+                           9.94430899e-01, 9.94430899e-01,  # Zoom factor
                            2.02560248e-01,  # kernel angle
-                           1.90164026e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           0.090164026e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
                            7.00761436e-02, -3.67325245e-02, -2.55285293e-03, 2.41518440e-03])  # Polynomial terms
         else:
             msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
@@ -1106,8 +1111,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
                            0.1, 0.0, 0.0, 0.0])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, 1, 1, -200 / specbin, -200 / spatbin, 0, -2 * np.pi, 0.0, -10, -10, -10, -10],
-                  [600 / specbin, 600 / spatbin, 600 / specbin, 600 / spatbin, 200 / specbin, 200 / spatbin, 2,
+        bounds = ([1, 1, 1, 1, -200 / specbin, -200 / spatbin, 0, 0, -2 * np.pi, 0.0, -10, -10, -10, -10],
+                  [600 / specbin, 600 / spatbin, 600 / specbin, 600 / spatbin, 200 / specbin, 200 / spatbin, 2, 2,
                    2 * np.pi, 1000.0, 10, 10, 10, 10])
 
         # Return the best-fitting archival parameters and the bounds

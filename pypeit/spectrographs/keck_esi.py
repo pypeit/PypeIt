@@ -19,6 +19,7 @@ from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
+
 class KeckESISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/ESI specific code
@@ -71,7 +72,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             numamplifiers   = 2,
             gain            = np.atleast_1d([1.3, 1.3]), 
-            ronoise         = np.atleast_1d([2.5,2.5]), 
+            ronoise         = np.atleast_1d([2.5, 2.5]),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -336,17 +337,21 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # and should be close to the final fitted values to reduce computational time)
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
+       #  x0 = np.array([ 2.99899335e+02,  2.01422930e+02,  2.18511169e+02,  1.95963738e+02,
+       # -4.96314134e+01,  5.64219402e+01,  9.68966612e-01, -1.79304303e+00,
+       #  5.24082933e-01,  3.73084496e-01, -2.93388226e-01, -3.00799508e-01,
+       #  2.86810088e-01])
         x0 = np.array([2.66062476e+02/specbin, 1.57687605e+02/spatbin,  # Gaussian kernel widths
                        2.65852665e+02/specbin, 1.77129333e+02/spatbin,  # Lorentzian kernel widths
-                       -1.38348682e+02/specbin, 7.70314399e+01/spatbin,  # pixel offsets
-                       1.01701653e+00,  # Zoom factor
-                       9.46809475e-01,  # kernel angle
-                       5.24572902e-02,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       -50/specbin, 50.0/spatbin,  # pixel offsets (spec, spat)
+                       1.0, 1.0,  # Zoom factor (spec, spat)
+                       0.0,  # kernel angle
+                       0.05,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
                        2.98836062e-01, -2.48646829e-01, -1.31752297e-01, 2.25868369e-01])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
-                  [600/specbin, 600/spatbin, 600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 2*np.pi, 1000.0, 10, 10, 10, 10])
+        bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
+                  [600/specbin, 600/spatbin, 600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 2, 2*np.pi, 1000.0, 10, 10, 10, 10])
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
@@ -354,7 +359,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
     @property
     def norders(self):
         """
-        Number of orders for this spectograph. Should only defined for
+        Number of orders for this spectrograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
         return 10   # 15-6

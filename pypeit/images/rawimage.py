@@ -1144,11 +1144,12 @@ class RawImage:
         # Loop over the images
         for ii in range(self.nimg):
             # Mask bad pixels
-            _frame = self.image[ii, ...] * np.logical_not(self.bpm[ii, ...])
+            # _frame = self.image[ii, ...] * np.logical_not(self.bpm[ii, ...])
             # Apply the requested method for the scattered light
             if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.evaluate(msscattlight.scattlight_param, _frame)
+                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...],
+                                                             np.logical_not(self.bpm[ii, ...]))
                 debug = True  # RJC requests to keep this here for debugging
                 if debug:
                     embed()
