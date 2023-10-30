@@ -330,13 +330,13 @@ class SlitTraceSet(calibframe.CalibFrame):
     @property
     def slitord_id(self):
         """
-        Return array of slit_spatId (MultiSlit, IFU) or ech_order (Echelle) values
+        Return array of slit_spatId (MultiSlit, SlicerIFU) or ech_order (Echelle) values
 
         Returns:
             `numpy.ndarray`_:
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return self.spat_id
         if self.pypeline == 'Echelle':
             return self.ech_order
@@ -345,13 +345,13 @@ class SlitTraceSet(calibframe.CalibFrame):
     @property
     def slitord_txt(self):
         """
-        Return string indicating if the logs/QA should use "slit" (MultiSlit, IFU) or "order" (Echelle)
+        Return string indicating if the logs/QA should use "slit" (MultiSlit, SlicerIFU) or "order" (Echelle)
 
         Returns:
             str: Either 'slit' or 'order'
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return 'slit'
         if self.pypeline == 'Echelle':
             return 'order'
@@ -381,7 +381,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             int: zero-based index of the input spat_id
 
         """
-        if self.pypeline in ['MultiSlit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'SlicerIFU']:
             return np.where(self.spat_id == slitord)[0][0]
         elif self.pypeline in ['Echelle']:
             return np.where(self.ech_order == slitord)[0][0]
@@ -418,7 +418,7 @@ class SlitTraceSet(calibframe.CalibFrame):
 
     def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
-        NOTE: This function is currently only used for IFU reductions.
+        NOTE: This function is currently only used for SlicerIFU reductions.
 
         Parameters
         ----------
@@ -447,6 +447,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
+        msgs.info("Generating an RA/DEC image")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))

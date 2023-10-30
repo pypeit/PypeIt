@@ -796,14 +796,14 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(scale_corr=None, skysub_frame=None)
+        opts = dict(scale_corr=None, skysub_frame=None, ra_offset=None, dec_offset=None)
 
         # Get the scale correction files
-        scale_corr = self.path_and_files('scale_corr', skip_blank=True)
+        scale_corr = self.path_and_files('scale_corr', skip_blank=False, check_exists=False)
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            opts['scale_corr'] = scale_corr*len(self.filenames)
+            opts['scale_corr'] = scale_corr.lower()*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
 
