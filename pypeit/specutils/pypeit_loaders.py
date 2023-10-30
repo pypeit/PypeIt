@@ -197,6 +197,9 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
                                         else sobj.get_opt_ext(fluxed=_cal)
         if not np.all(_gpm):
             msgs.warn(f'Ignoring {np.sum(np.logical_not(_gpm))} masked pixels.')
+        if not np.any(_gpm):
+            msgs.warn(f'Spectrum {sobj.NAME} is fully masked and will be ignored!')
+            continue
         _wave, _flux, _ivar = _enforce_monotonic_wavelengths(_wave[_gpm], _flux[_gpm], _ivar[_gpm],
                                                              strict=strict)
         flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
