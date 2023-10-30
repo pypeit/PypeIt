@@ -73,7 +73,7 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         binning of the template arc spectrum
 
     """
-    if not isinstance(arxiv_file, (str, pathlib.Path)):
+    if not isinstance(arxiv_file, (str, pathlib.Path)) or arxiv_file is None or arxiv_file == "":
         msgs.error(f"Incorrect or nonexistant arxiv file specified: {arxiv_file}")
 
     # Path already included?
