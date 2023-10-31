@@ -174,7 +174,7 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
         msgs.warn("Scattered light model fitting failed")
         scatt_img = np.zeros_like(frame)
 
-    if debug or True:
+    if debug:
         # Do some checks on the results
         embed()
         scatt_img_alt = scattered_light_model(x0, _frame_pad)[detpad:-detpad, detpad:-detpad]
