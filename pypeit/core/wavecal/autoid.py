@@ -765,7 +765,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
         fwhm=fwhm, debug=debug_peaks)
     # If there are no lines in the input arc, return
     if tcent.size == 0:
-        return None
+        return None, None, patterns.empty_patt_dict(tcent.size), None
 
     # Search for lines in the arxiv arc
     tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
@@ -773,7 +773,7 @@ def match_to_arxiv(lamps:list, spec:np.ndarray, wv_guess:np.ndarray,
             nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
     # If there are no lines in the arxiv arc, return
     if tcent_arxiv.size == 0:
-        return None
+        return None, None, patterns.empty_patt_dict(tcent_arxiv.size), None
 
     # Interpolate the input wavelengths
     fwv_guess = scipy.interpolate.interp1d(np.arange(len(wv_guess)), wv_guess,

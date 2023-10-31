@@ -770,7 +770,8 @@ class BuildWaveCalib:
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
-    def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray):
+    def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray,
+                            bad_orders_maxfrac:float=0.1):
         """ Attempt to redo the wavelength calibration for a set 
         of bad echelle orders
 
@@ -779,6 +780,9 @@ class BuildWaveCalib:
             dets (np.ndarray): detectors of the spectrograph
                 Multiple numbers for mosaic (typically)
             order_dets (np.ndarray): Orders on the each detector
+            bad_orders_maxfrac (float): Maximum fraction of bad orders
+            in a detector for attempting a refit
+
 
         Returns:
             bool: True if any of the echelle orders were 
@@ -795,7 +799,7 @@ class BuildWaveCalib:
                 continue
             # Are there few enough?
             # TODO -- make max_bad a parameter
-            max_bad = len(order_dets[idet])//10 + 1
+            max_bad = int(len(order_dets[idet])*bad_orders_maxfrac)
             if np.sum(in_det) > max_bad:
                 msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
                 continue
@@ -1107,7 +1111,8 @@ class BuildWaveCalib:
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
                 bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
-                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets)
+                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets,
+                                                     bad_orders_maxfrac=self.par['bad_orders_maxfrac'])
 
                 # Do another full 2D?
                 if any_fixed:

@@ -109,7 +109,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # TODO: Order extrapolation is OFF by default.  Need to test how well adding orders plays with trying to account for overlap...
         par['calibrations']['slitedges']['add_missed_orders'] = True
-        par['calibrations']['slitedges']['order_width_poly'] = 1
+        par['calibrations']['slitedges']['order_width_poly'] = 2
         par['calibrations']['slitedges']['order_gap_poly'] = 3
 
         # These are the defaults
@@ -118,10 +118,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_HIRES']
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = 5 #[3] + 13 * [4] + [3]
+        par['calibrations']['wavelengths']['sigdetect'] = 20.0
+        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
         # This is for 1x1 binning. Needs to be divided by binning for binned data!!
         par['calibrations']['wavelengths']['fwhm'] = 8.0
         # Reidentification parameters
