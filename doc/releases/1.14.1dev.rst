@@ -7,6 +7,7 @@ Dependency Changes
 
 - Removes use of deprecated ``pkg_resources``.
 - Require version ``>=1.12`` for ``specutils``.
+- Add ``psutil`` as a dependency for [test] and [dev] installs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
