@@ -178,45 +178,45 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     Parameters
     ----------
     spec : ndarray
-      arc spectrum
+        arc spectrum
     patt_dict : dict
-      dictionary of patterns
+        dictionary of patterns
     tcent: ndarray
-      List of the detections in this slit to be fit using the patt_dict
-    line_lists: astropy Table
-      Table containing the line list
-    Optional Parameters
-    -------------------
+        List of the detections in this slit to be fit using the patt_dict
+    line_lists: `astropy.table.Table`_
+        Table containing the line list
     vel_tol: float, default = 1.0
-      Tolerance in km/s for matching lines in the IDs to lines in the NIST database. The default is 1.0 km/s
+        Tolerance in km/s for matching lines in the IDs to lines in the NIST
+        database. The default is 1.0 km/s
     outroot: str
-      Path for QA file.
+        Path for QA file.
     slittxt : str
-      Label used for QA
+        Label used for QA
     thar: bool, default = False
-      True if this is a ThAr fit
+        True if this is a ThAr fit
     match_toler: float, default = 3.0
-      Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
-      an arc line by an iteration of the wavelength solution to the wavelength in the line list.
+        Matching tolerance when searching for new lines. This is the difference
+        in pixels between the wavlength assigned to an arc line by an iteration
+        of the wavelength solution to the wavelength in the line list.
     func: str, default = 'legendre'
-      Name of function used for the wavelength solution
+        Name of function used for the wavelength solution
     n_first: int, default = 2
-      Order of first guess to the wavelength solution.
+        Order of first guess to the wavelength solution.
     sigrej_first: float, default = 2.0
-      Number of sigma for rejection for the first guess to the wavelength solution.
+        Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-      Order of the final wavelength solution fit
+        Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
-      Number of sigma for rejection for the final fit to the wavelength solution.
+        Number of sigma for rejection for the final fit to the wavelength solution.
     verbose : bool
-      If True, print out more information.
+        If True, print out more information.
     plot_fil:
-      Filename for plotting some QA?
+        Filename for plotting some QA?
 
     Returns
     -------
     final_fit : dict
-      A dictionary containing all of the information about the fit
+        A dictionary containing all of the information about the fit
     """
 
     # Check that patt_dict and tcent refer to each other
@@ -264,47 +264,47 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     Parameters
     ----------
     spec : ndarray, shape = (nspec,)
-      arcline spectrum
+        arcline spectrum
     tcent : ndarray
-      Centroids in pixels of lines identified in spec
+        Centroids in pixels of lines identified in spec
     ifit : ndarray
-      Indices of the lines that will be fit
+        Indices of the lines that will be fit
     IDs: ndarray
-      wavelength IDs of the lines that will be fit (I think?)
+        wavelength IDs of the lines that will be fit (I think?)
     llist: dict
-      Linelist dictionary
+        Linelist dictionary
     disp: float
-      dispersion
-
-    Optional Parameters
-    -------------------
+        dispersion
     match_toler: float, default = 3.0
-      Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
-      an arc line by an iteration of the wavelength solution to the wavelength in the line list.
+        Matching tolerance when searching for new lines. This is the difference
+        in pixels between the wavlength assigned to an arc line by an iteration
+        of the wavelength solution to the wavelength in the line list.
     func: str, default = 'legendre'
-      Name of function used for the wavelength solution
+        Name of function used for the wavelength solution
     n_first: int, default = 2
-      Order of first guess to the wavelength solution.
+        Order of first guess to the wavelength solution.
     sigrej_first: float, default = 2.0
-      Number of sigma for rejection for the first guess to the wavelength solution.
+        Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-      Order of the final wavelength solution fit
+        Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
-      Number of sigma for rejection for the final fit to the wavelength solution.
+        Number of sigma for rejection for the final fit to the wavelength
+        solution.
     input_only: bool
-      If True, the routine will only perform a robust polyfit to the input IDs.
-      If False, the routine will fit the input IDs, and then include additional
-      lines in the linelist that are a satisfactory fit.
+        If True, the routine will only perform a robust polyfit to the input
+        IDs.  If False, the routine will fit the input IDs, and then include
+        additional lines in the linelist that are a satisfactory fit.
     weights: ndarray
-      Weights to be used?
+        Weights to be used?
     verbose : bool
-      If True, print out more information.
+        If True, print out more information.
     plot_fil:
-      Filename for plotting some QA?
+        Filename for plotting some QA?
 
     Returns
     -------
     final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
+        Fit result
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!

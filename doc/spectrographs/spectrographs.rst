@@ -38,6 +38,7 @@ instrument-specific details for running PypeIt.
    gemini_gnirs
    gtc_osiris
    deimos
+   keck_hires
    keck_kcwi
    lris
    keck_nires
@@ -53,3 +54,5 @@ instrument-specific details for running PypeIt.
    shane_kast
    soar_goodman
    xshooter
+
+

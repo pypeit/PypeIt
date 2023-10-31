@@ -31,7 +31,7 @@ from pypeit.scripts import obslog
 from pypeit.scripts import parse_slits
 from pypeit.scripts import qa_html
 from pypeit.scripts import ql
-from pypeit.scripts import ql_multislit
+#from pypeit.scripts import ql_multislit
 from pypeit.scripts import run_pypeit
 from pypeit.scripts import sensfunc
 from pypeit.scripts import setup

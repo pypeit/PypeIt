@@ -50,19 +50,24 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
         # See Echelle at 2.4m f/7.5 scale : http://mdm.kpno.noirlab.edu/mdm-ccds.html
         gain = np.atleast_1d([1.3])      # Hardcoded in the header 
         ronoise = np.atleast_1d([7.90])    # Hardcoded in the header
-        lenSpat = hdu[0].header['NAXIS1']     # length of spatial axis, including overscan. Horizontal axis of original .fits files
-        lenSpec = hdu[0].header['NAXIS2']      # length of spectral axis. Vertical axis of original .fits files
-    
-        datasec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 1, 300)
-        ])
-        oscansec = np.atleast_1d([
-            '[{0:d}:{1:d},{2:d}:{3:d}]'.format(1, lenSpec, 308, lenSpat)
 
-        ])
+        # Allowing hdu=None is only needed for the automated documentation.
+        # TODO: See if there's a better way to automatically create the detector
+        # table for the docs.
         if hdu is None:
+            lenSpat = None
+            lenSpec = None
+            datasec = None
+            oscansec = None
             binning = '1,1'                 # Most common use mode
         else:
+            # length of spatial axis, including overscan. Horizontal axis of
+            # original .fits files
+            lenSpat = hdu[0].header['NAXIS1']
+            # length of spectral axis. Vertical axis of original .fits files
+            lenSpec = hdu[0].header['NAXIS2']
+            datasec = np.atleast_1d([f'[1:{lenSpec},1:3002]'])
+            oscansec = np.atleast_1d([f'[1:{lenSpec},308:{lenSpat}]'])
             binning = self.compound_meta(self.get_headarr(hdu), 'binning')
 
         if binning != '1,1':
@@ -77,7 +82,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             specflip        = True,     # Wavelength decreases as pixel number increases
             spatflip        = False,    # Spatial position increases as pixel number increases
             platescale      = 0.28,     # Arcsec / pixel
-            darkcurr        = 0.0,      # Electrons per hour
+            darkcurr        = 0.0,      # e-/pixel/hour
             saturation      = 65535.,   # 16-bit ADC
             nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,
@@ -140,7 +145,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
 
         
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
@@ -228,7 +233,7 @@ class MDMModspecEchelleSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'cenwave', 'filter1','binning']
+        return ['dispname', 'cenwave', 'filter1', 'binning']
 
     def pypeit_file_keys(self):
         """

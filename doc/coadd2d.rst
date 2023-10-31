@@ -19,6 +19,32 @@ part of the data reduction process, although it can
 combine (without weighting) multiple exposures
 during reductions (see :ref:`2d_combine`).
 
+.. note::
+
+        Because the flux of the single reduced science frames is expressed in ``counts``,
+        coadding frames with different exposure times is not recommended.  If the user still
+        wishes to do so, the fluxes of the individual frames are rescaled by the median
+        exposure time. For example, if we have four frames with exposure times of
+        ``1800``, ``1800``, ``1800``, and ``1200`` seconds, the exposure
+        time of the coadded frame will be:
+
+        .. code-block:: python
+
+            coadd_exptime = np.percentile([1800,1800,1800,1200],50, method='higher')
+
+        and the flux of the individual frames will be rescaled by:
+
+        .. code-block:: python
+
+            rescale_factor = coadd_exptime / exptime
+
+        where ``exptime`` is the exposure time of the individual frames. ``coadd_exptime`` is saved
+        in the header of the coadded frame as ``ALLSPEC2D_EFFECTIVE_EXPTIME``, so that the user can
+        easily convert the flux of the coadded frame from ``counts`` to ``counts/s``.
+
+        Note, also, that the combination (without weighting) of multiple exposures during main reduction
+        (i.e, :ref:`2d_combine`) does not perform this rescaling.
+
 .. _coadd2d_file:
 
 coadd2d file

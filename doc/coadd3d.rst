@@ -155,13 +155,13 @@ Sky Subtraction
 
 The default behaviour of PypeIt is to subtract the model sky that is
 derived from the science frame during the reduction. If you would like
-to turn off sky subtraction, set the following keyword argument:
+to turn off sky subtraction, set the following keyword argument (all lowercase):
 
 .. code-block:: ini
 
     [reduce]
         [[cube]]
-            skysub_frame = None
+            skysub_frame = none
 
 If you would like to use a dedicated sky frame for sky subtraction
 that is separate from the science frame, then you need to provide
@@ -268,15 +268,51 @@ cubes covering different wavelength range, but it can coadd
 multiple spec2D files into a single datacube if the wavelength
 setup overlaps, and the spatial positions are very similar.
 
-Difficulties with combining multiple datacubes
-==============================================
+Combining multiple datacubes
+============================
 
 PypeIt is able to combine standard star frames for flux calibration, and
 should not have any difficulty with this. If your science observations are
 designed so that there is very little overlap between exposures, you should
-not expect the automatic combination algorithm to perform well. Instead, you
-should output individual data cubes and manually combine the cubes with some
-other purpose-built software.
+not assume that the automatic combination algorithm will perform well. Instead,
+you may prefer to output individual data cubes and manually combine the cubes
+with some other purpose-built software. If you know the relative offsets very
+well, then you can specify these, and PypeIt can combine all frames into a
+single combined datacube. This is the recommended approach, provided that you
+know the relative offsets of each frame. In the following example, the first
+cube is assumed to be the reference cube (0.0 offset in both RA and Dec), and
+the second science frame is offset relative to the first by:
+
+.. code-block:: ini
+
+    Delta RA x cos(Dec) = 1.0" W
+    Delta Dec = 2.0" N
+
+The offset convention used in PypeIt is that positive offsets translate the RA and Dec
+of a frame to higher RA (i.e. more East) and higher Dec (i.e. more North). In the above
+example, frame 2 is 1" to the West of frame 1, meaning that we need to move frame 2 by
+1" to the East (i.e. a correction of +1"). Similarly, we need to more frame 2 by 2" South
+(i.e. a correction of -2"). Therefore, in the above example, the coadd3d file would look
+like the following:
+
+.. code-block:: ini
+
+    # User-defined execution parameters
+    [rdx]
+        spectrograph = keck_kcwi
+        detnum = 1
+    [reduce]
+        [[cube]]
+            combine = True
+            output_filename = BB1245p4238_datacube.fits
+            align = True
+
+    # Read in the data
+    spec2d read
+                               filename  |  ra_offset | dec_offset
+    Science/spec2d_scienceframe_01.fits  |  0.0       | 0.0
+    Science/spec2d_scienceframe_02.fits  |  1.0       | -2.0
+    spec2d end
 
 .. _coadd3d_datamodel:
 
@@ -294,7 +330,7 @@ plot a wavelength slice of the cube:
 
     from matplotlib import pyplot as plt
     from astropy.visualization import ZScaleInterval, ImageNormalize
-    from pypeit.core.datacube import DataCube
+    from pypeit.coadd3d import DataCube
 
     filename = "datacube.fits"
     cube = DataCube.from_file(filename)

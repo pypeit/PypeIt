@@ -74,7 +74,7 @@ class bspline(datamodel.DataContainer):
     Attributes
     ----------
     breakpoints
-        Breakpoints for bspline, spacing for these breakpoints are determinated by keywords inputs;
+        Breakpoints for bspline, spacing for these breakpoints are determined by keywords inputs;
     nord
         Order of bspline; [default=4]
     npoly
@@ -700,7 +700,7 @@ def uniq(x, index=None):
 
     Returns
     -------
-    `np.ndarray`
+    result : `numpy.ndarray`_
         The indices of the last occurence in `x` of its unique
         values.
 

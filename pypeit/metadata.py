@@ -59,9 +59,8 @@ class PypeItMetaData:
             The list of files to include in the table.
         data (table-like, optional):
             The data to include in the table.  The type can be anything
-            allowed by the instantiation of
-            :class:`astropy.table.Table`.
-        usrdata (:obj:`astropy.table.Table`, optional):
+            allowed by the instantiation of `astropy.table.Table`_.
+        usrdata (`astropy.table.Table`_, optional):
             A user provided set of data used to supplement or overwrite
             metadata read from the file headers.  The table must have a
             `filename` column that is used to match to the metadata
@@ -69,28 +68,28 @@ class PypeItMetaData:
             `data` is also provided.  This functionality is only used
             when building the metadata from the fits files.
         strict (:obj:`bool`, optional):
-            Function will fault if there is a problem with the reading
-            the header for any of the provided files; see
-            :func:`~pypeit.spectrographs.spectrograph.get_headarr`.  Set
-            to False to instead report a warning and continue.
+            Function will fault if there is a problem with the reading the
+            header for any of the provided files; see
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_headarr`.
+            Set to False to instead report a warning and continue.
 
     Attributes:
         spectrograph
-            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph used to collect the data save to each file.
             The class is used to provide the header keyword data to
             include in the table and specify any validation checks.
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             PypeIt parameters used to set the code behavior.  If not
             provided, the default parameters specific to the provided
             spectrograph are used.
         configs (:obj:`dict`):
             A dictionary of the unique configurations identified.
-        type_bitmask (:class:`pypeit.core.framematch.FrameTypeBitMask`):
+        type_bitmask (:class:`~pypeit.core.framematch.FrameTypeBitMask`):
             The bitmask used to set the frame type of each fits file.
-        calib_bitmask (:class:`BitMask`):
+        calib_bitmask (:class:`~pypeit.bitmask.BitMask`):
             The bitmask used to keep track of the calibration group bits.
-        table (:class:`astropy.table.Table`):
+        table (`astropy.table.Table`_):
             The table with the relevant metadata for each fits file to
             use in the data reduction.
     """
@@ -104,6 +103,10 @@ class PypeItMetaData:
 
         # Initialize internals
         self.spectrograph = spectrograph
+        if files is not None:
+            # check if the spectrograph selected is correct for the data. NOTE: this is defined
+            # for each spectrograph independently, so it's currently not defined for all spectrographs
+            self.spectrograph.check_spectrograph(files if isinstance(files, str) else files[0])
         self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
@@ -155,10 +158,10 @@ class PypeItMetaData:
             files (:obj:`str`, :obj:`list`):
                 One or more files to use to build the table.
             strict (:obj:`bool`, optional):
-                Function will fault if :func:`fits.getheader` fails to
+                Function will fault if `astropy.io.fits.getheader`_ fails to
                 read any of the headers.  Set to False to report a
                 warning and continue.
-            usrdata (astropy.table.Table, optional):
+            usrdata (`astropy.table.Table`_, optional):
                 Parsed for frametype for a few instruments (e.g. VLT)
                 where meta data may not be required
 
@@ -278,7 +281,7 @@ class PypeItMetaData:
         this step by setting `match_type=False`.
 
         Args:
-            usrdata (:obj:`astropy.table.Table`):
+            usrdata (`astropy.table.Table`_):
                 A user provided set of data used to supplement or
                 overwrite metadata read from the file headers.  The
                 table must have a `filename` column that is used to
@@ -289,14 +292,14 @@ class PypeItMetaData:
 
         Raises:
             TypeError: 
-                Raised if `usrdata` is not an `astropy.io.table.Table`
+                Raised if `usrdata` is not an `astropy.table.Table`_
             KeyError:
                 Raised if `filename` is not a key in the provided table.
         """
         meta_data_model = meta.get_meta_data_model()
         # Check the input
         if not isinstance(usrdata, table.Table):
-            raise TypeError('Must provide an astropy.io.table.Table instance.')
+            raise TypeError('Must provide an astropy.table.Table instance.')
         if 'filename' not in usrdata.keys():
             raise KeyError('The user-provided table must have \'filename\' column!')
 
@@ -437,15 +440,12 @@ class PypeItMetaData:
         """
         Construct the MJD of when the frame was observed.
 
-        .. todo::
-            - Consolidate with :func:`convert_time` ?
-
         Args:
             row (:obj:`int`):
                 The 0-indexed row of the frame.
         
         Returns:
-            astropy.time.Time: The MJD of the observation.
+            `astropy.time.Time`_: The MJD of the observation.
         """
         return time.Time(self['mjd'][row], format='mjd')
 
@@ -456,7 +456,7 @@ class PypeItMetaData:
         Args:
             row (:obj:`int`):
                 The 0-indexed row of the frame.
-            obstime (:class:`astropy.time.Time`, optional):
+            obstime (`astropy.time.Time`_, optional):
                 The MJD of the observation.  If None, constructed using
                 :func:`construct_obstime`.
         
@@ -712,17 +712,11 @@ class PypeItMetaData:
 
         # If the frame types have been set, ignore anything listed in
         # the ignore_frames
-        indx = np.arange(len(self))
-        ignore_frames = self.spectrograph.config_independent_frames()
-        if ignore_frames is not None:
-            if 'frametype' not in self.keys():
-                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
-            ignore_frames = list(ignore_frames.keys())
-            msgs.info('Unique configurations ignore frames with type: {0}'.format(ignore_frames))
-            use = np.ones(len(self), dtype=bool)
-            for ftype in ignore_frames:
-                use &= np.logical_not(self.find_frames(ftype))
-            indx = indx[use]
+        ignore_frames, ignore_indx = self.ignore_frames()
+        # Find the indices of the frames not to ignore
+        indx = np.arange(len(self.table))
+        indx = indx[np.logical_not(np.in1d(indx, ignore_indx))]
+
         if len(indx) == 0:
             msgs.error('No frames to use to define configurations!')
 
@@ -816,12 +810,16 @@ class PypeItMetaData:
             if len(set(cfg.keys()) - set(self.keys())) > 0:
                 msgs.error('Configuration {0} defined using unavailable keywords!'.format(k))
 
+        # Some frame types need to be ignored
+        ignore_frames, ignore_indx = self.ignore_frames()
         # define the column 'setup' in self.table
         nrows = len(self)
         col = table.Column(data=['None'] * nrows, name='setup', dtype='U25')
         self.table.add_column(col)
         is_science = self.find_frames('science')    # Science frames can only have one configuration
         for i in range(nrows):
+            if i in ignore_indx:
+                continue
             for d, cfg in _configs.items():
                 # modify the configuration items only for specific frames. This is instrument dependent.
                 mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
@@ -840,10 +838,8 @@ class PypeItMetaData:
             # All are set, so we're done
             return
 
-        # Some frame types may have been ignored
-        ignore_frames = self.spectrograph.config_independent_frames()
+        # If there's no frames to ignore, we can safely return
         if ignore_frames is None:
-            # Nope, we're still done
             return
 
         # At this point, we need the frame type to continue
@@ -858,11 +854,21 @@ class PypeItMetaData:
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
-                # metakey is either not set or a string
-                assert metakey is None or isinstance(metakey, str), \
+                # metakey is either not set, or is a string/list
+                assert metakey is None or isinstance(metakey, str) or isinstance(metakey, list), \
                     'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
                     'correctly defined for {0}; values must be None or a string.'.format(
                         self.spectrograph.__class__.__name__)
+                # If a list is input, check all elements of the list are strings
+                if isinstance(metakey, list):
+                    for ll in metakey:
+                        assert isinstance(ll, str), \
+                            'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
+                            'correctly defined for {0}; values must be None or a string.'.format(
+                                self.spectrograph.__class__.__name__)
+                elif isinstance(metakey, str):
+                    # If metakey is a string, convert it to a one-element list
+                    metakey = [metakey]
 
                 # Get the list of frames of this type without a
                 # configuration
@@ -870,32 +876,52 @@ class PypeItMetaData:
                 if not np.any(indx):
                     continue
                 if metakey is None:
-                    # No matching meta data defined, so just set all
-                    # the frames to this (first) configuration
-                    self.table['setup'][indx] = cfg_key
+                    # No matching meta data defined, so just set all the frames to all of the configurations
+                    new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
+                    for c in range(len(self.table['setup'][indx])):
+                        if cfg_key in self.table['setup'][indx][c]:
+                            new_cfg_key[c] = self.table['setup'][indx][c]
+                        elif self.table['setup'][indx][c] == 'None':
+                            new_cfg_key[c] = cfg_key
+                        else:
+                            new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
+                    self.table['setup'][indx] = new_cfg_key
                     continue
 
-                # Find the unique values of meta for this configuration
-                uniq_meta = np.unique(self.table[metakey][in_cfg].data)
-                # Warn the user that the matching meta values are not
-                # unique for this configuration.
-                if uniq_meta.size != 1:
-                    msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
-                              + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                              + '{0} values.' .format(meta))
-                # Find the frames of this type that match any of the
-                # meta data values
-                indx &= np.isin(self.table[metakey], uniq_meta)
+                # Loop through the meta keys
+                for mkey in metakey:
+                    # Find the unique values of meta for this configuration
+                    uniq_meta = np.unique(self.table[mkey][in_cfg].data)
+                    # Warn the user that the matching meta values are not
+                    # unique for this configuration.
+                    if uniq_meta.size != 1:
+                        msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
+                                  + 'frames, configuration {0} does not have unique '.format(cfg_key)
+                                  + '{0} values.' .format(mkey))
+                    # Find the frames of this type that match any of the
+                    # meta data values
+                    indx &= np.isin(self.table[mkey], uniq_meta)
+
                 # assign
                 new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
                 for c in range(len(self.table['setup'][indx])):
                     if cfg_key in self.table['setup'][indx][c]:
                         new_cfg_key[c] = self.table['setup'][indx][c]
-                    if self.table['setup'][indx][c] == 'None':
+                    elif self.table['setup'][indx][c] == 'None':
                         new_cfg_key[c] = cfg_key
                     else:
                         new_cfg_key[c] = self.table['setup'][indx][c] + ',{}'.format(cfg_key)
                 self.table['setup'][indx] = new_cfg_key
+
+        # Check if still any of the configurations are not set. If yes, we want
+        # these frames to still be present in the .sorted file
+        not_setup = self.table['setup'] == 'None'
+        if np.any(not_setup):
+            cfg_gen = self.configuration_generator(start=len(np.unique(self.table['setup'][np.logical_not(not_setup)])))
+            nw_setup = next(cfg_gen)
+            self.configs[nw_setup] = {}
+            msgs.warn('All files that did not match any setup are grouped into a single configuration.')
+            self.table['setup'][not_setup] = nw_setup
 
     def clean_configurations(self):
         """
@@ -954,7 +980,7 @@ class PypeItMetaData:
                 boolean array.
 
         Returns:
-            numpy.ndarray: A boolean array, or an integer array if
+            `numpy.ndarray`_: A boolean array, or an integer array if
             ``index=True``, with the table rows associated with the requested
             setup/configuration.
         """
@@ -982,8 +1008,11 @@ class PypeItMetaData:
         # may not be integers instead of strings.
         self['calib'] = np.array([str(c) for c in self['calib']], dtype=object)
         # Collect and expand any lists
-        group_names = np.unique(np.concatenate(
-                        [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # group_names = np.unique(np.concatenate(
+        #                 [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
+        # DP changed to below because np.concatenate does not accept an empty list,
+        # which is the case when calib is None for all frames. This should avoid the code to crash
+        group_names = np.unique(sum([s.split(',') for s in self['calib'] if s not in ['all', 'None']], []))
         # Expand any ranges
         keep_group = np.ones(group_names.size, dtype=bool)
         added_groups = []
@@ -1093,7 +1122,8 @@ class PypeItMetaData:
         # The configuration must be present to determine the calibration
         # group
         if 'setup' not in self.keys():
-            msgs.error('Must have defined \'setup\' column first; try running set_configurations.')
+            msgs.error('CODING ERROR: Must have defined \'setup\' column first; try running '
+                       'set_configurations.')
         configs = np.unique(np.concatenate([_setup.split(',') for _setup in self['setup'].data])).tolist()
         if 'None' in configs:
             configs.remove('None')      # Ignore frames with undefined configurations
@@ -1106,7 +1136,9 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) & (self['framebit'] > 0)
+            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) # & (self['framebit'] > 0)
+            if not any(in_cfg):
+                continue
             icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
             for c in range(len(self['calib'][in_cfg])):
                 if self['calib'][in_cfg][c] == 'None':
@@ -1133,6 +1165,32 @@ class PypeItMetaData:
         # Check that the groups are valid
         self._check_calib_groups()
 
+    def ignore_frames(self):
+        """
+        Construct a list of frame types to ignore, and the corresponding indices of these frametypes in the table.
+
+        Returns:
+            :obj:`tuple`: Two objects are returned, (1) A dictionary where the
+            keys are the frame types that are configuration-independent and the
+            values are the metadata keywords that can be used to assign the
+            frames to a configuration group, and (2) an integer `numpy.ndarray`
+            with the table rows that should be ignored when defining the
+            configuration.
+        """
+        ignore_indx = np.arange(len(self.table))
+        ignore_frames = self.spectrograph.config_independent_frames()
+        ignmsk = np.zeros(len(self.table), dtype=bool)
+        if ignore_frames is not None:
+            if 'frametype' not in self.keys():
+                msgs.error('To ignore frames, types must have been defined; run get_frame_types.')
+            list_ignore_frames = list(ignore_frames.keys())
+            msgs.info('Unique configurations ignore frames with type: {0}'.format(list_ignore_frames))
+            for ftype in list_ignore_frames:
+                ignmsk |= self.find_frames(ftype)
+        # Isolate the frames to be ignored
+        ignore_indx = ignore_indx[ignmsk]
+        return ignore_frames, ignore_indx
+
     def find_frames(self, ftype, calib_ID=None, index=False):
         """
         Find the rows with the associated frame type.
@@ -1143,7 +1201,7 @@ class PypeItMetaData:
         Args:
             ftype (str):
                 The frame type identifier.  See the keys for
-                :class:`pypeit.core.framematch.FrameTypeBitMask`.  If
+                :class:`~pypeit.core.framematch.FrameTypeBitMask`.  If
                 set to the string 'None', this returns all frames
                 without a known type.
             calib_ID (:obj:`int`, optional):
@@ -1154,7 +1212,7 @@ class PypeItMetaData:
                 boolean array.
 
         Returns:
-            numpy.ndarray: A boolean array, or an integer array if
+            `numpy.ndarray`_: A boolean array, or an integer array if
             index=True, with the rows that contain the frames of the
             requested type.  
 
@@ -1186,7 +1244,7 @@ class PypeItMetaData:
         Args:
             ftype (str):
                 The frame type identifier.  See the keys for
-                :class:`pypeit.core.framematch.FrameTypeBitMask`.
+                :class:`~pypeit.core.framematch.FrameTypeBitMask`.
             calib_ID (:obj:`int`, optional):
                 Index of the calibration group that it must match.  If None,
                 any row of the specified frame type is included.
@@ -1218,7 +1276,7 @@ class PypeItMetaData:
         Set and return a Table with the frame types and bits.
         
         Args:
-            type_bits (numpy.ndarray):
+            type_bits (`numpy.ndarray`_):
                 Integer bitmask with the frame types.  The length must
                 match the existing number of table rows.
 
@@ -1227,7 +1285,7 @@ class PypeItMetaData:
                 will *overwrite* any existing columns.
         
         Returns:
-            `astropy.table.Table`: Table with two columns, the frame
+            `astropy.table.Table`_: Table with two columns, the frame
             type name and bits.
         """
         # Making Columns to pad string array
@@ -1300,10 +1358,10 @@ class PypeItMetaData:
                 Merge the frame typing into the exiting table.
 
         Returns:
-            :obj:`astropy.table.Table`: A Table with two columns, the
-            type names and the type bits.  See
-            :class:`pypeit.core.framematch.FrameTypeBitMask` for the
-            allowed frame types.
+            `astropy.table.Table`_: A Table with two columns, the type names and
+            the type bits.  See
+            :class:`~pypeit.core.framematch.FrameTypeBitMask` for the allowed
+            frame types.
         """
         # Checks
         if 'frametype' in self.keys() or 'framebit' in self.keys():
@@ -1378,6 +1436,11 @@ class PypeItMetaData:
                 msgs.info(f)
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
+            msgs.warn("These files are commented out and will be ignored during the reduction.")
+            # Comment out the frames that could not be identified
+            # first change the dtype of the filename column to be able to add a #
+            self['filename'] = self['filename'].value.astype(f"<U{np.char.str_len(self['filename']).max() + 3}")
+            self['filename'][indx] = ['# ' + fname for fname in self['filename'][indx]]
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")
@@ -1740,7 +1803,7 @@ class PypeItMetaData:
                 file.
 
         Returns:
-            `astropy.table.Table`: The table object that would have been
+            `astropy.table.Table`_: The table object that would have been
             written/printed if ``output == 'table'``. Otherwise, the method
             always returns None.
 
@@ -1850,7 +1913,7 @@ class PypeItMetaData:
                 The calibration group integer.
 
         Returns:
-            numpy.ndarray: Boolean array selecting those frames in the
+            `numpy.ndarray`_: Boolean array selecting those frames in the
             table included in the selected calibration group.
 
         Raises:

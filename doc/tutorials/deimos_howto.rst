@@ -329,7 +329,7 @@ Last, here is a screen shot from the GUI showing the
 .. image:: ../figures/deimos_spec1d.png
 
 This uses the
-`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
+`XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`__
 from the `linetools`_ package.  The black line is the flux and the
 red line is the estimated error.
 
@@ -348,6 +348,7 @@ fluxing file, named ``keck_deimos_1200g_m_7750.flux`` in this example:
 
     # User-defined fluxing parameters
     flux read
+      filename
       Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits
     flux end
 

@@ -5,13 +5,17 @@
 What's New in PypeIt
 ********************
 
-For a detailed log of code edits (including releases earlier than version
-1.5.0), see `CHANGELOG
-<https://github.com/pypeit/PypeIt/blob/release/CHANGES.rst>`__.
-
 .. contents:: Version Notes
     :depth: 1
     :local:
+
+----
+
+.. include:: releases/1.14.1dev.rst
+
+----
+
+.. include:: releases/1.14.0.rst
 
 ----
 
@@ -64,5 +68,12 @@ For a detailed log of code edits (including releases earlier than version
 ----
 
 .. include:: releases/1.5.0.rst
+
+----
+
+Starting after version 1.14.0, the logged changes are now only recorded by these
+release docs.  Before that, a detailed log of code edits (including releases
+earlier than version 1.5.0) was kept in a single location; see the `CHANGELOG
+<https://github.com/pypeit/PypeIt/blob/release/CHANGES.rst>`__.
 
 
