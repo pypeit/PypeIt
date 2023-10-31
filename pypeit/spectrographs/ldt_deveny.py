@@ -269,9 +269,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Turn off illumflat unless/until we can deal properly with flexure in
         #   the spatial direction.  All other defaults OK (as of v1.7.0)
-        #   Also, use an order=1 polynomial for fitting the overscan rather
-        #   a SavGol filter -- more appropriate for this CCD.
-        set_procpars = dict(use_illumflat=False, overscan_method='polynomial', overscan_par=1)
+        #   Also, use an order=1 chebyshev polynomial for fitting the overscan
+        #   rather a SavGol filter -- more appropriate for this CCD.
+        set_procpars = dict(use_illumflat=False, overscan_method='chebyshev', overscan_par=1)
         par.reset_all_processimages_par(**set_procpars)
 
         # For processing the arc frame, these settings allow for the combination of

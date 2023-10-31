@@ -628,7 +628,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         returned object is None.
     """
     # Check input
-    if method.lower() not in ['polynomial', 'savgol', 'median']:
+    if method.lower() not in ['polynomial', 'chebyshev', 'savgol', 'median']:
         msgs.error(f'Unrecognized overscan subtraction method: {method}')
     if rawframe.ndim != 2:
         msgs.error('Input raw frame must be 2D.')

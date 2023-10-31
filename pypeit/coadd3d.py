@@ -273,7 +273,7 @@ class DARcorrection:
 
         Parameters
         ----------
-        waves : `np.ndarray`_
+        waves : `numpy.ndarray`_
             1D array of wavelengths (units must be Angstroms)
 
         Returns
@@ -299,14 +299,14 @@ class DARcorrection:
 
         Parameters
         ----------
-        waves : `np.ndarray`_
+        waves : `numpy.ndarray`_
             1D array of wavelengths (units must be Angstroms)
 
         Returns
         -------
-        ra_corr : `np.ndarray`_
+        ra_corr : `numpy.ndarray`_
             The RA component of the atmospheric dispersion correction (in degrees) for each wavelength input.
-        dec_corr : `np.ndarray`_
+        dec_corr : `numpy.ndarray`_
             The Dec component of the atmospheric dispersion correction (in degrees) for each wavelength input.
         """
         # Determine the correction angle
@@ -597,18 +597,18 @@ class CoAdd3D:
         for the relative spectral scaling of the science frame
 
         Args:
-            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
                 2D PypeIt spectra object.
             scalecorr (:obj:`str`, optional):
                 A string that describes what mode should be used for the sky subtraction. The
                 allowed values are:
 
-                * default: Use the default value, as defined in self.set_default_scalecorr()
+                * default: Use the default value, as defined in :meth:`set_default_scalecorr`
                 * image: Use the relative scale that was derived from the science frame
                 * none: Do not perform relative scale correction
 
         Returns:
-            A tuple (this_scalecorr, relScaleImg) where this_scalecorr is a :obj:`str`_ that describes the
+            A tuple (this_scalecorr, relScaleImg) where this_scalecorr is a :obj:`str` that describes the
             scale correction mode to be used (see scalecorr description) and relScaleImg is a `numpy.ndarray`_
             (2D, same shape as science frame) containing the relative spectral scaling to apply to the science frame.
         """
@@ -678,19 +678,19 @@ class CoAdd3D:
         Determine the sky frame that should be used to subtract from the science frame
 
         Args:
-            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
                 2D PypeIt spectra object.
-            exptime (:obj:`float`_):
+            exptime (:obj:`float`):
                 The exposure time of the science frame (in seconds)
             opts_skysub (:obj:`str`, optional):
                 A string that describes what mode should be used for the sky subtraction. The
                 allowed values are:
-                default - Use the default value, as defined in self.set_default_skysub()
+                default - Use the default value, as defined in :meth:`set_default_skysub`
                 image - Use the sky model derived from the science frame
                 none - Do not perform sky subtraction
 
         Returns:
-            A tuple (this_skysub, skyImg, skyScl) where this_skysub is a :obj:`str`_ that describes the sky subtration
+            A tuple (this_skysub, skyImg, skyScl) where this_skysub is a :obj:`str` that describes the sky subtration
             mode to be used (see opts_skysub description), skyImg is a `numpy.ndarray`_ (2D, same shape as science
             frame) containing the sky frame to be subtracted from the science frame, and skyScl is a `numpy.ndarray`_
             (2D, same shape as science frame) containing the relative spectral scaling that has been applied to the
@@ -752,7 +752,7 @@ class CoAdd3D:
             of the corresponding science frame.
         waveimg : `numpy.ndarray`_
             2D image (same shape as the science frame) indicating the wavelength of each detector pixel.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+        slits : :class:`pypeit.slittrace.SlitTraceSet`):
             Class containing information about the slits
         spat_flexure: :obj:`float`, optional:
             Spatial flexure in pixels
@@ -846,16 +846,16 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         Parameters
         ----------
-        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_
+        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`
             2D PypeIt spectra object.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
         spat_flexure: :obj:`float`, optional
             Spatial flexure in pixels
 
         Returns
         -------
-        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`_
+        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`
             Alignment splines used for the astrometric correction
         """
         # Loading the alignments frame for these data

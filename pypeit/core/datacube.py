@@ -289,16 +289,16 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
     Generate the sensitivity function from a standard star DataCube.
 
     Args:
-        ss_file (:obj:`str`_):
+        ss_file (:obj:`str`):
             The relative path and filename of the standard star datacube. It should be fits format, and
-            for full functionality, should ideally of the form `pypeit.coadd3d.DataCube`_
+            for full functionality, should ideally of the form :class:`~pypeit.coadd3d.DataCube`
         senspar (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
             The parameters required for the sensitivity function computation.
         blaze_wave (`numpy.ndarray`_, optional):
             Wavelength array used to construct blaze_spline
         blaze_spline (`scipy.interpolate.interp1d`_, optional):
             Spline representation of the reference blaze function (based on the illumflat).
-        grating_corr (:obj:`bool`_, optional):
+        grating_corr (:obj:`bool`, optional):
             If a grating correction should be performed, set this variable to True.
 
     Returns:
@@ -666,7 +666,7 @@ def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None
     """
     Calculate the bounds of the WCS and the expected edges of the voxels, based on user-specified
     parameters or the extremities of the data. This is a convenience function
-    that calls the core function in `pypeit.core.datacube`_.
+    that calls the core function in :mod:`pypeit.core.datacube`.
 
     Parameters
     ----------
