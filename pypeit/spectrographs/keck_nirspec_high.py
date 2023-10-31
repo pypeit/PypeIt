@@ -46,7 +46,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'filter2', 'echangle', 'xdangle']
+        return ['filter1', 'filter2', 'echangle', 'xdangle', 'decker']
 
     def raw_header_cards(self):
         """
@@ -66,7 +66,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS']
+        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
     def pypeit_file_keys(self):
         """
@@ -1101,7 +1101,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS']
+        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
 
 
