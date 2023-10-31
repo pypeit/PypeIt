@@ -344,7 +344,8 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
                        9.59395069e-01, 1.04452747e+00,  # Zoom factor (spec, spat)
                        6.00977118e-01,  # kernel angle
                        7.70958895e-02,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                       3.41914530e-01, -3.15033809e-01, -1.15238092e-01,  1.80022435e-01])  # Polynomial terms
+                       -1.15238092e-01, 1.80022435e-01,   # Polynomial terms (coefficients of "spat" and "spat*spec")
+                       3.41914530e-01, -3.15033809e-01])  # Polynomial terms (coefficients of spec**index)
 
         # Now set the bounds of the fitted parameters
         bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, 0, -2*np.pi, 0.0, -10, -10, -10, -10],

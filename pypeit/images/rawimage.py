@@ -1141,6 +1141,7 @@ class RawImage:
         binning = self.detector[0]['binning']
         dispname = self.spectrograph.get_meta_value(self.spectrograph.get_headarr(self.filename), 'dispname')
 
+        # TODO :: We really need to pass in the CR mask here...
         # Loop over the images
         for ii in range(self.nimg):
             # Mask bad pixels

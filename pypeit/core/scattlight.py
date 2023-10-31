@@ -55,18 +55,17 @@ def scattered_light_model(param, img):
     sigmx_g, sigmy_g, sigmx_l, sigmy_l = param[0], param[1], param[2], param[3]
     shft_spec, shft_spat, zoom_spec, zoom_spat = param[4], param[5], param[6], param[7]
     kern_angle, kern_scale = param[8], param[9]
-    polyterms = param[10:]
+    polyterms_spat = param[10:12]
+    polyterms_spec = param[12:]
 
     # Make a grid of coordinates
     specvec, spatvec = np.arange(img.shape[0]), np.arange(img.shape[1])
     spat, spec = np.meshgrid(spatvec/(spatvec.size-1), specvec/(specvec.size - 1))
-    # Generate the polynomial efficiency scaling in the spectral direction
-    polyscale = polyterms[0] + polyterms[1]*spec + polyterms[2]*spat + polyterms[3]*spec*spat
-    # polyscale = np.zeros_like(img)
-    # for pp in range(polyterms_spec.size):
-    #     polyscale += polyterms_spec[pp] * spec ** pp
-    # for pp in range(polyterms_spat.size):
-    #     polyscale += polyterms_spat[pp] * spat ** pp
+    # Generate the polynomial efficiency scaling in the spatial direction
+    polyscale = spat*(polyterms_spat[0] + polyterms_spat[1]*spec)  # linear term and a spectral cross-term
+    # Now include the spectral direction
+    for pp in range(polyterms_spec.size):
+        polyscale += polyterms_spec[pp] * spec**pp
 
     # Generate a 2D smoothing kernel, composed of a 2D Gaussian and a 2D Lorentzian
     sigmx, sigmy = max(sigmx_g, sigmx_l), max(sigmy_g, sigmy_l),
@@ -149,6 +148,7 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     gpm = np.logical_not(bpm)
 
     # Replace bad pixels with the nearest (good) neighbour
+    msgs.info("Replacing bad pixels in the scattered light input")
     ind = ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
     _frame = frame[tuple(ind)]
 
@@ -174,27 +174,27 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
         msgs.warn("Scattered light model fitting failed")
         scatt_img = np.zeros_like(frame)
 
-    if debug:
+    if debug or True:
         # Do some checks on the results
         embed()
         scatt_img_alt = scattered_light_model(x0, _frame_pad)[detpad:-detpad, detpad:-detpad]
         from matplotlib import pyplot as plt
-        vmin, vmax = 0, 40.0#np.max(scatt_img)#40
+        vmin, vmax = 0, np.max(scatt_img)#40
         plt.imshow(frame - scatt_img, vmin=-vmax/2, vmax=vmax/2)
         plt.show()
         print(res_lsq.x)
 
-        plt.subplot(231)
+        plt.subplot(221)
         plt.imshow(_frame, vmin=vmin, vmax=vmax)
-        plt.subplot(232)
+        plt.subplot(222)
         plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
-        plt.subplot(233)
+        plt.subplot(223)
         plt.imshow(frame - scatt_img, vmin=-vmax/2, vmax=vmax/2)
-        plt.subplot(234)
-        plt.imshow(_frame, vmin=vmin, vmax=vmax)
-        plt.subplot(235)
-        plt.imshow(scatt_img_alt, vmin=vmin, vmax=vmax)
-        plt.subplot(236)
-        plt.imshow(_frame - scatt_img_alt, vmin=vmin, vmax=vmax)
+        plt.subplot(224)
+        plt.imshow(_frame, vmin=-vmax/2, vmax=vmax/2)
+        # plt.subplot(235)
+        # plt.imshow(scatt_img_alt, vmin=vmin, vmax=vmax)
+        # plt.subplot(236)
+        # plt.imshow(_frame - scatt_img_alt, vmin=vmin, vmax=vmax)
         plt.show()
     return scatt_img, res_lsq.x, success

@@ -1064,42 +1064,35 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
         if dispname == 'BH2':
-            x0 = np.array([ 2.67186394e+02/specbin, 1.60743078e+02/spatbin,  # Gaussian kernel widths
-                            2.98999820e+02/specbin, 1.45068103e+02/spatbin,  # Lorentzian kernel widths
-                            -1.37376475e+02/specbin, 6.07508615e+01/spatbin,  # pixel offsets
-                            9.86766634e-01, 9.86766634e-01,  # Zoom factor
-                            1.41130604e+00,  # kernel angle
-                            4.19246820e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                            7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
+            # This solution had Cost: 1.0626e+08 and was based on a 1x1 dataset using pixelflat as the scattlight frame, and assuming pad=6
+            x0 = np.array([6.33925782e+01/specbin, 1.21677075e+02/spatbin,  # Gaussian kernel widths
+                           1.62497815e+02/specbin, 1.08146499e+02/spatbin,  # Lorentzian kernel widths
+                           1.25213594e+02/specbin, 1.01076028e+01/spatbin,  # pixel offsets
+                           8.98169722e-01, 9.95797850e-01,  # Zoom factor (spec, spat)
+                           1.11512749e-01,  # kernel angle
+                           3.51216118e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           5.00375324e-03, -7.01001263e-03,  # Polynomial terms (coefficients of "spat" and "spat*spec")
+                           1.07201611e-01, -2.47435669e-04, -1.94130583e-02])  # Polynomial terms (coefficients of spec**index)
         elif dispname == 'BM':
-            # This solution had Cost: 8.8951e+07 and was based on a 1x1 dataset using pixelflat as the scattlight frame, and assuming pad=10
-
-       #      x0 = np.array([1.72694908e+02, 1.43224435e+01,
-       #                     1.55856081e+02,  1.18366623e+02,
-       # -6.32142819e+01,  1.52454051e+01,  9.96530165e-01,  1.30756297e+00,
-       #  7.81666600e-02,  8.25778311e-02, -2.91919118e-02, -3.24661854e-03,
-       #  4.32022859e-03])
-            x0 = np.array([ 60/specbin, 60/spatbin,  # Gaussian kernel widths
-                            60/specbin, 60/spatbin,  # Lorentzian kernel widths
-                            0/specbin, 0/spatbin,  # pixel offsets
-                            9.86766634e-01,  # Zoom factor
-                            1.41130604e+00,  # kernel angle
-                            4.19246820e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                            7.93912603e-02, -5.81933968e-02, -5.76201948e-03, -7.83543150e-04])  # Polynomial terms
+            # This solution had Cost: 5.5975e+07 and was based on a 1x1 dataset using pixelflat as the scattlight frame, and assuming pad=6
+            x0 = np.array([5.90102917e+01/specbin, 3.18121981e+01/spatbin,  # Gaussian kernel widths
+                           1.67699475e+02/specbin, 1.76824113e+02/spatbin,  # Lorentzian kernel widths
+                           8.57232912e+01/specbin, 1.61878670e+01/spatbin,  # pixel offsets
+                           9.60669284e-01, 9.95367555e-01,  # Zoom factor (spec, spat)
+                           -8.54192838e-02,  # kernel angle
+                           2.78138895e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           -2.09025586e-03, 2.95085274e-03,  # Polynomial terms (coefficients of "spat" and "spat*spec")
+                           9.16987649e-02, -7.87655037e-02, 5.16153047e-02])  # Polynomial terms (coefficients of spec**index)
         elif dispname == 'BL':
-            # This solution had Cost: 1.0184e+07 and was based on a 2x2 dataset using pixelflat as the scattlight frame, and assuming pad=10
-            #1.1357e+07
-            # array([1.46747486e+01, 1.33657850e+02, 1.65940119e+02, 1.63479652e+02,
-            #        1.06998939e+02, -2.10911731e+01, 9.72422938e-01, 1.02567767e+00,
-            #        1.57990253e+00, 5.66603960e-03, 5.08362982e-02, 1.83209211e-03,
-            #        -3.83980954e-03, -2.89908954e-02])
-            x0 = np.array([1.05201474e+02/specbin, 1.34653515e+02/spatbin,  # Gaussian kernel widths
-                           1.32198875e+02/specbin, 1.60178190e+02/spatbin,  # Lorentzian kernel widths
-                           6.75891120e+01/specbin, 2.38622901e+01/spatbin,  # pixel offsets
-                           9.94430899e-01, 9.94430899e-01,  # Zoom factor
-                           2.02560248e-01,  # kernel angle
-                           0.090164026e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                           7.00761436e-02, -3.67325245e-02, -2.55285293e-03, 2.41518440e-03])  # Polynomial terms
+            # This solution had Cost: 7.2398e+06 and was based on a 2x2 dataset using pixelflat as the scattlight frame, and assuming pad=10
+            x0 = np.array([4.72573727e+01/specbin, 1.88577219e+01/spatbin,  # Gaussian kernel widths
+                           1.50198652e+02/specbin, 1.61086575e+02/spatbin,  # Lorentzian kernel widths
+                           8.33889721e+01/specbin, 5.57126288e+00/spatbin,  # pixel offsets
+                           9.76804617e-01, 9.99902593e-01,  # Zoom factor (spec, spat)
+                           0.0,  # kernel angle
+                           3.31643788e-01,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                           -4.60504065e-03, 3.78190619e-03,  # Polynomial terms (coefficients of "spat" and "spat*spec")
+                           7.44547223e-02, -4.45899682e-02, 1.97057130e-03])  # Polynomial terms (coefficients of spec**index)
         else:
             msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname}")
             x0 = np.array([200/specbin, 100/spatbin,  # Gaussian kernel widths
@@ -1111,9 +1104,9 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
                            0.1, 0.0, 0.0, 0.0])  # Polynomial terms
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, 1, 1, -200 / specbin, -200 / spatbin, 0, 0, -2 * np.pi, 0.0, -10, -10, -10, -10],
+        bounds = ([1, 1, 1, 1, -200 / specbin, -200 / spatbin, 0, 0, -(10 / 180) * np.pi, 0.0, -10, -10, -10, -10, -10],
                   [600 / specbin, 600 / spatbin, 600 / specbin, 600 / spatbin, 200 / specbin, 200 / spatbin, 2, 2,
-                   2 * np.pi, 1000.0, 10, 10, 10, 10])
+                   (10 / 180) * np.pi, 1000.0, 10, 10, 10, 10, 10])
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
