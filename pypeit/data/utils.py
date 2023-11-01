@@ -247,7 +247,7 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
     # Return the path to the `reid_arxiv` file, and the file format
-    return reid_path, reid_path.suffix.replace('.','').lower()
+    return reid_path, arxiv_file.split('.')[-1].lower()
 
 
 def get_skisim_filepath(skisim_file: str) -> pathlib.Path:
