@@ -73,16 +73,8 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         binning of the template arc spectrum
 
     """
-    if not isinstance(arxiv_file, (str, pathlib.Path)) or arxiv_file is None or arxiv_file == "":
-        msgs.error(f"Incorrect or nonexistant arxiv file specified: {arxiv_file}")
-
-    # Path already included?
-    if pathlib.Path(arxiv_file).name == arxiv_file:
-        calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
-    else:
-        calibfile = pathlib.Path(arxiv_file)
-    # Read me
-    tbl = astropy.table.Table.read(calibfile, format='fits')
+    calibfile, fmt = data.get_reid_arxiv_filepath(arxiv_file)
+    tbl = astropy.table.Table.read(calibfile, format=fmt)
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
