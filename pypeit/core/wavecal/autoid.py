@@ -1053,6 +1053,10 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
     # Load template
     if template_dict is None:
+        # Error checking
+        if par['reid_arxiv'] is None:
+            msgs.error('WavelengthSolutionPar parameter `reid_arxiv` not '
+                       'specified for "full_template" method.')
         temp_wv, temp_spec, temp_bin = waveio.load_template(
             par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
