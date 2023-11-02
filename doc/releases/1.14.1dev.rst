@@ -25,6 +25,7 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
+- Add support for the R4K detector for MDM OSMOS
 - Allow the specification of wavelength limits on the flexure cross-correlation
   against a sky template to limit the effect of unconstrained wavelength
   solutions at the ends of the spectrum.
