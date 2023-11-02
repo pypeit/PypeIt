@@ -580,17 +580,17 @@ class SkySubGUI:
             Returns an instance of the :class:`SkyRegions` class. If None is returned,
             the user has requested to not use the updates.
         """
-        # Only do this if the user wishes to save the result
-        msskyreg = None
-        if self._use_updates:
-            # Generate the mask
-            inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
-            if np.all(np.logical_not(inmask)):
-                msgs.warn("Sky regions are empty - master calibration frame will not be generated")
-            else:
-                # Build the master Sky Regions calibration frame
-                msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
-        return msskyreg
+        if not self._use_updates:
+            return None
+
+        # Generate the mask
+        inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
+        if np.all(np.logical_not(inmask)):
+            msgs.warn("Sky regions are empty - master calibration frame will not be generated")
+            return None
+
+        # Build the master Sky Regions calibration frame
+        return buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
 
     def get_outname(self):
         """ Get an output filename
