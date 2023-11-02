@@ -98,12 +98,15 @@ class Pointer(widgets.AxesWidget):
         if self.action not in self.observers:
             print(f'No action: {action} ({self.name}, {x}, {y})')
             return
-        if self.action in self.observers:
-            self.observers[self.action](self.pos)
+        self.observers[self.action](self.pos)
 
     def register(self, action, func, descr=None):
         """
         Register a function to associate with a specific button or key press.
+
+        *All* functions must have the same calling sequence (see
+        :func:`_set_event`), which is that they only accept a tuple with the
+        coordinates of the cursor when the event occurred.
 
         Args:
             action (:obj:`str`):
@@ -148,9 +151,13 @@ class Pointer(widgets.AxesWidget):
         """
         Print the help dialog.
 
+        This is an event call-back function that must accept an array-like
+        object giving the pointer coordinates.
+
         Args:
-            pos (list):
-                Location where the help event was triggered.  This is ignored.
+            pos (array-like):
+                List with x and y position of the cursor at the time of the
+                window event.
         """
         print('-'*50)
         print('Key bindings')
@@ -167,6 +174,8 @@ class UpdateableRangeSlider(widgets.RangeSlider):
 
     This is virtually identical to the base class, but with a few customizations
     regarding where labels are placed (or removed).
+
+    See `matplotlib.widgets.RangeSlider`_ for the argument descriptions.
     """
     def __init__(self, ax, label, valmin, valmax, valinit=None, valfmt=None, closedmin=True,
                  closedmax=True, dragging=True, valstep=None, orientation="horizontal",
@@ -186,6 +195,14 @@ class UpdateableRangeSlider(widgets.RangeSlider):
     def update_range(self, rng, label=None):
         """
         Update the slider to cover a different range.
+
+        Args:
+            rng (array-like):
+                Two-element array like object setting the new limits for the
+                slider.
+            label (:obj:`str`, optional):
+                New label for the updated slider.  If None, the label remains
+                unchanged.
         """
         self._active_handle = None
         xy = self.poly.get_xy()
@@ -233,9 +250,14 @@ class UpdateableImage:
         self.image_plot.set_clim(*val)
         pyplot.draw()
 
-    def next_image(self, *args, **kwargs):
+    def next_image(self, *args):
         """
-        Got to the next image in the list.  All arguments and keywords are ignored.
+        Got to the next image in the list.
+
+        All arguments to this function are accepted but ignored.  The reason is
+        because this is the function passed to
+        `matplotlib.widgets.Button.on_clicked`_, but this function does not need
+        any of the input from the ``Button`` event.
         """
         self.showing += 1
         if self.showing >= self.nimages:

@@ -15,11 +15,11 @@ from pypeit.core.gui import gui_util
 
 class EdgeInspectorGUI:
     """
-    Pointer used when analyzing a trace/sobel image.
+    matplotlib-based GUI to analyze/manipulate edge traces.
 
     Args:
         edges (:class:`~pypeit.edgetrace.EdgeTraceSet`):
-            Edge tracing to inspect/edit.
+            Edge tracing to inspect/edit.  Note this object is edited directly!
     """
     def __init__(self, edges):
 
@@ -141,13 +141,18 @@ class EdgeInspectorGUI:
             self.trace_plot += [self.image_plot.axes.plot(self.trace_cen[:,i], self.spec_pix,
                                                           color=color, lw=2)[0]]
 
-    def update_traces(self, *args, **kwargs):
+    def update_traces(self, *args):
         """
         Update the underlying trace data and edges object.
 
         Changes to the traces are kept by the internals until we're ready to
         "update" the edges object.  This performs the update and replots the
         trace data.
+
+        All arguments to this function are accepted but ignored.  The reason is
+        because this is the function passed to
+        `matplotlib.widgets.Button.on_clicked`_, but this function does not need
+        any of the input from the ``Button`` event.
         """
         # Offsets are "applied" by first removing the initial traces and then
         # adding new ones with the locations offset.
@@ -197,10 +202,14 @@ class EdgeInspectorGUI:
         self.trace_cen = self.edges.edge_cen if self.edges.edge_fit is None \
                             else self.edges.edge_fit
         
-    def undo(self, pos):
+    def undo(self, *args):
         """
         Undo all operations since the last time the ``edges`` object was
         updated.
+
+        The function call includes ``*args`` because it is used as an event
+        call-back function that must support arguments passed by the event.  But
+        all of these arguments are ignored.
         """
         self._reset_traces()
         self.update_traces()
@@ -223,8 +232,11 @@ class EdgeInspectorGUI:
         Move the trace nearest the cursor spatial (x) position to the cursor's
         location.
 
+        This is an event call-back function that must accept an array-like
+        object giving the pointer coordinates.
+
         Args:
-            pos (:obj:`list`):
+            pos (array-like):
                 List with x and y position of the cursor at the time of the
                 window event.
         """
@@ -243,14 +255,17 @@ class EdgeInspectorGUI:
         """
         Delete the trace nearest the cursor spatial (x) position.
 
+        This is an event call-back function that must accept an array-like
+        object giving the pointer coordinates.
+
         Args:
-            pos (:obj:`list`):
+            pos (array-like):
                 List with x and y position of the cursor at the time of the
                 window event.
         """
         # Find the nearest trace
         i = self.nearest_trace(pos[0])
-        # Set the remove it
+        # Set to remove it
         self.remove[i] = True
         # For now, simply set the line to be invisible
         self.trace_plot[i].set_visible(False)
@@ -299,8 +314,11 @@ class EdgeInspectorGUI:
         """
         Add a new left trace nearest the cursor spatial (x) position.
 
+        This is an event call-back function that must accept an array-like
+        object giving the pointer coordinates.
+
         Args:
-            pos (:obj:`list`):
+            pos (array-like):
                 List with x and y position of the cursor at the time of the
                 window event.
         """
@@ -310,8 +328,11 @@ class EdgeInspectorGUI:
         """
         Add a new right trace nearest the cursor spatial (x) position.
 
+        This is an event call-back function that must accept an array-like
+        object giving the pointer coordinates.
+
         Args:
-            pos (:obj:`list`):
+            pos (array-like):
                 List with x and y position of the cursor at the time of the
                 window event.
         """

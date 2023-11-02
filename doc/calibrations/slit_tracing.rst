@@ -121,7 +121,8 @@ moves; the horizontal line always stays at the reference row.  Note that the
 vertical line marking the cursor may not appear if the typical matplotlib zoom
 or pan buttons are active.
 
-Pressing the ``?`` key anywhere in the window will print the key bindings:
+Pressing the ``?`` key anywhere in the window will print the key bindings to the
+terminal window:
 
 .. code-block:: console
 
