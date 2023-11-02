@@ -571,22 +571,41 @@ class SkySubGUI:
         self.replot()
 
     def get_result(self):
-        """Save a mask containing the skysub regions, and print information
+        """Generate a master calibration file containing a mask of the skysub regions, and print information
         for what the user should include in their .pypeit file
+
+        Returns
+        -------
+        msskyreg : :class:`SkyRegions`, None
+            Returns an instance of the :class:`SkyRegions` class. If None is returned,
+            the user has requested to not use the updates.
         """
         # Only do this if the user wishes to save the result
+        msskyreg = None
         if self._use_updates:
             # Generate the mask
             inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
-            # Save the mask
-            outfil = self._outname
-            if os.path.exists(self._outname) and not self._overwrite:
-                outfil = 'temp.fits'
-                msgs.warn(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
-                msgs.info(f"Saving regions to: {outfil}")
-                self._overwrite = True
-            msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
-            msskyreg.to_file(file_path=outfil)
+            if np.all(np.logical_not(inmask)):
+                msgs.warn("Sky regions are empty - master calibration frame will not be generated")
+            else:
+                # Build the master Sky Regions calibration frame
+                msskyreg = buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
+        return msskyreg
+
+    def get_outname(self):
+        """ Get an output filename
+
+        Returns
+        -------
+        outfil : :obj:`str`
+            The output filename to use for the master Sky Regions calibration frame
+        """
+        outfil = self._outname
+        if os.path.exists(self._outname) and not self._overwrite:
+            outfil = 'temp.fits'
+            msgs.warn(f"A SkyRegions file already exists and you have not forced an overwrite:\n{self._outname}")
+            msgs.info(f"Adopting the following output filename: {outfil}")
+        return outfil
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
