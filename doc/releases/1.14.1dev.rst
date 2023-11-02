@@ -31,6 +31,7 @@ Instrument-specific Updates
 
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
+- Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
 
 Script Changes
 --------------
