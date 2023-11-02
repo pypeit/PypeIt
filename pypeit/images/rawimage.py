@@ -1150,9 +1150,16 @@ class RawImage:
             if self.par["scattlight_method"] == "model":
                 # Use predefined model parameters
                 scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
-                debug = False  # RJC requests to keep this here for debugging
+                debug = True  # RJC requests to keep this here for debugging
                 if debug:
                     embed()
+                    # import astropy.io.fits as fits
+                    # hdu = fits.PrimaryHDU([self.image[ii, ...]-scatt_img])
+                    # hdu.writeto(self.filename.replace(".fits.gz", "_proc_slsub.fits.gz"))
+                    # assert False
+                    # for ii in range(11):
+                    #     print("saving", ii)
+                    #     np.save("scattlight_test/slitmask_pad{0:02d}.npy".format(ii), slits.slit_img(pad=ii, initial=True, flexure=None) == -1)
                     tmp = msscattlight.scattlight_param.copy()
                     tmp[:6] *= 2
                     print("\n\n\n2x2 BINNING ASSUMED!!!\n\n\n")
@@ -1166,9 +1173,9 @@ class RawImage:
                     plt.subplot(221)
                     plt.imshow(_frame, vmin=vmin, vmax=2*np.median(_frame))
                     plt.subplot(222)
-                    plt.imshow(_frame*offslitmask, vmin=vmin, vmax=vmax)
+                    plt.imshow(_frame*offslitmask, vmin=vmin, vmax=3*vmax)
                     plt.subplot(223)
-                    plt.imshow(scatt_img, vmin=vmin, vmax=vmax)
+                    plt.imshow(scatt_img, vmin=vmin, vmax=3*vmax)
                     plt.subplot(224)
                     plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax / 2, vmax=vmax / 2)
                     plt.show()
