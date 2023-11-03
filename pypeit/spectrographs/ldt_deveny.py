@@ -499,7 +499,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15  # Default: 0.15
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1800
 
@@ -526,7 +525,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25  # Default: 0.15
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3200
 
