@@ -219,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_scattlight=None, scattlight_method=None, subtract_continuum=None,
+                 use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
                  spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
@@ -305,19 +305,9 @@ class ProcessImagesPar(ParSet):
                                        'be set to True for spectrographs that have dedicated methods to subtract ' \
                                        'scattered light. For all other cases, this parameter should be False.'
 
-        defaults['scattlight_method'] = 'model'
-        options['scattlight_method'] = ProcessImagesPar.valid_scattlight_methods()
-        dtypes['scattlight_method'] = str
-        descr['scattlight_method'] = 'Method used to fit the overscan. ' \
-                                     'Options are: {0}'.format(', '.join(options['scattlight_method'])) + '.' + \
-                                     '\'model\' will the scattered light model parameters derived from a ' \
-                                     'user-specified frame during their reduction (note, you will need to make sure ' \
-                                     'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
-                                     '\'frame\' will use each individual frame to determine the scattered light ' \
-                                     'that affects this frame. ' \
-                                     '\'archive\' will use an archival model parameter solution for the scattered ' \
-                                     'light (note that this option is not currently available for all spectrographs).'
-
+        defaults['scattlight'] = ScatteredLightPar()
+        dtypes['scattlight'] = [ParSet, dict]
+        descr['scattlight'] = 'Scattered light subtraction parameters.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -451,7 +441,7 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
-                   'scattlight_method', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
+                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
                    'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
@@ -474,13 +464,6 @@ class ProcessImagesPar(ParSet):
         Return the valid overscan methods.
         """
         return ['polynomial', 'savgol', 'median', 'odd_even']
-
-    @staticmethod
-    def valid_scattlight_methods():
-        """
-        Return the valid scattered light methods.
-        """
-        return ['model', 'frame', 'archive']
 
     @staticmethod
     def valid_combine_methods():
@@ -1022,7 +1005,7 @@ class ScatteredLightPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, pad=None):
+    def __init__(self, method=None, finecorr_pad=None, finecorr_order=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1039,9 +1022,33 @@ class ScatteredLightPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['pad'] = 5
-        dtypes['pad'] = int
-        descr['pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits.'
+        defaults['method'] = 'model'
+        options['method'] = ScatteredLightPar.valid_scattlight_methods()
+        dtypes['method'] = str
+        descr['method'] = 'Method used to fit the overscan. ' \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          '\'model\' will the scattered light model parameters derived from a ' \
+                          'user-specified frame during their reduction (note, you will need to make sure ' \
+                          'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
+                          '\'frame\' will use each individual frame to determine the scattered light ' \
+                          'that affects this frame. ' \
+                          '\'archive\' will use an archival model parameter solution for the scattered ' \
+                          'light (note that this option is not currently available for all spectrographs).'
+
+        defaults['finecorr'] = True
+        dtypes['finecorr'] = bool
+        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
+                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+
+        defaults['finecorr_pad'] = 5
+        dtypes['finecorr_pad'] = int
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
+                                'fine correction to the scattered light.'
+
+        defaults['finecorr_order'] = 2
+        dtypes['finecorr_order'] = int
+        descr['finecorr_order'] = 'Polynomial order to use for the fine correction to the scattered light ' \
+                                  'subtraction. It should be a low value.'
 
         # Instantiate the parameter set
         super(ScatteredLightPar, self).__init__(list(pars.keys()),
@@ -1055,7 +1062,7 @@ class ScatteredLightPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['pad']
+        parkeys = ['method', 'finecorr_pad', 'finecorr_order']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1071,6 +1078,13 @@ class ScatteredLightPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+    @staticmethod
+    def valid_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['model', 'frame', 'archive']
 
 
 class Coadd1DPar(ParSet):
@@ -4151,7 +4165,8 @@ class CalibrationsPar(ParSet):
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
                  lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
-                 scattlight=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
+                 scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4289,9 +4304,9 @@ class CalibrationsPar(ParSet):
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
 
-        defaults['scattlight'] = ScatteredLightPar()
-        dtypes['scattlight'] = [ ParSet, dict ]
-        descr['scattlight'] = 'Define the procedure for modelling the scattered light'
+        defaults['scattlight_pad'] = 5
+        dtypes['scattlight_pad'] = int
+        descr['scattlight_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits.'
 
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
@@ -4328,7 +4343,7 @@ class CalibrationsPar(ParSet):
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
-                             'scattlight', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
+                             'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
