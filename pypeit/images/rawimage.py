@@ -1120,13 +1120,22 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
-    def subtract_scattlight(self, msscattlight, slits):
+    def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
         Analyze and subtract the scattered light from the image.
 
         This is primarily a wrapper for
-        :func:`~pypeit.core.scattered_light`.
+        :func:`~pypeit.core.scattered_light_model`.
 
+
+        Parameters
+        ----------
+        msscattlight : :class:`~pypeit.scattlight.ScatteredLight`
+            Scattered light calibration frame
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Slit edge information
+        debug : :obj:`bool`_, optional
+            If True, debug the computed scattered light image
         """
         step = inspect.stack()[0][3]
         if self.steps[step]:
@@ -1134,7 +1143,7 @@ class RawImage:
             msgs.warn("The scattered light has already been subtracted from the image!")
             return
 
-        if self.par["scattlight_method"] == "model" and msscattlight.scattlight_param is None:
+        if self.par["scattlight"]["method"] == "model" and msscattlight.scattlight_param is None:
             msgs.warn("Scattered light parameters are not set. Cannot perform scattered light subtraction.")
             return
 
@@ -1142,16 +1151,24 @@ class RawImage:
         binning = self.detector[0]['binning']
         dispname = self.spectrograph.get_meta_value(self.spectrograph.get_headarr(self.filename), 'dispname')
 
-        # TODO :: We really need to pass in the CR mask here...
         # Loop over the images
+        var = utils.inverse(self.build_ivar())  # Build a temporary variance frame to be used for the CR mask
+        spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
         for ii in range(self.nimg):
-            # Mask bad pixels
-            # _frame = self.image[ii, ...] * np.logical_not(self.bpm[ii, ...])
+            # Mask pixels affected by CR
+            crmask = procimg.lacosmic(self.image[ii, ...],# saturation=saturation, nonlinear=nonlinear,
+                                      bpm=self.bpm[ii, ...], varframe=var[ii, ...], maxiter=self.par['lamaxiter'],
+                                      grow=self.par['grow'], remove_compact_obj=self.par['rmcompact'],
+                                      sigclip=self.par['sigclip'], sigfrac=self.par['sigfrac'],
+                                      objlim=self.par['objlim'])
+            # Replace all bad pixels with the nearest good pixel
+            full_bpm = self.bpm[ii, ...] | crmask
+            _img = utils.replace_bad(self.image[ii, ...], full_bpm)
             # Apply the requested method for the scattered light
-            if self.par["scattlight_method"] == "model":
+            do_finecorr = self.par["scattlight"]["finecorr"]
+            if self.par["scattlight"]["method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, self.image[ii, ...])
-                debug = True  # RJC requests to keep this here for debugging
+                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _img)
                 if debug:
                     embed()
                     # import astropy.io.fits as fits
@@ -1180,36 +1197,51 @@ class RawImage:
                     plt.subplot(224)
                     plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax / 2, vmax=vmax / 2)
                     plt.show()
-            elif self.par["scattlight_method"] == "archive":
+            elif self.par["scattlight"]["method"] == "archive":
                 # Use archival model parameters
                 modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
                 if modpar is None:
                     msgs.error(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
                                f"set 'scattlight_method' to another option.")
-                scatt_img = scattlight.scattered_light_model(modpar, _frame)
-            elif self.par["scattlight_method"] == "frame":
+                scatt_img = scattlight.scattered_light_model(modpar, _img)
+            elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
-                spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
                 pad = msscattlight.pad // spatbin
                 offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
-                scatt_img, _, success = scattlight.scattered_light(self.image[ii, ...], self.bpm, offslitmask,
+                scatt_img, _, success = scattlight.scattered_light(self.image[ii, ...], full_bpm, offslitmask,
                                                                    x0, bounds)
                 # If failure, revert back to the Scattered Light calibration frame model parameters
                 if not success:
                     if msscattlight is not None:
                         msgs.warn("Scattered light model failed - using predefined model parameters")
-                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _frame)
+                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _img)
                     else:
                         msgs.warn("Scattered light model failed - using archival model parameters")
                         # Use archival model parameters
                         modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                        scatt_img = scattlight.scattered_light_model(modpar, _frame)
+                        scatt_img = scattlight.scattered_light_model(modpar, _img)
             else:
                 msgs.warn("Scattered light not performed")
                 scatt_img = np.zeros(self.image[ii, ...].shape)
+                do_finecorr = False
+            # Check if a fine correction to the scattered light should be applied
+            if do_finecorr:
+                pad = self.par['scattlight']['finecorr_pad'] // spatbin
+                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                # Check if the user wishes to mask some inter-slit regions
+                if self.par['scattlight']['finecorr_mask'] is not None:
+                    # Get the central trace of each slit
+                    left, right, _ = slits.select_edges(initial=True, flexure=None)
+                    centrace = 0.5*(left+right)
+                    # Now mask user-defined inter-slit regions
+                    offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
+                                                               mask_regions=self.par['scattlight']['finecorr_mask'])
+                # Calculate the fine correction to the scattered light image, and add it to the full model
+                scatt_img += scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
+                                                        polyord=self.par['scattlight']['finecorr_order'])
             # Subtract the scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
