@@ -276,12 +276,13 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     scatt_img : `numpy.ndarray`_
         A 2D image of the fine correction to the scattered light determined from the input frame.
     """
+    msgs.info("Performing a fine correction to the scattered light")
     # Convert the BPM to a GPM for convenience
     gpm = np.logical_not(bpm)
 
     # Define some useful variables
     nspec, nspat = frame.shape
-    xspat = np.arange(nspat)
+    xspat = np.linspace(0, 1, nspat)
     model = np.zeros_like(frame)
 
     # Loop over the residual scattered light in the spectral direction and perform
@@ -294,5 +295,14 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     # Median filter in the spectral direction to smooth out irregularities in the fine correction
     model_med = ndimage.median_filter(model, size=(50, 1))  # Median filter to get rid of CRs
     scatt_light_fine = ndimage.gaussian_filter(model_med, sigma=10)  # Gaussian filter to smooth median filter
+    if debug:
+        embed()
+        from matplotlib import pyplot as plt
+        vmin, vmax = -np.max(scatt_light_fine), np.max(scatt_light_fine)
+        plt.subplot(121)
+        plt.imshow(frame, vmin=vmin, vmax=vmax)
+        plt.subplot(122)
+        plt.imshow(frame-scatt_light_fine, vmin=vmin, vmax=vmax)
+        plt.show()
     # Return the fine correction model of the scattered light
     return scatt_light_fine
