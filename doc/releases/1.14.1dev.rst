@@ -74,6 +74,8 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
+- Fixed a bug with the GUI ``pypeit_skysub_regions``. Previously, the calib header
+  information was not included, and this led to a calibration error.
 - Aligned the documentation and parameters with the code for polynomial overscan
   subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
   ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
