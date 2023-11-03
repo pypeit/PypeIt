@@ -198,6 +198,61 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     return scatt_img, res_lsq.x, success
 
 
+def mask_slit_regions(offslitmask, centrace, mask_regions=None):
+    """ Exclude some user-specified inter-slit regions for the fine correction to the scattered light determination
+
+    Parameters
+    ----------
+    offslitmask : `numpy.ndarray`_
+        A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+    centrace : `numpy.ndarray`_
+        A 2D array, shape is (nspec, nslit), containing the central trace of each slit.
+    mask_regions : :obj:`int`, :obj:`list`, optional
+        A list of regions that should be excluded in the fine correction to the scattered light. A zero
+        value indicates that all pixels left of the first slit will be masked. A value of one indicates
+        that all pixels between the first and second slit will be masked, and so forth. A list of these
+        integers can be supplied. If None, no inter-slit regions will be excluded. If an integer is
+        specified, just one region will be excluded.
+
+    Returns
+    -------
+    good_mask : `numpy.ndarray`_
+        A 2D boolean array indicating the pixels that are suitable to use for the fine scattered light correction.
+    """
+    # Check if there are regions to be masked
+    if mask_regions is None:
+        msgs.warn("There are no inter-slit regions specified that need to be masked")
+        return offslitmask
+    elif isinstance(mask_regions, int):
+        # Convert this to a list
+        _mask_regions = [mask_regions]
+    else:
+        _mask_regions = mask_regions
+
+    # Grab the dimensions
+    nspec, nspat = offslitmask.shape
+    nslit = centrace.shape[1]
+
+    # Setup the pixel coordinates
+    spat = np.arange(nspat)
+
+    # Find the pixels in each slit, limited by the minimum and
+    # maximum spectral position.
+    good_mask = offslitmask.copy()
+    for ii in _mask_regions:
+        if ii == 0:  # All pixels to the left of the first slit
+            indx = spat[None, :] < centrace[:, ii, None]
+        elif ii == nslit:  # All pixels to the right of the last slit
+            indx = spat[None, :] > centrace[:, ii-1, None]
+        else:  # Everything else in between
+            indx = (spat[None, :] > centrace[:, ii-1, None]) \
+                   & (spat[None, :] < centrace[:, ii, None])
+        # Exclude these pixels
+        good_mask[indx] = False
+    # Return the mask of good inter-slit pixels
+    return good_mask
+
+
 def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     """ Calculate a fine correction to the residual scattered light of the input frame.
 
@@ -223,10 +278,12 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     """
     # Convert the BPM to a GPM for convenience
     gpm = np.logical_not(bpm)
+
     # Define some useful variables
     nspec, nspat = frame.shape
     xspat = np.arange(nspat)
     model = np.zeros_like(frame)
+
     # Loop over the residual scattered light in the spectral direction and perform
     # a low order polynomial fit to the scattered light in the spatial direction.
     for yy in range(nspec):
