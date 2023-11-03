@@ -900,9 +900,13 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['scienceframe']['process']['use_pattern'] = True
         # Subtract scattered light, but only for the pixel and illum flats,
         # as well as and science/standard star data.
+        par['calibrations']['scattlight_pad'] = 6  # This is the unbinned number of pixels to pad
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
         par['scienceframe']['process']['subtract_scattlight'] = True
+        par['scienceframe']['process']['scattlight']['finecorr_pad'] = 2
+        par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
+        par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
