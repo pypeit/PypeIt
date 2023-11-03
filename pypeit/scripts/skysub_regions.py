@@ -95,7 +95,13 @@ class SkySubRegions(scriptbase.ScriptBase):
                                       initial=args.initial, flexure=spat_flexure)
 
         # Get the results
-        skyreg.get_result()
+        msskyreg = skyreg.get_result()
+
+        if msskyreg is not None:
+            outfil = skyreg.get_outname()
+            setup, calib_id, detname = msskyreg.parse_calib_key(calib_key)
+            msskyreg.set_paths(calib_dir, setup, calib_id, detname)
+            msskyreg.to_file(file_path=outfil)
 
         # Reset the defaults
         skyreg.finalize()
