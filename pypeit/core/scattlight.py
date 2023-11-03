@@ -147,10 +147,8 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     # Convert the BPM to a GPM for convenience
     gpm = np.logical_not(bpm)
 
-    # Replace bad pixels with the nearest (good) neighbour
-    msgs.info("Replacing bad pixels in the scattered light input")
-    ind = ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
-    _frame = frame[tuple(ind)]
+    # Replace bad pixels with the nearest good pixel
+    _frame = utils.replace_bad(frame, bpm)
 
     # Pad the edges of the data
     _frame[0, :] = np.median(_frame[0:10, :], axis=0)
@@ -198,3 +196,46 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
         # plt.imshow(_frame - scatt_img_alt, vmin=vmin, vmax=vmax)
         plt.show()
     return scatt_img, res_lsq.x, success
+
+
+def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
+    """ Calculate a fine correction to the residual scattered light of the input frame.
+
+    Parameters
+    ----------
+    frame : `numpy.ndarray`_
+        Raw 2D data frame to be used to compute the fine correction of the scattered light.
+        This frame should be the raw frame, minus the first estimate of the scattered light
+        that has been derived from the `scattered_light_model()`_ function.
+    bpm : `numpy.ndarray`_
+        2D boolean array indicating the bad pixels (True=bad)
+    offslitmask : `numpy.ndarray`_
+        A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+    polyord : :obj:`int`_, optional
+        Polynomial order to use for fitting the residual scattered light in the spatial direction.
+    debug : :obj:`bool`_, optional
+        If True, debug the final model fit that's been output
+
+    Returns
+    -------
+    scatt_img : `numpy.ndarray`_
+        A 2D image of the fine correction to the scattered light determined from the input frame.
+    """
+    # Convert the BPM to a GPM for convenience
+    gpm = np.logical_not(bpm)
+    # Define some useful variables
+    nspec, nspat = frame.shape
+    xspat = np.arange(nspat)
+    model = np.zeros_like(frame)
+    # Loop over the residual scattered light in the spectral direction and perform
+    # a low order polynomial fit to the scattered light in the spatial direction.
+    for yy in range(nspec):
+        ext = frame[yy, :]
+        gd = np.where(offslitmask[yy, :] & gpm[yy, :])
+        coeff = np.polyfit(xspat[gd], ext[gd], polyord)
+        model[yy, :] = np.polyval(coeff, xspat)
+    # Median filter in the spectral direction to smooth out irregularities in the fine correction
+    model_med = ndimage.median_filter(model, size=(50, 1))  # Median filter to get rid of CRs
+    scatt_light_fine = ndimage.gaussian_filter(model_med, sigma=10)  # Gaussian filter to smooth median filter
+    # Return the fine correction model of the scattered light
+    return scatt_light_fine
