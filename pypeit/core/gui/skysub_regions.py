@@ -571,7 +571,7 @@ class SkySubGUI:
         self.replot()
 
     def get_result(self):
-        """Generate a master calibration file containing a mask of the skysub regions, and print information
+        """Generate a calibration file containing a mask of the skysub regions, and print information
         for what the user should include in their .pypeit file
 
         Returns
@@ -586,10 +586,10 @@ class SkySubGUI:
         # Generate the mask
         inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
         if np.all(np.logical_not(inmask)):
-            msgs.warn("Sky regions are empty - master calibration frame will not be generated")
+            msgs.warn("Sky regions are empty - A sky regions calibration frame will not be generated")
             return None
 
-        # Build the master Sky Regions calibration frame
+        # Build the Sky Regions calibration frame
         return buildimage.SkyRegions(image=inmask.astype(float), PYP_SPEC=self.spectrograph)
 
     def get_outname(self):
@@ -598,7 +598,7 @@ class SkySubGUI:
         Returns
         -------
         outfil : :obj:`str`
-            The output filename to use for the master Sky Regions calibration frame
+            The output filename to use for the Sky Regions calibration frame
         """
         outfil = self._outname
         if os.path.exists(self._outname) and not self._overwrite:
