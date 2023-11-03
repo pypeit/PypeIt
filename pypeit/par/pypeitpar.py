@@ -1005,7 +1005,7 @@ class ScatteredLightPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, method=None, finecorr_pad=None, finecorr_order=None):
+    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1040,7 +1040,7 @@ class ScatteredLightPar(ParSet):
         descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
                             'fine correction will only be applied if the model/frame/archive correction is performed.'
 
-        defaults['finecorr_pad'] = 5
+        defaults['finecorr_pad'] = 2
         dtypes['finecorr_pad'] = int
         descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
                                 'fine correction to the scattered light.'
@@ -1049,6 +1049,15 @@ class ScatteredLightPar(ParSet):
         dtypes['finecorr_order'] = int
         descr['finecorr_order'] = 'Polynomial order to use for the fine correction to the scattered light ' \
                                   'subtraction. It should be a low value.'
+
+        defaults['finecorr_mask'] = None
+        dtypes['finecorr_mask'] = [int, list]
+        descr['finecorr_mask'] = 'A list containing the inter-slit regions that the user wishes to mask during ' \
+                                 'the fine correction to the scattered light. Each integer corresponds to an ' \
+                                 'inter-slit region. For example, "0" corresponds to all pixels left of the leftmost ' \
+                                 'slit, while a value of "1" corresponds to all pixels between the first and second ' \
+                                 'slit (counting from the left). It should be either a single integer value, or a ' \
+                                 'list of integer values.'
 
         # Instantiate the parameter set
         super(ScatteredLightPar, self).__init__(list(pars.keys()),
@@ -1062,7 +1071,7 @@ class ScatteredLightPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['method', 'finecorr_pad', 'finecorr_order']
+        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
