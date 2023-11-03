@@ -592,7 +592,7 @@ class Calibrations:
                                                          setup=setup, calib_id=calib_id)
 
         spatbin = parse.parse_binning(binning)[1]
-        pad = self.par['scattlight']['pad'] // spatbin
+        pad = self.par['scattlight_pad'] // spatbin
         offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
 
         # Get starting parameters for the scattered light model
@@ -613,7 +613,7 @@ class Calibrations:
                                                       detname=scattlightImage.detector.name,
                                                       nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
-                                                      pad=self.par['scattlight']['pad'],
+                                                      pad=self.par['scattlight_pad'],
                                                       scattlight_raw=scattlightImage.image,
                                                       scattlight_model=model,
                                                       scattlight_param=modelpar)
