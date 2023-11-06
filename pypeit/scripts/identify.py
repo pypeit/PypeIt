@@ -290,7 +290,7 @@ class Identify(scriptbase.ScriptBase):
             # set to any flagged pixel in Arc.
             wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                     msbpm=msarc.select_flag())
-            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slit)])
+            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
 
             # Launch the identify window
             # TODO -- REMOVE THIS HACK
@@ -298,7 +298,7 @@ class Identify(scriptbase.ScriptBase):
                 nonlinear_counts = msarc.detector.nonlinear_counts()
             except AttributeError:
                 nonlinear_counts = None
-            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
+            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slits), par=par,
                                             wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                             nonlinear_counts=nonlinear_counts,
                                             pxtoler=args.pixtol, test=args.test, 
