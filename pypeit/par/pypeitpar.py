@@ -337,7 +337,7 @@ class ProcessImagesPar(ParSet):
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
-                                 'primarily used for IFUs.  To use this, you must set ' \
+                                 'primarily used for slicer IFUs.  To use this, you must set ' \
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
@@ -683,7 +683,7 @@ class FlatFieldPar(ParSet):
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
-                                       'only used for IFU reductions.'
+                                       'only used for SlicerIFU reductions.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
@@ -1459,13 +1459,14 @@ class CubePar(ParSet):
                                     'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
+        options['method'] = ["subpixel", "ngp"]
         dtypes['method'] = str
         descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
                           '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames ' \
                           'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, ' \
                           'but voxels are correlated, and the error spectrum does not account for covariance between ' \
                           'adjacent voxels. See also, spec_subpixel and spat_subpixel. ' \
-                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          '(2) "ngp" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
@@ -1474,9 +1475,6 @@ class CubePar(ParSet):
                           'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two ' \
                           'pixels have the same variance, the voxel would be assigned the average flux of the two ' \
                           'pixels).'
-        # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
-        # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-        # 'for covariance between neighbouring pixels. ' \
 
         defaults['spec_subpixel'] = 5
         dtypes['spec_subpixel'] = int
@@ -1594,9 +1592,13 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        allowed_methods = ["subpixel", "NGP"]#, "resample"
-        if self.data['method'] not in allowed_methods:
-            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        # Check the skysub options
+        allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
+        if self.data['skysub_frame'] not in allowed_skysub_options:
+            # Check if the supplied name exists
+            if not os.path.exists(self.data['skysub_frame']):
+                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
+                                 "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 

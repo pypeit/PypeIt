@@ -46,7 +46,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'filter2', 'echangle', 'xdangle']
+        return ['filter1', 'filter2', 'echangle', 'xdangle', 'decker']
 
     def raw_header_cards(self):
         """
@@ -66,7 +66,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS']
+        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
     def pypeit_file_keys(self):
         """
@@ -80,7 +80,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['comb_id', 'bkg_id']
+        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
         return pypeit_keys
 
     def get_echelle_angle_files(self, lamps_list, filter1, filter2):
@@ -593,7 +593,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
-            par['calibrations']['slitedges']['rm_slits'] = '1:'
+            #par['calibrations']['slitedges']['rm_slits'] = '1:'
 
 
         if decker == '0.144x12':
@@ -1101,7 +1101,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS']
+        return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
 
 

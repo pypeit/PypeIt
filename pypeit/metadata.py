@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual'], [int, int, str])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
 
         # Initialize internal attributes
         self.configs = None
@@ -354,7 +354,7 @@ class PypeItMetaData:
         """
         self.table.remove_rows(np.atleast_1d(rows))
         if regroup:
-            for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id']:
+            for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id', 'shift']:
                 if col in self.keys():
                     del self.table[col]
             self.set_configurations()
@@ -1446,7 +1446,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False):
+    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False, write_shift = False):
         """
         Generate the list of columns to be included in the fitstbl
         (nearly the complete list).
@@ -1457,6 +1457,9 @@ class PypeItMetaData:
                 and bkg_id
             write_manual (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for manual extraction
+            write_shift (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual flexure
+                correction
 
 
         Returns:
@@ -1474,12 +1477,18 @@ class PypeItMetaData:
         # manual
         if write_manual:
             extras += ['manual']
+        if write_shift:
+            print('')
+            print('Adding Shift Column')
+            print('')
+            extras += ['shift']
         for key in extras:
             if key not in columns:
                 columns += [key]
-
+        print('Column list is: ', columns)
         # Take only those present
         output_cols = np.array(columns)
+        print('Output cols will be ', output_cols[np.isin(output_cols, self.keys())].tolist())
         return output_cols[np.isin(output_cols, self.keys())].tolist()
 
     def set_combination_groups(self, assign_objects=True):
@@ -1510,6 +1519,8 @@ class PypeItMetaData:
             self['comb_id'] = -1
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
+        if 'shift' not in self.keys():
+            self['shift'] = 0
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1544,6 +1555,8 @@ class PypeItMetaData:
         """
         if 'manual' not in self.keys():
             self['manual'] = ''
+        if 'shift' not in self.keys():
+            self['shift'] = 0
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
@@ -1586,7 +1599,7 @@ class PypeItMetaData:
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual)
-
+        print('Columns being used are: ', output_cols)
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
             for key in cfgs.keys():
@@ -1628,6 +1641,7 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
+                     write_shift = False,
                      configs=None, config_subdir=True,
                      version_override=None, date_override=None):
         """
@@ -1656,6 +1670,9 @@ class PypeItMetaData:
                 object and background frame pairs.  
             write_manual (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for manual extraction
+            write_shift (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual spatial flexure
+                correction
             configs (:obj:`str`, :obj:`list`, optional):
                 One or more strings used to select the configurations
                 to include in the returned objects. If ``'all'``,
@@ -1703,7 +1720,8 @@ class PypeItMetaData:
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
-                                           write_manual=write_manual)
+                                           write_manual=write_manual,
+                                           write_shift = write_shift)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
@@ -1746,7 +1764,6 @@ class PypeItMetaData:
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')
             #    data_lines = ff.getvalue().split('\n')[:-1]
-
             # Config lines
             if cfg_lines is None:
                 cfg_lines = ['[rdx]']
