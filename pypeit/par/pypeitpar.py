@@ -459,7 +459,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median']
+        return ['polynomial', 'savgol', 'median', 'odd_even']
 
     @staticmethod
     def valid_combine_methods():

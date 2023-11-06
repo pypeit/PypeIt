@@ -513,9 +513,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.PYP_SPEC = spectrograph.name               # For the Header.  Will be in datamodel
         self.dispname = spectrograph.dispname           # Spectrograph disperser
         self.par = par                                  # Parameters used for slit edge tracing
-        self.qa_path = Path(qa_path).resolve()          # Directory for QA plots
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
+        # Directory for QA plots
+        self.qa_path = None if qa_path is None else Path(qa_path).resolve()
 
         # Inherit the calibration frame attributes from the trace image:
         self.copy_calib_internals(self.traceimg)
