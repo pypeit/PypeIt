@@ -4,6 +4,8 @@ GUI utilities
 .. include:: ../include/links.rst
 """
 
+import warnings
+
 import numpy as np
 from matplotlib import pyplot, widgets
 
@@ -143,7 +145,7 @@ class Pointer(widgets.AxesWidget):
         will be removed!
         """
         if '?' in self.observers:
-            msgs.warn('Help key (?) is already registered and will be overwritten')
+            warnings.warn('Help key (?) is already registered and will be overwritten')
             self.disconnect('?')
         self.register('?', self.print_help, descr='Print this list of key bindings')
 
