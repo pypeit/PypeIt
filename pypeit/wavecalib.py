@@ -684,7 +684,7 @@ class BuildWaveCalib:
                 self.lamps, self.par, ok_mask=ok_mask_idx,
                 measured_fwhms=self.measured_fwhms,
                 nonlinear_counts=self.nonlinear_counts,
-                debug_all=False, 
+                debug_all=False,
                 redo_slits=np.atleast_1d(self.par['redo_slits']) if self.par['redo_slits'] is not None else None)
 
             # Save as internals in case we need to redo
@@ -754,7 +754,7 @@ class BuildWaveCalib:
                 # Save the wavelength solution fits
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], 
                                   title=f'Arc Fit QA for slit/order: {self.slits.slitord_id[slit_idx]}',
-                                  outfile=outfile)
+                                  outfile=outfile, log=self.par['qa_log'])
 
                 # Obtain the output QA name for the spectral resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
@@ -771,7 +771,7 @@ class BuildWaveCalib:
         return self.wv_calib
 
     def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray,
-                            bad_orders_maxfrac:float=0.1):
+                            bad_orders_maxfrac:float=0.1, frac_rms_thresh:float=1.1):
         """ Attempt to redo the wavelength calibration for a set 
         of bad echelle orders
 
@@ -782,7 +782,8 @@ class BuildWaveCalib:
             order_dets (np.ndarray): Orders on the each detector
             bad_orders_maxfrac (float): Maximum fraction of bad orders
             in a detector for attempting a refit
-
+            frac_rms_thresh (float): Fractional change in the RMS threshold
+            for accepting a refit
 
         Returns:
             bool: True if any of the echelle orders were 
@@ -797,8 +798,8 @@ class BuildWaveCalib:
             in_det = np.in1d(bad_orders, order_dets[idet])
             if not np.any(in_det):
                 continue
+            msgs.info(f"Attempting to refit bad orders in detector={dets[idet]}")
             # Are there few enough?
-            # TODO -- make max_bad a parameter
             max_bad = int(len(order_dets[idet])*bad_orders_maxfrac)
             if np.sum(in_det) > max_bad:
                 msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
@@ -833,20 +834,18 @@ class BuildWaveCalib:
                 n_final = wvutils.parse_param(self.par, 'n_final', iord)
                 # TODO - Make this cheaper
                 final_fit = wv_fitting.fit_slit(
-                    spec_cont_sub, patt_dict_slit, tcent, tot_llist, 
+                    self.arccen[:,iord], patt_dict_slit, tcent, tot_llist,
                     match_toler=self.par['match_toler'], 
                     func=self.par['func'], 
                     n_first=self.par['n_first'],
-                    #n_first=3,
-                    sigrej_first=self.par['sigrej_first'], 
+                    sigrej_first=self.par['sigrej_first'],
                     n_final=n_final, 
                     sigrej_final=2.)
                 msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                 # Keep?
-                # TODO -- Make this a parameter?
-                increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*wave_rms_thresh:
+                if final_fit['rms'] < frac_rms_thresh*wave_rms_thresh:
+                    msgs.info('Updating wavelength solution.')
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -856,7 +855,7 @@ class BuildWaveCalib:
                         out_dir=self.qa_path)
                     autoid.arc_fit_qa(final_fit,
                                     title=f'Arc Fit QA for slit/order: {order}',
-                                    outfile=outfile)
+                                    outfile=outfile, log=self.par['qa_log'])
                     # This is for I/O naming
                     final_fit.spat_id = self.slits.spat_id[iord]
                     final_fit.fwhm = self.measured_fwhms[iord]
@@ -864,6 +863,8 @@ class BuildWaveCalib:
                     self.wv_calib.wv_fits[iord] = final_fit
                     self.wvc_bpm[iord] = False
                     fixed = True
+                else:
+                    msgs.warn('New RMS is too high. Not updating wavelength solution.')
         #
         return fixed
 
@@ -1112,7 +1113,8 @@ class BuildWaveCalib:
             if np.any(bad_rms):
                 bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
                 any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets,
-                                                     bad_orders_maxfrac=self.par['bad_orders_maxfrac'])
+                                                     bad_orders_maxfrac=self.par['bad_orders_maxfrac'],
+                                                     frac_rms_thresh=self.par['frac_rms_thresh'])
 
                 # Do another full 2D?
                 if any_fixed:

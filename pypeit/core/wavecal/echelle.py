@@ -220,6 +220,18 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
         percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+
+    if debug:
+        msgs.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
+        from matplotlib import pyplot as plt
+        xvals = np.arange(arccen_pad.flatten('F').size)
+        plt.clf()
+        ax = plt.gca()
+        #
+        ax.plot(xvals, arccen_pad.flatten('F'), label='template')  # Template
+        ax.plot(xvals, np.roll(arcspec_guess_pad.flatten('F'), int(shift_cc)), 'k', label='input')  # Input
+        ax.legend()
+        plt.show()
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

@@ -118,23 +118,26 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr_HIRES']
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
-        par['calibrations']['wavelengths']['sigdetect'] = 20.0
-        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
-        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 8.0
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 4
+
+        par['calibrations']['wavelengths']['match_toler'] = 1.5
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
-        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-40.,40)
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.25
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.80
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
         par['calibrations']['wavelengths']['ech_separate_2d'] = True
+        par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
@@ -182,10 +185,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
 
+        # slit edges
         # NOTE: With add_missed_orders set to True and order_spat_range set to the
         # default (None), the code will try to add missing orders over the full
         # range of the detector mosaic!
         par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
+
+        # wavelength
+        par['calibrations']['wavelengths']['fwhm'] = 8.0/bin_spec
 
         # Return
         return par

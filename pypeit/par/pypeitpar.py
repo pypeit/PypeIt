@@ -2514,10 +2514,10 @@ class WavelengthSolutionPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
-                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None,
+                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
+                 reid_arxiv=None, nreid_min=None, cc_shift_range=None, cc_thresh=None, cc_local_thresh=None,
+                 nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
@@ -2591,8 +2591,14 @@ class WavelengthSolutionPar(ParSet):
         defaults['bad_orders_maxfrac'] = 0.25
         dtypes['bad_orders_maxfrac'] = float
         descr['bad_orders_maxfrac'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
-                                      'this is the maximum fraction of orders, for which the 1D fit failed, ' \
-                                      'that a detector can have for PypeIt to attempt a refit.'
+                                      'this is the maximum fraction of orders (per detector) with failed 1D fit, ' \
+                                      'for PypeIt to attempt a refit.'
+
+        defaults['frac_rms_thresh'] = 1.2
+        dtypes['frac_rms_thresh'] = float
+        descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                   'this is the fractional change in the RMS threshold used ' \
+                                   'when a 1D fit is re-attempted for failed orders.' \
 
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
@@ -2687,6 +2693,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
                             '\'full_template\''
+
+        pars['cc_shift_range'] = tuple_force(pars['cc_shift_range'])
+        defaults['cc_shift_range'] = None
+        dtypes['cc_shift_range'] = tuple
+        descr['cc_shift_range'] = 'Range of pixel shifts allowed when cross-correlating the ' \
+                                  'input arc spectrum with the archive spectrum.  If None, the ' \
+                                  'range will be automatically determined.'
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, np.ndarray]
@@ -2799,9 +2812,9 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
+                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
