@@ -24,6 +24,7 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
+- Add support for the R4K detector for MDM OSMOS
 - Enabled interpolation and extrapolation of missing echelle orders.  This is
   currently only used for Keck/HIRES, but the code is general.
 
@@ -32,6 +33,7 @@ Instrument-specific Updates
 
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
+- Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
 
 Script Changes
 --------------
@@ -61,5 +63,7 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
+- Fixed a bug with the GUI ``pypeit_skysub_regions``. Previously, the calib header
+  information was not included, and this led to a calibration error.
 
 

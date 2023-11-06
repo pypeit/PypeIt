@@ -1592,13 +1592,14 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
             spec_min = np.append(spec_min, slits.specmin[sl])
             spec_max = np.append(spec_max, slits.specmax[sl])
 
+    # Check if no regions were added
+    if left_edg.shape[1] == 0:
+        return np.zeros((slits.nspec, slits.nspat), dtype=bool)
+
     # Now that we have sky region traces, utilise the SlitTraceSet to define the regions.
     # We will then use the slit_img task to create a mask of the sky regions.
-    # TODO: I don't understand why slmsk needs to be instantiated.  SlitTraceSet
-    # does this internally.
-    slmsk = np.zeros(left_edg.shape[1], dtype=slittrace.SlitTraceSet.bitmask.minimum_dtype())
     slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec,
-                                     nspat=slits.nspat, mask=slmsk, specmin=spec_min,
+                                     nspat=slits.nspat, specmin=spec_min,
                                      specmax=spec_max, binspec=slits.binspec,
                                      binspat=slits.binspat, pad=0)
     # Generate the mask, and return
