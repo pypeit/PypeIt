@@ -152,7 +152,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # Binning in lois headers is space-separated
+            # Binning in lois headers is space-separated, spec x spat
             binspec, binspatial = parse.parse_binning(headarr[0]['CCDSUM'])
             return parse.binning2string(binspec, binspatial)
 
@@ -290,8 +290,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
         # Set this as default... but use `holy-grail` for DV4, DV8
-        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['method'] = 'full_template'  # Default: 'holy-grail'
         # The DeVeny arc line FWHM varies based on slitwidth used
+        par['calibrations']['wavelengths']['fwhm'] = 3.0  # Default: 4.0
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
