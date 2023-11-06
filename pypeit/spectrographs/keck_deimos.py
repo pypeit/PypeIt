@@ -1909,6 +1909,9 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False, split=True)
     Args:
         fits_file (str): filename
         outfile ([type], optional): Write the SpecObjs object to a FITS file. Defaults to None.
+        pad (bool,optional): True if the resulting SpecObjs should be padded to an even length. Defaults to False
+        split (bool,optional): True if the resulting SpecObjs should be split into two detectors, False if it
+                               should be treated as a mosaic. Defaults to True.
 
     Returns:
         specobjs.SpecObjs: object holding the spectra
