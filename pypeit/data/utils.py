@@ -15,8 +15,8 @@ Implementation Documentation
 This module contains the organization scheme for the ``pypeit/data`` files
 needed by the ``PypeIt`` package.  Any routine in the package that needs to load
 a data file stored in this directory should use the paths supplied by this
-module and not call `resource_filename
-<https://setuptools.pypa.io/en/latest/pkg_resources.html#resource-extraction>`__
+module and not call, e.g. `importlib.resources.files
+<https://docs.python.org/3/library/importlib.resources.html#importlib.resources.files>`__
 or attempt to otherwise directly access the package directory structure.  In
 this way, if structural changes to this directory are needed, only this module
 need be modified and the remainder of the package can remain ignorant of those
@@ -70,6 +70,7 @@ to the Vega example above.
 
 .. include:: ../include/links.rst
 """
+from importlib import resources
 import pathlib
 import shutil
 import urllib.error
@@ -77,7 +78,6 @@ import urllib.error
 import astropy.utils.data
 import github
 from linetools.spectra import xspectrum1d
-from pkg_resources import resource_filename
 import requests
 
 from pypeit import io
@@ -100,107 +100,84 @@ class Paths:
     Each `@property` method returns a :obj:`pathlib.Path` object
     """
 
-    # Class Attributes -- Hardwired Paths
-    _data = pathlib.Path(resource_filename('pypeit', 'data'))
-
-    # Telluric Corrections
-    _telgrid = _data / 'telluric' / 'atm_grids'
-    _tel_model = _data / 'telluric' / 'models'
-
-    # Wavelength Calibrations
-    _arclines = _data / 'arc_lines'
-    _reid_arxiv = _arclines / 'reid_arxiv'
-    _linelist = _arclines / 'lists'
-    _nist = _arclines / 'NIST'
-    _arc_plot = _arclines /'plots'
-
-    # Flux Calibrations
-    _standards = _data / 'standards'
-    _extinction = _data / 'extinction'
-    _skisim = _data / 'skisim'
-    _filters = _data / 'filters'
-    _sensfuncs = _data / 'sensfuncs'
-
-    # Other
-    _sky_spec = _data / 'sky_spec'
-    _static_calibs = _data / 'static_calibs'
-    _spectrographs = _data / 'spectrographs'
+    # Determine the location of the data directory on this system
+    _data = resources.files('pypeit') / 'data'
 
     @classmethod
     @property
-    def data(cls):
+    def data(cls) -> pathlib.Path:
         return cls.check_isdir(cls._data)
 
     # Telluric Corrections
     @classmethod
     @property
-    def telgrid(cls):
-        return cls.check_isdir(cls._telgrid)
+    def telgrid(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'telluric' / 'atm_grids')
     @classmethod
     @property
-    def tel_model(cls):
-        return cls.check_isdir(cls._tel_model)
+    def tel_model(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'telluric' / 'models')
 
     # Wavelength Calibrations
     @classmethod
     @property
-    def arclines(cls):
-        return cls.check_isdir(cls._arclines)
+    def arclines(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines')
     @classmethod
     @property
-    def reid_arxiv(cls):
-        return cls.check_isdir(cls._reid_arxiv)
+    def reid_arxiv(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'reid_arxiv')
     @classmethod
     @property
-    def linelist(cls):
-        return cls.check_isdir(cls._linelist)
+    def linelist(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'lists')
     @classmethod
     @property
-    def nist(cls):
-        return cls.check_isdir(cls._nist)
+    def nist(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' / 'NIST')
     @classmethod
     @property
-    def arc_plot(cls):
-        return cls.check_isdir(cls._arc_plot)
+    def arc_plot(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'arc_lines' /'plots')
 
     # Flux Calibrations
     @classmethod
     @property
-    def standards(cls):
-        return cls.check_isdir(cls._standards)
+    def standards(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'standards')
     @classmethod
     @property
-    def extinction(cls):
-        return cls.check_isdir(cls._extinction)
+    def extinction(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'extinction')
     @classmethod
     @property
-    def skisim(cls):
-        return cls.check_isdir(cls._skisim)
+    def skisim(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'skisim')
     @classmethod
     @property
-    def filters(cls):
-        return cls.check_isdir(cls._filters)
+    def filters(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'filters')
     @classmethod
     @property
-    def sensfuncs(cls):
-        return cls.check_isdir(cls._sensfuncs)
+    def sensfuncs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'sensfuncs')
 
     # Other
     @classmethod
     @property
-    def sky_spec(cls):
-        return cls.check_isdir(cls._sky_spec)
+    def sky_spec(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'sky_spec')
     @classmethod
     @property
-    def static_calibs(cls):
-        return cls.check_isdir(cls._static_calibs)
+    def static_calibs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'static_calibs')
     @classmethod
     @property
-    def spectrographs(cls):
-        return cls.check_isdir(cls._spectrographs)
+    def spectrographs(cls) -> pathlib.Path:
+        return cls.check_isdir(cls._data / 'spectrographs')
 
     @staticmethod
-    def check_isdir(path):
+    def check_isdir(path:pathlib.Path) -> pathlib.Path:
         """Check that the hardwired directory exists
 
         If yes, return the directory path, else raise an error message
@@ -234,18 +211,30 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
     version of PypeIt).
 
     Args:
-        arxiv_file (str):
+        arxiv_file (:obj:`str`):
           The base filename of the ``reid_arxiv`` file to be located
 
     Returns:
         tuple: The full path and whether the path is in the cache:
 
-           * reid_path (:obj:`pathlib.Path`): The full path to the ``reid_arxiv`` file
+           * reid_path (:obj:`~pathlib.Path`): The full path to the ``reid_arxiv`` file
            * arxiv_fmt (:obj:`str`): The extension of the ``reid_arxiv`` file (format)
     """
-    # Full path within the package data structure:
+    # First check that what is passed in works
+    if not isinstance(arxiv_file, (str, pathlib.Path)):
+        msgs.error(f"Incorrect or non-existent arxiv file specified: {arxiv_file}")
+    if isinstance(arxiv_file, pathlib.Path):
+        arxiv_file = str(arxiv_file)
+
+    # Check if the `arxiv_file` already comes with a full path
+    if (reid_path := pathlib.Path(arxiv_file)).name != arxiv_file:
+        # Check existence, return it with format
+        if not reid_path.is_file():
+            msgs.error(f"Incorrect or non-existent arxiv file specified: {reid_path}")
+        return reid_path, reid_path.suffix.replace('.','').lower()
+
+    # Else, full path within the package data structure:
     reid_path = Paths.reid_arxiv / arxiv_file
-    arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -258,7 +247,7 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
     # Return the path to the `reid_arxiv` file, and the file format
-    return reid_path, arxiv_fmt
+    return reid_path, arxiv_file.split('.')[-1].lower()
 
 
 def get_skisim_filepath(skisim_file: str) -> pathlib.Path:

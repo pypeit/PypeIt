@@ -296,6 +296,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             msgs.warn(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(formatted_exception)
+            continue
             
         # Flux calibrate the spec1d file
         try:
@@ -309,6 +310,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             msgs.warn(f"Failed to flux calibrate {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(f"Failed to flux calibrate {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(formatted_exception)
+            continue
 
     # Return the succesfully fluxed files
     return flux_calibrated_files

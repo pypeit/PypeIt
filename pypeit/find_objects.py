@@ -42,7 +42,7 @@ class FindObjects:
             Specifies object being reduced.  Should be 'science',
             'standard', or 'science_coadd2d'.
         wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
-            This is only used for the IFU child when a joint sky subtraction
+            This is only used for the :class:`SlicerIFUFindObjects` child when a joint sky subtraction
             is requested.
         waveTilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
             Calibration frame with arc/sky line tracing of the wavelength
@@ -361,6 +361,7 @@ class FindObjects:
         skymask_init = self.create_skymask(sobjs_obj)
         # Global sky subtract now using the skymask defined by object positions
         initial_sky = self.global_skysub(skymask=skymask_init, show_fit=show_skysub_fit)
+
         # Second pass object finding on sky-subtracted image with updated sky
         # created after masking objects
         if not self.std_redux and not self.par['reduce']['findobj']['skip_second_find']:
@@ -449,7 +450,7 @@ class FindObjects:
         # For nobj we take only the positive objects
         return sobjs_obj_single, nobj_single
 
-    # TODO maybe we don't need parent and children for this method. But IFU has a bunch of extra methods.
+    # TODO maybe we don't need parent and children for this method. But SlicerIFU has a bunch of extra methods.
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, save_objfindQA=False, neg=False, debug=False,
@@ -471,7 +472,8 @@ class FindObjects:
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (:class:`MultiSlitFindObjects`, :class:`SlicerIFUFindObjects`)
+                or ech_order (:class:`EchelleFindObjects`) value.
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -481,25 +483,28 @@ class FindObjects:
 
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg = (0, 0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
+                      previous_sky=None, show_fit=False, show=False, 
+                      show_objs=False, objs_not_masked=False,
+                      reinit_bpm:bool=True):
         """
         Perform global sky subtraction, slit by slit
 
         Wrapper to skysub.global_skysub
 
         Args:
-            skymask (`numpy.ndarray`_, None):
+            skymask (`numpy.ndarray`_, optional):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
-                ??
+                Update the crmask in the science image
             trim_edg (tuple, optional):
                  A two tuple of ints that specify the number of pixels to trim from the slit edges
+                 Only used by the IFU child
             show_fit (bool, optional):
-                ??
+                Show the sky fits?
             show (bool, optional):
-                ??
+                Show the sky image generated?
             show_objs (bool, optional):
-                ??
+                If show=True, show the objects on the sky image?
             previous_sky (`numpy.ndarray`_, optional):
                 Sky model estimate from a previous run of global_sky
                 Used to generate an improved estimated of the variance
@@ -507,13 +512,18 @@ class FindObjects:
                 Set this to be True if there are objects on the slit/order that are not being masked
                 by the skymask. This is typically the case for the first pass sky-subtraction
                 before object finding, since a skymask has not yet been created.
+            reinit_bpm (:obj:`bool`, optional):
+                If True (default), the bpm is reinitialized to the initial bpm 
+                Should be False on the final run in case there was a failure
+                upstream and no sources were found in the slit/order
 
         Returns:
             `numpy.ndarray`_: image of the the global sky model
 
         """
         # reset bpm since global sky is run several times and reduce_bpm is here updated.
-        self.reduce_bpm = self.reduce_bpm_init.copy()
+        if reinit_bpm:
+            self.reduce_bpm = self.reduce_bpm_init.copy()
         # Prep
         global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
@@ -678,7 +688,7 @@ class MultiSlitFindObjects(FindObjects):
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -828,7 +838,7 @@ class EchelleFindObjects(FindObjects):
 
         Args:
             slitord_id (:obj:`int`, optional):
-                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
+                slit spat_id (MultiSlit, SlicerIFU) or ech_order (Echelle) value
 
         Returns:
             :obj:`float`: plate scale in binned pixels
@@ -941,9 +951,9 @@ class EchelleFindObjects(FindObjects):
         return sobjs_ech, len(sobjs_ech)
 
 
-class IFUFindObjects(MultiSlitFindObjects):
+class SlicerIFUFindObjects(MultiSlitFindObjects):
     """
-    Child of Reduce for IFU reductions
+    Child of Reduce for SlicerIFU reductions
 
     See parent doc string for Args and Attributes
 
@@ -957,7 +967,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                               show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
         """
-        See MultiSlitReduce for slit-based IFU reductions
+        See MultiSlitReduce for SlicerIFU reductions
         """
         if self.par['reduce']['cube']['slit_spec']:
             return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
@@ -1237,17 +1247,30 @@ class IFUFindObjects(MultiSlitFindObjects):
         return _global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
+                      reinit_bpm:bool=True):
         """
-        Perform global sky subtraction. This IFU-specific routine ensures that the
+        Perform global sky subtraction. This SlicerIFU-specific routine ensures that the
         edges of the slits are not trimmed, and performs a spatial and spectral
         correction using the sky spectrum, if requested. See Reduce.global_skysub()
         for parameter definitions.
+
+        See base class method for description of parameters.
+
+        Args:
+            reinit_bpm (:obj:`bool`, optional):
+                If True (default), the bpm is reinitialized to the initial bpm 
+                Should be False on the final run in case there was a failure
+                upstream and no sources were found in the slit/order
         """
+        if self.par['reduce']['findobj']['skip_skysub']:
+            msgs.info("Skipping global sky sub as per user request")
+            return np.zeros_like(self.sciImg.image)
+
         # Generate a global sky sub for all slits separately
         global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                trim_edg=trim_edg, show_fit=show_fit, show=show,
-                                               show_objs=show_objs)
+                                               show_objs=show_objs, reinit_bpm=reinit_bpm)
         # Check if any slits failed
         if np.any(global_sky_sep[self.slitmask >= 0] == 0) and not self.bkg_redux:
             # Cannot continue without a sky model for all slits

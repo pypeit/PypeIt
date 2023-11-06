@@ -1,5 +1,12 @@
-1.13.1dev
----------
+
+****************************************************************************
+USE OF THIS FILE IS NOW DEPRECATED.  CHANGES SHOULD BE ADDED TO THE RELEVANT
+RELEASE FILE IN doc/releases
+****************************************************************************
+
+
+1.14.0 (18 Sep 2023)
+--------------------
 
 - Add support for Gemini/GNIRS (IFU)
 - Add support for Keck/KCRM
@@ -51,7 +58,7 @@
       files that have frametype None (this prevent ``run_pypeit`` to crash)
     - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
       that checks (during ``pypeit_setup``) if the selected spectrograph is the
-      corrected one for the data used. 
+      corrected one for the data used.
 
 
 1.13.0 (2 June 2023)
