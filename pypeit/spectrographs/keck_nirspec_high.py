@@ -80,7 +80,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['comb_id', 'bkg_id']
+        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
         return pypeit_keys
 
     def get_echelle_angle_files(self, lamps_list, filter1, filter2):
@@ -593,7 +593,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
-            par['calibrations']['slitedges']['rm_slits'] = '1:'
+            #par['calibrations']['slitedges']['rm_slits'] = '1:'
 
 
         if decker == '0.144x12':

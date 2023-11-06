@@ -783,10 +783,19 @@ class PypeIt:
 
         # Flexure
         spat_flexure = None
+        # use the flexure correction in the "shift" column
+        manual_flexure = self.fitstbl[frames[0]]['shift']
         if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            spat_flexure = sciImg.spat_flexure
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
+                    manual_flexure:
+            if manual_flexure:
+                msgs.info(f'Implementing manual flexure of {manual_flexure}')
+                spat_flexure = manual_flexure
+                sciImg.spat_flexure = spat_flexure
+            else:
+                spat_flexure = sciImg.spat_flexure
         # Build the initial sky mask
+        msgs.info(f'Flexure being used is: {spat_flexure}')
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
 
