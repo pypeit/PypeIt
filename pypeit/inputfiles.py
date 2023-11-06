@@ -796,14 +796,14 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(scale_corr=None, skysub_frame=None)
+        opts = dict(scale_corr=None, skysub_frame=None, ra_offset=None, dec_offset=None)
 
         # Get the scale correction files
-        scale_corr = self.path_and_files('scale_corr', skip_blank=True)
+        scale_corr = self.path_and_files('scale_corr', skip_blank=False, check_exists=False)
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            opts['scale_corr'] = scale_corr*len(self.filenames)
+            opts['scale_corr'] = scale_corr.lower()*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
 
@@ -815,6 +815,27 @@ class Coadd3DFile(InputFile):
             opts['skysub_frame'] = skysub_frame*len(self.filenames)
         elif len(skysub_frame) != 0:
             opts['skysub_frame'] = skysub_frame
+
+        # Load coordinate offsets for each file. This is "Delta RA cos(dec)" and "Delta Dec"
+        # Get the RA offset of each file
+        off_ra = self.path_and_files('ra_offset', skip_blank=False, check_exists=False)
+        if off_ra is None:
+            opts['ra_offset'] = None
+        elif len(off_ra) == 1 and len(self.filenames) > 1:
+            opts['ra_offset'] = off_ra*len(self.filenames)
+        elif len(off_ra) != 0:
+            opts['ra_offset'] = off_ra
+        # Get the DEC offset of each file
+        off_dec = self.path_and_files('dec_offset', skip_blank=False, check_exists=False)
+        if off_dec is None:
+            opts['dec_offset'] = None
+        elif len(off_dec) == 1 and len(self.filenames) > 1:
+            opts['dec_offset'] = off_dec*len(self.filenames)
+        elif len(off_dec) != 0:
+            opts['dec_offset'] = off_dec
+        # Check that both have been set
+        if (off_ra is not None and off_dec is None) or (off_ra is None and off_dec is not None):
+            msgs.error("You must specify both or neither of the following arguments: ra_offset, dec_offset")
 
         # Return all options
         return opts

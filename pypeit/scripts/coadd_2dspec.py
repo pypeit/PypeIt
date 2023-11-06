@@ -168,8 +168,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             msgs.info("Working on detector {0}".format(det))
 
             detname = spectrograph.get_det_name(det)
-            this_only_slits = only_spat_ids[only_dets == detname] if only_dets is not None else None
-            this_exclude_slits = exclude_spat_ids[exclude_dets == detname] if exclude_dets is not None else None
+            this_only_slits = only_spat_ids[only_dets == detname] if np.any(only_dets == detname) else None
+            this_exclude_slits = exclude_spat_ids[exclude_dets == detname] if np.any(exclude_dets == detname) else None
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, par, det=det,

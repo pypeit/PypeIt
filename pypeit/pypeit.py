@@ -578,6 +578,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
+
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
@@ -626,6 +627,14 @@ class PypeIt:
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
+
+            # Add calibration associations to the SpecObjs object
+            all_specobjs_extract.calibs = calibrations.Calibrations.get_association(
+                                    self.fitstbl, self.spectrograph, self.calibrations_path,
+                                    self.fitstbl[frames[0]]['setup'],
+                                    self.fitstbl.find_frame_calib_groups(frames[0])[0], self.det,
+                                    must_exist=True, proc_only=True)
+
             # JFH TODO write out the background frame?
 
             # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
@@ -777,7 +786,7 @@ class PypeIt:
                 (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
             spat_flexure = sciImg.spat_flexure
         # Build the initial sky mask
-        initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'IFU',
+        initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
 
         # Deal with manual extraction
@@ -934,17 +943,20 @@ class PypeIt:
         ## TODO JFH I think all of this about determining the final global sky should be moved out of this method
         ## and preferably into the FindObjects class. I see why we are doing it like this since for multislit we need
         # to find all of the objects first using slitmask meta data,  but this comes at the expense of a much more complicated
-        # control sctucture.
+        # control structure.
 
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
+                self.par['reduce']['findobj']['skip_skysub'] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
                 self.par['reduce']['skysub']['user_regions'] is not None:
             final_global_sky = initial_sky
         else:
             # Update the skymask
             skymask = objFind.create_skymask(sobjs_obj)
-            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, 
+                                                     skymask=skymask, show=self.show,
+                                                     reinit_bpm=False)
         scaleImg = objFind.scaleimg
 
         # Each spec2d file includes the slits object with unique flagging
@@ -998,9 +1010,8 @@ class PypeIt:
                                                   self.obstime, slitgpm=slitgpm, waveimg=waveImg, sobjs=sobjs)
 
         # TODO -- Do this upstream
-        # Tack on detector and wavelength RMS
+        # Tack on wavelength RMS
         for sobj in sobjs:
-            sobj.DETECTOR = sciImg.detector
             iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
             sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 

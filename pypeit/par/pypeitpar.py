@@ -219,7 +219,8 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_scattlight=None, subtract_continuum=None,
+                 spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -298,6 +299,12 @@ class ProcessImagesPar(ParSet):
                                       'be set to True to combine arcs with multiple different lamps. ' \
                                       'For all other cases, this parameter should probably be False.'
 
+        defaults['subtract_scattlight'] = False
+        dtypes['subtract_scattlight'] = bool
+        descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
+                                       'be set to True for spectrographs that have dedicated methods to subtract ' \
+                                       'scattered light. For all other cases, this parameter should be False.'
+
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
@@ -330,7 +337,7 @@ class ProcessImagesPar(ParSet):
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
-                                 'primarily used for IFUs.  To use this, you must set ' \
+                                 'primarily used for slicer IFUs.  To use this, you must set ' \
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
@@ -429,8 +436,8 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
-                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
+                   'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
@@ -452,7 +459,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median']
+        return ['polynomial', 'savgol', 'median', 'odd_even']
 
     @staticmethod
     def valid_combine_methods():
@@ -673,7 +680,7 @@ class FlatFieldPar(ParSet):
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
-                                       'only used for IFU reductions.'
+                                       'only used for SlicerIFU reductions.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
@@ -994,7 +1001,7 @@ class Coadd1DPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, dv=None, dwave=None, dloglam=None,
+                 sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, dwave=None, dloglam=None,
                  wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
@@ -1029,7 +1036,6 @@ class Coadd1DPar(ParSet):
         dtypes['nmaskedge'] = int
         descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
 
-        # Offsets
         defaults['sn_smooth_npix'] = None
         dtypes['sn_smooth_npix'] = [int, float]
         descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
@@ -1037,8 +1043,12 @@ class Coadd1DPar(ParSet):
                                   'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
                                   'this neff.'
 
+        defaults['sigrej_exp'] = None
+        dtypes['sigrej_exp'] = [int, float]
+        descr['sigrej_exp'] = 'Rejection threshold used for rejecting exposures with S/N more than sigrej_exp*sigma ' \
+                              'above the median S/N. If None (the default), no rejection is performed. Currently, ' \
+                              'only available for multi-slit observations.' \
 
-        # Offsets
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
@@ -1184,8 +1194,8 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'dwave', 'dloglam',
-                   'wave_grid_min', 'wave_grid_max',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'sigrej_exp',
+                   'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
@@ -1251,8 +1261,8 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = [str, list]
         descr['offsets'] = 'Offsets for the images being combined (spat pixels). Options are: ' \
                            '``maskdef_offsets``, ``header``, ``auto``, and a list of offsets. ' \
-                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
-                           'design matching (currently available for DEIMOS and MOSFIRE only). If equal ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask design matching ' \
+                           '(currently available for these :ref:`slitmask_info_instruments` only). If equal ' \
                            'to ``header``, the dither offsets recorded in the header, when available, will be used. ' \
                            'If ``auto`` is chosen, PypeIt will try to compute the offsets using a reference object ' \
                            'with the highest S/N, or an object selected by the user (see ``user_obj``). ' \
@@ -1395,7 +1405,9 @@ class CubePar(ParSet):
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
                          'whitelight images with either a reference image (see ``reference_image``) or the whitelight ' \
-                         'image that is generated using the first spec2d listed in the coadd3d file.'
+                         'image that is generated using the first spec2d listed in the coadd3d file. Alternatively, ' \
+                         'the user can specify the offsets (i.e. Delta RA x cos(dec) and Delta Dec, both in arcsec) ' \
+                         'in the spec2d block of the coadd3d file. See the documentation for examples of this usage.'
 
         defaults['combine'] = False
         dtypes['combine'] = [bool]
@@ -1444,13 +1456,14 @@ class CubePar(ParSet):
                                     'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
+        options['method'] = ["subpixel", "ngp"]
         dtypes['method'] = str
         descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
                           '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames ' \
                           'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, ' \
                           'but voxels are correlated, and the error spectrum does not account for covariance between ' \
                           'adjacent voxels. See also, spec_subpixel and spat_subpixel. ' \
-                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          '(2) "ngp" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
@@ -1459,9 +1472,6 @@ class CubePar(ParSet):
                           'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two ' \
                           'pixels have the same variance, the voxel would be assigned the average flux of the two ' \
                           'pixels).'
-        # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
-        # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-        # 'for covariance between neighbouring pixels. ' \
 
         defaults['spec_subpixel'] = 5
         dtypes['spec_subpixel'] = int
@@ -1579,9 +1589,13 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        allowed_methods = ["subpixel", "NGP"]#, "resample"
-        if self.data['method'] not in allowed_methods:
-            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        # Check the skysub options
+        allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
+        if self.data['skysub_frame'] not in allowed_skysub_options:
+            # Check if the supplied name exists
+            if not os.path.exists(self.data['skysub_frame']):
+                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
+                                 "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
@@ -2011,8 +2025,8 @@ class SlitMaskPar(ParSet):
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
-                                     'and MOSFIRE slitmask design, respectively) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding e.g., to `dSlitId` and `Slit_Number` ' \
+                                     'in the DEIMOS/LRIS and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'
@@ -2502,7 +2516,7 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
                  reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
+                 rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
@@ -2621,12 +2635,13 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image'
 
-        defaults['fwhm_fromlines'] = False
+        defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
                                   'If True, the estimated FWHM will override ``fwhm`` only in '\
-                                  'the determination of the wavelength solution (`i.e.`, not in '\
-                                  'WaveTilts).'
+                                  'the determination of the wavelength solution (including the ' \
+                                  'calculation of the threshold for the solution RMS, see ' \
+                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
@@ -2693,12 +2708,15 @@ class WavelengthSolutionPar(ParSet):
                              'be added to it to make it odd.'
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
-                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
-                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
-                                     
+        defaults['rms_thresh_frac_fwhm'] = 0.15
+        dtypes['rms_thresh_frac_fwhm'] = float
+        descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
+                                        'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
+                                        'FWHM will be computed from the arc lines in each slits ' \
+                                        '(the median value among all the slits is used), otherwise ``fwhm`` ' \
+                                        'will be used. This parameter is used for the \'holy-grail\', ' \
+                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2780,7 +2798,7 @@ class WavelengthSolutionPar(ParSet):
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
-                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+                   'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
                    'redo_slits', 'qa_log']
@@ -2814,7 +2832,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid lamp ions
         """
-        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
+        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr', 'FeAr']
 
     @staticmethod
     def valid_media():
@@ -3889,7 +3907,9 @@ class SkySubPar(ParSet):
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits. ' \
-                             'Currently, this parameter is only used for IFU data reduction.'
+                             'Currently, this parameter is only used for IFU data reduction. Note that the ' \
+                             'current implementation does not account for variations in the instrument FWHM ' \
+                             'in different slits. This will be addressed by Issue #1660.'
 
         defaults['max_mask_frac'] = 0.80
         dtypes['max_mask_frac'] = float

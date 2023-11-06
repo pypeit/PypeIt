@@ -385,9 +385,11 @@ class Extract:
         if len(remove_idx) > 0:
             self.sobjs.remove_sobj(remove_idx)
 
-        # Add the S/N ratio for each extracted object
+        # Add the DETECTOR container, S/N ratio, and FWHM in ARCSEC for each extracted object
         for sobj in self.sobjs:
+            sobj.DETECTOR = self.sciImg.detector
             sobj.S2N = sobj.med_s2n()
+            sobj.SPAT_FWHM = sobj.med_fwhm()
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -847,6 +849,7 @@ class EchelleExtract(Extract):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
+        use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
             = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -856,6 +859,7 @@ class EchelleExtract(Extract):
                                               std=self.std_redux, fit_fwhm=fit_fwhm,
                                               min_snr=min_snr, bsp=bsp, sigrej=sigrej,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,
+                                              use_2dmodel_mask=use_2dmodel_mask,
                                               model_full_slit=model_full_slit,
                                               model_noise=model_noise,
                                               show_profile=show_profile,
