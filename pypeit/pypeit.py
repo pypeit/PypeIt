@@ -788,7 +788,7 @@ class PypeIt:
         if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
                 (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
                     manual_flexure:
-            if manual_flexure:
+            if manual_flexure or manual_flexure == 0:
                 msgs.info(f'Implementing manual flexure of {manual_flexure}')
                 spat_flexure = manual_flexure
                 sciImg.spat_flexure = spat_flexure
