@@ -9,11 +9,9 @@ Installation
 
 .. warning::
 
-    **Apple Silicon users** have had issues in the past installing PypeIt using
-    pip; however, we do not think this is an issue any longer.  If you have
-    trouble installing PypeIt on your Apple machine following the pip
-    installation instructions, first try following the `conda`_ instructions
-    instead.  If that also fails, please `Submit an issue`_ and/or reach out to
+    **Apple Silicon users** who are having issues installing PypeIt may need
+    to set up an environment configured for x86.  See `m1_macs`_ for detailed
+    steps.  If that also fails, please `Submit an issue`_ and/or reach out to
     our user :ref:`community`.
 
 Below, we provide detailed instructions for installing PypeIt.  For
@@ -36,29 +34,29 @@ User Installation
 Setup a clean python environment
 --------------------------------
 
-Both methods discussed below for installing PypeIt (via `pip`_ or `conda`_)
-also install or upgrade its :ref:`dependencies`.  For this reason, we highly
-(!!) recommend you first set up a clean python environment in which to install
-PypeIt.  This mitigates any possible dependency conflicts with other
-packages you use.
+PypeIt is available from the `Python Package Index <https://pypi.org/project/pypeit/>`_
+(PyPI) and is installed via ``pip``.  This process also installs and/or upgrades
+PypeIt's :ref:`dependencies`, and for this reason, we highly (!!) recommend you
+first set up a clean python environment in which to install PypeIt.  This mitigates
+any possible dependency conflicts with other packages you use.
 
-You can setup a new python environment using `virtualenv`_:
-
-.. code-block:: console
-
-    virtualenv pypeit
-    source pypeit/bin/activate
-
-or `conda`_:
+You can setup a new python environment using either `conda`_:
 
 .. code-block:: console
 
     conda create -n pypeit python=3.11
     conda activate pypeit
 
-See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
-and/or `Managing Environments with Conda
+or `virtualenv`_:
+
+.. code-block:: console
+
+    virtualenv pypeit
+    source pypeit/bin/activate
+
+See the `Managing Environments with Conda
 <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
+and/or `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
 for more details. See also `virtualenvwrapper
 <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ as an option for more
 easily managing `virtualenv`_ environments. The `conda`_ installation method described below
@@ -69,7 +67,8 @@ creates an environment for you.
 Install via ``pip``
 -------------------
 
-To install the latest release of PypeIt and its required dependencies, execute:
+To install the latest release of PypeIt and its required dependencies, within your
+virtual environment execute:
 
 .. code-block:: console
 
@@ -84,7 +83,7 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
 
     - If you are generating datacubes (and performing an astrometric
       correction), you will also need the `scikit-image`_ package. It can be
-      installed by including it in the optional dependencies, e.g.:
+      installed by including it in the optional dependencies, *e.g.*:
 
       .. code-block:: console
 
@@ -108,35 +107,14 @@ PypeIt has a few optional dependencies that improve and/or expand functionality.
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
 
-Upgrading to a new version via ``pip``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Upgrading PypeIt should simply be a matter of executing:
-
-.. code-block:: console
-
-    pip install pypeit --upgrade
-
-If this causes problems (e.g., a new PypeIt script is unavailable or
-you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
-and then reinstalling.
-
-.. warning::
-
-    Whenever you upgrade PypeIt, beware that this may include changes to the
-    output file data models.  These changes are not required to be
-    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
-    when trying to view ``spec2d*`` files produced with your existing PypeIt
-    version after upgrading to a new version.  **The best approach is to always
-    re-reduce data you're still working with anytime you update PypeIt.**
-
 Install via ``conda``
 ---------------------
 
-`conda`_ is a popular and widely-used package and environment manager. We
-provide a yaml file that can be used to setup a conda environment called
-``pypeit`` that contains ``pypeit`` and all of the required dependencies.
-To use this:
+`conda`_ is a popular and widely-used package and environment manager.  We
+provide a YAML file that can be used to set up the virtual environment for
+you.  This file creates a conda environment called ``pypeit``, and then
+installs ``pypeit``, all of the required dependencies, and the optional
+dependency ``specutils`` via ``pip``.  To use this:
 
     #. Download `environment.yml
        <https://raw.githubusercontent.com/pypeit/PypeIt/release/environment.yml>`__.
@@ -157,24 +135,28 @@ To use this:
 
         .. code-block:: console
 
-            conda env list
+            conda list
+
+        Most of the packages listed will show as coming from the ``pypi`` channel.
 
 This environment should now be ready to use and contain the latest official
 ``pypeit`` release.
 
-Upgrading to a new version via ``conda``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Upgrading PypeIt within your ``pypeit`` ``conda`` environment should simply be a
-matter of executing:
+
+Upgrading to a new version of PypeIt
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since either installation method above ultimately uses ``pip`` to install
+PypeIt, upgrading the package should simply be a matter of executing:
 
 .. code-block:: console
 
-    conda update --all
+    pip install pypeit --upgrade
 
 If this causes problems (e.g., a new PypeIt script is unavailable or
-you encounter script errors), simply remove the conda environment
-(e.g., ``conda env remove pypeit``) and reinstall as above.
+you encounter script errors), first try uninstalling (*e.g.*,
+``pip uninstall pypeit``) and then reinstalling.
 
 .. warning::
 
@@ -193,6 +175,26 @@ User Installation on Apple Silicon-based Macs
 Both the `pip`_ and `conda`_ installation methods should be successful for Macs
 that uses Apple Silicon processors.  The full Anaconda installers also now
 include support for Apple Silicon.
+
+If the above does not work, you may need to set up a virtual environment configured
+for x86:
+
+    #. Install `miniconda <https://docs.conda.io/en/main/miniconda.html>`_.
+    #. Use ``conda`` to create an environment configured for x86:
+
+        .. code-block:: console
+
+            conda create -n pypeit -y
+            conda activate pypeit
+            conda config --env --set subdir osx-64
+
+    #. Install whichever version of Python you want (*e.g.*):
+
+        .. code-block:: console
+
+            conda install python=3.11
+
+    #. Install PypeIt via ``pip`` as above.
 
 Solutions/Recommendations/Feedback for these installation options are welcome;
 please `Submit an issue`_.
@@ -356,7 +358,7 @@ Python (see :ref:`dependencies`):
 * `pyqt <https://riverbankcomputing.com/software/pyqt/intro>`_
 * `PySide <https://wiki.qt.io/Qt_for_Python>`_
 
-At least one of those bindings must be installed for the interative GUIs to
+At least one of those bindings must be installed for the interactive GUIs to
 work. By default ``pypeit`` will install ``pyqt6``. Other backends can be used
 by installing them manually via ``pip`` or ``conda`` and then setting the ``QT_API``
 environment variable. See the `QtPy documentation <https://github.com/spyder-ide/qtpy>`_
@@ -494,7 +496,7 @@ install that points to a locally checked out copy of the GitHub repository.  We
 highly recommended using ``pip`` to install the repository and to
 :ref:`environment` for code development.
 
-To install from source (after setting up the python enviroment), first clone
+To install from source (after setting up the python environment), first clone
 (your fork of) the repository:
 
 .. code-block:: console
@@ -597,7 +599,7 @@ or, e.g.:
 
     tox -e test-astropydev
 
-Run ``tox -a`` to see a list of available test environemts.
+Run ``tox -a`` to see a list of available test environments.
 
 In either case, over 100 tests should pass, nearly 100 will be skipped and none
 should fail. The skipped tests only run if the PypeIt development is installed
