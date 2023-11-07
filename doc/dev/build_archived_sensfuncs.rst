@@ -20,7 +20,11 @@ How to build archived sensitivity functions
    .. code-block:: bash
 
         mkdir sensfunc_files
-        PypeIt-development-suite/sensfunc_archive/create_deimos_sensfuncs.py all data_products sensfunc_files
+        $PYPEIT_DEV/create_deimos_sensfuncs.py all data_products sensfunc_files
+
+   The above creates spec1d files and sensfunc files from the source images. To re-use already created
+   sensfunc files use the ``--reuse`` option. The pre-stitch sensfunc files used to create the archival
+   files are in the Google Drive under ``DEIMOS_Dev/sensfunc_stitch/pre_stitch_sensfuncs/``
 
 4. Copy the results to the PypeIt repository.
 
@@ -44,10 +48,6 @@ Examples of this data can be found in the `PypeIt dev-suite Google Drive`_ Googl
 +----------------------------------------------------------------+-------------------------------------------------------------------------------+
 | ``DEIMOS_Dev/Throughput/throughput_gdw/data_products/extract`` | Contains the reduced data from IDL used to generate the sensitivity functions.|
 +----------------------------------------------------------------+-------------------------------------------------------------------------------+
-
-Creating the IDL reduced output
--------------------------------
-TODO: Does brad want to document this?
 
 
 Converting the IDL reduced files to spec1d
@@ -79,7 +79,7 @@ used the following input file:
 
 The sensitivity functions can be created in bulk using the ``run_sensfunc_on_all_spec1d.py`` script.
 Assuming the sensfunc file above is in a file named ``deimos_arxiv_sensfunc``, the below
-command will create individual sensfunc files for each matching spec1d file and place
+example will create individual sensfunc files for each matching 600ZD spec1d file and place
 them in the sens_files directory:
 
    .. code-block:: bash
@@ -103,6 +103,5 @@ process are typically:
    3 If the gap between sensitivity function isn't smooth (for example on a detector boundary) 
      a polynomial fit can be used to join them.
 
-Helper functions in TODO/stitcutils.py. See jupyter notebook todo for a detailed example of how the sesnitivity
-functions for the 600ZD DEIMOS grating were stitched together.
+There are helper functions in $PYPEIT_DEV/sensfunc_archive/stitcutils.py intended to make this easier.
 
