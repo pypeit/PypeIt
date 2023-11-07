@@ -143,7 +143,7 @@ terminal window:
         d: Delete the nearest trace
         l: Add a left trace
         r: Add a right trace
-        U: Undo all changes since last sync
+        U: Undo all changes since last save
         ?: Print this list of key bindings
     --------------------------------------------------
 

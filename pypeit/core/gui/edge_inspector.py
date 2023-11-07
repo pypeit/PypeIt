@@ -46,7 +46,7 @@ class EdgeInspectorGUI:
         image_cax = self.fig.add_axes([sx + dx + 0.02, sy, 0.01, dy])
         image_slider_ax = self.fig.add_axes([sx, sy-0.08, dx/1.2, 0.02])
         image_change_button_ax = self.fig.add_axes([sx + dx - 0.1, sy - 0.1, 0.1, 0.05])
-        sync_button_ax = self.fig.add_axes([sx + dx + 0.01, sy - 0.1, 0.1, 0.05])
+        save_button_ax = self.fig.add_axes([sx + dx + 0.01, sy - 0.1, 0.1, 0.05])
 
         # Extent
         ny, nx = edges.traceimg.image.shape
@@ -84,10 +84,10 @@ class EdgeInspectorGUI:
         self.image_change_button = widgets.Button(image_change_button_ax, 'Image', color='0.7',
                                                   hovercolor='0.9')
         self.image_change_button.on_clicked(self.image_updater.next_image)
-        # And the button that will update the Edges object (rm, add, sync
+        # And the button that will update the Edges object (rm, add, save
         # traces) and update the line plot
-        self.sync_button = widgets.Button(sync_button_ax, 'Save', color='0.7', hovercolor='0.9')
-        self.sync_button.on_clicked(self.update_traces)
+        self.save_button = widgets.Button(save_button_ax, 'Save', color='0.7', hovercolor='0.9')
+        self.save_button.on_clicked(self.update_traces)
 
         # Initialize and plot the traces
         self._reset_traces()
@@ -101,7 +101,7 @@ class EdgeInspectorGUI:
         self.img_pointer.register('d', self.delete, descr='Delete the nearest trace')
         self.img_pointer.register('l', self.add_left, descr='Add a left trace')
         self.img_pointer.register('r', self.add_right, descr='Add a right trace')
-        self.img_pointer.register('U', self.undo, descr='Undo all changes since last sync')
+        self.img_pointer.register('U', self.undo, descr='Undo all changes since last save')
         # Add the help dialog
         self.img_pointer.build_help()
 

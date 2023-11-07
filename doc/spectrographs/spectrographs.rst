@@ -46,6 +46,7 @@ instrument-specific details for running PypeIt.
    lbt_mods
    mage
    magellan_fire
+   mdm_osmos
    mmt_binospec
    mmt_bluechannel
    mmt_mmirs
