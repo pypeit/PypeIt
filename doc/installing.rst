@@ -10,7 +10,7 @@ Installation
 .. warning::
 
     **Apple Silicon users** who are having issues installing PypeIt may need
-    to set up an environment configured for x86.  See `m1_macs`_ for detailed
+    to set up an environment configured for x86-64.  See :ref:`m1_macs` for detailed
     steps.  If that also fails, please `Submit an issue`_ and/or reach out to
     our user :ref:`community`.
 
@@ -40,7 +40,7 @@ PypeIt's :ref:`dependencies`, and for this reason, we highly (!!) recommend you
 first set up a clean python environment in which to install PypeIt.  This mitigates
 any possible dependency conflicts with other packages you use.
 
-You can setup a new python environment using either `conda`_:
+You can set up a new python environment using either `conda`_:
 
 .. code-block:: console
 
@@ -154,15 +154,15 @@ PypeIt, upgrading the package should simply be a matter of executing:
 
     pip install pypeit --upgrade
 
-If this causes problems (e.g., a new PypeIt script is unavailable or
-you encounter script errors), first try uninstalling (*e.g.*,
-``pip uninstall pypeit``) and then reinstalling.
+If this causes problems (*e.g.*, a new PypeIt script is unavailable or
+you encounter script errors), first try uninstalling (``pip uninstall
+pypeit``) and then reinstalling.
 
 .. warning::
 
     Whenever you upgrade PypeIt, beware that this may include changes to the
     output file data models.  These changes are not required to be
-    backwards-compatible, meaning that, e.g., ``pypeit_show_2dspec`` may fault
+    backwards-compatible, meaning that, *e.g.*, ``pypeit_show_2dspec`` may fault
     when trying to view ``spec2d*`` files produced with your existing PypeIt
     version after upgrading to a new version.  **The best approach is to always
     re-reduce data you're still working with anytime you update PypeIt.**
@@ -177,10 +177,10 @@ that uses Apple Silicon processors.  The full Anaconda installers also now
 include support for Apple Silicon.
 
 If the above does not work, you may need to set up a virtual environment configured
-for x86:
+for x86-64:
 
     #. Install `miniconda <https://docs.conda.io/en/main/miniconda.html>`_.
-    #. Use ``conda`` to create an environment configured for x86:
+    #. Use ``conda`` to create an environment configured for x86-64:
 
         .. code-block:: console
 
@@ -389,7 +389,7 @@ Some notes if you have problems installing the C code:
       ``Xcode`` for Mac users
 
     - for some Mac users, you may also need to update your OS if you're using a
-      particularly old version (e.g., 10.10 Yosemite)
+      particularly old version (*e.g.*, 10.10 Yosemite)
 
 Some of the C code uses `OpenMP <https://www.openmp.org/>`_ to parallelize loops
 and take advantage of multiple cores/threads. This support is transparent and the code
@@ -463,7 +463,7 @@ Developer install via ``pip``
 
 Install pre-release or development versions of PypeIt directly from `GitHub
 <https://github.com/pypeit/PypeIt>`_ using ``pip`` as follows. If you already
-have a ``pypeit`` environment setup, run:
+have a ``pypeit`` environment set up, run:
 
 .. code-block:: console
 
@@ -518,7 +518,7 @@ you may or may not need the quotes above depending on your shell, and that you
 should avoid cutting and pasting these commands into a terminal window.)
 
 Finally, you may want to add lines to your relevant shell configuration file
-(e.g., ``.zshrc`` or ``.bashrc``) that activate the relevant environment
+(*e.g.*, ``.zshrc`` or ``.bashrc``) that activate the relevant environment
 whenever you start up a new shell.  For example:
 
 .. code-block:: console
@@ -574,7 +574,7 @@ Developer Tests
 ---------------
 
 If you performed a developer installation by cloning the repository into a local
-directory (e.g., ``~/PypeIt``), you can run the standard unit tests within the
+directory (*e.g.*, ``~/PypeIt``), you can run the standard unit tests within the
 PypeIt environment by executing:
 
 .. code-block:: console
@@ -593,7 +593,7 @@ dependencies, we recommend using ``tox``:
     cd PypeIt
     tox -e test
 
-or, e.g.:
+or, *e.g.*:
 
 .. code-block:: console
 
