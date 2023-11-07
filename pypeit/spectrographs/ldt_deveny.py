@@ -308,7 +308,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits'] = False  # Default: True
 
         # For the tilts, our lines are not as well-behaved as others',
-        #   possibly due to the Wynne type E camera.
+        #   possibly due to the Wynne version E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
 
@@ -317,14 +317,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
         # Object Finding, Extraction, and Sky Subtraction Parameters
-        assumed_seeing = 1.2  # arcsec
+        assumed_seeing = 1.5  # arcsec
         par['reduce']['findobj']['trace_npoly'] = 3   # Default: 5
         par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
         par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
         par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
         par['reduce']['findobj']['find_fwhm'] = np.round(assumed_seeing / 0.34, 1)   # Default: 5.0 pix
         par['reduce']['findobj']['find_trim_edge'] = [0, 0]  # Default: [5, 5]
-        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.5, 1)  # Default: 1.5"
+        # Boxcar width = ±3σ of Gaussian profile = >99% enclosed flux; radius = 1.28 * seeing
+        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.28, 1)  # Default: 1.5"
         par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
         par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
 
