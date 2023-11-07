@@ -130,7 +130,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['cc_shift_range'] = (-40.,40)
         par['calibrations']['wavelengths']['cc_thresh'] = 0.25
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.80
-#        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
+
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

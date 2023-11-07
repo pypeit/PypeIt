@@ -376,7 +376,7 @@ def match_qa(arc_spec, tcent, line_list, IDs, scores, outfile = None, title=None
 
 
 def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
-               nreid_min, det_arxiv=None, detections=None,
+               nreid_min, cont_sub=True, det_arxiv=None, detections=None,
                cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
@@ -405,6 +405,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
     Optional Parameters
     -------------------
+
+    cont_sub: bool, default = True
+         If True, continuum subtract the arc spectrum before reidentification.
 
     det_arxiv (optional):  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
                 an ndarray of size determined by the number of lines that were detected.
@@ -519,26 +522,32 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     if nspec_arxiv != nspec:
         msgs.error('Spectrum sizes do not match. Something is very wrong!')
 
-    # Search for lines no matter what to continuum subtract the input arc
+    use_spec = spec
+    # Continuum subtract the arc spectrum
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
         spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
     # If the detections were not passed in measure them
     if detections is None:
         detections = tcent[icut]
+    if cont_sub:
+        # use the continuum subtracted arc spectrum for the rest of the code
+        use_spec = spec_cont_sub
 
+    use_spec_arxiv = spec_arxiv
+    # Continuum subtract the arxiv spectrum
     spec_arxiv_cont_sub = np.zeros_like(spec_arxiv)
-
-    # Search for lines no matter what to continuum subtract the arxiv arc, also determine the central wavelength and
-    # dispersion of wavelength arxiv
     det_arxiv1 = {}
     for iarxiv in range(narxiv):
         tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
-            spec_arxiv[:,iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
-        spec_arxiv_cont_sub[:,iarxiv] = spec_cont_sub_now
+            spec_arxiv[:, iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm,
+            debug=debug_peaks)
+        spec_arxiv_cont_sub[:, iarxiv] = spec_cont_sub_now
         det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
-
     if det_arxiv is None:
         det_arxiv = det_arxiv1
+    if cont_sub:
+        # use the continuum subtracted arxiv spectrum for the rest of the code
+        use_spec_arxiv = spec_arxiv_cont_sub
 
     wvc_arxiv = np.zeros(narxiv, dtype=float)
     disp_arxiv = np.zeros(narxiv, dtype=float)
@@ -569,7 +578,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec, spec_arxiv[:, iarxiv], sigdetect=sigdetect, lag_range=cc_shift_range,
+            wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect, lag_range=cc_shift_range,
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
                                         debug=debug_xcorr)
         msgs.info(f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, cc = {ccorr_vec[iarxiv]:5.3f}')
@@ -583,15 +592,15 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
         det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
-        spec_arxiv_ss = wvutils.shift_and_stretch(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
+        spec_arxiv_ss = wvutils.shift_and_stretch(use_spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
 
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
-            tampl_slit = np.interp(detections, xrng, spec)
-            plt.plot(xrng, spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
+            tampl_slit = np.interp(detections, xrng, use_spec)
+            plt.plot(xrng, use_spec, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
             plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
-            tampl_arxiv = np.interp(this_det_arxiv, xrng, spec_arxiv[:, iarxiv])
-            plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
+            tampl_arxiv = np.interp(this_det_arxiv, xrng, use_spec_arxiv[:, iarxiv])
+            plt.plot(xrng, use_spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
                      label='arxiv arc', linewidth=0.5)
             plt.plot(this_det_arxiv, tampl_arxiv, 'k+', markersize=8.0, label='arxiv arc lines')
             # tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
@@ -607,7 +616,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 ', stretch = {:5.4f}'.format(stretch_vec[iarxiv]) +
                 ', wv_cen = {:7.1f}'.format(wcen[iarxiv]) +
                 ', disp = {:5.3f}'.format(disp[iarxiv]))
-            plt.ylim(1.2*spec.min(), 1.5 *spec.max())
+            plt.ylim(1.2*use_spec.min(), 1.5 *use_spec.max())
             plt.legend()
             plt.show()
 
@@ -620,8 +629,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # Compute a "local" zero lag correlation of the slit spectrum and the shifted and stretch arxiv spectrum over a
         # a nlocal_cc_odd long segment of spectrum. We will then uses spectral similarity as a further criteria to
         # decide which lines are good matches
-        prod_smooth = scipy.ndimage.convolve1d(spec*spec_arxiv_ss, window)
-        spec2_smooth = scipy.ndimage.convolve1d(spec**2, window)
+        prod_smooth = scipy.ndimage.convolve1d(use_spec*spec_arxiv_ss, window)
+        spec2_smooth = scipy.ndimage.convolve1d(use_spec**2, window)
         arxiv2_smooth = scipy.ndimage.convolve1d(spec_arxiv_ss**2, window)
         denom = np.sqrt(spec2_smooth*arxiv2_smooth)
         corr_local = np.zeros_like(denom)
@@ -686,13 +695,14 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         plt.legend()
         plt.show()
         # QA Plot ofthe reidentifications
-        match_qa(spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
+        match_qa(use_spec, detections, line_list, patt_dict_slit['IDs'], patt_dict_slit['scores'])
 
     # Use only the perfect IDs
     iperfect = np.array(patt_dict_slit['scores']) != 'Perfect'
     patt_dict_slit['mask'][iperfect] = False
     patt_dict_slit['nmatch'] = np.sum(patt_dict_slit['mask'])
     if patt_dict_slit['nmatch'] < 3:
+        msgs.warn(f'Insufficient number of good reidentifications: {patt_dict_slit["nmatch"]} (at least 3 required).')
         patt_dict_slit['acceptable'] = False
 
     return detections, spec_cont_sub, patt_dict_slit
@@ -1178,7 +1188,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             #  should we use par['cc_thresh'] instead of hard-coding cc_thresh??
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
-                                                              line_lists, 1, debug_xcorr=debug_xcorr,
+                                                              line_lists, 1, cont_sub=par['reid_cont_sub'],
+                                                              debug_xcorr=debug_xcorr,
                                                               sigdetect=sigdetect,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
@@ -1345,8 +1356,8 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
         msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {par['rms_thresh_frac_fwhm']}")
         detections[str(iord)], spec_cont_sub[:, iord], all_patt_dict[str(iord)] = reidentify(
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
-            cc_shift_range=par['cc_shift_range'], cc_thresh=cc_thresh, match_toler=par['match_toler'],
-            cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
+            cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
+            cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
@@ -1664,15 +1675,22 @@ class ArchiveReid:
             msgs.info(f"Using RMS threshold = {rms_thresh} (pixels); RMS/FWHM threshold = {self.par['rms_thresh_frac_fwhm']}")
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
-                           self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
+                           self.tot_line_list, self.nreid_min, cont_sub=self.par['reid_cont_sub'],
+                           cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_shift_range=self.par['cc_shift_range'], cc_local_thresh=self.cc_local_thresh,
                            nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
                            debug_reid=self.debug_reid)
+            # str for the reports below
+            order_str = '' if orders is None else ', order={}'.format(orders[slit])
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = None
                 self.bad_slits = np.append(self.bad_slits, slit)
+                msgs.warn('---------------------------------------------------' + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
+                          '  Cross-correlation failed' + msgs.newline() +
+                          '---------------------------------------------------')
                 continue
 
             # Perform the fit
@@ -1687,10 +1705,13 @@ class ArchiveReid:
                 # This pattern wasn't good enough
                 self.wv_calib[str(slit)] = None
                 self.bad_slits = np.append(self.bad_slits, slit)
+                msgs.warn('---------------------------------------------------' + msgs.newline() +
+                          'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
+                          '  Final fit failed' + msgs.newline() +
+                          '---------------------------------------------------')
                 continue
             # Is the RMS below the threshold?
             if final_fit['rms'] > rms_thresh:
-                order_str = '' if orders is None else ', order={}'.format(orders[slit])
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}'.format(slit, self.nslits-1) + order_str + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
