@@ -62,10 +62,13 @@ outputs related to `Slit Tracing`_.
 One can also run the :ref:`pypeit_parse_slits` script on the ``Slit`` output
 to get a terse description of the output.
 
-.. _pypeit_trace_edges:
-
 Scripts
 =======
+
+.. _pypeit_trace_edges:
+
+pypeit_trace_edges
+------------------
 
 Slit tracing is one of the steps in PypeIt that can be run independently of
 the full reduction, using the ``pypeit_trace_edges`` script.  **If you're having
@@ -89,13 +92,21 @@ additional output that can be used to diagnose the parameterized fits to the
 edge traces and the PCA decomposition.  Fair warning that, for images with many
 slits, these plots can be laborious to wade through...
 
+pypeit_edge_inspector
+---------------------
+
 We also provide a script that allows you to interact with and edit the traces by
-hand.  **This should only be used as a last resort!**  The automated tracing is
-deterministic and reproducible, whereas subjective by-eye adjustments to the
-traces are not.  If at all possible, you should use the parameters to fix the
-performance of the automated tracing.  Having said that, there will be cases
-where the limitations of the automated tracing algorithm(s) affect the quality
-of data reduction in a way that could be improved by simple by-hand adjustments.
+hand.
+
+.. important::
+    
+    **Direct, by-hand editing of the edge traces should only be used as a last
+    resort!**  The automated tracing is deterministic and reproducible, whereas
+    subjective by-eye adjustments to the traces are not.  If at all possible,
+    you should use the parameters to fix the performance of the automated
+    tracing.  Having said that, there will be cases where the limitations of the
+    automated tracing algorithm(s) affect the quality of data reduction in a way
+    that could be improved by simple by-hand adjustments.
 
 The ``pypeit_edge_inspector`` script provides a interactive window (using
 matplotlib) that allows you to move, add, and delete traces.  The script
@@ -139,15 +150,15 @@ terminal window:
 The typical matplotlib buttons work as usual.  The "Data Range" slider allows
 you to change the range of data shown, and appropriately adjusts the colorbar.
 The "Image" button at the bottom right allows you to toggle between the trace
-image and the sobel-filtered image used to detect the slit edges.  The "Sync"
+image and the sobel-filtered image used to detect the slit edges.  The "Save"
 button consolidates all the changes you've made, saves them to the ``Edges``
 object, and attempts to synchronize left-right edges.  **Make sure you hit the
-sync button before closing the matplotlib window.**  Otherwise, any changes you
-have made will not be saved.  After closing the window, the code saves the new
-``Edges`` and ``Slits`` calibration files.  If you then re-execute
-``run_pypeit``, the code should recognize that the files exist and use them
-instead of redoing the edge tracing **as long as you don't tell the code to do
-otherwise.**
+save button before closing the matplotlib window.**  Otherwise, any changes you
+have made will not be saved.  After closing the window, the code **overwrites**
+the ``Edges`` and ``Slits`` calibration files to include your changes.  If you
+then re-execute ``run_pypeit``, the code should recognize that the files exist
+and use them instead of redoing the edge tracing **as long as you don't tell the
+code to do otherwise.**
 
 
 .. _slit_tracing_issues:

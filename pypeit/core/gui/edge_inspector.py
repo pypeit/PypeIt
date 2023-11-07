@@ -86,7 +86,7 @@ class EdgeInspectorGUI:
         self.image_change_button.on_clicked(self.image_updater.next_image)
         # And the button that will update the Edges object (rm, add, sync
         # traces) and update the line plot
-        self.sync_button = widgets.Button(sync_button_ax, 'Sync', color='0.7', hovercolor='0.9')
+        self.sync_button = widgets.Button(sync_button_ax, 'Save', color='0.7', hovercolor='0.9')
         self.sync_button.on_clicked(self.update_traces)
 
         # Initialize and plot the traces
@@ -293,7 +293,7 @@ class EdgeInspectorGUI:
 
         # Predict the spatial location of the trace
         if self.has_pca:
-            new_trace = self.edges.predict_traces(spat, side=-1)
+            new_trace = self.edges.predict_traces(spat, side=side)
         else:
             i = self.nearest_trace(spat)
             offset = spat - self.trace_cen[self.reference_row,i]
