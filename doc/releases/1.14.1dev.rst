@@ -11,6 +11,7 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Updated archival sensivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Started the development of instrument-specific scattered light removal. In this
   release, we only model KCWI/KCRM scattered light.
 - Turned on usage of the use_2dmodel_mask parameter for echelle spectrographs
