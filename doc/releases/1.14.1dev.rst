@@ -2,6 +2,12 @@
 Version 1.14.1dev
 =================
 
+Installation Changes
+--------------------
+- PypeIt will no longer be available through ``conda-forge`` and
+  must be installed via ``pip`` from PyPI.  Users may still use
+  ``conda`` for management of PypeIt's virtual environment.
+
 Dependency Changes
 ------------------
 
