@@ -54,9 +54,9 @@ def scattered_light_model(param, img):
     # Extract the parameters into more conveniently named variables
     sigmx_g, sigmy_g, sigmx_l, sigmy_l = param[0], param[1], param[2], param[3]
     shft_spec, shft_spat, zoom_spec, zoom_spat = param[4], param[5], param[6], param[7]
-    kern_angle, kern_scale = param[8], param[9]
-    polyterms_spat = param[10:12]
-    polyterms_spec = param[12:]
+    constant, kern_angle, kern_scale = param[8], param[9], param[10]
+    polyterms_spat = param[11:13]
+    polyterms_spec = param[13:]
 
     # Make a grid of coordinates
     specvec, spatvec = np.arange(img.shape[0]), np.arange(img.shape[1])
@@ -88,7 +88,7 @@ def scattered_light_model(param, img):
 
     scale_img = polyscale * signal.oaconvolve(img, kernel, mode='same')
     spl = interpolate.RectBivariateSpline(specvec, spatvec, scale_img, kx=1, ky=1)
-    return spl(zoom_spec * (specvec + shft_spec), zoom_spat * (spatvec + shft_spat))
+    return constant + spl(zoom_spec * (specvec + shft_spec), zoom_spat * (spatvec + shft_spat))
 
 
 def scattlight_resid(param, wpix, img):
