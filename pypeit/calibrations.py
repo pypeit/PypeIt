@@ -754,7 +754,7 @@ class Calibrations:
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
-                                                        flatimages=self.flatimages, bpm=self.msbpm)
+                                                        slits=self.slits, flatimages=self.flatimages, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -765,11 +765,12 @@ class Calibrations:
                                                                   raw_lampoff_files,
                                                                   dark=self.msdark,
                                                                   bias=self.msbias,
+                                                                  slits=self.slits,
                                                                   scattlight=self.msscattlight,
                                                                   bpm=self.msbpm)
                 illum_flat = illum_flat.sub(lampoff_flat)
 
-            # Initialise the pixel flat
+            # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  self.wv_calib, spat_illum_only=True,
