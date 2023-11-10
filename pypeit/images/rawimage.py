@@ -1127,7 +1127,6 @@ class RawImage:
         This is primarily a wrapper for
         :func:`~pypeit.core.scattered_light_model`.
 
-
         Parameters
         ----------
         msscattlight : :class:`~pypeit.scattlight.ScatteredLight`
@@ -1164,11 +1163,14 @@ class RawImage:
             # Replace all bad pixels with the nearest good pixel
             full_bpm = self.bpm[ii, ...] | crmask
             _img = utils.replace_bad(self.image[ii, ...], full_bpm)
+            # Get a copy of the best-fitting model parameters
+            this_modpar = msscattlight.scattlight_param.copy()
+            this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
             do_finecorr = self.par["scattlight"]["finecorr"]
             if self.par["scattlight"]["method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _img)
+                scatt_img = scattlight.scattered_light_model(this_modpar, _img)
                 if debug:
                     embed()
                     # import astropy.io.fits as fits
@@ -1178,11 +1180,20 @@ class RawImage:
                     # for ii in range(11):
                     #     print("saving", ii)
                     #     np.save("scattlight_test/slitmask_pad{0:02d}.npy".format(ii), slits.slit_img(pad=ii, initial=True, flexure=None) == -1)
+                    specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
-                    tmp[:6] *= 2
-                    print("\n\n\n2x2 BINNING ASSUMED!!!\n\n\n")
-                    print(tmp)
-                    spatbin = parse.parse_binning(self.detector[0]['binning'])[1]
+                    print("\n\n\n2x2 BINNING ASSUMED AS INPUT!!!\n\n\n")
+                    # Find a pretty way to print out the archive variables
+                    strprint = f"x0 = np.array([{tmp[0]*specbin} / specbin, {tmp[1]*spatbin} / spatbin,  # Gaussian kernel widths\n" + \
+                               f"               {tmp[2]*specbin} / specbin, {tmp[3]*spatbin} / spatbin,  # Lorentzian kernel widths\n" + \
+                               f"               {tmp[4]*specbin} / specbin, {tmp[5]*spatbin} / spatbin,  # pixel offsets\n" + \
+                               f"               {tmp[6]}, {tmp[7]},  # Zoom factor (spec, spat)\n" + \
+                               f"               {tmp[8]},  # constant flux offset\n" + \
+                               f"               {tmp[9]},  # kernel angle\n" + \
+                               f"               {tmp[10]},  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)\n" + \
+                               f"               {tmp[11]}, {tmp[12]},  # Polynomial terms (coefficients of \"spat\" and \"spat*spec\")\n" + \
+                               f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
+                    print(strprint)
                     pad = msscattlight.pad // spatbin
                     offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
                     from matplotlib import pyplot as plt
@@ -1191,19 +1202,21 @@ class RawImage:
                     plt.subplot(221)
                     plt.imshow(_frame, vmin=vmin, vmax=2*np.median(_frame))
                     plt.subplot(222)
-                    plt.imshow(_frame*offslitmask, vmin=vmin, vmax=3*vmax)
+                    plt.imshow(_frame*offslitmask, vmin=-2*vmax, vmax=2*vmax)
                     plt.subplot(223)
-                    plt.imshow(scatt_img, vmin=vmin, vmax=3*vmax)
+                    plt.imshow(scatt_img*offslitmask, vmin=-2*vmax, vmax=2*vmax)
                     plt.subplot(224)
-                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax / 2, vmax=vmax / 2)
+                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-2*vmax, vmax=2*vmax)
+                    # plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax/5, vmax=vmax/5)
                     plt.show()
             elif self.par["scattlight"]["method"] == "archive":
                 # Use archival model parameters
-                modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                if modpar is None:
+                arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                arx_modpar[8] = 0.0
+                if arx_modpar is None:
                     msgs.error(f"{self.spectrograph.name} does not have archival scattered light parameters. Please "
                                f"set 'scattlight_method' to another option.")
-                scatt_img = scattlight.scattered_light_model(modpar, _img)
+                scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
                 pad = msscattlight.pad // spatbin
@@ -1217,12 +1230,13 @@ class RawImage:
                 if not success:
                     if msscattlight is not None:
                         msgs.warn("Scattered light model failed - using predefined model parameters")
-                        scatt_img = scattlight.scattered_light_model(msscattlight.scattlight_param, _img)
+                        scatt_img = scattlight.scattered_light_model(this_modpar, _img)
                     else:
                         msgs.warn("Scattered light model failed - using archival model parameters")
                         # Use archival model parameters
-                        modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
-                        scatt_img = scattlight.scattered_light_model(modpar, _img)
+                        arx_modpar, _ = self.spectrograph.scattered_light_archive(binning, dispname)
+                        arx_modpar[8] = 0.0
+                        scatt_img = scattlight.scattered_light_model(arx_modpar, _img)
             else:
                 msgs.warn("Scattered light not performed")
                 scatt_img = np.zeros(self.image[ii, ...].shape)
