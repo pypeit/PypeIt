@@ -337,19 +337,32 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # and should be close to the final fitted values to reduce computational time)
         # Note :: These values need to be originally based on data that uses 1x1 binning,
         # and are now scaled here according to the binning of the current data to be analysed.
-        # These parameters give a cost of 8.0833e+08 with the science frame used as scattlight (1x1 binning, pad=5)
-        x0 = np.array([2.63726939e+02/specbin, 1.57625683e+02/spatbin,  # Gaussian kernel widths
-                       2.63911253e+02/specbin, 1.74452723e+02/spatbin,  # Lorentzian kernel widths
-                       -1.38026314e+02/specbin, 7.72883842e+01/spatbin,  # pixel offsets
-                       9.59395069e-01, 1.04452747e+00,  # Zoom factor (spec, spat)
-                       6.00977118e-01,  # kernel angle
-                       7.70958895e-02,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
-                       -1.15238092e-01, 1.80022435e-01,   # Polynomial terms (coefficients of "spat" and "spat*spec")
-                       3.41914530e-01, -3.15033809e-01])  # Polynomial terms (coefficients of spec**index)
+        # These parameters give a cost of 8.0517e+08 with the science frame used as scattlight (1x1 binning, pad=5)
+        x0 = np.array([272.33958742493064 / specbin, 115.501464689107 / spatbin,  # Gaussian kernel widths
+                       272.3418000034377 / specbin, 168.0591427733949 / spatbin,  # Lorentzian kernel widths
+                       -141.2552517318941 / specbin, 79.25936221285629 / spatbin,  # pixel offsets
+                       1.0877734248786808, 1.0562808322123667,  # Zoom factor (spec, spat)
+                       5.876311151022701,  # constant flux offset
+                       0.0444248025888341,  # kernel angle
+                       0.6090358292193677,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       0.135392229831296, -0.16167521454188258, # Polynomial terms (coefficients of "spat" and "spat*spec")
+                       0.06148093592863097, 0.10305719952486242])  # Polynomial terms (coefficients of spec**index)
 
         # Now set the bounds of the fitted parameters
-        bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
-                  [600/specbin, 600/spatbin, 600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 2, 2*np.pi, 1000.0, 10, 10, 10, 10])
+        bounds = ([# Lower bounds:
+                      1, 1,  # Gaussian kernel widths
+                      1, 1,  # Lorentzian kernel widths
+                      -200 / specbin, -200 / spatbin,  # pixel offsets
+                      0, 0,  # Zoom factor (spec, spat)
+                      -1000, -(10 / 180) * np.pi, 0.0,  # constant flux offset, kernel angle, relative kernel scale
+                      -10, -10, -10, -10],  # Polynomial terms
+                  # Upper bounds
+                     [600 / specbin, 600 / spatbin,  # Gaussian kernel widths
+                      600 / specbin, 600 / spatbin,  # Lorentzian kernel widths
+                      200 / specbin, 200 / spatbin,  # pixel offsets
+                      2, 2,  # Zoom factor (spec, spat)
+                      1000.0, +(10 / 180) * np.pi, 1000.0,  # constant flux offset, kernel angle, relative kernel scale
+                      10, 10, 10, 10])  # Polynomial terms
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
