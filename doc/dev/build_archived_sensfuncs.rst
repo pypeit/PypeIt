@@ -3,8 +3,40 @@
 
 .. _build_archived_sensfuncs:
 
-How to build archived sensitivity functions
-===========================================
+
+Creating archival sensitivity functions
+=======================================
+
+Archival sensitivity functions for instruments can be created by combining 
+multiple sensivity functions from different exposures at different 
+grating tilts to get a wider wavelength coverage. The steps in this
+process are typically:
+
+#. Choose sensitivity functions for grating. The functions should have good wavelength coverage,
+   and low airmass.
+
+#. Start with the bluest sensitivity function and translate the next function up/down to roughly match.
+   One or both function may be truncated to fit.
+
+#. If the gap between sensitivity function isn't smooth (for example on a detector boundary) 
+   a polynomial fit can be used to join them.
+
+There are helper functions in $PYPEIT_DEV/sensfunc_archive/stitcutils.py intended to make this easier. See
+$PYPEIT_DEV/sensfunc_archive/create_deimos_sensfuncs.py $PYPEIT_DEV/sensfunc_archive/stitchdeimos.py for examples of how this was done
+for DEIMOS.
+
+The DEIMOS archived sensitivity functions
+-----------------------------------------
+
+*Disclaimer*:
+The DEIMOS archival sensitivity functions do not provide an absolute flux 
+calibration.  Instead, they are only intended to remove the instrumental 
+response, providing a relative flux calibration up to some unknown 
+normalization.
+
+
+Creating all of the DEIMOS sensitivity functions
+************************************************
 
 1. Make sure you have up to date versions of the `PypeIt
    <https://github.com/pypeit/PypeIt>`_ and `PypeIt Development Suite`_ 
@@ -20,7 +52,7 @@ How to build archived sensitivity functions
    .. code-block:: bash
 
         mkdir sensfunc_files
-        $PYPEIT_DEV/create_deimos_sensfuncs.py all data_products sensfunc_files
+        $PYPEIT_DEV/sensfunc_archive/create_deimos_sensfuncs.py all data_products sensfunc_files
 
    The above creates spec1d files and sensfunc files from the source images. To re-use already created
    sensfunc files use the ``--reuse`` option. The pre-stitch sensfunc files used to create the archival
@@ -33,10 +65,10 @@ How to build archived sensitivity functions
         cd sensfunc_files
         cp keck_deimos_*.fits PypeIt/pypeit/data/sensfuncs/
 
-How to build the scripts that generate the archived sensitivity functions
-=========================================================================
+How the DEIMOS sensitivity functions were built
+***********************************************
 
-The archived sensitivity functions for DEIMOS were created from raw data
+The archived sensitivity functions for DEIMOS were created by from raw data
 gathered from scripted standard star observations. These are slitless
 observations that PypeIt cannot reduce on its own, so they are reduced using
 IDL scripts from Greg Wirth. 
@@ -51,9 +83,14 @@ Examples of this data can be found in the `PypeIt dev-suite Google Drive`_ Googl
 
 
 Converting the IDL reduced files to spec1d
-------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 In the PypeIt-development-suite repo,  the ``batch_convert_throughput_to_spec1d.py``
 script can create PypeIt spec1d files from the IDL output.
+
+By default, this script splits the IDL output into two detectors (DET03 and DET07). Because the IDL output isn't always
+even in length, it is neccessary to pass "pad" to the script. Alternatively the script can generate spec1d files by treating the IDL output as a 
+mosiac ('MSC03') by passing "nosplit":
 
 For example, if the files from Google Drive was downloaded to a
 ``data_products`` directory. The below would create a ``spec1d_files`` directory with
@@ -61,12 +98,17 @@ spec1d files created from the IDL output:
 
    .. code-block:: bash
 
+      # Create two detector spec1d files
       python $PYPEIT_DEV/dev_algorithms/fluxing/batch_convert_throughput_to_spec1d.py data_products/extract spec1d_files pad
 
+      # Create a mosaic spec1d file
+      python $PYPEIT_DEV/dev_algorithms/fluxing/batch_convert_throughput_to_spec1d.py data_products/extract spec1d_files nosplit
+
+The current DEIMOS archival sensfuncs were created using "pad" to split the output into two detectors.
+
 Creating the individual sensitivity functions
----------------------------------------------
-The sensitivity functions can be crated with a pypeit_sensfunc call. For DEIMOS we
-used the following input file:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The individual DEIMOS sensitivity functions were created with the following ``pypeit_sensfunc`` input file:
 
    .. code-block:: ini
 
@@ -85,23 +127,4 @@ them in the sens_files directory:
    .. code-block:: bash
 
       python $PYPEIT_DEV/dev_algorithms/fluxing/run_sensfunc_on_all_spec1d.py spec1d_files/600ZD/ *2023jan17*.fits sens_files/600ZD deimos_arxiv_sensfunc
-
-Combining multiple sensivity functions
-======================================
-
-The archived DEIMOS sensitivity functions are created by combining 
-multiple sensivity functions from different detectors at different 
-grating tilts to get a wider wavelength coverage. The steps in this
-process are typically:
-
-   1 Choose sensitivity functions for grating. The functions should have good wavelength coverage,
-     and low airmass.
-
-   2 Start with the bluest sensitivity function and translate the next function up/down to roughly match.
-     One or both function may be truncated to fit.
-
-   3 If the gap between sensitivity function isn't smooth (for example on a detector boundary) 
-     a polynomial fit can be used to join them.
-
-There are helper functions in $PYPEIT_DEV/sensfunc_archive/stitcutils.py intended to make this easier.
 
