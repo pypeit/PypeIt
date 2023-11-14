@@ -1450,7 +1450,7 @@ def convolve_skymodel(input_img, fwhm_map, thismask, subpixel=5, nsample=10):
         xkern = np.arange(kernsize, dtype=int) - midp
         kern = np.exp(-0.5 * (xkern / kernwids[kk]) ** 2)
         kern = kern / np.sum(kern)
-        conv_allkern[:, :, kk] = utils.rebinND(utils.convolve_fft(_input_img, _input_msk, kern), input_img.shape)
+        conv_allkern[:, :, kk] = utils.rebinND(utils.convolve_fft(_input_img, kern, _input_msk), input_img.shape)
 
     # Collect all of the images
     msgs.info(f"Collating all convolution steps")

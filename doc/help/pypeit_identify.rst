@@ -4,7 +4,7 @@
     usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
                            [--slit SLIT] [--det DET] [--rmstol RMSTOL] [--fwhm FWHM]
                            [--sigdetect SIGDETECT] [--pixtol PIXTOL] [--linear]
-                           [--force_save] [--rescale_resid]
+                           [--force_save] [--rescale_resid] [-v VERBOSITY]
                            arc_file slits_file
     
     Launch PypeIt identify tool, display extracted Arc, and load linelist.
@@ -34,4 +34,8 @@
       --force_save          Save the solutions, despite the RMS (default: False)
       --rescale_resid       Rescale the residual plot to include all points?
                             (default: False)
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename identify_YYYYMMDD-
+                            HHMM.log (default: 1)
     
