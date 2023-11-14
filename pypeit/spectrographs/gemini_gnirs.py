@@ -135,34 +135,30 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 return 0.0
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['PRESSUR2']  # Must be in astropy.units.pascal
+                return headarr[0]['PRESSUR2']/100.0  # Must be in astropy.units.mbar
             except KeyError:
-                msgs.warn("Pressure is not in header")
-                msgs.info("The default pressure will be assumed: 61.1 kPa")
-                return 61.1E3
+                msgs.warn("Pressure is not in header - The default pressure (611 mbar) will be assumed")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
-                msgs.warn("Temperature is not in header")
-                msgs.info("The default temperature will be assumed: 1.5 deg C")
+                msgs.warn("Temperature is not in header - The default temperature (1.5 deg C) will be assumed")
                 return 1.5  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'humidity':
             try:
                 # Humidity expressed as a percentage, not a fraction
                 return headarr[0]['HUMIDITY']
             except KeyError:
-                msgs.warn("Humidity is not in header")
-                msgs.info("The default relative humidity will be assumed: 20 %")
+                msgs.warn("Humidity is not in header - The default relative humidity (20 %) will be assumed")
                 return 20.0  # van Kooten & Izett, arXiv:2208.11794
         elif meta_key == 'parangle':
             try:
                 # Humidity expressed as a percentage, not a fraction
-                msgs.work("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
+                msgs.warn("Parallactic angle is not available for GNIRS - DAR correction may be incorrect")
                 return headarr[0]['PARANGLE']  # Must be expressed in radians
             except KeyError:
-                msgs.warn("Parallactic angle is not in header!")
-                msgs.info("The default parallactic angle will be assumed: 0 degrees")
+                msgs.warn("Parallactic angle is not in header - The default parallactic angle (0 degrees) will be assumed")
                 return 0.0
         else:
             msgs.error("Not ready for this compound meta")
