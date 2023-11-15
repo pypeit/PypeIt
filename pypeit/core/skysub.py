@@ -206,10 +206,25 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
                                         kwargs_bspline={'bkspace': bsp},
                                         kwargs_reject={'groupbadpix': False, 'maxrej': 10})
 
+
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
     ythis[isrt] = yfit
     sky_frame[thismask] = ythis
+
+    # Consider adding something like this below to determine the optical breakpoint spacing for global as well?
+    ## TESTING
+    #bkpts_optimal=True
+    #min_spat1 = slit_left
+    #max_spat1 = slit_righ
+    # Create the local mask which defines the pixels that will be updated by local sky subtraction
+    #min_spat_img = min_spat1[:, np.newaxis]
+    #max_spat_img = max_spat1[:, np.newaxis]
+    #spat_img = np.repeat(np.arange(nspat)[np.newaxis, :], nspec, axis=0)
+    #localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
+    #fullbkpt = optimal_bkpts(bkpts_optimal, bsp, piximg, localmask, debug=True,
+    #                        skyimage=sky_frame, min_spat=slit_left.min(), max_spat=slit_righ.min())
+    # TESTING end
 
 
     #skyset.funcname ='legendre'
@@ -518,7 +533,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         ax = plt.gca()
         ax.plot(pix, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
         # ax.plot(pix, sky_med_filt, color='cornflowerblue', label='median sky', linewidth=1.2)
-        if used_grid == False:
+        if not used_grid:
             ax.plot(fullbkpt_grid, sky_bkpt_grid, color='lawngreen', marker='o', markersize=2.0, mfc='lawngreen',
                     fillstyle='full', linestyle='None', label='uniform bkpt grid')
             color = 'red'
@@ -769,7 +784,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     outmask = np.copy(inmask)  # True is good
 
     # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
-    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    #spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    spat_img = np.repeat(np.arange(nspat)[np.newaxis, :], nspec, axis=0)
     if spat_pix is None:
         spat_pix = spat_img
 
