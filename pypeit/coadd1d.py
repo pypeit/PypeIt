@@ -200,7 +200,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 msgs.error("Error in spec1d file for exposure {:d}: "
                            "More than one object was identified with the OBJID={:s} in file={:s}".format(
                     iexp, self.objids[iexp], self.spec1dfiles[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
                 sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             waves.append(wave_iexp)
             fluxes.append(flux_iexp)
@@ -397,7 +397,6 @@ class EchelleCoAdd1D(CoAdd1D):
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
-                                     sn_smooth_npix=self.par['sn_smooth_npix'],
                                      wave_method=self.par['wave_method'],
                                      dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
                                      wave_grid_min=self.par['wave_grid_min'],
@@ -441,8 +440,13 @@ class EchelleCoAdd1D(CoAdd1D):
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
+            # This np.atleast2d hack deals with the situation where we are wave_iexp is actually Multislit data, i.e. we are treating
+            # it like an echelle spectrograph with a single order. This usage case arises when we want to use the
+            # echelle coadding code to combine echelle and multislit data
+            if wave_iexp.ndim == 1:
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = np.atleast_2d(wave_iexp).T, np.atleast_2d(flux_iexp).T, np.atleast_2d(ivar_iexp).T, np.atleast_2d(gpm_iexp).T
             weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp, debug=self.debug)
             # Allocate arrays on first iteration
             # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
@@ -460,6 +464,8 @@ class EchelleCoAdd1D(CoAdd1D):
             # Store the information
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+
+
         return waves, fluxes, ivars, gpms, weights_sens, header_out
 
 

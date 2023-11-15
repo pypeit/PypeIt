@@ -749,7 +749,7 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
     return sn_conv
 
-
+# TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
 def calc_snr(fluxes, ivars, gpms):
 
     """
@@ -2659,6 +2659,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     rms_sn_setup_list = []
     colors = []
     for isetup in range(nsetups):
+        ## Need to feed have optional wave_min, wave_max here to deal with sources like high-z quasars?
         rms_sn_vec, _ = calc_snr(fluxes_setup_list[isetup], ivars_setup_list[isetup], gpms_setup_list[isetup])
         rms_sn = rms_sn_vec.reshape(norders[isetup], nexps[isetup])
         mean_sn_ord = np.mean(rms_sn, axis=1)
@@ -2669,6 +2670,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         weights.append(weights_isetup)
         rms_sn_setup_list.append(rms_sn)
         colors.append([setup_colors[isetup]]*norders[isetup]*nexps[isetup])
+
 
 
     # Create the waves_setup_list
