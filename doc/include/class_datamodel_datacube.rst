@@ -1,5 +1,5 @@
 
-**Version**: 1.1.0
+**Version**: 1.2.0
 
 ==============  ================  =================  =================================================================================
 Attribute       Type              Array Type         Description                                                                      
@@ -12,4 +12,5 @@ Attribute       Type              Array Type         Description
 ``fluxed``      bool                                 Boolean indicating if the datacube is fluxed.                                    
 ``sensfunc``    `numpy.ndarray`_  `numpy.floating`_  Sensitivity function 10^-17 erg/(counts/cm^2)                                    
 ``sig``         `numpy.ndarray`_  `numpy.floating`_  Error datacube (matches units of flux)                                           
+``wave``        `numpy.ndarray`_  `numpy.floating`_  Wavelength of each slice in the spectral direction. The units are Angstroms.     
 ==============  ================  =================  =================================================================================
