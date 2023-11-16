@@ -120,21 +120,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
-        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 4
 
         par['calibrations']['wavelengths']['match_toler'] = 1.5
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        par['calibrations']['wavelengths']['cc_shift_range'] = (-40.,40)
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.25
-        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.80
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
         par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
         par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
         par['calibrations']['wavelengths']['ech_separate_2d'] = True
@@ -222,7 +222,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-3)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
 #        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')

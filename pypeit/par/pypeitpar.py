@@ -2594,7 +2594,7 @@ class WavelengthSolutionPar(ParSet):
                                       'this is the maximum fraction of orders (per detector) with failed 1D fit, ' \
                                       'for PypeIt to attempt a refit.'
 
-        defaults['frac_rms_thresh'] = 1.2
+        defaults['frac_rms_thresh'] = 1.5
         dtypes['frac_rms_thresh'] = float
         descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
                                    'this is the fractional change in the RMS threshold used ' \

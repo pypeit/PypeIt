@@ -677,8 +677,7 @@ class BuildWaveCalib:
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
-
-            #ok_mask_idx = ok_mask_idx[:-1]
+            # ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
@@ -840,7 +839,7 @@ class BuildWaveCalib:
                     n_first=self.par['n_first'],
                     sigrej_first=self.par['sigrej_first'],
                     n_final=n_final, 
-                    sigrej_final=2.)
+                    sigrej_final=self.par['sigrej_final'])
                 msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                 # Keep?
@@ -864,10 +863,10 @@ class BuildWaveCalib:
                     self.wvc_bpm[iord] = False
                     fixed = True
                 else:
-                    msgs.warn('New RMS is too high. Not updating wavelength solution.')
+                    msgs.warn(f'New RMS is too high (>{frac_rms_thresh}xRMS threshold). '
+                              f'Not updating wavelength solution.')
         #
         return fixed
-
 
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
