@@ -2,6 +2,12 @@
 Version 1.14.1dev
 =================
 
+Installation Changes
+--------------------
+- PypeIt will no longer be available through ``conda-forge`` and
+  must be installed via ``pip`` from PyPI.  Users may still use
+  ``conda`` for management of PypeIt's virtual environment.
+
 Dependency Changes
 ------------------
 
@@ -65,5 +71,8 @@ Bug Fixes
   the sigdetect parameter was a list of all orders, instead of a single value.
 - Fixed a bug with the GUI ``pypeit_skysub_regions``. Previously, the calib header
   information was not included, and this led to a calibration error.
+- Corrected the binning scaling for BOXCAR_RADIUS in the object-finding algorithm.
+  Previously, the platescale was multiplied by the *spectral* binning and not the
+  *spatial* binning.
 
 
