@@ -263,15 +263,15 @@ class ProcessImagesPar(ParSet):
         options['overscan_method'] = ProcessImagesPar.valid_overscan_methods()
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
-                            'Options are: {0}'.format(', '.join(options['overscan_method']))
+                            f'Options are: {", ".join(options["overscan_method"])}  Note: Method "polynomial" ' \
+                            'is identical to "chebyshev"; the former is deprecated and will be removed.'
 
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
-                                '\'polynomial\', set overcan_par = order, number of pixels, ' \
-                                'number of repeats ; for \'savgol\', set overscan_par = ' \
-                                'order, window size ; for \'median\', set overscan_par = ' \
-                                'None or omit the keyword.'
+                                '\'chebyshev\' or \'polynomial\', set overcan_par = order; ' \
+                                'for \'savgol\', set overscan_par = order, window size ; ' \
+                                'for \'median\', set overscan_par = None or omit the keyword.'
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -459,7 +459,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median', 'odd_even']
+        return ['chebyshev', 'polynomial', 'savgol', 'median', 'odd_even']
 
     @staticmethod
     def valid_combine_methods():
@@ -499,9 +499,8 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
 
-        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
-            raise ValueError('For polynomial overscan method, set overscan_par = order, '
-                             'number of pixels, number of repeats')
+        if self.data['overscan_method'] in ['polynomial', 'chebyshev'] and len(self.data['overscan_par']) != 1:
+            raise ValueError('For chebyshev/polynomial overscan method, set overscan_par = order')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
@@ -816,7 +815,7 @@ class FlexurePar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
-                 multi_min_SN=None, excessive_shift=None):
+                 multi_min_SN=None, excessive_shift=None, minwave=None, maxwave=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -848,11 +847,6 @@ class FlexurePar(ParSet):
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
-        # The following are all for MultiDet flexure
-        defaults['multi_min_SN'] = 1
-        dtypes['multi_min_SN'] = [int, float]
-        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
-
         defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str
@@ -865,6 +859,23 @@ class FlexurePar(ParSet):
                                    'Use the median flexure shift among all the objects in the same slit ' \
                                    '(if more than one object is detected) or among all ' \
                                    'the other slits; if not available, the flexure correction will not be applied.'
+
+        defaults['minwave'] = None
+        dtypes['minwave'] = [int, float]
+        descr['minwave'] = 'Minimum wavelength to use for the correlation.  If ``None`` or less than ' \
+                           'the minimum wavelength of either the object or archive sky spectrum, this ' \
+                           'this parameter has no effect.'
+
+        defaults['maxwave'] = None
+        dtypes['maxwave'] = [int, float]
+        descr['maxwave'] = 'Maximum wavelength to use for the correlation.  If ``None`` or greater than ' \
+                           'the maximum wavelength of either the object or archive sky spectrum, this ' \
+                           'this parameter has no effect.'
+
+        # The following are all for MultiDet flexure
+        defaults['multi_min_SN'] = 1
+        dtypes['multi_min_SN'] = [int, float]
+        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
@@ -880,7 +891,7 @@ class FlexurePar(ParSet):
 
         k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
-                   'multi_min_SN', 'excessive_shift']
+                   'multi_min_SN', 'excessive_shift', 'minwave', 'maxwave']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
