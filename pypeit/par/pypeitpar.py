@@ -2884,9 +2884,10 @@ class EdgeTracePar(ParSet):
                  bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, add_missed_orders=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None,  maskdesign_filename=None):
+                 order_offset=None, add_missed_orders=None, order_width_poly=None,
+                 order_gap_poly=None, order_spat_range=None, overlap=None, use_maskdesign=None,
+                 maskdesign_maxsep=None, maskdesign_step=None, maskdesign_sigrej=None, pad=None,
+                 add_slits=None, add_predict=None, rm_slits=None, maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3230,26 +3231,55 @@ class EdgeTracePar(ParSet):
                         ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
 
         dtypes['order_match'] = [int, float]
-        descr['order_match'] = 'For echelle spectrographs, this is the tolerance allowed for ' \
-                               'matching identified "slits" to echelle orders. Must be in ' \
-                               'the fraction of the detector spatial scale (i.e., a value of ' \
-                               '0.05 means that the order locations must be within 5% of the ' \
-                               'expected value).  If None, no limit is used.'
+        descr['order_match'] = 'Orders for *fixed-format* echelle spectrographs are always ' \
+                               'matched to a predefined expectation for the number of orders ' \
+                               'found and their relative placement in the detector.  This sets ' \
+                               'the tolerance allowed for matching identified "slits" to ' \
+                               'echelle orders. Must be relative to the fraction of the ' \
+                               'detector spatial scale (i.e., a value of 0.05 means that the ' \
+                               'order locations must be within 5% of the expected value).  If ' \
+                               'None, no limit is used.'
 
         dtypes['order_offset'] = [int, float]
-        descr['order_offset'] = 'Offset to introduce to the expected order positions to improve ' \
-                                'the match for this specific data. This is an additive offset ' \
-                                'to the measured slit positions; i.e., this should minimize the ' \
-                                'difference between the expected order positions and ' \
-                                '``self.slit_spatial_center() + offset``. Must be in the ' \
+        descr['order_offset'] = 'Orders for *fixed-format* echelle spectrographs are always ' \
+                                'matched to a predefined expectation for the number of orders ' \
+                                'found and their relative placement in the detector.  This sets ' \
+                                'the offset to introduce to the expected order positions to ' \
+                                'improve the match for this specific data. This is an additive ' \
+                                'offset to the measured slit positions; i.e., this should ' \
+                                'minimize the difference between the expected order positions ' \
+                                'and ``self.slit_spatial_center() + offset``. Must be in the ' \
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
         defaults['add_missed_orders'] = False
         dtypes['add_missed_orders'] = bool
-        descr['add_missed_orders'] = 'If orders are not detected by the automated edge tracing, ' \
-                                     'attempt to add them based on their expected positions on ' \
-                                     'on the detector.  Echelle spectrographs only.'
+        descr['add_missed_orders'] = 'For any Echelle spectrograph (fixed-format or otherwise), ' \
+                                     'attempt to add orders that have been missed by the ' \
+                                     'automated edge tracing algorithm.  For *fixed-format* ' \
+                                     'Echelles, this is based on the expected positions on ' \
+                                     'on the detector.  Otherwise, the detected orders are ' \
+                                     'modeled and roughly used to predict the locations of ' \
+                                     'missed orders; see additional parameters ' \
+                                     '``order_width_poly``, ``order_gap_poly``, and ' \
+                                     '``order_spat_range``.'
+        
+        defaults['order_width_poly'] = 2
+        dtypes['order_width_poly'] = int
+        descr['order_width_poly'] = 'Order of the Legendre polynomial used to model the ' \
+                                    'spatial width of each order as a function of spatial ' \
+                                    'pixel position.  See ``add_missed_orders``.'
+
+        defaults['order_gap_poly'] = 3
+        dtypes['order_gap_poly'] = int
+        descr['order_gap_poly'] = 'Order of the Legendre polynomial used to model the spatial ' \
+                                  'gap between orders as a function of the order spatial ' \
+                                  'position.  See ``add_missed_orders``.'
+        
+        dtypes['order_spat_range'] = list
+        descr['order_spat_range'] = 'The spatial range of the detector/mosaic over which to ' \
+                                    'predict order locations.  If None, the full ' \
+                                    'detector/mosaic range is used.  See ``add_missed_orders``.'
 
         defaults['overlap'] = False
         dtypes['overlap'] = bool
@@ -3365,8 +3395,9 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
                    'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
                    'minimum_slit_gap', 'clip', 'order_match', 'order_offset',  'add_missed_orders',
-                   'overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
+                   'order_width_poly', 'order_gap_poly', 'order_spat_range', 'overlap',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
