@@ -171,7 +171,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
         in the construction of the returned `specutils.SpectrumList`_ object.
     kwargs : dict, optional
         **Ignored!**  Used to catch spurious arguments passed to the base class
-        *that are ignored by this function.
+        that are ignored by this function.
 
     Returns
     -------
@@ -236,7 +236,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
         in the construction of the returned `specutils.Spectrum1D`_ object.
     kwargs : dict, optional
         **Ignored!**  Used to catch spurious arguments passed to the base class
-        *that are ignored by this function.
+        that are ignored by this function.
 
     Returns
     -------
