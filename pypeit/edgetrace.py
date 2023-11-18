@@ -1481,11 +1481,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             if not self.is_empty:
                 display.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
                                    _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
-
-            # After displaying all the images sync up the images with WCS_MATCH (copied from show_2dspec)
-            shell = sobel_viewer.shell()
-            shell.start_global_plugin('WCSMatch')
-            shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', ['Sobel Filtered'],{})
             return
 
         # Show the traced image

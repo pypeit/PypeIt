@@ -107,7 +107,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
 
-        # TODO: Order extrapolation is OFF by default.  Need to test how well adding orders plays with trying to account for overlap...
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
         par['calibrations']['slitedges']['order_gap_poly'] = 3

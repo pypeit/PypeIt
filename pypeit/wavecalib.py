@@ -677,7 +677,6 @@ class BuildWaveCalib:
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
-            # ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,

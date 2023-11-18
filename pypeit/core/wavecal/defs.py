@@ -58,7 +58,6 @@ class LinesBitMask(BitMask):
             ('ArII', 'Comment'),
             ('ThI', 'Comment'),
             ('ThII', 'Comment'),
-            ('ThIII', 'Comment'),
             #('OH_XSHOOTER', 'Comment'),
             #('OH_GNIRS', 'Comment'),
             #('OH_NIRES', 'Comment'),
@@ -119,7 +118,6 @@ def lines():
     line_dict['ThAr_XSHOOTER_UVB'] = 2**30
     line_dict['NeII'] = 2 ** 31
     line_dict['FeAr'] = 2 ** 32
-    line_dict['ThAr_HIRES'] = 2 ** 33
     #
     return line_dict
 
