@@ -48,8 +48,13 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
         fitting.evaluate_fit(xd_angle_coeffs[idisp, :].flatten(), angle_fits_params['xd_func'], xdangle,
                              minx=xd_min, maxx=xd_max)))
     order_vec = reddest_order_fit + (np.arange(norders + 2*pad) - pad)[::-1]
+    # keep only the orders that are within the available orders in the arxiv (we keep 1 extra order on each side
+    # to use order_min and order_max to attempt to wave calibrate those orders that are not in the arxiv)
+    gord = (order_vec >= angle_fits_params['order_min'] - 1) & (order_vec <= angle_fits_params['order_max'] + 1)
+    order_vec = order_vec[gord]
 
     return order_vec
+
 
 def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_vec, nspec):
     """
@@ -83,6 +88,11 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
         indx = order - angle_fits_params['order_min']
+        # check if the order is in the arxiv
+        if indx < 0:
+            indx = 0
+        elif indx >= angle_fits_params['norders']:
+            indx = angle_fits_params['norders'] - 1
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(angle_fits_params['ech_n_final'] + 1):
@@ -151,18 +161,42 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     norders_guess = order_vec_guess.size
     wave_soln_guess = predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, echangle, order_vec_guess, nspec)
 
-
     order_min, order_max = angle_fits_params['order_min'], angle_fits_params['order_max']
 
     arcspec_guess = np.zeros_like(wave_soln_guess)
     # Interpolate the composite arc spectrum onto the predicted wavelength solution
     for iord, order in enumerate(order_vec_guess):
         indx = order - order_min
+        # check if the order is in the arxiv
+        if indx < 0:
+            msgs.warn(f'Order {order} is not in the arxiv. Attempting to wave calibrate it anyway.')
+            indx = 0
+        elif indx >= angle_fits_params['norders']:
+            msgs.warn(f'Order {order} is not in the arxiv. Attempting to wave calibrate it anyway.')
+            indx = angle_fits_params['norders'] - 1
         igood = gpm_composite[:, indx]
         arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
                                                       kind='cubic', bounds_error=False,
-                                                      fill_value=-1e10)(wave_soln_guess[:, iord])
-
+                                                      fill_value=0.)(wave_soln_guess[:, iord])
+        # sometimes wave_soln_guess[:, iord] is wrong and therefore is outside the range of
+        # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
+        # here we try to deal with this case, by using wave_composite[igood, indx] but we need make some padding
+        if np.all(arcspec_guess[:, iord] == 0):
+            # this is adapted from pypeit.core.wavecal.autoid.full_template
+            npad = nspec - np.sum(igood)
+            if npad > 0:
+                # Pad the arxiv
+                pad_arcspec_guess = np.zeros(nspec)
+                pad_wave_soln_guess = np.zeros(nspec)
+                pad_arcspec_guess[npad // 2:npad // 2 + nspec] = arc_composite[igood, indx]
+                pad_wave_soln_guess[npad // 2:npad // 2 + nspec] = wave_composite[igood, indx]
+                arcspec_guess[:, iord] = pad_arcspec_guess
+                wave_soln_guess[:, iord] = pad_wave_soln_guess
+            elif npad < 0:
+                # crop the arxiv. Not ideal but better than nothing
+                npad *= -1
+                arcspec_guess[:, iord] = arc_composite[igood, indx][npad // 2:npad // 2 + nspec]
+                wave_soln_guess[:, iord] = wave_composite[igood, indx][npad // 2:npad // 2 + nspec]
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
