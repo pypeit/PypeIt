@@ -52,9 +52,8 @@ This may be done in the :ref:`pypeit_file` as well:
 
     [calibrations]
         [[wavelengths]]
-            rms_threshold = 1.5
+            rms_thresh_frac_fwhm = 0.2
 
 
-Note that this is scaled by the ratio of the measured FWHM value
-to the default value.  See :ref:`wvcalib-echelle` for
-further details.
+Note that ``rms_thresh_frac_fwhm` is expressed as a fraction of the
+FWHM. See :ref:`wavelengthsolutionpar` for further details.

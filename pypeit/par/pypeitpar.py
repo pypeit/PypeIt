@@ -2748,8 +2748,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_thresh_frac_fwhm'] = float
         descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
-                                        'FWHM will be computed from the arc lines in each slits ' \
-                                        '(the median value among all the slits is used), otherwise ``fwhm`` ' \
+                                        'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
                                         '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
                                         'a slit using the ``redo_slits`` parameter. '
