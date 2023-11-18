@@ -44,8 +44,10 @@ instrument-specific details for running PypeIt.
    keck_nires
    mosfire
    lbt_mods
+   ldt_deveny
    mage
    magellan_fire
+   mdm_osmos
    mmt_binospec
    mmt_bluechannel
    mmt_mmirs

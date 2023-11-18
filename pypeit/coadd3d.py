@@ -863,7 +863,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         ----------
         spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`
             2D PypeIt spectra object.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
         spat_flexure: :obj:`float`, optional
             Spatial flexure in pixels

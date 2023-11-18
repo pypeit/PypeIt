@@ -1143,7 +1143,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         # Cross-correlate
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm,
                                                 percent_ceil=x_percentile, lag_range=par['cc_shift_range'])
-        msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+        msgs.info(f"Shift = {shift_cc:.2f}; cc = {corr_cc:.4f}")
         if debug:
             xvals = np.arange(tspec.size)
             plt.clf()

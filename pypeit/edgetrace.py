@@ -5083,13 +5083,16 @@ class EdgeTraceSet(calibframe.CalibFrame):
         
         if not self.can_pca():
             msgs.error('Refining the orders currently requires a PCA decomposition of the '
-                       'order edges.')
+                       'order edges.  Ensure that the calibrations.slitedges.auto_pca parameter '
+                       'is True and that there are sufficient edges to create the PCA as set by '
+                       'the calibrations.slitedges.pca_min_edges parameter.  If performing a '
+                       'PCA of the left and right traces independently, this minimum number '
+                       'must be available for both left and right traces.')
 
         # Update the PCA
         self.build_pca()
 
         if self.spectrograph.ech_fixed_format:
-            # TODO: Shouldn't this also need reference_row?
             add_left, add_right = self.order_refine_fixed_format(debug=debug)
             rmtraces = None
         else:
@@ -5124,8 +5127,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.spectrograph.ech_fixed_format:
             msgs.error('order_refine_fixed_format can only be used with fixed-format Echelles!')
 
-        # TODO: What happens if *more* edges are detected than there are
-        # archived order positions?
+        # TODO:
+        #   - What happens if *more* edges are detected than there are archived
+        #     order positions?
+        #   - When an order is added, the edges are placed at the expected
+        #     position plot the measured offset.  But the trace prediction
+        #     requires the spatial positoion at the relevant reference row.
+        #     This needs to be checked.
 
         # First match the expected orders
         spat_offset = self.match_order()
@@ -5150,7 +5158,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         
         return add_left_edges, add_right_edges
 
-    # TODO: combined_order_tol is effectively hard-coded.
+    # NOTE: combined_order_tol is effectively hard-coded.
     def order_refine_free_format(self, reference_row, combined_order_tol=1.8, debug=False):
         """
         Refine the order locations for "free-format" Echelles.
@@ -5164,8 +5172,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         left_gpm = gpm & self.is_left
         left = self.edge_fit[:,left_gpm]
         right = self.edge_fit[:,gpm & self.is_right]
-
-        # TODO: Pull the mask too?
 
         # Use the trace locations at the middle of the spectral shape of the
         # detector/mosaic
