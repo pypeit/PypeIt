@@ -119,8 +119,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             io.fits_open(args.file).info()
             return
 
-        # Setup for PypeIt imports
-        msgs.reset(verbosity=args.verbosity)
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
 
         # Parse the detector name
         try:
