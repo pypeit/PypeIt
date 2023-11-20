@@ -1,9 +1,9 @@
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/pypeit?label=PyPI&logo=pypi&logoColor=white
-    :target: https://pypi.org/project/pypeit/
+    :target: https://pypi.org/project/pypeit/#history
 
 .. |pypi_downloads| image:: https://img.shields.io/pypi/dm/pypeit
-    :target: https://pypi.org/project/pypeit/
+    :target: https://pypi.org/project/pypeit/#files
 
 .. |License| image:: https://img.shields.io/github/license/pypeit/PypeIt
    :target: https://github.com/pypeit/PypeIt/blob/release/LICENSE.rst

@@ -76,7 +76,7 @@ if __name__ == '__main__':
     from pypeit.wavecalib import WaveCalib
     from pypeit.wavetilts import WaveTilts
     from pypeit.bspline import bspline
-    from pypeit.core.datacube import DataCube
+    from pypeit.coadd3d import DataCube
     from pypeit.core.fitting import PypeItFit
     from pypeit.core.flexure import MultiSlitFlexure
     from pypeit.core.telluric import Telluric

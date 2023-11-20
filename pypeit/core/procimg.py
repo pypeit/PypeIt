@@ -5,14 +5,15 @@
 """
 from IPython import embed
 
+import warnings
+
+from astropy.convolution import convolve, Box2DKernel
+from astropy.timeseries import LombScargle
+import astropy.stats
 import numpy as np
 import scipy.ndimage
 import scipy.optimize
 import scipy.signal
-
-from astropy.convolution import convolve, Box2DKernel
-from astropy.timeseries import LombScargle
-from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -610,10 +611,11 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             data, 1 for amplifier 1, 2 for amplifier 2, etc.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
-            polynomial, savgol, median.
+            chebyshev, polynomial, savgol, median.  ("polynomial" is deprecated
+            and will be removed)
         params (:obj:`list`, optional):
-            Parameters for the overscan subtraction.  For ``method=polynomial``,
-            set ``params`` to the order, number of pixels, number of repeats;
+            Parameters for the overscan subtraction.  For ``method=chebyshev``
+            or ``method=polynomial``set ``params`` to the order;
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):
@@ -632,7 +634,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         returned object is None.
     """
     # Check input
-    if method.lower() not in ['polynomial', 'savgol', 'median', 'odd_even']:
+    if method.lower() not in ['polynomial', 'chebyshev', 'savgol', 'median', 'odd_even']:
         msgs.error(f'Unrecognized overscan subtraction method: {method}')
     if rawframe.ndim != 2:
         msgs.error('Input raw frame must be 2D.')
@@ -679,9 +681,11 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                              else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
         # Method time
         if method.lower() == 'polynomial':
-            # TODO: Use np.polynomial.polynomial.polyfit instead?
-            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
-            ossub = np.polyval(c, np.arange(osfit.size))
+            warnings.warn('Method "polynomial" is identical to "chebyshev".  Former will be deprecated.',
+                          DeprecationWarning)
+        if method.lower() in ['polynomial', 'chebyshev']:
+            poly = np.polynomial.Chebyshev.fit(np.arange(osfit.size), osfit, params[0])
+            ossub = poly(np.arange(osfit.size))
         elif method.lower() == 'savgol':
             ossub = scipy.signal.savgol_filter(osfit, params[1], params[0])
         elif method.lower() == 'median':
@@ -895,8 +899,8 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         tmp = outframe.copy()
         tmp[osd_slice] -= model_pattern
         mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
-        old_ron = stats.sigma_clipped_stats(overscan, sigma=5)[-1]
-        new_ron = stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5)[-1]
+        new_ron = astropy.stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
         msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
 
         # Subtract the model pattern from the full datasec
