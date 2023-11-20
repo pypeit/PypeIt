@@ -38,14 +38,14 @@
                             keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
                             lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
                             magellan_fire, magellan_fire_long, magellan_mage,
-                            mdm_modspec, mdm_osmos_mdm4k, mmt_binospec,
-                            mmt_bluechannel, mmt_mmirs, not_alfosc, not_alfosc_vert,
-                            ntt_efosc2, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
-                            shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            soar_goodman_blue, soar_goodman_red, tng_dolores,
-                            vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
-                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
-                            wht_isis_red (default: None)
+                            mdm_modspec, mdm_osmos_mdm4k, mdm_osmos_r4k,
+                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
+                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
+                            p200_dbsp_red, p200_tspec, shane_kast_blue,
+                            shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
+                            soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red (default: None)
       -b BINNING, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used if providing files directly; default is 1,1.
