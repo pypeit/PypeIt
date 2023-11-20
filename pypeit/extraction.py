@@ -520,7 +520,9 @@ class Extract:
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib)
+                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib,
+                                                  minwave=self.par['flexure']['minwave'],
+                                                  maxwave=self.par['flexure']['maxwave'])
             # Apply flexure to objects
             for islit in range(self.slits.nslits):
                 i_slitord = self.slits.slitord_id[islit]
