@@ -1807,7 +1807,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
 
 def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
     """
     TODO :: This could possibly be moved to core.flat
 
@@ -1837,6 +1837,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         when deriving the spectral illumination
     flexure : float, None
         Spatial flexure
+    maxiter : :obj:`int`
+        Maximum number of iterations to perform
 
     Returns
     -------
@@ -1879,7 +1881,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
 
     # Iterate until convergence
-    maxiter = 5
     lo_prev, hi_prev = 1.0E-32, 1.0E32
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration

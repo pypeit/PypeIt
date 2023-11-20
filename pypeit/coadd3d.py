@@ -771,8 +771,7 @@ class CoAdd3D:
                 # Calculate the relative scale
                 scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                                               model=None,
-                                                               skymask=None, trim=self.flatpar['slit_trim'],
+                                                               model=None, trim=self.flatpar['slit_trim'],
                                                                flexure=spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:

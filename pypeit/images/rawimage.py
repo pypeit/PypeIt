@@ -1193,6 +1193,7 @@ class RawImage:
                                f"               {tmp[10]},  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)\n" + \
                                f"               {tmp[11]}, {tmp[12]},  # Polynomial terms (coefficients of \"spat\" and \"spat*spec\")\n" + \
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
+                               # f"               {tmp[13]}, {tmp[14]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
                     offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
@@ -1206,7 +1207,7 @@ class RawImage:
                     plt.subplot(223)
                     plt.imshow(scatt_img*offslitmask, vmin=-2*vmax, vmax=2*vmax)
                     plt.subplot(224)
-                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-2*vmax, vmax=2*vmax)
+                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax/5, vmax=vmax/5)
                     # plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax/5, vmax=vmax/5)
                     plt.show()
             elif self.par["scattlight"]["method"] == "archive":
