@@ -51,6 +51,7 @@ Instrument-specific Updates
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
 - Various updates to default parameters for LDT/DeVeny, plus updated wavelength
   templates and instrument-specific line lists.
+- Added support for NTT/EFOSC2 Gr#4
 
 Script Changes
 --------------
