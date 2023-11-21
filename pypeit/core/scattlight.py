@@ -119,11 +119,11 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     Parameters
     ----------
     frame : `numpy.ndarray`_
-        Raw 2D data frame to be used to compute the scattered light.
+        Raw 2D data frame (nspec, nspat) to be used to compute the scattered light.
     bpm : `numpy.ndarray`_
-        2D boolean array indicating the bad pixels (True=bad)
+        2D boolean array indicating the bad pixels (True=bad), same shape as frame
     offslitmask : `numpy.ndarray`_
-        A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+        A boolean mask indicating the pixels that are on/off the slit (True = off the slit), same shape as frame
     x0 : `numpy.ndarray`_
         A 1D array containing the best-fitting model parameters
     bounds : :obj:`tuple`_
@@ -236,21 +236,20 @@ def mask_slit_regions(offslitmask, centrace, mask_regions=None):
     # Setup the pixel coordinates
     spat = np.arange(nspat)
 
-    # Find the pixels in each slit, limited by the minimum and
-    # maximum spectral position.
-    good_mask = offslitmask.copy()
+    # Loop through all user-specified inter-slit regions to mask
+    bad_mask = np.zeros_like(offslitmask)
     for ii in _mask_regions:
         if ii == 0:  # All pixels to the left of the first slit
-            indx = spat[None, :] < centrace[:, ii, None]
+            mask_pix = spat[None, :] < centrace[:, ii, None]
         elif ii == nslit:  # All pixels to the right of the last slit
-            indx = spat[None, :] > centrace[:, ii-1, None]
+            mask_pix = spat[None, :] > centrace[:, ii-1, None]
         else:  # Everything else in between
-            indx = (spat[None, :] > centrace[:, ii-1, None]) \
+            mask_pix = (spat[None, :] > centrace[:, ii-1, None]) \
                    & (spat[None, :] < centrace[:, ii, None])
         # Exclude these pixels
-        good_mask[indx] = False
+        bad_mask[mask_pix] = True
     # Return the mask of good inter-slit pixels
-    return good_mask
+    return offslitmask & np.logical_not(bad_mask)
 
 
 def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
@@ -259,13 +258,13 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     Parameters
     ----------
     frame : `numpy.ndarray`_
-        Raw 2D data frame to be used to compute the fine correction of the scattered light.
+        Raw 2D data frame (nspec, nspat) to be used to compute the fine correction of the scattered light.
         This frame should be the raw frame, minus the first estimate of the scattered light
         that has been derived from the `scattered_light_model()`_ function.
     bpm : `numpy.ndarray`_
-        2D boolean array indicating the bad pixels (True=bad)
+        2D boolean array indicating the bad pixels (True=bad), same shape as frame
     offslitmask : `numpy.ndarray`_
-        A boolean mask indicating the pixels that are on/off the slit (True = off the slit)
+        A boolean mask indicating the pixels that are on/off the slit (True = off the slit), same shape as frame
     polyord : :obj:`int`_, optional
         Polynomial order to use for fitting the residual scattered light in the spatial direction.
     debug : :obj:`bool`_, optional
@@ -274,7 +273,7 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     Returns
     -------
     scatt_img : `numpy.ndarray`_
-        A 2D image of the fine correction to the scattered light determined from the input frame.
+        A 2D image (nspec, nspat) of the fine correction to the scattered light determined from the input frame.
     """
     msgs.info("Performing a fine correction to the scattered light")
     # Convert the BPM to a GPM for convenience
@@ -296,7 +295,6 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     model_med = ndimage.median_filter(model, size=(50, 1))  # Median filter to get rid of CRs
     scatt_light_fine = ndimage.gaussian_filter(model_med, sigma=10)  # Gaussian filter to smooth median filter
     if debug:
-        embed()
         from matplotlib import pyplot as plt
         vmin, vmax = -np.max(scatt_light_fine), np.max(scatt_light_fine)
         plt.subplot(121)
