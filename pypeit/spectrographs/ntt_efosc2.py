@@ -303,6 +303,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             par['scienceframe']['process']['use_pixelflat'] = False
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_specillum'] = False
+        elif self.get_meta_value(scifile, 'dispname') == 'Gr#4':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 
