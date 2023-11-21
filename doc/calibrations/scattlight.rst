@@ -100,8 +100,12 @@ A three panel ginga window will be opened that shows:
 All panels are re-oriented so that vertical is the spectral dimension with
 blue at the bottom, following the PypeIt :ref:`pypeit-orientation` convention.
 
-Here is an screen shot of a ``ginga`` view for an example from
-the ``keck_kcwi`` spectrograph.
+Here is an screen shot of a ``ginga`` view of an example from
+the ``keck_kcwi`` spectrograph (BL grating).
+The left image shows the raw data,
+the middle image shows the estimated scattered light, based on a model fit, and
+the right image shows the raw frame with the scattered light subtracted off.
+All images are shown on the same color scale.
 
 .. image:: ../figures/scatteredlight_image.png
 
