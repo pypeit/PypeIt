@@ -487,7 +487,7 @@ class ParSet:
                     lines += ParSet._config_comment(par.descr[k], component_indent)
             except:
                 pass
-            if not exclude_defaults or par[k] != par.default[k]:
+            if not exclude_defaults or par[k] != par.defaults[k]:
                 argvalue = ParSet._data_string(par[k])
                 if isinstance(par[k], list):
                     argvalue += ','
