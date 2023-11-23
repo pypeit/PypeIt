@@ -456,6 +456,9 @@ class ProcessImagesPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Keywords that are ParSets
+        pk = 'scattlight'
+        kwargs[pk] = ScatteredLightPar.from_dict(cfg[pk]) if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
