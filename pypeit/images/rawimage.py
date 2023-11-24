@@ -1172,18 +1172,11 @@ class RawImage:
                 # Use predefined model parameters
                 scatt_img = scattlight.scattered_light_model(this_modpar, _img)
                 if debug:
-                    embed()
-                    # import astropy.io.fits as fits
-                    # hdu = fits.PrimaryHDU([self.image[ii, ...]-scatt_img])
-                    # hdu.writeto(self.filename.replace(".fits.gz", "_proc_slsub.fits.gz"))
-                    # assert False
-                    # for ii in range(11):
-                    #     print("saving", ii)
-                    #     np.save("scattlight_test/slitmask_pad{0:02d}.npy".format(ii), slits.slit_img(pad=ii, initial=True, flexure=None) == -1)
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
-                    print("\n\n\n2x2 BINNING ASSUMED AS INPUT!!!\n\n\n")
-                    # Find a pretty way to print out the archive variables
+                    # The following printout is the same format that is used in the spectrgraph files for archiving a good set
+                    # of starting parameter values for future reductions. The following printout is only useful for developers
+                    # that want to store a solution in a spectrograph file.
                     strprint = f"x0 = np.array([{tmp[0]*specbin} / specbin, {tmp[1]*spatbin} / spatbin,  # Gaussian kernel widths\n" + \
                                f"               {tmp[2]*specbin} / specbin, {tmp[3]*spatbin} / spatbin,  # Lorentzian kernel widths\n" + \
                                f"               {tmp[4]*specbin} / specbin, {tmp[5]*spatbin} / spatbin,  # pixel offsets\n" + \

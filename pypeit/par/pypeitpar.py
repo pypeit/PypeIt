@@ -456,6 +456,9 @@ class ProcessImagesPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Keywords that are ParSets
+        pk = 'scattlight'
+        kwargs[pk] = ScatteredLightPar.from_dict(cfg[pk]) if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
@@ -1068,7 +1071,8 @@ class ScatteredLightPar(ParSet):
                                  'inter-slit region. For example, "0" corresponds to all pixels left of the leftmost ' \
                                  'slit, while a value of "1" corresponds to all pixels between the first and second ' \
                                  'slit (counting from the left). It should be either a single integer value, or a ' \
-                                 'list of integer values.'
+                                 'list of integer values. The default (None) means that no inter-slit regions will ' \
+                                 'be masked.'
 
         # Instantiate the parameter set
         super(ScatteredLightPar, self).__init__(list(pars.keys()),

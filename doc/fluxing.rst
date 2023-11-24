@@ -510,8 +510,7 @@ view them.
 Archival Sensitivity Functions
 ------------------------------
 
-PypeIt supports using archived sensitivity functions for flux calibration. Currently only
-experimental ``keck_deimos`` sensitivity files are available.  They can be applied by adding
+PypeIt supports using archived sensitivity functions for flux calibration. They can be applied by adding
 ``use_archived_sens = True`` to the flux file passed to ``pypeit_flux_calib``. For example:
 
 .. code-block:: ini
@@ -522,6 +521,11 @@ experimental ``keck_deimos`` sensitivity files are available.  They can be appli
     flux read
         spec1d_d1010_0056-HIT2015-mask03_DEIMOS_20151010T045816.550.fits
     flux end
+
+*Disclaimer*: Currently only ``keck_deimos`` sensitivity files are available. These DEIMOS archival 
+sensitivity functions do not provide an absolute flux calibration.  Instead, they are only intended to 
+remove the instrumental response, providing a relative flux calibration up to some unknown normalization.
+
 
 Troubleshooting
 ===============
