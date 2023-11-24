@@ -12,6 +12,7 @@ from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
 from pypeit.scripts import chk_noise_2dspec
+from pypeit.scripts import chk_scattlight
 from pypeit.scripts import chk_wavecalib
 from pypeit.scripts import coadd_1dspec
 from pypeit.scripts import coadd_2dspec
