@@ -20,6 +20,7 @@ from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
+
 class KeckESISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/ESI specific code
@@ -72,7 +73,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             numamplifiers   = 2,
             gain            = np.atleast_1d([1.3, 1.3]), 
-            ronoise         = np.atleast_1d([2.5,2.5]), 
+            ronoise         = np.atleast_1d([2.5, 2.5]),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -132,6 +133,10 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
+        # Scattered light
+        par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
+        par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
+        par['scienceframe']['process']['subtract_scattlight'] = True
 
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
@@ -326,10 +331,66 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
+    def scattered_light_archive(self, binning, dispname):
+        """Archival model parameters for the scattered light. These are based on best fits to currently available data.
+
+        Parameters
+        ----------
+        binning : :obj:`str`_, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`_, optional
+            Name of the disperser
+
+        Returns
+        -------
+        x0 : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        bounds : :obj:`tuple`_
+            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+            two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
+            bounds to consider on the scattered light model parameters.
+        """
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(binning)
+
+        # Get some starting parameters (these were determined by fitting spectra,
+        # and should be close to the final fitted values to reduce computational time)
+        # Note :: These values need to be originally based on data that uses 1x1 binning,
+        # and are now scaled here according to the binning of the current data to be analysed.
+        # These parameters give a cost of 8.0517e+08 with the science frame used as scattlight (1x1 binning, pad=5)
+        x0 = np.array([272.33958742493064 / specbin, 115.501464689107 / spatbin,  # Gaussian kernel widths
+                       272.3418000034377 / specbin, 168.0591427733949 / spatbin,  # Lorentzian kernel widths
+                       -141.2552517318941 / specbin, 79.25936221285629 / spatbin,  # pixel offsets
+                       1.0877734248786808, 1.0562808322123667,  # Zoom factor (spec, spat)
+                       5.876311151022701,  # constant flux offset
+                       0.0444248025888341,  # kernel angle
+                       0.6090358292193677,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       0.135392229831296, -0.16167521454188258, # Polynomial terms (coefficients of "spat" and "spat*spec")
+                       0.06148093592863097, 0.10305719952486242])  # Polynomial terms (coefficients of spec**index)
+
+        # Now set the bounds of the fitted parameters
+        bounds = ([# Lower bounds:
+                      1, 1,  # Gaussian kernel widths
+                      1, 1,  # Lorentzian kernel widths
+                      -200 / specbin, -200 / spatbin,  # pixel offsets
+                      0, 0,  # Zoom factor (spec, spat)
+                      -1000, -(10 / 180) * np.pi, 0.0,  # constant flux offset, kernel angle, relative kernel scale
+                      -10, -10, -10, -10],  # Polynomial terms
+                  # Upper bounds
+                     [600 / specbin, 600 / spatbin,  # Gaussian kernel widths
+                      600 / specbin, 600 / spatbin,  # Lorentzian kernel widths
+                      200 / specbin, 200 / spatbin,  # pixel offsets
+                      2, 2,  # Zoom factor (spec, spat)
+                      1000.0, +(10 / 180) * np.pi, 1000.0,  # constant flux offset, kernel angle, relative kernel scale
+                      10, 10, 10, 10])  # Polynomial terms
+
+        # Return the best-fitting archival parameters and the bounds
+        return x0, bounds
+
     @property
     def norders(self):
         """
-        Number of orders for this spectograph. Should only defined for
+        Number of orders for this spectrograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
         return 10   # 15-6
