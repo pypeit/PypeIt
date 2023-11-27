@@ -1891,31 +1891,46 @@ class Spectrograph:
         patt_freqs : :obj:`list`
             List of pattern frequencies.
         """
-        msgs.info("Pattern noise removal is not implemented for spectrograph {0:s}".format(self.name))
+        msgs.warn(f"Pattern noise removal is not implemented for spectrograph {self.name}")
         return []
 
-    def scattered_light(self, frame, binning):
-        """
-        Calculate a model of the scattered light of the input frame.
+    def scattered_light_archive(self, binning, dispname):
+        """ Archival model parameters for the scattered light. These are based on best fits to currently available data.
 
         Parameters
         ----------
-        frame : `numpy.ndarray`_
-            Raw 2D data frame to be used to compute the scattered light.
-        binning : str, `numpy.ndarray`_, tuple
-            Binning of the frame (e.g. '2x1' refers to a binning of 2 in the spectral
-            direction, and a binning of 1 in the spatial direction). For the supported
-            formats, refer to :func:`~pypeit.core.parse.parse_binning`.
+        binning : :obj:`str`_, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`_, optional
+            Name of the disperser
 
         Returns
         -------
-        scatt_img : `numpy.ndarray`_, float
-            A 2D image of the scattered light determined from the input frame.
-            Alternatively, if a constant value is used, a constant floating point
-            value can be returned as well.
+        x0 : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        bounds : :obj:`tuple`_
+            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+            two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
+            bounds to consider on the scattered light model parameters.
         """
-        msgs.info("Scattered light removal is not implemented for spectrograph {0:s}".format(self.name))
-        return 0.0
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(binning)
+
+        msgs.warn(f"Initial scattered light model parameters have not been setup for grating {dispname} of {self.name}")
+        x0 = np.array([200/specbin, 100/spatbin,  # Gaussian kernel widths
+                       200/specbin, 100/spatbin,  # Lorentzian kernel widths
+                       0.0/specbin, 0.0/spatbin,  # pixel offsets
+                       1.0,  # Zoom factor
+                       0.0,  # kernel angle
+                       0.0,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       0.1, 0.0, 0.0, 0.0])  # Polynomial terms
+
+        # Now set the bounds of the fitted parameters
+        bounds = ([1, 1, 1, 1, -200/specbin, -200/spatbin, 0, -2*np.pi, 0.0, -10, -10, -10, -10],
+                  [600/specbin, 600/spatbin, 600/specbin, 600/spatbin, 200/specbin, 200/spatbin, 2, 2*np.pi, 1000.0, 10, 10, 10, 10])
+
+        # Return the best-fitting archival parameters and the bounds
+        return x0, bounds
 
     def __repr__(self):
         """Return a string representation of the instance."""
@@ -1925,5 +1940,4 @@ class Spectrograph:
         txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
-
 
