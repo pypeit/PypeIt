@@ -13,6 +13,7 @@ import numpy as np
 from scipy.io import readsav
 
 from astropy.table import Table
+from astropy import time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -220,7 +221,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['mjd'] = dict(card=None, compound=True)
         # This may depend on the old/new detector
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -256,6 +257,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD', None) is not None:
+                return headarr[0]['MJD']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
         else:
             msgs.error("Not ready for this compound meta")
 
