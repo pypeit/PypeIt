@@ -112,11 +112,16 @@ Scattered Light Removal
 KCWI suffers from mild scattered light (at the level of ~1 percent),
 and this appears to be worse near regions of the detector where there
 is brighter illumination. We are currently working towards building a
-full model of the scattered light. For the moment, PypeIt uses a robust
-piecewise polynomial to model the scattered light that is detected on
-the left of slice 1, the unilluminated region between slices 12 and 13,
-and the right of slice 24. The model is smooth and continuous, and is
-determined for each spectral pixel. By default, the scattered light is
+full model of the scattered light. For KCWI, the main contributor to
+the scattered light is referred to as the "narcissistic ghost" by
+Morrissey et al. (2018), ApJ, 864, 93. This scattered light is thought
+to be a reflection off the detector that travels back through the optical
+system. Some fraction gets sent back out to space, while the remainder
+comes back through the optical system and a fuzzy version of this is
+re-imaged onto the detector. The current KCWI scattered light model is
+designed to account for these effects. To generate a scattered light model,
+it's a good idea to use a frame that has a lot of counts (e.g. a flatfield
+frame, or a standard star). By default, the scattered light is
 subtracted from the science frame, the pixel flat, and the illumination
 flat. To turn off the scattered light subtraction, you can add the
 following lines to your :ref:`pypeit_file`:

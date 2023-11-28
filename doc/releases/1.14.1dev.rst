@@ -45,18 +45,25 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- Updated archival sensivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
 - Various updates to default parameters for LDT/DeVeny, plus updated wavelength
   templates and instrument-specific line lists.
+- Added support for NTT/EFOSC2 Gr#4
 
 Script Changes
 --------------
 
-- When making datacubes, the user can select a separate frame to use for the sky subtraction.
-  In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
+- When making datacubes, the user can select a separate frame to use for the sky
+  subtraction.  In this case, it is the processed data that will be used for sky
+  subtraction (akin to nodding).
 - Allow a list of files to be passed to ``pypeit_chk_wavecalib``.
+- A new script has been written (``chk_scattlight``) to check the generation of the scattered
+  light calibration frame model.
+- Added the ``pypeit_edge_inspector`` script, which allows users to edit the
+  edge traces by-hand.
 
 Datamodel Changes
 -----------------
