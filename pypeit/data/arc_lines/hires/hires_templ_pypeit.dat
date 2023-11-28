@@ -1,0 +1,4 @@
+# templates are in PypeIt-development-suite/dev_algorithms/hires_wvcalib/templates_from_pypeit
+Name                                                                             Chip  XDISP    ECH     XDAng   Deck  Rbin  Cbin   IOrder EOrder   Spatids
+wvcalib_keck_hires_red_c1_ech_-0.82_xd_1.62_specbin1_spatbin2_spatid2986.fits     3     RED    -0.818   1.6230   C1    1     2      35     35       2986
+wvcalib_keck_hires_red_c1_ech_0.75_xd_1.69_specbin1_spatbin2_spatid2999.fits      3     RED     0.745   1.6890   C1    1     2      35     35       2999
