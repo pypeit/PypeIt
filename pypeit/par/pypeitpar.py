@@ -880,9 +880,6 @@ class FlexurePar(ParSet):
                                    'Use the median flexure shift among all the objects in the same slit ' \
                                    '(if more than one object is detected) or among all ' \
                                    'the other slits; if not available, the flexure correction will not be applied.'
-<<<<<<< HEAD
-                                   
-=======
 
         defaults['minwave'] = None
         dtypes['minwave'] = [int, float]
@@ -901,7 +898,6 @@ class FlexurePar(ParSet):
         dtypes['multi_min_SN'] = [int, float]
         descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
->>>>>>> develop
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
