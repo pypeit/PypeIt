@@ -50,7 +50,7 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file, det, wvrng=None):
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray,int]:
     """
     Load a full template file from disk
 
@@ -73,13 +73,8 @@ def load_template(arxiv_file, det, wvrng=None):
         binning of the template arc spectrum
 
     """
-    # Path already included?
-    if pathlib.Path(arxiv_file).name == arxiv_file:
-        calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
-    else:
-        calibfile = pathlib.Path(arxiv_file)
-    # Read me
-    tbl = astropy.table.Table.read(calibfile, format='fits')
+    calibfile, fmt = data.get_reid_arxiv_filepath(arxiv_file)
+    tbl = astropy.table.Table.read(calibfile, format=fmt)
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]

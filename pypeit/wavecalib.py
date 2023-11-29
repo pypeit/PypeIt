@@ -662,7 +662,7 @@ class BuildWaveCalib:
                                              self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'])
+                                             nsnippet=self.par['nsnippet'])#,
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration files

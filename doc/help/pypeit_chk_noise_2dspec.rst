@@ -35,13 +35,12 @@
                             Aspect ratio when plotting the spec2d (default: 3)
       --wavemin WAVEMIN     Wavelength min. This is for selecting a region of the
                             spectrum to analyze. (default: None)
-      --wavemax WAVEMAX     Wavelength max.This is for selecting a region of the
+      --wavemax WAVEMAX     Wavelength max. This is for selecting a region of the
                             spectrum to analyze. (default: None)
-      --mode MODE           Options are: plot, save, printDo you want to save to
-                            disk or open a plot in a mpl window. If you choose save,
-                            a folder called spec2d*_noisecheck will be created and
-                            all the relevant plot will be placed there. If you
-                            choose print, check noise value are printed in the
-                            terminal (default: plot)
+      --mode MODE           Options are: [plot, save, print]. "plot" will open a
+                            plot in a mpl window. "save" will create a folder called
+                            spec2d*_noisecheck where all the relevant plots will be
+                            placed. "print" will cause the check noise values to be
+                            printed in the terminal. (default: plot)
       --list                List the extensions only? (default: False)
     

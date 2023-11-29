@@ -236,7 +236,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
     Load up the arc spectrum from an input JSON file
 
     Args:
-        in_file (str):
+        in_file (str or :obj:`pathlib.Path`):
             File containing the arc spectrum and or fit
         slit (int):
             slit index
@@ -245,9 +245,12 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         tuple: `numpy.ndarray`_, `numpy.ndarray`_, PypeItFit:  wave, flux, pypeitFitting
 
     """
+    # Enforce `str` type for input file name
+    in_file = str(in_file)
+
     if '.json' in in_file:
         # Force any possible pathlib.Path object to string before `loadjson`
-        wv_dict = linetools.utils.loadjson(str(in_file))
+        wv_dict = linetools.utils.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
                                           func=iwv_calib['function'],
