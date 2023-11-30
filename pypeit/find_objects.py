@@ -969,12 +969,10 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         """
         See MultiSlitReduce for SlicerIFU reductions
         """
-        if self.par['reduce']['cube']['slit_spec']:
-            return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
-                                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                                 show=show, save_objfindQA=save_objfindQA, neg=neg,
-                                                 debug=debug, manual_extract_dict=manual_extract_dict)
-        return None, None, None
+        return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
+                                             show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
+                                             show=show, save_objfindQA=save_objfindQA, neg=neg,
+                                             debug=debug, manual_extract_dict=manual_extract_dict)
 
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
