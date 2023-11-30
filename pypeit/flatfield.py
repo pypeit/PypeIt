@@ -1805,7 +1805,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
             clear = False
 
 
-def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
                            model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
     """
     TODO :: This could possibly be moved to core.flat
@@ -1825,6 +1825,9 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Index of slit that is used as the reference.
     smooth_npix : int, optional
         smoothing used for determining smoothly varying relative weights by sn_weights
+    polydeg : int, optional
+        Degree of polynomial to be used for determining relative spectral sensitivity. If None,
+        coadd.smooth_weights will be used, with the smoothing length set to smooth_npix.
     model : `numpy.ndarray`_, None
         A model of the rawimg data. If None, rawimg will be used.
     gpmask : `numpy.ndarray`_, None
@@ -1845,6 +1848,10 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         An image containing the appropriate scaling
     """
     msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
+    if polydeg is not None:
+        msgs.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
+    else:
+        msgs.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1889,7 +1896,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             # Reset the relative scaling for this iteration
             relscl_model = np.ones_like(rawimg)
             # Build the relative illumination, by successively finding the slits closest in wavelength to the reference
-            for ss in range(1,slits.spat_id.size):
+            for ss in range(1, slits.spat_id.size):
                 # Calculate the region of overlap
                 onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
                 onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
@@ -1905,14 +1912,28 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
                         msgs.error("An error has occurred in the relative spectral illumination. Please contact the developers.")
                     tmp_cntr = cntr * spec_ref
                     tmp_arr = hist * utils.inverse(tmp_cntr)
+                    # Calculate a smooth version of the relative response
+                    if polydeg is not None:
+                        gd = (tmp_arr != 0)
+                        wave_norm = (wave_ref-wave_ref[0]) / (wave_ref[1]-wave_ref[0])
+                        coeff = np.polyfit(wave_norm[gd], tmp_arr[gd], polydeg)
+                        ref_relscale = np.polyval(coeff, wave_norm)
+                    else:
+                        ref_relscale = coadd.smooth_weights(tmp_arr, (tmp_arr != 0), sn_smooth_npix)
                     # Update the reference spectrum
-                    spec_ref /= coadd.smooth_weights(tmp_arr, (tmp_arr != 0), sn_smooth_npix)
+                    spec_ref /= ref_relscale
                 # Normalise by the reference spectrum
                 cntr *= spec_ref
                 norm = utils.inverse(cntr)
                 arr = hist * norm
                 # Calculate a smooth version of the relative response
-                relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
+                if polydeg is not None:
+                    gd = (arr != 0)
+                    wave_norm = (wave_ref - wave_ref[0]) / (wave_ref[1] - wave_ref[0])
+                    coeff = np.polyfit(wave_norm[gd], arr[gd], polydeg)
+                    relscale = np.polyval(coeff, wave_norm)
+                else:
+                    relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
                 # Store the result
                 relscl_model[onslit_b_init] = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
                                                  fill_value="extrapolate")(waveimg[onslit_b_init])
