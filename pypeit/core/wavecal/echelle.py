@@ -48,10 +48,9 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
         fitting.evaluate_fit(xd_angle_coeffs[idisp, :].flatten(), angle_fits_params['xd_func'], xdangle,
                              minx=xd_min, maxx=xd_max)))
     order_vec = reddest_order_fit + (np.arange(norders + 2*pad) - pad)[::-1]
-    # keep only the orders that are within the available orders in the arxiv (we keep 1 extra order on each side
-    # to use order_min and order_max to attempt to wave calibrate those orders that are not in the arxiv)
-    gord = (order_vec >= angle_fits_params['order_min'] - 1) & (order_vec <= angle_fits_params['order_max'] + 1)
-    order_vec = order_vec[gord]
+    # # keep only the orders that are within the available orders in the arxiv
+    # gord = (order_vec >= angle_fits_params['order_min']) & (order_vec <= angle_fits_params['order_max'])
+    # order_vec = order_vec[gord]
 
     return order_vec
 
@@ -88,11 +87,9 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
         indx = order - angle_fits_params['order_min']
-        # check if the order is in the arxiv
-        if indx < 0:
-            indx = 0
-        elif indx >= angle_fits_params['norders']:
-            indx = angle_fits_params['norders'] - 1
+        # check if the order is in the arxiv, if not skip this order
+        if indx < 0 or indx >= angle_fits_params['norders']:
+            continue
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(angle_fits_params['ech_n_final'] + 1):
@@ -102,7 +99,6 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
 
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
-
 
     return wave_soln_guess
 
@@ -167,13 +163,9 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     # Interpolate the composite arc spectrum onto the predicted wavelength solution
     for iord, order in enumerate(order_vec_guess):
         indx = order - order_min
-        # check if the order is in the arxiv
-        if indx < 0:
-            msgs.warn(f'Order {order} is not in the arxiv. Attempting to wave calibrate it anyway.')
-            indx = 0
-        elif indx >= angle_fits_params['norders']:
-            msgs.warn(f'Order {order} is not in the arxiv. Attempting to wave calibrate it anyway.')
-            indx = angle_fits_params['norders'] - 1
+        # check if the order is in the arxiv, if not skip this order
+        if indx < 0 or indx >= angle_fits_params['norders']:
+            continue
         igood = gpm_composite[:, indx]
         arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
                                                       kind='cubic', bounds_error=False,
@@ -199,6 +191,7 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
                 wave_soln_guess[:, iord] = wave_composite[igood, indx][npad // 2:npad // 2 + nspec]
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
+
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
@@ -236,7 +229,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Array containing the predicted arc spectrum, shape = (nspec, norders)
 
     """
-
     nspec, norders = arcspec.shape
 
     # Predict the echelle order coverage and wavelength solution

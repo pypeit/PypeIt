@@ -1235,6 +1235,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     # Finish
     return wvcalib
 
+
 def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
                     ok_mask=None, measured_fwhms=None, use_unknowns=True, debug_all=False,
                     debug_peaks=False, debug_xcorr=False, debug_reid=False,
@@ -1343,7 +1344,15 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             continue
         # ToDO should we still be populating wave_calib with an empty dict here?
         if iord not in ok_mask:
+            msgs.warn(f"Skipping order = {orders[iord]} ({iord+1}/{norders}) because masked")
             wv_calib[str(iord)] = None
+            all_patt_dict[str(iord)] = None
+            continue
+        if np.all(spec_arxiv[:, iord] == 0.0):
+            msgs.warn(f"Order = {orders[iord]} ({iord+1}/{norders}) cannot be reidentified "
+                      f"because this order is not present in the arxiv")
+            wv_calib[str(iord)] = None
+            all_patt_dict[str(iord)] = None
             continue
         msgs.info('Reidentifying and fitting Order = {0:d}, which is {1:d}/{2:d}'.format(orders[iord], iord+1, norders))
         sigdetect = wvutils.parse_param(par, 'sigdetect', iord)

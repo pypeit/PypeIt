@@ -763,7 +763,6 @@ class BuildWaveCalib:
                                    self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
                                    outfile=outfile_fwhm)
 
-
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib

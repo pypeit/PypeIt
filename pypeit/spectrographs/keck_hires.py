@@ -35,7 +35,7 @@ class HIRESMosaicLookUp:
     # Original
     geometry = {
         'MSC01': {'default_shape': (6168, 3990),
-                  'blue_det': {'shift': (-2048.0 - 41.0, 0.0), 'rotation': 0.},
+                  'blue_det': {'shift': (-2048.0 - 41.0, -3.), 'rotation': 0.},
                   'green_det': {'shift': (0., 0.), 'rotation': 0.},
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
