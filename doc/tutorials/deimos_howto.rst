@@ -348,6 +348,7 @@ fluxing file, named ``keck_deimos_1200g_m_7750.flux`` in this example:
 
     # User-defined fluxing parameters
     flux read
+      filename
       Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits
     flux end
 

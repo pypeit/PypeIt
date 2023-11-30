@@ -578,6 +578,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
 
+
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
@@ -759,6 +760,7 @@ class PypeIt:
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             dark=self.caliBrate.msdark,
+            scattlight=self.caliBrate.msscattlight,
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
@@ -770,6 +772,7 @@ class PypeIt:
                                                    bpm=self.caliBrate.msbpm,
                                                    bias=self.caliBrate.msbias,
                                                    dark=self.caliBrate.msdark,
+                                                   scattlight=self.caliBrate.msscattlight,
                                                    flatimages=self.caliBrate.flatimages,
                                                    slits=self.caliBrate.slits,
                                                    ignore_saturation=False)
@@ -953,7 +956,9 @@ class PypeIt:
         else:
             # Update the skymask
             skymask = objFind.create_skymask(sobjs_obj)
-            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, 
+                                                     skymask=skymask, show=self.show,
+                                                     reinit_bpm=False)
         scaleImg = objFind.scaleimg
 
         # Each spec2d file includes the slits object with unique flagging

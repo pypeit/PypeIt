@@ -254,7 +254,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     return final_fit
 
 
-def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
+def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
                       match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
                       n_final=4, sigrej_final=3.0, input_only=False,
                       weights=None, plot_fil=None, verbose=False):
@@ -273,7 +273,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         wavelength IDs of the lines that will be fit (I think?)
     llist: dict
         Linelist dictionary
-    disp: float
+    dispersion: float
         dispersion
     match_toler: float, default = 3.0
         Matching tolerance when searching for new lines. This is the difference
@@ -303,7 +303,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     Returns
     -------
-    final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
+    final_fit: :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
         Fit result
     """
 
@@ -345,10 +345,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             msgs.warn("Bad fit!!")
             return None
 
-        rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-        rms_pix = rms_ang/disp
+        # RMS is computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+        rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+        rms_pixels = rms_angstrom/dispersion
         if verbose:
-            msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
+            msgs.info(f"n_order = {n_order}: RMS = {rms_pixels:g} pixels")
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
@@ -357,7 +358,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             twave = pypeitFit.eval(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
             for ss, iwave in enumerate(twave):
                 mn = np.min(np.abs(iwave-llist['wave']))
-                if mn/disp < match_toler:
+                if mn/dispersion < match_toler:
                     imn = np.argmin(np.abs(iwave-llist['wave']))
                     #if verbose:
                     #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
@@ -378,6 +379,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
+
+    # TODO: This rejection block is not actually used anywhere (i.e., no lines
+    #       are actually rejected in the fit)! Should it be? (TEB: 2023-11-03)
     irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -391,9 +395,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         yrej = []
 
     ions = all_idsion[ifit]
-    # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-    rms_pix = rms_ang/disp
+    # Final RMS computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+    rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+    rms_pixels = rms_angstrom/dispersion
+    msgs.info(f"RMS of the final wavelength fit: {rms_pixels:g} pixels")
 
     # Pack up fit
     spec_vec = np.arange(nspec)
@@ -413,7 +418,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                         ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
-                        shift=0., tcent=tcent, rms=rms_pix)
+                        shift=0., tcent=tcent, rms=rms_pixels)
 
     # QA
     if plot_fil is not None:

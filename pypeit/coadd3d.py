@@ -61,6 +61,10 @@ class DataCube(datamodel.DataContainer):
             Parsed meta from the header
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
+        _ivar (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
+        _wcs (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
 
     """
     version = '1.2.0'
@@ -87,7 +91,9 @@ class DataCube(datamodel.DataContainer):
     internals = ['head0',
                  'filename',
                  'spectrograph',
-                 'spect_meta'
+                 'spect_meta',
+                 '_ivar',  # This is set internally, and should be accessed with self.ivar
+                 '_wcs'  # This is set internally, and should be accessed with self.wcs
                 ]
 
     def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
@@ -97,6 +103,9 @@ class DataCube(datamodel.DataContainer):
         _d = dict([(k, values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+        # Initialise the internals
+        self._ivar = None
+        self._wcs = None
 
     def _bundle(self):
         """
@@ -177,21 +186,39 @@ class DataCube(datamodel.DataContainer):
             # Meta
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
+            self._ivar = None
+            self._wcs = None
         return self
 
     @property
     def ivar(self):
         """
         Utility function to compute the inverse variance cube
+
+        Returns
+        -------
+        self._ivar : `numpy.ndarray`_
+            The inverse variance of the datacube. Note that self._ivar should
+            not be accessed directly, and you should only call self.ivar
         """
-        return utils.inverse(self.sig**2)
+        if self._ivar is None:
+            self._ivar = utils.inverse(self.sig**2)
+        return self._ivar
 
     @property
     def wcs(self):
         """
         Utility function to provide the world coordinate system of the datacube
+
+        Returns
+        -------
+        self._wcs : `astropy.wcs.WCS`_
+            The WCS based on the stored header information. Note that self._wcs should
+            not be accessed directly, and you should only call self.wcs
         """
-        return wcs.WCS(self.head0)
+        if self._wcs is None:
+            self._wcs = wcs.WCS(self.head0)
+        return self._wcs
 
 
 class DARcorrection:
@@ -246,7 +273,7 @@ class DARcorrection:
 
         Parameters
         ----------
-        waves : `np.ndarray`_
+        waves : `numpy.ndarray`_
             1D array of wavelengths (units must be Angstroms)
 
         Returns
@@ -272,14 +299,14 @@ class DARcorrection:
 
         Parameters
         ----------
-        waves : `np.ndarray`_
+        waves : `numpy.ndarray`_
             1D array of wavelengths (units must be Angstroms)
 
         Returns
         -------
-        ra_corr : `np.ndarray`_
+        ra_corr : `numpy.ndarray`_
             The RA component of the atmospheric dispersion correction (in degrees) for each wavelength input.
-        dec_corr : `np.ndarray`_
+        dec_corr : `numpy.ndarray`_
             The Dec component of the atmospheric dispersion correction (in degrees) for each wavelength input.
         """
         # Determine the correction angle
@@ -570,20 +597,27 @@ class CoAdd3D:
         for the relative spectral scaling of the science frame
 
         Args:
-            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
                 2D PypeIt spectra object.
-            scalecorr (:obj:`str`, optional):
-                A string that describes what mode should be used for the sky subtraction. The
-                allowed values are:
 
-                * default: Use the default value, as defined in self.set_default_scalecorr()
-                * image: Use the relative scale that was derived from the science frame
-                * none: Do not perform relative scale correction
+            scalecorr (:obj:`str`, optional):
+                A string that describes what mode should be used for the sky
+                subtraction. The allowed values are:
+
+                    * default: Use the default value, as defined in
+                      :func:`set_default_scalecorr`.
+
+                    * image: Use the relative scale that was derived from the
+                      science frame
+
+                    * none: Do not perform relative scale correction
 
         Returns:
-            A tuple (this_scalecorr, relScaleImg) where this_scalecorr is a :obj:`str`_ that describes the
-            scale correction mode to be used (see scalecorr description) and relScaleImg is a `numpy.ndarray`_
-            (2D, same shape as science frame) containing the relative spectral scaling to apply to the science frame.
+            :obj:`tuple`: Contains (this_scalecorr, relScaleImg) where
+            this_scalecorr is a :obj:`str` that describes the scale correction
+            mode to be used (see scalecorr description) and relScaleImg is a
+            `numpy.ndarray`_ (2D, same shape as science frame) containing the
+            relative spectral scaling to apply to the science frame.
         """
         this_scalecorr = self.scalecorr_default
         relScaleImg = self.relScaleImgDef.copy()
@@ -637,7 +671,7 @@ class CoAdd3D:
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
                 spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
-                skysub_exptime = fits.open(self.cubepar['skysub_frame'])[0].header['EXPTIME']
+                skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
                 msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
             else:
@@ -651,23 +685,30 @@ class CoAdd3D:
         Determine the sky frame that should be used to subtract from the science frame
 
         Args:
-            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`_):
+            spec2DObj (:class:`~pypeit.spec2dobj.Spec2DObj`):
                 2D PypeIt spectra object.
-            exptime (:obj:`float`_):
+            exptime (:obj:`float`):
                 The exposure time of the science frame (in seconds)
             opts_skysub (:obj:`str`, optional):
-                A string that describes what mode should be used for the sky subtraction. The
-                allowed values are:
-                default - Use the default value, as defined in self.set_default_skysub()
-                image - Use the sky model derived from the science frame
-                none - Do not perform sky subtraction
+                A string that describes what mode should be used for the sky
+                subtraction. The allowed values are:
+
+                    * default: Use the default value, as defined in
+                      :func:`set_default_skysub`
+
+                    * image: Use the sky model derived from the science frame
+
+                    * none: Do not perform sky subtraction
 
         Returns:
-            A tuple (this_skysub, skyImg, skyScl) where this_skysub is a :obj:`str`_ that describes the sky subtration
-            mode to be used (see opts_skysub description), skyImg is a `numpy.ndarray`_ (2D, same shape as science
-            frame) containing the sky frame to be subtracted from the science frame, and skyScl is a `numpy.ndarray`_
-            (2D, same shape as science frame) containing the relative spectral scaling that has been applied to the
-            returned sky frame.
+            :obj:`tuple`: Contains (this_skysub, skyImg, skyScl) where
+            this_skysub is a :obj:`str` that describes the sky subtration mode
+            to be used (see opts_skysub description), skyImg is a
+            `numpy.ndarray`_ (2D, same shape as science frame) containing the
+            sky frame to be subtracted from the science frame, and skyScl is a
+            `numpy.ndarray`_ (2D, same shape as science frame) containing the
+            relative spectral scaling that has been applied to the returned sky
+            frame.
         """
         this_skysub = self.skysub_default
         if self.skysub_default == "image":
@@ -700,7 +741,7 @@ class CoAdd3D:
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
-                    skysub_exptime = fits.open(opts_skysub)[0].header['EXPTIME']
+                    skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts_skysub)
                 skyImg = spec2DObj_sky.sciimg * exptime / skysub_exptime  # Sky counts
@@ -715,19 +756,20 @@ class CoAdd3D:
 
     def add_grating_corr(self, flatfile, waveimg, slits, spat_flexure=None):
         """
-        Calculate the relative spectral sensitivity correction due to grating shifts with the
-        input frames.
+        Calculate the relative spectral sensitivity correction due to grating
+        shifts with the input frames.
 
         Parameters
         ----------
         flatfile : :obj:`str`
-            Unique path of a flatfield frame used to calculate the relative spectral sensitivity
-            of the corresponding science frame.
+            Unique path of a flatfield frame used to calculate the relative
+            spectral sensitivity of the corresponding science frame.
         waveimg : `numpy.ndarray`_
-            2D image (same shape as the science frame) indicating the wavelength of each detector pixel.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_):
+            2D image (same shape as the science frame) indicating the wavelength
+            of each detector pixel.
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
-        spat_flexure: :obj:`float`, optional:
+        spat_flexure : :obj:`float`, optional:
             Spatial flexure in pixels
         """
         if flatfile not in self.flat_splines.keys():
@@ -744,8 +786,7 @@ class CoAdd3D:
                 # Calculate the relative scale
                 scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
                                                                slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                                               model=None,
-                                                               skymask=None, trim=self.flatpar['slit_trim'],
+                                                               model=None, trim=self.flatpar['slit_trim'],
                                                                flexure=spat_flexure,
                                                                smooth_npix=self.flatpar['slit_illum_smooth_npix'])
             else:
@@ -819,16 +860,16 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         Parameters
         ----------
-        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`_
+        spec2DObj : :class:`~pypeit.spec2dobj.Spec2DObj`
             2D PypeIt spectra object.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`_
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Class containing information about the slits
         spat_flexure: :obj:`float`, optional
             Spatial flexure in pixels
 
         Returns
         -------
-        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`_
+        alignSplines : :class:`~pypeit.alignframe.AlignmentSplines`
             Alignment splines used for the astrometric correction
         """
         # Loading the alignments frame for these data
