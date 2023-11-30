@@ -962,18 +962,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
         self.initialize_slits(slits, initial=True)
 
-    def find_objects_pypeline(self, image, ivar, std_trace=None,
-                              show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, save_objfindQA=False, neg=False, debug=False,
-                              manual_extract_dict=None):
-        """
-        See MultiSlitReduce for SlicerIFU reductions
-        """
-        return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
-                                             show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                             show=show, save_objfindQA=save_objfindQA, neg=neg,
-                                             debug=debug, manual_extract_dict=manual_extract_dict)
-
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
 
