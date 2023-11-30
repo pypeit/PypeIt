@@ -831,12 +831,68 @@ class RawImage:
                 viewer, ch = display.show_image(self.image[0], chname='orig_image')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
-        # Apply the relative spectral illumination
+        # Retrieve the relative spectral illumination profile
         spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
 
         # Apply flat-field correction
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
         # a bit overkill...
+        if debug:
+            iput = self.image[0].copy()
+            total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
+            self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
+            oput, flat_bpm = flat.flatfield(self.image[0], total_flat)
+            from matplotlib import pyplot as plt
+            from pypeit import edgetrace, wavetilts, wavecalib
+            from scipy.signal import savgol_filter
+
+            edges_file = "Calibrations/Edges_A_0_DET01.fits.gz"
+            tilts_file = "Calibrations/Tilts_A_0_DET01.fits"
+            wvcalib_file = "Calibrations/WaveCalib_A_0_DET01.fits"
+            flex = None
+            slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
+            wvtilts = wavetilts.WaveTilts.from_file(tilts_file)
+            wv_calib = wavecalib.WaveCalib.from_file(wvcalib_file)
+
+            slitmask = slits.slit_img(initial=True, flexure=flex)
+            tilts = wvtilts.fit2tiltimg(slitmask, flexure=flex)
+            waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=flex)
+
+            # extract a spectrum down the centre of each slit
+            left, right, _ = slits.select_edges(initial=True)
+            cen = np.round(0.5 * (left + right)).astype(int)
+            lcen = np.round(0.75*left + 0.25*right).astype(int)
+            rcen = np.round(0.25*left + 0.75*right).astype(int)
+
+            colors = plt.cm.jet(np.linspace(0, 1, slits.nslits))
+            navg = 21
+            for ss in range(slits.nslits):
+                print("slit {0:d}".format(ss+1))
+                inarr = np.zeros((iput.shape[0], navg))
+                outarra = np.zeros((iput.shape[0], navg))
+                outarrb = np.zeros((iput.shape[0], navg))
+                outarrc = np.zeros((iput.shape[0], navg))
+                for ll in range(navg):
+                    ww = (np.arange(iput.shape[0]), cen[:, ss] + ll - navg // 2)
+                    inarr[:, ll] = iput[ww]
+                    outarra[:, ll] = oput[ww]
+                    ww = (np.arange(iput.shape[0]), lcen[:, ss] + ll - navg // 2)
+                    outarrb[:, ll] = oput[ww]
+                    ww = (np.arange(iput.shape[0]), rcen[:, ss] + ll - navg // 2)
+                    outarrc[:, ll] = oput[ww]
+                wa = (np.arange(iput.shape[0]), cen[:, ss])
+                wb = (np.arange(iput.shape[0]), lcen[:, ss])
+                wc = (np.arange(iput.shape[0]), rcen[:, ss])
+                plt.subplot(221)
+                plt.plot(waveimg[wa], np.median(inarr, axis=1), color=colors[ss])
+                plt.subplot(222)
+                plt.plot(waveimg[wa], savgol_filter(np.median(outarra, axis=1), 25, 3), color=colors[ss])
+                plt.subplot(223)
+                plt.plot(waveimg[wb], savgol_filter(np.median(outarrb, axis=1), 25, 3), color=colors[ss])
+                plt.subplot(224)
+                plt.plot(waveimg[wc], savgol_filter(np.median(outarrc, axis=1), 25, 3), color=colors[ss])
+            #     plt.plot(waveimg[ww], np.median(outarr, axis=1), color=colors[ss])
+            plt.show()
         total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
         self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
