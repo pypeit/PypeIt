@@ -857,7 +857,7 @@ class PypeItMetaData:
                 mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
                 this_cfg = self.get_configuration(i, modified=True)
                 if self.spectrograph.same_configuration([this_cfg, mod_cfg], check_keys=False):
-                    if d in self.table['setup'][i]:
+                    if d in self.table['setup'][i].split(','):
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
@@ -882,7 +882,7 @@ class PypeItMetaData:
         # For each configuration, determine if any of the frames with
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
-            in_cfg = np.array([cfg_key in _setup for _setup in self.table['setup']])
+            in_cfg = np.array([cfg_key in _setup.split(',') for _setup in self.table['setup']])
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -926,10 +926,11 @@ class PypeItMetaData:
                     uniq_meta = np.unique(self.table[mkey][in_cfg].data)
                     # Warn the user that the matching meta values are not
                     # unique for this configuration.
+
                     if uniq_meta.size != 1:
                         msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
                                   + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                                  + '{0} values.' .format(mkey))
+                                  + '{0} values.'.format(mkey) + f'Resulting values: {uniq_meta}')
                     # Find the frames of this type that match any of the
                     # meta data values
                     indx &= np.isin(self.table[mkey], uniq_meta)
@@ -937,7 +938,7 @@ class PypeItMetaData:
                 # assign
                 new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
                 for c in range(len(self.table['setup'][indx])):
-                    if cfg_key in self.table['setup'][indx][c]:
+                    if cfg_key in self.table['setup'][indx][c].split(','):
                         new_cfg_key[c] = self.table['setup'][indx][c]
                     elif self.table['setup'][indx][c] == 'None':
                         new_cfg_key[c] = cfg_key
@@ -1168,7 +1169,7 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) # & (self['framebit'] > 0)
+            in_cfg = np.array([configs[i] in _set.split(',') for _set in self.table['setup']]) # & (self['framebit'] > 0)
             if not any(in_cfg):
                 continue
             icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
@@ -1629,7 +1630,7 @@ class PypeItMetaData:
         ff = open(_ofile, 'w')
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
-            indx = np.array([setup in _set for _set in self['setup']])
+            indx = np.array([setup in _set.split(',') for _set in self['setup']])
             if not np.any(indx):
                 continue
             subtbl = self.table[output_cols][indx]
@@ -1758,7 +1759,7 @@ class PypeItMetaData:
                 setup_dict[f'Setup {setup}'][key] = cfg[setup][key]
             
             # Get the paths
-            in_cfg = np.array([setup in _set for _set in self.table['setup']])
+            in_cfg = np.array([setup in _set.split(',') for _set in self.table['setup']])
             if not np.any(in_cfg):
                 continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
