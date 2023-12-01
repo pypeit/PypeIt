@@ -48,9 +48,6 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
         fitting.evaluate_fit(xd_angle_coeffs[idisp, :].flatten(), angle_fits_params['xd_func'], xdangle,
                              minx=xd_min, maxx=xd_max)))
     order_vec = reddest_order_fit + (np.arange(norders + 2*pad) - pad)[::-1]
-    # # keep only the orders that are within the available orders in the arxiv
-    # gord = (order_vec >= angle_fits_params['order_min']) & (order_vec <= angle_fits_params['order_max'])
-    # order_vec = order_vec[gord]
 
     return order_vec
 

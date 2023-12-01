@@ -69,8 +69,8 @@ Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
-- Wavecalib datacontainer now stores information about order number (for echelle)
-- Wavefit datacontainer now stores information about order number (for echelle)
+- Wavecalib datacontainer now stores information about echelle order number, if applicable.
+- Wavefit datacontainer now stores information about echelle order number, if applicable.
 
 Under-the-hood Improvements
 ---------------------------
