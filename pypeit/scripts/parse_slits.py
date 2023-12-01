@@ -24,7 +24,6 @@ def print_slits(slits):
             Slits object
 
     """
-    embed()
     diag_table = Table()
     diag_table['SpatID'] = slits.spat_id
     if slits.pypeline == 'Echelle':
