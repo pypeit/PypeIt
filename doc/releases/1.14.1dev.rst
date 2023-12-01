@@ -50,6 +50,9 @@ Instrument-specific Updates
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
 - Various updates to default parameters for LDT/DeVeny, plus updated wavelength
   templates and instrument-specific line lists.
+- Improvement to the wavelength calibration for Keck/HIRES. New arxiv templates added.
+  Templates available for orders 35-117.
+- Various updates to default parameters for Keck/HIRES.
 
 Script Changes
 --------------
@@ -57,11 +60,17 @@ Script Changes
 - When making datacubes, the user can select a separate frame to use for the sky subtraction.
   In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
 - Allow a list of files to be passed to ``pypeit_chk_wavecalib``.
+- ``pypeit_parse_slits`` now prints also the echelle order number, if applicable.
+- Column ``SpatID`` in the output of ``pypeit_chk_wavecalib`` changed to ``SpatOrderID`` and
+  now show the echelle order number, if applicable, otherwise the slit number.
+- ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
 
 Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
+- Wavecalib datacontainer now stores information about order number (for echelle)
+- Wavefit datacontainer now stores information about order number (for echelle)
 
 Under-the-hood Improvements
 ---------------------------
@@ -69,6 +78,8 @@ Under-the-hood Improvements
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 - Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
   deprecated ``numpy.polyfit()`` function.
+- Improvements to echelle wavelength calibration. Code changes in: ``pypeit/core/wavecal/wvutils.py``,
+``pypeit/core/wavecal/echelle.py``, ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
 
 Bug Fixes
 ---------

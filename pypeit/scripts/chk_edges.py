@@ -25,7 +25,7 @@ class ChkEdges(scriptbase.ScriptBase):
 
     @staticmethod
     def main(pargs):
-        from pypeit import edgetrace
+        from pypeit import edgetrace, slittrace
 
         # Load
         edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
@@ -33,7 +33,12 @@ class ChkEdges(scriptbase.ScriptBase):
         if pargs.mpl:
             edges.show(thin=10, include_img=True, idlabel=True)
         else:
-            edges.show(thin=10, in_ginga=True)
+            # check if SlitTraceSet file exists(this allows to show the orders id instead of slitids)
+            slit_filename = slittrace.SlitTraceSet.construct_file_name(edges.traceimg.calib_key,
+                                                                       calib_dir=edges.traceimg.calib_dir)
+            slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=(not pargs.try_old)) \
+                if slit_filename.exists() else None
+            edges.show(thin=10, in_ginga=True, slits=slits)
         return 0
 
 

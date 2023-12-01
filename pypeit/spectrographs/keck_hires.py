@@ -39,6 +39,8 @@ class HIRESMosaicLookUp:
                   'green_det': {'shift': (0., 0.), 'rotation': 0.},
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
+    # adding -3 to the blue_det shift in the y-direction helps to deal with the gap
+    # in the 2D fit wavelength solution between the blue and green detectors
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):

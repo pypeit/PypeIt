@@ -11,35 +11,46 @@ from pypeit.scripts import scriptbase
 from pypeit import slittrace
 from pypeit import msgs
 
+from astropy.table import Table
+
 from IPython import embed
 
 
 def print_slits(slits):
+    """
+    Print slits info
+    Args:
+        slits (`pypeit.slittrace.SlitTraceSet`_):
+            Slits object
+
+    """
+    embed()
+    diag_table = Table()
+    diag_table['SpatID'] = slits.spat_id
+    if slits.pypeline == 'Echelle':
+        diag_table['Order'] = slits.ech_order
+    if slits.maskdef_id is not None:
+        diag_table['MaskID'] = slits.maskdef_id
+        diag_table['MaskOFF (pix)'] = [0 if slits.maskdef_offset is None else slits.maskdef_offset]
+        diag_table['MaskOFF (pix)'].format = '{:.2f}'
+
+    # get flags
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
-    if slits.pypeline  in ['MultiSlit', 'IFU']:
-        slitord_id = slits.spat_id
-        slit_label = 'SpatID'
-    elif slits.pypeline == 'Echelle':
-        slitord_id = slits.slitord_id
-        slit_label = 'Order'
-    else:
-        msgs.error('Not ready for this pypeline: {0}'.format(slits.pypeline))
-    print(f'{slit_label:<8} {"MaskID":<8} {"MaskOFF (pix)":<14} {"Flags":<20}')
-    # TODO JFH No need to print out the MaskID and MaskOFF for echelle
-    for slit_idx, slit_spat in enumerate(slitord_id):
-        maskdefID = 0 if slits.maskdef_id is None else slits.maskdef_id[slit_idx]
-        maskoff = 0 if slits.maskdef_offset is None else slits.maskdef_offset
-        # Flags
-        flags = []
-        if slits.mask[slit_idx] == 0:
-            flags += ['None']
-        else:
+    allflags = ['None']*slits.nslits
+    for slit_idx in range(slits.nslits):
+        this_flags = []
+        if slits.mask[slit_idx] != 0:
             for key in bitmask.keys():
                 if bitmask.flagged(slits.mask[slit_idx], key):
-                    flags += [key]
-        print('{0:<8} {1:<8} {2:<14} {3:<20}'.format(f'{slit_spat:04d}', f'{maskdefID:04d}',
-                                                     f'{maskoff:.2f}', ', '.join(flags)))
+                    this_flags += [key]
+            allflags[slit_idx] = ', '.join(this_flags)
+
+    diag_table['Flags'] = allflags
+
+    # print table
+    print('')
+    diag_table.pprint_all(align='>')
 
 
 class ParseSlits(scriptbase.ScriptBase):

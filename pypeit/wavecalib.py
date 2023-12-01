@@ -38,7 +38,7 @@ class WaveCalib(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
-    version = '1.1.1'
+    version = '1.1.2'
 
     # Calibration frame attributes
     calib_type = 'WaveCalib'
@@ -71,12 +71,14 @@ class WaveCalib(calibframe.CalibFrame):
                                 descr='Total number of slits.  This can include masked slits'),
                  'spat_ids': dict(otype=np.ndarray, atype=np.integer, 
                                   descr='Slit spat_ids. Named distinctly from that in WaveFit '),
+                 'ech_orders': dict(otype=np.ndarray, atype=np.integer,
+                                   descr='Echelle order ID numbers.  Defined only for echelle.'),
                  'strpar': dict(otype=str, descr='Parameters as a string'),
                  'lamps': dict(otype=str,
                                descr='List of arc lamps used for the wavelength calibration')}
 
-    def __init__(self, wv_fits=None, fwhm_map=None, nslits=None, spat_ids=None, PYP_SPEC=None,
-                 strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
+    def __init__(self, wv_fits=None, fwhm_map=None, nslits=None, spat_ids=None, ech_orders=None,
+                 PYP_SPEC=None, strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
                  det_img=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -125,7 +127,8 @@ class WaveCalib(calibframe.CalibFrame):
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
-                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss])
+                        echorder = self.ech_orders[ss] if self.ech_orders is not None else None
+                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss], ech_order=echorder)
                     else:
                         kwv_fit = wv_fit
                     # This is required to deal with a single HDU WaveFit() bundle
@@ -172,7 +175,7 @@ class WaveCalib(calibframe.CalibFrame):
                 if len(ihdu.data) == 0:
                     # TODO: This is a hack.  We shouldn't be writing empty HDUs,
                     # except for the primary HDU.
-                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'], ech_order=ihdu.header['ECH_ORDER'])
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
@@ -377,8 +380,9 @@ class WaveCalib(calibframe.CalibFrame):
         # Slit number
         diag['N.'] = np.arange(self.wv_fits.size)
         diag['N.'].format = 'd'
-        # spat_id
-        diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
+        # spat_id or order number
+        diag['SpatOrderID'] = [wvfit.spat_id for wvfit in self.wv_fits] if self.ech_orders is None \
+            else [wvfit.ech_order for wvfit in self.wv_fits]
         # Central wave, delta wave
         diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
@@ -401,7 +405,8 @@ class WaveCalib(calibframe.CalibFrame):
         diag['RMS'].format = '0.3f'
         if print_diag:
             # Print it
-            print(diag)
+            print('')
+            diag.pprint_all()
         return diag
 
 
@@ -710,17 +715,20 @@ class BuildWaveCalib:
                 if final_fit[key]['rms'] < wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
+                    self.wv_calib.wv_fits[idx].ech_order = self.slits.ech_order[idx] if self.slits.ech_order is not None else None
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
         else: # Generate the DataContainer from scratch
             # Loop on WaveFit items
             tmp = []
             for idx in range(self.slits.nslits):
+                echorder = self.slits.ech_order[idx] if self.slits.ech_order is not None else None
                 item = final_fit.pop(str(idx))
                 if item is None:  # Add an empty WaveFit
-                    tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
+                    tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx], ech_order=echorder))
                 else:
                     # This is for I/O naming
                     item.spat_id = self.slits.spat_id[idx]
+                    item.ech_order = echorder
                     # add measured fwhm
                     item['fwhm'] = measured_fwhms[idx]
                     tmp.append(item)
@@ -729,6 +737,7 @@ class BuildWaveCalib:
                                       arc_spectra=arccen,
                                       nslits=self.slits.nslits,
                                       spat_ids=self.slits.spat_id,
+                                      ech_orders=self.slits.ech_order,
                                       PYP_SPEC=self.spectrograph.name,
                                       lamps=','.join(self.lamps))
         # Inherit the calibration frame naming from self.msarc
@@ -855,6 +864,7 @@ class BuildWaveCalib:
                                     outfile=outfile, log=self.par['qa_log'])
                     # This is for I/O naming
                     final_fit.spat_id = self.slits.spat_id[iord]
+                    final_fit.ech_order = self.slits.ech_order[iord] if self.slits.ech_order is not None else None
                     final_fit.fwhm = self.measured_fwhms[iord]
                     # Save the wavelength solution fits
                     self.wv_calib.wv_fits[iord] = final_fit
