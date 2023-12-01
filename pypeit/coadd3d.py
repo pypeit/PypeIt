@@ -1332,6 +1332,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                              dspat=self._dspat, dwv=self._dwv)
 
         # Align the frames
+        # TODO :: NOTE THAT THIS IS 'and False' because the HST alignment is done when reading in the data.
         if self.align and False:
             self.all_ra, self.all_dec = self.run_align()
 
@@ -1408,6 +1409,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                           sensfunc=sensfunc, fluxed=self.fluxcal)
                     final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
 
+
 def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwave,
                   wghts, spatpos, specpos,
                   all_spatid, tilts, slits, astrom_trans, all_dar,
@@ -1438,7 +1440,7 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
     subcube_wcs, voxedge, reference_image = datacube.create_wcs(ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
                                                                 dspat, dwave)
     # Create the subcube
-    flxcube, varcube, bpmcube = subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
+    flxcube, varcube, bpmcube = datacube.subpixellate(subcube_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask], flux_sort[wv_mask], ivar_sort[wv_mask],
                                              wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
                                              all_spatid[wv_mask], tilts, slits, astrom_trans, all_dar,
                                              voxedge, all_idx=None,
