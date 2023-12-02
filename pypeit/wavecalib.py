@@ -101,10 +101,13 @@ class WaveCalib(calibframe.CalibFrame):
         if self.spat_ids is None:
             msgs.error('Cannot write WaveCalib without spat_ids!')
         _d.append(dict(spat_ids=self.spat_ids))
+        # Echelle orders
+        if self.ech_orders is not None:
+            _d.append(dict(ech_orders=self.ech_orders))
 
         # Rest of the datamodel
         for key in self.keys():
-            if key == 'spat_ids':
+            if key in ['spat_ids', 'ech_orders']:
                 continue
             # Skip None
             if self[key] is None:
@@ -175,7 +178,7 @@ class WaveCalib(calibframe.CalibFrame):
                 if len(ihdu.data) == 0:
                     # TODO: This is a hack.  We shouldn't be writing empty HDUs,
                     # except for the primary HDU.
-                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'], ech_order=ihdu.header['ECH_ORDER'])
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'], ech_order=ihdu.header.get('ECH_ORDER'))
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
