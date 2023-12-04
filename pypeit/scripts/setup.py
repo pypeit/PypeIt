@@ -94,9 +94,6 @@ class Setup(scriptbase.ScriptBase):
             gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-r", args.root, "-e", args.extension])
             SetupGUI.main(gui_args)
 
-        # Get the output directory
-        sort_dir = os.path.join(args.output_path, 'setup_files')
-
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
         # Run the setup

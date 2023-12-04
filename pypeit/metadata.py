@@ -178,7 +178,7 @@ class PypeItMetaData:
                 # Check the name
                 if instr_names[0] != self.spectrograph.header_name:
                     msgs.warn('The instrument name in the headers of the raw files does not match the '
-                              f'expected one! Found {instr_names[0]}, expected {self.self.spectrograph.header_name}.  '
+                              f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
                               'You may have chosen the wrong PypeIt spectrograph name!')
 
     def _build(self, files, strict=True, usrdata=None):
@@ -217,8 +217,8 @@ class PypeItMetaData:
                 usr_row = None
             else:
                 # TODO: This check should be done elsewhere
-                # Check
-                if _ifile.name != usrdata['filename'][idx]:
+                # Check                
+                if _ifile.name != usrdata['filename'][idx].lstrip("# "):
                     msgs.error('File name list does not match user-provided metadata table.  See '
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]

@@ -13,6 +13,7 @@ import enum
 import glob
 import numpy as np
 import io
+from pathlib import Path
 from functools import partial
 
 from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
@@ -150,187 +151,6 @@ class LogBuffer(io.TextIOBase):
 def available_spectrographs():
     """Return a list of the supported spectrographs"""
     return spectrographs.available_spectrographs
-
-class PypeItMetadataModelOld(QObject):
-    """Model that wraps a PypeItMetaData object for the setup gui. This model does not
-    implement the QAbstractItemModel, rather it provides an interface to proxy models that
-    present the model to QAbstractItemViews.
-    
-    Args:
-        config_name (str): The name of the unique configuration for the metadata. Defaults to 'ObsLog' for
-                           all metadata rows regardless of their configuration.
-        obslog_model (PypeItMetadataModel): A reference to the PypeItMetadataModel for the obslog. Defaults to None
-                                            for the ObsLog model itself.
-        metadata (PypeItMetaData): The PypeItMetadata object being wrapped. This is None when the model is in a 
-                                   "NEW" state. Defaults to None.
-    """
-
-    modelReset = Signal()
-    """Signals when underlying PypeItMetadata object has been changed/reset."""
-
-    dataChanged = Signal(int, int)
-    """Signals when data has been modified but columns/rows have not changed."""
-
-    rowsAdded = Signal(int, int)
-    """Signals when a row has been added to this model."""
-
-    rowsRemoved = Signal(int, int)
-    """Signals when a row has been removed from this model."""
-
-    def __init__(self, config_name='ObsLog', obslog_model= None, metadata=None):
-        super().__init__()
-        self.metadata = metadata
-        self.config_name = config_name
-        self.obslog_model=obslog_model if config_name != 'ObsLog' else self
-        self.configs = dict()
-
-    def setMetadata(self, metadata):
-        """Sets the PypeItMetaData object being wrapped.
-        
-        Args:
-            metadata (PypeItMetaData): The metadata being wrapped.
-        """
-        self.metadata=metadata
-        self.modelReset.emit()
-
-    def addNewConfig(self, config_name, model):
-        """
-        Add a new configuration to the list of configurations known to the obslog model.
-
-        Args:
-            config_name (str): The name of the new configuration.
-            model (PypeItMetaDataModel): The model for that configuration.
-        """
-        self.configs[config_name] = model
-
-    def getDefaultColumns(self):
-        """Return the default columns to display to the user. This can vary based
-        on the current spectrograph.
-        
-        Return:
-        A list of column names, in order to display.
-        """
-        if self.metadata is not None:
-            default_columns = self.metadata.set_pypeit_cols(write_bkg_pairs=True)
-            # The GUI also wants setup
-            default_columns.insert(1,'setup')
-            return default_columns
-        else:
-            return ['filename', 'setup', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
-
-    def getCopyForConfig(self, config_name):
-        """
-        Create a copy of this Metadata object for rows with the given configuration.
-        """
-        msgs.info(f"Creating new copy for config {config_name}")
-
-        config_rows = [ config_name in setup for setup in self.metadata.table['setup'] ]
-        table_copy = self.metadata.table[config_rows].copy(True)                
-        copy = PypeItMetadataModel(metadata=PypeItMetaData(self.metadata.spectrograph, self.metadata.par, data=table_copy), 
-                                   config_name = config_name,
-                                   obslog_model=self.obslog_model)
-        self.obslog_model.addNewConfig(config_name, copy)
-        return copy
-    
-    def getCopyForNewConfig(self, config_rows, config_name):
-        
-        # Add the new config to each row
-        for row_index in config_rows:
-            row = self.metadata.table[row_index]
-            
-            current_setups = row['setup'].split(",")
-            current_setups.append(config_name)
-
-            self.obslog_model.updateRowConfig(row, ",".join(current_setups))
-
-        return self.getCopyForConfig(config_name)
-
-    def removeFile(self, directory, filename):
-        row_index = (self.metadata.table['directory'] == directory) & (self.metadata.table['filename'] == filename)
-        self.metadata.table.remove_rows(row_index)
-
-        rows = np.where(row_index)[0]
-        msgs.info(f"Removing file from config {self.config_name}, file {filename} rows {rows}")
-
-        # There should only be one row that matches, but just in case we loop
-        for idx in rows:
-            self.rowsRemoved.emit(idx,idx)
-
-    def updateFileSetup(self, directory, filename, value):
-        row_index = (self.metadata.table['directory'] == directory) & (self.metadata.table['filename'] == filename)
-        self.metadata.table['setup'][row_index] = value
-        rows = np.where(row_index)[0]
-        msgs.info(f"Updating file setup for config {self.config_name}, file {filename} rows {rows} to {value}")
-
-        # There should only be one row that matches, but just in case we loop
-        for idx in rows:
-            self.dataChanged.emit(idx, idx)
-
-    def addMetadataRow(self, metadata_row):
-        file = metadata_row['filename']
-        directory = metadata_row['directory']
-        setup = metadata_row['setup']
-        msgs.info(f"Adding row {directory}/{file} with setup {setup} to {self.config_name}")
-
-        new_index = len(self.metadata.table)
-        self.metadata.table.add_row(metadata_row)
-        file = self.metadata[new_index]['filename']
-        directory = self.metadata[new_index]['directory']
-        setup = self.metadata[new_index]['setup']
-        msgs.info(f"Post add row {directory}/{file} with setup {setup} to {self.config_name} row {new_index}")
-        self.rowsAdded.emit(new_index, new_index)
-
-    def updateRowConfig(self, metadata_row, value):
-        file = metadata_row['filename']
-        directory = metadata_row['directory']
-        msgs.info(f"Updating row config {directory}/{file} to '{value}'")
-        new_config_list = sorted(value.split(','))
-        if "" in new_config_list:
-            new_config_list.remove("")
-
-        new_setup_value = ",".join(new_config_list)
-
-        current_config_list = sorted(metadata_row["setup"].split(","))
-        msgs.info(f"current_configs: {current_config_list} new configs {new_config_list}")
-
-        # The metadata_row passed in hasn't been changed yet, so do that now
-        metadata_row['setup'] = new_setup_value
-
-        if new_config_list == current_config_list:
-            # Do nothing, the lists are the same
-            return
-
-        for current_config in current_config_list:
-            if current_config not in new_config_list:
-                # Remove this row from configs it's no longer a member of
-                self.configs[current_config].removeFile(directory, file)
-            else:
-                # Update configs that the row is currently a member of
-                self.configs[current_config].updateFileSetup(directory,file,new_setup_value)
-
-        for new_config in new_config_list:
-            # A brand new config won't be in our current list of configurations yet.
-            # so don't try to update it
-            if new_config in self.configs:
-                # Add the row to a config that previously did not have             
-                if new_config not in current_config_list:
-                    self.configs[new_config].addMetadataRow(metadata_row)
-
-        # This method is only called on the obslog model, which should get the new value
-        self.updateFileSetup(directory, file, new_setup_value)
-
-
-    def setValue(self, colname, row, value):
-        msgs.info(f"Setting {colname} row {row} to '{value}'")
-        if colname == "setup":
-            # Changing the setup means moving a file between different PypeIt files,
-            # which affects things outside of this model, so we forward this to the
-            # obslog model
-            row_to_move = self.metadata.table[row]
-            self.obslog_model.updateRowConfig(row_to_move, value)
-        else:
-            self.metadata.table[colname][row] = value
-            self.dataChanged.emit(self.metadata.table.colnames.index(colname), row)
 
 class PypeItMetadataUniquePathsProxy(QAbstractListModel):
     """A Proxy model filtering the content of a PypeItMetadataModel object to only show the
@@ -503,8 +323,13 @@ class PypeItMetadataModel(QAbstractTableModel):
 
             if role == Qt.DisplayRole:
                 # Convert to a string for displaying
+
+                # Check for commented out filenames and remove the # characters
+                if colname == 'filename' and value.lstrip().startswith("#"):
+                    value = value.strip("# ")
+
                 # Round floating point values to look better
-                if isinstance(value, np.float64) or isinstance(value, np.float32):
+                elif isinstance(value, np.float64) or isinstance(value, np.float32):
                     value = round(value, 3)
                 return str(value)
             else:
@@ -518,7 +343,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         Args:
             index (QModelIndex):   The index in the table to return data form.
             value (Any):           The value to set in the metadata. 
-            role (Qt.DisplayRole): The role to return data for. Only the "EditRole" is supported.
+            role (Qt.DisplayRole): The role to set data for. Only the "EditRole" is supported.
                                    Defaults to Qt.EditRole.  
 
         Return:
@@ -529,6 +354,7 @@ class PypeItMetadataModel(QAbstractTableModel):
             if colname in self.editable_columns:
                 try:             
                     self.metadata[colname][index.row()] = value
+                    self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
                     return True
                 except ValueError as e:
                     msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
@@ -644,26 +470,26 @@ class PypeItMetadataModel(QAbstractTableModel):
         
         # Otherwise no change
 
-    def removeMetadataRow(self, row):
-        """Removes a row from the metadata
+    def removeMetadataRows(self, rows):
+        """Removes rows from the metadata
         
         Args:
-            row (int): A row number to remove.
+            row (Sequence of int): A sequence of integer row indexes of the rows to remove.
 
-        Return:
-            (numpy array-like): The row of metadata that was removed, 
-                                or None if row was out of range
         """
-        if self.metadata is None or row >= len(self.metadata):
+        if self.metadata is None:
             return None
         else:
             # Remove the row, making sure views are notified
-            self.beginRemoveRows(QModelIndex(), row, row)
-            row = self.metadata[row]
-            self.metadata.remove_row(row)
-            self.endRemoveRows()
+            # We do this in reverse sorted order so that indices don't change before deletes
+            for row in sorted(rows,reverse=True):
+                # We could try to group these rows into ranges, but
+                # it doesn't seem worth it
+                self.beginRemoveRows(QModelIndex(), row, row)
+                msgs.info(f"Removing metadata row {row}")
+                self.metadata.remove_rows([row])
+                self.endRemoveRows()
 
-            return row
         
     def addMetadataRow(self, metadata_row):
         """Add a new row to the metadata.
@@ -774,6 +600,63 @@ class PypeItMetadataModel(QAbstractTableModel):
         """
         return PypeItMetadataUniquePathsProxy(self)
 
+    def commentMetadataRows(self, rows):
+        """Comment out metadata rows. Rows that are already commented out are not affected.
+        
+        Args:
+            rows (list of int): The indices of the rows to comment out.
+            
+        Return:
+            None
+        """
+
+        if self.metadata is not None:
+
+            # Recreate the entire column of filenames to avoid issues with astropy tables having a fixed length string dtype
+            # We are careful to not comment out a row that has already been commented out.
+            new_filenames = ["# " + filename if i in rows and not filename.lstrip().startswith("#") else filename for i, filename in enumerate(self.metadata['filename'])]
+            self.metadata['filename'] = new_filenames
+
+            # We need a upper left, lower right for the data changed event
+            min_row = min(rows)
+            max_row = max(rows)
+            col = self.colnames.index('filename')
+            self.dataChanged.emit(self.index(min_row, col), self.index(max_row, col))
+
+    def uncommentMetadataRows(self, rows):
+        """Uncomment out metadata rows. Rows that are not commented out are not affected.
+        
+        Args:
+            rows (list of int): The indices of the rows to comment out.
+            
+        Return:
+            None
+        """
+
+        if self.metadata is not None:
+
+            # Recreate the entire column of filenames to avoid issues with astropy tables having a fixed length string dtype
+            new_filenames = [filename.strip("# ") if i in rows else filename for i, filename in enumerate(self.metadata['filename'])]
+            self.metadata['filename'] = new_filenames
+
+            # We need a upper left, lower right for the data changed event
+            min_row = min(rows)
+            max_row = max(rows)
+            col = self.colnames.index('filename')
+            self.dataChanged.emit(self.index(min_row, col), self.index(max_row, col))
+
+    def isCommentedOut(self, index : QModelIndex) -> bool:
+        """Return whether a particular row is commented out.
+        
+        Args:
+            index: The index of the row to check.
+        
+        Return: True if the row is commented out, False otherwise.
+        """
+        if self.metadata is not None:
+            if self.metadata[index.row()]['filename'].lstrip().startswith("#"):
+                return True
+        return False
 
 class _UserConfigTreeNode:
     """
@@ -1066,13 +949,20 @@ class PypeItFileModel(QObject):
         super().__init__()
         self.state = state
         self.params_model=params_model
+        self.metadata_model = None
         self.setMetadataModel(name_stem, config_dict, metadata_model)
         self.save_location = None
 
     def setMetadataModel(self, name_stem, config_dict, metadata_model):
 
+        if self.metadata_model is not None:
+            self.metadata_model.dataChanged.disconnect(self._update_state)
+            self.metadata_model.modelReset.disconnect(self._update_state)
+            self.metadata_model.rowsInserted.disconnect(self._update_state)
+            self.metadata_model.rowsRemoved.disconnect(self._update_state)            
+
         self.metadata_model = metadata_model
-        self.name_stem = name_stem 
+        self.name_stem = name_stem
         self.paths_model = metadata_model.getPathsModel()
 
         self._spectrograph = metadata_model.spectrograph
@@ -1085,6 +975,19 @@ class PypeItFileModel(QObject):
             # arbitrary order chosen by the dict
             self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
 
+        # Monitor the model for changes
+        self.metadata_model.dataChanged.connect(self._update_state, Qt.ConnectionType.DirectConnection)
+        self.metadata_model.modelReset.connect(self._update_state, Qt.ConnectionType.DirectConnection)
+        self.metadata_model.rowsInserted.connect(self._update_state, Qt.ConnectionType.DirectConnection)
+        self.metadata_model.rowsRemoved.connect(self._update_state, Qt.ConnectionType.DirectConnection)
+
+    def _update_state(self):
+        """Signal handler that detects changes to the metadata model and updates
+        our model state to ModelState.CHANGED
+        """
+        msgs.info("Updating state")
+        self.state = ModelState.CHANGED
+        self.stateChanged.emit(self.name_stem,self.state)
 
     @property
     def filename(self):
@@ -1092,27 +995,36 @@ class PypeItFileModel(QObject):
         """
         # TODO figure out when to use default name, vs a set name, vs "New Name.pypeit" or whatever.        
         # If name is key in parent model, how do we change it???
-        save_dir = "" if self.save_location is None else os.path.join(self.save_location ,  f"{self.spec_name}_{self.name_stem}")
-        return os.path.join(save_dir, f"{self.spec_name}_{self.name_stem}.pypeit")
+        return os.path.join("" if self.save_location is None else self.save_location, f"{self.spec_name}_{self.name_stem}.pypeit")
 
     @property
     def spec_name(self):
         return self._spectrograph.name
 
     def save(self):
-        """Save a .pypeit file from this model. The file name is chosen per PypeIt standards, and the
-        location must be set before calling this method.
+        """Save a .pypeit file from this model. The file name is chosen per PypeIt standards.
         """
         try:
             if self.metadata_model.metadata is None:
                 metadata_table = None
                 setup_dict = {}
             else:
-                metadata_table = self.metadata_model.metadata.table
-                setup_dict = self.metadata_model.metadata.unique_configurations()[self.name_stem]
+                metadata_table = self.metadata_model.metadata.table[self.metadata_model.colnames]
+                # Sorting is consistent with PypeItMetadata.write_pypeit
+                metadata_table.sort(['frametype','filename'])
+
+                # A pypeit file can only have one configuration. We choose the first one, if the user
+                # has somehow created a file with multiple configurations, we hope they know what they're doing
+                configs = self.metadata_model.metadata.unique_configurations()
+                config_to_save = list(configs.keys())[0]
+                setup_dict = {f'Setup {self.name_stem}':configs[config_to_save]}
     
             pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False)    
-            pf.write(self.filename)
+
+            msgs.info(f"Saving filename: {self.filename}")
+            if self.save_location is not None:
+                os.makedirs(self.save_location,exist_ok=True)
+            pf.write(self.filename) 
             
         except Exception as e:
             msgs.warn(f"Failed saving setup {self.name_stem} to {self.save_location}.")
@@ -1331,7 +1243,7 @@ class PypeItSetupGUIModel(QObject):
         Args:
             pypeit_file (str): The pypeit file to open.
         """
-        pf = PypeItFile.from_file(pypeit_file, vet=False)
+        pf = PypeItFile.from_file(pypeit_file, preserve_comments=True, vet=False)
 
         if pf.config is not None:
             try:
@@ -1346,21 +1258,44 @@ class PypeItSetupGUIModel(QObject):
 
 
         if pf.data is not None:
+            """
             # If the data block is fully setup, it won't have all of the metadata fields originally created by
             # PypeItSetup, so re-create it
 
-            self._pypeit_setup = PypeItSetup(pf.filenames,
-                                            usrdata=pf.data,
-                                            setups=[pf.setup_name],
-                                            cfg_lines=pf.cfg_lines,
-                                            pypeit_file=pypeit_file)
+            # We have to include commented out files in the filename list
+            filenames = pf.path_and_files('filename', exclude_commented_out=False)
+            self._pypeit_setup = PypeItSetup(filenames,
+                                             usrdata=pf.data,
+                                             setups=[pf.setup_name],
+                                             cfg_lines=pf.cfg_lines,
+                                             pypeit_file=pypeit_file)
 
             # Setup our proxy models and notify the view widgets
             self._pypeit_setup.build_fitstbl()        
             self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
             self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
-            self.obslog_model.setMetadata(self._pypeit_setup.fitstbl)        
-            self.createFilesForConfigs()
+            """
+            filenames = pf.path_and_files('filename', exclude_commented_out=False, check_exists=False)
+            directories = [str(Path(f).parent) for f in filenames ]
+
+            # Add in extra columns to the metadata that PypeItMetadata needs
+            pf.data.add_column(directories, name='directory')
+            pf.data.add_column([pf.setup_name] * len(pf.data), name='setup')
+            spec, par, config_specific_file = pf.get_pypeitpar()
+            metadata = PypeItMetaData(spec, par, data=pf.data, strict=False)
+            # Make sure the frame type bits get set
+            user_frametypes = {filename: frametype for filename, frametype in pf.data['filename','frametype']}
+            metadata.get_frame_types(user=user_frametypes)
+            info_names = '\n'.join(metadata['filename'].tolist())
+            msgs.info(f"Filenames: {info_names}")
+            self._pypeit_setup = PypeItSetup(filenames,
+                                             setups=[pf.setup_name],
+                                             cfg_lines=pf.cfg_lines,
+                                             pypeit_file=pypeit_file)
+            self._pypeit_setup.fitstbl = metadata
+
+            self.obslog_model.setMetadata(metadata)        
+            self.createFilesForConfigs(state=ModelState.UNCHANGED)
             self.stateChanged.emit()
         else:
             # Create an empty file and add what information (paths, name, parameters) we do have
