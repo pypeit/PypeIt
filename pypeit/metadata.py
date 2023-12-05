@@ -217,7 +217,7 @@ class PypeItMetaData:
                 usr_row = None
             else:
                 # TODO: This check should be done elsewhere
-                # Check                
+                # Check
                 if _ifile.name != usrdata['filename'][idx].lstrip("# "):
                     msgs.error('File name list does not match user-provided metadata table.  See '
                                'usrdata argument of instantiation of PypeItMetaData.')
@@ -1722,7 +1722,7 @@ class PypeItMetaData:
         # Find unique configurations, always ignoring any 'None'
         # configurations...
         cfg = self.unique_configurations(copy=True, rm_none=True)
-        msgs.info(f"unique configs: {cfg}")
+
         # Get the setups to write
         if configs is None or configs == 'all' or configs == ['all']:
             cfg_keys = list(cfg.keys())

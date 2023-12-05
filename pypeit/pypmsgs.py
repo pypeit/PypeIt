@@ -44,13 +44,14 @@ class Messages:
 
     Parameters
     ----------
-    log : str, file-like object, or None
-      Name of saved log file (no log will be saved if log=="")
-    verbosity : int (0,1,2)
-      Level of verbosity:
-        0 = No output
-        1 = Minimal output
-        2 = All output (default)
+    log : str or file-like object,optional
+        Name of saved log file (no log will be saved if log=="").  If None, no
+        log is saved.
+    verbosity : int
+        Level of verbosity.  Options are
+            - 0 = No output
+            - 1 = Minimal output
+            - 2 = All output (default)
     colors : bool
         If true, the screen output will have colors, otherwise normal screen
         output will be displayed
@@ -69,7 +70,6 @@ class Messages:
         if user in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
-
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
