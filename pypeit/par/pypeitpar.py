@@ -219,7 +219,7 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_scattlight=None, subtract_continuum=None,
+                 use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
                  spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
@@ -304,6 +304,10 @@ class ProcessImagesPar(ParSet):
         descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
                                        'be set to True for spectrographs that have dedicated methods to subtract ' \
                                        'scattered light. For all other cases, this parameter should be False.'
+
+        defaults['scattlight'] = ScatteredLightPar()
+        dtypes['scattlight'] = [ParSet, dict]
+        descr['scattlight'] = 'Scattered light subtraction parameters.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -437,8 +441,8 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
-                   'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
@@ -452,6 +456,9 @@ class ProcessImagesPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Keywords that are ParSets
+        pk = 'scattlight'
+        kwargs[pk] = ScatteredLightPar.from_dict(cfg[pk]) if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
@@ -990,7 +997,7 @@ class AlignPar(ParSet):
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for AlignPar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -1002,6 +1009,106 @@ class AlignPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+
+class ScatteredLightPar(ParSet):
+    """
+    The parameter set used to hold arguments for modelling the scattered light.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`parameters`.
+    """
+
+    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['method'] = 'model'
+        options['method'] = ScatteredLightPar.valid_scattlight_methods()
+        dtypes['method'] = str
+        descr['method'] = 'Method used to fit the overscan. ' \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          '\'model\' will the scattered light model parameters derived from a ' \
+                          'user-specified frame during their reduction (note, you will need to make sure ' \
+                          'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
+                          '\'frame\' will use each individual frame to determine the scattered light ' \
+                          'that affects this frame. ' \
+                          '\'archive\' will use an archival model parameter solution for the scattered ' \
+                          'light (note that this option is not currently available for all spectrographs).'
+
+        defaults['finecorr'] = True
+        dtypes['finecorr'] = bool
+        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
+                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+
+        defaults['finecorr_pad'] = 2
+        dtypes['finecorr_pad'] = int
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
+                                'fine correction to the scattered light.'
+
+        defaults['finecorr_order'] = 2
+        dtypes['finecorr_order'] = int
+        descr['finecorr_order'] = 'Polynomial order to use for the fine correction to the scattered light ' \
+                                  'subtraction. It should be a low value.'
+
+        defaults['finecorr_mask'] = None
+        dtypes['finecorr_mask'] = [int, list]
+        descr['finecorr_mask'] = 'A list containing the inter-slit regions that the user wishes to mask during ' \
+                                 'the fine correction to the scattered light. Each integer corresponds to an ' \
+                                 'inter-slit region. For example, "0" corresponds to all pixels left of the leftmost ' \
+                                 'slit, while a value of "1" corresponds to all pixels between the first and second ' \
+                                 'slit (counting from the left). It should be either a single integer value, or a ' \
+                                 'list of integer values. The default (None) means that no inter-slit regions will ' \
+                                 'be masked.'
+
+        # Instantiate the parameter set
+        super(ScatteredLightPar, self).__init__(list(pars.keys()),
+                                                values=list(pars.values()),
+                                                defaults=list(defaults.values()),
+                                                options=list(options.values()),
+                                                dtypes=list(dtypes.values()),
+                                                descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ScatteredLightPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+    @staticmethod
+    def valid_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['model', 'frame', 'archive']
 
 
 class Coadd1DPar(ParSet):
@@ -4133,8 +4240,9 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
+                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4184,6 +4292,14 @@ class CalibrationsPar(ParSet):
                                                                        mask_cr=True))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
+
+        defaults['scattlightframe'] = FrameGroupPar(frametype='scattlight',
+                                                    process=ProcessImagesPar(satpix='nothing',
+                                                                             use_pixelflat=False,
+                                                                             use_illumflat=False,
+                                                                             use_specillum=False))
+        dtypes['scattlightframe'] = [ ParSet, dict ]
+        descr['scattlightframe'] = 'The frames and combination rules for the scattered light frames'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
@@ -4264,6 +4380,10 @@ class CalibrationsPar(ParSet):
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
 
+        defaults['scattlight_pad'] = 5
+        dtypes['scattlight_pad'] = int
+        descr['scattlight_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits.'
+
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
         descr['flatfield'] = 'Parameters used to set the flat-field procedure'
@@ -4297,9 +4417,9 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe',
+                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
-                             'flatfield', 'wavelengths', 'slitedges', 'tilts']
+                             'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
@@ -4325,6 +4445,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
+        pk = 'scattlightframe'
+        kwargs[pk] = FrameGroupPar.from_dict('scattlight', cfg[pk]) if pk in k else None
         pk = 'alignframe'
         kwargs[pk] = FrameGroupPar.from_dict('align', cfg[pk]) if pk in k else None
         pk = 'alignment'
