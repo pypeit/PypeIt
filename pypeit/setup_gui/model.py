@@ -1275,7 +1275,7 @@ class PypeItSetupGUIModel(QObject):
             self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
             self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
             """
-            filenames = pf.path_and_files('filename', exclude_commented_out=False, check_exists=False)
+            filenames = pf.filenames
             directories = [str(Path(f).parent) for f in filenames ]
 
             # Add in extra columns to the metadata that PypeItMetadata needs

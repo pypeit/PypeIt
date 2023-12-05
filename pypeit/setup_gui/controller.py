@@ -13,7 +13,7 @@ import io
 from pathlib import Path
 from functools import partial
 from contextlib import contextmanager
-from qtpy.QtCore import QCoreApplication, Signal
+from qtpy.QtCore import QCoreApplication, Signal, QMutex
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
 from qtpy.QtWidgets import QAction
@@ -27,6 +27,15 @@ from pypeit import msgs
 from pypeit.display import display
 from pypeit import io as pypeit_io
 
+
+# For using Qt Mutexes and "with"
+@contextmanager
+def lock_qt_mutex(mutex):
+    mutex.lock()
+    try:
+        yield mutex
+    finally:
+        mutex.unlock()
 
 class OpCanceledError(Exception):
     """Exception thrown when a background operation has been canceled."""
@@ -46,6 +55,7 @@ class OperationThread(QThread):
         super().__init__()
         self._operation = None
         self._max_progress = None
+        self._mutex = QMutex()
 
     def run(self):
         """Runs an operation in a background thread."""
@@ -69,15 +79,21 @@ class OperationThread(QThread):
         as it proceeds. It passes this to the view to increase the value showing in the
         progress dialog."""
 
-        if self._max_progress is None:
-            if max_progress is not None:
-                self._max_progress = max_progress
-                SetupGUIController.main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
-            else:
-                # Ignore the progress if there's no max progress yet
-                return
+        with lock_qt_mutex(self._mutex):
+            create_progress = False
+            if self._max_progress is None:
+                if max_progress is not None:
+                    self._max_progress = max_progress
+                    create_progress = True
+            mp = self._max_progress
+        
+        if create_progress:
+            # If we've just initialized the max progress, create the progress dialog
+            SetupGUIController.main_window.create_progress_dialog(self._operation.name, max_progress, self._cancel_op)
             
-        SetupGUIController.main_window.show_operation_progress(increase=1, message = progress_message)
+        # Ignore the progress if there's no max progress yet
+        if mp is not None:            
+            SetupGUIController.main_window.show_operation_progress(increase=1, message = progress_message)
 
     def _op_complete(self, canceled, exc_info):
         """Signal handler that is notified when a background operation completes.
@@ -87,12 +103,18 @@ class OperationThread(QThread):
             exc_info (tuple): The exception information if the operation failed. None if it succeeded
         """
         msgs.info("Op complete")
-        if self._operation is not None:
-            self._operation.progressMade.disconnect(self._op_progress)
+        with lock_qt_mutex(self._mutex):
+            if self._operation is not None:
+                operation = self._operation
+                self._operation = None
+                self._max_progress = None
+            else:
+                operation = None
+
+        if operation is not None:
+            operation.progressMade.disconnect(self._op_progress)
             SetupGUIController.main_window.operation_complete()
-            self._operation.postRun(canceled, exc_info)
-            self._operation = None
-            self._max_progress = None
+            operation.postRun(canceled, exc_info)            
     
 
     def startOperation(self, operation):
@@ -120,10 +142,10 @@ class MetadataOperation(QObject):
     """Signal emitted emit when progress has been made. This will be reflected in the view's progress dialog."""
 
 
-    def __init__(self, model):
+    def __init__(self, name, model):
         super().__init__()
         self._model=model
-        self.name = "Run Setup"
+        self.name = name
         self._max_progress = None
 
     def preRun(self):
@@ -181,7 +203,7 @@ class SetupOperation(MetadataOperation):
             model (PypeItSetupGUIModel): The PypeIt Setup GUI's model object.
     """
     def __init__(self, model):
-        super().__init__(model)
+        super().__init__("Run Setup", model)
 
     def run(self):
         """
@@ -201,7 +223,7 @@ class OpenFileOperation(MetadataOperation):
     """
 
     def __init__(self, model, file):
-        super().__init__(model)
+        super().__init__("Open File", model)
         self._file = file
 
     def run(self):

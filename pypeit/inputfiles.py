@@ -85,7 +85,7 @@ class InputFile:
         return np.array([ l.split('#')[0].strip() for l in lines ])
         
     @staticmethod
-    def readlines(ifile:str):#, preserve_comments:bool=False):
+    def readlines(ifile:str):
         """
         General parser for a PypeIt input file.
         Used for many of our input files, including the main PypeIt file.
@@ -264,7 +264,7 @@ class InputFile:
             or there is no data table!
         """
         # Return
-        return self.path_and_files('filename')
+        return self.path_and_files('filename',include_commented_out=self.preserve_comments)
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -427,7 +427,7 @@ class InputFile:
                 break
         return start, end
 
-    def path_and_files(self, key:str, skip_blank=False, exclude_commented_out=True, check_exists=True):
+    def path_and_files(self, key:str, skip_blank=False, include_commented_out=False, check_exists=True):
         """Generate a list of the filenames with 
         the full path from the column of the data `astropy.table.Table`_
         specified by `key`.  The files must exist and be 
@@ -439,6 +439,8 @@ class InputFile:
                 entry that is '', 'none' or 'None'. Defaults to False.
             check_exists (bool, optional):If False, PypeIt will not
                 check if 'key' exists as a file. Defaults to True.
+            include_commented_out (bool,Optional): If False, commented out files will not be included. If True, they
+                are included, without the "#" character.
 
         Returns:
             list: List of the full paths to each data file
@@ -463,7 +465,7 @@ class InputFile:
 
             # Skip commented out entries
             if row[key].strip().startswith("#"):
-                if exclude_commented_out:
+                if not include_commented_out:
                     continue
                 name = row[key].strip("# ")
             else:
