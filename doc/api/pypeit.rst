@@ -32,6 +32,7 @@ Submodules
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
+   pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction

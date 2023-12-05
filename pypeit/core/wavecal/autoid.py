@@ -996,7 +996,6 @@ def set_fwhm(par, measured_fwhm=None, verbose=False):
     return fwhm
 
 
-# TODO: Docstring is missing many arguments
 def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_ids=None,
                   measured_fwhms=None, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, 
@@ -1038,6 +1037,16 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         Passed to reidentify to reduce the dynamic range of arc line amplitudes
     template_dict : dict, optional
         Dict containing tempmlate items, largely for development
+    nonlinear_counts : float, optional
+        For arc line detection: Arc lines above this saturation threshold
+        are not used in wavelength solution fits because they cannot be
+        accurately centroided. Defaults to 1e10.
+    debug : bool, optional
+        Show plots useful for debugging
+    debug_xcorr : bool, optional
+        Show plots useful for debugging the cross-correlation
+    debug_reid : bool, optional
+        Show plots useful for debugging the reidentification
 
     Returns
     -------
@@ -1053,6 +1062,10 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
     # Load template
     if template_dict is None:
+        # Error checking
+        if par['reid_arxiv'] is None:
+            msgs.error('WavelengthSolutionPar parameter `reid_arxiv` not '
+                       'specified for "full_template" method.')
         temp_wv, temp_spec, temp_bin = waveio.load_template(
             par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
@@ -1115,7 +1128,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         # Cross-correlate
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
-        msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+        msgs.info(f"Shift = {shift_cc:.2f}; cc = {corr_cc:.4f}")
         if debug:
             xvals = np.arange(tspec.size)
             plt.clf()

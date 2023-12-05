@@ -2,11 +2,18 @@
 Version 1.14.1dev
 =================
 
+Installation Changes
+--------------------
+- PypeIt will no longer be available through ``conda-forge`` and
+  must be installed via ``pip`` from PyPI.  Users may still use
+  ``conda`` for management of PypeIt's virtual environment.
+
 Dependency Changes
 ------------------
 
 - Removes use of deprecated ``pkg_resources``.
 - Require version ``>=1.12`` for ``specutils``.
+- Add ``psutil`` as a dependency for [test] and [dev] installs.
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -24,18 +31,39 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
+- Add support for the R4K detector for MDM OSMOS
+- Enabled interpolation and extrapolation of missing echelle orders.  This is
+  currently only used for Keck/HIRES, but the code is general.
+- Allow the specification of wavelength limits on the flexure cross-correlation
+  against a sky template to limit the effect of unconstrained wavelength
+  solutions at the ends of the spectrum.
+- Change ``overscan_method = 'polynomial'`` to ``overscan_method = 'chebyshev'``
+  to reflect the *type* of polynomial being fit.  Both names point to the same
+  code, but the name ``'polynomial'`` is deprecated and will be removed in the
+  future.
 
 Instrument-specific Updates
 ---------------------------
 
+- Updated archival sensivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
+- Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
+- Various updates to default parameters for LDT/DeVeny, plus updated wavelength
+  templates and instrument-specific line lists.
+- Added support for NTT/EFOSC2 Gr#4
 
 Script Changes
 --------------
 
-- When making datacubes, the user can select a separate frame to use for the sky subtraction.
-  In this case, it is the processed data that will be used for sky subtraction (akin to nodding).
+- When making datacubes, the user can select a separate frame to use for the sky
+  subtraction.  In this case, it is the processed data that will be used for sky
+  subtraction (akin to nodding).
+- Allow a list of files to be passed to ``pypeit_chk_wavecalib``.
+- A new script has been written (``chk_scattlight``) to check the generation of the scattered
+  light calibration frame model.
+- Added the ``pypeit_edge_inspector`` script, which allows users to edit the
+  edge traces by-hand.
 
 Datamodel Changes
 -----------------
@@ -46,6 +74,8 @@ Under-the-hood Improvements
 ---------------------------
 
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
+- Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
+  deprecated ``numpy.polyfit()`` function.
 
 Bug Fixes
 ---------
@@ -59,5 +89,13 @@ Bug Fixes
   detector for Keck/LRIS RED.
 - Fixed a bug with the ``pypeit_identify`` script when using echelle data. Previously,
   the sigdetect parameter was a list of all orders, instead of a single value.
+- Fixed a bug with the GUI ``pypeit_skysub_regions``. Previously, the calib header
+  information was not included, and this led to a calibration error.
+- Corrected the binning scaling for BOXCAR_RADIUS in the object-finding algorithm.
+  Previously, the platescale was multiplied by the *spectral* binning and not the
+  *spatial* binning.
+- Aligned the documentation and parameters with the code for polynomial overscan
+  subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
+  ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
 
 
