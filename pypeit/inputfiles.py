@@ -10,7 +10,7 @@ import yaml
 from datetime import datetime
 import io
 import warnings
-
+from collections.abc import Sequence
 import configobj
 
 from astropy.table import Table, column
@@ -43,6 +43,11 @@ class InputFile:
         setup (:obj:`dict`):
             dict defining the Setup
             The first key contains the name
+        vet (bool,Optional):
+            Whether or not to vet the file after iniitialization. Defaults to True.
+            The vet() method can be called after initialization if needed.
+        preserve_comments (bool, Optional):
+            Whether or not to preserve comments in the input file
     """
     flavor = 'Generic' # Type of InputFile
 
@@ -57,16 +62,28 @@ class InputFile:
                  config=None, 
                  file_paths:list=None,
                  data_table:Table=None,
-                 setup:dict=None):
+                 setup:dict=None,
+                 vet:bool=True,
+                 preserve_comments:bool=False):
         # Load up
         self.data = data_table
         self.file_paths = file_paths
         self.setup = setup
+        self.preserve_comments=preserve_comments
         self.config = None if config is None else configobj.ConfigObj(config)
 
         # Vet
-        self.vet()
+        if vet:
+            self.vet()
 
+    @staticmethod
+    def remove_comments_and_blanks(lines : np.ndarray) -> np.ndarray:
+        # Remove comment and blank lines
+        lines = lines[np.array([ len(l.strip()) > 0 and l.strip()[0] != '#' for l in lines ])]
+
+        # Remove appended comments and return
+        return np.array([ l.split('#')[0].strip() for l in lines ])
+        
     @staticmethod
     def readlines(ifile:str):
         """
@@ -75,7 +92,7 @@ class InputFile:
 
         - Checks that the file exists.
         - Reads all the lines in the file
-        - Removes comments, empty lines, and replaces special characters.
+        - Replaces special characters.
         
         Applies to settings, setup, and user-level reduction files.
 
@@ -91,20 +108,23 @@ class InputFile:
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
-            lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() for l in f.readlines()])
-        # Remove empty or fully commented lines
-        lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-        # Remove appended comments and return
-        return np.array([ l.split('#')[0] for l in lines ])
+            lines = np.array([l.replace('\t', ' ').rstrip()  for l in f.readlines()])
+        return lines
         
     @classmethod
-    def from_file(cls, input_file:str): 
+    def from_file(cls, input_file:str, vet:bool=True, preserve_comments:bool=False):
         """
         Parse the user-provided input file.
 
         Args:
             input_file (:obj:`str`):
                 Name of input file
+            vet (bool,Optional):
+                Whether or not to vet the file after iniitialization. Defaults to True.
+                The vet() method can be called after initialization if needed.
+            preserve_comments (bool,Optional):
+                Whether or not to preserve comments and blank lines 
+                in the congiguration section and the data table. Defaults to False.
 
         Returns:
             :class:`InputFile`: An instance of the InputFile class
@@ -112,6 +132,9 @@ class InputFile:
         # Read in the pypeit reduction file
         msgs.info('Loading the reduction file')
         lines = cls.readlines(input_file)
+       
+        if not preserve_comments:
+            lines = InputFile.remove_comments_and_blanks(lines)
 
         # Used to select the configuration lines: Anything that isn't part
         # of the data or setup blocks is assumed to be part of the
@@ -119,37 +142,65 @@ class InputFile:
         is_config = np.ones(len(lines), dtype=bool)
 
         # Parse data block
-        s, e = cls.find_block(lines, cls.data_block) 
-        if s >= 0 and e < 0:
+        data_start, data_end = cls.find_block(lines, cls.data_block) 
+        if data_start >= 0 and data_end < 0:
             msgs.error(
                 f"Missing '{cls.data_block} end' in {input_file}")
-        if s < 0 and e>0:
+        if data_start < 0 and data_end>0:
             msgs.error("You have not specified the start of the data block!")
         # Read it, if it exists
-        if s>0 and e>0:
-            paths, usrtbl = cls._read_data_file_table(lines[s:e])
-            is_config[s-1:e+1] = False
+        if data_start>0 and data_end>0:
+            paths, usrtbl = cls._read_data_file_table(lines[data_start:data_end], preserve_comments)
+            is_config[data_start-1:data_end+1] = False
+            data_block_found = True
         else:
             if cls.datablock_required:
-                msgs.error("You have not specified the data block!")
+                msgs.error("You have not specified the data block!")            
             paths, usrtbl = [], None
+            data_block_found = False
 
         # Parse the setup block
         setup_found = False
-        s, e = cls.find_block(lines, 'setup')
-        if s >= 0 and e < 0 and cls.setup_required:
+        setup_start, setup_end = cls.find_block(lines, 'setup')
+        if setup_start >= 0 and setup_end < 0 and cls.setup_required:
             msgs.error(f"Missing 'setup end' in {input_file}")
-        elif s < 0 and cls.setup_required:
+        elif setup_start < 0 and cls.setup_required:
             msgs.error(f"Missing 'setup read' in {input_file}")
-        elif s >= 0 and e > 0:
+        elif setup_start >= 0 and setup_end > 0:
             setup_found = True
 
         # Proceed
         if setup_found:
-            setups, sdict = cls._parse_setup_lines(lines[s:e])
-            is_config[s-1:e+1] = False
+            setup_lines = lines[setup_start:setup_end]
+            if preserve_comments:
+                # Do not preserve comments in setup sections
+                setup_lines = InputFile.remove_comments_and_blanks(setup_lines)
+
+            setups, sdict = cls._parse_setup_lines(setup_lines)
+            is_config[setup_start-1:setup_end+1] = False
         else:
             sdict = None
+
+        # Lines between setup and data blocks are currently considered
+        # part of the configuration. As are lines after the data block.
+        # If we're preserving comments, ConfigObj may pick up those comments,
+        # and then write them to a different place when resaving the file.
+        # So we ignore those lines.
+        if preserve_comments:
+            if data_block_found and setup_found:
+                # Ignore lines between datablock and setup block.
+                if data_end+1 < setup_start-1:
+                    # Data block is before setup block.
+                    # This never seems to happen but it's technically supported
+                    is_config[data_end+1:setup_start-1] = False
+                elif setup_end+1 < data_start+1:
+                    # Setup block is before data block
+                    # Clear the lines between them and after the datablock
+                    is_config[setup_end+1:data_start-1] = False
+                    is_config[data_end+1:] = False
+                # Else the two blocks are adjacent and there's no lines to preserve
+            elif data_block_found:
+                is_config[data_end+1:] = False
 
         # vet
         msgs.info(f'{cls.flavor} input file loaded successfully.')
@@ -158,17 +209,25 @@ class InputFile:
         return cls(config=list(lines[is_config]), 
                   file_paths=paths, 
                   data_table=usrtbl, 
-                  setup=sdict)
+                  setup=sdict,
+                  vet=vet,
+                  preserve_comments=preserve_comments)
 
     def vet(self):
         """ Check for required bits and pieces of the Input file
         besides the input objects themselves
         """
         # Data table
-        for key in self.required_columns:
-            if key not in self.data.keys():
-                msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
+        if self.data is None:
+            if self.datablock_required:
+                msgs.error("You have not specified the data block!")
+        else:
+            for key in self.required_columns:
+                if key not in self.data.keys():
+                    msgs.error(f'Add {key} to the Data block of your {self.flavor} file before running.')
 
+        if self.setup_required and self.setup is None:
+            msgs.error("Add setup info to your PypeIt file in the setup block!")
 
     @property
     def setup_name(self):
@@ -205,7 +264,7 @@ class InputFile:
             or there is no data table!
         """
         # Return
-        return self.path_and_files('filename')
+        return self.path_and_files('filename',include_commented_out=self.preserve_comments)
 
     @staticmethod
     def _parse_setup_lines(lines):
@@ -238,13 +297,11 @@ class InputFile:
         # Check
         if len(setups) > 1:
             msgs.error("Setup block contains more than one Setup!")
-        elif len(setups) != 1:
-            msgs.error("Add setup info to your PypeIt file in the setup block!")
 
         return setups, sdict
 
     @staticmethod
-    def _read_data_file_table(lines):
+    def _read_data_file_table(lines, preserve_comments):
         """
         Read the file table format.
 
@@ -255,29 +312,38 @@ class InputFile:
         Args:
             lines (:obj:`list`):
                 List of lines *within the data* block read from the input file.
-        
+            preserve_comments (bool,Optional):
+                Whether or not to preserve comments in the input file. Defaults to False.
+
         Returns:
             tuple: A :obj:`list` with the paths provided (can be empty) and an
             `astropy.table.Table`_ with the data provided in the input file.  
         """
         # Allow for multiple paths
         paths = []
-        for l in lines:
-            # Strip allows for preceding spaces before path
-            l = l.strip()
+        for i, l in enumerate(lines):
+            # Ignore comments, blank lines in the paths section 
+            # of the data block
+            #  strip allows for preceding spaces before path
+            
+            l = l.strip().split("#")[0]
+            
+            if len(l) == 0:
+                # Skip empty line
+                continue
+
             # Split at only the first space to allow paths that contain spaces
             prs = [l[:l.find(' ')], l[l.find(' ')+1:]]
             if prs[0] != 'path':
                 break
             paths += [ prs[1] ]
 
-        npaths = len(paths)
-
         # Read the table
-        tbl = ascii.read(lines[npaths:].tolist(), 
+        tbl = ascii.read(lines[i:].tolist(), 
                          header_start=0, 
                          data_start=1, 
                          delimiter='|', 
+                         comment=None if preserve_comments else "#",
                          format='basic')
 
         # Backwards compatability (i.e. the leading |)
@@ -346,7 +412,11 @@ class InputFile:
         start = -1
         end = -1
         for i, l in enumerate(lines):
-            entries = l.split()
+            # Ignore comments/empty lines/leading whitespace
+            line = l.split("#")[0].strip()
+            if len(line) == 0:
+                continue
+            entries = line.split()
             if start < 0 and entries[0] == block and entries[1] == 'read':
                 start = i+1
                 continue
@@ -357,7 +427,7 @@ class InputFile:
                 break
         return start, end
 
-    def path_and_files(self, key:str, skip_blank=False, check_exists=True):
+    def path_and_files(self, key:str, skip_blank=False, include_commented_out=False, check_exists=True):
         """Generate a list of the filenames with 
         the full path from the column of the data `astropy.table.Table`_
         specified by `key`.  The files must exist and be 
@@ -369,6 +439,8 @@ class InputFile:
                 entry that is '', 'none' or 'None'. Defaults to False.
             check_exists (bool, optional):If False, PypeIt will not
                 check if 'key' exists as a file. Defaults to True.
+            include_commented_out (bool,Optional): If False, commented out files will not be included. If True, they
+                are included, without the "#" character.
 
         Returns:
             list: List of the full paths to each data file
@@ -391,10 +463,18 @@ class InputFile:
             if skip_blank and row[key].strip() in ['', 'none', 'None']:
                 continue
 
+            # Skip commented out entries
+            if row[key].strip().startswith("#"):
+                if not include_commented_out:
+                    continue
+                name = row[key].strip("# ")
+            else:
+                name = row[key]
+
             # Searching..
             if len(self.file_paths) > 0:
                 for p in self.file_paths:
-                    filename = os.path.join(p, row[key])
+                    filename = os.path.join(p,name)
                     if os.path.isfile(filename):
                         break
             else:
@@ -402,7 +482,7 @@ class InputFile:
 
             # Check we got a good hit
             if check_exists and not os.path.isfile(filename):
-                msgs.error(f"{row[key]} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
+                msgs.error(f"{name} does not exist in one of the provided paths.  Modify your input {self.flavor} file")
             data_files.append(filename)
 
         # Return
@@ -427,50 +507,70 @@ class InputFile:
                     if date_override is None else date_override
 
         # Here we go
-        with open(input_file, 'w') as f:
-            f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {_version}\n')
-            f.write(f'# UTC {_date}\n')
-            f.write("\n")
+        with open(input_file, 'wb') as bf:
 
-            # Parameter block
-            if self.config is not None:
-                f.write("# User-defined execution parameters\n")
-                f.write('\n'.join(self.cfg_lines))
-                f.write('\n')
-                f.write('\n')
+            # We use ConfigObj to write the original config lines with comments.
+            # But it wants a binary stream.
+            # So use a TextIOWrapper to make it easier to write to it.
+            with io.TextIOWrapper(bf, encoding='utf-8') as f:
 
-            # Setup block
-            if self.setup is not None:
-                setup_lines = yaml.dump(utils.yamlify(
-                    self.setup)).split('\n')[:-1]
-            elif self.setup_required: # Default
-                setup_lines = ['Setup A:']
-            else:
-                setup_lines = None
+                # The ConfigObj will have the original comments so new ones
+                # aren't needed
+                if not self.preserve_comments:
+                    f.write(f'# Auto-generated {self.flavor} input file using PypeIt version: {_version}\n')
+                    f.write(f'# UTC {_date}\n')
+                    f.write("\n")
 
-            if setup_lines is not None:
-                f.write("# Setup\n")
-                f.write("setup read\n")
-                f.write('\n'.join(setup_lines)+'\n')
-                f.write("setup end\n")
-                f.write("\n")
-            
-            # Data block
-            if self.data is not None:
-                f.write("# Data block \n")
-                f.write(f"{self.data_block} read\n")
-                # paths and Setupfiles
-                if self.file_paths is not None:
-                    for path in self.file_paths:
-                        f.write(' path '+path+'\n')
-                with io.StringIO() as ff:
-                    self.data.write(ff, format='ascii.fixed_width',
-                                    bookend=False)
-                    data_lines = ff.getvalue().split('\n')[:-1]
-                f.write('\n'.join(data_lines))
-                f.write('\n')
-                f.write(f"{self.data_block} end\n")
-                f.write("\n")
+                # Parameter block
+                if self.config is not None:
+                    if not self.preserve_comments:
+                        f.write("# User-defined execution parameters\n")
+                        f.write('\n'.join(self.cfg_lines))
+                        f.write('\n')
+                        f.write('\n')
+                    else:
+                        self.config.write(bf)
+
+                        # Flush the binary stream just to make sure future writes to the text
+                        # stream will be after it in the output file.
+                        bf.flush()
+
+                # Setup block
+                if self.setup is not None:
+                    setup_lines = yaml.dump(utils.yamlify(
+                        self.setup)).split('\n')[:-1]
+                elif self.setup_required: # Default
+                    setup_lines = ['Setup A:']
+                else:
+                    setup_lines = None
+
+                if setup_lines is not None:
+                    if not self.preserve_comments:
+                        # This comment is part of the configuration lines,
+                        # and so is preserved by ConfigObj
+                        f.write("# Setup\n")
+                    f.write("setup read\n")
+                    f.write('\n'.join(setup_lines)+'\n')
+                    f.write("setup end\n")
+                    f.write("\n")
+                
+                # Data block                
+                if self.data is not None or self.datablock_required:
+                    f.write("# Data block \n")
+                    f.write(f"{self.data_block} read\n")
+                    # paths and Setupfiles
+                    if self.file_paths is not None:
+                        for path in self.file_paths:
+                            f.write(' path '+path+'\n')
+                    if self.data is not None:
+                        with io.StringIO() as ff:
+                            self.data.write(ff, format='ascii.fixed_width',
+                                            bookend=False)
+                            data_lines = ff.getvalue().split('\n')[:-1]
+                        f.write('\n'.join(data_lines))
+                        f.write('\n')
+                    f.write(f"{self.data_block} end\n")
+                    f.write("\n")
 
         msgs.info(f'{self.flavor} input file written to: {input_file}')
 
