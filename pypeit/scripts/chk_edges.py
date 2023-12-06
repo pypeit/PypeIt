@@ -19,9 +19,10 @@ class ChkEdges(scriptbase.ScriptBase):
         parser.add_argument('trace_file', type=str, default=None,
                             help='PypeIt Edges file [e.g. Edges_A_0_DET01.fits.gz]')
         parser.add_argument('--slits_file', type=str, default=None,
-                            help='PypeIt Slits file [e.g. Slits_A_1_01.fits]. '
-                                 'If not provided, PypeIt will look for it in the Calibration directory.'
-                                 ' Only used with ginga.')
+                            help='PypeIt Slits file [e.g. Slits_A_1_01.fits]. If this file does '
+                                 'not exist or is not provided, PypeIt will attempt to read the '
+                                 'default file name (in the Calibrations directory).  Ignored if '
+                                 'plotting using a matplotlib window instead of ginga.')
         parser.add_argument('--mpl', default=False, action='store_true',
                             help='Use a matplotlib window instead of ginga to show the trace')
         parser.add_argument('--try_old', default=False, action='store_true',
@@ -37,19 +38,28 @@ class ChkEdges(scriptbase.ScriptBase):
 
         if pargs.mpl:
             edges.show(thin=10, include_img=True, idlabel=True)
-        else:
-            # check if SlitTraceSet file exists(this allows to show the orders id instead of slitids)
-            if pargs.slits_file is not None:
-                slit_filename = Path(pargs.slits_file).resolve()
-                if not slit_filename.exists():
-                    msgs.warn('SlitTraceSet file not found')
-            else:
-                slit_filename = slittrace.SlitTraceSet.construct_file_name(edges.traceimg.calib_key,
-                                                                           calib_dir=edges.traceimg.calib_dir)
+            return
 
-            slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=(not pargs.try_old)) \
-                if slit_filename.exists() else None
-            edges.show(thin=10, in_ginga=True, slits=slits)
-        return 0
+        # Set the Slits file name
+        slit_filename = pargs.slits_file
+        if slit_filename is not None:
+            # File provided by user
+            slit_filename = Path(pargs.slits_file).resolve()
+            if not slit_filename.exists():
+                # But doesn't exist
+                msgs.warn(f'{slit_filename} does not exist!')
+                # Set the file name to None so that the code will try to find
+                # the default file
+                slit_filename = None
+        if slit_filename is None:
+            slit_filename = slittrace.SlitTraceSet.construct_file_name(
+                                edges.traceimg.calib_key, calib_dir=edges.traceimg.calib_dir)
+            if not slit_filename.exists():
+                msgs.warn(f'{slit_filename} does not exist!')
+        # NOTE: At this point, slit_filename *must* be a Path object
+
+        slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=(not pargs.try_old)) \
+                    if slit_filename.exists() else None
+        edges.show(thin=10, in_ginga=True, slits=slits)
 
 
