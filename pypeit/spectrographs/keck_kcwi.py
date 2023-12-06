@@ -372,9 +372,19 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 msgs.warn('Alignment frames have both the continuum and arc lamps on (although '
                           'arc-lamp shutter might be closed)!')
             return is_align
-        if ftype in ['arc', 'tilt']:
+        if ftype == 'arc':
+            # PypeIt is only setup to wavelength calibrate using the FeAr lamp.
             return good_exp & (fitstbl['idname'] == 'ARCLAMP') & (fitstbl['calpos'] == 'Mirror') \
                     & self.lamps(fitstbl, 'arcs')
+        if ftype == 'tilt':
+            # Check to see if ThAr frames are available. If so, use them. Otherwise, use the FeAr lamp.
+            tmp = good_exp & (fitstbl['idname'] == 'ARCLAMP') & (fitstbl['calpos'] == 'Mirror') \
+                    & self.lamps(fitstbl, 'tilts')
+            if np.any(tmp):
+                return tmp
+            # No ThAr frames, so use the FeAr lamp
+            return good_exp & (fitstbl['idname'] == 'ARCLAMP') & (fitstbl['calpos'] == 'Mirror') \
+                   & self.lamps(fitstbl, 'arcs')
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -406,14 +416,18 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             lampstat = np.array([np.isin(fitstbl[k], ['0', 'None', 'off'])
                                     for k in fitstbl.keys() if 'lampstat' in k])
             return np.all(lampstat, axis=0)  # Lamp has to be off
-        if status == 'arcs':
-            # Check if any arc lamps are on (FeAr | ThAr)
-            arc_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
-            arc_lamp_shst = ['lampshst{0:02d}'.format(i) for i in range(1, 3)]
-            lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
-                                  if k in arc_lamp_stat])
-            lamp_shst = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
-                                  if k in arc_lamp_shst])
+        if status in ['arcs', 'tilts']:
+            # Check if any arc/tilt lamps are on
+            if status == 'arcs':
+                # Only FeAr is used for wavelength calibration
+                arc_lamp_stat = ['lampstat{0:02d}'.format(1)]
+                arc_lamp_shst = ['lampshst{0:02d}'.format(1)]
+            else:
+                # Only ThAr is used to calculate the tilt
+                arc_lamp_stat = ['lampstat{0:02d}'.format(2)]
+                arc_lamp_shst = ['lampshst{0:02d}'.format(2)]
+            lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys() if k in arc_lamp_stat])
+            lamp_shst = np.array([fitstbl[k] == '1' for k in fitstbl.keys() if k in arc_lamp_shst])
             # Make sure the continuum frames are off
             dome_lamps = ['lampstat{0:02d}'.format(i) for i in range(4, 5)]
             dome_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()

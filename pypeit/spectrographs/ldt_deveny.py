@@ -119,7 +119,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJNAME')
+        self.meta['target'] = dict(card=None, compound=True)
         self.meta['dispname'] = dict(card=None, compound=True)
         self.meta['decker'] = dict(card=None, compound=True)
         self.meta['binning'] = dict(card=None, compound=True)
@@ -217,6 +217,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             )
             # Round the wavelength to the nearest 5A
             return np.around(wavelen / 5, decimals=0) * 5
+
+        if meta_key == 'target':
+            # Revert to TCS's SCITARG if target not set in LOUI for OBJECT frames
+            return (
+                headarr[0]["SCITARG"].strip()
+                if (headarr[0]['IMAGETYP'].strip() == "OBJECT"
+                    and headarr[0]["OBJNAME"].strip() in ["UNKNOWN",""])
+                else headarr[0]["OBJNAME"].strip()
+            )
 
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 

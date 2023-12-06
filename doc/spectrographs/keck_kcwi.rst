@@ -22,19 +22,26 @@ supported in PypeIt.
 Taking Calibrations for KCWI
 ++++++++++++++++++++++++++++
 
-Arcs
-----
+Arcs and tilts
+--------------
 
 We recommend that you only use the FeAr lamp to wavelength
 calibrate your data. Note that some FeAr calibration frames
 were contaminated due to a leaking ThAr lamp for observations
 up to the end of 2019. If your data are affected, you will
 need to request a new arc calibration. If there is a small
-offset, this is compensated for by default using a spectral
-flexure correction to the sky emission lines.
+offset in the wavelength calibration, this is compensated for
+by default using a spectral flexure correction to the sky
+emission lines. We also recommend that you use the ThAr lamp
+to determine the tilt of the spectra. This is done by default.
+If a ThAr exposure is not available, you can use the FeAr lamp,
+or you can use the sky emission lines if you are using KCRM and
+cover red wavelengths.
 
-The archived wavelength calibration solution only contains
-the FeAr spectrum.
+NOTE: The archived wavelength calibration solution only contains
+the FeAr spectrum. If you want to use the ThAr spectrum for the
+wavelength calibration, you will need to manually calibrate the
+data using the :ref:`pypeit_identify` task.
 
 Pixel Flat
 ----------
