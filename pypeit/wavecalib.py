@@ -788,15 +788,14 @@ class BuildWaveCalib:
             bad_orders (np.ndarray): Array of bad order numbers
             dets (np.ndarray): detectors of the spectrograph
                 Multiple numbers for mosaic (typically)
-            order_dets (np.ndarray): Orders on the each detector
+            order_dets (np.ndarray): Orders on each detector
             bad_orders_maxfrac (float): Maximum fraction of bad orders
-            in a detector for attempting a refit
+                in a detector for attempting a refit
             frac_rms_thresh (float): Fractional change in the RMS threshold
-            for accepting a refit
+                for accepting a refit
 
         Returns:
-            bool: True if any of the echelle orders were 
-            successfully redone
+            bool: True if any of the echelle orders were successfully redone
         """
 
         # Make this outside the for loop..

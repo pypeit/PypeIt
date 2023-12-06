@@ -55,5 +55,5 @@ This may be done in the :ref:`pypeit_file` as well:
             rms_thresh_frac_fwhm = 0.2
 
 
-Note that ``rms_thresh_frac_fwhm` is expressed as a fraction of the
+Note that ``rms_thresh_frac_fwhm`` is expressed as a fraction of the
 FWHM. See :ref:`wavelengthsolutionpar` for further details.

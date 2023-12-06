@@ -278,7 +278,7 @@ In general, the approach is:
     #. Fit a 2D solution to the lines using the order number as a basis
 
     #. Reject orders where the RMS of the fit (measured in binned pixels)
-       exceeds a certain threshold set by the user
+       exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
 
     #. Attempt to recover the missing orders using the 2D fit and a higher RMS
        threshold

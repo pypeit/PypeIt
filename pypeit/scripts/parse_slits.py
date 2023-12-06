@@ -20,7 +20,7 @@ def print_slits(slits):
     """
     Print slits info
     Args:
-        slits (`pypeit.slittrace.SlitTraceSet`_):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slits object
 
     """
