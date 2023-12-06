@@ -138,14 +138,10 @@ class Messages:
         Expects self._log is already None.
         """
 
-        if log is not None:
-            if isinstance(log, io.IOBase):
-                self._log = log
-            else:
-                # Initialize the log
-                self._log = open(log, 'w')
-        else:
+        if log is None:
             return
+        
+        self._log = log if isinstance(log, io.IOBase) else open(log, 'w')
 
 
         self._log.write("------------------------------------------------------\n\n")
@@ -196,7 +192,6 @@ class Messages:
         self._print(premsg, msg)
 
         # Close QA plots
-        # TODO: This no longer "closes" the QA plots
         close_qa(self.pypeit_file, self.qa_path)
 
         raise eval(cls)(msg)

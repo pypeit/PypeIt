@@ -32,6 +32,10 @@ class InputFile:
     In practice, we use one of the children of this class,
     e.g. PypeItFile
 
+    This class has limited support for preserving comments in the input files.
+    We currently support comments in the configuration section, and commented
+    out data lines in the data sections. Other comments are not preserved.
+
     Args:
         config (:obj:`dict` or :obj:`list`):
             Configuration dict or list of config lines
@@ -108,8 +112,7 @@ class InputFile:
 
         # Read the input lines and replace special characters
         with open(ifile, 'r') as f:
-            lines = np.array([l.replace('\t', ' ').rstrip()  for l in f.readlines()])
-        return lines
+            return np.array([l.replace('\t', ' ').rstrip()  for l in f.readlines()])
         
     @classmethod
     def from_file(cls, input_file:str, vet:bool=True, preserve_comments:bool=False):
@@ -172,8 +175,13 @@ class InputFile:
         # Proceed
         if setup_found:
             setup_lines = lines[setup_start:setup_end]
+
+            # We don't currently support preserving comments in the
+            # setup block as doing so causess parsing problems and
+            # backwards compatibility problems with some of the
+            # files in the dev-suite. So we remove those 
+            # from the setup_lines if they weren't removed before
             if preserve_comments:
-                # Do not preserve comments in setup sections
                 setup_lines = InputFile.remove_comments_and_blanks(setup_lines)
 
             setups, sdict = cls._parse_setup_lines(setup_lines)
@@ -312,8 +320,8 @@ class InputFile:
         Args:
             lines (:obj:`list`):
                 List of lines *within the data* block read from the input file.
-            preserve_comments (bool,Optional):
-                Whether or not to preserve comments in the input file. Defaults to False.
+            preserve_comments (bool):
+                Whether or not to preserve comments in the input file.
 
         Returns:
             tuple: A :obj:`list` with the paths provided (can be empty) and an
@@ -338,8 +346,15 @@ class InputFile:
                 break
             paths += [ prs[1] ]
 
+        # We currently preserve commented out lines of the table, but not other comments in the
+        # table. To prevent them from breaking ascii.read when preserve_comments is true
+        # we remove lines without the correct number of delimiters
+        delimiter_num = lines[i].count("|")
+
+        table_lines = [l for l in lines[i:] if l.count("|") == delimiter_num]
+
         # Read the table
-        tbl = ascii.read(lines[i:].tolist(), 
+        tbl = ascii.read(table_lines, 
                          header_start=0, 
                          data_start=1, 
                          delimiter='|', 
@@ -467,6 +482,8 @@ class InputFile:
             if row[key].strip().startswith("#"):
                 if not include_commented_out:
                     continue
+                # Strip the comment character and any whitespace following it
+                # from the filename
                 name = row[key].strip("# ")
             else:
                 name = row[key]
