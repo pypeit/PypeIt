@@ -49,9 +49,11 @@ Instrument-specific Updates
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
-- Various updates to default parameters for LDT/DeVeny, plus updated wavelength
-  templates and instrument-specific line lists.
+- LDT/DeVeny: default parameter & wavelength template updates, add instrument-
+  specific line lists, use SCITARG for target name if none entered in the LOUI.
 - Added support for NTT/EFOSC2 Gr#4
+- Keck/KCWI: FeAr are used for wavelength calibration, while the ThAr lamp is used
+  to determine the wavelength tilt.
 
 Script Changes
 --------------
