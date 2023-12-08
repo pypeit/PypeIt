@@ -5507,8 +5507,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
         for u in uniq[cnts > 1]:
             # Find the unmasked and multiply-matched indices
             indx = (slit_indx.data == u) & np.logical_not(np.ma.getmaskarray(slit_indx))
+            
+            # we need a masked version of min_sep array with only relevant indices
+            # as the below masking of slit_indx needs to be in correct shape
+            min_sep_mask = np.ones_like(min_sep, dtype = bool)
+            min_sep_mask[indx] = False
+            min_sep_masked = np.ma.masked_array(min_sep, min_sep_mask)
+
             # Keep the one with the smallest separation and mask the rest
-            slit_indx[np.setdiff1d(np.where(indx), [np.argmin(min_sep[indx])])] = np.ma.masked
+            slit_indx[np.setdiff1d(np.where(indx), [np.argmin(min_sep_masked)])] = np.ma.masked
 
         # Flag orders separated by more than the provided threshold
         if self.par['order_match'] is not None:
