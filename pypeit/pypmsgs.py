@@ -12,6 +12,7 @@ import getpass
 import glob
 import textwrap
 import inspect
+import io
 
 # Imported for versioning
 import scipy
@@ -43,7 +44,7 @@ class Messages:
 
     Parameters
     ----------
-    log : str, optional
+    log : str or file-like object,optional
         Name of saved log file (no log will be saved if log=="").  If None, no
         log is saved.
     verbosity : int
@@ -79,6 +80,7 @@ class Messages:
         self.qa_path = None
 
         # Initialize the log
+        self._log_to_stderr = self._verbosity != 0
         self._log = None
         self._initialize_log_file(log=log)
 
@@ -125,7 +127,7 @@ class Messages:
         """
         devmsg = self._devmsg() if printDevMsg else ''
         _msg = premsg+devmsg+msg
-        if self._verbosity != 0:
+        if self._log_to_stderr != 0:
             print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
@@ -135,11 +137,12 @@ class Messages:
         """
         Expects self._log is already None.
         """
+
         if log is None:
             return
+        
+        self._log = log if isinstance(log, io.IOBase) else open(log, 'w')
 
-        # Initialize the log
-        self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
         self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
@@ -149,7 +152,7 @@ class Messages:
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
         self._log.write("------------------------------------------------------\n\n")
 
-    def reset(self, log=None, verbosity=None, colors=True):
+    def reset(self, log=None, verbosity=None, colors=True, log_to_stderr=None):
         """
         Reinitialize the object.
 
@@ -158,6 +161,11 @@ class Messages:
         """
         # Initialize other variables
         self._verbosity = self._defverb if verbosity is None else verbosity
+        if log_to_stderr is None:
+            self._log_to_stderr = self._verbosity != 0
+        else:
+            self._log_to_stderr = log_to_stderr
+
         self.reset_log_file(log)
         self.disablecolors()
         if colors:
@@ -183,15 +191,11 @@ class Messages:
         premsg = '\n'+self._start + self._white_RD + '[ERROR]   ::' + self._end + ' '
         self._print(premsg, msg)
 
-        # Close log file
-        # TODO: This no longer "closes" the QA plots
-        self.close()
+        # Close QA plots
+        close_qa(self.pypeit_file, self.qa_path)
 
         raise eval(cls)(msg)
 
-        # TODO: Does this do anything? I didn't think anything past `raise`
-        # would be executed.
-        sys.exit(1)
 
     def info(self, msg):
         """

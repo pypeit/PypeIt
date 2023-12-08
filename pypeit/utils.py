@@ -1360,6 +1360,31 @@ def find_nearest(array, values):
     return idxs
 
 
+def replace_bad(frame, bpm):
+    """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
+
+    Parameters
+    ----------
+    frame : `numpy.ndarray`_
+        A frame that contains bad pixels that need to be replaced by the nearest good pixel
+    bpm : `numpy.ndarray`_
+        Boolean array (same shape as frame) indicating bad pixel values (bad=True)
+        that need to be replaced.
+
+    Returns
+    -------
+    _frame : `numpy.ndarray`_
+        A direct copy of the input frame, with the bad pixels replaced by the nearest good pixels.
+    """
+    # Do some checks on the inputs
+    if frame.shape != bpm.shape:
+        msgs.error("Input frame and BPM have different shapes")
+    # Replace bad pixels with the nearest (good) neighbour
+    msgs.info("Replacing bad pixels")
+    ind = scipy.ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
+    return frame[tuple(ind)]
+
+
 def yamlify(obj, debug=False):
     """
 
@@ -1398,11 +1423,12 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
+        obj = str(obj)
         # Worry about colons!
         if ':' in obj:
-            obj = '"' + str(obj) + '"'
-        else:
-            obj = str(obj)
+            # Do not add quotes if they've already been added
+            if not obj.startswith('"'):
+                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()

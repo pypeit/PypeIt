@@ -8,7 +8,7 @@
     spectrograph = gemini_gnirs_echelle
     #[calibrations]
     # [[wavelengths]]
-    #    rms_threshold = 0.8, 0.4, 0.8, 0.8, 0.5, 0.9
+    #    rms_thresh_frac_fwhm = 0.4
     #    sigdetect = 5.,5.,6.,6.,5.,7.
     
     # Setup

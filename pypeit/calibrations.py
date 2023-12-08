@@ -20,6 +20,7 @@ from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
+from pypeit import scattlight
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
@@ -27,6 +28,8 @@ from pypeit.calibframe import CalibFrame
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
+from pypeit.core import parse
+from pypeit.core import scattlight as core_scattlight
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
@@ -181,6 +184,7 @@ class Calibrations:
         self.msbpm = None
         self.wv_calib = None
         self.slits = None
+        self.msscattlight = None
 
         self.wavetilts = None
         self.flatimages = None
@@ -537,6 +541,96 @@ class Calibrations:
         # Return
         return self.msbpm
 
+    def get_scattlight(self):
+        """
+        Load or generate the scattered light model.
+
+        Returns:
+            :class:`~pypeit.scattlight.ScatteredLight`: The processed calibration image including the model.
+        """
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'slits']):
+            msgs.warn('Must have the bpm and the slits defined to make a scattered light image!  '
+                      'Skipping and may crash down the line')
+            return self.msscattlight
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        frame = {'type': 'scattlight', 'class': scattlight.ScatteredLight}
+        raw_scattlight_files, cal_file, calib_key, setup, calib_id, detname = \
+            self.find_calibrations(frame['type'], frame['class'])
+        scatt_idx = self.fitstbl.find_frames(frame['type'], calib_ID=self.calib_ID, index=True)
+
+        if len(raw_scattlight_files) == 0 and cal_file is None:
+            msgs.warn(f'No raw {frame["type"]} frames found and unable to identify a relevant '
+                      'processed calibration frame.  Continuing...')
+            return self.msscattlight
+
+        # If a processed calibration frame exists and we want to reuse it, do
+        # so:
+        if cal_file.exists() and self.reuse_calibs:
+            self.msscattlight = frame['class'].from_file(cal_file)
+            return self.msscattlight
+
+        # Scattered light model does not exist or we're not reusing it.
+        # Need to build everything from scratch.  Start with the trace image.
+        msgs.info('Creating scattered light calibration frame using files: ')
+        for f in raw_scattlight_files:
+            msgs.prindent(f'{Path(f).name}')
+
+        # Reset the BPM
+        self.get_bpm(frame=raw_scattlight_files[0])
+
+        binning = self.fitstbl[scatt_idx[0]]['binning']
+        dispname = self.fitstbl[scatt_idx[0]]['dispname']
+        scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                         self.par['scattlightframe'], raw_scattlight_files,
+                                                         bias=self.msbias, bpm=self.msbpm,
+                                                         dark=self.msdark, calib_dir=self.calib_dir,
+                                                         setup=setup, calib_id=calib_id)
+
+        spatbin = parse.parse_binning(binning)[1]
+        pad = self.par['scattlight_pad'] // spatbin
+        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+
+        # Get starting parameters for the scattered light model
+        x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
+        # Perform a fit to the scattered light
+        model, modelpar, success = core_scattlight.scattered_light(scattlightImage.image, self.msbpm, offslitmask,
+                                                                   x0, bounds)
+
+        if not success:
+            # Something went awry
+            msgs.warn('Scattered light modelling failed.  Continuing, but likely to fail soon...')
+            self.success = False
+            return self.msscattlight
+
+        # Now generate the DataModel
+        self.msscattlight = scattlight.ScatteredLight(PYP_SPEC=self.spectrograph.name,
+                                                      pypeline=self.spectrograph.pypeline,
+                                                      detname=scattlightImage.detector.name,
+                                                      nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
+                                                      binning=scattlightImage.detector.binning,
+                                                      pad=self.par['scattlight_pad'],
+                                                      scattlight_raw=scattlightImage.image,
+                                                      scattlight_model=model,
+                                                      scattlight_param=modelpar)
+
+        # TODO :: Should we go back and recalculate the slit edges once the scattered light is known?
+
+        if self.msscattlight is not None:
+            # Show the result if requested
+            if self.show:
+                self.msscattlight.show()
+
+            # Save the master scattered light model
+            self.msscattlight.set_paths(self.calib_dir, setup, calib_id, detname)
+            self.msscattlight.to_file()
+
+        return self.msscattlight
+
     def get_flats(self):
         """
         Load or generate the flat-field calibration images.
@@ -622,7 +716,9 @@ class Calibrations:
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         raw_pixel_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        slits=self.slits,
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        scattlight=self.msscattlight)
             if len(raw_lampoff_files) > 0:
                 # Reset the BPM
                 self.get_bpm(frame=raw_lampoff_files[0])
@@ -632,8 +728,9 @@ class Calibrations:
                 lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                               self.par['lampoffflatsframe'],
                                                               raw_lampoff_files,
+                                                              slits=self.slits,
                                                               dark=self.msdark, bias=self.msbias,
-                                                              bpm=self.msbpm)
+                                                              bpm=self.msbpm, scattlight=self.msscattlight)
                 pixel_flat = pixel_flat.sub(lampoff_flat)
 
             # Initialise the pixel flat
@@ -656,8 +753,8 @@ class Calibrations:
                 msgs.prindent(f'{Path(f).name}')
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
-                                                        dark=self.msdark, bias=self.msbias,
-                                                        flatimages=self.flatimages, bpm=self.msbpm)
+                                                        dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
+                                                        slits=self.slits, flatimages=self.flatimages, bpm=self.msbpm)
             if len(raw_lampoff_files) > 0:
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
@@ -667,10 +764,13 @@ class Calibrations:
                                                                   self.par['lampoffflatsframe'],
                                                                   raw_lampoff_files,
                                                                   dark=self.msdark,
-                                                                  bias=self.msbias, bpm=self.msbpm)
+                                                                  bias=self.msbias,
+                                                                  slits=self.slits,
+                                                                  scattlight=self.msscattlight,
+                                                                  bpm=self.msbpm)
                 illum_flat = illum_flat.sub(lampoff_flat)
 
-            # Initialise the pixel flat
+            # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  self.wv_calib, spat_illum_only=True,
@@ -776,6 +876,7 @@ class Calibrations:
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
+                                                    scattlight=self.msscattlight,
                                                     dark=self.msdark, calib_dir=self.calib_dir,
                                                     setup=setup, calib_id=calib_id)
         if len(raw_lampoff_files) > 0:
@@ -789,11 +890,12 @@ class Calibrations:
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],
                                                           raw_lampoff_files, dark=self.msdark,
-                                                          bias=self.msbias, bpm=self.msbpm)
+                                                          bias=self.msbias, scattlight=self.msscattlight,
+                                                          bpm=self.msbpm)
             traceImage = traceImage.sub(lampoff_flat)
 
         edges = edgetrace.EdgeTraceSet(traceImage, self.spectrograph, self.par['slitedges'],
-                                       auto=True)
+                                       qa_path=self.qa_path, auto=True)
         if not edges.success:
             # Something went amiss
             msgs.warn('Edge tracing failed.  Continuing, but likely to fail soon...')
@@ -1254,7 +1356,7 @@ class MultiSlitCalibrations(Calibrations):
         # Order matters!  And the name must match a viable "get_{step}" method
         # in Calibrations.
         # TODO: Does the bpm need to be done after the dark?
-        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'scattlight', 'flats']
 
 
 class IFUCalibrations(Calibrations):
@@ -1272,7 +1374,7 @@ class IFUCalibrations(Calibrations):
         """
         # Order matters!
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
-                'flats']
+                'scattlight', 'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):

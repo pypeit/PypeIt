@@ -119,7 +119,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJNAME')
+        self.meta['target'] = dict(card=None, compound=True)
         self.meta['dispname'] = dict(card=None, compound=True)
         self.meta['decker'] = dict(card=None, compound=True)
         self.meta['binning'] = dict(card=None, compound=True)
@@ -129,9 +129,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Extras for config and frametyping
+        # NOTE: `rtol` is _relative_ tolerance (e.g. 1 part in 1,000)
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
-        self.meta['cenwave'] = dict(card=None, compound=True, rtol=2.0)
+        self.meta['cenwave'] = dict(card=None, compound=True, rtol=1e-3)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -151,7 +152,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :obj:`object`: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # Binning in lois headers is space-separated
+            # Binning in lois headers is space-separated, spec x spat
             binspec, binspatial = parse.parse_binning(headarr[0]['CCDSUM'])
             return parse.binning2string(binspec, binspatial)
 
@@ -217,6 +218,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Round the wavelength to the nearest 5A
             return np.around(wavelen / 5, decimals=0) * 5
 
+        if meta_key == 'target':
+            # Revert to TCS's SCITARG if target not set in LOUI for OBJECT frames
+            return (
+                headarr[0]["SCITARG"].strip()
+                if (headarr[0]['IMAGETYP'].strip() == "OBJECT"
+                    and headarr[0]["OBJNAME"].strip() in ["UNKNOWN",""])
+                else headarr[0]["OBJNAME"].strip()
+            )
+
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     def configuration_keys(self):
@@ -268,17 +278,19 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Turn off illumflat unless/until we can deal properly with flexure in
         #   the spatial direction.  All other defaults OK (as of v1.7.0)
-        set_use = dict(use_illumflat=False)
-        par.reset_all_processimages_par(**set_use)
+        #   Also, use an order=1 chebyshev polynomial for fitting the overscan
+        #   rather a SavGol filter -- more appropriate for this CCD.
+        set_procpars = dict(use_illumflat=False, overscan_method='chebyshev', overscan_par=1)
+        par.reset_all_processimages_par(**set_procpars)
 
         # For processing the arc frame, these settings allow for the combination of
         #   of frames from different lamps into a comprehensible Master
         par['calibrations']['arcframe']['process']['clip'] = False
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
-        par['calibrations']['arcframe']['process']['subtract_continuum'] = True
+        # par['calibrations']['arcframe']['process']['subtract_continuum'] = True
         par['calibrations']['tiltframe']['process']['clip'] = False
         par['calibrations']['tiltframe']['process']['combine'] = 'mean'
-        par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
+        # par['calibrations']['tiltframe']['process']['subtract_continuum'] = True
 
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
@@ -287,25 +299,25 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
         # Set this as default... but use `holy-grail` for DV4, DV8
-        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['method'] = 'full_template'  # Default: 'holy-grail'
         # The DeVeny arc line FWHM varies based on slitwidth used
+        par['calibrations']['wavelengths']['fwhm'] = 3.0  # Default: 4.0
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
-        # Because of the wide wavelength range, solution more non-linear; user higher orders
-        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
-        par['calibrations']['slitedges']['bound_detector'] = True
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
+        par['calibrations']['slitedges']['bound_detector'] = True  # Defualt: False
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'  # Default: 'pca'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 170.  # Default: None
+        par['calibrations']['slitedges']['max_nudge'] = 5  # Default: None
 
         # Flat-field parameter modification
         par['calibrations']['flatfield']['pixelflat_min_wave'] = 3000.  # Default: None
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False  # Default: True
         par['calibrations']['flatfield']['spec_samp_fine'] = 30  # Default: 1.2
+        par['calibrations']['flatfield']['tweak_slits'] = False  # Default: True
 
         # For the tilts, our lines are not as well-behaved as others',
-        #   possibly due to the Wynne type E camera.
+        #   possibly due to the Wynne version E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
 
@@ -314,13 +326,15 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
         # Object Finding, Extraction, and Sky Subtraction Parameters
-        assumed_seeing = 1.2  # arcsec
+        assumed_seeing = 1.5  # arcsec
         par['reduce']['findobj']['trace_npoly'] = 3   # Default: 5
         par['reduce']['findobj']['snr_thresh'] = 50.0   # Default: 10.0
         par['reduce']['findobj']['maxnumber_std'] = 1   # Default: 5
         par['reduce']['findobj']['maxnumber_sci'] = 5   # Default: 10
         par['reduce']['findobj']['find_fwhm'] = np.round(assumed_seeing / 0.34, 1)   # Default: 5.0 pix
-        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.5, 1)  # Default: 1.5"
+        par['reduce']['findobj']['find_trim_edge'] = [0, 0]  # Default: [5, 5]
+        # Boxcar width = ±3σ of Gaussian profile = >99% enclosed flux; radius = 1.28 * seeing
+        par['reduce']['extraction']['boxcar_radius'] = np.round(assumed_seeing * 1.28, 1)  # Default: 1.5"
         par['reduce']['extraction']['use_2dmodel_mask'] = False  # Default: True
         par['reduce']['skysub']['sky_sigrej'] = 4.0  # Default: 3.0
 
@@ -417,12 +431,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         .. note::
 
-            There are some faint Cd and Hg lines in the DV9 spectra that are
-            helpful for nailing down the wavelength calibration for that
-            grating, but these lines are too faint / close to other lines for
-            use with other gratings.  This method loads the more detailed
-            lists for DV9, but loads the usual line lists for all other
-            gratings.
+            Between some faint Cd and Hg lines in the DV9 spectra that are
+            helpful for nailing down the wavelength calibration and various
+            additional lines in Ne and Ar that are not in the main line lists
+            that are regularly identified with DeVeny, use instrument-specific
+            line lists for all 4 lamps.
 
         Args:
             fitstbl (`astropy.table.Table`_):
@@ -430,11 +443,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list` : List of the used arc lamps
         """
-        grating = fitstbl['dispname'][0].split()[0]              # Get the DVn specifier
         return [
-            f"{lamp.strip()}_DeVeny1200"                         # Instrument-specific list
-            if grating == "DV9" and lamp.strip() in ["Cd", "Hg"] # Under these conditions
-            else f"{lamp.strip()}I"                              # Otherwise, the usuals
+            f"{lamp.strip()}I_DeVeny"       # Instrument-Specific List
             for lamp in np.unique(
                 np.concatenate([lname.split(",") for lname in fitstbl["lampstat01"]])
             )
@@ -471,18 +481,27 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150_HgCdAr.fits'
             # Because of the wide wavelength range, split DV1 arcs in half for reidentification
             par['calibrations']['wavelengths']['nsnippet'] = 2
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 400
 
         elif grating == 'DV2 (300/4000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 800
 
         elif grating == 'DV3 (300/6750)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300_HgCdAr.fits'
+            # Higher order wavelength fits because of larger span
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1200
 
@@ -491,33 +510,24 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15  # Default: 0.15
-             # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1800
 
         elif grating == 'DV5 (500/5500)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1450
 
         elif grating == 'DV6 (600/4900)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1500
 
         elif grating == 'DV7 (600/6750)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600_HgCdAr.fits'
-            # Start with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 2000
 
@@ -526,19 +536,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25  # Default: 0.15
-            # Start/end with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
-            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3200
 
         elif grating == 'DV9 (1200/5000)':
             # Use this `reid_arxiv` with the `full-template` method:
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_1200_HgCdAr.fits'
-            # Start/end with a lower-order Legendre polymonial for the wavelength fit
-            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
-            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3000
 
@@ -637,6 +640,43 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        """
+        Calculate the pattern frequency using the overscan region that covers
+        the overscan and data sections. Using a larger range allows the
+        frequency to be pinned down with high accuracy.
+
+        .. todo::
+
+            Possibly implement this method with lessons learned from
+            https://lowellobservatory.github.io/LDTObserverTools/scrub_deveny_pickup.html
+
+            It is not yet clear whether it is better to scrub the pickup noise
+            with an external tool or subtract it during the PypeIt reduction.
+
+        Parameters
+        ----------
+        frame : `numpy.ndarray`_
+            Raw data frame to be used to estimate the pattern frequency.
+        rawdatasec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier
+            number).
+        oscansec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the
+            amplifier number).
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file.
+
+        Returns
+        -------
+        patt_freqs : :obj:`list`
+            List of pattern frequencies.
+        """
+        msgs.error(f"Pattern noise removal is not yet implemented for spectrograph {self.name}")
+        return []
+
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, log10_blaze_function=None):
         """
         This routine is for performing instrument- and/or disperser-specific
@@ -687,11 +727,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         else:
             log10_blaze_function_out = None
 
-
         # Next, build a gpm based on other reasonable wavelengths and filters
         edge_region = (wave_out < 3000.0) | (wave_out > 10200.0)
         neg_counts = counts_out <= 0
-
 
         # If an order-blocking filter was in use, mask blocked region
         #  at "nominal" cutoff value
