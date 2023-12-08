@@ -397,16 +397,16 @@ class CoAdd3D:
         self.overwrite = overwrite
         # Do some quick checks on the input options
         if skysub_frame is not None:
-            if len(skysub_frame) != len(spec2dfiles):
+            if len(skysub_frame) != self.numfiles:
                 msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
         if scale_corr is not None:
-            if len(scale_corr) != len(spec2dfiles):
+            if len(scale_corr) != self.numfiles:
                 msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
         if ra_offsets is not None:
-            if len(ra_offsets) != len(spec2dfiles):
+            if len(ra_offsets) != self.numfiles:
                 msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
         if dec_offsets is not None:
-            if len(dec_offsets) != len(spec2dfiles):
+            if len(dec_offsets) != self.numfiles:
                 msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
         # Set the frame-specific options
         self.skysub_frame = skysub_frame
@@ -429,9 +429,8 @@ class CoAdd3D:
 
         # Initialise arrays for storage
         self.ifu_ra, self.ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
-        self.all_ra, self.all_dec, self.all_wave = np.array([]), np.array([]), np.array([])
-        self.all_sci, self.all_ivar, self.all_idx, self.all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
-        self.all_spatpos, self.all_specpos, self.all_spatid = np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)
+
+        self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
         self.all_tilts, self.all_slits, self.all_align = [], [], []
         self.all_wcs, self.all_dar = [], []
         self.weights = np.ones(self.numfiles)  # Weights to use when combining cubes
@@ -460,10 +459,13 @@ class CoAdd3D:
         #  At the moment, if the user wishes to spatially align the frames, a different WCS is generated.
 
         # Determine what method is requested
-        self.spec_subpixel, self.spat_subpixel = 1, 1
+        self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 1, 1, 1
         if self.method == "subpixel":
-            msgs.info("Adopting the subpixel algorithm to generate the datacube.")
-            self.spec_subpixel, self.spat_subpixel = self.cubepar['spec_subpixel'], self.cubepar['spat_subpixel']
+            self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = self.cubepar['spec_subpixel'], self.cubepar['spat_subpixel'], self.cubepar['slice_subpixel']
+            msgs.info("Adopting the subpixel algorithm to generate the datacube, with subpixellation scales:" + msgs.newline() +
+                      f"  Spectral: {self.spec_subpixel}" + msgs.newline() +
+                      f"  Spatial: {self.spat_subpixel}" + msgs.newline() +
+                      f"  Slices: {self.slice_subpixel}")
         elif self.method == "ngp":
             msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
         else:
@@ -919,8 +921,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         As well as the primary arrays that store the pixel information for multiple spec2d frames, including:
 
-        * self.all_ra
-        * self.all_dec
         * self.all_wave
         * self.all_sci
         * self.all_ivar
@@ -1039,33 +1039,27 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
 
             # Grab the WCS of this frame
-            self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv))
+            crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else wave0
+            cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
+            self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv))
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
             alignSplines = self.get_alignments(spec2DObj, slits, spat_flexure=spat_flexure)
-            raimg, decimg, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts,
-                                                          initial=True, flexure=spat_flexure)
 
-            # Get copies of arrays to be saved
-            ra_ext = raimg[onslit_gpm]
-            dec_ext = decimg[onslit_gpm]
+            # Extract wavelength and delta wavelength arrays from the images
             wave_ext = waveimg[onslit_gpm]
-            flux_ext = sciImg[onslit_gpm]
-            ivar_ext = ivar[onslit_gpm]
             dwav_ext = dwaveimg[onslit_gpm]
 
-            # From here on out, work in sorted wavelengths
+            # For now, work in sorted wavelengths
             wvsrt = np.argsort(wave_ext)
             wave_sort = wave_ext[wvsrt]
             dwav_sort = dwav_ext[wvsrt]
-            ra_sort = ra_ext[wvsrt]
-            dec_sort = dec_ext[wvsrt]
             # Here's an array to get back to the original ordering
             resrt = np.argsort(wvsrt)
 
             # Compute the DAR correction
-            cosdec = np.cos(np.mean(dec_sort) * np.pi / 180.0)
+            cosdec = np.cos(self.ifu_dec[ff] * np.pi / 180.0)
             airmass = self.spec.get_meta_value([spec2DObj.head0], 'airmass')  # unitless
             parangle = self.spec.get_meta_value([spec2DObj.head0], 'parangle')
             pressure = self.spec.get_meta_value([spec2DObj.head0], 'pressure')  # units are pascals
@@ -1073,7 +1067,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
             darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
 
-            # Perform extinction correction
+            # Compute the extinction correction
             msgs.info("Applying extinction correction")
             longitude = self.spec.telescope['longitude']
             latitude = self.spec.telescope['latitude']
@@ -1104,23 +1098,22 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
             extcorr_sort *= sensfunc_sort / (exptime * gratcorr_sort)
             # Correct for extinction
-            flux_sort = flux_ext[wvsrt] * extcorr_sort
-            ivar_sort = ivar_ext[wvsrt] / extcorr_sort ** 2
+            sciImg[onslit_gpm] *= extcorr_sort[resrt]
+            ivar[onslit_gpm] /= extcorr_sort[resrt] ** 2
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
             sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
             scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
-            flux_sort /= scl_units
-            ivar_sort *= scl_units ** 2
+            sciImg[onslit_gpm] /= scl_units[resrt]
+            ivar[onslit_gpm] *= scl_units[resrt] ** 2
 
             # Calculate the weights relative to the zeroth cube
             self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
             # Get the slit image and then unset pixels in the slit image that are bad
-            this_specpos, this_spatpos = np.where(onslit_gpm)
-            this_spatid = slitid_img_init[onslit_gpm]
+            slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
 
             ##################################
             # Astrometric alignment to HST frames
@@ -1128,24 +1121,20 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Get the coordinate bounds
             slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
             numwav = int((np.max(waveimg) - wave0) / dwv)
+            _, _, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, initial=True, flexure=spat_flexure)
             raw_bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
-            # Generate the output WCS for the datacube
-            tmp_crval_wv = (self.all_wcs[ff].wcs.crval[2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
-            tmp_cd_wv = (self.all_wcs[ff].wcs.cd[2, 2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
-            crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else tmp_crval_wv
-            cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else tmp_cd_wv
-            raw_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
+            wghts = np.ones(sciImg.shape)
             # Now do the alignment
-            _ra_sort, _dec_sort = hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, np.max(self._spatscale[ff,:]), self._specscale[ff],
-                                                np.ones(ra_sort.size), this_spatpos[wvsrt], this_specpos[wvsrt],
-                                                this_spatid[wvsrt], spec2DObj.tilts, slits, alignSplines, darcorr,
-                                                raw_wcs=raw_wcs, raw_bins=raw_bins)
-            ra_del = np.median(_ra_sort-ra_sort)
-            dec_del = np.median(_dec_sort-dec_sort)
+            _ra_sort, _dec_sort = hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts,
+                                                #np.max(self._spatscale[ff,:]), self._specscale[ff],
+                                                self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
+                                                raw_bins=raw_bins)
+            self.ra_offsets[ff] = np.median(_ra_sort-ra_sort)
+            self.dec_offsets[ff] = np.median(_dec_sort-dec_sort)
             ra_sort = _ra_sort
             dec_sort = _dec_sort
-            spec2DObj.head0['RA'] += ra_del
-            spec2DObj.head0['DEC'] += dec_del
+            self.ifu_ra[ff] += self.ra_offsets[ff]
+            self.ifu_dec[ff] += self.dec_offsets[ff]
             ##################################
 
             # If individual frames are to be output without aligning them,
@@ -1161,30 +1150,25 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
-                # Generate the output WCS for the datacube
-                tmp_crval_wv = (self.all_wcs[ff].wcs.crval[2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
-                tmp_cd_wv = (self.all_wcs[ff].wcs.cd[2,2] * self.all_wcs[ff].wcs.cunit[2]).to(units.Angstrom).value
-                crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else tmp_crval_wv
-                cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else tmp_cd_wv
-                output_wcs = self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv)
                 # Set the wavelength range of the white light image.
                 wl_wvrng = None
                 if self.cubepar['save_whitelight']:
                     wl_wvrng = datacube.get_whitelight_range(np.max(self.mnmx_wv[ff, :, 0]),
-                                                    np.min(self.mnmx_wv[ff, :, 1]),
-                                                    self.cubepar['whitelight_range'])
+                                                             np.min(self.mnmx_wv[ff, :, 1]),
+                                                             self.cubepar['whitelight_range'])
                 # Make the datacube
                 if self.method in ['subpixel', 'ngp']:
                     # Generate the datacube
                     flxcube, sigcube, bpmcube, wave = \
-                        datacube.generate_cube_subpixel(outfile, output_wcs, ra_sort[resrt], dec_sort[resrt], wave_sort[resrt],
-                                                        flux_sort[resrt], ivar_sort[resrt], np.ones(numpix),
-                                                        this_spatpos, this_specpos, this_spatid,
-                                                        spec2DObj.tilts, slits, alignSplines, darcorr, bins, all_idx=None,
+                        datacube.generate_cube_subpixel(outfile, self.all_wcs[ff], bins,
+                                                        sciImg, ivar, waveimg, slitid_img_gpm, wghts,
+                                                        self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng,
-                                                        spec_subpixel=self.spec_subpixel, spat_subpixel=self.spat_subpixel)
+                                                        spec_subpixel=self.spec_subpixel,
+                                                        spat_subpixel=self.spat_subpixel,
+                                                        slice_subpixel=self.slice_subpixel)
                     # Prepare the header
-                    hdr = output_wcs.to_header()
+                    hdr = self.all_wcs[ff].to_header()
                     if self.fluxcal:
                         hdr['FLUXUNIT'] = (flux_calib.PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
                     else:
@@ -1198,16 +1182,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 continue
 
             # Store the information if we are combining multiple frames
-            self.all_ra = np.append(self.all_ra, ra_sort[resrt])
-            self.all_dec = np.append(self.all_dec, dec_sort[resrt])
-            self.all_wave = np.append(self.all_wave, wave_sort[resrt])
-            self.all_sci = np.append(self.all_sci, flux_sort[resrt])
-            self.all_ivar = np.append(self.all_ivar, ivar_sort[resrt].copy())
-            self.all_idx = np.append(self.all_idx, ff * np.ones(numpix))
-            self.all_wghts = np.append(self.all_wghts, self.weights[ff] * np.ones(numpix) / self.weights[0])
-            self.all_spatpos = np.append(self.all_spatpos, this_spatpos)
-            self.all_specpos = np.append(self.all_specpos, this_specpos)
-            self.all_spatid = np.append(self.all_spatid, this_spatid)
+            self.all_sci.append(sciImg.copy())
+            self.all_ivar.append(ivar.copy())
+            self.all_wave.append(waveimg.copy())
+            self.all_slitid.append(slitid_img_gpm.copy())
+            self.all_wghts.append(wghts.copy())
             self.all_tilts.append(spec2DObj.tilts)
             self.all_slits.append(slits)
             self.all_align.append(alignSplines)
@@ -1422,10 +1401,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
 
 
-def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwave,
-                  wghts, spatpos, specpos,
-                  all_spatid, tilts, slits, astrom_trans, all_dar,
-                  spat_subpixel=10, spec_subpixel=10, raw_wcs=None, raw_bins=None):
+def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts,
+                  all_wcs, tilts, slits, astrom_trans, all_dar,
+                  spat_subpixel=10, spec_subpixel=10, slice_subpixel=1, raw_bins=None):
     """
     This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
     to align the daatcubes to an HST image.
@@ -1477,24 +1455,21 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
         # Need to generate a datacube near both Hgamma and Hdelta.
         ############
         #Is DAR correction being performed here?
+        slice_subpixel = 10
         # FIRST DO Hdelta
-        wv_mask = (wave_sort > 4107.0) & (wave_sort < 4119.0)
+        inmask = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
         flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel("tmpfile.fits", raw_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
-                                            flux_sort[wv_mask], ivar_sort[wv_mask], wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
-                                            all_spatid[wv_mask], tilts, slits, astrom_trans, all_dar,
-                                            raw_bins, all_idx=None, overwrite=False,
-                                            spec_subpixel=5, spat_subpixel=5)
-        HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, raw_wcs, line="HIdelta")
+            datacube.generate_cube_subpixel("tmpfile.fits", all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
+                                            all_wcs, tilts, slits, astrom_trans, all_dar, overwrite=False,
+                                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
+        HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIdelta")
         # THEN DO Hgamma
-        wv_mask = (wave_sort > 4346.0) & (wave_sort < 4358.0)
+        inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
         flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel("tmpfile.fits", raw_wcs, ra_sort[wv_mask], dec_sort[wv_mask], wave_sort[wv_mask],
-                                            flux_sort[wv_mask], ivar_sort[wv_mask], wghts[wv_mask], spatpos[wv_mask], specpos[wv_mask],
-                                            all_spatid[wv_mask], tilts, slits, astrom_trans, all_dar,
-                                            raw_bins, all_idx=None, overwrite=False,
-                                            spec_subpixel=5, spat_subpixel=5)
-        HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, raw_wcs, line="HIgamma")
+            datacube.generate_cube_subpixel("tmpfile.fits", all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
+                                            all_wcs, tilts, slits, astrom_trans, all_dar, overwrite=False,
+                                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
+        HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIgamma")
         # Plot the emission line map
         from matplotlib import pyplot as plt
         plt.subplot(131)
@@ -1505,6 +1480,7 @@ def hst_alignment(ra_sort, dec_sort, wave_sort, flux_sort, ivar_sort, dspat, dwa
         plt.imshow(HdMap_raw*utils.inverse(HgMap_raw), vmin=0.5, vmax=0.7, aspect=0.5)
         plt.show()
         embed()
+        # np.save("Hd-Hg_preSlicerDAR.npy", HdMap_raw*utils.inverse(HgMap_raw))
         ############
         ## STEP 3B ## - Map the emission line map to an HST image, and vice-versa
         ############
