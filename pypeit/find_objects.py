@@ -694,8 +694,8 @@ class MultiSlitFindObjects(FindObjects):
             :obj:`float`: plate scale in binned pixels
 
         """
-        bin_spec, bin_spat = parse.parse_binning(self.binning)
-        return self.sciImg.detector.platescale * bin_spec
+        _, bin_spat = parse.parse_binning(self.binning)
+        return self.sciImg.detector.platescale * bin_spat
 
     def find_objects_pypeline(self, image, ivar, std_trace=None,
                               manual_extract_dict=None,
@@ -1337,7 +1337,9 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
-                                            method="slitcen")
+                                            method="slitcen",
+                                            minwave=self.par['flexure']['minwave'],
+                                            maxwave=self.par['flexure']['maxwave'])
         this_slitshift = np.zeros(self.slits.nslits)
         if flex_dict_ref is not None:
             msgs.warn("Only a relative spectral flexure correction will be performed")
@@ -1355,7 +1357,9 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                 spec_fwhm_pix=ref_fwhm_pix,
                                                 mxshft=self.par['flexure']['spec_maxshift'],
                                                 excess_shft=self.par['flexure']['excessive_shift'],
-                                                method="slitcen")
+                                                method="slitcen",
+                                                minwave=self.par['flexure']['minwave'],
+                                                maxwave=self.par['flexure']['maxwave'])
             this_slitshift[slit_idx] += flex_dict['shift']
             flex_list.append(flex_dict.copy())
         # Replace the reference slit with the absolute shift

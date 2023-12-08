@@ -131,7 +131,7 @@ class PypeItMetaData:
         # Initialize columns that the user might add
         self.set_user_added_columns()
         # Validate instrument name
-        self.spectrograph.vet_instrument(self.table)
+        self._vet_instrument(self.table)
 
     def _impose_types(self, columns, types):
         """
@@ -149,6 +149,37 @@ class PypeItMetaData:
         for c,t in zip(columns, types):
             if c in self.keys():
                 self.table[c] = self.table[c].astype(t)
+
+    def _vet_instrument(self, meta_tbl):
+        """
+        Confirm the metadata gathered for a set of measurements are all from this spectrograph.
+        
+        This function *only* issues warnings; no exceptions are raised.
+
+        Args:
+            meta_tbl (`astropy.table.Table`_):
+                Table with the meta data; see
+                :class:`~pypeit.metadata.PypeItMetaData`.
+        """
+        if 'instrument' in meta_tbl.keys():
+            if self.spectrograph.header_name is None:
+                msgs.error('CODING ERROR: header_name is not defined for '
+                           f'{self.spectrograph.__class__.__name__}!')
+            # Check that there is only one instrument
+            #  This could fail if one mixes is much older calibs
+            indx = meta_tbl['instrument'].data != None
+            instr_names = np.unique(meta_tbl['instrument'].data[indx])
+
+            # An empty table is allowed
+            if len(instr_names) > 0:
+                if len(instr_names) != 1:
+                    msgs.warn(f'More than one instrument in your dataset! {instr_names} \n'
+                              'Proceed with great caution...')
+                # Check the name
+                if instr_names[0] != self.spectrograph.header_name:
+                    msgs.warn('The instrument name in the headers of the raw files does not match the '
+                              f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
+                              'You may have chosen the wrong PypeIt spectrograph name!')
 
     def _build(self, files, strict=True, usrdata=None):
         """
@@ -172,6 +203,7 @@ class PypeItMetaData:
         # Allow for single files
         _files = files if hasattr(files, '__len__') else [files]
 
+        msgs.info(f"Building metadata for {len(_files)} files.")
         # Build lists to fill
         data = {k:[] for k in self.spectrograph.meta.keys()}
         data['directory'] = ['None']*len(_files)
@@ -186,7 +218,7 @@ class PypeItMetaData:
             else:
                 # TODO: This check should be done elsewhere
                 # Check
-                if _ifile.name != usrdata['filename'][idx]:
+                if _ifile.name != usrdata['filename'][idx].lstrip("# "):
                     msgs.error('File name list does not match user-provided metadata table.  See '
                                'usrdata argument of instantiation of PypeItMetaData.')
                 usr_row = usrdata[idx]
