@@ -416,7 +416,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, slice_offset=None, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for SlicerIFU reductions.
 
@@ -429,6 +429,11 @@ class SlitTraceSet(calibframe.CalibFrame):
             transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`_
             Spectral tilts.
+        slice_offset : float, optional
+            Offset to apply to the slice positions. A value of 0.0 means that the
+            slice positions are the centre of the slits. A value of +/-0.5 means that
+            the slice positions are at the edges of the slits. If None, the slice_offset
+            is set to 0.0.
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -447,7 +452,13 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
-        msgs.info("Generating an RA/DEC image")
+        substring = '' if slice_offset is None else f' with slice_offset={slice_offset}'
+        msgs.info("Generating an RA/DEC image"+substring)
+        # Check the input
+        if slice_offset is None:
+            slice_offset = 0.0
+        if slice_offset < -0.5 or slice_offset > 0.5:
+            msgs.error(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -464,7 +475,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             minmax[slit_idx, 0] = np.min(evalpos)
             minmax[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
-            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
+            slitID = np.ones(evalpos.size) * slit_idx + slice_offset - wcs.wcs.crpix[0]
             world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
