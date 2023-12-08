@@ -1489,7 +1489,7 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
+                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1597,7 +1597,7 @@ class CubePar(ParSet):
                                  'each detector pixel in the spectral direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spat_subpixel.'
+                                 'See also, spat_subpixel and slice_subpixel.'
 
         defaults['spat_subpixel'] = 5
         dtypes['spat_subpixel'] = int
@@ -1605,7 +1605,14 @@ class CubePar(ParSet):
                                  'each detector pixel in the spatial direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spec_subpixel.'
+                                 'See also, spec_subpixel and slice_subpixel.'
+
+        # TODO :: Change this default value to 5
+        defaults['slice_subpixel'] = 1
+        dtypes['slice_subpixel'] = int
+        descr['slice_subpixel'] = 'When method=subpixel, slice_subpixel sets the subpixellation scale of ' \
+                                  'each IFU slice. The default option is to divide each slice into 5 sub-slices ' \
+                                  'during datacube creation. See also, spec_subpixel and spat_subpixel.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1693,7 +1700,7 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
