@@ -1114,41 +1114,36 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                            all_spatpos, all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
-                            all_idx=None, spec_subpixel=10, spat_subpixel=10, combine=False):
+def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
+                            all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False):
     """
     Generate a white light image from the input pixels
 
     Args:
         image_wcs (`astropy.wcs.WCS`_):
             World coordinate system to use for the white light images.
-        all_ra (`numpy.ndarray`_):
-            1D flattened array containing the right ascension of each pixel
-            (units = degrees)
-        all_dec (`numpy.ndarray`_):
-            1D flattened array containing the declination of each pixel (units =
-            degrees)
-        all_wave (`numpy.ndarray`_):
-            1D flattened array containing the wavelength of each pixel (units =
-            Angstroms)
-        all_sci (`numpy.ndarray`_):
-            1D flattened array containing the counts of each pixel from all
-            spec2d files
-        all_ivar (`numpy.ndarray`_):
-            1D flattened array containing the inverse variance of each pixel
-            from all spec2d files
-        all_wghts (`numpy.ndarray`_):
-            1D flattened array containing the weights of each pixel to be used
-            in the combination
-        all_spatpos (`numpy.ndarray`_):
-            1D flattened array containing the detector pixel location in the
-            spatial direction
-        all_specpos (`numpy.ndarray`_):
-            1D flattened array containing the detector pixel location in the
-            spectral direction
-        all_spatid (`numpy.ndarray`_):
-            1D flattened array containing the spatid of each pixel
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
+            and z wavelength coordinates
+        sciImg (`numpy.ndarray`_, list):
+            A list of 2D science images, or a single 2D image containing the
+            science data.
+        ivarImg (`numpy.ndarray`_, list):
+            A list of 2D inverse variance images, or a single 2D image
+            containing the inverse variance data.
+        waveImg (`numpy.ndarray`_, list):
+            A list of 2D wavelength images, or a single 2D image containing the
+            wavelength data.
+        slitid_img_gpm (`numpy.ndarray`_, list):
+            A list of 2D slit ID images, or a single 2D image containing the
+            slit ID data.
+        wghtImg (`numpy.ndarray`_, list):
+            A list of 2D weight images, or a single 2D image containing the
+            weight data.
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of WCS objects, or a single WCS object containing the WCS
+            information of each image.
         tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames (see all_idx)
         slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
@@ -1161,27 +1156,28 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
         all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
             A Class containing the DAR correction information, or a list of DARcorrection
             classes. If a list, it must be the same length as astrom_trans.
-        bins (tuple):
-            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
-            and z wavelength coordinates
-        all_idx (`numpy.ndarray`_, optional):
-            If tilts, slits, and astrom_trans are lists, this should contain a
-            1D flattened array, of the same length as all_sci, containing the
-            index the tilts, slits, and astrom_trans lists that corresponds to
-            each pixel. Note that, in this case all of these lists need to be
-            the same length.
+        ra_offset (:obj:`float`, list):
+            The RA offset to apply to each image, or a list of RA offsets.
+        dec_offset (:obj:`float`, list):
+            The DEC offset to apply to each image, or a list of DEC offsets.
         spec_subpixel (:obj:`int`, optional):
             What is the subpixellation factor in the spectral direction. Higher
             values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spectral
-            direction.
+            goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
+            default value is 5, which divides each detector pixel into 5 subpixels
+            in the spectral direction.
         spat_subpixel (:obj:`int`, optional):
             What is the subpixellation factor in the spatial direction. Higher
             values give more reliable results, but note that the time required
-            goes as (``spec_subpixel * spat_subpixel``). The default value is 5,
-            which divides each detector pixel into 5 subpixels in the spatial
-            direction.
+            goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
+            default value is 5, which divides each detector pixel into 5 subpixels
+            in the spatial direction.
+        slice_subpixel (:obj:`int`, optional):
+            What is the subpixellation factor in the slice direction. Higher
+            values give more reliable results, but note that the time required
+            goes as (``spec_subpixel * spat_subpixel * slice_subpixel``). The
+            default value is 5, which divides each IFU slice into 5 subpixels
+            in the slice direction.
         combine (:obj:`bool`, optional):
             If True, all of the input frames will be combined into a single
             output. Otherwise, individual images will be generated.
@@ -1190,35 +1186,38 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
         `numpy.ndarray`_: The white light images for all frames
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
-    _all_idx = np.zeros(all_sci.size) if all_idx is None else all_idx
-    if combine:
-        numfr = 1
-    else:
-        numfr = np.unique(_all_idx).size
-        if len(tilts) != numfr or len(slits) != numfr or len(astrom_trans) != numfr or len(all_dar) != numfr:
-            msgs.error("The following arguments must be the same length as the expected number of frames to be combined:"
-                       + msgs.newline() + "tilts, slits, astrom_trans, all_dar")
+    if not combine:
+        # If we are not combining, then all of the inputs must be lists
+        list_inputs = [sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset]
+        if all([isinstance(l, list) for l in list_inputs]):
+            # If all of the inputs are lists, then they must all have the same length
+            numframes = len(sciImg)
+            if not all([len(l) == numframes for l in list_inputs]):
+                msgs.error("All input lists must have the same length if they are not being combined")
+        elif all([not isinstance(l, list) for l in list_inputs]):
+            # Just a single frame - store as lists for this code
+            _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+                [sciImg], [ivarImg], [waveImg], [slitid_img_gpm], [wghtImg], [all_wcs], [tilts], [slits], [astrom_trans], [all_dar], [ra_offset], [dec_offset]
+            numframes = 1
+
     # Prepare the array of white light images to be stored
     numra = bins[0].size-1
     numdec = bins[1].size-1
-    all_wl_imgs = np.zeros((numra, numdec, numfr))
+    all_wl_imgs = np.zeros((numra, numdec, numframes))
 
     # Loop through all frames and generate white light images
-    for fr in range(numfr):
-        msgs.info(f"Creating image {fr+1}/{numfr}")
+    for fr in range(numframes):
+        msgs.info(f"Creating image {fr+1}/{numframes}")
         if combine:
             # Subpixellate
-            img, _, _ = subpixellate(image_wcs, all_ra, all_dec, all_wave,
-                                     all_sci, all_ivar, all_wghts, all_spatpos,
-                                     all_specpos, all_spatid, tilts, slits, astrom_trans, all_dar, bins,
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, all_idx=_all_idx)
+            img, _, _ = subpixellate(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
+                                     all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         else:
-            ww = np.where(_all_idx == fr)
             # Subpixellate
-            img, _, _ = subpixellate(image_wcs, all_ra[ww], all_dec[ww], all_wave[ww],
-                                     all_sci[ww], all_ivar[ww], all_wghts[ww], all_spatpos[ww],
-                                     all_specpos[ww], all_spatid[ww], tilts[fr], slits[fr], astrom_trans[fr],
-                                     all_dar[fr], bins, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel)
+            img, _, _ = subpixellate(image_wcs, bins, sciImg[fr], ivarImg[fr], waveImg[fr], slitid_img_gpm[fr], wghtImg[fr],
+                                     all_wcs[fr], tilts[fr], slits[fr], astrom_trans[fr], all_dar[fr], ra_offset[fr], dec_offset[fr],
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
