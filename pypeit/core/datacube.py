@@ -428,31 +428,70 @@ def get_output_whitelight_filename(outfile):
     return os.path.splitext(outfile)[0] + "_whitelight.fits"
 
 
-def get_whitelight_pixels(all_wave, min_wl, max_wl):
+def get_whitelight_pixels(all_wave, all_slitid, min_wl, max_wl):
     """
     Determine which pixels are included within the specified wavelength range
 
     Args:
-        all_wave (`numpy.ndarray`_):
-            The wavelength of each individual pixel
+        all_wave (`numpy.ndarray`_, list):
+            List of `numpy.ndarray`_ wavelength images. The length of the list is the number of spec2d frames.
+            Each element of the list contains a wavelength image that provides the wavelength at each pixel on
+            the detector, with shape is (nspec, nspat).
+        all_slitid (`numpy.ndarray`_, list):
+            List of `numpy.ndarray`_ slitid images. The length of the list is the number of spec2d frames.
+            Each element of the list contains a slitid image that provides the slit number at each pixel on
+            the detector, with shape (nspec, nspat).
         min_wl (float):
             Minimum wavelength to consider
         max_wl (float):
             Maximum wavelength to consider
 
     Returns:
-        :obj:`tuple`: A `numpy.ndarray`_ object with the indices of all_wave
-        that contain pixels within the requested wavelength range, and a float
-        with the wavelength range (i.e. maximum wavelength - minimum wavelength)
+        :obj:`tuple`: The first element of the tuple is a list of `numpy.ndarray`_ slitid images,
+        shape is (nspec, nspat), where a zero value corresponds to an excluded pixel
+        (either outside the desired wavelength range, a bad pixel, a pixel not on the slit).
+        All other pixels have a value equal to the slit number. The second element of the tuple
+        is the wavelength difference between the maximum and minimum wavelength in the desired
+        wavelength range.
     """
-    wavediff = np.max(all_wave) - np.min(all_wave)
-    if min_wl < max_wl:
-        ww = np.where((all_wave > min_wl) & (all_wave < max_wl))
-        wavediff = max_wl - min_wl
+    # Check if lists or numpy arrays are input
+    list_inputs = [all_wave, all_slitid]
+    if all([isinstance(l, list) for l in list_inputs]):
+        numframes = len(all_wave)
+        if not all([len(l) == numframes for l in list_inputs]):
+            msgs.error("All input lists must have the same length")
+        # Store in the following variables
+        _all_wave, _all_slitid = all_wave, all_slitid
+    elif all([not isinstance(l, list) for l in list_inputs]):
+        _all_wave, _all_slitid = [all_wave], [all_slitid]
+        numframes = 1
     else:
-        msgs.warn("Datacubes do not completely overlap in wavelength. Offsets may be unreliable...")
-        ww = (np.arange(all_wave.size),)
-    return ww, wavediff
+        msgs.error("The input lists must either all be lists (of the same length) or all be numpy arrays")
+    if max_wl < min_wl:
+        msgs.error("The maximum wavelength must be greater than the minimum wavelength")
+    # Initialise the output
+    out_slitid = [np.zeros(_all_slitid[0].shape, dtype=int) for _ in range(numframes)]
+    # Loop over all frames and find the pixels that are within the wavelength range
+    if min_wl < max_wl:
+        # Loop over files and determine which pixels are within the wavelength range
+        for ff in range(numframes):
+            ww = np.where((_all_wave[ff] > min_wl) & (_all_wave[ff] < max_wl))
+            out_slitid[ff][ww] = _all_slitid[ff][ww]
+    else:
+        msgs.warn("Datacubes do not completely overlap in wavelength.")
+        out_slitid = _all_slitid
+        min_wl, max_wl = None, None
+        for ff in range(numframes):
+            this_wave = _all_wave[ff][_all_slitid[ff] > 0]
+            tmp_min = np.min(this_wave)
+            tmp_max = np.max(this_wave)
+            if min_wl is None or tmp_min < min_wl:
+                min_wl = tmp_min
+            if max_wl is None or tmp_max > max_wl:
+                max_wl = tmp_max
+    # Determine the wavelength range
+    wavediff = max_wl - min_wl
+    return out_slitid, wavediff
 
 
 def get_whitelight_range(wavemin, wavemax, wl_range):
@@ -562,7 +601,7 @@ def load_imageWCS(filename, ext=0):
     return image, imgwcs
 
 
-def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec_offset):
+def align_user_offsets(ifu_ra, ifu_dec, ra_offset, dec_offset):
     """
     Align the RA and DEC of all input frames, and then
     manually shift the cubes based on user-provided offsets.
@@ -570,28 +609,21 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
     ra_offset should include the cos(dec) factor.
 
     Args:
-        all_ra (`numpy.ndarray`_):
-            A 1D array containing the RA values of each detector pixel of every frame.
-        all_dec (`numpy.ndarray`_):
-            A 1D array containing the Dec values of each detector pixel of every frame.
-            Same size as all_ra.
-        all_idx (`numpy.ndarray`_):
-            A 1D array containing an ID value for each detector frame (0-indexed).
-            Same size as all_ra.
         ifu_ra (`numpy.ndarray`_):
             A list of RA values of the IFU (one value per frame)
         ifu_dec (`numpy.ndarray`_):
             A list of Dec values of the IFU (one value per frame)
         ra_offset (`numpy.ndarray`_):
             A list of RA offsets to be applied to the input pixel values (one value per frame).
-            Note, the ra_offset MUST contain the cos(dec) factor. This is the number of arcseconds
+            Note, the ra_offset MUST contain the cos(dec) factor. This is the number of degrees
             on the sky that represents the telescope offset.
         dec_offset (`numpy.ndarray`_):
             A list of Dec offsets to be applied to the input pixel values (one value per frame).
+            This is the number of degrees on the sky that represents the telescope offset.
 
     Returns:
-        A tuple containing a new set of RA and Dec values that have been aligned. Both arrays
-        are of type `numpy.ndarray`_.
+        A tuple containing a new set of RA and Dec offsets for each frame.
+        Both arrays are of type `numpy.ndarray`_, and are in units of degrees.
     """
     # First, translate all coordinates to the coordinates of the first frame
     # Note: You do not need cos(dec) here, this just overrides the IFU coordinate centre of each frame
@@ -599,13 +631,15 @@ def align_user_offsets(all_ra, all_dec, all_idx, ifu_ra, ifu_dec, ra_offset, dec
     ref_shift_ra = ifu_ra[0] - ifu_ra
     ref_shift_dec = ifu_dec[0] - ifu_dec
     numfiles = ra_offset.size
+    out_ra_offsets = np.zeros(numfiles)
+    out_dec_offsets = np.zeros(numfiles)
     for ff in range(numfiles):
         # Apply the shift
-        all_ra[all_idx == ff] += ref_shift_ra[ff] + ra_offset[ff] / 3600.0
-        all_dec[all_idx == ff] += ref_shift_dec[ff] + dec_offset[ff] / 3600.0
+        out_ra_offsets[ff] = ref_shift_ra[ff] + ra_offset[ff]
+        out_dec_offsets[ff] = ref_shift_dec[ff] + dec_offset[ff]
         msgs.info("Spatial shift of cube #{0:d}:".format(ff + 1) + msgs.newline() +
                   "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_offset[ff], dec_offset[ff]))
-    return all_ra, all_dec
+    return out_ra_offsets, out_dec_offsets
 
 
 def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
@@ -1193,6 +1227,7 @@ def generate_image_subpixel(image_wcs, all_ra, all_dec, all_wave, all_sci, all_i
 def generate_cube_subpixel(outfile, output_wcs, bins,
                            sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                            all_wcs, tilts, slits, astrom_trans, all_dar,
+                           ra_offset, dec_offset,
                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5,
                            overwrite=False, whitelight_range=None, debug=False):
     """
@@ -1235,6 +1270,10 @@ def generate_cube_subpixel(outfile, output_wcs, bins,
         all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
             A Class containing the DAR correction information, or a list of DARcorrection
             classes. If a list, it must be the same length as astrom_trans.
+        ra_offset (float, list):
+            A float or list of floats containing the RA offset of each spec2d file
+        dec_offset (float, list):
+            A float or list of floats containing the DEC offset of each spec2d file
         spec_subpixel (int, optional):
             What is the subpixellation factor in the spectral direction. Higher
             values give more reliable results, but note that the time required
@@ -1279,7 +1318,7 @@ def generate_cube_subpixel(outfile, output_wcs, bins,
 
     # Subpixellate
     subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                          all_wcs, tilts, slits, astrom_trans, all_dar,
+                          all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
                           debug=debug)
     # Extract the variables that we need
@@ -1320,7 +1359,7 @@ def generate_cube_subpixel(outfile, output_wcs, bins,
 
 
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                 all_wcs, tilts, slits, astrom_trans, all_dar,
+                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                  spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
@@ -1370,6 +1409,12 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
             A Class containing the DAR correction information, or a list of DARcorrection
             classes. If a list, it must be the same length as astrom_trans.
+        ra_offset (float, list):
+            A float or list of floats containing the RA offset of each spec2d file
+            relative to the first spec2d file
+        dec_offset (float, list):
+            A float or list of floats containing the DEC offset of each spec2d file
+            relative to the first spec2d file
         spec_subpixel (int, optional):
             What is the subpixellation factor in the spectral direction. Higher
             values give more reliable results, but note that the time required
@@ -1399,19 +1444,19 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         residual cube.  The latter is only returned if debug is True.
     """
     # Check for combinations of lists or not
-    list_inputs = [sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar]
+    list_inputs = [sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset]
     if all([isinstance(l, list) for l in list_inputs]):
         # Several frames are being combined. Check the lists have the same length
         numframes = len(sciImg)
         if not all([len(l) == numframes for l in list_inputs]):
             msgs.error("All input lists must have the same length when combining multiple frames")
         # Store in the following variables
-        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar = \
-            sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar
+        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+            sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset
     elif all([not isinstance(l, list) for l in list_inputs]):
         # Just a single frame - store as lists for this code
-        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar = \
-            [sciImg], [ivarImg], [waveImg], [slitid_img_gpm], [wghtImg], [all_wcs], [tilts], [slits], [astrom_trans], [all_dar]
+        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+            [sciImg], [ivarImg], [waveImg], [slitid_img_gpm], [wghtImg], [all_wcs], [tilts], [slits], [astrom_trans], [all_dar], [ra_offset], [dec_offset]
         numframes = 1
     else:
         msgs.error("The input arguments should all be of type 'list', or all not be of type 'list':")
@@ -1486,9 +1531,9 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 # Evaluate the RA/Dec at the subpixel spatial positions
                 this_ra_int = ra_spl(spatpos_subpix)
                 this_dec_int = dec_spl(spatpos_subpix)
-                # Now apply the DAR correction
-                this_ra_int += ra_corr
-                this_dec_int += dec_corr
+                # Now apply the DAR correction and any user-supplied offsets
+                this_ra_int += ra_corr + _ra_offset[fr]
+                this_dec_int += dec_corr + _dec_offset[fr]
                 # Convert world coordinates to voxel coordinates, then histogram
                 vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0)
                 # Use the "fast histogram" algorithm, that assumes regular bin spacing
