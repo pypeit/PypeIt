@@ -447,7 +447,8 @@ def get_whitelight_pixels(all_wave, all_slitid, min_wl, max_wl):
             Maximum wavelength to consider
 
     Returns:
-        :obj:`tuple`: The first element of the tuple is a list of `numpy.ndarray`_ slitid images,
+        :obj:`tuple`: The first element of the tuple is a list of `numpy.ndarray`_ slitid images
+        (or a single `numpy.ndarray`_ slitid image if only one spec2d frame is provided),
         shape is (nspec, nspat), where a zero value corresponds to an excluded pixel
         (either outside the desired wavelength range, a bad pixel, a pixel not on the slit).
         All other pixels have a value equal to the slit number. The second element of the tuple
@@ -491,7 +492,9 @@ def get_whitelight_pixels(all_wave, all_slitid, min_wl, max_wl):
                 max_wl = tmp_max
     # Determine the wavelength range
     wavediff = max_wl - min_wl
-    return out_slitid, wavediff
+    # Need to return a single slitid image if only one frame, otherwise return a list of slitid images.
+    # Also return the wavelength difference
+    return out_slitid[0] if numframes == 1 else out_slitid, wavediff
 
 
 def get_whitelight_range(wavemin, wavemax, wl_range):
