@@ -663,8 +663,7 @@ class BuildWaveCalib:
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
-                self.slits.ech_order = order_vec[:self.slits.nslits]#self.slits.slitord_id
-                #self.wave_soln_arxiv, self.arcspec_arxiv = arcfitter.get_arxiv(self.orders)
+                self.slits.ech_order = order_vec[:self.slits.nslits]
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files

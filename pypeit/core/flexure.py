@@ -72,17 +72,6 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
     thresh =  med_sci + 5.0*stddev_sci
     corr_sci = np.fmin(_sciimg.flatten(), thresh)
-    '''
-    plt.figure()
-    plt.plot((corr_sci/np.nanmedian(corr_sci)), label = 'corr_sci')
-    plt.plot(corr_slits, label = 'corr_slits')
-    #plt.legend()
-    plt.show()
-    plt.figure()
-    plt.imshow(np.log10(_sciimg))
-    plt.contour(slitmask, colors = 'magenta')
-    plt.show()
-    '''
     lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom

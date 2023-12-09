@@ -206,12 +206,6 @@ class Identify(scriptbase.ScriptBase):
                 #  Note:  This needs to be duplicated in test_scripts.py
                 # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
                 if 'WaveFit' in arcfitter._fitdict.keys():
-                    #if args.new_sol:
-                    #    waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
-                    #                        arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                    #                        spat_ids=np.atleast_1d(int(arcfitter._spatid)),
-                    #                        PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
-                    #else:
 
                     lines_pix_arr.append(arcfitter._fitdict['WaveFit']['pixel_fit'])
                     lines_wav_arr.append(arcfitter._fitdict['WaveFit']['wave_fit'])
