@@ -700,24 +700,56 @@ def set_voxel_sampling(spatscale, specscale, dspat=None, dwv=None):
     return _dspat, _dwv
 
 
-def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
+def check_inputs(list_inputs):
     """
-    Calculate the bounds of the WCS and the expected edges of the voxels, based
-    on user-specified parameters or the extremities of the data. This is a
-    convenience function that calls the core function in
-    :mod:`~pypeit.core.datacube`.
+    This function checks the inputs to several of the cube building routines, and makes sure they are all consistent.
+    Often, this is to make check if all inputs are lists of the same length, or if all inputs are 2D `numpy.ndarray`_.
+    The goal of the routine is to return a consistent set of lists of the input.
 
     Parameters
     ----------
-    all_ra : `numpy.ndarray`_
-        1D flattened array containing the RA values of each pixel from all
-        spec2d files
-    all_dec : `numpy.ndarray`_
-        1D flattened array containing the DEC values of each pixel from all
-        spec2d files
-    all_wave : `numpy.ndarray`_
-        1D flattened array containing the wavelength values of each pixel from
-        all spec2d files
+    list_inputs : :obj:`list`
+        A list of inputs to check.
+
+    Returns
+    -------
+    list_inputs : :obj:`list`
+        A list of inputs that have been checked for consistency.
+    """
+    if all([isinstance(l, list) for l in list_inputs]):
+        # Several frames are being combined. Check the lists have the same length
+        numframes = len(list_inputs[0])
+        if not all([len(l) == numframes for l in list_inputs]):
+            msgs.error("All input lists must have the same length")
+        # The inputs are good, return as is
+        return tuple(list_inputs)
+    elif all([not isinstance(l, list) for l in list_inputs]):
+        # Just a single frame - store as single element lists
+        ret_list = ()
+        for l in list_inputs:
+            ret_list += ([l],)
+        return ret_list
+    else:
+        msgs.error("The input arguments should all be of type 'list', or all not be of type 'list':")
+
+
+def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
+    """
+    Calculate the bounds of the WCS and the expected edges of the voxels, based
+    on user-specified parameters or the extremities of the data.
+
+    Parameters
+    ----------
+    raImg : (`numpy.ndarray`_, list):
+        A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
+    decImg : (`numpy.ndarray`_, list):
+        A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
+    waveImg (`numpy.ndarray`_, list):
+        A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
+    slitid_img_gpm : (`numpy.ndarray`_, list):
+        A list of 2D array containing the spat ID of each pixel, with shape (nspec, nspat).
+        A value of 0 indicates that the pixel is not on a slit. All other values indicate the
+        slit spatial ID.
     ra_min : :obj:`float`, optional
         Minimum RA of the WCS
     ra_max : :obj:`float`, optional
@@ -740,23 +772,49 @@ def wcs_bounds(all_ra, all_dec, all_wave, ra_min=None, ra_max=None, dec_min=None
     _dec_min : :obj:`float`
         Minimum Dec of the WCS
     _dec_max : :obj:`float`
-        Maximum RA of the WCS
-    _wav_min : :obj:`float`
+        Maximum Dec of the WCS
+    _wave_min : :obj:`float`
         Minimum wavelength of the WCS
-    _wav_max : :obj:`float`
-        Maximum RA of the WCS
+    _wave_max : :obj:`float`
+        Maximum wavelength of the WCS
     """
-    # Setup the cube ranges
-    _ra_min = ra_min if ra_min is not None else np.min(all_ra)
-    _ra_max = ra_max if ra_max is not None else np.max(all_ra)
-    _dec_min = dec_min if dec_min is not None else np.min(all_dec)
-    _dec_max = dec_max if dec_max is not None else np.max(all_dec)
-    _wav_min = wave_min if wave_min is not None else np.min(all_wave)
-    _wav_max = wave_max if wave_max is not None else np.max(all_wave)
-    return _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max
+    # Check the inputs
+    _raImg, _decImg, _waveImg, _slitid_img_gpm = check_inputs([raImg, decImg, waveImg, slitid_img_gpm])
+    numframes = len(raImg)
+
+    # Loop over the frames and get the bounds - start by setting the default values
+    _ra_min, _ra_max = ra_min, ra_max
+    _dec_min, _dec_max = dec_min, dec_max
+    _wave_min, _wave_max = wave_min, wave_max
+    for fr in range(numframes):
+        # Only do calculations if the min/max inputs are not specified
+        # Get the RA, Dec, and wavelength of the pixels on the slit
+        if ra_min is None or ra_max is None:
+            this_ra = _raImg[fr][_slitid_img_gpm[fr] > 0]
+            tmp_min, tmp_max = np.min(this_ra), np.max(this_ra)
+            if fr == 0 or tmp_min < _ra_min:
+                _ra_min = tmp_min
+            if fr == 0 or tmp_max > _ra_max:
+                _ra_max = tmp_max
+        if dec_min is None or dec_max is None:
+            this_dec = _decImg[fr][_slitid_img_gpm[fr] > 0]
+            tmp_min, tmp_max = np.min(this_dec), np.max(this_dec)
+            if fr == 0 or tmp_min < _dec_min:
+                _dec_min = tmp_min
+            if fr == 0 or tmp_max > _dec_max:
+                _dec_max = tmp_max
+        if wave_min is None or wave_max is None:
+            this_wave = _waveImg[fr][_slitid_img_gpm[fr] > 0]
+            tmp_min, tmp_max = np.min(this_wave), np.max(this_wave)
+            if fr == 0 or tmp_min < _wave_min:
+                _wave_min = tmp_min
+            if fr == 0 or tmp_max > _wave_max:
+                _wave_max = tmp_max
+    # Return the bounds
+    return _ra_min, _ra_max, _dec_min, _dec_max, _wave_min, _wave_max
 
 
-def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
+def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
     """
@@ -765,15 +823,16 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
 
     Parameters
     ----------
-    all_ra : `numpy.ndarray`_
-        1D flattened array containing the RA values of each pixel from all
-        spec2d files
-    all_dec : `numpy.ndarray`_
-        1D flattened array containing the DEC values of each pixel from all
-        spec2d files
-    all_wave : `numpy.ndarray`_
-        1D flattened array containing the wavelength values of each pixel from
-        all spec2d files
+    raImg : (`numpy.ndarray`_, list):
+        A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
+    decImg : (`numpy.ndarray`_, list):
+        A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
+    waveImg (`numpy.ndarray`_, list):
+        A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
+    slitid_img_gpm : (`numpy.ndarray`_, list):
+        A list of 2D array containing the spat ID of each pixel, with shape (nspec, nspat).
+        A value of 0 indicates that the pixel is not on a slit. All other values indicate the
+        slit spatial ID.
     dspat : float
         Spatial size of each square voxel (in arcsec). The default is to use the
         values in cubepar.
@@ -811,13 +870,13 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
     reference_image : `numpy.ndarray`_
         The reference image to be used for the cross-correlation. Can be None.
     """
-    # Grab cos(dec) for convenience
-    cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-
     # Setup the cube ranges
     _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max = \
-        wcs_bounds(all_ra, all_dec, all_wave, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
+        wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
                    wave_min=wave_min, wave_max=wave_max)
+
+    # Grab cos(dec) for convenience. Use the average of the min and max dec
+    cosdec = np.cos(0.5*(_dec_min+_dec_max) * np.pi / 180.0)
 
     # Number of voxels in each dimension
     numra = int((_ra_max - _ra_min) * cosdec / dspat)
@@ -826,8 +885,6 @@ def create_wcs(all_ra, all_dec, all_wave, dspat, dwave,
 
     # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
-        _wav_min = np.min(all_wave)
-        _wav_max = np.max(all_wave)
         dwave = _wav_max - _wav_min
         numwav = 1
 
@@ -1189,19 +1246,9 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         `numpy.ndarray`_: The white light images for all frames
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
-    if not combine:
-        # If we are not combining, then all of the inputs must be lists
-        list_inputs = [sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset]
-        if all([isinstance(l, list) for l in list_inputs]):
-            # If all of the inputs are lists, then they must all have the same length
-            numframes = len(sciImg)
-            if not all([len(l) == numframes for l in list_inputs]):
-                msgs.error("All input lists must have the same length if they are not being combined")
-        elif all([not isinstance(l, list) for l in list_inputs]):
-            # Just a single frame - store as lists for this code
-            _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
-                [sciImg], [ivarImg], [waveImg], [slitid_img_gpm], [wghtImg], [all_wcs], [tilts], [slits], [astrom_trans], [all_dar], [ra_offset], [dec_offset]
-            numframes = 1
+    _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    numframes = len(_sciImg)
 
     # Prepare the array of white light images to be stored
     numra = bins[0].size-1
@@ -1213,13 +1260,13 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         msgs.info(f"Creating image {fr+1}/{numframes}")
         if combine:
             # Subpixellate
-            img, _, _ = subpixellate(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                                     all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+            img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
+                                     _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         else:
             # Subpixellate
-            img, _, _ = subpixellate(image_wcs, bins, sciImg[fr], ivarImg[fr], waveImg[fr], slitid_img_gpm[fr], wghtImg[fr],
-                                     all_wcs[fr], tilts[fr], slits[fr], astrom_trans[fr], all_dar[fr], ra_offset[fr], dec_offset[fr],
+            img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
+                                     _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
@@ -1445,23 +1492,11 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         variance cube, (3) the corresponding bad pixel mask cube, and (4) the
         residual cube.  The latter is only returned if debug is True.
     """
-    # Check for combinations of lists or not
-    list_inputs = [sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset]
-    if all([isinstance(l, list) for l in list_inputs]):
-        # Several frames are being combined. Check the lists have the same length
-        numframes = len(sciImg)
-        if not all([len(l) == numframes for l in list_inputs]):
-            msgs.error("All input lists must have the same length when combining multiple frames")
-        # Store in the following variables
-        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
-            sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset
-    elif all([not isinstance(l, list) for l in list_inputs]):
-        # Just a single frame - store as lists for this code
-        _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
-            [sciImg], [ivarImg], [waveImg], [slitid_img_gpm], [wghtImg], [all_wcs], [tilts], [slits], [astrom_trans], [all_dar], [ra_offset], [dec_offset]
-        numframes = 1
-    else:
-        msgs.error("The input arguments should all be of type 'list', or all not be of type 'list':")
+    # Check the inputs for combinations of lists or not
+    _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    numframes = len(_sciImg)
+
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
