@@ -1,3 +1,7 @@
+.. include:: ../include/links.rst
+
+.. _lris:
+
 =========
 Keck LRIS
 =========
@@ -26,6 +30,8 @@ camera, one for the pre-May 2009 data (``keck_lris_blue_orig`` and ``keck_lris_r
 and one for the post-May 2009 data (``keck_lris_blue`` and ``keck_lris_red``).
 Note that this change in FITS format coincided with the installation of the LBNL
 detectors (2kx4k) in LRISr (see :ref:`keck-lris-red`).
+
+.. _lris_slitmask:
 
 Slit-masks
 ++++++++++

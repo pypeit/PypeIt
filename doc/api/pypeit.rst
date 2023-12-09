@@ -48,6 +48,7 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling
+   pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
    pypeit.setup_package
