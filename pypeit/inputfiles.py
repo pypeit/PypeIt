@@ -823,7 +823,7 @@ class Coadd3DFile(InputFile):
             opts['ra_offset'] = None
         elif len(off_ra) == 1 and len(self.filenames) > 1:
             # Convert from arcsec to degrees
-            opts['ra_offset'] = [off_ra[0]/3600.0 for ii in range(len(self.filenames))]
+            opts['ra_offset'] = [off_ra[0]/3600.0 for _ in range(len(self.filenames))]
         elif len(off_ra) != 0:
             # Convert from arcsec to degrees
             opts['ra_offset'] = [ora/3600.0 for ora in off_ra]
@@ -833,7 +833,7 @@ class Coadd3DFile(InputFile):
             opts['dec_offset'] = None
         elif len(off_dec) == 1 and len(self.filenames) > 1:
             # Convert from arcsec to degrees
-            opts['dec_offset'] = [off_dec[0]/3600.0 for ii in range(len(self.filenames))]
+            opts['dec_offset'] = [off_dec[0]/3600.0 for _ in range(len(self.filenames))]
         elif len(off_dec) != 0:
             # Convert from arcsec to degrees
             opts['dec_offset'] = [odec/3600.0 for odec in off_dec]
