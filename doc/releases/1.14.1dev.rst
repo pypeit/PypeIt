@@ -52,6 +52,8 @@ Instrument-specific Updates
 - LDT/DeVeny: default parameter & wavelength template updates, add instrument-
   specific line lists, use SCITARG for target name if none entered in the LOUI.
 - Added support for NTT/EFOSC2 Gr#4
+- Keck/KCWI: FeAr are used for wavelength calibration, while the ThAr lamp is used
+  to determine the wavelength tilt.
 
 Script Changes
 --------------
