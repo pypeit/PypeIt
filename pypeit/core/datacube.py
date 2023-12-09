@@ -757,11 +757,11 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None,
     dec_min : :obj:`float`, optional
         Minimum Dec of the WCS
     dec_max : :obj:`float`, optional
-        Maximum RA of the WCS
-    wav_min : :obj:`float`, optional
+        Maximum Dec of the WCS
+    wave_min : :obj:`float`, optional
         Minimum wavelength of the WCS
-    wav_max : :obj:`float`, optional
-        Maximum RA of the WCS
+    wave_max : :obj:`float`, optional
+        Maximum wavelength of the WCS
 
     Returns
     -------
@@ -871,7 +871,7 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
         The reference image to be used for the cross-correlation. Can be None.
     """
     # Setup the cube ranges
-    _ra_min, _ra_max, _dec_min, _dec_max, _wav_min, _wav_max = \
+    _ra_min, _ra_max, _dec_min, _dec_max, _wave_min, _wave_max = \
         wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
                    wave_min=wave_min, wave_max=wave_max)
 
@@ -881,15 +881,15 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     # Number of voxels in each dimension
     numra = int((_ra_max - _ra_min) * cosdec / dspat)
     numdec = int((_dec_max - _dec_min) / dspat)
-    numwav = int(np.round((_wav_max - _wav_min) / dwave))
+    numwav = int(np.round((_wave_max - _wave_min) / dwave))
 
     # If a white light WCS is being generated, make sure there's only 1 wavelength bin
     if collapse:
-        dwave = _wav_max - _wav_min
+        dwave = _wave_max - _wave_min
         numwav = 1
 
     # Generate a master WCS to register all frames
-    coord_min = [_ra_min, _dec_min, _wav_min]
+    coord_min = [_ra_min, _dec_min, _wave_min]
     coord_dlt = [dspat, dspat, dwave]
 
     # If a reference image is being used and a white light image is requested (collapse=True) update the celestial parts
@@ -907,7 +907,7 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min = {0:f}".format(coord_min[0]) +
               msgs.newline() + "DEC  min = {0:f}".format(coord_min[1]) +
-              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(_wav_min, _wav_max) +
+              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(_wave_min, _wave_max) +
               msgs.newline() + "Spaxel size = {0:f} arcsec".format(3600.0 * dspat) +
               msgs.newline() + "Wavelength step = {0:f} A".format(dwave) +
               msgs.newline() + "-" * 40)
