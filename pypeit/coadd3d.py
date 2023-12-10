@@ -1174,11 +1174,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 if self.method in ['subpixel', 'ngp']:
                     # Generate the datacube
                     flxcube, sigcube, bpmcube, wave = \
-                        datacube.generate_cube_subpixel(outfile, self.all_wcs[ff], bins,
-                                                        sciImg, ivar, waveimg, slitid_img_gpm, wghts,
+                        datacube.generate_cube_subpixel(self.all_wcs[ff], bins, sciImg, ivar, waveimg, slitid_img_gpm, wghts,
                                                         self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
                                                         self.ra_offsets[ff], self.dec_offsets[ff],
-                                                        overwrite=self.overwrite, whitelight_range=wl_wvrng,
+                                                        overwrite=self.overwrite, whitelight_range=wl_wvrng, outfile=outfile,
                                                         spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
                                                         slice_subpixel=self.slice_subpixel)
@@ -1284,19 +1283,22 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         Returns:
             `numpy.ndarray`_: The individual pixel weights for each detector pixel, and every frame.
         """
+        # If there is only one file, then all pixels have the same weight
+        if self.numfiles == 1:
+            return np.ones_like(self.all_sci)
+
         # Calculate the relative spectral weights of all pixels
-        return np.ones_like(self.all_sci) if self.numfiles == 1 else \
-            datacube.compute_weights_frompix(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
-                                                         self.all_idx, self._dspat, self._dwv, self.mnmx_wv, self.all_wghts,
-                                                         self.all_spatpos, self.all_specpos, self.all_spatid,
-                                                         self.all_tilts, self.all_slits, self.all_align, self.all_dar,
-                                                         ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
-                                                         dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
-                                                         wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                                         relative_weights=self.cubepar['relative_weights'],
-                                                         whitelight_range=self.cubepar['whitelight_range'],
-                                                         reference_image=self.cubepar['reference_image'],
-                                                         specname=self.specname)
+        return datacube.compute_weights_frompix(self.all_ra, self.all_dec, self.all_wave, self.all_sci, self.all_ivar,
+                                                self.all_slitid, self._dspat, self._dwv, self.mnmx_wv, self.all_wghts,
+                                                self.all_wcs, self.all_tilts, self.all_slits, self.all_align, self.all_dar,
+                                                self.ra_offsets, self.dec_offsets,
+                                                ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
+                                                dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
+                                                wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
+                                                relative_weights=self.cubepar['relative_weights'],
+                                                whitelight_range=self.cubepar['whitelight_range'],
+                                                reference_image=self.cubepar['reference_image'],
+                                                specname=self.specname)
 
     def run(self):
         """
@@ -1345,7 +1347,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             self.ra_offsets, self.dec_offsets = self.run_align()
 
         # Compute the relative weights on the spectra
-        # TODO :: update this with slice refactor
         self.all_wghts = self.compute_weights()
 
         # Generate the WCS, and the voxel edges
@@ -1377,12 +1378,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 outfile = datacube.get_output_filename("", self.cubepar['output_filename'], True, -1)
                 # Generate the datacube
                 flxcube, sigcube, bpmcube, wave = \
-                    datacube.generate_cube_subpixel(outfile, cube_wcs, vox_edges,
-                                                    self.all_sci, self.all_ivar, self.all_wave,
+                    datacube.generate_cube_subpixel(cube_wcs, vox_edges, self.all_sci, self.all_ivar, self.all_wave,
                                                     self.all_slitid, self.all_wghts, self.all_wcs,
                                                     self.all_tilts, self.all_slits, self.all_align, self.all_dar,
                                                     self.ra_offsets, self.dec_offsets,
-                                                    overwrite=self.overwrite, whitelight_range=wl_wvrng,
+                                                    outfile=outfile, overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                     spec_subpixel=self.spec_subpixel,
                                                     spat_subpixel=self.spat_subpixel,
                                                     slice_subpixel=self.slice_subpixel)
@@ -1402,13 +1402,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     outfile = datacube.get_output_filename("", self.cubepar['output_filename'], False, ff)
                     # Generate the datacube
                     flxcube, sigcube, bpmcube, wave = \
-                        datacube.generate_cube_subpixel(outfile, cube_wcs, vox_edges,
+                        datacube.generate_cube_subpixel(cube_wcs, vox_edges,
                                                         self.all_sci[ff], self.all_ivar[ff], self.all_wave[ff],
                                                         self.all_slitid[ff], self.all_wghts[ff], self.all_wcs[ff],
                                                         self.all_tilts[ff], self.all_slits[ff], self.all_align[ff], self.all_dar[ff],
                                                         self.ra_offsets[ff], self.dec_offsets[ff],
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng,
-                                                        spec_subpixel=self.spec_subpixel,
+                                                        outfile=outfile, spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
                                                         slice_subpixel=self.slice_subpixel)
                     # Prepare the header
@@ -1483,14 +1483,14 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts,
         # FIRST DO Hdelta
         inmask = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
         flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel("tmpfile.fits", all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
+            datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset, overwrite=False,
                                             spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
         HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIdelta")
         # THEN DO Hgamma
         inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
         flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel("tmpfile.fits", all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
+            datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                                             overwrite=False, spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
         HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIgamma")
