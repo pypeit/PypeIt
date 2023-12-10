@@ -1114,7 +1114,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             Calculate weights by fitting to the ratio of spectra?
 
     Returns:
-        TODO :: compelte docstring
+        list: Either a 2D `numpy.ndarray`_ or a list of 2D `numpy.ndarray`_ arrays containing the optimal
+        weights of each pixel for all frames, with shape (nspec, nspat).
     """
     msgs.info("Calculating the optimal weights of each pixel")
     # Check the inputs for combinations of lists or not, and then determine the number of frames
@@ -1180,13 +1181,11 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = [np.ones(_sciImg[0].shape) for _ in range(numframes)]
-    # TODO :: UP TO HERE!
     for ff in range(numframes):
-        ww = (slitidImg == ff)
-        all_wghts[ww] = interp1d(wave_spec, weights[ff], kind='cubic',
-                                 bounds_error=False, fill_value="extrapolate")(waveImg[ww])
+        ww = (slitidImg[ff] > 0)
+        all_wghts[ff][ww] = interp1d(wave_spec, weights[ff], kind='cubic',
+                                 bounds_error=False, fill_value="extrapolate")(waveImg[ff][ww])
     msgs.info("Optimal weighting complete")
-    # TODO :: This really should be a list of weights, not a single array.
     return all_wghts
 
 
