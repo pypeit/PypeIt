@@ -1070,10 +1070,38 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     based on a relative :math:`(S/N)^2` at each wavelength
 
     Args:
-        TODO : :docstring + see return statement of docstring as well
+        raImg : (`numpy.ndarray`_, list):
+            A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
+        decImg : (`numpy.ndarray`_, list):
+            A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
+        waveImg (`numpy.ndarray`_, list):
+            A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
+        sciImg (`numpy.ndarray`_, list):
+            A list of 2D array containing the science image of each pixel, with shape (nspec, nspat)
+        ivarImg (`numpy.ndarray`_, list):
+            A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
+        slitidImg (`numpy.ndarray`_, list):
+            A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of WCS objects, one for each frame.
+        all_tilts (`numpy.ndarray`_, list):
+            2D wavelength tilts frame, or a list of tilt frames
+        all_slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
+            Information stored about the slits, or a list of SlitTraceSet objects
+        all_align (:class:`~pypeit.alignframe.AlignmentSplines`, list):
+            A Class containing the transformation between detector pixel
+            coordinates and WCS pixel coordinates, or a list of Alignment
+            Splines.
+        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
+            A Class containing the DAR correction information, or a list of DARcorrection
+            classes. If a list, it must be the same length as astrom_trans.
+        ra_offsets (float, list):
+            RA offsets for each frame in units of degrees
+        dec_offsets (float, list):
+            Dec offsets for each frame in units of degrees
         whitelight_img (`numpy.ndarray`_):
-            A 2D array containing a whitelight image, that was created with the
-            input ``all_`` arrays.
+            A 2D array containing a white light image, that was created with the
+            input ``all`` arrays.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         dwv (float):
@@ -1095,6 +1123,11 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             check_inputs([raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                           all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets])
     numframes = len(_sciImg)
+
+    # If there's only one frame, use uniform weighting
+    if numframes == 1:
+        msgs.warn("Only one frame provided.  Using uniform weighting.")
+        return np.ones_like(sciImg)
 
     # Check the WCS bounds
     _ra_min, _ra_max, _dec_min, _dec_max, _wave_min, _wave_max = \
@@ -1128,7 +1161,9 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1)
         # Calculate the S/N in a given spectral bin
-        # TODO :: RJC removed the sqrt here - not sure why it needs to be detector pixel instead of spectral bin...
+        # TODO :: Think more about this... RJC removed the sqrt here - not sure why it needs to be detector pixel instead of spectral bin...
+        #         I think it's because we want to compare the S/N in a single pixel for a fair comparison, and not the S/N for a spectral bin.
+        #         For example, there may be a masked pixel in the spectral bin, which would give a lower S/N than a single pixel.
         flux_stack[:, ff] = flxcube[0, 0, :]# * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
         ivar_stack[:, ff] = utils.inverse(sigcube[0, 0, :])**2
 
@@ -1144,12 +1179,14 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                        sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
-    all_wghts = np.ones(slitidImg.size)
+    all_wghts = [np.ones(_sciImg[0].shape) for _ in range(numframes)]
+    # TODO :: UP TO HERE!
     for ff in range(numframes):
         ww = (slitidImg == ff)
         all_wghts[ww] = interp1d(wave_spec, weights[ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(waveImg[ww])
     msgs.info("Optimal weighting complete")
+    # TODO :: This really should be a list of weights, not a single array.
     return all_wghts
 
 
