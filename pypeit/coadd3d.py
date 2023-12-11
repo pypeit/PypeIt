@@ -391,10 +391,19 @@ class CoAdd3D:
 
         """
         # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
+        # Set the variables
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
         self.overwrite = overwrite
+        # Extract some parsets for simplicity
+        self.cubepar = self.par['reduce']['cube']
+        self.flatpar = self.par['calibrations']['flatfield']
+        self.senspar = self.par['sensfunc']
+        # Extract some commonly used variables
+        self.method = self.cubepar['method']
+        self.combine = self.cubepar['combine']
+        self.align = self.cubepar['align']
         # Do some quick checks on the input options
         if skysub_frame is not None:
             if len(skysub_frame) != self.numfiles:
@@ -438,11 +447,6 @@ class CoAdd3D:
         self.spec = load_spectrograph(spectrograph)
         self.specname = self.spec.name
 
-        # Extract some parsets for simplicity
-        self.cubepar = self.par['reduce']['cube']
-        self.flatpar = self.par['calibrations']['flatfield']
-        self.senspar = self.par['sensfunc']
-
         # Initialise arrays for storage
         self.ifu_ra, self.ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
 
@@ -454,10 +458,6 @@ class CoAdd3D:
         self._dspat = None if self.cubepar['spatial_delta'] is None else self.cubepar['spatial_delta'] / 3600.0  # binning size on the sky (/3600 to convert to degrees)
         self._dwv = self.cubepar['wave_delta']  # linear binning size in wavelength direction (in Angstroms)
 
-        # Extract some commonly used variables
-        self.method = self.cubepar['method']
-        self.combine = self.cubepar['combine']
-        self.align = self.cubepar['align']
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
         if self.numfiles == 1 and self.cubepar["reference_image"] is None:
             if self.align:

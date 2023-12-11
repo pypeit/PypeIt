@@ -1570,7 +1570,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         for ss in range(slice_subpixel):
             if slice_subpixel > 1:
                 # Only print this if there are multiple subslices
-                msgs.info(f"Subslice resampling {ss+1}/{slice_subpixel}")
+                msgs.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
             # Generate an RA/Dec image for this subslice
             raimg, decimg, minmax = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss])
             this_ra = raimg[this_onslit_gpm]
