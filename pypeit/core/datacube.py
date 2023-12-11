@@ -1139,6 +1139,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     coord_min = [_ra_min, _dec_min, _wave_min]
     coord_dlt = [dspat, dspat, dwv]
     whitelightWCS = generate_WCS(coord_min, coord_dlt)
+    wcs_scale = (1.0 * whitelightWCS.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
     # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
     numwav = int((_wave_max - _wave_min) / dwv)
     xbins = np.array([idx_max[0]-1, idx_max[0]+2]) - 0.5
@@ -1152,7 +1153,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     for ff in range(numframes):
         msgs.info("Extracting spectrum of highest S/N detection from frame {0:d}/{1:d}".format(ff + 1, numframes))
         flxcube, sigcube, bpmcube, wave = \
-            generate_cube_subpixel(whitelightWCS, bins, _sciImg[ff], _ivarImg[ff], _waveImg[ff],
+            generate_cube_subpixel(whitelightWCS, bins, _sciImg[ff], _ivarImg[ff], _waveImg[ff]/wcs_scale,
                                    _slitidImg[ff], np.ones(_sciImg[ff].shape),
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
