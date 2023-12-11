@@ -452,7 +452,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
-        substring = '' if slice_offset is None else f' with slice_offset={slice_offset}'
+        substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
         msgs.info("Generating an RA/DEC image"+substring)
         # Check the input
         if slice_offset is None:
