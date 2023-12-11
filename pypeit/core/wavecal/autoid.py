@@ -565,31 +565,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     stretch_vec = np.zeros(narxiv)
     stretch2_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
-    '''
-    plt.figure(figsize=(14, 6))
-    tampl_slit = np.interp(detections, xrng, spec_cont_sub)
-    plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
-    plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
-    plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
-                     label='arxiv arc', linewidth=0.5)
-    plt.legend()
-    plt.show()
-    '''
     
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
-        '''
-        show arxiv arc vs data arc
-        plt.figure(figsize=(14, 6))
-        tampl_slit = np.interp(detections, xrng, spec_cont_sub)
-        plt.plot(xrng, spec, color='green', drawstyle='steps-mid', label='input arc og',linewidth=1.0, zorder=10)
-        plt.plot(xrng, spec_cont_sub, color='red', drawstyle='steps-mid', label='input arc',linewidth=1.0, zorder=10)
-        plt.plot(detections, tampl_slit, 'r.', markersize=10.0, label='input arc lines', zorder=10)
-        plt.plot(xrng, spec_arxiv[:, iarxiv], color='black', drawstyle='steps-mid', linestyle=':',
-                        label='arxiv arc', linewidth=0.5)
-        plt.legend()
-        plt.show()
-        '''
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
@@ -609,7 +587,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         spec_arxiv_ss = wvutils.shift_and_stretch2(spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv])
         
         
-        #debug_xcorr = True
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
             tampl_slit = np.interp(detections, xrng, spec_cont_sub)
@@ -693,7 +670,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     patt_dict_slit['bdisp'] = np.median(disp[disp != 0.0])
     patt_dict_slit['sigdetect'] = sigdetect
 
-    #debug_reid = True
     if debug_reid:
         plt.figure(figsize=(14, 6))
         # Plot a summary of the local x-correlation values for each line on each slit
@@ -1087,9 +1063,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         Dict of wavelength calibration solutions
 
     """
-    #debug = True
-    #debug_xcorr = True
-    #debug_reid = True
     # Load line lists
     line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
@@ -1168,11 +1141,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             if lines_pix[slit] is not None:
                 msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 msgs.info('Checking for possible shifts')
-                #plt.figure()
-                #plt.plot(temp_spec_og[slit,:], label = 'Arxiv Arc')
-                #plt.plot(obs_spec_i, label = 'Data Arc')
-                #plt.legend()
-                #plt.show()
                 shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
                 msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
                 pix_arxiv_ss = lines_pix[slit] - shift_cc
@@ -1254,18 +1222,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
 
 
         # Cross-correlate
-        '''
-        plt.figure()
-        plt.plot(pad_spec, label = 'input spec')
-        plt.plot(tspec, label = 'template spec')
-        plt.legend()
-        plt.title('slit # '+str(slit))
-        plt.show()
-        '''
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
-        msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
-        #debug = True
+        msgs.info(f"Shift = {shift_cc:.2f}; cc = {corr_cc:.4f}")
         if debug:
             xvals = np.arange(tspec.size)
             plt.clf()
@@ -1309,8 +1268,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             # TODO -- JXP
             #  should we use par['cc_thresh'] instead of hard-coding cc_thresh??
             # Run reidentify
-            #debug_xcorr = True
-            #debug_reid = True
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
                                                               sigdetect=sigdetect,
@@ -1464,7 +1421,6 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
     wv_calib = {}
     bad_orders = np.array([], dtype=int)
     # Reidentify each slit, and perform a fit
-    #debug_all = True
     for iord in range(norders):
         if redo_slits is not None and orders[iord] not in redo_slits:
             continue
@@ -3024,7 +2980,6 @@ class HolyGrail:
         alldisp = self._bind[bidx[1]]
         allhnum = np.abs(histimg[bidx])
 
-        #debug = False
         if self._debug:# or slit==2:
             this_hist = histimg
             plt.clf()
@@ -3032,15 +2987,6 @@ class HolyGrail:
             fx = plt.figure(1, figsize=(12, 8))
             ax_image = fx.add_axes(rect_image)
             extent = [self._binw[0], self._binw[-1], self._bind[0], self._bind[-1]]
-            # plt.subplot(221)
-            # plt.imshow((np.abs(histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(222)
-            # plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(223)
-            # plt.imshow((np.abs(histimgp[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(224)
-            # plt.imshow((np.abs(histimgm[:, ::-1].T)), extent=extent, aspect='auto')
-            #plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
             cimg = ax_image.imshow(this_hist.T, extent=extent, aspect='auto',vmin=-2.0,vmax=5.0,
                        interpolation='nearest',origin='lower',cmap='Set1')
             nm = histimg.max() - histimg.min()
@@ -3057,14 +3003,7 @@ class HolyGrail:
             ax_image.plot(allwcen + delta_wv/2.0, alldisp + delta_disp/2.0, color='red', marker='+', markersize=10.0, fillstyle='none',
                      linestyle='None', zorder = 10,label=label)
             ax_image.legend()
-            #plt.plot(self._binw[bidx[0]], self._bind[bidx[1]], 'r+')
-#            ax_image.axvline(allwcen, color='r', linestyle='--')
-#            ax_image.axhline(alldisp, color='r', linestyle='--')
             plt.show()
-            #if False:
-            #    plt.clf()
-            #    plt.imshow(histimgp[:, ::-1].T, extent=extent, aspect='auto',vmin=0.0,vmax=1.0)
-            #    plt.show()
 
 
         # Find all good solutions

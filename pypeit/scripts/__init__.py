@@ -12,12 +12,14 @@ from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
 from pypeit.scripts import chk_noise_2dspec
+from pypeit.scripts import chk_scattlight
 from pypeit.scripts import chk_wavecalib
 from pypeit.scripts import coadd_1dspec
 from pypeit.scripts import coadd_2dspec
 from pypeit.scripts import coadd_datacube
 from pypeit.scripts import collate_1d
 from pypeit.scripts import compare_sky
+from pypeit.scripts import edge_inspector
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify

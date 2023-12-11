@@ -206,12 +206,6 @@ class Identify(scriptbase.ScriptBase):
                 #  Note:  This needs to be duplicated in test_scripts.py
                 # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
                 if 'WaveFit' in arcfitter._fitdict.keys():
-                    #if args.new_sol:
-                    #    waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
-                    #                        arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                    #                        spat_ids=np.atleast_1d(int(arcfitter._spatid)),
-                    #                        PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
-                    #else:
 
                     lines_pix_arr.append(arcfitter._fitdict['WaveFit']['pixel_fit'])
                     lines_wav_arr.append(arcfitter._fitdict['WaveFit']['wave_fit'])
@@ -290,7 +284,7 @@ class Identify(scriptbase.ScriptBase):
             # set to any flagged pixel in Arc.
             wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                     msbpm=msarc.select_flag())
-            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slit)])
+            arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
 
             # Launch the identify window
             # TODO -- REMOVE THIS HACK
@@ -298,7 +292,7 @@ class Identify(scriptbase.ScriptBase):
                 nonlinear_counts = msarc.detector.nonlinear_counts()
             except AttributeError:
                 nonlinear_counts = None
-            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
+            arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slits), par=par,
                                             wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                             nonlinear_counts=nonlinear_counts,
                                             pxtoler=args.pixtol, test=args.test, 

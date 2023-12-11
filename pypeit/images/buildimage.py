@@ -77,6 +77,18 @@ class TiltImage(pypeitimage.PypeItCalibrationImage):
     calib_type = 'Tiltimg'
 
 
+class ScatteredLightImage(pypeitimage.PypeItCalibrationImage):
+    """
+    Simple DataContainer for the Scattered Light Image
+    """
+    # version is inherited from PypeItImage
+
+    # I/O
+    output_to_disk = ('SCATTLIGHT_IMAGE', 'SCATTLIGHT_FULLMASK', 'SCATTLIGHT_DETECTOR')
+    hdu_prefix = 'SCATTLIGHT_'
+    calib_type = 'ScattLight'
+
+
 class TraceImage(pypeitimage.PypeItCalibrationImage):
     """
     Simple DataContainer for the Trace Image
@@ -133,6 +145,7 @@ frame_image_classes = dict(
     arc=ArcImage,
     tilt=TiltImage,
     trace=TraceImage,
+    scattlight=ScatteredLightImage,
     align=AlignImage)
 """
 The list of classes that :func:`buildimage_fromlist` should use to decorate the
@@ -144,7 +157,7 @@ All of these **must** subclass from
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
-                        flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
+                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
                         mosaic=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results.
@@ -179,6 +192,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
             Dark-current image; passed directly to
             :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
+            Scattered light model to be used to determine scattered light.
         flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
             Flat-field images for flat fielding; passed directly to
             :func:`~pypeit.images.rawimage.RawImage.process` for all images.
@@ -234,7 +249,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
     # Do it
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages, scattlight=scattlight,
                                    sigma_clip=frame_par['process']['clip'],
                                    sigrej=frame_par['process']['comb_sigrej'],
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,

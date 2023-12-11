@@ -761,6 +761,7 @@ class PypeIt:
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             dark=self.caliBrate.msdark,
+            scattlight=self.caliBrate.msscattlight,
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
@@ -772,6 +773,7 @@ class PypeIt:
                                                    bpm=self.caliBrate.msbpm,
                                                    bias=self.caliBrate.msbias,
                                                    dark=self.caliBrate.msdark,
+                                                   scattlight=self.caliBrate.msscattlight,
                                                    flatimages=self.caliBrate.flatimages,
                                                    slits=self.caliBrate.slits,
                                                    ignore_saturation=False)
@@ -788,11 +790,12 @@ class PypeIt:
         if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
                 (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
                     manual_flexure:
-            if manual_flexure:
+            if (manual_flexure or manual_flexure == 0) and not (np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer)):
                 msgs.info(f'Implementing manual flexure of {manual_flexure}')
-                spat_flexure = manual_flexure
+                spat_flexure = np.float64(manual_flexure)
                 sciImg.spat_flexure = spat_flexure
             else:
+                msgs.info(f'Using auto-computed flexure')
                 spat_flexure = sciImg.spat_flexure
         # Build the initial sky mask
         msgs.info(f'Flexure being used is: {spat_flexure}')
