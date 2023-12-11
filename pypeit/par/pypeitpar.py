@@ -1607,8 +1607,7 @@ class CubePar(ParSet):
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
                                  'See also, spec_subpixel and slice_subpixel.'
 
-        # TODO :: Change this default value to 5
-        defaults['slice_subpixel'] = 1
+        defaults['slice_subpixel'] = 5
         dtypes['slice_subpixel'] = int
         descr['slice_subpixel'] = 'When method=subpixel, slice_subpixel sets the subpixellation scale of ' \
                                   'each IFU slice. The default option is to divide each slice into 5 sub-slices ' \
