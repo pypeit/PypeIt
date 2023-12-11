@@ -633,15 +633,15 @@ def align_user_offsets(ifu_ra, ifu_dec, ra_offset, dec_offset):
     #       The cos(dec) factor should be input by the user, and should be included in the self.opts['ra_offset']
     ref_shift_ra = ifu_ra[0] - ifu_ra
     ref_shift_dec = ifu_dec[0] - ifu_dec
-    numfiles = ra_offset.size
-    out_ra_offsets = np.zeros(numfiles)
-    out_dec_offsets = np.zeros(numfiles)
+    numfiles = len(ra_offset)
+    out_ra_offsets = [0.0 for _ in range(numfiles)]
+    out_dec_offsets = [0.0 for _ in range(numfiles)]
     for ff in range(numfiles):
         # Apply the shift
         out_ra_offsets[ff] = ref_shift_ra[ff] + ra_offset[ff]
         out_dec_offsets[ff] = ref_shift_dec[ff] + dec_offset[ff]
         msgs.info("Spatial shift of cube #{0:d}:".format(ff + 1) + msgs.newline() +
-                  "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_offset[ff], dec_offset[ff]))
+                  "RA, DEC (arcsec) = {0:+0.3f} E, {1:+0.3f} N".format(ra_offset[ff]*3600.0, dec_offset[ff]*3600.0))
     return out_ra_offsets, out_dec_offsets
 
 
@@ -1186,6 +1186,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         all_wghts[ff][ww] = interp1d(wave_spec, weights[ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(waveImg[ff][ww])
     msgs.info("Optimal weighting complete")
+    embed()
     return all_wghts
 
 
