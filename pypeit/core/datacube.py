@@ -733,7 +733,8 @@ def check_inputs(list_inputs):
         msgs.error("The input arguments should all be of type 'list', or all not be of type 'list':")
 
 
-def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
+def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=None, dec_offsets=None,
+               ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
     """
     Calculate the bounds of the WCS and the expected edges of the voxels, based
     on user-specified parameters or the extremities of the data.
@@ -750,6 +751,10 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None,
         A list of 2D array containing the spat ID of each pixel, with shape (nspec, nspat).
         A value of 0 indicates that the pixel is not on a slit. All other values indicate the
         slit spatial ID.
+    ra_offsets : list, optional
+        A list of the RA offsets for each frame
+    dec_offsets : list, optional
+        A list of the Dec offsets for each frame
     ra_min : :obj:`float`, optional
         Minimum RA of the WCS
     ra_max : :obj:`float`, optional
@@ -778,9 +783,18 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None,
     _wave_max : :obj:`float`
         Maximum wavelength of the WCS
     """
+    # Check if the ra_offsets and dec_offsets are specified
+    if ra_offsets is None or dec_offsets is None:
+        if isinstance(raImg, list):
+            ra_offsets = [0.0]*len(raImg)
+            dec_offsets = [0.0]*len(raImg)
+        else:
+            ra_offsets = 0.0
+            dec_offsets = 0.0
     # Check the inputs
-    _raImg, _decImg, _waveImg, _slitid_img_gpm = check_inputs([raImg, decImg, waveImg, slitid_img_gpm])
-    numframes = len(raImg)
+    _raImg, _decImg, _waveImg, _slitid_img_gpm, _ra_offsets, _dec_offsets = \
+        check_inputs([raImg, decImg, waveImg, slitid_img_gpm, ra_offsets, dec_offsets])
+    numframes = len(_raImg)
 
     # Loop over the frames and get the bounds - start by setting the default values
     _ra_min, _ra_max = ra_min, ra_max
@@ -791,14 +805,14 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None,
         # Get the RA, Dec, and wavelength of the pixels on the slit
         if ra_min is None or ra_max is None:
             this_ra = _raImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_ra), np.max(this_ra)
+            tmp_min, tmp_max = np.min(this_ra)+_ra_offsets[fr], np.max(this_ra)+_ra_offsets[fr]
             if fr == 0 or tmp_min < _ra_min:
                 _ra_min = tmp_min
             if fr == 0 or tmp_max > _ra_max:
                 _ra_max = tmp_max
         if dec_min is None or dec_max is None:
             this_dec = _decImg[fr][_slitid_img_gpm[fr] > 0]
-            tmp_min, tmp_max = np.min(this_dec), np.max(this_dec)
+            tmp_min, tmp_max = np.min(this_dec)+_dec_offsets[fr], np.max(this_dec)+_dec_offsets[fr]
             if fr == 0 or tmp_min < _dec_min:
                 _dec_min = tmp_min
             if fr == 0 or tmp_max > _dec_max:
@@ -815,6 +829,7 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=None, ra_max=None,
 
 
 def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
+               ra_offsets=None, dec_offsets=None,
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                reference=None, collapse=False, equinox=2000.0, specname="PYP_SPEC"):
     """
@@ -838,6 +853,10 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
         values in cubepar.
     dwave : float
         Linear wavelength step of each voxel (in Angstroms)
+    ra_offsets : list, optional
+        List of RA offsets for each frame (degrees)
+    dec_offsets : list, optional
+        List of Dec offsets for each frame (degrees)
     ra_min : float, optional
         Minimum RA of the WCS (degrees)
     ra_max : float, optional
@@ -872,8 +891,9 @@ def create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, dwave,
     """
     # Setup the cube ranges
     _ra_min, _ra_max, _dec_min, _dec_max, _wave_min, _wave_max = \
-        wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max,
-                   wave_min=wave_min, wave_max=wave_max)
+        wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm,
+                   ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+                   ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max)
 
     # Grab cos(dec) for convenience. Use the average of the min and max dec
     cosdec = np.cos(0.5*(_dec_min+_dec_max) * np.pi / 180.0)
@@ -1043,6 +1063,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     # Generate the WCS
     image_wcs, voxedge, reference_image = \
         create_wcs(raImg, decImg, waveImg, slitid_img_gpm, dspat, wavediff,
+                   ra_offsets=ra_offsets, dec_offsets=dec_offsets,
                    ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max,
                    reference=reference_image, collapse=True, equinox=2000.0, specname=specname)
 
@@ -1132,7 +1153,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
     # Check the WCS bounds
     _ra_min, _ra_max, _dec_min, _dec_max, _wave_min, _wave_max = \
-        wcs_bounds(_raImg, _decImg, _waveImg, _slitidImg,
+        wcs_bounds(_raImg, _decImg, _waveImg, _slitidImg, ra_offsets=_ra_offsets, dec_offsets=_dec_offsets,
                    ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max)
 
     # Find the location of the object with the highest S/N in the combined white light image
@@ -1162,11 +1183,9 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1)
-        # Calculate the S/N in a given spectral bin
-        # TODO :: Think more about this... RJC removed the sqrt here - not sure why it needs to be detector pixel instead of spectral bin...
-        #         I think it's because we want to compare the S/N in a single pixel for a fair comparison, and not the S/N for a spectral bin.
-        #         For example, there may be a masked pixel in the spectral bin, which would give a lower S/N than a single pixel.
-        flux_stack[:, ff] = flxcube[:, 0, 0]# * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
+        # Store the flux and ivar spectra of the highest S/N object.
+        # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
+        flux_stack[:, ff] = flxcube[:, 0, 0]
         ivar_stack[:, ff] = utils.inverse(sigcube[:, 0, 0])**2
 
     # Mask out any pixels that are zero in the flux or ivar stack
