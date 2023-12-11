@@ -1053,7 +1053,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                                       spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True)
 
     # Compute the weights
-    return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitid_img_gpm,
+    return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                            all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                            wl_full[:, :, 0], dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
@@ -1166,9 +1166,10 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         # TODO :: Think more about this... RJC removed the sqrt here - not sure why it needs to be detector pixel instead of spectral bin...
         #         I think it's because we want to compare the S/N in a single pixel for a fair comparison, and not the S/N for a spectral bin.
         #         For example, there may be a masked pixel in the spectral bin, which would give a lower S/N than a single pixel.
-        flux_stack[:, ff] = flxcube[0, 0, :]# * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
-        ivar_stack[:, ff] = utils.inverse(sigcube[0, 0, :])**2
+        flux_stack[:, ff] = flxcube[:, 0, 0]# * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
+        ivar_stack[:, ff] = utils.inverse(sigcube[:, 0, 0])**2
 
+    # Mask out any pixels that are zero in the flux or ivar stack
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
@@ -1187,7 +1188,6 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         all_wghts[ff][ww] = interp1d(wave_spec, weights[ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(waveImg[ff][ww])
     msgs.info("Optimal weighting complete")
-    embed()
     return all_wghts
 
 

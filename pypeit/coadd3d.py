@@ -416,8 +416,8 @@ class CoAdd3D:
         # Set the frame specific options
         self.skysub_frame = skysub_frame
         self.scale_corr = scale_corr
-        self.ra_offsets = np.array(ra_offsets) if isinstance(ra_offsets, list) else ra_offsets
-        self.dec_offsets = np.array(dec_offsets) if isinstance(dec_offsets, list) else dec_offsets
+        self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
+        self.dec_offsets = list(dec_offsets) if isinstance(dec_offsets, np.ndarray) else dec_offsets
         # If no ra_offsets or dec_offsets have been provided, initialise the lists
         self.user_alignment = True
         if self.ra_offsets is None and self.dec_offsets is None:
@@ -427,8 +427,8 @@ class CoAdd3D:
             # User offsets are not provided, so turn off the user_alignment
             self.user_alignment = False
             # Initialise the lists of ra_offsets and dec_offsets
-            self.ra_offsets = np.zeros(self.numfiles)
-            self.dec_offsets = np.zeros(self.numfiles)
+            self.ra_offsets = [0.0 for _ in range(self.numfiles)]
+            self.dec_offsets = [0.0 for _ in range(self.numfiles)]
 
         # Check on Spectrograph input
         if spectrograph is None:
@@ -1131,6 +1131,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Calculate the weights relative to the zeroth cube
             self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
+            wghts = self.weights[ff] * np.ones(sciImg.shape)
 
             # Get the slit image and then unset pixels in the slit image that are bad
             slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
@@ -1139,14 +1140,14 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Astrometric alignment to HST frames
             # TODO :: RJC requests this remains here... it is only used by RJC
             # Get the coordinate bounds
-            slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-            numwav = int((np.max(waveimg) - wave0) / dwv)
-            raw_bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
-            wghts = np.ones(sciImg.shape)
-            # Now do the alignment
-            self.ra_offsets[ff], self.dec_offsets[ff] = hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts,
-                                                                      self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
-                                                                      raw_bins=raw_bins)
+            if False:
+                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+                numwav = int((np.max(waveimg) - wave0) / dwv)
+                raw_bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
+                # Now do the alignment
+                self.ra_offsets[ff], self.dec_offsets[ff] = hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts,
+                                                                          self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
+                                                                          raw_bins=raw_bins)
             # TODO :: Does this need to be included anywhere?
             # self.ifu_ra[ff] += self.ra_offsets[ff]
             # self.ifu_dec[ff] += self.dec_offsets[ff]
@@ -1219,12 +1220,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.ifu_dec[0]) * np.pi / 180.0)
         # Initialize the RA and Dec offset arrays
-        ra_offsets, dec_offsets = np.zeros(self.numfiles), np.zeros(self.numfiles)
+        ra_offsets, dec_offsets = [0 for _ in range(self.numfiles)], [0 for _ in range(self.numfiles)]
         # Register spatial offsets between all frames
         if self.user_alignment:
             # The user has specified offsets - update these values accounting for the difference in header RA/DEC
             ra_offsets, dec_offsets = datacube.align_user_offsets(self.ifu_ra, self.ifu_dec,
-                                                                            self.ra_offsets, self.dec_offsets)
+                                                                  self.ra_offsets, self.dec_offsets)
         else:
             # Find the wavelength range where all frames overlap
             min_wl, max_wl = datacube.get_whitelight_range(np.max(self.mnmx_wv[:, :, 0]),  # The max blue wavelength
