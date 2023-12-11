@@ -2642,11 +2642,12 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
+                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, numsearch=None,
+                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
+                 n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None):
@@ -2716,6 +2717,18 @@ class WavelengthSolutionPar(ParSet):
         descr['ech_sigrej'] = 'For echelle spectrographs, this is the sigma-clipping rejection ' \
                               'threshold in the 2d fit to spectral and order dimensions'
 
+        defaults['bad_orders_maxfrac'] = 0.25
+        dtypes['bad_orders_maxfrac'] = float
+        descr['bad_orders_maxfrac'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                      'this is the maximum fraction of orders (per detector) with failed 1D fit, ' \
+                                      'for PypeIt to attempt a refit.'
+
+        defaults['frac_rms_thresh'] = 1.5
+        dtypes['frac_rms_thresh'] = float
+        descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                   'this is the fractional change in the RMS threshold used ' \
+                                   'when a 1D fit is re-attempted for failed orders.' \
+
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
         descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
@@ -2732,7 +2745,7 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
                          'recorded in the header of the arc frames (this is currently ' \
-                         'available only for Keck DEIMOS and LDT DeVeny).' # \
+                         'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2801,6 +2814,11 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
+        defaults['reid_cont_sub'] = True
+        dtypes['reid_cont_sub'] = bool
+        descr['reid_cont_sub'] = 'If True, continuum subtract the arc and arxiv spectrum before ' \
+                                 'the wavelength reidentification. ' \
+
         defaults['wvrng_arxiv'] = None
         dtypes['wvrng_arxiv'] = list
         descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
@@ -2809,6 +2827,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
                             '\'full_template\''
+
+        pars['cc_shift_range'] = tuple_force(pars['cc_shift_range'])
+        defaults['cc_shift_range'] = None
+        dtypes['cc_shift_range'] = tuple
+        descr['cc_shift_range'] = 'Range of pixel shifts allowed when cross-correlating the ' \
+                                  'input arc spectrum with the archive spectrum.  If None, the ' \
+                                  'range will be automatically determined.'
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, np.ndarray]
@@ -2841,8 +2866,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_thresh_frac_fwhm'] = float
         descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
-                                        'FWHM will be computed from the arc lines in each slits ' \
-                                        '(the median value among all the slits is used), otherwise ``fwhm`` ' \
+                                        'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
                                         '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
                                         'a slit using the ``redo_slits`` parameter. '
@@ -2908,9 +2932,6 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
-
-
-
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -2924,9 +2945,9 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
+                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
