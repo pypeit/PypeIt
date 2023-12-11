@@ -957,7 +957,7 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
 
 
 def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, dspat, dwv, mnmx_wv, wghtsImg,
-                            all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
+                            all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                             sn_smooth_npix=None, relative_weights=False, reference_image=None, whitelight_range=None,
                             specname="PYPSPEC"):
@@ -989,6 +989,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
             The minimum and maximum wavelengths are stored in the [:,:,0] and [:,:,1] indices, respectively.
         wghtsImg (`numpy.ndarray`_, list):
             A list of 2D array containing the weights of each pixel, with shape (nspec, nspat)
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of WCS objects, one for each frame.
         all_tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames
         all_slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
@@ -1047,19 +1049,19 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     # Generate the white light image
     # NOTE: hard-coding subpixel=1 in both directions for speed, and combining into a single image
     wl_full = generate_image_subpixel(image_wcs, voxedge, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtsImg,
-                                      all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
+                                      all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                                       spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True)
 
     # Compute the weights
-    return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
-                           all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
+    return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitid_img_gpm,
+                           all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                            wl_full[:, :, 0], dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
                            sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
 
 
 def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
-                    all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
+                    all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                     whitelight_img, dspat, dwv,
                     ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                     sn_smooth_npix=None, relative_weights=False):
@@ -1080,6 +1082,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
         slitidImg (`numpy.ndarray`_, list):
             A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of WCS objects, one for each frame.
         all_tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames
         all_slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
@@ -1116,9 +1120,9 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     msgs.info("Calculating the optimal weights of each pixel")
     # Check the inputs for combinations of lists or not, and then determine the number of frames
     _raImg, _decImg, _waveImg, _sciImg, _ivarImg, _slitidImg, \
-        _all_tilts, _all_slits, _all_align, _all_dar, _ra_offsets, _dec_offsets = \
+        _all_wcs, _all_tilts, _all_slits, _all_align, _all_dar, _ra_offsets, _dec_offsets = \
             check_inputs([raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
-                          all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets])
+                          all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets])
     numframes = len(_sciImg)
 
     # If there's only one frame, use uniform weighting
@@ -1153,8 +1157,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     for ff in range(numframes):
         msgs.info("Extracting spectrum of highest S/N detection from frame {0:d}/{1:d}".format(ff + 1, numframes))
         flxcube, sigcube, bpmcube, wave = \
-            generate_cube_subpixel(whitelightWCS, bins, _sciImg[ff], _ivarImg[ff], _waveImg[ff]/wcs_scale,
-                                   _slitidImg[ff], np.ones(_sciImg[ff].shape),
+            generate_cube_subpixel(whitelightWCS, bins, _sciImg[ff], _ivarImg[ff], _waveImg[ff],
+                                   _slitidImg[ff], np.ones(_sciImg[ff].shape), _all_wcs[ff],
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1)
@@ -1165,7 +1169,6 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         flux_stack[:, ff] = flxcube[0, 0, :]# * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
         ivar_stack[:, ff] = utils.inverse(sigcube[0, 0, :])**2
 
-    embed()
     mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
@@ -1184,11 +1187,12 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         all_wghts[ff][ww] = interp1d(wave_spec, weights[ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(waveImg[ff][ww])
     msgs.info("Optimal weighting complete")
+    embed()
     return all_wghts
 
 
 def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                            tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                            all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                             spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False):
     """
     Generate a white light image from the input pixels
@@ -1214,6 +1218,9 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         wghtImg (`numpy.ndarray`_, list):
             A list of 2D weight images, or a single 2D image containing the
             weight data.
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of WCS objects, or a single WCS object containing the WCS
+            information of each image.
         tilts (`numpy.ndarray`_, list):
             2D wavelength tilts frame, or a list of tilt frames (see all_idx)
         slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
@@ -1256,8 +1263,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         `numpy.ndarray`_: The white light images for all frames
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
-    _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
-        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
     numframes = len(_sciImg)
 
     # Prepare the array of white light images to be stored
@@ -1271,12 +1278,12 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         if combine:
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
-                                     _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
+                                     _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         else:
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
-                                     _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
+                                     _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
@@ -1284,7 +1291,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
 
 def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                           tilts, slits, astrom_trans, all_dar,
+                           all_wcs, tilts, slits, astrom_trans, all_dar,
                            ra_offset, dec_offset,
                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5,
                            overwrite=False, outfile=None, whitelight_range=None, debug=False):
@@ -1311,6 +1318,8 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         wghtImg (`numpy.ndarray`_, list):
             A list of 2D array containing the weights of each pixel to be used in the
             combination
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file
         tilts (list):
             A list of `numpy.ndarray`_ objects, one for each spec2d file,
             containing the tilts of each pixel
@@ -1379,7 +1388,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
     # Subpixellate
     subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                          tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                          all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
                           debug=debug)
     # Extract the variables that we need
@@ -1420,7 +1429,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
 
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                 tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                  spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
@@ -1455,6 +1464,8 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         wghtImg (`numpy.ndarray`_, list):
             A list of 2D array containing the weights of each pixel to be used in the
             combination
+        all_wcs (`astropy.wcs.WCS`_, list):
+            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file
         tilts (list):
             A list of `numpy.ndarray`_ objects, one for each spec2d file,
             containing the tilts of each pixel
@@ -1503,8 +1514,8 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         residual cube.  The latter is only returned if debug is True.
     """
     # Check the inputs for combinations of lists or not
-    _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
-        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
+    _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
+        check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
     numframes = len(_sciImg)
 
     # Prepare the output arrays
