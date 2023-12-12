@@ -81,11 +81,13 @@ class OperationThread(QThread):
 
         with lock_qt_mutex(self._mutex):
             create_progress = False
-            if self._max_progress is None:
-                if max_progress is not None:
-                    self._max_progress = max_progress
-                    create_progress = True
-            mp = self._max_progress
+            mp = None
+            if self._operation is not None:
+                if self._max_progress is None:
+                    if max_progress is not None:
+                        self._max_progress = max_progress
+                        create_progress = True
+                mp = self._max_progress
         
         if create_progress:
             # If we've just initialized the max progress, create the progress dialog
