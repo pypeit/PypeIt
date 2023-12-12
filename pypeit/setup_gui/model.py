@@ -25,7 +25,7 @@ from pypeit import msgs, spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile
-from pypeit.core.framematch import FrameTypeBitMask
+import pypeit.core
 
 class ModelState(enum.Enum):
     """The state values for a model object."""
@@ -271,7 +271,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         Return:
             list of str: List of names of the allowable frame types.
         """
-        return FrameTypeBitMask().keys()
+        return pypeit.core.framematch.FrameTypeBitMask().keys()
 
     def rowCount(self, parent_index=QModelIndex()):
         """Returns number of rows under a parent. Overridden method from QAbstractItemModel.
@@ -1309,12 +1309,36 @@ class PypeItSetupGUIModel(QObject):
             pf.data.add_column(directories, name='directory')
             pf.data.add_column([pf.setup_name] * len(pf.data), name='setup')
             spec, par, config_specific_file = pf.get_pypeitpar()
+
+            # Set configuration key columns not already in the metadata
+            for key in spec.configuration_keys():
+                if key not in pf.data.colnames:
+                    # Some keys may allow None as a valid value, so we don't treat a missing
+                    # key as an error
+                    value = pf.setup.get(key,None)
+                    pf.data.add_column([value]*len(pf.data),name=key)
+
+            # Now set types based on core metadata
+            core_metadata_model = pypeit.core.meta.get_meta_data_model()
+            for colname in pf.data.colnames:
+                # Treat columns not in the core metadata as strings, (these can be things like 'filename', 'frametype', etc)
+                if colname not in core_metadata_model:
+                    col_dtype = str
+                else:
+                    col_dtype = core_metadata_model[colname]['dtype']
+                if col_dtype is not str:
+                    # input files will in non-existent values as blank strings, convert these to None
+                    string_values = [True if isinstance(v,str) else False for v in pf.data[colname]]
+                    pf.data[colname][string_values] = None
+                # Convert the object dtypes to the correct type
+                pf.data[colname] = astropy.table.Column(data=pf.data[colname],dtype=col_dtype)
+
+            # Build the PypeItMetaData object with the converted data from the input file
             metadata = PypeItMetaData(spec, par, data=pf.data, strict=False)
             # Make sure the frame type bits get set
             user_frametypes = {filename: frametype for filename, frametype in pf.data['filename','frametype']}
             metadata.get_frame_types(user=user_frametypes)
-            info_names = '\n'.join(metadata['filename'].tolist())
-            msgs.info(f"Filenames: {info_names}")
+
             self._pypeit_setup = PypeItSetup(filenames,
                                              setups=[pf.setup_name],
                                              cfg_lines=pf.cfg_lines,
