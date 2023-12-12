@@ -2239,11 +2239,11 @@ class TelluricPar(ParSet):
         dtypes['tell_npca'] = int
         descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
         
-        defaults['teltype'] = 'PCA'
+        defaults['teltype'] = 'pca'
         dtypes['teltype'] = str
-        descr['teltype'] = 'Method used to evaluate telluric models, either PCA or grid. The grid option uses a ' \
+        descr['teltype'] = 'Method used to evaluate telluric models, either pca or grid. The grid option uses a ' \
                            'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
-                           'observatory, whereas the PCA option uses principal components of a larger model grid ' \
+                           'observatory, whereas the pca option uses principal components of a larger model grid ' \
                            'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
@@ -2495,6 +2495,15 @@ class TelluricPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
+        
+        if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
+            raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
+                             '(must be between 1 and 10).')
+                             
+        if self.data['teltype'].lower() != 'pca' and self.data['teltype'].lower() != 'grid':
+            raise ValueError('Invalid teltype {} '.format(self.data['teltype'])+
+                             ', must be "pca" or "grid".')
+        
         pass
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
