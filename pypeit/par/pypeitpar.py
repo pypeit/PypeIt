@@ -2235,7 +2235,7 @@ class TelluricPar(ParSet):
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
         
-        defaults['tell_npca'] = 4
+        defaults['tell_npca'] = 5
         dtypes['tell_npca'] = int
         descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
         

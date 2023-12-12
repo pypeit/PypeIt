@@ -439,11 +439,11 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
                                  tell_dict['tell_pca'][:ntell+1][:,ind_lower_pad:ind_upper_pad+1])
                                  
         # PCA model is inverse sinh of the optical depth, convert to transmission here
-        tellmodel_hires = np.sinh(tellmodel_hires)
+        tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.sinh(tellmodel_hires[ind_lower_pad:ind_upper_pad+1])
         # It should generally be very rare, but trim negative optical depths here just in case.
         clip = tellmodel_hires < 0
         tellmodel_hires[clip] = 0
-        tellmodel_hires = np.exp(-tellmodel_hires)
+        tellmodel_hires[ind_lower_pad:ind_upper_pad+1] = np.exp(-tellmodel_hires[ind_lower_pad:ind_upper_pad+1])
     elif teltype == 'grid':
         # Interpolate within the telluric grid
         tellmodel_hires = interp_telluric_grid(theta_tell[:ntell], tell_dict)
@@ -2404,6 +2404,7 @@ class Telluric(datamodel.DataContainer):
             self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                wave_max=self.wave_in_arr[wv_gpm].max())
         elif self.teltype == 'grid':
+            self.tell_npca = 4
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
 
@@ -2775,7 +2776,7 @@ class Telluric(datamodel.DataContainer):
                 tell_med[iord] = np.mean(tell_model_mid)
             else:
                 tell_model_mean = self.tell_dict['tell_pca'][0,self.ind_lower[iord]:self.ind_upper[iord]+1]
-                tell_med[iord] = np.mean(tell_model_mean)
+                tell_med[iord] = np.mean(np.exp(-np.sinh(tell_model_mean)))
 
         # Perform fits in order of telluric strength
         return tell_med.argsort()
