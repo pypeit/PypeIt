@@ -39,9 +39,10 @@ class WaveFit(datamodel.DataContainer):
     spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
+                 'ech_order': dict(otype=(int,np.integer), descr='Echelle order number.'),
                  'pypeitfit': dict(otype=fitting.PypeItFit,
                                    descr='Fit to 1D wavelength solutions'),
                  'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
@@ -70,7 +71,7 @@ class WaveFit(datamodel.DataContainer):
         """ Naming for HDU extensions"""
         return 'SPAT_ID-{}_'.format(spat_id)
 
-    def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
+    def __init__(self, spat_id, ech_order=None, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
                  fwhm=None):
