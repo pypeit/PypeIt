@@ -78,6 +78,8 @@ Under-the-hood Improvements
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 - Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
   deprecated ``numpy.polyfit()`` function.
+- Fixed some failure modes when matching measured order positions to expected
+  positions for fixed-format echelle spectrographs.
 
 Bug Fixes
 ---------
