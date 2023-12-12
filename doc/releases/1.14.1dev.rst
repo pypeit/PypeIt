@@ -41,6 +41,7 @@ Functionality/Performance Improvements and Additions
   to reflect the *type* of polynomial being fit.  Both names point to the same
   code, but the name ``'polynomial'`` is deprecated and will be removed in the
   future.
+- Introduced PCA method for telluric corrections
 
 Instrument-specific Updates
 ---------------------------
