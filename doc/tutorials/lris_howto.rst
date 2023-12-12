@@ -57,7 +57,10 @@ or observations in various gratings). The script :ref:`pypeit_setup`
         However, unlike DEIMOS, LRIS slitmask information is not included in the raw data,
         and the user needs to add it to the raw data before running PypeIt. The software
         `TILSOTUA <https://github.com/jsulli27/tilsotua>`__ can help with that, but the
-        user needs first to obtain the mask design files. Those files are processed by
+        user needs first to obtain the mask design files. The files needed are two
+        output files produced by `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__
+        when creating the slitmask for the observations, and The ASCII object list file fed as input to
+        `autoslit <https://www2.keck.hawaii.edu/inst/lris/autoslit_WMKO.html>`__. Those files are processed by
         TILSOTUA and converted into binary tables, containing the slitmask design information,
         the object catalog and the mapping between the two. The user, subsequently, needs to
         append the binary tables to the raw flat field image file. See :ref:`lris_slitmask`
@@ -163,7 +166,8 @@ which opens the `ginga`_ image viewer. Here is a zoom-in screenshot from the fir
 in the `ginga`_ window:
 
 .. image:: ../figures/lris_edges_image.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 
 
 The data shown is the *Trace Image*, i.e., the flat image.
@@ -209,7 +213,8 @@ You can view the ``Arc`` image used for the wavelength calibration of the scienc
     ginga Calibrations/Arc_A_0_DET01.fits
 
 .. image:: ../figures/lris_arc_image.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 
 As typical of most arc images, we can sees a series of arc lines, here oriented approximately horizontally.
 
@@ -274,6 +279,7 @@ There are several QA files written for the 2D fits. One example is
 
 .. image:: ../figures/lris_arc2d.png
   :scale: 20%
+  :align: center
 
 Each horizontal line of black open circles identifies a traced arc line.
 Red circles shows the points that were rejected in the 2D fitting, and the
@@ -289,10 +295,13 @@ traced and 2D fitted tilts over-plotted. Here is an example:
     pypeit_chk_tilts Calibrations/Tilts_A_0_DET01.fits
 
 .. image:: ../figures/lris_tilts.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 
 This shows a zoom-in of a :ref:`tiltimg` image in a `ginga`_ window with overlaid
 the 2D fitted tilts (blue), the masked pixels (red), and the pixels rejected in the 2D fitting (yellow).
+The lines that are not overlaid with any colored tilts are the ones that were not detected for the purpose of the
+performing the 2D fitting.
 
 See :ref:`tilts` for further details.
 
@@ -312,7 +321,8 @@ To inspect the ``Flat`` images we can use the script :ref:`pypeit_chk_flats`, wi
 Here is a zoom-in screenshot from the first tab in the `ginga`_ window (``pixflat_norm``):
 
 .. image:: ../figures/lris_flat.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 
 This shows the normalized flat field image. The green/magenta lines are the slit edges, which are
 tweaked using the illumination flat field.
@@ -332,10 +342,13 @@ One example is ``QA\PNGs\r230417_01033-frb22022_LRISr_20230417T082242.672_DET01_
 
 .. image:: ../figures/lris_objfind.png
    :scale: 30%
+   :align: center
 
 This shows the spatial profile of the object's S/N collapsed along the spectral direction.
 The dashed red line is the S/N threshold set by the :ref:`findobjpar`, and the green circle
-marks the spatial position of the detected object.
+marks the spatial position of the detected object. This plot is useful to assess if the object
+was correctly detected and if the S/N threshold (``snr_thresh``) set is appropriate for the
+observation. See :ref:`object_finding` for further details.
 
 Flexure
 -------
@@ -349,15 +362,28 @@ extracted at the center of the slit, and one (called ``local``) using the sky li
 extracted at the location of the science object.
 
 There are two QA files (two for the ``global`` and two for the ``local`` correction)
-that can be used to assess the flexure correction. Here is an example of the ``global`` correction,
+that can be used to assess the flexure correction. Here is an example of two QA files
+for the ``global`` correction, called
+``QA/PNGs/r230417_01033-frb22022_LRISr_20230417T082242.672_global_DET01_S0212_spec_flex_corr.png`` and
 ``QA/PNGs/r230417_01033-frb22022_LRISr_20230417T082242.672_global_DET01_S0212_spec_flex_sky.png``:
 
+.. image:: ../figures/lris_flexure_qa2.png
+   :scale: 80%
+   :align: center
 .. image:: ../figures/lris_flexure_qa.png
-   :scale: 100%
+   :scale: 80%
+   :align: center
 
-It shows sky spectrum cutouts around some of the sky lines used for the flexure correction.
+The first plot shows the polynomial fit (red line) between the top seven highest cross-correlation values
+(y-axis) and the corresponding shift in pixels (x-axis). The value of the shift with the highest
+cross-correlation is the flexure correction applied to the wavelength solution (also printed in the plot).
+The user should inspect this plot to make sure that the fit is good and that the value of the flexure shift
+is comparable to what expected for the observations.
+The second plot shows sky spectrum cutouts around some of the sky lines used for the flexure correction.
 The black line is the sky spectrum extracted at the center of the slit shifted by the
-computed flexure correction, while the red line is the archived sky spectrum.
+computed flexure correction, while the red line is the archived sky spectrum. This is another way to
+assess that the computed flexure correction is good. The user should hope to see a good match between
+the two spectra.
 
 Outputs
 =======
@@ -417,11 +443,14 @@ We show here a zoom-in screenshot from three (``sciimg-DET01``, ``sky_resid-DET0
 four tabs in the `ginga`_ window:
 
 .. image:: ../figures/lris_sciimg.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 .. image:: ../figures/lris_skyres.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 .. image:: ../figures/lris_res.png
-   :scale: 40%
+   :scale: 60%
+   :align: center
 
 This shows on the top the calibrated science image, in the middle the sky residual image (sky-subtracted
 calibrated image divided by the uncertainties), and on the right the residual image.
