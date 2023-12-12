@@ -728,6 +728,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         
         # Telluric parameters
         par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
+        par['telluric']['resln_frac_bounds'] = (0.4,1.4)
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'

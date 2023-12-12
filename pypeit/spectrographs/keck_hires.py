@@ -161,7 +161,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
         
         # Telluric parameters
+        # HIRES is usually oversampled, so the helio shift can be large
         par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
+        # Similarly, the resolution guess is higher than it should be
+        par['telluric']['resln_frac_bounds'] = (0.25,1.25)
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'
