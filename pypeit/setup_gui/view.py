@@ -7,9 +7,9 @@ from PyQt6 import QtGui
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar
+from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
 from qtpy.QtGui import QIcon,QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
-from qtpy.QtCore import Qt, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
+from qtpy.QtCore import Qt, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
 from pypeit.setup_gui.model import ModelState, PypeItMetadataModel, available_spectrographs
 from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow
@@ -119,11 +119,39 @@ class PathEditor(QWidget):
             self._add_path(new_path)
 
 class PypeItEnumListEditor(QWidget):
-    def __init__(self, parent, allowed_values, num_lines=5):
+    """Widget for editing a enumerated list of values by checking the values
+    on or off with a checkbox.
+    
+    Args:
+        parent (QWidget): 
+            The parent of the editor.
+        allowed_values (list of str):
+            The list of allowed values in the enumeration.
+        index (QModelIndex):
+            The index of the item being edited.
+        num_lines (int):
+            The number of lines to display. Any other lines
+            will be reachable by scrolling.
+    """
+
+    closed = Signal(QWidget, bool)
+    """
+    Signal sent when the user closes the editor with the OK or CANCEL button.
+    Args:
+        editor (QWidget):
+            The editor that was closed.
+        accepted (bool):
+            True if a change was accepted, False if it was canceled.
+    """
+
+    def __init__(self, parent, allowed_values, index, num_lines):
         super().__init__(parent)
+        self.index=index
         self._values = set()
         self._allowed_values = allowed_values
         self._checkboxes = dict()
+        self.setBackgroundRole(QPalette.ColorRole.Window)
+        self.setAutoFillBackground(True)
         layout = QVBoxLayout(self)
         layout.setSpacing(0)
         layout.setContentsMargins(0,0,0,0)
@@ -139,7 +167,7 @@ class PypeItEnumListEditor(QWidget):
         checkbox_container.setAutoFillBackground(True)
         checkbox_layout=QVBoxLayout(checkbox_container)
         checkbox_layout.setContentsMargins(0,0,0,0)
-        #self.setBackgroundRole(QPalette.ColorRole.Button)
+
         max_checkbox_width = 0
         for value in self._allowed_values:
             checkbox = QCheckBox(text=value, parent=checkbox_container)
@@ -151,18 +179,9 @@ class PypeItEnumListEditor(QWidget):
             if checkbox.width() > max_checkbox_width:
                 max_checkbox_width = checkbox.width()
 
+        msgs.info(f"Max checkbox width: {max_checkbox_width}")
         scroll_area.setWidget(checkbox_container)
-
-        # Set the minimum height for this widget given requested # of lines
-        # This assumes the checkboxes are the same height
-        min_height = checkbox_layout.spacing()*(num_lines-1) + checkbox.height()*num_lines
-
-        # Account for scrollbar            
-        if scroll_area.horizontalScrollBar():
-            min_height += scroll_area.horizontalScrollBar().sizeHint().height()
-
-        # Account for margins
-        min_height += scroll_area.contentsMargins().top() + scroll_area.contentsMargins().bottom()
+        #scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Figure out the minimum width
         min_width = max_checkbox_width
@@ -173,21 +192,70 @@ class PypeItEnumListEditor(QWidget):
 
         min_width += scroll_area.contentsMargins().left() + scroll_area.contentsMargins().right() 
 
-        self.setFixedSize(min_width, min_height)
-        msgs.info(f"Fixed size {min_width},{min_height}")
-        self._button_group.buttonToggled.connect(self._choiceChecked)
-        #msgs.info(f"My bg role/autofill: {self.backgroundRole()}/{self.foregroundRole()}/{self.autoFillBackground()} checkbox bg role/autofill: {checkbox.backgroundRole()}/{checkbox.foregroundRole()}/{checkbox.autoFillBackground()}")
+        # Add Ok and cancel buttons at the bottom, outside the scroll area
+        ok_cancel_container = QWidget(parent=checkbox_container)
+        ok_cancel_layout = QHBoxLayout()
 
+        accept_button=QPushButton(text="OK")
+        accept_button.setDefault(True)
+        accept_button.clicked.connect(self._accepted)
+        cancel_button=QPushButton(text="Cancel")
+        cancel_button.clicked.connect(self._canceled)
+        
+
+        ok_cancel_layout.addWidget(accept_button)
+        ok_cancel_layout.addWidget(cancel_button)
+        ok_cancel_container.setLayout(ok_cancel_layout)
+        
+        # Force the buttons to be the minimum width, other wise they
+        # tend to be too big
+        ok_cancel_container.setFixedWidth(min_width)
+        layout.addWidget(ok_cancel_container)
+
+        # Set the minimum height for this widget given requested # of lines
+        # This assumes the checkboxes are the same height
+        min_height = checkbox_layout.spacing()*(num_lines-1) + checkbox.height()*num_lines
+
+        # Account for margins
+        min_height += scroll_area.contentsMargins().top() + scroll_area.contentsMargins().bottom()
+
+        # Account for buttons
+        min_height += ok_cancel_container.sizeHint().height()
+
+        self.setMinimumSize(min_width, min_height)
+        msgs.info(f"mw: {min_width}, actual width: {self.width()} hint w {self.sizeHint().width()}")
+        msgs.info(f"cc w: {checkbox_container.width()}, cc min w {checkbox_container.minimumWidth()}, cc hint w/h {checkbox_container.sizeHint().width()}/{checkbox_container.sizeHint().height()}")
+        msgs.info(f"ok w/h: {ok_cancel_container.width()}/{ok_cancel_container.height()}, ok min w/h {ok_cancel_container.minimumWidth()}/{ok_cancel_container.minimumHeight()}, ok hint w/h {ok_cancel_container.sizeHint().width()}/{ok_cancel_container.sizeHint().height()}")
+        self._button_group.buttonToggled.connect(self._choiceChecked)
+
+    def _accepted(self, *args):
+        """Signal handler for when the "OK" button is clicked."""
+        self.closed.emit(self, True)
+
+    def _canceled(self, *args):
+        """Signal handler for when the "Cancel" button is clicked."""
+        self.closed.emit(self, False)
 
     def _choiceChecked(self, widget, checked):
+        """Signal handler for when one of the enumerated values is checked on or off.
+        Args:
+            widget (QCheckBox):
+                The widget that checked or unchecked.
+            checked (bool):
+                 True if the widget is checked, false if it is not.
+        """
         value = widget.text()
         if checked:
             self._values.add(value)
         else:
             self._values.discard(value)
 
-
     def setSelectedValues(self, values):
+        """Set what values of the enumeration are selected.
+        
+        Args:
+            values (list of str): The enum values that should be selected.
+        """
         if values is None:
             self._values=set()
         else:
@@ -199,14 +267,40 @@ class PypeItEnumListEditor(QWidget):
                     self._checkboxes[value].setChecked(False)
 
     def selectedValues(self):
+        """Return what values of the enumeration have been selected.
+        
+        Return: (list of str): A comma seperated list of the selected values.
+        """
         return ",".join(sorted(self._values))
-
-
+    
+    def paint(self, *args, **kwargs):
+        msgs.info(f"width: {self.width()}")
+        return super().paint(*args,**kwargs)
 
 class PypeItCustomEditorDelegate(QStyledItemDelegate):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """"Custom item delegate for rows in a PypeItMetadataView."""
+    def __init__(self, parent):
+        self.metadata_view=parent
+        super().__init__(parent)
 
+
+    def editorClosed(self,editor, accepted):
+        """Signal handler that is notified when the PypeItEnumListEditor is closed.
+        
+        Args:
+            editor (PypeItEnumListEditor): The editor that was closed.
+            accepted (bool): True if the value was accepted, false if it was canceled.
+        """
+
+        # Notify any clients to accept or revert any cached values. This signal is inherited from
+        # parent classes.
+        if accepted:
+            self.closeEditor.emit(editor, QAbstractItemDelegate.EndEditHint.SubmitModelCache)
+            self.setModelData(editor, editor.index.model(), editor.index)
+        else:
+            self.closeEditor.emit(editor, QAbstractItemDelegate.EndEditHint.RevertModelCache)
+
+        
     def paint(self, painter, option, index):
         """
         Overridden version of paint for painting items in the PypeItMetadataView.
@@ -233,7 +327,9 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
         if column_name == "frametype":
             msgs.info("Creating enum list editor for frametype")
-            return PypeItEnumListEditor(parent=parent, allowed_values=model.getAllFrameTypes())
+            editor= PypeItEnumListEditor(parent=parent, index=index, num_lines=5, allowed_values=model.getAllFrameTypes())
+            editor.closed.connect(self.editorClosed)
+            return editor
         
         msgs.info(f"Creating default editor for {column_name}")
         return super().createEditor(parent, option, index)
@@ -271,22 +367,36 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             # it's minimum width
             editor_width = max(editor_min_size.width(), option.rect.width())
 
-            # Because the parent may be in a scroll area, the x,y could be negative,
-            # set those to 0 so the editor doesn't appear outside the scroll area
+            # Because the parent may be in a scrollable, the x,y could be negative,
+            # or underneath the header row. Set those so that the editor doesn't appear outside of the widget
             if editor_x < 0:
                 editor_x = 0
 
-            if editor_y < 0:
+            min_y = self.metadata_view.verticalHeader().sectionSize(0)
+            if editor_y < min_y:
                 editor_y = 0
 
             # Adjust the editor'x upper left corner so that the editor is vislbe for
             # cells along the bottom or right of the parent table
-            if editor_x + editor_width > parent_geometry.bottomRight().x():
-                editor_x = parent_geometry.bottomRight().x() - editor_width
+            right_x = self.metadata_view.viewport().geometry().bottomRight().x() - self.metadata_view.viewportMargins().right()
+            if self.metadata_view.verticalScrollBar().isVisible():
+                right_x -= self.metadata_view.verticalScrollBar().sizeHint().width()
 
-            if editor_y + editor_min_size.height() > parent_geometry.bottomRight().y():
-                editor_y = parent_geometry.bottomRight().y() - editor_min_size.height()
+            bottom_y = self.metadata_view.viewport().geometry().bottomRight().y() - self.metadata_view.viewportMargins().bottom()
+            if self.metadata_view.horizontalScrollBar().isVisible():
+                bottom_y -= self.metadata_view.horizontalScrollBar().sizeHint().height()
 
+            if editor_x + editor_width > right_x:
+                editor_x = right_x - editor_width
+
+            if editor_y + editor_min_size.height() > bottom_y:
+                editor_y = bottom_y - editor_min_size.height()
+
+            msgs.info(f"viewport bottom x,y: {self.metadata_view.viewport().geometry().bottomRight().x()},{self.metadata_view.viewport().geometry().bottomRight().y()}")
+            msgs.info(f"metadata view bottom x,y: {self.metadata_view.geometry().bottomRight().x()},{self.metadata_view.geometry().bottomRight().y()}")
+            msgs.info(f"viewport margins t,l,b,r: {self.metadata_view.viewportMargins().top()},{self.metadata_view.viewportMargins().left()},{self.metadata_view.viewportMargins().bottom()},{self.metadata_view.viewportMargins().right()}")
+            msgs.info(f"visible scroll bars: v,h: {self.metadata_view.verticalScrollBar().isVisible()},{self.metadata_view.horizontalScrollBar().isVisible()}")
+            msgs.info(f"scroll sizes v,h: {self.metadata_view.verticalScrollBar().sizeHint().width()},{self.metadata_view.horizontalScrollBar().sizeHint().height()}")
             geometry = QRect(editor_x, editor_y, editor_width, editor_min_size.height()) 
        
             msgs.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
@@ -315,6 +425,22 @@ class PypeItMetadataView(QTableView):
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
         self.setModel(model)
+
+        # Set to a minimum number of rows high so the frame type editor has enough space
+        if model.rowCount() > 0:
+            row_height = self.verticalHeader().sectionSize(0)
+        else:
+            row_height = self.verticalHeader().defaultSectionSize()
+
+        # We use 11 rows, 1 for the header, and 10 data rows. This seems to give an adaquate buffer to the frame type editor.
+        min_height = (self.contentsMargins().top() + self.contentsMargins().bottom() + 
+                      self.horizontalScrollBar().sizeHint().height() +
+                      11*row_height)
+        msgs.info(f"current min_height/height/hint h: {self.minimumHeight()}/{self.height()}/{self.sizeHint().height()}, scrollbar hint h {self.horizontalScrollBar().sizeHint().height()}, currentmargin top/bottom: {self.contentsMargins().top()}/{self.contentsMargins().bottom()} hdr min_height/height/hint h: {self.horizontalHeader().minimumHeight()}/{self.horizontalHeader().height()}/{self.horizontalHeader().sizeHint().height()}")
+        msgs.info(f"rowHeight: {row_height} current min_height {self.minimumHeight()} new min_height {min_height}")
+        if min_height > self.minimumHeight():
+            self.setMinimumHeight(min_height)
+
         self.addActions(controller.getActions(self))
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
 
@@ -352,6 +478,7 @@ class PypeItMetadataView(QTableView):
 
         self.setSortingEnabled(True)
         self.horizontalHeader().setSortIndicator(sort_column, Qt.AscendingOrder)
+
 
     def selectionChanged(self, selected, deselected):
         """Event handler called by Qt when a selection change. Overriden from QTableView.

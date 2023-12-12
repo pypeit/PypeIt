@@ -12,10 +12,10 @@ import traceback
 import enum
 import glob
 import numpy as np
+import astropy.table
 import io
 from pathlib import Path
 from functools import partial
-
 from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 from qtpy.QtGui import QTextDocument, QTextCursor
 
@@ -215,22 +215,28 @@ class PypeItMetadataModel(QAbstractTableModel):
     It also supports editing. 
 
     Args:
-        metadata (PypeItMetaData): The PypeItMetaData object being wrapped. If this is None, the
-                                   model is in a "NEW" state.
+        metadata: The PypeItMetaData object being wrapped. If this is None, the
+                  model is in a "NEW" state.
     """
-    def __init__(self, metadata, spectrograph=None):
+    def __init__(self, metadata : PypeItMetaData | None):
         super().__init__()
 
         self.metadata = metadata
-        if self.metadata is not None:
-            self.spectrograph = metadata.spectrograph
-        else:
-            self.spectrograph = spectrograph
         self.editable_columns=['calib', 'comb_id', 'bkg_id', 'frametype']
 
         self.colnames = []
+
+        # How large a character is in a unicode dtype. Used to determine string maximum length
+        temp_dtype = np.dtype("U1")
+        self._dtype_char_size = temp_dtype.itemsize
+
         self.reset()
         
+    @property
+    def spectrograph(self) -> spectrographs.spectrograph:
+        """The spectrograph object for the metadata. None if no metadata has been set."""
+        return None if self.metadata is None else self.metadata.spectrograph
+
     def getColumnNumFromName(self, colname):
         """Return the column number that has the passed in name.
         
@@ -352,8 +358,19 @@ class PypeItMetadataModel(QAbstractTableModel):
         if role==Qt.EditRole and self.metadata is not None:
             colname = self.colnames[index.column()]
             if colname in self.editable_columns:
-                try:             
-                    self.metadata[colname][index.row()] = value
+                try:
+                    max_length = self.getStringColumnSize(colname)
+                    if max_length is not None:
+                        # This is a string type, does the new data fit
+                        new_value = str(value)
+                        if len(new_value) > max_length:
+                            # We need to increase the string size to make the new value fit
+                            self.resizeStringColumn(colname, len(new_value))
+                        self.metadata[colname][index.row()] = new_value
+                    else:
+                        # Not a string data type
+                        self.metadata[colname][index.row()] = value
+
                     self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
                     return True
                 except ValueError as e:
@@ -416,6 +433,36 @@ class PypeItMetadataModel(QAbstractTableModel):
         else:
             return ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
 
+    def getStringColumnSize(self, colname: str) -> int | None:
+        """
+        Return the maximum size of a string column.
+
+        Args:
+            colname: The name of the column
+        Return:
+            The maximum size of the column, or None if it is not a string column.
+        """
+        dt = self.metadata[colname].dtype
+        if dt.kind == "U":
+            # Divide the size by the size for a single character column
+            return int(dt.itemsize / self._dtype_char_size)
+        else:
+            # Not a string
+            return None
+
+    def resizeStringColumn(self, colname : str, new_size : int)->None:
+        """Resize a string column to fit a new size.
+        
+        Args:
+            colname: The name of the string column.
+        """
+        # Create a new column with the new size.
+        # We do this before setting the column, so that an exception will leave the
+        # metadata in the previous state
+        new_column = astropy.table.Column(self.metadata[colname],dtype=f'<U{new_size}')
+
+        self.metadata[colname] = new_column
+
     def reset(self):
         """
         Reset the proxy assuming the metadata object has completely changed
@@ -435,40 +482,7 @@ class PypeItMetadataModel(QAbstractTableModel):
             metadata (:obj:`pypeit.metadata.PypeItMetaData`): The metadata being wrapped.
         """
         self.metadata=metadata
-        if self.metadata is None:
-            self.spectrograph=None
-        else:
-            self.spectrograph=metadata.spectrograph
         self.reset()
-
-    def setSpectrograph(self, spectrograph):
-        """Sets the spectrograph being used.
-        
-        Args:
-            spectrograph (str,:obj:`pypeit.spectrographs.spectrograph`): The spectrograph being wrapped.
-        """
-        # This is called as an signal handler when the clipboard model changes. In this case
-        # it receives a string
-        if isinstance(spectrograph, str):
-            if len(spectrograph) == 0:
-                # Qt will helpfully convert a None to an empty string
-                spectrograph = None
-            else:
-                spectrograph = spectrographs.util.load_spectrograph(spectrograph)
-
-        if self.metadata is None or self.spectrograph is None:
-            self.spectrograph = spectrograph
-            if spectrograph is not None:
-                # Setting the spectrograph on an empty metadata model
-                self.reset()
-        elif spectrograph is None or self.spectrograph.name != spectrograph.name:
-            # Changing the spectrograph of a non-empty metadata model. Clear the metadata and
-            # reset
-            self.spectrograph=spectrograph
-            self.metadata=None
-            self.reset()
-        
-        # Otherwise no change
 
     def removeMetadataRows(self, rows):
         """Removes rows from the metadata
@@ -505,7 +519,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         self.endInsertRows()
 
     def pasteFrom(self, other_metadata_model):
-        if self.spectrograph is None and self.metadata is None:
+        if self.metadata is None:
             # Pasting into an empty model, just copy from the other metadata
             self.beginResetModel()
             self.colnames = other_metadata_model.colnames
@@ -515,24 +529,37 @@ class PypeItMetadataModel(QAbstractTableModel):
             self.endResetModel()
         else:
             # Make sure the two metadata models are compatible
-            num_rows = len(other_metadata_model.metadata.table)
+            num_rows = 0 if other_metadata_model.metadata is None else len(other_metadata_model.metadata.table)
             if num_rows == 0:
                 # Nothing to paste
                 return
             elif self.spectrograph.name != other_metadata_model.spectrograph.name:
                 raise RuntimeError(f"Can't paste file metadata between different spectrographs.")
-            elif self.colnames != other_metadata_model.colnames:
+            elif self.metadata.table.colnames != other_metadata_model.metadata.table.colnames:
+                # Note we compare the underlying table's columns, since tables loaded from a file
+                # will have fewer columns than ones generated by running setup
                 raise RuntimeError(f"Can't paste file metadata with different columns.")
             else:
-
-                # Paste the datas. First update the rows that have changed
+                # Paste the data. First, make sure our text columns are big enough for the corresponding
+                # column in the source metadata.
+                for colname in self.metadata.table.colnames:
+                    our_max_size = self.getStringColumnSize(colname)
+                    if our_max_size is not None:
+                        # A String column
+                        other_max_size = other_metadata_model.getStringColumnSize(colname)
+                        if other_max_size is None:
+                            # It isn't a string, something's wrong
+                            raise(f"Can't paste metadata, incompatible types for column '{colname}'")
+                        if other_max_size > our_max_size:
+                            self.resizeStringColumn(colname, other_max_size)
+                # 
+                # Second update the rows that have changed
                 first_updated_row = None
                 last_updated_row = None
                 indx = np.ones(self.rowCount(),dtype=bool)
                 current_files = self.metadata.frame_paths(indx)
                 indx = np.ones(other_metadata_model.rowCount(),dtype=bool)
                 other_files = other_metadata_model.metadata.frame_paths(indx)
-
                 
                 indices_to_add = [] # Keep track  of new rows to add
 
@@ -552,7 +579,7 @@ class PypeItMetadataModel(QAbstractTableModel):
                 if first_updated_row is not None:
                     self.dataChanged.emit(self.index(first_udpated_row, 0),self.index(last_updated_row,self.columnCount()-1))
                 
-                # Now add new rows
+                # Third: add new rows
                 if len(indices_to_add) > 0:
                     self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount()+len(indices_to_add)-1)
                     for i in indices_to_add:
@@ -584,8 +611,8 @@ class PypeItMetadataModel(QAbstractTableModel):
             PypeItMetadataModel: A deep copy of the meatdata in the given rows.
         """
         # If this is an empty model, return another empty model
-        if self.spectrograph is None or self.metadata is None:
-            return PypeItMetadataModel(metadata=self.metadata, spectrograph=self.spectrograph)
+        if self.metadata is None:
+            return PypeItMetadataModel(None)
         else: # Copy the selected rows
             table_copy = self.metadata.table[rows].copy(True)                
             copy = PypeItMetadataModel(metadata=PypeItMetaData(self.spectrograph, self.metadata.par, data=table_copy))
@@ -1067,7 +1094,8 @@ class PypeItObsLogModel(QObject):
         """
         msgs.info(f"Spectrograph is now {new_spec}")
         self._spectrograph = spectrographs.util.load_spectrograph(new_spec)
-        self.metadata_model.setSpectrograph(self._spectrograph)
+        if self.metadata_model.spectrograph is not None and self.metadata_model.spectrograph.name != new_spec:
+            self.metadata_model.reset()
         self.spectrograph_changed.emit(self._spectrograph.name)
 
     def setMetadata(self, metadata):
@@ -1166,8 +1194,7 @@ class PypeItSetupGUIModel(QObject):
         self.pypeit_files = dict()
         self.log_buffer = None
         self.obslog_model = PypeItObsLogModel()
-        self._clipboard = PypeItMetadataModel(None,None)
-        self.obslog_model.spectrograph_changed.connect(self.clipboard.setSpectrograph)
+        self._clipboard = PypeItMetadataModel(None)
 
     def setup_logging(self, logname, verbosity):
         """
