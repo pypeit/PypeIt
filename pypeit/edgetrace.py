@@ -172,7 +172,8 @@ class EdgeTraceBitMask(BitMask):
            ('ABNORMALSLIT_SHORT', 'Slit formed by left and right edge is abnormally short'),
             ('ABNORMALSLIT_LONG', 'Slit formed by left and right edge is abnormally long'),
                    ('USERRMSLIT', 'Slit removed by user'),
-                      ('NOORDER', 'Unable to associate this trace with an echelle order (echelle '
+                      ('NOORDER', '(DEPRECATED as of version 1.15.0; use ORDERMISMATCH).  '
+                                  'Unable to associate this trace with an echelle order (echelle '
                                   'spectrographs only)'),
                 ('ORDERMISMATCH', 'Slit traces are not well matched to any echelle order (echelle '
                                   'spectrographs only)'),
@@ -4793,12 +4794,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Update the PCA
         self.build_pca()
 
+        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
         if self.spectrograph.ech_fixed_format:
-            add_left, add_right = self.order_refine_fixed_format(debug=debug)
+            add_left, add_right = self.order_refine_fixed_format(reference_row, debug=debug)
             rmtraces = None
         else:
-            reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
-                                else self.pca.reference_row
             add_left, add_right, rmtraces \
                     = self.order_refine_free_format(reference_row, debug=debug)
 
@@ -4819,9 +4820,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # If fixed-format, rematch the orders
         if self.spectrograph.ech_fixed_format:
-            self.match_order()
+            self.match_order(reference_row=reference_row)
 
-    def order_refine_fixed_format(self, debug=False):
+    def order_refine_fixed_format(self, reference_row, debug=False):
         """
         Refine the order locations for fixed-format Echelles.
         """
@@ -4836,11 +4837,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         #     requires the spatial positoion at the relevant reference row.
         #     This needs to be checked.
 
-        embed()
-        exit()
-
         # First match the expected orders
-        spat_offset = self.match_order()
+        spat_offset = self.match_order(reference_row=reference_row)
 
         available_orders = self.orderid[1::2]
         missed_orders = np.setdiff1d(self.spectrograph.orders, available_orders)
@@ -5080,15 +5078,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 Return coordinates normalized by the size of the
                 detector.
             spec (:obj:`int`, optional):
-                Spectral position (row) at which to return the
-                spatial position. If ``None``, set at the central row
-                (i.e., ``self.nspat//2``)
+                Spectral position (row) at which to return the spatial position.
+                If ``None``, use the PCA reference row if a PCA exists or the
+                central row (i.e., ``self.nspec//2``), otherwise.
             use_center (:obj:`bool`, optional):
                 Use the measured centroids to define the slit edges
                 even if the slit edges have been otherwise modeled.
             include_box (:obj:`bool`, optional):
                 Include box slits in the calculated coordinates.
-
 
         Returns:
             `numpy.ma.MaskedArray`_: Spatial coordinates of the slit
@@ -5104,7 +5101,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # TODO: Use reference_row by default? Except that it's only
         # defined if the PCA is defined.
-        _spec = self.nspec//2 if spec is None else spec
+        _spec = spec
+        if _spec is None:
+            if self.pcatype is None:
+                _spec = self.nspec//2
+            else:
+                _spec = self.left_pca.reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
 
         # Synced, spatially sorted traces are always ordered in left,
         # right pairs
@@ -5115,52 +5118,54 @@ class EdgeTraceSet(calibframe.CalibFrame):
         slit_c[good_slit] = np.mean(trace_cen[_spec,:].reshape(-1,2), axis=1)
         return slit_c/self.nspat if normalized else slit_c
 
-    def match_order(self):
+    def match_order(self, reference_row=None):
         """
         Match synchronized slits to the expected echelle orders.
 
         This function will fault if called for non-Echelle spectrographs!
 
-        For Echelle spectrographs, this finds the best matching order
-        for each left-right trace pair; the traces must have already
-        been synchronized into left-right pairs. Currently, this is a
-        very simple, non-optimized match:
+        For Echelle spectrographs, this finds the best matching order for each
+        left-right trace pair; the traces must have already been synchronized
+        into left-right pairs. Currently, this is a very simple, non-optimized
+        match:
 
-            - The closest order from
-              ``self.spectrograph.order_spat_pos`` is matched to each
-              slit.
-            - Any slit that is not matched to an order (only if the
-              number of slits is larger than the number of expected
-              orders) is flagged as ``NOORDER``.
-            - If multiple slits are matched to the same order, the
-              slit with the smallest on-detector separation is kept
-              and the other match is ignored.
-            - Any slit matched to an order with a separation above
-              the provided tolerance is flagged as ORDERMISMATCH.
-            - A warning is issued if the number of valid matches
-              is not identical to the number of expected orders
-              (``self.spectrograph.norders``). The warning includes
-              the list of orders that were not identified.
+            - The closest order from ``self.spectrograph.order_spat_pos`` is
+              matched to each slit.
+            - Any slit that cannot be matched to an order -- either because
+              there are more "slits" than orders or because the separation is
+              larger than the provided tolerance -- is flagged as
+              ``ORDERMISMATCH``.
+            - A warning is issued if the number of valid matches is not
+              identical to the number of expected orders
+              (``self.spectrograph.norders``). The warning includes the list of
+              orders that were not identified.
 
-        The match tolerance is et by the parameter ``order_match``.
-        An offset can be applied to improve the match via the
-        parameter ``order_offset``; i.e., this should minimize the
-        difference between the expected order positions and
-        ``self.slit_spatial_center() + self.par['order_offset']``.
-        Both ``order_match`` and ``order_offset`` are given in
-        fractions of the detector size along the spatial axis.
+        The match tolerance is set by the parameter ``order_match``.  An offset
+        can be applied to improve the match via the parameter ``order_offset``;
+        i.e., this should minimize the difference between the expected order
+        positions and ``self.slit_spatial_center() + self.par['order_offset']``.
+        Both ``order_match`` and ``order_offset`` are given in fractions of the
+        detector size along the spatial axis.
 
         The result of this method is to instantiate :attr:`orderid`.
 
+        Args:
+            reference_row (:obj:`int`, optional):
+                The spectral pixel (row) used to generate spatial positions of
+                the orders to match against the expected positions.  If
+                ``None``, use the PCA reference row if a PCA exists or the
+                central row (i.e., ``self.nspec//2``), otherwise.
+
         Returns:
-            :obj:`float`: The median offset in pixels between the archived order
-            positions and those measured via the edge tracing.
+            :obj:`float`: The median offset in the relative of the detector size
+            between the archived order positions and those measured via the edge
+            tracing.
 
         Raises:
             PypeItError:
-                Raised if the number of orders or their spatial
-                locations are not defined for an Echelle
-                spectrograph.
+                Raised if the number of orders, the order number, or their
+                spatial locations are not defined for an Echelle spectrograph.
+                Also raised if the edge traces are not synced.
         """
 
         if self.spectrograph.norders is None:
@@ -5182,7 +5187,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Get the order centers in fractions of the detector width.  This
         # requires the slits to be synced (checked above)!  Masked elements in
         # slit_cen are for bad slits or syncing.
-        slit_cen = self.slit_spatial_center() + offset
+        slit_cen = self.slit_spatial_center(spec=reference_row) + offset
         good_sync = np.logical_not(np.ma.getmaskarray(slit_cen))
         # "slit_indx" matches the "slit" index to the order number.  I.e.,
         # "slit_indx" has one element per expected order, and the value at a
@@ -5226,7 +5231,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         msgs.info(f' {"-"*6} {"-"*4} {"-"*6}')
         for i in range(self.spectrograph.norders):
             if fnd[i]:
-                msgs.info(f' {self.spectrograph.orders[i]:>6} {i+1:>4} {sep[i]:6.3f}')
+                msgs.info(f' {self.spectrograph.orders[i]:>6} {i+1:>4} {sep[i]-med_offset:6.3f}')
             else:
                 msgs.info(f' {self.spectrograph.orders[i]:>6} {"N/A":>4} {"MISSED":>6}')
         msgs.info(f' {"-"*6} {"-"*4} {"-"*6}')

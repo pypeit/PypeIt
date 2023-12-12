@@ -391,8 +391,8 @@ def match_positions_1D(measured, nominal, tol=None):
         set (i.e., ``n < m``), any element of ``nominal`` that does not have an
         appropriate match in ``measured`` is given an index of -1.
     """
-    # Calculate the (n,m) separation matrix
-    # NOTE: This is the brute force approach.  For *lots* of measuremens, this
+    # Calculate the (m,n) separation matrix
+    # NOTE: This is the brute force approach.  For *lots* of measurements, this
     # can be sped up by using a KDTree to build a sparse matrix with only a
     # subset of the distances calculated.
     sep = np.absolute(nominal[:,None] - measured[None,:])
