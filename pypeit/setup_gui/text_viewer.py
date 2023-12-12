@@ -151,7 +151,7 @@ class LogWindow(TextViewerWindow):
         super().__init__(text_stream=logBuffer,
                          width=100, height=50,
                          start_at_top=False,
-                         title = self.tr("PypeIt Setup GUI Log"),
+                         title = "PypeIt Setup GUI Log",
                          file_type = FileType("Log Files", ".log"))
     
         self._logBuffer = logBuffer

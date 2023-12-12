@@ -988,7 +988,11 @@ class TabManagerWidget(QTabWidget):
         return index
 
     def closeTab(self, tab_name):
-        index = self._tabNames.index(tab_name)
+        try:
+            index = self._tabNames.index(tab_name)
+        except ValueError :
+            msgs.warn(f"Failed to find tab named {tab_name} in list.")
+            return
         tab = self.widget(index)
         if tab.closeable:
             tab.stateChanged.disconnect(self.updateTabText)
@@ -996,7 +1000,12 @@ class TabManagerWidget(QTabWidget):
         del self._tabNames[index]
 
     def updateTabText(self, tab_name, tab_state):
-        index = self._tabNames.index(tab_name)
+        try:
+            index = self._tabNames.index(tab_name)
+        except ValueError :
+            msgs.warn(f"Failed to find tab named {tab_name} in list.")
+            return
+
         tab = self.widget(index)
         if tab_state != ModelState.UNCHANGED:
             self.setTabText(index, "*" + tab.name)
@@ -1072,7 +1081,6 @@ class SetupGUIMainWindow(QWidget):
         self.current_op_progress_dialog = None
 
         # Monitor the model for new or closed files, and update the tab widget accordingly
-        # These are queued because this can happen in a background operation thread
         self.model.filesAdded.connect(self.create_file_tabs)
         self.model.filesDeleted.connect(self.delete_tabs)
 
