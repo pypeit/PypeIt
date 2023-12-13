@@ -58,8 +58,7 @@ RELEASE FILE IN doc/releases
       files that have frametype None (this prevent ``run_pypeit`` to crash)
     - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
       that checks (during ``pypeit_setup``) if the selected spectrograph is the
-      corrected one for the data used.
-- Introduced PCA method for telluric corrections
+      corrected one for the data used. 
 
 1.13.0 (2 June 2023)
 --------------------

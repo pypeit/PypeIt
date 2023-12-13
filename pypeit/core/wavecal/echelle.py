@@ -51,6 +51,7 @@ def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs,
 
     return order_vec
 
+
 def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_vec, nspec):
     """
     Predict an echelle spectrum wavelength solution for each order by evluating the polynomial fits of
@@ -83,7 +84,9 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
         indx = order - angle_fits_params['order_min']
-        #print(indx, order, order_vec)
+        # check if the order is in the arxiv, if not skip this order
+        if indx < 0 or indx >= angle_fits_params['norders']:
+            continue
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(int(angle_fits_params['ech_n_final'] + 1)):
@@ -97,8 +100,6 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         #print('xnspec = ', xnspec)
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
-        #print('wave_soln_guess = ', wave_soln_guess[:,iord])
-
 
     return wave_soln_guess
 
@@ -157,21 +158,41 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     norders_guess = order_vec_guess.size
     wave_soln_guess = predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, echangle, order_vec_guess, nspec)
 
-
     order_min, order_max = angle_fits_params['order_min'], angle_fits_params['order_max']
 
     arcspec_guess = np.zeros_like(wave_soln_guess)
     # Interpolate the composite arc spectrum onto the predicted wavelength solution
     for iord, order in enumerate(order_vec_guess):
         indx = order - order_min
+        # check if the order is in the arxiv, if not skip this order
+        if indx < 0 or indx >= angle_fits_params['norders']:
+            continue
         igood = gpm_composite[:, indx]
         arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
                                                       kind='cubic', bounds_error=False,
-                                                      fill_value=-1e10)(wave_soln_guess[:, iord])
-        ibad = np.abs(arcspec_guess[:,iord]) > 1e9
-        arcspec_guess[ibad, iord] = np.nanmedian(arcspec_guess[:,iord])
+                                                      fill_value=0.)(wave_soln_guess[:, iord])
+        # sometimes wave_soln_guess[:, iord] is wrong and therefore is outside the range of
+        # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
+        # here we try to deal with this case, by using wave_composite[igood, indx] but we need make some padding
+        if np.all(arcspec_guess[:, iord] == 0):
+            # this is adapted from pypeit.core.wavecal.autoid.full_template
+            npad = nspec - np.sum(igood)
+            if npad > 0:
+                # Pad the arxiv
+                pad_arcspec_guess = np.zeros(nspec)
+                pad_wave_soln_guess = np.zeros(nspec)
+                pad_arcspec_guess[npad // 2:npad // 2 + nspec] = arc_composite[igood, indx]
+                pad_wave_soln_guess[npad // 2:npad // 2 + nspec] = wave_composite[igood, indx]
+                arcspec_guess[:, iord] = pad_arcspec_guess
+                wave_soln_guess[:, iord] = pad_wave_soln_guess
+            elif npad < 0:
+                # crop the arxiv. Not ideal but better than nothing
+                npad *= -1
+                arcspec_guess[:, iord] = arc_composite[igood, indx][npad // 2:npad // 2 + nspec]
+                wave_soln_guess[:, iord] = wave_composite[igood, indx][npad // 2:npad // 2 + nspec]
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
+
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
@@ -210,7 +231,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Array containing the predicted arc spectrum, shape = (nspec, norders)
 
     """
-
     nspec, norders = arcspec.shape
 
     # Predict the echelle order coverage and wavelength solution
@@ -244,6 +264,18 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
         percent_ceil=xcorr_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, 
         max_lag_frac = 2*float(nspec)/float(len(arccen_pad.flatten('F'))), debug=debug)
+
+    if debug:
+        msgs.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')
+        from matplotlib import pyplot as plt
+        xvals = np.arange(arccen_pad.flatten('F').size)
+        plt.clf()
+        ax = plt.gca()
+        #
+        ax.plot(xvals, arccen_pad.flatten('F'), label='template')  # Template
+        ax.plot(xvals, np.roll(arcspec_guess_pad.flatten('F'), int(shift_cc)), 'k', label='input')  # Input
+        ax.legend()
+        plt.show()
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

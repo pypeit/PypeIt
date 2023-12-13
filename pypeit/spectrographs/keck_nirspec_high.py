@@ -434,7 +434,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'echelle'
 #        par['calibrations']['wavelengths']['ech_fix_format'] = True
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.70
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.5
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -545,7 +545,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if filter1 == 'Kband-new' or filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -556,7 +556,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -567,7 +567,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
@@ -579,7 +579,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -588,7 +588,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -967,7 +967,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -978,7 +978,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         if filter1 == 'KL' or filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -989,7 +989,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
@@ -999,7 +999,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
@@ -1008,7 +1008,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         if filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-            par['calibrations']['wavelengths']['cc_thresh'] = 0.9
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
             par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9

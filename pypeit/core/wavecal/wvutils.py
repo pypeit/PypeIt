@@ -596,7 +596,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, max_lag_frac = 1.0,  debug=False):
+                do_xcorr_arc=True, lag_range=None, max_lag_frac = 1.0,  debug=False):
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the
@@ -634,6 +634,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         synthetic arc will be created to be used for the cross-correlations.  If
         a synthetic arc has already been created by get_xcorr_arc, then set this
         to False
+    lag_range : tuple, default = None
+        A tuple of the form (lag_min, lag_max) which sets the range of lags to
+        search over. If None, the full range of lags will be searched.
     debug: boolean, default = False
         Produce debugging plot
 
@@ -683,7 +686,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.75,1.25), sigdetect = 5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac = 1.0, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
+                        fwhm = 4.0, max_lag_frac = 1.0, lag_range = None, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -730,6 +733,11 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         have spurious noise spikes that are not the real maximum.
     use_raw_arc: bool, default = False
         If this parameter is True the raw arc will be used rather than the continuum subtracted arc
+    lag_range: tuple of floats, default = None
+        Range to search for the shift in the cross correlation.  The code will search the window
+        [lag_range[0],lag_range[1]].  If None, the code will search the window
+        [shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]]
+        where nspec is the spectral dimension and shift_cc is the initial cross-correlation shift.
     shift_mnmx: tuple of floats, default = (-0.05,0.05)
         Range to search for the shift in the optimization about the
         initial cross-correlation based estimate of the shift.  The
@@ -764,8 +772,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
           - success = 0, shift and stretch optimization failed
 
-          - success = -1, initial x-correlation is below cc_thresh (see
-            above), so shift/stretch optimization was not attempted
+          - success = -1, x-correlation is below cc_thresh
 
     shift: float
         the optimal shift which was determined.  If cc_thresh is set,
@@ -783,8 +790,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         the value of the cross-correlation coefficient at the optimal
         shift and stretch. This is a number between zero and unity,
         which unity indicating a perfect match between the two spectra.
-        If cc_thresh is set, and the initial cross-correlation is <
-        cc_thresh, this will be just the initial cross-correlation
+
     shift_init: float
         The initial shift determined by maximizing the cross-correlation
         coefficient without allowing for a stretch.  If cc_thresh is
@@ -880,6 +886,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                                     ',  stretch2 = {:7.5f}'.format(stretch2_out) + ', corr = {:5.3f}'.format(corr_out))
         plt.legend()
         plt.show()
+
+    # check if the cc is above the threshold
+    if corr_out < cc_thresh:
+        result_out = -1
 
     return result_out, shift_out, stretch_out, stretch2_out, corr_out, shift_cc, corr_cc
 
