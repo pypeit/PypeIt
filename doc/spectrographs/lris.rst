@@ -312,6 +312,7 @@ arc lamps::
 
 The archived solutions expect most (or all) of these lamps.
 
+.. _lrisr_wavesol:
 
 Wavelength Solution
 -------------------

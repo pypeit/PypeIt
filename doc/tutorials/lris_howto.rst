@@ -136,6 +136,19 @@ The other parameters are set to improve the object finding and extraction, and t
 not to use bias frames for the reduction (given that no bias frames are provided). See :ref:`parameters`
 for more details.
 
+.. note::
+
+    PypeIt has a long list of parameters that can be set by the user to customize the reduction. This
+    makes PypeIt very flexible and able to reduce a wide range of data from many instruments. Most
+    parameters are set by default for the specific instrument, see  :ref:`instr_par-keck_lris_red_mark4`.
+    Moreover, there are some parameters that are set by default for a specific configuration within
+    the same instrument. For example, in many cases, PypeIt uses by default different wavelength templates
+    for different gratings (see :ref:`lrisr_wavesol`). The default parameters are not shown in the
+    :ref:`pypeit_file`, therefore it may be sometime difficult to know which parameters to set
+    and which ones to leave as default.
+    To help with this, the user can inspect the ``.par`` file, which is generated at the very beginning
+    of the main run (see below). This file contains every single available parameter with the assigned
+    value, giving the user an idea of what are the values of the default parameters.
 
 Main Run
 ========
