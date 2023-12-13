@@ -917,7 +917,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def load(self):
         """
-        TODO :: Update all of the docstrings!
         This is the main function that loads in the data, and performs several frame-specific corrections.
         If the user does not wish to align or combine the individual datacubes, then this routine will also
         produce a spec3d file, which is a DataCube representation of a PypeIt spec2d frame for SlicerIFU data.
@@ -938,19 +937,18 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         As well as the primary arrays that store the pixel information for multiple spec2d frames, including:
 
-        * self.all_wave
         * self.all_sci
         * self.all_ivar
-        * self.all_idx
+        * self.all_wave
+        * self.all_slitid
         * self.all_wghts
-        * self.all_spatpos
-        * self.all_specpos
-        * self.all_spatid
         * self.all_tilts
         * self.all_slits
         * self.all_align
-        * self.all_dar
         * self.all_wcs
+        * self.all_ra
+        * self.all_dec
+        * self.all_dar
         """
         # Load all spec2d files and prepare the data for making a datacube
         for ff, fil in enumerate(self.spec2d):
@@ -1135,23 +1133,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Get the slit image and then unset pixels in the slit image that are bad
             slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
-
-            ##################################
-            # Astrometric alignment to HST frames
-            # TODO :: RJC requests this remains here... it is only used by RJC
-            # Get the coordinate bounds
-            if True:
-                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-                numwav = int((np.max(waveimg) - wave0) / dwv)
-                raw_bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
-                # Now do the alignment
-                self.ra_offsets[ff], self.dec_offsets[ff] = hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, ra_img, dec_img,
-                                                                          self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
-                                                                          self._dspat, self._dwv, raw_bins=raw_bins)
-            # TODO :: Does this need to be included anywhere?
-            # self.ifu_ra[ff] += self.ra_offsets[ff]
-            # self.ifu_dec[ff] += self.dec_offsets[ff]
-            ##################################
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
@@ -1344,8 +1325,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                              dspat=self._dspat, dwv=self._dwv)
 
         # Align the frames
-        # TODO :: NOTE THAT THIS IS 'and False' because the HST alignment is done when reading in the data.
-        if self.align and False:
+        if self.align:
             self.ra_offsets, self.dec_offsets = self.run_align()
 
         # Compute the relative weights on the spectra
@@ -1425,99 +1405,3 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                           sensfunc=sensfunc, fluxed=self.fluxcal)
                     final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
-
-
-def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
-                  all_wcs, tilts, slits, astrom_trans, all_dar, dspat, dwave,
-                  spat_subpixel=10, spec_subpixel=10, slice_subpixel=1, raw_bins=None):
-    """
-    This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
-    to align the daatcubes to an HST image.
-
-    Process:
-    * Send away pixel RA, Dec, wave, flux, error.
-    * ------
-    * Compute emission line map
-      - Need to generate full cube around H I gamma
-      - Fit to continuum and subtract it off
-      - Sum all flux above continuum
-      - Estimate error
-    * MPFIT HST emission line map to
-    * ------
-    * Return updated pixel RA, Dec
-    """
-    ra_offset, dec_offset = 0.0, 0.0  # These must be zero when calculating the offsets
-    from pypeit import astrometry
-    niter = 1
-    for ii in range(niter):
-        ############
-        ## STEP 1 ## - Create a datacube around Hgamma
-        ############
-        # Only use a small wavelength range
-        inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
-        # Create a WCS for this subcube
-        subcube_wcs, voxedge, reference_image = datacube.create_wcs(raImg, decImg, waveimg, inmask, dspat, dwave)
-        # Create the subcube
-        flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel(subcube_wcs, voxedge, sciImg, ivar, waveimg, inmask, wghts,
-                                            all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                                            overwrite=False, spec_subpixel=5, spat_subpixel=5,
-                                            slice_subpixel=slice_subpixel)
-
-        if False:
-            hdu = fits.PrimaryHDU(flxcube)
-            hdu.writeto("tstHg.fits", overwrite=True)
-
-        ############
-        ## STEP 2 ## - Create an emission line map of Hgamma
-        ############
-        # Compute an emission line map that is as consistent as possible to an archival HST image
-        HgMap, HgMapErr = astrometry.fit_cube(flxcube, sigcube ** 2, subcube_wcs, line="HIgamma")
-
-        ############
-        ## STEP 3A ## - Generate another datacube using the raw_wcs and make an image of the emission line map
-        # Need to generate a datacube near both Hgamma and Hdelta.
-        ############
-        if False:
-            #Is DAR correction being performed here?
-            slice_subpixel = 10
-            # FIRST DO Hdelta
-            inmask = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
-            flxcube, sigcube, bpmcube, wave = \
-                datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
-                                                all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset, overwrite=False,
-                                                spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
-            HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIdelta")
-            # THEN DO Hgamma
-            inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
-            flxcube, sigcube, bpmcube, wave = \
-                datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
-                                                all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                                                overwrite=False, spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
-            HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIgamma")
-            # Plot the emission line map
-            from matplotlib import pyplot as plt
-            plt.subplot(131)
-            plt.imshow(HdMap_raw, vmin=0, vmax=200, aspect=0.5)
-            plt.subplot(132)
-            plt.imshow(HgMap_raw, vmin=0, vmax=300, aspect=0.5)
-            plt.subplot(133)
-            plt.imshow(HdMap_raw*utils.inverse(HgMap_raw), vmin=0.5, vmax=0.7, aspect=0.5)
-            plt.show()
-            embed()
-            # np.save("Hd-Hg_preSlicerDAR.npy", HdMap_raw*utils.inverse(HgMap_raw))
-
-        ############
-        ## STEP 3B ## - Map the emission line map to an HST image, and vice-versa
-        ############
-        ra_corr, dec_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, raImg, decImg, slitid_img_gpm)#, ra_sort, dec_sort, raw_wcs)
-        if False:
-            # ra_corr, dec_corr, flx_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, ra_sort, dec_sort, raw_wcs, HgMap_raw, HgMapErr_raw, HdMap_raw, HdMapErr_raw)
-            # Loop over the slits and apply the corrections
-            slit_illum_ref_idx = 14
-            for ss, spatid in enumerate(slits.spat_id):
-                idx = np.where(all_spatid == spatid)[0]
-                # Calculate the correction as a function of wavelength
-
-    # embed()
-    return ra_corr, dec_corr
