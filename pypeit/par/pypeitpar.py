@@ -2224,6 +2224,7 @@ class TelluricPar(ParSet):
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
@@ -2240,6 +2241,7 @@ class TelluricPar(ParSet):
         descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
         
         defaults['teltype'] = 'pca'
+        options['teltype'] = TelluricPar.valid_teltype()
         dtypes['teltype'] = str
         descr['teltype'] = 'Method used to evaluate telluric models, either pca or grid. The grid option uses a ' \
                            'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
@@ -2490,21 +2492,27 @@ class TelluricPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+        
+    @staticmethod
+    def valid_teltype():
+        """
+        Return the valid telluric methods.
+        """
+        return ['pca', 'grid']
 
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
-        
         if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
             raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
                              '(must be between 1 and 10).')
                              
-        if self.data['teltype'].lower() != 'pca' and self.data['teltype'].lower() != 'grid':
-            raise ValueError('Invalid teltype {} '.format(self.data['teltype'])+
-                             ', must be "pca" or "grid".')
+        self.data['teltype'] = self.data['teltype'].lower()
+        if self.data['teltype'] not in TelluricPar.valid_teltype():
+            raise ValueError('Invalid teltype "{}"'.format(self.data['teltype'])+
+                             ', valid options are: {}.'.format(TelluricPar.valid_teltype()))
         
-        pass
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 

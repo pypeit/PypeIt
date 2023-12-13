@@ -2358,7 +2358,7 @@ class Telluric(datamodel.DataContainer):
 
         # 1) Assign arguments
         self.telgrid = telgridfile
-        self.teltype = teltype.lower()
+        self.teltype = teltype
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
         self.tell_npca = tell_npca
