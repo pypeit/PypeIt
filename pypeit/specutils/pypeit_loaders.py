@@ -269,9 +269,10 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
         except AttributeError:
             name = ''
 
-    return Spectrum1D(flux=astropy.units.Quantity(flux * flux_unit),
-                      uncertainty=None if ivar is None 
-                        else astropy.nddata.InverseVariance(ivar / flux_unit**2),
+    # TODO We should be dealing with masking here
+    return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
+                      uncertainty=None if spec.sigma is None else astropy.units.Quantity(spec.sigma * flux_unit),
+                      #  else astropy.nddata.InverseVariance(spec.ivar / flux_unit**2),
                       meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
                             'grid': grid},
                       spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),

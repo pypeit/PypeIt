@@ -465,7 +465,7 @@ class CoAdd2D:
         # these are the good slit index excluding the slits that are selected by the user
         return np.delete(good_slitindx, exclude_slitindx)
 
-    def optimal_weights(self, slitorderid, objid, const_weights=False):
+    def optimal_weights(self, slitorderid, objid, weight_method='auto'):
         """
         Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
         object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
@@ -523,7 +523,7 @@ class CoAdd2D:
                            f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, self.sn_smooth_npix, const_weights=const_weights)
+        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, sn_smooth_npix=self.sn_smooth_npix, weight_method=weight_method)
         return rms_sn, weights
 
     def coadd(self, interp_dspat=True):
@@ -778,8 +778,8 @@ class CoAdd2D:
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-
+        # Enforce low order traces since we are rectified
+        parcopy['reduce']['findobj']['trace_npoly'] = int(np.clip(parcopy['reduce']['findobj']['trace_npoly'],None,3))
         # Manual extraction.
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
@@ -1397,7 +1397,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
-            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
+            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, weight_method='constant')
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
             else:
@@ -1464,7 +1464,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                             #remove_indx.append(iobj)
                     # if there are objects on this slit left, we can proceed with computing rms_sn
                     if len(fluxes) > 0:
-                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, const_weights=True)
+                        rms_sn, _ = coadd.calc_snr(fluxes, ivars, gpms)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
@@ -1748,8 +1748,8 @@ class EchelleCoAdd2D(CoAdd2D):
                                   f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
                         continue
                     if flux is not None:
-                        rms_sn, weights = coadd.sn_weights([flux], [ivar], [mask], const_weights=True)
-                        order_snr[iord, iobj] = rms_sn
+                        rms_sn, _ = coadd.calc_snr([flux], [ivar], [mask])
+                        order_snr[iord, iobj] = rms_sn[0]
                         bpm[iord, iobj] = False
 
             # If there are orders that have bpm = True for some objs and not for others, set bpm = True for all objs
