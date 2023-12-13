@@ -935,7 +935,7 @@ class Coadd3DFile(InputFile):
 
         # Load coordinate offsets for each file. This is "Delta RA cos(dec)" and "Delta Dec"
         # Get the RA offset of each file
-        off_ra = self.path_and_files('ra_offset', skip_blank=False, check_exists=False)
+        off_ra = self.data['ra_offset'].tolist()
         if off_ra is None:
             opts['ra_offset'] = None
         elif len(off_ra) == 1 and len(self.filenames) > 1:
@@ -945,7 +945,7 @@ class Coadd3DFile(InputFile):
             # Convert from arcsec to degrees
             opts['ra_offset'] = [ora/3600.0 for ora in off_ra]
         # Get the DEC offset of each file
-        off_dec = self.path_and_files('dec_offset', skip_blank=False, check_exists=False)
+        off_dec = self.data['dec_offset'].tolist()
         if off_dec is None:
             opts['dec_offset'] = None
         elif len(off_dec) == 1 and len(self.filenames) > 1:
