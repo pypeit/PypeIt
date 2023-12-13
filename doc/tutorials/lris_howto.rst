@@ -200,7 +200,7 @@ The data shown is the *Trace Image*, i.e., the flat image.
 The green/magenta lines indicate the left/right slit edges.  The aquamarine labels starting with an
 ``S`` are the internal slit identifiers of PypeIt, while the cyan numbers are the slit ID values
 from the slitmask design, which within the Pypeit framework are called ``maskdef_id``. **The
-``maskdef_id`` values are never shown for long-slit observations.**
+maskdef_id values are never shown for long-slit observations.**
 
 See :ref:`edges` for further details.
 
@@ -450,7 +450,7 @@ The four columns printed to screen are ``SpatID`` (the internal PypeIt ID), ``Ma
 Slits with ``Flags`` set to ``BOXSLIT`` are alignment boxes and are not reduced by PypeIt. If the
 calibration failed for some slits, the ``Flags`` column will show the reason for the failure.
 Those slits with *None* in the ``Flags`` column have been successfully reduced.
-** Note that the ``MaskID`` and ``MaskOFF`` columns are not printed for long-slit observations.**
+**Note that the MaskID and MaskOFF columns are not printed for long-slit observations.**
 
 
 Visual inspection
@@ -513,8 +513,8 @@ in the ``Science/`` folder.  For this example, here are the first few lines of t
 
 It shows a table with the PypeIt names of the extracted spectra in each slit and all the associated
 information about the extraction and the object. See :ref:`spec1d-extract_info` for a detailed description of this file.
-** Note that the ``maskdef_id``, ``objname``, ``objra``, ``objdec`` and ``maskdef_extract`` columns
-are not printed for long-slit observations.**
+**Note that the maskdef_id, objname, objra, objdec and maskdef_extract columns are not
+printed for long-slit observations.**
 
 To inspect the 1D spectrum, we can use the script :ref:`pypeit_show_1dspec`, with a call like this:
 
