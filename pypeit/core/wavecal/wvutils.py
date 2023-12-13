@@ -686,7 +686,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.75,1.25), sigdetect = 5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac = 1.0, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
+                        fwhm = 4.0, max_lag_frac = 1.0, lag_range = None, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This

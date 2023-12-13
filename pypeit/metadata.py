@@ -1517,10 +1517,8 @@ class PypeItMetaData:
         for key in extras:
             if key not in columns:
                 columns += [key]
-        print('Column list is: ', columns)
         # Take only those present
         output_cols = np.array(columns)
-        print('Output cols will be ', output_cols[np.isin(output_cols, self.keys())].tolist())
         return output_cols[np.isin(output_cols, self.keys())].tolist()
 
     def set_combination_groups(self, assign_objects=True):
