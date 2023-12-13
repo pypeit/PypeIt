@@ -1,9 +1,5 @@
-import enum
 from pathlib import Path
-import traceback
-import io
-import typing
-from PyQt6 import QtGui
+import copy
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
@@ -518,7 +514,7 @@ class ConfigValuesPanel(QGroupBox):
     
     Args:
         spec_name (str):            Name of spectrograph for the configuration.
-        config (list of tuple):     The name/value pairs for the configuration keys defined by the spectrograph.
+        config (dict):     The name/value pairs for the configuration keys defined by the spectrograph.
         lines_to_display (int):     How many lines to display before scrolling.
         parent (QWidget, Optional): The parent widget, defaults to None.
     """
@@ -527,78 +523,60 @@ class ConfigValuesPanel(QGroupBox):
         super().__init__(parent=parent)        
         self.setTitle(self.tr("Setup"))
 
+        # Set our configuration, adding the spectrograph name as the first item.
+        self.lines_to_display = lines_to_display
+
         # Put everything in a scroll area
         layout = QHBoxLayout(self)
-        scroll_area = QScrollArea(parent=self)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll_area = QScrollArea(parent=self)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         # A widget using a form layout to display the spectrograph + configuration values
-        form_widget = QWidget()
-        form_widget_layout = QFormLayout(form_widget)
+        self._form_widget = QWidget()
+        self._form_widget_layout = QFormLayout(self._form_widget)
+
+        # Add margins to the right to avoid needing a horizontal scroll bar
+        fm = self.fontMetrics()
+        max_char_width = fm.maxWidth()
+        self._form_widget_layout.setContentsMargins(0, 0, max_char_width, 0)
 
         # Keep this from expanding too large.
-        form_widget_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self._form_widget_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         
-        # First line is the spectrograph.
-        form_widget_layout.addRow(self.tr("Spectrograph"), QLabel(spec_name))
+        # Add a "Spectrograph" line to the form layout
+        self._config_labels = {}
+        label = QLabel(spec_name)
+        self._config_labels['Spectrograph'] = label
+        self._form_widget_layout.addRow('Spectrograph', label)
 
-        # We calculate our width to just fit around the text so we can stop the scroll area from
-        # covering it with a scrollbar.
-        fm = self.fontMetrics()
-        max_key_width = fm.horizontalAdvance(self.tr("Spectrograph"))
-        max_value_width = fm.horizontalAdvance(spec_name)
-
-        # Add additional rows for configuration keys
-        for key, value in config:
+        # Add values to form layout
+        for key, value in config.items():
             label = QLabel(str(value))
-            form_widget_layout.addRow(key, label)
-            key_width = fm.horizontalAdvance(key)
-            value_width = fm.horizontalAdvance(str(value))
+            self._form_widget_layout.addRow(key, label)
+            self._config_labels[key] = label
 
-            if key_width > max_key_width:
-                max_key_width = key_width
+        self._scroll_area.setWidget(self._form_widget)
 
-            if value_width > max_value_width:
-                max_value_width = value_width
-
-        # Don't add extra margins in the FormLayout
-        form_widget_layout.setContentsMargins(0, 0, 0, 0)
-
-        scroll_area.setWidget(form_widget)
-
-        # Set the minimum width  of the formwidget.        
-        min_fw_width = form_widget_layout.horizontalSpacing()+max_key_width+max_value_width
-        msgs.info(f"minWidth: {min_fw_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {form_widget_layout.horizontalSpacing()}")
-    
-        # Account for the scroll bar if needed
-        if len(config) + 1 > lines_to_display:
-            if scroll_area.verticalScrollBar():
-                min_fw_width += scroll_area.verticalScrollBar().sizeHint().width()
-                msgs.info(f"new minWidth: {min_fw_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {form_widget_layout.horizontalSpacing()}")
-
-        form_widget.setMinimumWidth(min_fw_width)
-
+        # Set the minimum width of the form widget
+        self._form_widget.setMinimumWidth(self._getMinWidth())
 
 
         # Figure out the correct height for this panel, so that only the spectrograph and self.number_of_lines
         # config keys are visible
 
         # Find the minimum height of the form widget needed to hold the number of lines to display
-        msgs.info(f"font height: {fm.height()} vertical spacing {form_widget_layout.verticalSpacing()}")
-        min_fw_height = form_widget_layout.verticalSpacing()*(lines_to_display-1) + fm.height()*lines_to_display
+        msgs.info(f"font height: {fm.height()} vertical spacing {self._form_widget_layout.verticalSpacing()}")
+        min_fw_height = self._form_widget_layout.verticalSpacing()*(lines_to_display-1) + fm.height()*lines_to_display
 
         # The height of this panel is that height plus the margins + the group box title
-        scroll_area_margins = scroll_area.contentsMargins()
+        scroll_area_margins = self._scroll_area.contentsMargins()
         group_box_margins = self.contentsMargins()
-        form_widget_margins = form_widget.contentsMargins()
+        form_widget_margins = self._form_widget.contentsMargins()
         self.setFixedHeight(min_fw_height + 
                             fm.height()   +  # Group Box Title
                             group_box_margins.top()   + group_box_margins.bottom() +
                             scroll_area_margins.top() + scroll_area_margins.bottom() +
                             form_widget_margins.top() + form_widget_margins.bottom())
-
-        # Set the minimum width of the form widget
-        form_widget.setMinimumWidth(min_fw_width)
 
         # Set to fixed sizing policy
         policy = QSizePolicy()
@@ -607,7 +585,56 @@ class ConfigValuesPanel(QGroupBox):
         policy.setControlType(QSizePolicy.DefaultType)
         self.setSizePolicy(policy)
         
-        layout.addWidget(scroll_area)
+        layout.addWidget(self._scroll_area)
+
+    def setNewValues(self, config_dict: dict) -> None:
+        """Update the panel to display new configuration values.
+        
+        Args:
+            config_dict: A dict of the new values.
+        """
+        for key, value in config_dict.items():
+            label = self._config_labels.get(key,None)
+            if label is None:
+                label = QLabel(str(value))
+                self._config_labels[key] = label
+                self._form_widget_layout.addRow(key,label)
+            else:
+                label.setText(str(value))
+
+        # Reset the minimum width for the new values
+        self._form_widget.setMinimumWidth(self._getMinWidth())
+
+
+    def _getMinWidth(self) -> int:
+        """Calculate the minimum width needed to display the configuration values."""
+
+        # We calculate our width to just fit around the text so we can stop the scroll area from
+        # covering it with a scrollbar.
+        fm = self.fontMetrics()
+        max_key_width = 0
+        max_value_width = 0
+        for key in self._config_labels:
+            value = self._config_labels[key].text()
+            key_width = fm.horizontalAdvance(key)
+            value_width = fm.horizontalAdvance(value)
+
+            if key_width > max_key_width:
+                max_key_width = key_width
+
+            if value_width > max_value_width:
+                max_value_width = value_width
+
+        margins = self._form_widget_layout.contentsMargins()
+
+        min_width = self._form_widget_layout.horizontalSpacing() + max_key_width + max_value_width + margins.left() + margins.right()
+
+        # Account for the scroll bar if needed
+        if len(self._config_labels) > self.lines_to_display:
+            if self._scroll_area.verticalScrollBar():
+                min_width += self._scroll_area.verticalScrollBar().sizeHint().width()
+        msgs.info(f"new minWidth: {min_width} max key width: {max_key_width} max_value width {max_value_width} horizontal spacing {self._form_widget_layout.horizontalSpacing()} margins left: {margins.left()} margins right: {margins.right()}")
+        return min_width
 
 class TabManagerBaseTab(QWidget):
     """Widget that acts as a tab for :class:`TabManagerWidget`. This defines the interface needed by TabManagerWidget
@@ -650,7 +677,6 @@ class PypeItFileView(TabManagerBaseTab):
         (pypeit.setup_gui.model.PypeItFileController): The controller for managing the user's interaction with a PypeIt file)
     """
 
-    """Signal sent when items have been selected in the metadata table."""
 
     def __init__(self, model, controller):
         # Allow file tabs to be closed
@@ -676,8 +702,8 @@ class PypeItFileView(TabManagerBaseTab):
         layout.addLayout(third_row_layout)
 
         # Add the ConfigValuesPanel, displaying the spectrograph + config keys.
-        config_panel = ConfigValuesPanel(model.spec_name, model.config_values, 5, parent=self)
-        third_row_layout.addWidget(config_panel)
+        self.config_panel = ConfigValuesPanel(model.spec_name, model.config_values, 5, parent=self)
+        third_row_layout.addWidget(self.config_panel)
 
         # Add the Raw Data directory panel to the third row, second column
         # This is not editable, because the user can add/remove directories by adding/removing individual
@@ -719,14 +745,18 @@ class PypeItFileView(TabManagerBaseTab):
         layout.setStretch(3,10)
         layout.setStretch(4,10)
 
-        self.model.stateChanged.connect(self.update_filename)
+        self.model.stateChanged.connect(self.update_from_model)
 
 
     """
-    Signal handler that updates the filename when the underlying model is saved.
+    Signal handler that updates view when the underlying model changes.
     """
-    def update_filename(self):
+    def update_from_model(self):
+        # update the filename if it changed from saving
         self.filename_value.setText(self.model.filename)
+
+        # Update the config values
+        self.config_panel.setNewValues(self.model.config_values)
 
     @property
     def name(self):

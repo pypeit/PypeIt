@@ -18,7 +18,7 @@ from pathlib import Path
 from functools import partial
 from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 from qtpy.QtGui import QTextDocument, QTextCursor
-
+import qtpy
 from configobj import ConfigObj
 
 from pypeit import msgs, spectrographs
@@ -419,6 +419,21 @@ class PypeItMetadataModel(QAbstractTableModel):
         else:
             # A non-applicable role or a sort order request for a column that we're not sorted by.
             return None
+
+    def getSetup(self, row : int) -> dict:
+        """Return the configuration/setup values for the given row of metadata.
+        
+        Args:
+            row: The row within the model to return the setup values for
+        Return:
+            A dictionary of configuration key/value pairs. An empty dictionary is returned
+            if there is no metadata or the spectrograph has no configuration keys
+        """
+        if self.metadata is None or row >= len(self.metadata):
+            return {}
+        return self.metadata.get_configuration(row)
+
+
 
     def getDefaultColumns(self):
         """Return the default columns to display to the user. This can vary based
@@ -995,12 +1010,11 @@ class PypeItFileModel(QObject):
         self._spectrograph = metadata_model.spectrograph
 
         if self.state == ModelState.NEW:
-            self.config_values = []
+            self.config_values = {}
         else:            
 
-            # Build a list of the configuration key/value pairs, to avoid displaying them in the
-            # arbitrary order chosen by the dict
-            self.config_values = [(key, config_dict[key]) for key in self._spectrograph.configuration_keys()]
+            # Build a list of the configuration key/value pairs
+            self.config_values = config_dict
 
         # Monitor the model for changes
         self.metadata_model.dataChanged.connect(self._update_state, Qt.ConnectionType.DirectConnection)
@@ -1013,7 +1027,15 @@ class PypeItFileModel(QObject):
         our model state to ModelState.CHANGED
         """
         msgs.info("Updating state")
-        self.state = ModelState.CHANGED
+        if self.state == ModelState.NEW:
+            # Only move to "CHANGED" if there are rows in the metadata.
+            if self.metadata_model.rowCount() > 0:
+                self.state = ModelState.CHANGED
+                # Update our configuration values
+                self.config_values = self.metadata_model.getSetup(0)
+        else:
+            self.state = ModelState.CHANGED
+
         self.stateChanged.emit(self.name_stem,self.state)
 
     @property
@@ -1208,6 +1230,10 @@ class PypeItSetupGUIModel(QObject):
         """
         self.log_buffer = LogBuffer(logname,verbosity)
         msgs.reset(verbosity=verbosity, log=self.log_buffer, log_to_stderr=False)
+        msgs.info(f"QT Version: {qtpy.QT_VERSION}")
+        msgs.info(f"PySide version: {qtpy.PYSIDE_VERSION}")
+        msgs.info(f"PyQt version: {qtpy.PYQT_VERSION}")
+        msgs.info(f"QtPy API_NAME: {qtpy.API_NAME}")
 
     @property
     def state(self):
