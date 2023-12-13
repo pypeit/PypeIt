@@ -311,7 +311,7 @@ traced and 2D fitted tilts over-plotted. Here is an example:
     pypeit_chk_tilts Calibrations/Tilts_A_0_DET01.fits
 
 .. image:: ../figures/lris_tilts.png
-   :scale: 60%
+   :scale: 50%
    :align: center
 
 This shows a zoom-in of a :ref:`tiltimg` image in a `ginga`_ window with overlaid
@@ -384,11 +384,9 @@ for the ``global`` correction, called
 ``QA/PNGs/r230417_01033-frb22022_LRISr_20230417T082242.672_global_DET01_S0212_spec_flex_sky.png``:
 
 .. image:: ../figures/lris_flexure_qa2.png
-   :scale: 80%
-   :align: center
+   :scale: 90%
 .. image:: ../figures/lris_flexure_qa.png
-   :scale: 80%
-   :align: center
+   :scale: 90%
 
 The first plot shows the polynomial fit (red line) between the top seven highest cross-correlation values
 (y-axis) and the corresponding shift in pixels (x-axis). The value of the shift with the highest
