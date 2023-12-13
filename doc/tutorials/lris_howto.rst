@@ -401,7 +401,7 @@ for the ``global`` correction, called
 .. image:: ../figures/lris_flexure_qa.png
    :scale: 90%
 
-The first plot shows the polynomial fit (red line) between the top seven highest cross-correlation values
+The first plot shows the polynomial fit (black line) between the top seven highest cross-correlation values
 (y-axis) and the corresponding shift in pixels (x-axis). The value of the shift with the highest
 cross-correlation is the flexure correction applied to the wavelength solution (also printed in the plot).
 The user should inspect this plot to make sure that the fit is good and that the value of the flexure shift
