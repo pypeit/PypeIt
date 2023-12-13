@@ -76,7 +76,7 @@ Here are the steps to follow:
    <https://github.com/jsulli27/tilsotua/blob/master/tilsotua/LRIS_Mask_Coords_to_WCS.py>`__).
    This function can be run by providing two parameters:
 
-        - the ``input_file_name``, which is either the FITS or ``".file3"`` mask
+        - the ``data_input_name``, which is either the FITS or ``".file3"`` mask
           design file (be sure the name includes the extension);
 
         - the ``output_file``, which is the name of the output file that
@@ -88,7 +88,7 @@ Here are the steps to follow:
 
         from tilsotua import xytowcs
 
-        xytowcs(input_file_name="yourmaskname.file3",output_file="yourmaskname_output")
+        xytowcs(data_input_name="yourmaskname.file3",output_file="yourmaskname_output")
 
    Although the other parameters are optional for `xytowcs` as a standalone code, users interested in applying the slitmask information to their PypeIt reduction **must provide the `obj_file` and `file1` files to ensure that object names are assigned to the extracted spectra**.
 
@@ -98,7 +98,7 @@ Here are the steps to follow:
 
         from tilsotua import xytowcs
 
-        xytowcs(input_file_name="yourmaskname.file3",output_file="yourmaskname_output",
+        xytowcs(data_input_name="yourmaskname.file3",output_file="yourmaskname_output",
                 obj_file="yourtargets.obj", file1="yourmaskname.file1")
 
    It is assumed that the entries in ``file1`` and ``obj_file`` have unique ``Name`` values, i.e., make
