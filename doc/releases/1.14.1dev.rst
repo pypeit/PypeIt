@@ -57,6 +57,7 @@ Instrument-specific Updates
 - Improvement to the wavelength calibration for Keck/HIRES. New arxiv templates added.
   Templates available for orders 35-117.
 - Various updates to default parameters for Keck/HIRES.
+- Added ``Keck-LRIS HOWTO`` documentation.
 
 Script Changes
 --------------
@@ -109,5 +110,6 @@ Bug Fixes
 - Aligned the documentation and parameters with the code for polynomial overscan
   subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
   ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
+- Fixed duplicate object bug reported in Issue #1690.
 
 

@@ -93,7 +93,7 @@ See complete instructions provided in :ref:`setup_doc`.
     (FITS file format and detectors, see :ref:`lris`) and PypeIt uses different spectrograph
     names to differentiate between them. In this example, we are using observations taken
     with the new Mark IV detector in the red arm, so we use the spectrograph name
-    ``keck_lris_red_mark4``. PypeIt will throw an error if you use the wrong spectrograph name.
+    ``keck_lris_red_mark4``. PypeIt will throw an error if you use the wrong **LRIS** spectrograph name.
 
 For this example, we move to the folder where we want to perform the reduction and save the
 associated outputs and we run:
