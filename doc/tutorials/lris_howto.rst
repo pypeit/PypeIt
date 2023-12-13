@@ -17,7 +17,7 @@ Mark IV detector and the 600/10000 grating. See :ref:`here <dev-suite>`
 to find the example dataset.
 
 .. note::
-    This shows the reduction steps for a **multi-object** dataset. For **long-slit**
+    This doc shows the reduction steps for a **multi-slit** dataset. For **long-slit**
     datasets, the reduction steps are the same, but the setup is *considerably simpler*.
     In the text below, we will point out the differences.
 
@@ -58,6 +58,9 @@ or observations in various gratings). The script :ref:`pypeit_setup`
 
 .. note::
 
+        **The following is only for multi-slit datasets. For long-slit observations,
+        the user can skip this step.**
+
         Pypeit is able to incorporate slitmask information in the reduction routine,
         (similarly to how it is done for Keck/DEIMOS observations).
         However, unlike DEIMOS, LRIS slitmask information is not included in the raw data,
@@ -86,7 +89,7 @@ See complete instructions provided in :ref:`setup_doc`.
 
 .. important::
 
-    Know the spectrograph you need to use. LRIS went through different upgrades
+    Know the spectrograph you need to use! LRIS went through different upgrades
     (FITS file format and detectors, see :ref:`lris`) and PypeIt uses different spectrograph
     names to differentiate between them. In this example, we are using observations taken
     with the new Mark IV detector in the red arm, so we use the spectrograph name
@@ -123,9 +126,12 @@ The edited version looks like this (pulled directly from the :ref:`dev-suite`):
 
 .. include:: ../include/keck_lris_red_mark4_A_edited.pypeit.rst
 
+
 The parameters ``use_maskdesign``, ``use_alignbox``, ``assign_obj``, and ``extract_missing_objs``
 are all parameters that are specific to the slitmask design ingestion (see :ref:`slitmask_ids_report`,
-:ref:`radec_object_report`, and :ref:`add_missing_obj_report`).
+:ref:`radec_object_report`, and :ref:`add_missing_obj_report`). **These are not used for long-slit
+observations, therefore the user can ignore them.**
+
 The other parameters are set to improve the object finding and extraction, and to instruct PypeIt
 not to use bias frames for the reduction (given that no bias frames are provided). See :ref:`parameters`
 for more details.
@@ -159,7 +165,8 @@ Slit Edges
 ++++++++++
 
 The code first uses the ``trace`` frames to find the slit edges on the detector.
-When available, the slitmask design information is used to help find the slit edges.
+When available, the slitmask design information is used to help find the slit edges
+(**not for long-slit observations**).
 
 To check that PypeIt correctly identified every slits, we can run the :ref:`pypeit_chk_edges` script,
 with this explicit call:
@@ -179,14 +186,16 @@ in the `ginga`_ window:
 The data shown is the *Trace Image*, i.e., the flat image.
 The green/magenta lines indicate the left/right slit edges.  The aquamarine labels starting with an
 ``S`` are the internal slit identifiers of PypeIt, while the cyan numbers are the slit ID values
-from the slitmask design, which within the Pypeit framework are called ``maskdef_id``.
+from the slitmask design, which within the Pypeit framework are called ``maskdef_id``. **The
+``maskdef_id`` values are never shown for long-slit observations.**
 
 See :ref:`edges` for further details.
 
 We can also inspect the ``Slits`` file, which contains the main information on the traced slit edges,
-organized into left-right slit pairs. This is a FITS file containing an `astropy.io.fits.BinTableHDU`_,
-which has a second extension, called ``MASKDEF_DESIGNTAB``, that includes all the relevant slitmask design
-information. In this example, the first few rows of ``MASKDEF_DESIGNTAB`` looks like this:
+organized into left-right slit pairs. This is a FITS file containing one or two `astropy.io.fits.BinTableHDU`_
+extensions. The second extension, called ``MASKDEF_DESIGNTAB``, **which is available only for multi-slit observations
+and if the slitmask design information is provided**, contains all the relevant slitmask design information.
+In this example, the first few rows of ``MASKDEF_DESIGNTAB`` looks like this:
 
 .. code-block:: python
 
@@ -222,14 +231,15 @@ You can view the ``Arc`` image used for the wavelength calibration of the scienc
    :scale: 60%
    :align: center
 
-As typical of most arc images, we can sees a series of arc lines, here oriented approximately horizontally.
+As typical of most arc images, we can see a series of arc lines, here oriented approximately horizontally.
+It is important to inspect the arc image to make sure it looks good, ensuring to get a good wavelength calibration.
 
 See :ref:`arc` for further details.
 
 Wavelengths
 +++++++++++
 
-It is important to inspect the :ref:`qa` for the wavelength calibration.
+It is, also, very important to inspect the :ref:`qa` for the wavelength calibration.
 These are PNG files in the ``QA/PNG/`` folder.
 
 1D
@@ -429,6 +439,7 @@ The four columns printed to screen are ``SpatID`` (the internal PypeIt ID), ``Ma
 Slits with ``Flags`` set to ``BOXSLIT`` are alignment boxes and are not reduced by PypeIt. If the
 calibration failed for some slits, the ``Flags`` column will show the reason for the failure.
 Those slits with *None* in the ``Flags`` column have been successfully reduced.
+** Note that the ``MaskID`` and ``MaskOFF`` columns are not printed for long-slit observations.**
 
 
 Visual inspection
@@ -442,7 +453,9 @@ In this example, we can visualize the 2D spectrum with this explicit call:
     pypeit_show_2dspec Science/spec2d_r230417_01033-frb22022_LRISr_20230417T082242.672.fits --removetrace
 
 The ``--removetrace`` only shows the object trace in the first channel (the channel showing the
-calibrated science image), but does not include it in the remaining channels.
+calibrated science image), but does not include it in the remaining channels. It is helpful to
+to use the ``--removetrace`` option to better visualize the object traces (especially for faint
+objects).
 
 
 We show here a zoom-in screenshot from three (``sciimg-DET01``, ``sky_resid-DET01``, ``resid-DET01``) of the
@@ -461,10 +474,11 @@ four tabs in the `ginga`_ window:
 This shows on the top the calibrated science image, in the middle the sky residual image (sky-subtracted
 calibrated image divided by the uncertainties), and on the right the residual image.
 The green/magenta lines are the slit edges.  The orange lines (shown only in the first channel)
-are the object traces and the orange text is the PypeIt assigned name (starting with ``SPAT``) plus
-the object name from the slitmask design information (starting with ``OBJNAME``).
+are the object traces and the orange text is the PypeIt assigned name (starting with ``SPAT``).
+**Only for multi-slit observations, and if the slitmask design information is provided,**
+The orange text also includes the object name from the slitmask design information (starting with ``OBJNAME``).
 Yellow lines, if present, indicate sources that, although not detected, have been extracted
-at the expected location using the slitmask design information.
+at the expected location using the slitmask design information (still **only for multi-slit observations**).
 See :ref:`spec-2d-output` for further details.
 
 The main assessments to perform are to make sure that the object is well traced,
@@ -488,6 +502,8 @@ in the ``Science/`` folder.  For this example, here are the first few lines of t
 
 It shows a table with the PypeIt names of the extracted spectra in each slit and all the associated
 information about the extraction and the object. See :ref:`spec1d-extract_info` for a detailed description of this file.
+** Note that the ``maskdef_id``, ``objname``, ``objra``, ``objdec`` and ``maskdef_extract`` columns
+are not printed for long-slit observations.**
 
 To inspect the 1D spectrum, we can use the script :ref:`pypeit_show_1dspec`, with a call like this:
 
