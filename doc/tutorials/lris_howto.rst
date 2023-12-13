@@ -11,10 +11,16 @@ Overview
 ========
 
 This doc goes through a full run of PypeIt on one of our :ref:`lris`
-datasets, specifically the ``keck_lris_red_mark4/multi_600_10000_slitmask``
+**multi-object** datasets, specifically the ``keck_lris_red_mark4/multi_600_10000_slitmask``
 dataset. These are Keck LRIS RED multi-slit observations taken with the new
 Mark IV detector and the 600/10000 grating. See :ref:`here <dev-suite>`
 to find the example dataset.
+
+.. note::
+    This shows the reduction steps for a **multi-object** dataset. For **long-slit**
+    datasets, the reduction steps are the same, but the setup is *considerably simpler*.
+    In the text below, we will point out the differences.
+
 
 If you're having trouble reducing your data, we encourage you to try going
 through this tutorial using this example dataset first. Please join our
