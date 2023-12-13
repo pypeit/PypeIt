@@ -107,7 +107,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('--no_clear', dest='clear', default=True, 
                             action='store_false',
                             help='Do *not* clear all existing tabs')
-        parser.add_argument('-v', '--verbosity', type=int, default=2,
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]')
         return parser
 
