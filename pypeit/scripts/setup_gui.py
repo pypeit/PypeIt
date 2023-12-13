@@ -22,7 +22,7 @@ class SetupGUI(scriptbase.ScriptBase):
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                     ', '.join(model.available_spectrographs())))
-        parser.add_argument('-r', '--root', default=None, type=str,
+        parser.add_argument('-r', '--root', default=[], type=str,nargs='+',
                             help='Root to search for data files.  You can provide the top-level '
                                  'directory  (e.g., /data/Kast) or the search string up through '
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '

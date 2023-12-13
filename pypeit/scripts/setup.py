@@ -91,7 +91,13 @@ class Setup(scriptbase.ScriptBase):
 
         if args.gui:
             from pypeit.scripts.setup_gui import SetupGUI
-            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-r", args.root, "-e", args.extension])
+            if isinstance(args.root,list):
+                root_args = args.root
+            else:
+                # If the root argument is a single string, convert it to a lsit.
+                # This can happen when the default for --root is used
+                root_args = [args.root]
+            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-e", args.extension, "-r", *root_args])
             SetupGUI.main(gui_args)
 
         # Initialize PypeItSetup based on the arguments

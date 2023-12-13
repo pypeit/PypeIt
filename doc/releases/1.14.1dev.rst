@@ -13,7 +13,9 @@ Dependency Changes
 
 - Removes use of deprecated ``pkg_resources``.
 - Require version ``>=1.12`` for ``specutils``.
-- Add ``psutil`` as a dependency for [test] and [dev] installs.
+- Add ``psutil`` as a dependency for [dev] installs.
+- Add ``pytest-qt`` as a dependency for [dev] installs.
+- Require version ``>=0.3.1`` for ``linetools``
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -41,6 +43,7 @@ Functionality/Performance Improvements and Additions
   to reflect the *type* of polynomial being fit.  Both names point to the same
   code, but the name ``'polynomial'`` is deprecated and will be removed in the
   future.
+- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 
 Instrument-specific Updates
 ---------------------------
@@ -66,6 +69,8 @@ Script Changes
   light calibration frame model.
 - Added the ``pypeit_edge_inspector`` script, which allows users to edit the
   edge traces by-hand.
+- Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
+  Setup GUI. 
 
 Datamodel Changes
 -----------------

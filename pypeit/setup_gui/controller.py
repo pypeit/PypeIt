@@ -601,7 +601,8 @@ class SetupGUIController(QObject):
         if args.spectrograph is not None:
             self.model.obslog_model.set_spectrograph(args.spectrograph)
         if args.root is not None:
-            self.model.obslog_model.add_raw_data_directory(args.root)
+            for root_dir in args.root:
+                self.model.obslog_model.add_raw_data_directory(root_dir)
         if args.spectrograph is not None and args.root is not None:
             self.run_setup_at_startup = True
         else:
