@@ -43,13 +43,11 @@ class OpCanceledError(Exception):
         super().__init__()
 
 class OperationThread(QThread):
-    """Thread to run a background operation.
-    
-    Args:
-        operation (:obj:`collections.abc.Callable`): The callable function or object that performs the operation.
-    """
+    """Thread to run a background operation."""
 
     completed = Signal(bool, tuple)
+    """Signal send the operation has completed."""
+
 
     def __init__(self):
         super().__init__()

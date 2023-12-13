@@ -1,5 +1,4 @@
 from pathlib import Path
-import copy
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
@@ -26,6 +25,7 @@ class PathEditor(QWidget):
     """
 
     pathEntered = Signal(str)
+    """Signal sent when a path has been added."""
 
     def __init__(self, browse_caption, parent=None):
         super().__init__(parent=parent)
@@ -274,7 +274,7 @@ class PypeItEnumListEditor(QWidget):
         return super().paint(*args,**kwargs)
 
 class PypeItCustomEditorDelegate(QStyledItemDelegate):
-    """"Custom item delegate for rows in a PypeItMetadataView."""
+    """Custom item delegate for rows in a PypeItMetadataView."""
     def __init__(self, parent):
         self.metadata_view=parent
         super().__init__(parent)
@@ -439,25 +439,6 @@ class PypeItMetadataView(QTableView):
 
         self.addActions(controller.getActions(self))
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
-
-    def mousePressEvent(self, e: QMouseEvent | None) -> None:
-        
-        """
-        p = e.position().toPoint()        
-        try:
-            index = self.indexAt(p)
-            msgs.info(f"index {index.row()},{index.column()}")
-            msgs.info(f"Style sheet: {self.styleSheet()}")
-            ##delegate = self.itemDelegate(index)
-            #palette = widget.palette()
-            #cg = palette.currentColorGroup()
-            #msgs.info(f"CG at mouse: {cg}")
-        except Exception as ex:
-            msgs.warn(traceback.format_exc())
-
-        
-        """
-        return super().mousePressEvent(e)
 
     def setModel(self, model):
         """Set the PypeItMetadataProxy model to use for the table.
@@ -786,7 +767,7 @@ class ObsLogView(TabManagerBaseTab):
 
     Args:
         model (:class:`pypeit.setup_gui.model.PypeItObsLogModel`): Model object for a PypeIt Setup GUI.
-        controller (:class:`pypeit.setup_gui.model.PypeItObsLogController`): Controller object for the PypeIt Setup GUI.
+        controller (:class:`pypeit.setup_gui.controller.PypeItObsLogController`): Controller object for the PypeIt Setup GUI.
         parent (QWidget): The parent widget of the tab.
     """
 
@@ -975,6 +956,7 @@ class TabManagerWidget(QTabWidget):
     """
 
     tabCreateRequest = Signal()
+    """Signal sent when the wants to add a new tab."""
 
     def __init__(self, parent, tab_position=QTabWidget.South):
         super().__init__(parent=parent)
