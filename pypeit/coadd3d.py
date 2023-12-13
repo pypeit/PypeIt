@@ -1429,7 +1429,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
 def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
                   all_wcs, tilts, slits, astrom_trans, all_dar, dspat, dwave,
-                  spat_subpixel=10, spec_subpixel=10, slice_subpixel=1, raw_bins=None):
+                  spat_subpixel=5, spec_subpixel=5, slice_subpixel=10, raw_bins=None):
     """
     This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
     to align the daatcubes to an HST image.
@@ -1461,7 +1461,7 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
         flxcube, sigcube, bpmcube, wave = \
             datacube.generate_cube_subpixel(subcube_wcs, voxedge, sciImg, ivar, waveimg, inmask, wghts,
                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                                            overwrite=False, spec_subpixel=5, spat_subpixel=5,
+                                            overwrite=False, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
                                             slice_subpixel=slice_subpixel)
 
         if False:
@@ -1478,22 +1478,22 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
         ## STEP 3A ## - Generate another datacube using the raw_wcs and make an image of the emission line map
         # Need to generate a datacube near both Hgamma and Hdelta.
         ############
-        if False:
-            #Is DAR correction being performed here?
-            slice_subpixel = 10
+        if True:
             # FIRST DO Hdelta
             inmask = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
             flxcube, sigcube, bpmcube, wave = \
                 datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
                                                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset, overwrite=False,
-                                                spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
+                                                spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
+                                                slice_subpixel=slice_subpixel)
             HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIdelta")
             # THEN DO Hgamma
             inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
             flxcube, sigcube, bpmcube, wave = \
                 datacube.generate_cube_subpixel(all_wcs, raw_bins, sciImg, ivar, waveimg, inmask, wghts,
                                                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                                                overwrite=False, spec_subpixel=5, spat_subpixel=5, slice_subpixel=slice_subpixel)
+                                                overwrite=False, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
+                                                slice_subpixel=slice_subpixel)
             HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIgamma")
             # Plot the emission line map
             from matplotlib import pyplot as plt
