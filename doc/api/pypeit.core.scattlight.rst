@@ -1,7 +1,7 @@
-pypeit.core.ref\_index module
+pypeit.core.scattlight module
 =============================
 
-.. automodule:: pypeit.core.ref_index
+.. automodule:: pypeit.core.scattlight
    :members:
    :private-members:
    :undoc-members:
