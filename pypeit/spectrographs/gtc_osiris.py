@@ -101,6 +101,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]
@@ -722,6 +723,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]

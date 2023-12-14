@@ -128,6 +128,7 @@ The primary calibration procedures are, in the order they're performed:
    wave_calib
    Slit Alignment (IFU only) <alignment>
    flat_fielding
+   scattlight
 
 Follow the above links for a detailed description of each step, and how the
 default calibration procedures may be **modified** to suit your needs.
