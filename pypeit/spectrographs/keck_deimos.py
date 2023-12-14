@@ -741,7 +741,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
         detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
 
-        if hdu[0].header['AMPMODE'] != 'SINGLE:B':
+        if hdu[0].header['AMPMODE'] not in ['SINGLE:B', 'SINGLE:A']:
             msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
             msgs.error('PypeIt can only reduce images with MOSMODE == Spectral.')
@@ -778,6 +778,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             rawdatasec_img = np.zeros_like(image, dtype=int)
             oscansec_img = np.zeros_like(image, dtype=int)
 
+        #embed(header='DEIMOS 754')
         # Loop over the chips
         for ii, tt in enumerate(chips):
             data, oscan = deimos_read_1chip(hdu, tt + 1)
