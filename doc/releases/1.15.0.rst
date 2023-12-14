@@ -4,9 +4,10 @@ Version 1.14.1dev
 
 Installation Changes
 --------------------
-- PypeIt will no longer be available through ``conda-forge`` and
-  must be installed via ``pip`` from PyPI.  Users may still use
-  ``conda`` for management of PypeIt's virtual environment.
+
+- PypeIt will no longer be available through ``conda-forge`` and must be
+  installed via ``pip`` from PyPI.  Users may still use ``conda`` for management
+  of PypeIt's virtual environment.
 
 Dependency Changes
 ------------------
@@ -48,7 +49,7 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
-- Updated archival sensivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
+- Updated archival sensitivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
