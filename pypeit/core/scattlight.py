@@ -127,7 +127,7 @@ def scattered_light(frame, bpm, offslitmask, x0, bounds, detpad=300, debug=False
     x0 : `numpy.ndarray`_
         A 1D array containing the best-fitting model parameters
     bounds : :obj:`tuple`_
-        A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+        A tuple of two elements, containing two `numpy.ndarray`_ of the same length as x0. These
         two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
         bounds to consider on the scattered light model parameters.
     debug : :obj:`bool`_, optional
@@ -260,7 +260,7 @@ def fine_correction(frame, bpm, offslitmask, polyord=2, debug=False):
     frame : `numpy.ndarray`_
         Raw 2D data frame (nspec, nspat) to be used to compute the fine correction of the scattered light.
         This frame should be the raw frame, minus the first estimate of the scattered light
-        that has been derived from the `scattered_light_model()`_ function.
+        that has been derived from the :func:`scattered_light_model()` function.
     bpm : `numpy.ndarray`_
         2D boolean array indicating the bad pixels (True=bad), same shape as frame
     offslitmask : `numpy.ndarray`_

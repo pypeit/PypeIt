@@ -346,7 +346,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         x0 : `numpy.ndarray`_
             A 1D array containing the best-fitting model parameters
         bounds : :obj:`tuple`_
-            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+            A tuple of two elements, containing two `numpy.ndarray`_ of the same length as x0. These
             two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
             bounds to consider on the scattered light model parameters.
         """
