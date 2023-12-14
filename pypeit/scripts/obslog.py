@@ -82,6 +82,8 @@ class ObsLog(scriptbase.ScriptBase):
                                  'session).  The table is always written in ascii format using '
                                  'format=ascii.fixed_with for the call to '
                                  'Astropy.table.Table.write .')
+        parser.add_argument('-G','--gui', default=False, action='store_true',
+                            help='View the obs log in a GUI')
         return parser
 
     @staticmethod
@@ -96,6 +98,12 @@ class ObsLog(scriptbase.ScriptBase):
                              + '\tOptions are: {0}\n'.format(', '.join(available_spectrographs))
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
+
+        if args.gui:
+            from pypeit.scripts.setup_gui import SetupGUI
+            gui_args = SetupGUI.parse_args(["-s", args.spec, "-r", args.root, "-e", args.extension])
+            SetupGUI.main(gui_args)
+
 
         if args.keys:
             # Only print the metadata to header card mapping

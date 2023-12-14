@@ -15,6 +15,7 @@ Subpackages
    pypeit.move_median
    pypeit.par
    pypeit.scripts
+   pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
 
