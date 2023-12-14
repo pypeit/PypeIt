@@ -92,8 +92,9 @@ Under-the-hood Improvements
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 - Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
   deprecated ``numpy.polyfit()`` function.
-- Improvements to echelle wavelength calibration. Code changes in: ``pypeit/core/wavecal/wvutils.py``,
-  ``pypeit/core/wavecal/echelle.py``, ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Improvements to echelle wavelength calibration. Code changes in:
+  ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
+  ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
 
 Bug Fixes
 ---------

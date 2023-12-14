@@ -10,7 +10,6 @@ Submodules
    pypeit.setup_gui.controller
    pypeit.setup_gui.dialog_helpers
    pypeit.setup_gui.model
-   pypeit.setup_gui.monitor
    pypeit.setup_gui.text_viewer
    pypeit.setup_gui.view
 
