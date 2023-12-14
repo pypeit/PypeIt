@@ -3,8 +3,6 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
-import glob
-
 import numpy as np
 from scipy.signal import savgol_filter
 
@@ -14,6 +12,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -29,6 +28,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    url = 'https://lweb.cfa.harvard.edu/mmti/mmirs.html'
     header_name = 'mmirs'
     supported = True
 
@@ -36,7 +36,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -78,6 +78,26 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return ttime.mjd
         msgs.error("Not ready for this compound meta")
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERSE']
+
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
@@ -102,7 +122,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.2012,
-            darkcurr        = 0.01,
+            darkcurr        = 36.0,  # e-/pixel/hour  (=0.01 e-/pixel/s)
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -121,7 +141,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -137,9 +157,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.125
         par['calibrations']['wavelengths']['sigdetect']=5
-        par['calibrations']['wavelengths']['fwhm'] = 5
+        par['calibrations']['wavelengths']['fwhm'] = 4.
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
@@ -188,7 +208,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -274,7 +294,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -328,15 +348,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading MMIRS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
-        head1 = fits.getheader(fil[0],1)
+        msgs.info(f'Reading MMIRS file: {fil}')
+        hdu = io.fits_open(fil)
+        head1 = fits.getheader(fil,1)
 
         detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 

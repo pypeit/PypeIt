@@ -11,11 +11,13 @@ Version History
 =========   =================== =========== ===========
 *Version*   *Author*            *Date*      ``PypeIt``
 =========   =================== =========== ===========
-1.0         Debora Pelliccia    9 Oct 2020  1.1.2dev
-1.1         Debora Pelliccia    5 Nov 2020  1.2.1dev
+1.0         Debora Pelliccia     9 Oct 2020 1.1.2dev
+1.1         Debora Pelliccia     5 Nov 2020 1.2.1dev
 1.2         Debora Pelliccia    26 Jan 2021 1.3.1dev
 1.3         Debora Pelliccia    21 Oct 2021 1.6.1dev
 1.4         J. Xavier Prochaska 11 Jan 2022 1.7.1dev
+1.5         Kyle Westfall       23 Mar 2023 1.12.2dev
+1.6         Debora Pelliccia     6 Sep 2023 1.13.1dev
 =========   =================== =========== ===========
 
 ----
@@ -24,7 +26,7 @@ Basics
 ------
 
 The procedure used to assign slitmask ID to each slit is currently available for 
-Keck/DEIMOS, Keck/MOSFIRE, and Keck/LRIS (limited) only,
+these :ref:`slitmask_info_instruments` only,
 and is part of the more general slit tracing procedure described 
 in :ref:`slit_tracing`.
 
@@ -54,8 +56,7 @@ form longer slits.
 
 For LRIS, the procedure is similar to the one for MOSFIRE where edges are predicted
 based on the RA, DEC of each slit and the platescale of the detector.
-It has been developed and tested for the previous LRISr detector (not Mark4)
-and the current LRISb detector.
+It has been developed and tested for ``keck_lris_red``, ``keck_lris_red_mark4``, and ``keck_lris_blue``.
 
 The function :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` assigns to each slit 
 a ``maskdef_id``, which corresponds to `dSlitId` and `Slit_Number` in the DEIMOS/LRIS and
@@ -76,7 +77,7 @@ those edges are placed adjacent to one other.
 Application
 -----------
 
-To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`pypeit_par:EdgeTracePar Keywords`
+To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`edgetracepar`
 must be **True**.  This is the default for DEIMOS (except when the *LongMirr* or the *LVM* mask is used) and
 MOSFIRE (except when the *LONGSLIT* mask is used).
 
@@ -95,7 +96,7 @@ file into the necessary information. See their
 `GitHub page <https://github.com/jsulli27/tilsotua>`_
 for more.
 
-Three other :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment;
+Three other :ref:`edgetracepar` control the slitmask ID assignment;
 these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
 
 
@@ -103,13 +104,13 @@ Access
 ------
 
 The ``maskdef_id`` is recorded for each slits in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel,
-which is written to disk as a multi-extension FITS file prefixed by MasterSlits.
-In addition, for DEIMOS and MOSFIRE a second `astropy.io.fits.BinTableHDU`_ is written to disk and contains
-more slitmask design information. See :ref:`master_slits` for a description of the provided information
+which is written to disk as a multi-extension FITS file prefixed by Slits.
+In addition, for these :ref:`slitmask_info_instruments` a second `astropy.io.fits.BinTableHDU`_ is written
+to disk and contains more slitmask design information. See :ref:`slits` for a description of the provided information
 and for a way to visualize them.
 
 Moreover, the ``maskdef_id`` assigned to each slit can be found, after a full reduction with ``PypeIt``
-(see :ref:`step_by_step`), by running ``pypeit_parse_slits Science/spec2d_XXX.fits``, which lists all
+(see, e.g., :ref:`deimos_howto`), by running ``pypeit_parse_slits Science/spec2d_XXX.fits``, which lists all
 the slits with their associated ``maskdef_id``.
 
 
@@ -132,11 +133,11 @@ Testing
 - LRIS -- DevSuite only thus far
 
 ``PypeIt`` meets these requirements as demonstrated by the three tests at
-``pypeit/tests/test_maskdesign_matching.py``.  To run the tests:
+``${PYPEIT_DEV}/unit_tests/test_maskdesign_matching.py``.  To run the tests:
 
 .. code-block:: bash
 
-    cd pypeit/tests
+    cd ${PYPEIT_DEV}/unit_tests
     pytest test_maskdesign_matching.py::test_maskdef_id -W ignore
     pytest test_maskdesign_matching.py::test_add_missing_slits -W ignore
     pytest test_maskdesign_matching.py::test_overlapped_slits -W ignore
@@ -151,13 +152,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **use_maskdesign** flag in 
-       :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.
+       :ref:`edgetracepar` to *True*.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
        the slitmask ID assignment is performed, and record the ``maskdef_id`` associated to each slit
@@ -176,13 +177,13 @@ and is as follows:
 
     1. Load the information relative to the specific instrument (DEIMOS, MOSFIRE).
 
-    2. Load the :ref:`pypeit_par:Instrument-Specific Default Configuration` parameters and select the detector.
+    2. Load the :ref:`instr_par` parameters and select the detector.
 
     3. Build a trace image using three flat-field images from a specific dataset in the :ref:`dev-suite`.
 
     4. Update the instrument configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **use_maskdesign** flag in
-       :ref:`pypeit_par:EdgeTracePar Keywords` to **True**.
+       :ref:`edgetracepar` to **True**.
 
     5. Run step-by-step (lines 72-100) the slit tracing procedure performed by :class:`~pypeit.edgetrace.EdgeTraceSet`.
        This enable to add an extra step, where we remove 4 edges (lines 112-118) that were found

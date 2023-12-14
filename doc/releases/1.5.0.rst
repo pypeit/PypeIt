@@ -1,0 +1,10 @@
+
+Version 1.5.0
+=============
+
+- Improvement to installation docs and scripts to ease installation of
+  telluric and quick-look files.
+- Support dithered observations for DEIMOS.
+
+
+

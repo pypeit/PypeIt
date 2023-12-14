@@ -30,7 +30,6 @@ Submodules
    pypeit.core.flexure
    pypeit.core.flux_calib
    pypeit.core.framematch
-   pypeit.core.load
    pypeit.core.meta
    pypeit.core.moment
    pypeit.core.mosaic
@@ -41,6 +40,7 @@ Submodules
    pypeit.core.procimg
    pypeit.core.pydl
    pypeit.core.qa
+   pypeit.core.scattlight
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
    pypeit.core.telluric

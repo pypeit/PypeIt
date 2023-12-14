@@ -1,0 +1,18 @@
+
+**Version**: 1.1.2
+
+===============  ================  ================================================  ===================================================================================================================================================================
+Attribute        Type              Array Type                                        Description                                                                                                                                                        
+===============  ================  ================================================  ===================================================================================================================================================================
+``PYP_SPEC``     str                                                                 PypeIt spectrograph name                                                                                                                                           
+``arc_spectra``  `numpy.ndarray`_  `numpy.floating`_                                 2D array: 1D extracted spectra, slit by slit (nspec, nslits)                                                                                                       
+``det_img``      `numpy.ndarray`_  `numpy.integer`_                                  Detector image which indicates which pixel in the mosaic corresponds to which detector; used occasionally by echelle.  Currently only saved if ech_separate_2d=True
+``ech_orders``   `numpy.ndarray`_  `numpy.integer`_                                  Echelle order ID numbers.  Defined only for echelle.                                                                                                               
+``fwhm_map``     `numpy.ndarray`_  :class:`~pypeit.core.fitting.PypeItFit`           A fit that determines the spectral FWHM at every location of every slit                                                                                            
+``lamps``        str                                                                 List of arc lamps used for the wavelength calibration                                                                                                              
+``nslits``       int                                                                 Total number of slits.  This can include masked slits                                                                                                              
+``spat_ids``     `numpy.ndarray`_  `numpy.integer`_                                  Slit spat_ids. Named distinctly from that in WaveFit                                                                                                               
+``strpar``       str                                                                 Parameters as a string                                                                                                                                             
+``wv_fit2d``     `numpy.ndarray`_  :class:`~pypeit.core.fitting.PypeItFit`           2D wavelength solution(s) (echelle).  If there is more than one, they must be aligned to the separate detectors analyzed                                           
+``wv_fits``      `numpy.ndarray`_  :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`  WaveFit to each 1D wavelength solution                                                                                                                             
+===============  ================  ================================================  ===================================================================================================================================================================

@@ -4,7 +4,11 @@
 # -*- coding: utf-8 -*-
 """
 This module contains code for collating multiple 1d spectra source object.
+
+.. include:: ../include/links.rst
 """
+
+#TODO -- Consider moving this into the top-level, i.e. out of core
 
 import copy
 import os.path
@@ -30,7 +34,7 @@ class SourceObject:
     Args:
         spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
             The initial spectra of the group as a SpecObj.
-        spec1d_header (:obj:`astropy.io.fits.Header`): 
+        spec1d_header (`astropy.io.fits.Header`_): 
             The header for the first spec1d file in the group.
         spec1d_file (str): Filename of the first spec1d file in the group.
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`): 
@@ -45,7 +49,7 @@ class SourceObject:
             The list of spectra in the group as SpecObj objects.
         spec1d_file_list (list of str): 
             The pathnames of the spec1d files in the group.
-        spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
+        spec1d_header_list: (list of `astropy.io.fits.Header`_):
             The headers of the spec1d files in the group
     """
     def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
@@ -64,23 +68,25 @@ class SourceObject:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
     @classmethod
-    def build_source_objects(cls, spec1d_files, match_type):
+    def build_source_objects(cls, specobjs_list, spec1d_files, match_type):
         """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
         Args:
-            spec1d_files (list of str): List of spec1d filenames
+            specobjs_list (list of :obj:`pypeit.specobjs.SpecObjs`): List of SpecObjs objects to build from.
+
+            spec1d_files (list of str): List of spec1d filenames corresponding to each SpecObjs object.
+
             match_type (str):           What type of matching the SourceObjects will be configured for.
                                         Must be either 'ra/dec' or 'pixel'
         Returns: 
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
         """
         result = []
-        for spec1d_file in spec1d_files:            
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+        for i, sobjs in enumerate(specobjs_list):
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
-                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
+                result.append(SourceObject(sobj, sobjs.header, spec1d_files[i], spectrograph, match_type))
     
         return result
 
@@ -90,7 +96,7 @@ class SourceObject:
         ones for this SourceObject.
 
         Args:
-            header (:obj:`astropy.io.fits.Header`):
+            header (`astropy.io.fits.Header`_):
                 Header from a spec1d file.
 
         Returns:
@@ -127,22 +133,18 @@ class SourceObject:
         Args:
             spec_obj (:obj:`pypeit.specobj.SpecObj`): 
                 The SpecObj to compare with this SourceObject.
-
-            spec1d_header (:obj:`astropy.io.fits.Header`):
+            spec1d_header (`astropy.io.fits.Header`_):
                 The header from the spec1d that dontains the SpecObj.
-                
             tolerance (float): 
                 Maximum distance that two spectra can be from each other to be 
                 considered to be from the same source. Measured in floating
                 point pixels or as an angular distance (see ``unit1`` argument).
-
-            unit (:obj:`astropy.units.Unit`):
+            unit (`astropy.units.Unit`_):
                 Units of ``tolerance`` argument if match_type is 'ra/dec'. 
                 Defaults to arcseconds. Igored if match_type is 'pixel'.
 
         Returns:
-            bool: True if the SpecObj matches this group,
-                  False otherwise.
+            bool: True if the SpecObj matches this group, False otherwise.
         """
 
         if not self._config_key_match(spec1d_header):
@@ -160,7 +162,7 @@ class SourceObject:
         same spectrograph and use the same match type.
 
         Args:
-        other_source_object (:obj:`SourceObject`): The other object to combine with.
+            other_source_object (:obj:`SourceObject`): The other object to combine with.
 
         Returns:
             (:obj:`SourceObject`): This SourceObject, now combined with other_source_object.
@@ -188,12 +190,12 @@ def collate_spectra_by_source(source_list, tolerance, unit=u.arcsec):
             Maximum distance that two spectra can be from each other to be 
             considered to be from the same source. Measured in floating
             point pixels or as an angular distance (see ``unit`` argument).
-        unit (:obj:`astropy.units.Unit`):
+        unit (`astropy.units.Unit`_):
             Units of ``tolerance`` argument if match_type is 'ra/dec'. 
             Defaults to arcseconds. Ignored if match_type is 'pixel'.
 
     Returns:
-        (list of `obj`:SourceObject): The collated spectra as SourceObjects.
+        list: The collated spectra as SourceObjects.
 
     """
 

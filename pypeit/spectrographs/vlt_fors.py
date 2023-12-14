@@ -3,7 +3,6 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
-import os
 import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
@@ -24,6 +23,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.VLTTelescopePar()
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/fors.html'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -32,7 +32,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -57,7 +57,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -69,7 +69,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 5
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_9800_25000_R25000.fits'
 
 
 
@@ -79,7 +79,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -121,14 +121,20 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            try:  # Science
-                decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
-            except KeyError:  # Standard!
-                try:
-                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                except KeyError:
-                    return None
-            return decker
+            mode = headarr[0]['HIERARCH ESO INS MODE']
+            if mode in ['LSS', 'MOS']:
+                try:  # Science
+                    return headarr[0]['HIERARCH ESO INS SLIT NAME']
+                except KeyError:  # Standard!
+                    try:
+                        return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                    except KeyError:
+                        return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+            elif mode == 'IMG':
+                # This is for the bias frames
+                return None
+            else:
+                msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -207,7 +213,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     camera = 'FORS2'
     header_name = 'FORS2'
     supported = True
-    comment = '300I, 300V gratings'
+    comment = '300I, 300V gratings. Supports LSS and MOS mode only.'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -241,7 +247,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # These numbers are from the ESO FORS2 user manual at: 0
         # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
         # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
 
         # CHIP1
         detector_dict1 = dict(
@@ -252,7 +258,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 2.1,
+            darkcurr        = 2.1,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -272,7 +278,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 1.4,
+            darkcurr        = 1.4,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -294,7 +300,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -336,6 +342,26 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
         return par
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': 'detector', 'dark': 'detector'}
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -352,7 +378,28 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         """
         return ['dispname', 'dispangle', 'decker', 'detector']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
 
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS GRIS1 WLEN',
+                'HIERARCH ESO INS SLIT NAME', 'HIERARCH ESO SEQ SPEC TARG']
+
+    # TODO -- Convert this into get_comb_group()
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.

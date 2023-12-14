@@ -26,12 +26,11 @@ class ObsLog(scriptbase.ScriptBase):
         parser.add_argument('spec', type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                         ', '.join(available_spectrographs)))
-        parser.add_argument('-r', '--root', default=os.getcwd(), type=str,
+        parser.add_argument('-r', '--root', default='current working directory', type=str,
                             help='Root to search for data files.  You can provide the top-level '
                                  'directory  (e.g., /data/Kast) or the search string up through '
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
-                                 'to set the types of files to search for.  Default is the '
-                                 'current working directory.')
+                                 'to set the types of files to search for.')
         parser.add_argument('-k', '--keys', default=False, action='store_true',
                             help='Do not produce the log; simply list the pypeit-specific '
                                  'metadata keys available for this spectrograph and their '
@@ -68,7 +67,7 @@ class ObsLog(scriptbase.ScriptBase):
                                  'table.')
         parser.add_argument('-e', '--extension', default='.fits',
                             help='File extension; compression indicators (e.g. .gz) not required.')
-        parser.add_argument('-d', '--output_path', default=os.getcwd(),
+        parser.add_argument('-d', '--output_path', default='current working directory',
                             help='Path to top-level output directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
@@ -83,6 +82,8 @@ class ObsLog(scriptbase.ScriptBase):
                                  'session).  The table is always written in ascii format using '
                                  'format=ascii.fixed_with for the call to '
                                  'Astropy.table.Table.write .')
+        parser.add_argument('-G','--gui', default=False, action='store_true',
+                            help='View the obs log in a GUI')
         return parser
 
     @staticmethod
@@ -98,6 +99,12 @@ class ObsLog(scriptbase.ScriptBase):
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
 
+        if args.gui:
+            from pypeit.scripts.setup_gui import SetupGUI
+            gui_args = SetupGUI.parse_args(["-s", args.spec, "-r", args.root, "-e", args.extension])
+            SetupGUI.main(gui_args)
+
+
         if args.keys:
             # Only print the metadata to header card mapping
             load_spectrograph(args.spec).meta_key_map()
@@ -111,7 +118,6 @@ class ObsLog(scriptbase.ScriptBase):
         ps = PypeItSetup.from_file_root(args.root, args.spec, 
                                         extension=args.extension)
         ps.run(setup_only=True,  # This allows for bad headers
-               write_files=False, 
                groupings=args.groupings,
                clean_config=args.bad_frames)
 

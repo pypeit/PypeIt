@@ -1,10 +1,11 @@
 
-Version 1.2.0
+Version 1.3.0
 
-=================  =========================  ==========  =================================
-HDU Name           Obj Type                   Array Type  Description                      
-=================  =========================  ==========  =================================
-``BIAS_IMAGE``     ndarray                    floating    Primary image data               
-``BIAS_IVAR``      ndarray                    floating    Inverse variance image           
-``BIAS_DETECTOR``  DetectorContainer, Mosaic              The detector or mosaic parameters
-=================  =========================  ==========  =================================
+=================  ==============================  =========  ================================================================================================================================================
+HDU Name           HDU Type                        Data Type  Description                                                                                                                                     
+=================  ==============================  =========  ================================================================================================================================================
+``PRIMARY``        `astropy.io.fits.PrimaryHDU`_   ...        Empty data HDU.  Contains basic header information.                                                                                             
+``BIAS_IMAGE``     `astropy.io.fits.ImageHDU`_     floating   Primary image data                                                                                                                              
+``BIAS_IVAR``      `astropy.io.fits.ImageHDU`_     floating   Inverse variance image                                                                                                                          
+``BIAS_DETECTOR``  `astropy.io.fits.BinTableHDU`_             The detector (see :class:`~pypeit.images.detector_container.DetectorContainer`) or mosaic (see :class:`~pypeit.images.mosaic.Mosaic`) parameters
+=================  ==============================  =========  ================================================================================================================================================

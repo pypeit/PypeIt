@@ -220,7 +220,7 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
         if invvar.shape != x.shape:
             raise ValueError('Dimensions of X and invvar do not agree!')
     if ia is None:
-        ia = np.ones((ncoeff,), dtype=np.bool)
+        ia = np.ones((ncoeff,), dtype=bool)
     if not ia.all():
         if inputans is None:
             inputans = np.zeros((ncoeff,), dtype=x.dtype)
@@ -325,7 +325,7 @@ class TraceSet(object):
         When initialized with x,y positions, this contains the fitted y
         values.
     pypeitFits : list
-        Holds a list of :class:`pypeit.fitting.PypeItFit` fits
+        Holds a list of :class:`~pypeit.core.fitting.PypeItFit` fits
     """
     # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):
@@ -403,7 +403,7 @@ class TraceSet(object):
             elif invvar is not None:
                 inmask = (invvar > 0.0)
             else:
-                inmask = np.ones(xpos.shape, dtype=np.bool)
+                inmask = np.ones(xpos.shape, dtype=bool)
             do_jump = False
             if 'xjumplo' in kwargs:
                 do_jump = True
@@ -428,7 +428,7 @@ class TraceSet(object):
                 self.upper = None
 
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
-            self.outmask = np.zeros(xpos.shape, dtype=np.bool)
+            self.outmask = np.zeros(xpos.shape, dtype=bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
             self.pypeitFits = []
             for iTrace in range(self.nTrace):
@@ -897,16 +897,16 @@ def djs_reject(data, model, outmask=None, inmask=None,
 
     # print(newmask)
     if grow > 0:
-        rejects = newmask == 0
-        if rejects.any():
-            irejects = rejects.nonzero()[0]
-            for k in range(1, grow):
-                newmask[(irejects - k) > 0] = 0
-                newmask[(irejects + k) < (data.shape[0]-1)] = 0
+        bpm = np.logical_not(newmask)
+        if bpm.any():
+            irejects = np.where(bpm)[0]
+            for k in range(1, grow+1):
+                newmask[np.clip(irejects - k, 0,None)] = False
+                newmask[np.clip(irejects + k, None, data.shape[0]-1)] = False
     if inmask is not None:
-        newmask = newmask & inmask
+        newmask &= inmask
     if sticky:
-        newmask = newmask & outmask
+        newmask &= outmask
     #
     # Set qdone if the input outmask is identical to the output outmask.
     #
@@ -915,7 +915,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # to python True and False booleans
 
     outmask = newmask
-    return (outmask, qdone)
+    return outmask, qdone
 
 
 

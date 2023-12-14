@@ -57,10 +57,22 @@ class SensFunc(scriptbase.ScriptBase):
                                  'provided but with .fits trimmed off if it is in the filename.')
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
+        parser.add_argument("-f", "--flatfile", type=str,
+                            help="R|Use the flat file for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --flatfile and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the flatfile there via e.g.:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
+                                 "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
+
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
                             help="Name of output file to save the parameters used by the fit")
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
+                            help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
+                                 'Level 2 writes a log with filename sensfunc_YYYYMMDD-HHMM.log')
         return parser
 
     @staticmethod
@@ -69,15 +81,15 @@ class SensFunc(scriptbase.ScriptBase):
 
         import os
 
-        import numpy as np
-
-        from astropy.io import fits
-
         from pypeit import msgs
         from pypeit import inputfiles
+        from pypeit import io
         from pypeit.par import pypeitpar
         from pypeit import sensfunc
         from pypeit.spectrographs.util import load_spectrograph
+
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('sensfunc', args.verbosity)
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
@@ -87,6 +99,14 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n"
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
+                       "\n")
+        if args.flatfile is not None and args.sens_file is not None:
+            msgs.error("It is not possible to set --flatfile and simultaneously use a .sens "
+                       "file via the --sens_file option. If you are using a .sens file set the "
+                       "flatfile there via:\n"
+                       "\n"
+                       "    [sensfunc]\n"
+                       "       flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
@@ -98,25 +118,41 @@ class SensFunc(scriptbase.ScriptBase):
                        "              multi_spec_det = 3,7\n"
                        "\n")
 
-        # Determine the spectrograph
-        header = fits.getheader(args.spec1dfile)
-        spectrograph = load_spectrograph(header['PYP_SPEC'])
-        spectrograph_def_par = spectrograph.default_pypeit_par()
+        # Determine the spectrograph and generate the primary FITS header
+        with io.fits_open(args.spec1dfile) as hdul:
+            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+            spectrograph_config_par = spectrograph.config_specific_par(hdul)
+
+            # Construct a primary FITS header that includes the spectrograph's
+            #   config keys for inclusion in the output sensfunc file
+            primary_hdr = io.initialize_header()
+            add_keys = (
+                ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+                + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
+            )
+            for key in add_keys:
+                if key.upper() in hdul[0].header.keys():
+                    primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
         # If the .sens file was passed in read it and overwrite default parameters
 
         if args.sens_file is not None:
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                merge_with=sensFile.cfg_lines)
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
+                merge_with=(sensFile.cfg_lines,))
         else:
-            par = spectrograph_def_par 
+            par = spectrograph_config_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
         if args.algorithm is not None:
             par['sensfunc']['algorithm'] = args.algorithm
+
+        # If flatfile was provided override defaults. Note this does undo .sens
+        # file since they cannot both be passed
+        if args.flatfile is not None:
+            par['sensfunc']['flatfile'] = args.flatfile
 
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed
@@ -146,8 +182,8 @@ class SensFunc(scriptbase.ScriptBase):
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
-        # Write it out to a file
-        sensobj.to_file(outfile, overwrite=True)
+        # Write it out to a file, including the new primary FITS header
+        sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 

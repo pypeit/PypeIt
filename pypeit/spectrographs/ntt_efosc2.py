@@ -23,30 +23,15 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     name = 'ntt_efosc2'
     header_name = 'EFOSC'
     camera = 'EFOSC2'
+    url = 'https://www.eso.org/sci/facilities/lasilla/instruments/efosc.html'
     supported = True
     comment = 'The ESO Faint Object Spectrograph and Camera version 2'
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return ['dispname', 'decker', 'binning', 'datasec']
-    
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -116,6 +101,65 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['binning', 'datasec'], 'dark': ['binning', 'datasec']}
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
+        return ['dispname', 'decker', 'binning', 'datasec']
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO INS GRIS1 NAME', 'HIERARCH ESO INS SLIT1 NAME',
+                'HIERARCH ESO SEQ SPEC TARG', 'CDELT1', 'CDELT2',
+                'HIERARCH ESO DET OUT1 NX', 'HIERARCH ESO DET OUT1 NY',
+                'HIERARCH ESO DET OUT1 OVSCY', 'HIERARCH ESO DET OUT1 PRSCX',
+                'HIERARCH ESO DET OUT1 PRSCY', 'HIERARCH ESO DET OUT1 X']
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -158,7 +202,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.12, # Manual 2.2
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -178,7 +222,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -209,7 +253,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -232,7 +276,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -259,6 +303,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             par['scienceframe']['process']['use_pixelflat'] = False
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_specillum'] = False
+        elif self.get_meta_value(scifile, 'dispname') == 'Gr#4':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 
@@ -328,7 +374,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

@@ -16,7 +16,7 @@ from collections import Counter
 from IPython import embed
 
 import numpy as np
-from scipy import ndimage, signal, interpolate
+from scipy import ndimage, signal, optimize
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats, sigma_clip
@@ -65,15 +65,15 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
             parameter to a number greater than zero to enhance the edge detection.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
-        grow_bpm (:int)
+        grow_bpm (int, optional):
             The sobel_sig and edg_img are masked using the bpm. This is done by convolving the bpm with
             a spatial boxcar of width grow_bpm pixels, ensuring that pixels which touched bad pixels are also masked.
 
     Returns:
-        Returns two `numpy.ndarray`_ objects: (1) The image of the
-        significance of the edge detection in sigma and (2) the array
-        isolating the slit edges. In the latter, left edges have a
-        value of -1 and right edges have a value of 1.
+        tuple: Returns two `numpy.ndarray`_ objects -- (1) The image of the
+            significance of the edge detection in sigma and (2) the array
+            isolating the slit edges. In the latter, left edges have a
+            value of -1 and right edges have a value of 1.
     """
     # Checks
     if flux.ndim != 2:
@@ -114,7 +114,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # TODO: why not match the sign of the Sobel image to the edge it
     # traces? I.e., why is the sign flipped?
     # Answer: I defined left as -1 (i.e. counting from left to right (-1, 0, +1) = (left, middle, right)
-    tedges = np.zeros(flux.shape, dtype=np.float)
+    tedges = np.zeros(flux.shape, dtype=float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
 
@@ -122,7 +122,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))
     wcr = np.where((ndimage.minimum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == 1))
-    edge_img = np.zeros(sobel_sig.shape, dtype=np.int)
+    edge_img = np.zeros(sobel_sig.shape, dtype=int)
     edge_img[wcl] = -1
     edge_img[wcr] = 1
 
@@ -271,8 +271,9 @@ def count_edge_traces(edge_img):
             and negative numbers follow left slit edges.
     
     Returns:
+        int or tuple:
         Two integers with the number of left and right edges,
-        respectively.
+        respectively.  Or 0 if the minimum input value is 0
     """
     # Avoid returning -0
     nleft = np.amin(edge_img)
@@ -602,14 +603,13 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             Object used to flag the feature traces. If None,
             assessments use a boolean array to flag traces. If not
             None, errors will be raised if the object cannot
-            interpret the correct flag names defined. In addition to
-            flags used by :func:`_recenter_trace_row`, this function
+            interpret the correct flag names defined. This function
             uses the DISCONTINUOUS flag.
 
     Returns:
-        Three numpy arrays are returned: the optimized center, an
-        estimate of the error, and a bad-pixel mask (masked values
-        are True).
+        tuple: Three numpy arrays are returned. the optimized center, an
+            estimate of the error, and a bad-pixel mask (masked values
+            are True).
     """
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
@@ -780,9 +780,9 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
             dummy value.
 
     Returns:
-        Returns three `numpy.ndarray`_ objects: the new centers, the
-        center errors, and the measurement flags with a data type
-        depending on `bitmask`.
+        tuple: Returns three `numpy.ndarray`_ objects. the new centers, the
+            center errors, and the measurement flags with a data type
+            depending on `bitmask`.
     """
     # Calculate the moments
     radius = width/2
@@ -910,10 +910,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         maxdev (:obj:`float`, optional):
             If provided, reject points with `abs(data-model) >
             maxdev` during the fitting. If None, no points are
-            rejected. See :func:`pypeit.utils.robust_polyfit_djs`.
+            rejected. See :func:`~pypeit.core.fitting.robust_fit`.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allowed during the
-            fitting. See :func:`pypeit.utils.robust_polyfit_djs`.
+            fitting. See :func:`~pypeit.core.fitting.robust_fit`.
         niter (:obj:`int`, optional):
             The number of iterations for this method; i.e., the
             number of times the two-step fitting algorithm described
@@ -928,10 +928,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             if `debug` is true for the plotting. Default is just a
             running number.
         xmin (:obj:`float`, optional):
-            Lower reference for robust_polyfit polynomial fitting.
+            Lower reference for robust_fit polynomial fitting.
             Default is to use zero
         xmax (:obj:`float`, optional):
-            Upper reference for robust_polyfit polynomial fitting.
+            Upper reference for robust_fit polynomial fitting.
             Default is to use the image size in nspec direction
         flavor (:obj:`str`, optional):
             Defines the type of fit performed. Only used by QA
@@ -1299,11 +1299,11 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             length of the detector. The tuple gives the minimum and
             maximum in the fraction of the full spectral length
             (nspec). If None, the full image is collapsed.
-        peak_thresh (:obj:`float, optional):
+        peak_thresh (:obj:`float`, optional):
             The threshold for detecting peaks in the image. See the
             ``input_thresh`` parameter for
             :func:`~pypeit.core.arc.detect_lines`.
-        peak_clip (:obj:`float, optional):
+        peak_clip (:obj:`float`, optional):
             Sigma-clipping threshold used to clip peaks with small
             values; no large values are clipped. If None, no clipping
             is performed. Generally, if the peak detection algorithm
@@ -1537,7 +1537,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
 def parse_user_slits(add_slits, this_det, rm=False):
     """
-    Parse the parset syntax for adding slits
+    Parse the parset syntax for adding or removing slits
 
     Args:
         add_slits (str, list):
@@ -1549,8 +1549,8 @@ def parse_user_slits(add_slits, this_det, rm=False):
 
     Returns:
         list or None:
-          if list,  [[x0,x1,yrow]] for add with one or more entries
-          if list,  [[xcen,yrow]] for rm with one or more entries
+          if list,  [[x0,x1,yrow]] for add (rm=False) with one or more entries
+          if list,  [[xcen,yrow]] for rm=True with one or more entries
 
     """
     # Might not be a list yet (only a str)
@@ -1559,16 +1559,154 @@ def parse_user_slits(add_slits, this_det, rm=False):
     #
     user_slits = []
     for islit in add_slits:
+        # Add?
         if not rm:
             det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([x0,x1,yrow])
-        else:
+        else: # Remove
             det, xcen, yrow = [int(ii) for ii in islit.split(':')]
             if det == this_det:
                 user_slits.append([xcen,yrow])
     # Finish
-    if len(user_slits) == 0:
-        return None
-    else:
-        return user_slits
+    return None if len(user_slits) == 0 else user_slits
+
+
+def find_missing_orders(cen, width_fit, gap_fit, tol=0.2):
+    """
+    Using simple models for the order width and order gap as a function of
+    spatial position, identify orders missed by the automated tracing.
+
+    Args:
+        cen (`numpy.ndarray`_):
+            The spatial pixel positions of the orders traced.
+        width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order width as a function of the order center.
+        gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order gap *after* each order as a function of the order
+            center.
+        tol (:obj:`float`, optional):
+            Fraction of the order width used as the tolerance to identify missed
+            orders.
+
+    Returns:
+        :obj:`tuple`: Two arrays providing (1) the centers of all slit orders
+        and (2) a boolean array selecting orders that were missed by the tracing
+        algorithm.
+    """
+    # Start with the first order found
+    c = [cen[0]]
+    missing = [False]
+
+    # Only interpolate; i.e., only iterate through the region covered by
+    # successfully traced orders.
+    i = 1
+    while c[-1] < cen[-1]:
+        # Calculate where the model would predict the next order to land and add
+        # it to the list of centers.
+        l = width_fit.eval(c[-1])
+        c += [c[-1] + l + gap_fit.eval(c[-1])]
+        # Determine if its missing
+        missing += [True if i >= len(cen) else np.absolute(c[-1] - cen[i]) > tol*l]
+        if not missing[-1]:
+            # If not, reset the center to the measured value and increment the
+            # array index
+            c[-1] = cen[i]
+            i += 1
+    # Return arrays
+    return np.array(c), np.array(missing)
+
+
+def predicted_center_difference(lower_spat, spat, width_fit, gap_fit):
+    """
+    Return the difference between the predicted and true location of an order
+    center.
+
+    This is specifically implemented for :func:`extrapolate_orders` and its use
+    of an optimization algorithm to extrapolate the order locations to *lower*
+    spatial pixel values.
+
+    Args:
+        lower_spat (`numpy.ndarray`_):
+            Optimization parameter.  Must be an array with a single element
+            giving the predicted spatial location of the order toward lower
+            spatial pixels compared to the known order (``true``).
+        spat (:obj:`float`):
+            The true spatial location of the known order.
+        width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order width as a function of the order center.
+        gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order gap *after* each order as a function of the order
+            center.
+
+    Returns:
+        :obj:`float`: The absolute value of the difference between the
+        prediction and the measure location of the order.
+    """
+    test_spat = lower_spat[0] + width_fit.eval(lower_spat[0]) + gap_fit.eval(lower_spat[0])
+    return np.absolute(spat - test_spat)
+
+
+def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
+    """
+    Predict the locations of additional orders by extrapolation.
+
+    Order centers are only predicted for those that fall between a minimum and
+    maximum spatial pixel value (see ``min_spat`` and ``max_spat``).
+
+    The models of the order width and gap are defined such that the location of
+    the orders are :math:`c_{i+1} = c_i + w_i + g_i`.  Extrapolation toward
+    larger spatial positions is, therefore, trivial.  Toward smaller pixels,
+    :math:`c_i` is unknown and the width and gap models are not required to be
+    linear; we use a simple minimiation algorithm to optimize the extrapolated
+    values so that the order location model is accurate (see ``tol``).
+
+    Args:
+        cen (`numpy.ndarray`_):
+            The spatial pixel positions of the orders traced.
+        width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order width as a function of the order center.
+        gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order gap *after* each order as a function of the order
+            center.
+        min_spat (:obj:`float`):
+            The minimum spatial pixel for the extrapolation range.
+        max_spat (:obj:`float`):
+            The maximum spatial pixel for the extrapolation range.
+        tol (:obj:`float`, optional):
+            Tolerance used when optimizing the order locations predicted toward
+            lower spatial pixels.
+
+    Returns:
+        :obj:`tuple`: Two arrays with orders centers (1) below the first and (2)
+        above the last measured center.  One or both of the arrays can be empty
+        if extrapolation leads to no orders outside the specified minimum and
+        maximum spatial range (``min_spat``, ``max_spat``).
+    """
+    # Extrapolate toward lower spatial positions
+    lower_spat = [cen[0]]
+    while lower_spat[-1] > min_spat:
+        # Guess the position of the previous order
+        l = width_fit.eval(lower_spat[-1])
+        guess = np.array([lower_spat[-1] - l - gap_fit.eval(lower_spat[-1])])
+        # Set the bounds based on this guess and the expected order width
+        bounds = optimize.Bounds(lb=guess - l/2, ub=guess + l/2)
+        # Optimize the spatial position
+        res = optimize.minimize(predicted_center_difference, guess,
+                                args=(lower_spat[-1], width_fit, gap_fit),
+                                method='trust-constr', jac='2-point', bounds=bounds, tol=tol)
+        lower_spat += [res.x[0]]
+
+    # Extrapolate toward larger spatial positions
+    upper_spat = [cen[-1]]
+    while upper_spat[-1] < max_spat:
+        upper_spat += [upper_spat[-1] + width_fit.eval(upper_spat[-1]) 
+                        + gap_fit.eval(upper_spat[-1])]
+
+    # Return arrays after removing the first and last spatial position (which
+    # are either repeats of values in `cen` or outside the spatial range)
+    return np.array(lower_spat[-2:0:-1]), np.array(upper_spat[1:-1])
+    
+
+
+

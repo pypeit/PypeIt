@@ -4,6 +4,7 @@ Module to run tests on SpecObj
 import numpy as np
 import sys
 import os
+from copy import deepcopy
 import pytest
 
 from IPython import embed
@@ -16,6 +17,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
 from pypeit import slittrace
 from pypeit import pypmsgs
+from pypeit.images import imagebitmask
 
 
 @pytest.fixture
@@ -42,7 +44,7 @@ def init_dict():
                 ivarmodel = 0.05 * np.ones_like(sciimg),
                 scaleimg = np.ones_like(sciimg),
                 waveimg = 1000 * np.ones_like(sciimg),
-                bpmmask=np.ones_like(sciimg).astype(int),
+                bpmmask=imagebitmask.ImageBitMaskArray(sciimg.shape),
                 slits=slits,
                 wavesol=None,
                 maskdef_designtab=None,
@@ -95,6 +97,14 @@ def test_spec2dobj_update_slit(init_dict):
     spec2DObj2 = spec2dobj.Spec2DObj(**init_dict,
                                      detector=load_spectrograph('keck_deimos').get_detector_par(2))
 
+    # WARNING: The instantiation of the two objects above using the same
+    # dictionary means their components point to *the same objects*.  I.e.,
+    # ``spec2DObj1.sciimg is spec2DObj2.sciimg`` is True!  That means any
+    # alterations to complex attributes of spec2DObj1 are also made to
+    # spec2DObj2.  I made some changes below to ensure this isn't true for this
+    # test, but we need to beware of any instantiations like the above in the
+    # code itself!
+    
     # Checks
     with pytest.raises(pypmsgs.PypeItError):
         spec2DObj1.update_slits(spec2DObj2)
@@ -102,7 +112,12 @@ def test_spec2dobj_update_slit(init_dict):
     # Update
     spec2DObj2.detector = load_spectrograph('keck_deimos').get_detector_par(1)
     spec2DObj2.sciimg = spec2DObj1.sciimg.copy()*2.
+    spec2DObj2.slits = deepcopy(init_dict['slits'])
     spec2DObj2.slits.mask[1:] = 1
+    # WARNING: This barfs!!
+    # spec2DObj2.bpmmask = deepcopy(init_dict['bpmmask'])
+    spec2DObj2.bpmmask = imagebitmask.ImageBitMaskArray(init_dict['sciimg'].shape)
+    spec2DObj2.bpmmask[...] = 1
 
     spec2DObj1.update_slits(spec2DObj2)
 
@@ -123,7 +138,7 @@ def test_all2dobj_hdr(init_dict):
     header = fits.getheader(kast_file)
     spectrograph = load_spectrograph('shane_kast_blue')
     # Do it
-    hdr = allspec2D.build_primary_hdr(header, spectrograph, master_dir=tstutils.data_path(''))
+    hdr = allspec2D.build_primary_hdr(header, spectrograph, calib_dir=tstutils.data_path(''))
     # Test it
     assert hdr['SKYSUB'] == 'MODEL'
 

@@ -2,7 +2,8 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
-                           [-s SENS_FILE] [--debug] [--par_outfile PAR_OUTFILE]
+                           [-s SENS_FILE] [-f FLATFILE] [--debug]
+                           [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
                            spec1dfile
     
     Compute a sensitivity function
@@ -11,7 +12,7 @@
       spec1dfile            spec1d file for the standard that will be used to
                             compute the sensitivity function
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --algorithm {UVIS,IR}
                             Override the default algorithm for computing the
@@ -60,8 +61,24 @@
                             in the filename.
       -s SENS_FILE, --sens_file SENS_FILE
                             Configuration file with sensitivity function parameters
+      -f FLATFILE, --flatfile FLATFILE
+                            Use the flat file for computing the sensitivity
+                            function.  Note that it is not possible to set
+                            --flatfile and simultaneously use a .sens file with the
+                            --sens_file option. If you are using a .sens file, set
+                            the flatfile there via e.g.:
+                             
+                                [sensfunc]
+                                     flatfile = Calibrations/Flat_A_0_DET01.fits
+                             
+                            Where Flat_A_0_DET01.fits is the flat file in your
+                            Calibrations directory
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
                             fit
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all]. Default:
+                            1. Level 2 writes a log with filename sensfunc_YYYYMMDD-
+                            HHMM.log
     

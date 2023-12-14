@@ -12,3 +12,12 @@ except:
 else:
     print('Successfully imported bspline C utilities.')
 
+try:
+    from pypeit.bspline.setup_package import extra_compile_args
+except:
+    print("Can't check status of OpenMP support")
+else:
+    if '-fopenmp' in extra_compile_args:
+        print('OpenMP compiler support detected.')
+    else:
+        print('OpenMP compiler support not detected. Bspline utilities single-threaded.')

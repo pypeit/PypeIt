@@ -46,7 +46,6 @@ class QAHtml(scriptbase.ScriptBase):
         elif args.type == 'all':
             flg_exp, flg_MF = True, True
 
-        # Master Frame
         if flg_MF:
             qa.gen_mf_html(args.pypeit_file, args.qapath)
 

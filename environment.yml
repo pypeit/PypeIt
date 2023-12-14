@@ -1,29 +1,9 @@
 name: pypeit
 channels:
-  - conda-forge
   - defaults
 dependencies:
-  - python>=3.8,<3.10
-  - pyyaml>=5.4
-  - requests>=2.26
-  - packaging>=21.0
-  - numpy>=1.21
-  - scipy>=1.7
-  - scikit-learn>=0.24
-  - astropy>=4.3
-  - setuptools>=46.4
-  - matplotlib>=3.4
-  - configobj>=5.0.6
-  - ipython>=7.27
-  - extension-helpers>=0.1
-  - ginga>=3.2
-  - qtpy>=1.11
-  - pyqt<6.0
-  - pytest>=6.2
-  - bottleneck
-  - scikit-image
-  - pygithub
+  - python>=3.9,<3.12
   - pip
-  - linetools>=0.3dev2231
   - pip:
     - pypeit
+    - specutils

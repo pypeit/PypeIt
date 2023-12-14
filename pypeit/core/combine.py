@@ -12,33 +12,6 @@ from pypeit import utils
 from IPython import embed
 
 
-def masked_weightmean(a, maskvalue):
-    """
-    .. todo::
-        Document this!
-    """
-    num = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
-    num[np.invert(num.mask) & (num <= 1.0)] = 0.0
-    num = np.ma.sum(np.ma.sqrt(num)*num, axis=2)
-    den = np.ma.MaskedArray(a.copy(), mask=(a==maskvalue))
-    den[np.invert(den.mask) & (den <= 1.0)] = 1.0
-    den = np.ma.sum(np.sqrt(den), axis=2)
-    return np.ma.divide(num, den).filled(maskvalue)
-
-
-def maxnonsat(array, saturated):
-    """
-    .. todo::
-        Document this!
-    """
-    minimum = np.amin(np.clip(array, None, saturated), axis=2)
-    _array = np.ma.MaskedArray(array, mask=np.invert((array > 0.0) & (array<saturated)))
-    maximum = np.ma.amax(_array, axis=2)
-    maximum[maximum.mask] = minimum[maximum.mask]
-    return maximum.data
-
-
-
 # TODO make weights optional and do uniform weighting without.
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
@@ -77,7 +50,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
             - ``(nimgs, nspec)``: wavelength dependent weights per image in the
               stack
-            
+
             - ``(nimgs, nspec, nspat)``: weights input with the shape of the
               image stack
 
@@ -193,22 +166,29 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     return sci_list_out, var_list_out, gpm, nused
 
 
+
 def img_list_error_check(sci_list, var_list):
     """
-    Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
-    routine checks that the images sizes are correct and routines the shape of the image stacks.
+    Utility routine for dealing with lists of image stacks for
+    :func:`weighted_combine`. This routine checks that the images sizes are
+    correct and routines the shape of the image stacks.
 
-    Args:
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with proper erorr propagation, i.e.
-            using the  weights**2, inmask_stack, and possibly sigma clipping
+    Parameters
+    ----------
+    sci_list : :obj:`list`
+        List of  float `numpy.ndarray`_ images (each being an image stack with
+        shape ``(nimgs, nspec, nspat)``) which are to be combined with the
+        weights, mask, and possibly sigma clipping.
+    var_list : :obj:`list`
+        List of  float `numpy.ndarray`_ variance images (each being an image
+        stack with shape ``(nimgs, nspec, nspat)``) which are to be combined
+        with proper erorr propagation, i.e.  using the weights squared, mask,
+        and possibly sigma clipping.
 
-    Returns:
-        tuple: The shapes of the image stacks, (nimgs, nspec, nspat)
+    Returns
+    -------
+    shape : :obj:`tuple`
+        The shapes of the image stacks -- ``(nimgs, nspec, nspat)``
 
     """
     shape_sci_list = []
@@ -237,25 +217,27 @@ def img_list_error_check(sci_list, var_list):
     return shape
 
 
+
 def broadcast_weights(weights, shape):
     """
     Utility routine to broadcast weights to be the size of image stacks specified by shape
 
     Args:
-        weights (ndarray):
+        weights (`numpy.ndarray`_):
             Weights to use. Options for the shape of weights are:
-
                 - (nimgs,) -- a single weight per image in the stack
                 - (nimgs, nspec) -- wavelength dependent weights per
                   image
                 - (nimgs, nspec, nspat) -- weights already have the
                   shape of the image stack and are simply returned
-        shape: tuple of integers
+        shape (tuple):
             Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
             (nimgs, nspec, nspat) for 2d spectrum images
 
     Returns:
-        np.ndarray:
+        `numpy.ndarray`_:
+            Weights for the stack images with output shape
+            described in the Args above.
 
     """
     # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
@@ -285,4 +267,55 @@ def broadcast_weights(weights, shape):
         msgs.error('Unrecognized dimensionality for weights')
 
     return weights_stack
+
+
+def broadcast_lists_of_weights(weights, shapes):
+    """
+    Utility routine to broadcast weights to be the size of image stacks specified by shape
+
+    Parameters
+    ----------
+    weights : :obj:`list`
+        List containing the weights to use. The length of weights must be nimgs,
+        the number of images that are being combined. The options for the date
+        type/shape for the individual elements of weights are:
+
+            - :obj:`float`: a single weight per image in the stack
+
+            - `numpy.ndarray`_ with shape ``(nspec,)``: wavelength dependent
+              weights per image in the stack
+
+            - `numpy.ndarray`_ with shape ``(nspec, nspat)``: weights input with
+              the shape of each image stack and will be simply be returned
+
+    shapes : :obj:`list`
+        List with length of nimgs containing the tuples which are the shapes
+        ``(nspec, nspat)`` of each image in the stack that should have their
+        weights broadcast.
+
+
+    Returns
+    -------
+
+    weights_list : :obj:`list` of `numpy.ndarray`_ objects
+        Weight images where each image in the list has shape that was input via
+        the shapes input parameter.
+
+    """
+    # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
+    # weights to the spatial direction
+
+    weights_list = []
+    for weight, shape in zip(weights, shapes):
+        if isinstance(weight, float):
+            weights_list.append(np.ones(shape, dtype=float) * weight)
+        elif isinstance(weight, np.ndarray):
+            if weight.ndim == 1:
+                weights_list.append(np.broadcast_to(weight[:, np.newaxis], shape))
+            elif weight.ndim == 2:
+                weights_list.append(weight)
+            else:
+                msgs.error('Weights must be a float or a 1D or 2D ndarray')
+
+    return weights_list
 

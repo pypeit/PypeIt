@@ -1,21 +1,22 @@
 """
 Odds and ends in support of tests
 """
-import os
-import pytest
 import glob
+import os
+import pathlib
+import pytest
 
 from IPython import embed
 
 import numpy as np
 from astropy import time
-from astropy.table import Table 
+from astropy.table import Table
+import astropy.io.fits as fits
 from pypeit import data
 
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
-from pypeit import masterframe
 from pypeit.inputfiles import PypeItFile 
 
 # ----------------------------------------------------------------------
@@ -27,14 +28,16 @@ from pypeit.inputfiles import PypeItFile
 #                                        reason='test requires dev suite')
 
 # Tests require the Cooked data
-cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
-                            not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
-                            reason='no dev-suite cooked directory')
+cooked_required = pytest.mark.skipif(
+    os.getenv('PYPEIT_DEV') is None
+    or not (pathlib.Path(os.getenv('PYPEIT_DEV')) / 'Cooked').is_dir(),
+    reason='no dev-suite cooked directory'
+)
 
 # Tests require the Telluric file (Mauna Kea)
 par = Spectrograph.default_pypeit_par()
-tell_test_grid = os.path.join(data.Paths.telgrid, 'TelFit_MaunaKea_3100_26100_R20000.fits')
-telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
+tell_test_grid = data.Paths.telgrid / 'TelFit_MaunaKea_3100_26100_R20000.fits'
+telluric_required = pytest.mark.skipif(not tell_test_grid.is_file(),
                                        reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
@@ -49,8 +52,11 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 
 
 def data_path(filename):
-    data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'files')
-    return os.path.join(data_dir, filename)
+    data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
+    # TODO: This really should have the `.resolve()`, but it crashes the
+    #       Windows/python3.9 CI test (only that one).  When PypeIt advances
+    #       to python>=3.10, reinstate the last part of the following line:
+    return str(data_dir.joinpath(filename))#.resolve())
 
 
 def get_kastb_detector():
@@ -141,7 +147,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             fitstbl.set_frame_types(type_bits)
             # Calibration groups
             cfgs = fitstbl.unique_configurations() #ignore_frames=['bias', 'dark'])
-            fitstbl.set_configurations(cfgs)
+            fitstbl.set_configurations(configs=cfgs)
             fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
 
     return fitstbl
@@ -160,3 +166,50 @@ def make_shane_kast_blue_pypeitfile():
 
     # Return
     return PypeItFile(confdict, file_paths, data, setup_dict)
+
+
+def make_fake_fits_files():
+    """ Generate some raw files covering multiple setups
+    """
+    spectrograph = load_spectrograph("shane_kast_blue")
+    filelist = []
+    setups = ['grismA', 'grismB']  # GRISM_N
+    nframes = dict({'bias':3, 'flat':2, 'arc':2, 'sci':1})
+    # Make some bias frames (one setup only)
+    for frmtyp in nframes.keys():
+        for ss, setup in enumerate(setups):
+            # Only have one set of bias frames, independent of setup
+            if frmtyp == 'bias' and ss != 0:
+                continue
+            # Loop over frame types
+            for ff in range(nframes[frmtyp]):
+                frname = f"{frmtyp}_{ff+1}_{setup}.fits"
+                filelist.append(frname)
+                hdu = fits.PrimaryHDU(np.zeros((2,2)))  # Small fake image
+                for key in spectrograph.meta.keys():
+                    card = spectrograph.meta[key]['card']
+                    if key == 'exptime':
+                        if frmtyp == 'bias':
+                            value = 0.0
+                        elif frmtyp == 'sci':
+                            value = 1800.0
+                        else:
+                            value = 60.0
+                    elif key == 'mjd':
+                        card, value = 'DATE', '2023-03-27T01:27:44.03'
+                    elif key == 'binning':
+                        continue
+                    elif key == 'dispname':
+                        value = setup
+                    else:
+                        value = 'None'
+                    hdu.header[card] = value
+                if frmtyp == 'flat':
+                    hdu.header['LAMPSTA1'] = 'on'
+                elif frmtyp == 'arc':
+                    hdu.header['LAMPSTAC'] = 'on'
+                # Save the fake fits file to disk
+                hdu.writeto(frname, overwrite=True)
+
+    # Return the filelist so that it can be later deleted
+    return filelist

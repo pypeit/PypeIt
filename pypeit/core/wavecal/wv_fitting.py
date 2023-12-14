@@ -23,13 +23,26 @@ class WaveFit(datamodel.DataContainer):
     """
     DataContainer for the output from BuildWaveCalib
 
-    All of the items in the datamodel are required for instantiation,
-      although they can be None (but shouldn't be)
+    All of the items in the datamodel are required for instantiation, although
+    they can be None (but shouldn't be).
+
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_wavefit.rst
+
+    When written to an output-file HDU, all `numpy.ndarray`_ elements are
+    bundled into an `astropy.io.fits.BinTableHDU`_, the ``pypeitfit`` attribute
+    is written to a separate extension (see
+    :class:`~pypeit.core.fitting.PypeItFit`), and the other elements are written
+    as header keywords.  Any datamodel elements that are None are *not* included
+    in the output.  The two HDU extensions are given names according to their
+    spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
+                 'ech_order': dict(otype=(int,np.integer), descr='Echelle order number.'),
                  'pypeitfit': dict(otype=fitting.PypeItFit,
                                    descr='Fit to 1D wavelength solutions'),
                  'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
@@ -58,7 +71,7 @@ class WaveFit(datamodel.DataContainer):
         """ Naming for HDU extensions"""
         return 'SPAT_ID-{}_'.format(spat_id)
 
-    def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
+    def __init__(self, spat_id, ech_order=None, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
                  fwhm=None):
@@ -91,33 +104,56 @@ class WaveFit(datamodel.DataContainer):
         # Return
         return _d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
-        """ Over-ride for force_to_bintbl
+    def to_hdu(self, **kwargs):
+        """
+        Over-ride base-class function to force ``force_to_bintbl`` to always be
+        true.
 
-        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
+        See base-class :class:`~pypeit.datamodel.DataContainer.to_hdu` for arguments.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.to_hdu`.  If 
+                ``force_to_bintbl`` is present, it is forced to be True.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
             where the type depends on the value of ``add_primary``.
         """
-        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
-                                           limit_hdus=limit_hdus, force_to_bintbl=True)
+        if 'force_to_bintbl' in kwargs:
+            if not kwargs['force_to_bintbl']:
+                msgs.warn(f'{self.__class__.__name__} objects must always use '
+                          'force_to_bintbl = True!')
+            kwargs.pop('force_to_bintbl')
+        return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True):
+    def from_hdu(cls, hdu, **kwargs):
         """
         Parse the data from the provided HDU.
 
-        See :func:`pypeit.datamodel.DataContainer._parse` for the
-        argument descriptions.
+        See the base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` for
+        the argument descriptions.
+
+        Args:
+            kwargs:
+                Passed directly to the base-class
+                :class:`~pypeit.datamodel.DataContainer.from_hdu`.  Should not
+                include ``hdu_prefix`` because this is set directly by the
+                class, read from the SPAT_ID card in a relevant header.
+
+        Returns:
+            :class:`WaveFit`: Object instantiated from data in the provided HDU.
         """
+        if 'hdu_prefix' in kwargs:
+            kwargs.pop('hdu_prefix')
         # Set hdu_prefix
-        if isinstance(hdu, fits.HDUList):
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu[1].header['SPAT_ID'])
-        else:
-            hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
+        spat_id = hdu[1].header['SPAT_ID'] if isinstance(hdu, fits.HDUList)\
+                    else hdu.header['SPAT_ID']
+        hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
         # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, **kwargs)
 
     @property
     def ions(self):
@@ -143,45 +179,45 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     Parameters
     ----------
     spec : ndarray
-      arc spectrum
+        arc spectrum
     patt_dict : dict
-      dictionary of patterns
+        dictionary of patterns
     tcent: ndarray
-      List of the detections in this slit to be fit using the patt_dict
-    line_lists: astropy Table
-      Table containing the line list
-    Optional Parameters
-    -------------------
+        List of the detections in this slit to be fit using the patt_dict
+    line_lists: `astropy.table.Table`_
+        Table containing the line list
     vel_tol: float, default = 1.0
-      Tolerance in km/s for matching lines in the IDs to lines in the NIST database. The default is 1.0 km/s
+        Tolerance in km/s for matching lines in the IDs to lines in the NIST
+        database. The default is 1.0 km/s
     outroot: str
-      Path for QA file.
+        Path for QA file.
     slittxt : str
-      Label used for QA
+        Label used for QA
     thar: bool, default = False
-      True if this is a ThAr fit
+        True if this is a ThAr fit
     match_toler: float, default = 3.0
-      Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
-      an arc line by an iteration of the wavelength solution to the wavelength in the line list.
+        Matching tolerance when searching for new lines. This is the difference
+        in pixels between the wavlength assigned to an arc line by an iteration
+        of the wavelength solution to the wavelength in the line list.
     func: str, default = 'legendre'
-      Name of function used for the wavelength solution
+        Name of function used for the wavelength solution
     n_first: int, default = 2
-      Order of first guess to the wavelength solution.
+        Order of first guess to the wavelength solution.
     sigrej_first: float, default = 2.0
-      Number of sigma for rejection for the first guess to the wavelength solution.
+        Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-      Order of the final wavelength solution fit
+        Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
-      Number of sigma for rejection for the final fit to the wavelength solution.
+        Number of sigma for rejection for the final fit to the wavelength solution.
     verbose : bool
-      If True, print out more information.
+        If True, print out more information.
     plot_fil:
-      Filename for plotting some QA?
+        Filename for plotting some QA?
 
     Returns
     -------
     final_fit : dict
-      A dictionary containing all of the information about the fit
+        A dictionary containing all of the information about the fit
     """
 
     # Check that patt_dict and tcent refer to each other
@@ -202,7 +238,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 
     # TODO Profx maybe you can add a comment on what this is doing. Why do we have use_unknowns=True only to purge them later??
     # Purge UNKNOWNS from ifit
-    imsk = np.ones(len(ifit), dtype=np.bool)
+    imsk = np.ones(len(ifit), dtype=bool)
     for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
         if (np.min(np.abs(line_lists['wave'][NIST_lines] - idwv)))/idwv*3.0e5 > vel_tol:
             imsk[kk] = False
@@ -219,7 +255,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     return final_fit
 
 
-def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
+def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
                       match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
                       n_final=4, sigrej_final=3.0, input_only=False,
                       weights=None, plot_fil=None, verbose=False):
@@ -229,47 +265,47 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     Parameters
     ----------
     spec : ndarray, shape = (nspec,)
-      arcline spectrum
+        arcline spectrum
     tcent : ndarray
-      Centroids in pixels of lines identified in spec
+        Centroids in pixels of lines identified in spec
     ifit : ndarray
-      Indices of the lines that will be fit
+        Indices of the lines that will be fit
     IDs: ndarray
-      wavelength IDs of the lines that will be fit (I think?)
+        wavelength IDs of the lines that will be fit (I think?)
     llist: dict
-      Linelist dictionary
-    disp: float
-      dispersion
-
-    Optional Parameters
-    -------------------
+        Linelist dictionary
+    dispersion: float
+        dispersion
     match_toler: float, default = 3.0
-      Matching tolerance when searching for new lines. This is the difference in pixels between the wavlength assigned to
-      an arc line by an iteration of the wavelength solution to the wavelength in the line list.
+        Matching tolerance when searching for new lines. This is the difference
+        in pixels between the wavlength assigned to an arc line by an iteration
+        of the wavelength solution to the wavelength in the line list.
     func: str, default = 'legendre'
-      Name of function used for the wavelength solution
+        Name of function used for the wavelength solution
     n_first: int, default = 2
-      Order of first guess to the wavelength solution.
+        Order of first guess to the wavelength solution.
     sigrej_first: float, default = 2.0
-      Number of sigma for rejection for the first guess to the wavelength solution.
+        Number of sigma for rejection for the first guess to the wavelength solution.
     n_final: int, default = 4
-      Order of the final wavelength solution fit
+        Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
-      Number of sigma for rejection for the final fit to the wavelength solution.
+        Number of sigma for rejection for the final fit to the wavelength
+        solution.
     input_only: bool
-      If True, the routine will only perform a robust polyfit to the input IDs.
-      If False, the routine will fit the input IDs, and then include additional
-      lines in the linelist that are a satisfactory fit.
+        If True, the routine will only perform a robust polyfit to the input
+        IDs.  If False, the routine will fit the input IDs, and then include
+        additional lines in the linelist that are a satisfactory fit.
     weights: ndarray
-      Weights to be used?
+        Weights to be used?
     verbose : bool
-      If True, print out more information.
+        If True, print out more information.
     plot_fil:
-      Filename for plotting some QA?
+        Filename for plotting some QA?
 
     Returns
     -------
-    final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
+    final_fit: :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
+        Fit result
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!
@@ -310,10 +346,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             msgs.warn("Bad fit!!")
             return None
 
-        rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-        rms_pix = rms_ang/disp
+        # RMS is computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+        rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+        rms_pixels = rms_angstrom/dispersion
         if verbose:
-            msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
+            msgs.info(f"n_order = {n_order}: RMS = {rms_pixels:g} pixels")
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
@@ -322,7 +359,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             twave = pypeitFit.eval(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
             for ss, iwave in enumerate(twave):
                 mn = np.min(np.abs(iwave-llist['wave']))
-                if mn/disp < match_toler:
+                if mn/dispersion < match_toler:
                     imn = np.argmin(np.abs(iwave-llist['wave']))
                     #if verbose:
                     #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
@@ -343,6 +380,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
+
+    # TODO: This rejection block is not actually used anywhere (i.e., no lines
+    #       are actually rejected in the fit)! Should it be? (TEB: 2023-11-03)
     irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -356,9 +396,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         yrej = []
 
     ions = all_idsion[ifit]
-    # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-    rms_pix = rms_ang/disp
+    # Final RMS computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+    rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+    rms_pixels = rms_angstrom/dispersion
+    msgs.info(f"RMS of the final wavelength fit: {rms_pixels:g} pixels")
 
     # Pack up fit
     spec_vec = np.arange(nspec)
@@ -378,7 +419,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                         ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
-                        shift=0., tcent=tcent, rms=rms_pix)
+                        shift=0., tcent=tcent, rms=rms_pixels)
 
     # QA
     if plot_fil is not None:

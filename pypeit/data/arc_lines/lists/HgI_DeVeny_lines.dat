@@ -1,0 +1,24 @@
+# Creation Date: 2022-Feb-28
+# VACUUM -- MUST BE IN NIST
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| HgI |  2968.1495 |    1 |     0 |      3000 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3022.384  |    1 |     0 |      1200 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3126.5801 |    1 |   128 |      4000 |                      NIST |
+| HgI |  3132.4626 |    1 |   128 |      3000 |                      NIST |
+| HgI |  3132.7517 |    1 |   128 |      4000 |                      NIST |
+| HgI |  3342.4450 |    1 |     0 |       700 | ldt_deveny_300_HgCdAr.fits |
+| HgI |  3651.1980 |    1 |     6 |      7408 | lrisb_600_4000_PYPIT.json |
+| HgI |  3655.8833 |    1 |   128 |      3000 |                      NIST |
+| HgI |  3664.3274 |    1 |     2 |      1042 | lrisb_600_4000_PYPIT.json |
+| HgI |  4047.7081 |    1 |     6 |     12902 | lrisb_600_4000_PYPIT.json |
+| HgI |  4078.9883 |    1 |     6 |       884 | lrisb_600_4000_PYPIT.json |
+| HgI |  4340.4431 |    1 |     0 |        50 | ldt_deveny_1200_HgCdAr.fits |
+| HgI |  4348.7166 |    1 |     0 |       150 | ldt_deveny_1200_HgCdAr.fits |
+| HgI |  4359.5600 |    1 |     6 |     38125 | lrisb_600_4000_PYPIT.json |
+| HgI |  4917.4406 |    1 |     0 |       500 | ldt_deveny_600_HgCdAr.fits |
+| HgI |  5462.2675 |    1 |    15 |     28377 | lrisb_600_4000_PYPIT.json |
+| HgI |  5771.2100 |    1 |     9 |      5510 | lrisr_600_7500_PYPIT.json |
+| HgI |  5792.2760 |    1 |     9 |      6029 | lrisr_600_7500_PYPIT.json |
+| HgI |  6718.1900 |    1 |   128 |       600 |                      NIST |
+| HgI |  6909.3700 |    1 |     0 |      1000 | ldt_deveny_1200_HgCdAr.fits |
+| HgI |  10142.53  |    1 |     9 |      1600 |                      NIST |

@@ -12,17 +12,19 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects
-from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata
+from pypeit.scripts.collate_1d import flux, coadd, build_coadd_file_name, get_report_metadata, refframe_correction
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.sensfilearchive import SensFileArchive
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import fluxcalibrate
 from pypeit import coadd1d
+from pypeit.core import wave
 
 
 class MockSpecObj:
-    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, WAVE_RMS, OPT_FLAM=None, OPT_COUNTS=None, BOX_COUNTS=None):
+    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, WAVE_RMS, OPT_FLAM=None, OPT_COUNTS=None, BOX_COUNTS=None, OPT_MASK=None, BOX_MASK=None, VEL_CORR=None):
         self.MASKDEF_OBJNAME = MASKDEF_OBJNAME
         self.MASKDEF_ID = MASKDEF_ID
         self.DET = DetectorContainer.get_name(DET)
@@ -33,7 +35,11 @@ class MockSpecObj:
         self.OPT_FLAM = OPT_FLAM
         self.OPT_COUNTS = OPT_COUNTS
         self.BOX_COUNTS = BOX_COUNTS
+        self.OPT_MASK = OPT_MASK
+        self.BOX_MASK = BOX_MASK
+
         self.WAVE_RMS = WAVE_RMS
+        self.VEL_CORR = VEL_CORR
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -41,11 +47,27 @@ class MockSpecObj:
     def __setitem__(self, key, value):
         return setattr(self, key, value)
 
+    def apply_helio(self, *args, **kwargs):
+        self.VEL_CORR = 1.0
+
 
 def mock_header(file):
     if os.path.basename(file) == 'spec1d_file1':
         return {'MJD': '58878.0',
                 'PYP_SPEC': 'keck_deimos',
+                'DISPNAME': '830G',
+                'DECKER': 'Z6CL01B',
+                'BINNING': '1,1',
+                'AIRMASS': '1.0',
+                'EXPTIME': '1200.0',
+                'RA':       '201.1517', 
+                'DEC':      '+27.3246',
+                'FILENAME': 'DE.20100913.22358',
+                'SEMESTER': '2019B',
+                'PROGID':   'TEST1'}
+    elif os.path.basename(file) == 'spec1d_file3':
+        # Invalid header w/o MJD
+        return {'PYP_SPEC': 'keck_deimos',
                 'DISPNAME': '830G',
                 'DECKER': 'Z6CL01B',
                 'BINNING': '1,1',
@@ -63,6 +85,8 @@ def mock_header(file):
                 'BINNING': '1,1',
                 'AIRMASS': '1.0',
                 'EXPTIME': '1200.0',
+                'RA':      '201.0052', 
+                'DEC':     '+27.2418',
                 'FILENAME': 'DE.20100914.12358'}
 
 class MockSpecObjs:
@@ -80,32 +104,41 @@ class MockSpecObjs:
         # object4 also has boxcar counts and no opt_counts
 
         if file == "spec1d_file1":
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, SPAT_PIXPOS=1334.0, NAME='SPAT1334_SLIT1234_DET01', WAVE_RMS=0.02, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, SPAT_PIXPOS=5334.0, NAME='SPAT5334_SLIT4934_DET02', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3233.0, NAME='SPAT3233_SLIT3235_DET03', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_MASK=np.zeros(100, dtype=bool), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, SPAT_PIXPOS=1334.0, NAME='SPAT1334_SLIT1234_DET01', WAVE_RMS=0.02, VEL_CORR=2.0, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, SPAT_PIXPOS=5334.0, NAME='SPAT5334_SLIT4934_DET02', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3233.0, NAME='SPAT3233_SLIT3235_DET03', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool), OPT_FLAM=np.zeros(100)),
                              MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3232.0, NAME='SPAT3232_SLIT3235_DET03', WAVE_RMS=0.03),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3236.0, NAME='SPAT3236_SLIT3245_DET05', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1233.0, NAME='SPAT1233_SLIT1235_DET07', WAVE_RMS=0.11, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, SPAT_PIXPOS=1336.0, NAME='SPAT1336_SLIT1235_DET07', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_FLAM=np.zeros(100))]
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3236.0, NAME='SPAT3236_SLIT3245_DET05', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool), OPT_FLAM=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1233.0, NAME='SPAT1233_SLIT1235_DET07', WAVE_RMS=0.11, OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool), OPT_FLAM=np.zeros(100), BOX_COUNTS=np.zeros(100), BOX_MASK=np.ones(100,dtype=bool)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, SPAT_PIXPOS=1336.0, NAME='SPAT1336_SLIT1235_DET07', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool), OPT_FLAM=np.zeros(100))]
+        elif file == "spec1d_file4":
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=None, DEC=None, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', WAVE_RMS=0.01, VEL_CORR=2.0, OPT_FLAM=np.zeros(100), OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=None, DEC=None, SPAT_PIXPOS=6250.0, NAME='SPAT6250_SLIT6235_DET03', WAVE_RMS=0.02, BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=None, DEC=None, SPAT_PIXPOS=6256.0, NAME='SPAT6256_SLIT6245_DET05', WAVE_RMS=0.01, BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=None, DEC=None, SPAT_PIXPOS=6934.0, NAME='SPAT6934_SLIT6245_DET05', WAVE_RMS=0.20, BOX_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=None, DEC=None, SPAT_PIXPOS=3237.0, NAME='SPAT3237_SLIT3246_DET05', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100))]
         else:
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', WAVE_RMS=0.01, OPT_FLAM=np.zeros(100), OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6250.0, NAME='SPAT6250_SLIT6235_DET03', WAVE_RMS=0.02, BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6256.0, NAME='SPAT6256_SLIT6245_DET05', WAVE_RMS=0.01, BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=201.0056, DEC=27.2419, SPAT_PIXPOS=6934.0, NAME='SPAT6934_SLIT6245_DET05', WAVE_RMS=0.20, BOX_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3237.0, NAME='SPAT3237_SLIT3246_DET05', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100))]
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', WAVE_RMS=0.01, OPT_FLAM=np.zeros(100), OPT_COUNTS=np.zeros(100), OPT_MASK=np.ones(100, dtype=bool)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6250.0, NAME='SPAT6250_SLIT6235_DET03', WAVE_RMS=0.02, BOX_COUNTS=np.zeros(100), BOX_MASK=np.zeros(100, dtype=bool)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6256.0, NAME='SPAT6256_SLIT6245_DET05', WAVE_RMS=0.01, BOX_COUNTS=np.zeros(100), BOX_MASK=np.ones(100, dtype=bool)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=201.0056, DEC=27.2419, SPAT_PIXPOS=6934.0, NAME='SPAT6934_SLIT6245_DET05', WAVE_RMS=0.20, BOX_COUNTS=np.zeros(100), BOX_MASK=np.ones(100, dtype=bool)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3237.0, NAME='SPAT3237_SLIT3246_DET05', WAVE_RMS=0.01, OPT_COUNTS=np.zeros(100), BOX_MASK=np.zeros(100, dtype=bool))]
 
     def __getitem__(self, idx):
         return self.specobjs[idx]
 
-def mock_specobjs(file):
+    def write_to_fits(self, *args, **kwargs):
+        pass
+
+def mock_specobjs(file, chk_version=False):
     return MockSpecObjs(file)
 
 def test_group_spectra_by_radec(monkeypatch):
-    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
-    uncollated_list = SourceObject.build_source_objects(file_list, 'ra/dec')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='ra/dec')
     source_list = collate_spectra_by_source(uncollated_list, 0.0003, u.deg)
 
     assert len(source_list) == 6
@@ -148,10 +181,11 @@ def test_group_spectra_by_radec(monkeypatch):
 def test_group_spectra_by_pixel(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
-    file_list = ['spec1d_file1', 'spec1d_file2']
-    spectrograph = load_spectrograph('keck_deimos')
+    file_list = ['spec1d_file1', 'spec1d_file4']
+
     # Test matching by pixel and that unit argument is ignored
-    uncollated_list = SourceObject.build_source_objects(file_list, 'pixel')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='pixel')
     source_list = collate_spectra_by_source(uncollated_list, 5.0, u.deg)
 
     assert len(source_list) == 7
@@ -164,16 +198,16 @@ def test_group_spectra_by_pixel(monkeypatch):
     assert source_list[2].spec1d_file_list == ['spec1d_file1']
     assert [x.NAME for x in source_list[2].spec_obj_list] == ['SPAT5334_SLIT4934_DET02']
 
-    assert source_list[3].spec1d_file_list == ['spec1d_file1','spec1d_file1','spec1d_file1','spec1d_file2','spec1d_file2']
+    assert source_list[3].spec1d_file_list == ['spec1d_file1','spec1d_file1','spec1d_file1','spec1d_file4','spec1d_file4']
     assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT3233_SLIT3235_DET03', 'SPAT3232_SLIT3235_DET03', 'SPAT3236_SLIT3245_DET05', 'SPAT3234_SLIT3236_DET03', 'SPAT3237_SLIT3246_DET05']
 
-    assert source_list[4].spec1d_file_list == ['spec1d_file2']
+    assert source_list[4].spec1d_file_list == ['spec1d_file4']
     assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6250_SLIT6235_DET03']
     
-    assert source_list[5].spec1d_file_list == ['spec1d_file2']
+    assert source_list[5].spec1d_file_list == ['spec1d_file4']
     assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6256_SLIT6245_DET05']
 
-    assert source_list[6].spec1d_file_list == ['spec1d_file2']
+    assert source_list[6].spec1d_file_list == ['spec1d_file4']
     assert [x.NAME for x in source_list[6].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
     source_list = collate_spectra_by_source(uncollated_list, 10.0)
@@ -188,13 +222,13 @@ def test_group_spectra_by_pixel(monkeypatch):
     assert source_list[2].spec1d_file_list == ['spec1d_file1']
     assert [x.NAME for x in source_list[2].spec_obj_list] == ['SPAT5334_SLIT4934_DET02']
 
-    assert source_list[3].spec1d_file_list == ['spec1d_file1','spec1d_file1','spec1d_file1','spec1d_file2','spec1d_file2']
+    assert source_list[3].spec1d_file_list == ['spec1d_file1','spec1d_file1','spec1d_file1','spec1d_file4','spec1d_file4']
     assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT3233_SLIT3235_DET03', 'SPAT3232_SLIT3235_DET03', 'SPAT3236_SLIT3245_DET05', 'SPAT3234_SLIT3236_DET03', 'SPAT3237_SLIT3246_DET05']
 
-    assert source_list[4].spec1d_file_list == ['spec1d_file2','spec1d_file2']
+    assert source_list[4].spec1d_file_list == ['spec1d_file4','spec1d_file4']
     assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6256_SLIT6245_DET05']
     
-    assert source_list[5].spec1d_file_list == ['spec1d_file2']
+    assert source_list[5].spec1d_file_list == ['spec1d_file4']
     assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
 
@@ -334,21 +368,34 @@ def test_exclude_source_objects(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
-    uncollated_list = SourceObject.build_source_objects(file_list, 'ra/dec')
+    specobjs_list = [mock_specobjs(file) for file in file_list]
+    # Add another object to spec1d_file2 for the case where OPT_MASK is NONE
+    specobjs_list[1].specobjs.append(MockSpecObj(MASKDEF_OBJNAME='object2',  
+                                                 MASKDEF_ID='3002', 
+                                                 DET=2, 
+                                                 RA=201.0051, 
+                                                 DEC=27.2228, 
+                                                 SPAT_PIXPOS=5335.0, 
+                                                 NAME='SPAT5335_SLIT4934_DET02', 
+                                                 WAVE_RMS=0.01, 
+                                                 OPT_COUNTS=np.zeros(100), 
+                                                 OPT_FLAM=np.zeros(100)))
+
+    uncollated_list = SourceObject.build_source_objects(specobjs_list=specobjs_list, spec1d_files=file_list, match_type='ra/dec')
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
     par['collate1d']['wv_rms_thresh'] = 0.1
     filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
-    assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT5334_SLIT4934_DET02']
-    assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1']
+    assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT5334_SLIT4934_DET02']
+    assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1']
 
     par['collate1d']['exclude_serendip'] = False
     par['coadd1d']['ex_value'] = 'BOX'
     par['collate1d']['wv_rms_thresh'] = None
 
     filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
-    assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT1233_SLIT1235_DET07', 'SPAT6250_SLIT6235_DET03', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
-    assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1', 'spec1d_file2', 'spec1d_file2', 'spec1d_file2' ]
+    assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1233_SLIT1235_DET07', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
+    assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file2', 'spec1d_file2' ]
 
 
 def test_find_spec2d_from_spec1d(tmp_path):
@@ -427,7 +474,7 @@ def test_flux(monkeypatch):
         else: 
             return {"DISPNAME": "600ZD" }
 
-    def mock_get_flux_calib_instance(spec1d_files, sens_files, par):
+    def mock_flux_calib(spec1d_files, sens_files, par, chk_version=False):
         if spec1d_files[0] == "fail_flux.fits":
             raise PypeItError("Test failure")
         else:
@@ -435,10 +482,13 @@ def test_flux(monkeypatch):
             # depends on the side effect of fluxing
             return None 
 
+    def mock_get_archived_sensfunc(self, fitsfile, symlink_in_pkgdir=False):
+        return "dummy_sensfunc.fits"
+
     # Test success
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
-        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+        monkeypatch.setattr(fluxcalibrate, "flux_calibrate", mock_flux_calib)
 
         spectrograph = load_spectrograph('keck_deimos')
         # This could break if we start supporting it
@@ -447,17 +497,20 @@ def test_flux(monkeypatch):
         par = pypeitpar.PypeItPar()
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
 
-        # Test success
         failed_messages = []
-        flux(par, spectrograph, ["no_fail.fits"], failed_messages)
-
-        assert len(failed_messages) == 0
 
         # Test failure due to no archived sensfunc
         flux(par, spectrograph, ["fail_grating.fits"], failed_messages)
         assert failed_messages[0] == "Could not find archived sensfunc to flux fail_grating.fits, skipping it."
+        
+        # Now patch out get_archived_sensfile since we aren't testing whether it can download
+        # the sensfuncs
+        monkeypatch.setattr(SensFileArchive, "get_archived_sensfile", mock_get_archived_sensfunc)
 
+        # Test success
         failed_messages = []
+        flux(par, spectrograph, ["no_fail.fits"], failed_messages)
+        assert len(failed_messages) == 0
 
         # Test failure in fluxing
         flux(par, spectrograph, ["fail_flux.fits"], failed_messages)
@@ -544,4 +597,38 @@ def test_coadd(monkeypatch):
         coadd(par, test_file, source_object2)
 
         assert par['coadd1d']['flux_value'] == False
+
+def test_refframe_correction(monkeypatch):
+    def mock_geomotion_correct(*args, **kwargs):
+        return 1.0, 1.0
+
+    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
+    monkeypatch.setattr(wave, "geomotion_correct", mock_geomotion_correct)
+
+    par = pypeitpar.PypeItPar()
+    par['collate1d'] = pypeitpar.Collate1DPar()
+    par['collate1d']['refframe'] = 'heliocentric'
+    spectrograph = load_spectrograph('keck_deimos')
+
+    # Test that should fail due to no RA/DEC nor mjd in header
+    spec1d_failure_msgs = []
+    spec1d_files = ["spec1d_file3"]
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+    assert len(spec1d_failure_msgs) == 1
+    assert spec1d_failure_msgs[0].startswith('Failed to perform heliocentric correction on spec1d_file3')
+
+    # Test where onf of the SpecObjs already has a VEL_CORR that should not be overwritten
+    spec1d_failure_msgs = []
+    spec1d_files = ["spec1d_file4"]
+
+    # Test where one VEL_CORR is already set, and the SpecObj objects have no RA/DEC so the header RA/DEC must be used instead
+    sobjs = MockSpecObjs("spec1d_file4")
+    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", lambda x: sobjs)
+
+    refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+    assert len(spec1d_failure_msgs) == 1
+    assert spec1d_failure_msgs[0].startswith('Not performing heliocentric correction for spec1d_file4 object SPAT3234_SLIT3236_DET03 because it has already been corrected')
+    assert sobjs[0].VEL_CORR == 2.0 # Original value, should not have been overwritten
+    assert sobjs[1].VEL_CORR == 1.0 # New value, from apply_helio
+
 

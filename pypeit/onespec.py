@@ -21,37 +21,66 @@ class OneSpec(datamodel.DataContainer):
     DataContainer to hold single spectra, e.g., from
     :class:`~pypeit.coadd1d.CoAdd1D`.
 
-    See the datamodel for argument descriptions
+    The datamodel attributes are:
+
+    .. include:: ../include/class_datamodel_onespec.rst
 
     Args:
-        wave:
-        flux:
-        PYP_SPEC:
+        wave
+        wave_grid_mid
+        flux
+        PYP_SPEC
+        ivar
+        mask
+        telluric
+        obj_model
+        ext_mode
+        fluxed
 
     Attributes:
-        head0 (`astropy.io.fits.Header`):  Primary header
-        spect_meta (:obj:`dict`): Parsed meta from the header
+        head0 (`astropy.io.fits.Header`):
+            Primary header
+        spect_meta (:obj:`dict`):
+            Parsed meta from the header
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
 
     """
     version = '1.0.1'
 
-    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang), weighted by pixel contributions'),
-                 'wave_grid_mid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang) evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity'),
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating,
+                              # TODO: The "weighted by pixel contributions" part
+                              # should be better explained.
+                              descr='Wavelength array (angstroms in vacuum), weighted by pixel '
+                                    'contributions'),
+                 'wave_grid_mid': dict(otype=np.ndarray, atype=np.floating,
+                                       descr='Wavelength (angstroms in vacuum) evaluated at the '
+                                             'bin centers of a grid that is uniformly spaced '
+                                             'in either lambda or log10-lambda/velocity'),
                  'flux': dict(otype=np.ndarray, atype=np.floating,
-                              descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
+                              descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang; '
+                                    'see ``fluxed``'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Inverse variance array (matches units of flux)'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Mask array (1=Good,0=Bad)'),
                  'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
+                 'PYP_SPEC': dict(otype=str, descr='``PypeIt`` spectrograph designation'),
                  'obj_model': dict(otype=np.ndarray, atype=np.floating,
                                    descr='Object model for tellurics'),
                  'ext_mode': dict(otype=str, descr='Extraction mode (options: BOX, OPT)'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the spectrum is fluxed.'),
+                 # TODO: Needs a better description.  What's in the dictionary?
+                 # Why isn't this dictionary expanded into its elements?  I.e.,
+                 # shouldn't each element of this dictionary be a component of
+                 # the datamodel?
                  'spect_meta': dict(otype=dict, descr='header dict')}
+
+    internals = ['head0',
+                 'filename',
+                 'spectrograph',
+                 'spect_meta',
+                 'history']
 
     @classmethod
     def from_file(cls, ifile):
@@ -60,14 +89,11 @@ class OneSpec(datamodel.DataContainer):
         to deal with the header
 
         Args:
-            ifile (str):  Filename holding the object
-
-        Returns:
-            :class:`OneSpec`:
-
+            ifile (str):
+                Filename holding the object
         """
         hdul = io.fits_open(ifile)
-        slf = super(OneSpec, cls).from_hdu(hdul)
+        slf = super().from_hdu(hdul)
 
         # Internals
         slf.filename = ifile
@@ -86,6 +112,12 @@ class OneSpec(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    def _bundle(self):
+        """
+        Override the base class method simply to set the HDU extension name.
+        """
+        return super()._bundle(ext='SPECTRUM')
+
     @property
     def sig(self):
         """ Return the 1-sigma array
@@ -95,13 +127,6 @@ class OneSpec(datamodel.DataContainer):
         """
         return np.sqrt(utils.inverse(self.ivar))
         
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
-        self.history = []
-
     def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
@@ -114,7 +139,7 @@ class OneSpec(datamodel.DataContainer):
 
         """
         if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
+            primary_hdr = io.initialize_header()
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
@@ -131,7 +156,7 @@ class OneSpec(datamodel.DataContainer):
             history.write_to_header(primary_hdr)
 
         # Do it
-        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr, **kwargs)
+        super().to_file(ofile, primary_hdr=primary_hdr, **kwargs)
 
 
 

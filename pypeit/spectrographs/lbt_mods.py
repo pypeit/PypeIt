@@ -3,18 +3,18 @@ Module for LBT/MODS specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 
 # TODO: FW: test MODS1B and MODS2B
 
@@ -24,6 +24,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
+    url = 'https://scienceops.lbto.org/mods/'
 
 #    def __init__(self):
 #        super().__init__()
@@ -36,13 +37,13 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
@@ -50,13 +51,19 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, None]
         par['calibrations']['standardframe']['exprng'] = [1, 200]
         par['scienceframe']['exprng'] = [200, None]
+
+        # Do not sigmaclip the arc frames for better Arc and better wavecalib
+        par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
+
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -110,6 +117,26 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         """
         # decker is not included because standards are usually taken with a 5" slit and arc using 0.8" slit
         return ['dispname', 'binning' ]
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['GRATNAME', 'CCDXBIN', 'CCDYBIN']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -179,14 +206,11 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LBT/MODS file: {fil}')
+        hdu = io.fits_open(fil)
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
@@ -272,7 +296,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -283,7 +307,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -292,7 +316,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -300,7 +324,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -322,7 +346,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -365,7 +389,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -436,7 +460,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -447,7 +471,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -456,7 +480,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -464,7 +488,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
@@ -528,7 +552,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -593,7 +617,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -604,7 +628,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -613,7 +637,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -621,7 +645,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.22
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -643,7 +667,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
+        Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
 
         Args:
@@ -684,7 +708,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -755,7 +779,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -766,7 +790,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -775,7 +799,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -783,7 +807,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
@@ -848,7 +872,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

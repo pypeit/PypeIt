@@ -21,6 +21,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
+    url = 'https://scienceops.lbto.org/luci/'
 
 #    def __init__(self):
 #        super().__init__()
@@ -33,7 +34,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 #        
 #        Returns:
 #            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-#            all of ``PypeIt`` methods.
+#            all of PypeIt methods.
 #        """
 #        par = super().default_pypeit_par()
 #
@@ -42,7 +43,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 #                        use_darkimage=False)
 #        par.reset_all_processimages_par(**turn_off)
 #
-#        par['calibrations']['biasframe']['exprng'] = [None, 1]
+#        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
 #        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
 #        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
 #        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
@@ -56,7 +57,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -169,9 +170,29 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         """
         return ['decker', 'dispname']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['MASKID', 'GRATNAME']
+
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -267,7 +288,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             platescale      = 0.25,
             # Dark current nominally is < 360 electrons per hours
             # but the dark subtraction will effectively bring this to 0
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation      = 1e+8,
@@ -302,16 +323,15 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.5
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
@@ -396,7 +416,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.25,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             # Saturation is 55000, but will be set to dummy value for
             # now
             saturation=1e+8,
@@ -417,14 +437,13 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths'][
-            'rms_threshold'] = 0.20  # 0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.04  # 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4

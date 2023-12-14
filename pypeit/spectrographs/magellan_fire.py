@@ -33,13 +33,14 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
     camera = 'FIRE'
+    url = 'http://web.mit.edu/~rsimcoe/www/FIRE/index.html'
     header_name = 'FIRE'
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -62,7 +63,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -90,6 +91,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
     name = 'magellan_fire'
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 
@@ -117,7 +119,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.18,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
             saturation      = 100000., # This is an arbitrary value.
             nonlinear       = 1.0, # high gain mode, low gain is 0.875
@@ -137,26 +139,26 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution with OH lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
-        par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25
+        par['calibrations']['wavelengths']['sigdetect']=[5,5,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
         par['calibrations']['wavelengths']['n_first']=2
-        par['calibrations']['wavelengths']['n_final']=[3,3,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
+        par['calibrations']['wavelengths']['n_final']=[3,2,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.35
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_echelle.fits'
-        par['calibrations']['wavelengths']['match_toler']=30.0
+        # par['calibrations']['wavelengths']['match_toler']=30.0
 
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
@@ -200,6 +202,10 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+
+        # Coadding. I'm not sure what this should be for PRISM mode?
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 
@@ -360,7 +366,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 3.06,  # e-/pixel/hour  (=0.00085 e-/pixel/s)
             saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
             nonlinear       = 0.875,
             mincounts       = -1e10,
@@ -379,15 +385,15 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
         par['calibrations']['wavelengths']['sigdetect']=3
-        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['fwhm'] = 10
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']

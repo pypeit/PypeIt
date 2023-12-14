@@ -3,8 +3,6 @@ Module for VLT X-Shooter
 
 .. include:: ../include/links.rst
 """
-import os
-
 import numpy as np
 
 from astropy.coordinates import SkyCoord
@@ -28,13 +26,15 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.VLTTelescopePar()
     pypeline = 'Echelle'
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/xshooter.html'
+    ech_fixed_format = True
     header_name = 'XSHOOTER'
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -83,6 +83,26 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return parse.binning2string(binspec, binspatial)
         msgs.error("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {}
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -94,14 +114,34 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            and used to construct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
         return ['arm']
 
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['HIERARCH ESO SEQ ARM']
+
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -191,7 +231,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.197, # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -215,7 +255,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -255,21 +295,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 5.0
+        par['calibrations']['wavelengths']['fwhm'] = 4.
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['qa_log'] = False
 
         # Flats
         #par['calibrations']['standardframe']['process']['illumflatten'] = False
@@ -305,6 +346,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
 
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
 
@@ -312,7 +357,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -327,7 +372,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+        Define the list of keys to be output into a standard PypeIt file.
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
@@ -337,7 +382,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -423,7 +468,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -434,13 +479,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = os.path.join(data.Paths.static_calibs, 'vlt_xshoooter')
+            bpm_dir = data.Paths.static_calibs / 'vlt_xshoooter'
             try :
-                bpm_loc = np.loadtxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'),
-                                     usecols=(0,1))
+                bpm_loc = np.loadtxt(bpm_dir / 'BP_MAP_RP_NIR.dat', usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = io.fits_open(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.fits.gz'))
+                bpm_fits = io.fits_open(bpm_dir / 'BP_MAP_RP_NIR.fits.gz')
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -456,8 +500,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
                 y_bpm, x_bpm = np.where(filt_bpm)
                 bpm_loc = np.array([y_bpm,x_bpm]).T
-                np.savetxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'), bpm_loc,
-                           fmt=['%d','%d'])
+                np.savetxt(bpm_dir / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
                 bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
@@ -580,7 +623,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.16, # average from order 17 and order 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
@@ -599,7 +642,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -639,24 +682,24 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
         # The following is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.15
+        par['calibrations']['wavelengths']['fwhm'] = 8.0
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
-        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        # TODO: the arxived solution is for 1x1 binning. It needs to be
-        # generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['qa_log'] = True
+
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
@@ -675,15 +718,19 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 8 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -796,7 +843,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
@@ -862,7 +909,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             specflip        = True,
             spatflip        = True,
             platescale      = 0.161, # average from order 14 and order 24, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 0.86,  
             mincounts       = -1e10,
@@ -882,7 +929,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -906,12 +953,15 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         par['calibrations']['wavelengths']['n_final'] = [3] + 10*[4] 
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.60 
+        # This is for 1x1
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.184
+        par['calibrations']['wavelengths']['fwhm'] = 3.8
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 3.0 # Pretty faint lines in places
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_uvb1x1.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -920,6 +970,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
+        par['calibrations']['wavelengths']['qa_log'] = True
+
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
@@ -945,13 +1000,28 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is a max of 2 objects on the slit
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] =  8
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        # This is a hack until we we have a Paranal file generated that covers the UVB wavelength range.
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
+
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         super().init_meta()
@@ -977,7 +1047,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         .. code-block:: python
 
             from pypeit import edgetrace
-            edges = edgetrace.EdgeTraceSet.from_file('MasterEdges_A_1_DET01.fits.gz')
+            edges = edgetrace.EdgeTraceSet.from_file('Edges_A_1_DET01.fits.gz')
 
             nrm_edges = edges.edge_fit[edges.nspec//2,:] / edges.nspat
             slit_cen = ((nrm_edges + np.roll(nrm_edges,1))/2)[np.arange(nrm_edges.size//2)*2+1]
@@ -1057,7 +1127,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

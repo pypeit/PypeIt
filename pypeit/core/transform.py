@@ -158,7 +158,7 @@ def coordinate_transform_2d(coo, matrix, inverse=False):
             second column (``coo[:,1]``).
         matrix (`numpy.ndarray`_):
             The :math:3\times 3` affine-transformation matrix.  See
-            :func:`~pypeit.core.mosaic.affine_transform_matrix`.
+            :func:`affine_transform_matrix`.
         inverse (:obj:`bool`, optional):
             By default, the function performs the *active* transformation; i.e.,
             applying the transformation to the coordinates, moving them within

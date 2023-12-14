@@ -1,0 +1,7 @@
+
+Version 1.9.1
+=============
+
+Addresses bug related to downloading from the reid_arxiv when using the
+reidentify wavelength calibration method.
+

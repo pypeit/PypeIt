@@ -8,6 +8,7 @@ from pypeit.spectrographs import bok_bc
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
+from pypeit.spectrographs import keck_esi
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_hires
 from pypeit.spectrographs import keck_kcwi
@@ -20,6 +21,7 @@ from pypeit.spectrographs import lbt_mods
 from pypeit.spectrographs import ldt_deveny
 from pypeit.spectrographs import magellan_fire
 from pypeit.spectrographs import magellan_mage
+from pypeit.spectrographs import mdm_modspec
 from pypeit.spectrographs import mdm_osmos
 from pypeit.spectrographs import mmt_binospec
 from pypeit.spectrographs import mmt_bluechannel
@@ -35,6 +37,8 @@ from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import vlt_sinfoni
 from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import ntt_efosc2
+from pypeit.spectrographs import jwst_nirspec
+from pypeit.spectrographs import jwst_nircam
 
 
 # Build the list of names for the available spectrographs

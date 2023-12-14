@@ -1,15 +1,21 @@
 .. code-block:: console
 
     $ pypeit_flux_setup -h
-    usage: pypeit_flux_setup [-h] [--objmodel {qso,star,poly}] sci_path
+    usage: pypeit_flux_setup [-h] [--name NAME] [--objmodel {qso,star,poly}]
+                             paths [paths ...]
     
-    Setup to perform flux calibration
+    Setup configuration files to perform flux calibration, 1D coadding, and telluric
+    correction.
     
     positional arguments:
-      sci_path              Path for Science folder
+      paths                 One or more paths for Science folders or sensitivity
+                            functions. Sensitivity functions must start with 'sens_'
+                            to be detected.
     
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
+      --name NAME           The base name to use for the output files. Defaults to
+                            the instrument name is used.
       --objmodel {qso,star,poly}
                             science object model used in the telluric fitting. The
                             options are:

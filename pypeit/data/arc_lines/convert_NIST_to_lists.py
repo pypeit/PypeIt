@@ -2,14 +2,12 @@
 Module for generating Arc Line lists
   Should be run where it is located (for now)
 """
-from __future__ import print_function, absolute_import, division, unicode_literals
 
-import os
 import pdb
 import datetime
+from IPython import embed
 
-from collections import OrderedDict
-from astropy.table import Table, Column
+import astropy.table
 
 from pypeit import data
 
@@ -47,21 +45,16 @@ def init_line_list():
     #
 
     # Dict for Table
-    idict = OrderedDict()
-    idict['ion'] = dummy_line
-    idict['wave'] = 0.
-    idict['NIST'] = 0
-    idict['Instr'] = 0  # Flag for instrument
-    idict['amplitude'] = 0
-    idict['Source'] = dummy_src
-
-    # Table
-    tkeys = idict.keys()
-    lst = [[idict[tkey]] for tkey in tkeys]
-    init_tbl = Table(lst, names=tkeys)
-
-    # Return
-    return init_tbl
+    idict = {
+        'ion': dummy_line,
+        'wave': 0.,
+        'NIST': 0,
+        'Instr': 0,  # Flag for instrument
+        'amplitude': 0,
+        'Source': dummy_src,
+    }
+    # Return table
+    return astropy.table.Table(rows=[idict])
 
 
 def load_line_list(line):
@@ -76,13 +69,13 @@ def load_line_list(line):
     line_list : Table
 
     """
-    line_file = os.path.join(data.Paths.nist, f'{line}_vacuum.ascii')
+    line_file = data.Paths.nist / f'{line}_vacuum.ascii'
 
     # Check the NIST lines file exists
-    if not os.path.isfile(line_file):
+    if not line_file.is_file():
         raise IOError(f"Input line {line} is not available")
 
-    line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
+    line_list = astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
 
     # Remove unwanted columns
     tkeys = line_list.keys()
@@ -111,11 +104,10 @@ def load_line_list(line):
     line_list.rename_column('Observed', 'wave')
     # Others
     # Grab ion name
-    i0 = line_file.rfind('/')
-    i1 = line_file.rfind('_')
-    ion = line_file[i0+1:i1]
-    line_list.add_column(Column([ion]*len(line_list), name='Ion', dtype='U5'))
-    line_list.add_column(Column([1]*len(line_list), name='NIST'))
+    i1 = line_file.name.rfind('_')
+    ion = line_file.name[:i1]
+    line_list.add_column(astropy.table.Column([ion]*len(line_list), name='Ion', dtype='U5'))
+    line_list.add_column(astropy.table.Column([1]*len(line_list), name='NIST'))
     return line_list
 
 
@@ -165,20 +157,22 @@ def main(args=None):
     # Finally, sort the list by increasing wavelength
     linelist.sort('wave')
 
+    print(linelist)
+
     # Write?
     if not pargs.write:
         print("=============================================================")
         print("Rerun with --write if you are happy with what you see.")
         print("=============================================================")
-        return
+        return linelist
 
     # Write the table to disk
-    outfile = os.path.join(data.Paths.linelist, f'{line}_lines.dat')
+    outfile = data.get_linelist_filepath(f'{line}_lines.dat')
     write_line_list(linelist, outfile)
     return
 
 
-def write_line_list(tbl, outfile):
+def write_line_list(tbl, outfile, overwrite=True):
     """
     Parameters
     ----------
@@ -189,8 +183,8 @@ def write_line_list(tbl, outfile):
     tbl['wave'].format = '10.4f'
     # Write
     with open(outfile, 'w') as f:
-        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%m-%d'))))
-        tbl.write(f, format='ascii.fixed_width')
+        f.write(f"# Creation Date: {str(datetime.date.today().strftime('%Y-%m-%d'))}\n")
+        tbl.write(f, format='ascii.fixed_width', overwrite=overwrite)
 
 
 if __name__ == '__main__':

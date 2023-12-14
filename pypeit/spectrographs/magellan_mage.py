@@ -25,9 +25,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'magellan_mage'
     camera = 'MagE'
+    url = 'https://www.lco.cl/?epkb_post_type_1=mage'
     header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
+    ech_fixed_format = True
     supported = True
     comment = 'See :doc:`mage`'
 
@@ -61,7 +63,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             # plate scale in arcsec/pixel
             platescale      = 0.3,
             # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
-            darkcurr        = 1.00,
+            darkcurr        = 1.0,  # e-/pixel/hour
             saturation      = 65535.,
             # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
             nonlinear       = 0.99,
@@ -84,7 +86,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
+            all of PypeIt methods.
         """
         par = super().default_pypeit_par()
 
@@ -92,7 +94,10 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
+        # The following is for 1x1 binning
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.133
+        par['calibrations']['wavelengths']['fwhm'] = 3.0  
+        #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
 
@@ -102,7 +107,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -134,13 +139,18 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+
         return par
 
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
 
-        That is, this associates the ``PypeIt``-specific metadata keywords
+        That is, this associates the PypeIt-specific metadata keywords
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
@@ -252,7 +262,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                 Required if filename is None
                 Ignored if filename is not None
             msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+                Processed bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

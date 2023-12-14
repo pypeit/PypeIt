@@ -77,7 +77,7 @@ class ArchiveMetadata():
         col_names (list of str): 
             The column names of the metadata
 
-        get_metadata_func (func): 
+        get_metadata_func (callable): 
             Function that reads metadata and file information from the objects
             being archived.
 
