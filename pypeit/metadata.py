@@ -1490,7 +1490,7 @@ class PypeItMetaData:
             write_manual (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for manual extraction
             write_shift (:obj:`bool`, optional):
-                Add additional ``PypeIt`` columns for manual flexure
+                Add additional ``PypeIt`` column(s) for manual flexure
                 correction
 
 
@@ -1510,9 +1510,7 @@ class PypeItMetaData:
         if write_manual:
             extras += ['manual']
         if write_shift:
-            print('')
-            print('Adding Shift Column')
-            print('')
+            msgs.info('Adding Shift Column')
             extras += ['shift']
         for key in extras:
             if key not in columns:
@@ -1629,7 +1627,7 @@ class PypeItMetaData:
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual)
-        print('Columns being used are: ', output_cols)
+        msgs.info('Columns being used are: ', output_cols)
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
             for key in cfgs.keys():

@@ -657,10 +657,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                 # If a match is found within 2 pixels, consider this a successful match
                 if pdiff[bstpx] < match_toler:
                     # Using the arxiv arc wavelength solution, search for the nearest line in the line list
-                    #msgs.info(f"wvdata and wvval: {wvdata}, {wvval_arxiv[bstpx]}")
                     bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
                     # This is a good wavelength match if it is within match_toler disperion elements
-                    #print('bstwv match = ', bstwv[np.argmin(bstwv)], 'tolerance = ',match_toler*disp_arxiv[iarxiv])
                     if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
                         line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
                         det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections

@@ -496,36 +496,12 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             arc_spec[:,islit] = np.nan
             continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
-        '''
-        crappy diagnostic code, can delete
-        print('will use this mask: ', np.invert(arcmask[:,left:right]))
-        print('which has shape: ', np.shape(np.invert(arcmask[:,left:right])))
-        print(np.shape(arcimg[:,left:right]))
-        arcimg_testplot = np.copy(arcimg)
-        arcimg_testplot[np.where(np.invert(arcmask[:,left:right]))] = -1e10
-        print(np.shape(np.where(arcmask[:,left:right])))
-        plt.figure()
-        #plt.plot(np.nanmedian(arcimg[:,left:right], axis=1))
-        #plt.plot(arcimg_testplot[:,left:right])
-        #plt.plot(arcimg[:,left:right]/np.nanstd(arcimg[:,left:right]))
-        plt.imshow(gpm)
-        plt.show()
-        '''
         
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.invert(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1, 
                                                       cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
-        '''
-        Crappy diagnostic code, can remove
-        print('ARC SPEC HAS SHAPE', np.shape(arc_spec))
-        print('islit = ', islit)
-        plt.figure()
-        plt.plot(arc_spec[:,islit])
-        plt.title('After sigma clipping')
-        plt.show()
-        '''
     # Get the mask, set the masked values to 0, and return
     arc_spec_bpm = np.isnan(arc_spec)
     arc_spec[arc_spec_bpm] = 0.0

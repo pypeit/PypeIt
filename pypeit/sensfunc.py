@@ -66,7 +66,7 @@ class SensFunc(datamodel.DataContainer):
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
-    version = '1.0.1'
+    version = '1.0.2'
     """Datamodel version."""
 
     # TODO: Add this if we want to set the output float type for the np.ndarray

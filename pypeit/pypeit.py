@@ -292,7 +292,7 @@ class PypeIt:
                 # Do it
                 # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                if no_wave:
+                if no_wave:  # Introduced for keck_nirspec_high
                     self.caliBrate.steps = ['bias', 'dark', 'bpm', 'slits', 'arc', 'flats'] 
                 self.caliBrate.run_the_steps()
                 if not self.caliBrate.success:

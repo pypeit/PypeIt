@@ -90,14 +90,9 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(int(angle_fits_params['ech_n_final'] + 1)):
-            #print(fitting.evaluate_fit(
-            #    ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
-            #    ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax']))
             coeff_predict[ic] = fitting.evaluate_fit(
                 ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
-        #print('coeff_predict = ', coeff_predict)
-        #print('xnspec = ', xnspec)
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
 
@@ -239,25 +234,9 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
     msgs.info(f'initial orders vec guess = {order_vec_guess}')
-    #print(np.shape(wave_soln_guess_pad))
-    #print(wave_soln_guess_pad.T)
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
-    '''
-    debug=True
-    import matplotlib.pyplot as plt
-    for ii in range(norders):
-        plt.figure()
-        plt.plot(arcspec[:,ii])
-        plt.title(order_vec_guess[ii])
-        plt.show()
-    plt.figure()
-    plt.plot(arccen_pad.flatten('F'))
-    plt.plot(arcspec_guess_pad.flatten('F'))
-    plt.ylim(0.0, np.max(arccen_pad))
-    plt.show()
-    '''
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
