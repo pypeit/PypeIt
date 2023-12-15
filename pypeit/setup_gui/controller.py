@@ -13,7 +13,7 @@ import io
 from pathlib import Path
 from functools import partial
 from contextlib import contextmanager
-from qtpy.QtCore import QCoreApplication, Signal, QMutex
+from qtpy.QtCore import QCoreApplication, Signal, QMutex, QTimer
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
 from qtpy.QtWidgets import QAction
@@ -643,9 +643,18 @@ class SetupGUIController(QObject):
         if self.run_setup_at_startup:
             self.run_setup()
 
-        # QT Gobbles up the Python Ctrl+C handling, so the default PypeIt Ctrl+C handler won't
-        # be called. So we reset it to the OS default
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        # QT runs it's event loop in C, so the python signal handling mechanism
+        # is never called, or it's only called after you give focus to the
+        # window. To make Ctrl+C handling work immediately in a way that still 
+        # calls the PypeIt CTRL+C handler, we set a timer to run every 500s in the
+        # python interpreter, which will allow the python signal handling
+        # code to it.
+            
+        # This trck was brought to you by this stack exchange thread:
+        # https://stackoverflow.com/questions/4938723/what-is-the-correct-way-to-make-my-pyqt-application-quit-when-killed-from-the-co
+        timer = QTimer()
+        timer.start(500)
+        timer.timeout.connect(lambda: None)
         sys.exit(app.exec_())
 
     def save_all(self):
