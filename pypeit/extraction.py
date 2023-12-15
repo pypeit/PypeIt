@@ -879,7 +879,7 @@ class EchelleExtract(Extract):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-class IFUExtract(MultiSlitExtract):
+class SlicerIFUExtract(MultiSlitExtract):
     """
     Child of Extract for IFU reductions
 
@@ -887,5 +887,8 @@ class IFUExtract(MultiSlitExtract):
 
     """
     def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
-        # IFU doesn't extract, and there's no need for a super call here.
-        return
+        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
+
+    #def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+    #    # IFU doesn't extract, and there's no need for a super call here.
+    #    return

@@ -482,7 +482,7 @@ class FindObjects:
         pass
 
 
-    def global_skysub(self, skymask=None, update_crmask=True, trim_edg = (0, 0),
+    def global_skysub(self, skymask=None, update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, 
                       show_objs=False, objs_not_masked=False,
                       reinit_bpm:bool=True):
@@ -496,9 +496,6 @@ class FindObjects:
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
                 Update the crmask in the science image
-            trim_edg (tuple, optional):
-                 A two tuple of ints that specify the number of pixels to trim from the slit edges
-                 Only used by the IFU child
             show_fit (bool, optional):
                 Show the sky fits?
             show (bool, optional):
@@ -960,7 +957,275 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-        self.initialize_slits(slits, initial=True)
+        #self.initialize_slits(slits, initial=True) # below is better. This was being done twice.
+
+    def initialize_slits(self, slits, initial=True):
+        """
+        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes
+        that we'll use here in :class:`FindObjects. Identical to the parent but the slits are not trimmed.
+
+
+        Args:
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                SlitTraceSet object containing the slit boundaries that will be initialized.
+            initial (:obj:`bool`, optional):
+                Use the initial definition of the slits. If False,
+                tweaked slits are used.
+        """
+        super().initialize_slits(slits, initial=True)
+
+    def global_skysub(self, skymask=None, update_crmask=True,
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
+                      reinit_bpm: bool = True):
+        """
+        Perform global sky subtraction. This SlicerIFU-specific routine ensures that the
+        edges of the slits are not trimmed, and performs a spatial and spectral
+        correction using the sky spectrum, if requested. See Reduce.global_skysub()
+        for parameter definitions.
+
+        See base class method for description of parameters.
+
+        Args:
+            reinit_bpm (:obj:`bool`, optional):
+                If True (default), the bpm is reinitialized to the initial bpm
+                Should be False on the final run in case there was a failure
+                upstream and no sources were found in the slit/order
+        """
+
+        global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+                                               previous_sky=previous_sky, show_fit=show_fit, show=show,
+                                               show_objs=show_objs,
+                                               objs_not_masked=objs_not_masked, reinit_bpm=reinit_bpm)
+
+        # Check if flexure or a joint fit is requested. If not return this
+        if not self.par['reduce']['skysub']['joint_fit'] and self.par['flexure']['spec_method'] == 'skip':
+            return global_sky_sep
+
+        if self.wv_calib is None:
+            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
+        msgs.info("Generating wavelength image")
+
+        # Generate the waveimg which is needed if flexure is being computed
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        # TODO: Can the flexure compensation be removed from this class or is it necessary for the joint skysub?
+
+        # Calculate spectral flexure
+        method = self.par['flexure']['spec_method']
+        # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
+        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
+        if method in ['slitcen']:
+            # TODO make waveimg an argument here and return values pass back the new waveimg and shifts
+            self.calculate_flexure(global_sky_sep)
+
+        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
+        if not self.par['reduce']['skysub']['joint_fit']:
+            return global_sky_sep
+
+        # TODO I'm not following the control flow here. Is it that we need the initial global sky to compute flexure
+        # for each slit so that then one can perform joint sky-subtraction with flexure corrected wavelengths? Some
+        # more information on the logic of this flow would make it clearer.
+
+        # Use sky information in all slits to perform a joint sky fit
+        global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask,
+                                       show_fit=show_fit, show=show, show_objs=show_objs,
+                                       objs_not_masked=objs_not_masked)
+
+        return global_sky
+
+    def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
+                     show_fit=False, show=False, show_objs=False, adderr=0.01, objs_not_masked=False):
+        """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
+        for parameter definitions.
+        """
+        msgs.info("Performing joint global sky subtraction")
+        # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
+        skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
+        _global_sky = np.zeros_like(self.sciImg.image)
+        thismask = (self.slitmask > 0)
+        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
+        # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
+        # the tilts frame, but conserves wavelength position in each slit)
+        wavemin = self.waveimg[self.waveimg != 0.0].min()
+        tilt_wave = (self.waveimg - wavemin) / (self.waveimg.max() - wavemin)
+
+        # Parameters for a standard star
+        sigrej = 3.0
+        if self.std_redux:
+            sigrej = 7.0
+            update_crmask = False
+            if not self.par['reduce']['skysub']['global_sky_std']:
+                msgs.info('Skipping global sky-subtraction for standard star.')
+                return _global_sky
+
+        # Use the FWHM map determined from the arc lines to convert the science frame
+        # to have the same effective spectral resolution.
+        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        thismask = thismask & (fwhm_map != 0.0)
+        # Need to include S/N for deconvolution
+        sciimg = skysub.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
+        # Iterate to use a model variance image
+        numiter = 4  # This is more than enough, and will probably break earlier than this
+        model_ivar = self.sciImg.ivar
+        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        # Prepare the slitmasks for the relative spectral illumination
+        slitmask = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, initial=True, flexure=self.spat_flexure_shift)
+        for nn in range(numiter):
+            msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
+            # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
+            _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
+                                                         thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                         sigrej=sigrej, trim_edg=trim_edg,
+                                                         bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                         no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                         pos_mask=not self.bkg_redux and not objs_not_masked,
+                                                         max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                         show_fit=show_fit)
+
+            # Calculate the relative spectral illumination
+            scaleImg = flat.illum_profile_spectral_poly(sciimg, self.waveimg, slitmask, slitmask_trim, _global_sky,
+                                                        slit_illum_ref_idx=sl_ref, gpmask=inmask, thismask=thismask)
+            # Apply this scale image to the temporary science frame
+            sciimg /= scaleImg
+
+            # Update the ivar image used in the sky fit
+            msgs.info("Updating sky noise model")
+            # Choose the highest counts out of sky and object
+            counts = _global_sky
+            _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
+            # NOTE: darkcurr must be a float for the call below to work.
+            if not self.bkg_redux:
+                var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
+                                             count_scale=_scale, noise_floor=adderr)
+                model_ivar[thismask] = utils.inverse(var)
+            else:
+                model_ivar[thismask] = self.sciImg.ivar[thismask]
+            # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
+            # Recalculate the sky on each individual slit and redetermine the spectral flexure
+            # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+            #                                        trim_edg=trim_edg, show_fit=show_fit, show=show,
+            #                                        show_objs=show_objs)
+            # self.calculate_flexure(global_sky_sep)
+
+            # Check if the relative scaling isn't changing much after at least 4 iterations
+            minv, maxv = np.min(scaleImg[thismask]), np.max(scaleImg[thismask])
+            if nn >= 3 and max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
+                break
+
+        if update_crmask:
+            # Find CRs with sky subtraction
+            # NOTE: There's no need to run `sciImg.update_mask_cr` after this.
+            # This operation updates the mask directly!
+            self.sciImg.build_crmask(self.par['scienceframe']['process'], subtract_img=_global_sky)
+
+        # Now we have a correct scale, apply it to the original science image
+        self.apply_relative_scale(scaleImg)
+
+        # Recalculate the joint sky using the original image
+        _global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
+                                                     thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                     sigrej=sigrej, trim_edg=trim_edg,
+                                                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                     no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                     pos_mask=not self.bkg_redux and not objs_not_masked,
+                                                     max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
+                                                     show_fit=show_fit)
+
+        # Update the ivar image used in the sky fit
+        msgs.info("Updating sky noise model")
+        # Choose the highest counts out of sky and object
+        counts = _global_sky
+        _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
+        # NOTE: darkcurr must be a float for the call below to work.
+        var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
+                                     count_scale=_scale, noise_floor=adderr)
+        model_ivar[thismask] = utils.inverse(var)
+
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+        if show:
+            sobjs_show = None if show_objs else self.sobjs_obj
+            # Global skysub is the first step in a new extraction so clear the channels here
+            self.show('global', global_sky=_global_sky, slits=True, sobjs=sobjs_show, clear=False)
+        return _global_sky
+
+    # TODO is the flexure compensation needed in object finding. Can it be separated from this class and put somewhere
+    # else like a flexure compensation class or module.
+    def calculate_flexure(self, global_sky):
+        """
+        TODO: Need better docs. What is being assigned in this function? Need either docs or return values.
+        Convenience function to calculate the flexure of the IFU
+
+         Args:
+             global_sky (`numpy.ndarray`_):
+                Model of the sky
+        """
+        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
+        box_rad = self.par['reduce']['extraction']['boxcar_radius']
+        trace_spat = 0.5 * (self.slits_left + self.slits_right)
+        # Load archival sky spectrum for absolute correction
+        sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
+        # Get spectral FWHM (in Angstrom) if available
+        iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
+        ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
+        # Extract a spectrum of the sky
+        thismask = (self.slitmask == self.slits.spat_id[sl_ref])
+        ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
+                                               self.pypeline, self.det)
+        # Calculate the flexure
+        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
+                                            mxshft=self.par['flexure']['spec_maxshift'],
+                                            excess_shft=self.par['flexure']['excessive_shift'],
+                                            method="slitcen",
+                                            minwave=self.par['flexure']['minwave'],
+                                            maxwave=self.par['flexure']['maxwave'])
+        this_slitshift = np.zeros(self.slits.nslits)
+        if flex_dict_ref is not None:
+            msgs.warn("Only a relative spectral flexure correction will be performed")
+            this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
+        # Now loop through all slits to calculate the additional shift relative to the reference slit
+        flex_list = []
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            thismask = (self.slitmask == slit_spat)
+            # Extract sky spectrum for this slit
+            this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
+                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
+                                                    self.pypeline, self.det)
+            # Calculate the flexure
+            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix * 1.01,
+                                                spec_fwhm_pix=ref_fwhm_pix,
+                                                mxshft=self.par['flexure']['spec_maxshift'],
+                                                excess_shft=self.par['flexure']['excessive_shift'],
+                                                method="slitcen",
+                                                minwave=self.par['flexure']['minwave'],
+                                                maxwave=self.par['flexure']['maxwave'])
+            this_slitshift[slit_idx] += flex_dict['shift']
+            flex_list.append(flex_dict.copy())
+        # Replace the reference slit with the absolute shift
+        flex_list[sl_ref] = flex_dict_ref.copy()
+        # Add this flexure to the previous flexure correction
+        self.slitshift += this_slitshift
+        # Now report the flexure values
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+                                                                                              self.slitshift[slit_idx]))
+        # Save QA
+        # TODO :: Need to implement QA
+        msgs.work("QA is not currently implemented for the flexure correction")
+        if False:#flex_list is not None:
+            basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
+            flexure.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
+
+        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
+        msgs.info("Generating wavelength image, accounting for spectral flexure")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
+                                                   spat_flexure=self.spat_flexure_shift)
+        return
+
 
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
@@ -1091,6 +1356,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     #     # Apply the relative scale correction
     #     self.apply_relative_scale(spatScaleImg)
 
+    # TODO This method appears to not be used. Should be removed?
     def illum_profile_spectral(self, global_sky, skymask=None):
         """Calculate the residual spectral illumination profile using the sky regions.
         This uses the same routine as the flatfield spectral illumination profile.
@@ -1114,125 +1380,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
-    def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                     show_fit=False, show=False, show_objs=False, adderr=0.01, objs_not_masked=False):
-        """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
-        for parameter definitions.
-        """
-        msgs.info("Performing joint global sky subtraction")
-        # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
-        skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        _global_sky = np.zeros_like(self.sciImg.image)
-        thismask = (self.slitmask > 0)
-        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(bool)
-        # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
-        # the tilts frame, but conserves wavelength position in each slit)
-        wavemin = self.waveimg[self.waveimg != 0.0].min()
-        tilt_wave = (self.waveimg - wavemin) / (self.waveimg.max() - wavemin)
 
-        # Parameters for a standard star
-        sigrej = 3.0
-        if self.std_redux:
-            sigrej = 7.0
-            update_crmask = False
-            if not self.par['reduce']['skysub']['global_sky_std']:
-                msgs.info('Skipping global sky-subtraction for standard star.')
-                return _global_sky
-
-        # Use the FWHM map determined from the arc lines to convert the science frame
-        # to have the same effective spectral resolution.
-        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
-        thismask = thismask & (fwhm_map != 0.0)
-        # Need to include S/N for deconvolution
-        sciimg = skysub.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
-        # Iterate to use a model variance image
-        numiter = 4  # This is more than enough, and will probably break earlier than this
-        model_ivar = self.sciImg.ivar
-        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, initial=True, flexure=self.spat_flexure_shift)
-        for nn in range(numiter):
-            msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
-            # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
-            _global_sky[thismask] = skysub.global_skysub(sciimg, model_ivar, tilt_wave,
-                                                         thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                         sigrej=sigrej, trim_edg=trim_edg,
-                                                         bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                         no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                         pos_mask=not self.bkg_redux and not objs_not_masked,
-                                                         max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
-                                                         show_fit=show_fit)
-
-            # Calculate the relative spectral illumination
-            scaleImg = flat.illum_profile_spectral_poly(sciimg, self.waveimg, slitmask, slitmask_trim, _global_sky,
-                                                        slit_illum_ref_idx=sl_ref, gpmask=inmask, thismask=thismask)
-            # Apply this scale image to the temporary science frame
-            sciimg /= scaleImg
-
-            # Update the ivar image used in the sky fit
-            msgs.info("Updating sky noise model")
-            # Choose the highest counts out of sky and object
-            counts = _global_sky
-            _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
-            # NOTE: darkcurr must be a float for the call below to work.
-            if not self.bkg_redux:
-                var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
-                                             count_scale=_scale, noise_floor=adderr)
-                model_ivar[thismask] = utils.inverse(var)
-            else:
-                model_ivar[thismask] = self.sciImg.ivar[thismask]
-            # RJC :: Recalculating the global sky and flexure is probably overkill... but please keep this code in for now
-            # Recalculate the sky on each individual slit and redetermine the spectral flexure
-            # global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-            #                                        trim_edg=trim_edg, show_fit=show_fit, show=show,
-            #                                        show_objs=show_objs)
-            # self.calculate_flexure(global_sky_sep)
-
-            # Check if the relative scaling isn't changing much after at least 4 iterations
-            minv, maxv = np.min(scaleImg[thismask]), np.max(scaleImg[thismask])
-            if nn >= 3 and max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
-                break
-
-        if update_crmask:
-            # Find CRs with sky subtraction
-            # NOTE: There's no need to run `sciImg.update_mask_cr` after this.
-            # This operation updates the mask directly!
-            self.sciImg.build_crmask(self.par['scienceframe']['process'], subtract_img=_global_sky)
-
-        # Now we have a correct scale, apply it to the original science image
-        self.apply_relative_scale(scaleImg)
-
-        # Recalculate the joint sky using the original image
-        _global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                                     thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                                     sigrej=sigrej, trim_edg=trim_edg,
-                                                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                     no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                     pos_mask=not self.bkg_redux and not objs_not_masked,
-                                                     max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
-                                                     show_fit=show_fit)
-
-        # Update the ivar image used in the sky fit
-        msgs.info("Updating sky noise model")
-        # Choose the highest counts out of sky and object
-        counts = _global_sky
-        _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
-        # NOTE: darkcurr must be a float for the call below to work.
-        var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
-                                     count_scale=_scale, noise_floor=adderr)
-        model_ivar[thismask] = utils.inverse(var)
-
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
-        if show:
-            sobjs_show = None if show_objs else self.sobjs_obj
-            # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', global_sky=_global_sky, slits=True, sobjs=sobjs_show, clear=False)
-        return _global_sky
-
-    def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
+    def global_skysub_old(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
                       reinit_bpm:bool=True):
         """
@@ -1245,7 +1394,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         Args:
             reinit_bpm (:obj:`bool`, optional):
-                If True (default), the bpm is reinitialized to the initial bpm 
+                If True (default), the bpm is reinitialized to the initial bpm
                 Should be False on the final run in case there was a failure
                 upstream and no sources were found in the slit/order
         """
@@ -1295,76 +1444,3 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                        objs_not_masked=objs_not_masked)
 
         return global_sky
-
-    def calculate_flexure(self, global_sky):
-        """
-        Convenience function to calculate the flexure of the IFU
-
-         Args:
-             global_sky (`numpy.ndarray`_):
-                Model of the sky
-        """
-        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        box_rad = self.par['reduce']['extraction']['boxcar_radius']
-        trace_spat = 0.5 * (self.slits_left + self.slits_right)
-        # Load archival sky spectrum for absolute correction
-        sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
-        # Get spectral FWHM (in Angstrom) if available
-        iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
-        ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
-        # Extract a spectrum of the sky
-        thismask = (self.slitmask == self.slits.spat_id[sl_ref])
-        ref_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                               global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
-                                               self.pypeline, self.det)
-        # Calculate the flexure
-        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
-                                            mxshft=self.par['flexure']['spec_maxshift'],
-                                            excess_shft=self.par['flexure']['excessive_shift'],
-                                            method="slitcen",
-                                            minwave=self.par['flexure']['minwave'],
-                                            maxwave=self.par['flexure']['maxwave'])
-        this_slitshift = np.zeros(self.slits.nslits)
-        if flex_dict_ref is not None:
-            msgs.warn("Only a relative spectral flexure correction will be performed")
-            this_slitshift = np.ones(self.slits.nslits) * flex_dict_ref['shift']
-        # Now loop through all slits to calculate the additional shift relative to the reference slit
-        flex_list = []
-        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            thismask = (self.slitmask == slit_spat)
-            # Extract sky spectrum for this slit
-            this_skyspec = flexure.get_sky_spectrum(self.sciImg.image, self.sciImg.ivar, self.waveimg, thismask,
-                                                    global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
-                                                    self.pypeline, self.det)
-            # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix * 1.01,
-                                                spec_fwhm_pix=ref_fwhm_pix,
-                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                excess_shft=self.par['flexure']['excessive_shift'],
-                                                method="slitcen",
-                                                minwave=self.par['flexure']['minwave'],
-                                                maxwave=self.par['flexure']['maxwave'])
-            this_slitshift[slit_idx] += flex_dict['shift']
-            flex_list.append(flex_dict.copy())
-        # Replace the reference slit with the absolute shift
-        flex_list[sl_ref] = flex_dict_ref.copy()
-        # Add this flexure to the previous flexure correction
-        self.slitshift += this_slitshift
-        # Now report the flexure values
-        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
-                                                                                              self.slitshift[slit_idx]))
-        # Save QA
-        # TODO :: Need to implement QA
-        msgs.work("QA is not currently implemented for the flexure correction")
-        if False:#flex_list is not None:
-            basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
-            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-            slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
-            flexure.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
-
-        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-        msgs.info("Generating wavelength image, accounting for spectral flexure")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
-                                                   spat_flexure=self.spat_flexure_shift)
-        return

@@ -682,6 +682,7 @@ class FlatFieldPar(ParSet):
 
         defaults['slit_illum_relative'] = False
         dtypes['slit_illum_relative'] = bool
+        # TODO Needs to be updated. use_slitillum is not a parameter anywhere in pypeit
         descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination ' \
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
