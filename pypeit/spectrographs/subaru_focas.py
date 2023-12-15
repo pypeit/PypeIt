@@ -77,6 +77,14 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 5
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
 
+        # Frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+        par['calibrations']['traceframe']['exprng'] = [0, None]
+        par['calibrations']['arcframe']['exprng'] = [None, 1]
+        par['calibrations']['standardframe']['exprng'] = [1, 61]
+        #
+        par['scienceframe']['exprng'] = [61, None]
 
 
         return par
@@ -104,7 +112,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='DISPERSR', required_ftypes=['science', 'standard'])
         # TODO - FIX THIS!!
         self.meta['dispangle'] = dict(ext=0, card='BZERO', rtol=2.0)#, required_ftypes=['science', 'standard'])
-        #self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        self.meta['idname'] = dict(ext=0, card='DATA-TYP')
         self.meta['detector'] = dict(ext=0, card='DET-ID')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -167,35 +175,21 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        # TODO: Allow for 'sky' frame type, for now include sky in
-        # 'science' category
         if ftype == 'science':
-            return good_exp & ((fitstbl['idname'] == 'SCIENCE')
-                                | (fitstbl['target'] == 'STD,TELLURIC')
-                                | (fitstbl['target'] == 'STD,SKY'))
-        if ftype == 'standard':
-            return good_exp & ((fitstbl['target'] == 'STD,FLUX')
-                               | (fitstbl['target'] == 'STD'))
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['target'] == 'BIAS')
-        if ftype == 'dark':
-            return good_exp & (fitstbl['target'] == 'DARK')
+            return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
-                               | (fitstbl['target'] == 'LAMP,QFLAT')
-                               | (fitstbl['target'] == 'FLAT,LAMP')
-                               | (fitstbl['target'] == 'LAMP,FLAT'))
-        if ftype == 'pinhole':
-            # Don't type pinhole
-            return np.zeros(len(fitstbl), dtype=bool)
+            # TODO -- Are there internal flats?
+            return good_exp & (fitstbl['idname'] == 'DOMEFLAT')
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
-                               | (fitstbl['target'] == 'WAVE,LAMP'))
+            return good_exp & (fitstbl['idname'] == 'COMPARISON')
+
+
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
 
 
     def get_detector_par(self, det, hdu=None):
