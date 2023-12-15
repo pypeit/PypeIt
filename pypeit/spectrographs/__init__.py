@@ -39,6 +39,7 @@ from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import ntt_efosc2
 from pypeit.spectrographs import jwst_nirspec
 from pypeit.spectrographs import jwst_nircam
+from pypeit.spectrographs import subaru_focas
 
 
 # Build the list of names for the available spectrographs

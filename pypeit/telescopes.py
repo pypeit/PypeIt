@@ -32,6 +32,17 @@ class KeckTelescopePar(TelescopePar):
                                                diameter=10,
                                                eff_aperture=72.3674)
 
+class SubaruTelescopePar(TelescopePar):
+    def __init__(self):
+        loc = EarthLocation.of_site('W. M. Keck Observatory')
+        super(SubaruTelescopePar, self).__init__(name='SUBARU',
+                                               longitude=loc.lon.to(units.deg).value,
+                                               latitude=loc.lat.to(units.deg).value,
+                                               elevation=loc.height.to(units.m).value,
+                                               fratio=12.2,  # CASSEGRAIN
+                                               diameter=8.2,
+                                               eff_aperture=72.3674) # TODO -- FIX THIS??
+
 
 class MagellanTelescopePar(TelescopePar):
     def __init__(self):
