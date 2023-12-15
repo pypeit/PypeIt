@@ -219,7 +219,8 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
+                 spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -262,15 +263,15 @@ class ProcessImagesPar(ParSet):
         options['overscan_method'] = ProcessImagesPar.valid_overscan_methods()
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
-                            'Options are: {0}'.format(', '.join(options['overscan_method']))
+                            f'Options are: {", ".join(options["overscan_method"])}  Note: Method "polynomial" ' \
+                            'is identical to "chebyshev"; the former is deprecated and will be removed.'
 
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
-                                '\'polynomial\', set overcan_par = order, number of pixels, ' \
-                                'number of repeats ; for \'savgol\', set overscan_par = ' \
-                                'order, window size ; for \'median\', set overscan_par = ' \
-                                'None or omit the keyword.'
+                                '\'chebyshev\' or \'polynomial\', set overcan_par = order; ' \
+                                'for \'savgol\', set overscan_par = order, window size ; ' \
+                                'for \'median\', set overscan_par = None or omit the keyword.'
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -297,6 +298,16 @@ class ProcessImagesPar(ParSet):
         descr['subtract_continuum'] = 'Subtract off the continuum level from an image. This parameter should only ' \
                                       'be set to True to combine arcs with multiple different lamps. ' \
                                       'For all other cases, this parameter should probably be False.'
+
+        defaults['subtract_scattlight'] = False
+        dtypes['subtract_scattlight'] = bool
+        descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
+                                       'be set to True for spectrographs that have dedicated methods to subtract ' \
+                                       'scattered light. For all other cases, this parameter should be False.'
+
+        defaults['scattlight'] = ScatteredLightPar()
+        dtypes['scattlight'] = [ParSet, dict]
+        descr['scattlight'] = 'Scattered light subtraction parameters.'
 
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
@@ -330,7 +341,7 @@ class ProcessImagesPar(ParSet):
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
-                                 'primarily used for IFUs.  To use this, you must set ' \
+                                 'primarily used for slicer IFUs.  To use this, you must set ' \
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
@@ -429,9 +440,9 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
-                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
+                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
@@ -445,6 +456,9 @@ class ProcessImagesPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Keywords that are ParSets
+        pk = 'scattlight'
+        kwargs[pk] = ScatteredLightPar.from_dict(cfg[pk]) if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
@@ -452,7 +466,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median']
+        return ['chebyshev', 'polynomial', 'savgol', 'median', 'odd_even']
 
     @staticmethod
     def valid_combine_methods():
@@ -492,9 +506,8 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
 
-        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
-            raise ValueError('For polynomial overscan method, set overscan_par = order, '
-                             'number of pixels, number of repeats')
+        if self.data['overscan_method'] in ['polynomial', 'chebyshev'] and len(self.data['overscan_par']) != 1:
+            raise ValueError('For chebyshev/polynomial overscan method, set overscan_par = order')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
@@ -673,7 +686,7 @@ class FlatFieldPar(ParSet):
                                        'for a multi-slit setup.  If you set ``use_slitillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
-                                       'only used for IFU reductions.'
+                                       'only used for SlicerIFU reductions.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
@@ -809,7 +822,7 @@ class FlexurePar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
-                 multi_min_SN=None, excessive_shift=None):
+                 multi_min_SN=None, excessive_shift=None, minwave=None, maxwave=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -841,11 +854,6 @@ class FlexurePar(ParSet):
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
-        # The following are all for MultiDet flexure
-        defaults['multi_min_SN'] = 1
-        dtypes['multi_min_SN'] = [int, float]
-        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
-
         defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str
@@ -858,6 +866,23 @@ class FlexurePar(ParSet):
                                    'Use the median flexure shift among all the objects in the same slit ' \
                                    '(if more than one object is detected) or among all ' \
                                    'the other slits; if not available, the flexure correction will not be applied.'
+
+        defaults['minwave'] = None
+        dtypes['minwave'] = [int, float]
+        descr['minwave'] = 'Minimum wavelength to use for the correlation.  If ``None`` or less than ' \
+                           'the minimum wavelength of either the object or archive sky spectrum, this ' \
+                           'this parameter has no effect.'
+
+        defaults['maxwave'] = None
+        dtypes['maxwave'] = [int, float]
+        descr['maxwave'] = 'Maximum wavelength to use for the correlation.  If ``None`` or greater than ' \
+                           'the maximum wavelength of either the object or archive sky spectrum, this ' \
+                           'this parameter has no effect.'
+
+        # The following are all for MultiDet flexure
+        defaults['multi_min_SN'] = 1
+        dtypes['multi_min_SN'] = [int, float]
+        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
 
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
@@ -873,7 +898,7 @@ class FlexurePar(ParSet):
 
         k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
-                   'multi_min_SN', 'excessive_shift']
+                   'multi_min_SN', 'excessive_shift', 'minwave', 'maxwave']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -972,7 +997,7 @@ class AlignPar(ParSet):
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for AlignPar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -984,6 +1009,106 @@ class AlignPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+
+class ScatteredLightPar(ParSet):
+    """
+    The parameter set used to hold arguments for modelling the scattered light.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`parameters`.
+    """
+
+    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['method'] = 'model'
+        options['method'] = ScatteredLightPar.valid_scattlight_methods()
+        dtypes['method'] = str
+        descr['method'] = 'Method used to fit the overscan. ' \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          '\'model\' will the scattered light model parameters derived from a ' \
+                          'user-specified frame during their reduction (note, you will need to make sure ' \
+                          'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
+                          '\'frame\' will use each individual frame to determine the scattered light ' \
+                          'that affects this frame. ' \
+                          '\'archive\' will use an archival model parameter solution for the scattered ' \
+                          'light (note that this option is not currently available for all spectrographs).'
+
+        defaults['finecorr'] = True
+        dtypes['finecorr'] = bool
+        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
+                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+
+        defaults['finecorr_pad'] = 2
+        dtypes['finecorr_pad'] = int
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
+                                'fine correction to the scattered light.'
+
+        defaults['finecorr_order'] = 2
+        dtypes['finecorr_order'] = int
+        descr['finecorr_order'] = 'Polynomial order to use for the fine correction to the scattered light ' \
+                                  'subtraction. It should be a low value.'
+
+        defaults['finecorr_mask'] = None
+        dtypes['finecorr_mask'] = [int, list]
+        descr['finecorr_mask'] = 'A list containing the inter-slit regions that the user wishes to mask during ' \
+                                 'the fine correction to the scattered light. Each integer corresponds to an ' \
+                                 'inter-slit region. For example, "0" corresponds to all pixels left of the leftmost ' \
+                                 'slit, while a value of "1" corresponds to all pixels between the first and second ' \
+                                 'slit (counting from the left). It should be either a single integer value, or a ' \
+                                 'list of integer values. The default (None) means that no inter-slit regions will ' \
+                                 'be masked.'
+
+        # Instantiate the parameter set
+        super(ScatteredLightPar, self).__init__(list(pars.keys()),
+                                                values=list(pars.values()),
+                                                defaults=list(defaults.values()),
+                                                options=list(options.values()),
+                                                dtypes=list(dtypes.values()),
+                                                descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ScatteredLightPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+    @staticmethod
+    def valid_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['model', 'frame', 'archive']
 
 
 class Coadd1DPar(ParSet):
@@ -1449,13 +1574,14 @@ class CubePar(ParSet):
                                     'line map to register two frames.' \
 
         defaults['method'] = "subpixel"
+        options['method'] = ["subpixel", "ngp"]
         dtypes['method'] = str
         descr['method'] = 'What method should be used to generate the datacube. There are currently two options: ' \
                           '(1) "subpixel" (default) - this algorithm divides each pixel in the spec2d frames ' \
                           'into subpixels, and assigns each subpixel to a voxel of the datacube. Flux is conserved, ' \
                           'but voxels are correlated, and the error spectrum does not account for covariance between ' \
                           'adjacent voxels. See also, spec_subpixel and spat_subpixel. ' \
-                          '(2) "NGP" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
+                          '(2) "ngp" (nearest grid point) - this algorithm is effectively a 3D histogram. Flux is ' \
                           'conserved, voxels are not correlated, however this option suffers the same downsides as ' \
                           'any histogram; the choice of bin sizes can change how the datacube appears. This algorithm ' \
                           'takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel in the ' \
@@ -1464,9 +1590,6 @@ class CubePar(ParSet):
                           'pixels that contribute to the same voxel are inverse variance weighted (e.g. if two ' \
                           'pixels have the same variance, the voxel would be assigned the average flux of the two ' \
                           'pixels).'
-        # '(3) "resample" - this algorithm resamples the spec2d frames into a datacube. ' \
-        # 'Flux is conserved, but voxels are correlated, and the error spectrum does not account ' \
-        # 'for covariance between neighbouring pixels. ' \
 
         defaults['spec_subpixel'] = 5
         dtypes['spec_subpixel'] = int
@@ -1584,9 +1707,13 @@ class CubePar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        allowed_methods = ["subpixel", "NGP"]#, "resample"
-        if self.data['method'] not in allowed_methods:
-            raise ValueError("The 'method' must be one of:\n"+", ".join(allowed_methods))
+        # Check the skysub options
+        allowed_skysub_options = ["none", "image", ""]  # Note, "None" is treated as None which gets assigned to the default value "image".
+        if self.data['skysub_frame'] not in allowed_skysub_options:
+            # Check if the supplied name exists
+            if not os.path.exists(self.data['skysub_frame']):
+                raise ValueError("The 'skysub_frame' must be one of:\n" + ", ".join(allowed_skysub_options) +
+                                 "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
 
@@ -2504,11 +2631,12 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
+                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, numsearch=None,
+                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
+                 n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None):
@@ -2578,6 +2706,18 @@ class WavelengthSolutionPar(ParSet):
         descr['ech_sigrej'] = 'For echelle spectrographs, this is the sigma-clipping rejection ' \
                               'threshold in the 2d fit to spectral and order dimensions'
 
+        defaults['bad_orders_maxfrac'] = 0.25
+        dtypes['bad_orders_maxfrac'] = float
+        descr['bad_orders_maxfrac'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                      'this is the maximum fraction of orders (per detector) with failed 1D fit, ' \
+                                      'for PypeIt to attempt a refit.'
+
+        defaults['frac_rms_thresh'] = 1.5
+        dtypes['frac_rms_thresh'] = float
+        descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                   'this is the fractional change in the RMS threshold used ' \
+                                   'when a 1D fit is re-attempted for failed orders.' \
+
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
         descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
@@ -2594,7 +2734,7 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
                          'recorded in the header of the arc frames (this is currently ' \
-                         'available only for Keck DEIMOS and LDT DeVeny).' # \
+                         'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2626,12 +2766,13 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image'
 
-        defaults['fwhm_fromlines'] = False
+        defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
                                   'If True, the estimated FWHM will override ``fwhm`` only in '\
-                                  'the determination of the wavelength solution (`i.e.`, not in '\
-                                  'WaveTilts).'
+                                  'the determination of the wavelength solution (including the ' \
+                                  'calculation of the threshold for the solution RMS, see ' \
+                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
@@ -2662,6 +2803,11 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
+        defaults['reid_cont_sub'] = True
+        dtypes['reid_cont_sub'] = bool
+        descr['reid_cont_sub'] = 'If True, continuum subtract the arc and arxiv spectrum before ' \
+                                 'the wavelength reidentification. ' \
+
         defaults['wvrng_arxiv'] = None
         dtypes['wvrng_arxiv'] = list
         descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
@@ -2670,6 +2816,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
                             '\'full_template\''
+
+        pars['cc_shift_range'] = tuple_force(pars['cc_shift_range'])
+        defaults['cc_shift_range'] = None
+        dtypes['cc_shift_range'] = tuple
+        descr['cc_shift_range'] = 'Range of pixel shifts allowed when cross-correlating the ' \
+                                  'input arc spectrum with the archive spectrum.  If None, the ' \
+                                  'range will be automatically determined.'
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, np.ndarray]
@@ -2698,12 +2851,14 @@ class WavelengthSolutionPar(ParSet):
                              'be added to it to make it odd.'
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
-                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
-                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
-                                     
+        defaults['rms_thresh_frac_fwhm'] = 0.15
+        dtypes['rms_thresh_frac_fwhm'] = float
+        descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
+                                        'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
+                                        'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
+                                        'will be used. This parameter is used for the \'holy-grail\', ' \
+                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2766,9 +2921,6 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
-
-
-
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -2782,10 +2934,10 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
-                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
+                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
+                   'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
                    'redo_slits', 'qa_log']
@@ -2860,9 +3012,10 @@ class EdgeTracePar(ParSet):
                  bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, add_missed_orders=None, overlap=None, use_maskdesign=None, maskdesign_maxsep=None,
-                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
-                 add_predict=None, rm_slits=None,  maskdesign_filename=None):
+                 order_offset=None, add_missed_orders=None, order_width_poly=None,
+                 order_gap_poly=None, order_spat_range=None, overlap=None, use_maskdesign=None,
+                 maskdesign_maxsep=None, maskdesign_step=None, maskdesign_sigrej=None, pad=None,
+                 add_slits=None, add_predict=None, rm_slits=None, maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3206,26 +3359,55 @@ class EdgeTracePar(ParSet):
                         ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
 
         dtypes['order_match'] = [int, float]
-        descr['order_match'] = 'For echelle spectrographs, this is the tolerance allowed for ' \
-                               'matching identified "slits" to echelle orders. Must be in ' \
-                               'the fraction of the detector spatial scale (i.e., a value of ' \
-                               '0.05 means that the order locations must be within 5% of the ' \
-                               'expected value).  If None, no limit is used.'
+        descr['order_match'] = 'Orders for *fixed-format* echelle spectrographs are always ' \
+                               'matched to a predefined expectation for the number of orders ' \
+                               'found and their relative placement in the detector.  This sets ' \
+                               'the tolerance allowed for matching identified "slits" to ' \
+                               'echelle orders. Must be relative to the fraction of the ' \
+                               'detector spatial scale (i.e., a value of 0.05 means that the ' \
+                               'order locations must be within 5% of the expected value).  If ' \
+                               'None, no limit is used.'
 
         dtypes['order_offset'] = [int, float]
-        descr['order_offset'] = 'Offset to introduce to the expected order positions to improve ' \
-                                'the match for this specific data. This is an additive offset ' \
-                                'to the measured slit positions; i.e., this should minimize the ' \
-                                'difference between the expected order positions and ' \
-                                '``self.slit_spatial_center() + offset``. Must be in the ' \
+        descr['order_offset'] = 'Orders for *fixed-format* echelle spectrographs are always ' \
+                                'matched to a predefined expectation for the number of orders ' \
+                                'found and their relative placement in the detector.  This sets ' \
+                                'the offset to introduce to the expected order positions to ' \
+                                'improve the match for this specific data. This is an additive ' \
+                                'offset to the measured slit positions; i.e., this should ' \
+                                'minimize the difference between the expected order positions ' \
+                                'and ``self.slit_spatial_center() + offset``. Must be in the ' \
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
         defaults['add_missed_orders'] = False
         dtypes['add_missed_orders'] = bool
-        descr['add_missed_orders'] = 'If orders are not detected by the automated edge tracing, ' \
-                                     'attempt to add them based on their expected positions on ' \
-                                     'on the detector.  Echelle spectrographs only.'
+        descr['add_missed_orders'] = 'For any Echelle spectrograph (fixed-format or otherwise), ' \
+                                     'attempt to add orders that have been missed by the ' \
+                                     'automated edge tracing algorithm.  For *fixed-format* ' \
+                                     'Echelles, this is based on the expected positions on ' \
+                                     'on the detector.  Otherwise, the detected orders are ' \
+                                     'modeled and roughly used to predict the locations of ' \
+                                     'missed orders; see additional parameters ' \
+                                     '``order_width_poly``, ``order_gap_poly``, and ' \
+                                     '``order_spat_range``.'
+        
+        defaults['order_width_poly'] = 2
+        dtypes['order_width_poly'] = int
+        descr['order_width_poly'] = 'Order of the Legendre polynomial used to model the ' \
+                                    'spatial width of each order as a function of spatial ' \
+                                    'pixel position.  See ``add_missed_orders``.'
+
+        defaults['order_gap_poly'] = 3
+        dtypes['order_gap_poly'] = int
+        descr['order_gap_poly'] = 'Order of the Legendre polynomial used to model the spatial ' \
+                                  'gap between orders as a function of the order spatial ' \
+                                  'position.  See ``add_missed_orders``.'
+        
+        dtypes['order_spat_range'] = list
+        descr['order_spat_range'] = 'The spatial range of the detector/mosaic over which to ' \
+                                    'predict order locations.  If None, the full ' \
+                                    'detector/mosaic range is used.  See ``add_missed_orders``.'
 
         defaults['overlap'] = False
         dtypes['overlap'] = bool
@@ -3341,8 +3523,9 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
                    'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
                    'minimum_slit_gap', 'clip', 'order_match', 'order_offset',  'add_missed_orders',
-                   'overlap', 'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
+                   'order_width_poly', 'order_gap_poly', 'order_spat_range', 'overlap',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4057,8 +4240,9 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, skyframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slitedges=None, tilts=None, raise_chk_error=None):
+                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -4108,6 +4292,14 @@ class CalibrationsPar(ParSet):
                                                                        mask_cr=True))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
+
+        defaults['scattlightframe'] = FrameGroupPar(frametype='scattlight',
+                                                    process=ProcessImagesPar(satpix='nothing',
+                                                                             use_pixelflat=False,
+                                                                             use_illumflat=False,
+                                                                             use_specillum=False))
+        dtypes['scattlightframe'] = [ ParSet, dict ]
+        descr['scattlightframe'] = 'The frames and combination rules for the scattered light frames'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
@@ -4188,6 +4380,10 @@ class CalibrationsPar(ParSet):
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
 
+        defaults['scattlight_pad'] = 5
+        dtypes['scattlight_pad'] = int
+        descr['scattlight_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits.'
+
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
         descr['flatfield'] = 'Parameters used to set the flat-field procedure'
@@ -4221,9 +4417,9 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe',
+                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
-                             'flatfield', 'wavelengths', 'slitedges', 'tilts']
+                             'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
@@ -4249,6 +4445,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
+        pk = 'scattlightframe'
+        kwargs[pk] = FrameGroupPar.from_dict('scattlight', cfg[pk]) if pk in k else None
         pk = 'alignframe'
         kwargs[pk] = FrameGroupPar.from_dict('align', cfg[pk]) if pk in k else None
         pk = 'alignment'

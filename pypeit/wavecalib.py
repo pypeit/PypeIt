@@ -38,7 +38,7 @@ class WaveCalib(calibframe.CalibFrame):
     .. include:: ../include/class_datamodel_wavecalib.rst
 
     """
-    version = '1.1.1'
+    version = '1.1.2'
 
     # Calibration frame attributes
     calib_type = 'WaveCalib'
@@ -71,12 +71,14 @@ class WaveCalib(calibframe.CalibFrame):
                                 descr='Total number of slits.  This can include masked slits'),
                  'spat_ids': dict(otype=np.ndarray, atype=np.integer, 
                                   descr='Slit spat_ids. Named distinctly from that in WaveFit '),
+                 'ech_orders': dict(otype=np.ndarray, atype=np.integer,
+                                   descr='Echelle order ID numbers.  Defined only for echelle.'),
                  'strpar': dict(otype=str, descr='Parameters as a string'),
                  'lamps': dict(otype=str,
                                descr='List of arc lamps used for the wavelength calibration')}
 
-    def __init__(self, wv_fits=None, fwhm_map=None, nslits=None, spat_ids=None, PYP_SPEC=None,
-                 strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
+    def __init__(self, wv_fits=None, fwhm_map=None, nslits=None, spat_ids=None, ech_orders=None,
+                 PYP_SPEC=None, strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None,
                  det_img=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -99,10 +101,13 @@ class WaveCalib(calibframe.CalibFrame):
         if self.spat_ids is None:
             msgs.error('Cannot write WaveCalib without spat_ids!')
         _d.append(dict(spat_ids=self.spat_ids))
+        # Echelle orders
+        if self.ech_orders is not None:
+            _d.append(dict(ech_orders=self.ech_orders))
 
         # Rest of the datamodel
         for key in self.keys():
-            if key == 'spat_ids':
+            if key in ['spat_ids', 'ech_orders']:
                 continue
             # Skip None
             if self[key] is None:
@@ -125,7 +130,8 @@ class WaveCalib(calibframe.CalibFrame):
                     dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
-                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss])
+                        echorder = self.ech_orders[ss] if self.ech_orders is not None else None
+                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss], ech_order=echorder)
                     else:
                         kwv_fit = wv_fit
                     # This is required to deal with a single HDU WaveFit() bundle
@@ -172,7 +178,7 @@ class WaveCalib(calibframe.CalibFrame):
                 if len(ihdu.data) == 0:
                     # TODO: This is a hack.  We shouldn't be writing empty HDUs,
                     # except for the primary HDU.
-                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'], ech_order=ihdu.header.get('ECH_ORDER'))
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
@@ -377,8 +383,9 @@ class WaveCalib(calibframe.CalibFrame):
         # Slit number
         diag['N.'] = np.arange(self.wv_fits.size)
         diag['N.'].format = 'd'
-        # spat_id
-        diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
+        # spat_id or order number
+        diag['SpatOrderID'] = [wvfit.spat_id for wvfit in self.wv_fits] if self.ech_orders is None \
+            else [wvfit.ech_order for wvfit in self.wv_fits]
         # Central wave, delta wave
         diag['minWave'] = minWave
         diag['minWave'].format = '0.1f'
@@ -401,7 +408,8 @@ class WaveCalib(calibframe.CalibFrame):
         diag['RMS'].format = '0.3f'
         if print_diag:
             # Print it
-            print(diag)
+            print('')
+            diag.pprint_all()
         return diag
 
 
@@ -617,6 +625,7 @@ class BuildWaveCalib:
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, 
                                          ok_mask=ok_mask_idx,
+                                         measured_fwhms=self.measured_fwhms,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
@@ -657,7 +666,7 @@ class BuildWaveCalib:
                                              self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'])
+                                             nsnippet=self.par['nsnippet'])#,
                                              #debug=True, debug_reid=True, debug_xcorr=True)
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
@@ -676,13 +685,12 @@ class BuildWaveCalib:
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
 
-
-            #ok_mask_idx = ok_mask_idx[:-1]
             patt_dict, final_fit = autoid.echelle_wvcalib(
                 arccen, order_vec, arcspec_arxiv, wave_soln_arxiv,
                 self.lamps, self.par, ok_mask=ok_mask_idx,
+                measured_fwhms=self.measured_fwhms,
                 nonlinear_counts=self.nonlinear_counts,
-                debug_all=False, 
+                debug_all=False,
                 redo_slits=np.atleast_1d(self.par['redo_slits']) if self.par['redo_slits'] is not None else None)
 
             # Save as internals in case we need to redo
@@ -702,21 +710,28 @@ class BuildWaveCalib:
             self.wv_calib.arc_spectra = arccen
             # Save the new fits (if they meet tolerance)
             for key in final_fit.keys():
-                if final_fit[key]['rms'] < self.par['rms_threshold']:
-                    idx = int(key)
+                idx = int(key)
+                # get FWHM for this slit
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[idx], verbose=True)
+                # get rms threshold for this slit
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+                if final_fit[key]['rms'] < wave_rms_thresh:
                     self.wv_calib.wv_fits[idx] = final_fit[key]
                     self.wv_calib.wv_fits[idx].spat_id = self.slits.spat_id[idx]
+                    self.wv_calib.wv_fits[idx].ech_order = self.slits.ech_order[idx] if self.slits.ech_order is not None else None
                     self.wv_calib.wv_fits[idx].fwhm = self.measured_fwhms[idx]
         else: # Generate the DataContainer from scratch
             # Loop on WaveFit items
             tmp = []
             for idx in range(self.slits.nslits):
+                echorder = self.slits.ech_order[idx] if self.slits.ech_order is not None else None
                 item = final_fit.pop(str(idx))
                 if item is None:  # Add an empty WaveFit
-                    tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
+                    tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx], ech_order=echorder))
                 else:
                     # This is for I/O naming
                     item.spat_id = self.slits.spat_id[idx]
+                    item.ech_order = echorder
                     # add measured fwhm
                     item['fwhm'] = measured_fwhms[idx]
                     tmp.append(item)
@@ -725,6 +740,7 @@ class BuildWaveCalib:
                                       arc_spectra=arccen,
                                       nslits=self.slits.nslits,
                                       spat_ids=self.slits.spat_id,
+                                      ech_orders=self.slits.ech_order,
                                       PYP_SPEC=self.spectrograph.name,
                                       lamps=','.join(self.lamps))
         # Inherit the calibration frame naming from self.msarc
@@ -748,7 +764,7 @@ class BuildWaveCalib:
                 # Save the wavelength solution fits
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx], 
                                   title=f'Arc Fit QA for slit/order: {self.slits.slitord_id[slit_idx]}',
-                                  outfile=outfile)
+                                  outfile=outfile, log=self.par['qa_log'])
 
                 # Obtain the output QA name for the spectral resolution map
                 outfile_fwhm = qa.set_qa_filename(self.wv_calib.calib_key, 'arc_fwhm_qa',
@@ -759,12 +775,12 @@ class BuildWaveCalib:
                                    self.slits.slitord_id[slit_idx], self.slits.slitord_txt,
                                    outfile=outfile_fwhm)
 
-
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
-    def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray):
+    def redo_echelle_orders(self, bad_orders:np.ndarray, dets:np.ndarray, order_dets:np.ndarray,
+                            bad_orders_maxfrac:float=0.1, frac_rms_thresh:float=1.1):
         """ Attempt to redo the wavelength calibration for a set 
         of bad echelle orders
 
@@ -772,11 +788,14 @@ class BuildWaveCalib:
             bad_orders (np.ndarray): Array of bad order numbers
             dets (np.ndarray): detectors of the spectrograph
                 Multiple numbers for mosaic (typically)
-            order_dets (np.ndarray): Orders on the each detector
+            order_dets (np.ndarray): Orders on each detector
+            bad_orders_maxfrac (float): Maximum fraction of bad orders
+                in a detector for attempting a refit
+            frac_rms_thresh (float): Fractional change in the RMS threshold
+                for accepting a refit
 
         Returns:
-            bool: True if any of the echelle orders were 
-            successfully redone
+            bool: True if any of the echelle orders were successfully redone
         """
 
         # Make this outside the for loop..
@@ -787,9 +806,9 @@ class BuildWaveCalib:
             in_det = np.in1d(bad_orders, order_dets[idet])
             if not np.any(in_det):
                 continue
+            msgs.info(f"Attempting to refit bad orders in detector={dets[idet]}")
             # Are there few enough?
-            # TODO -- make max_bad a parameter
-            max_bad = len(order_dets[idet])//10 + 1
+            max_bad = int(len(order_dets[idet])*bad_orders_maxfrac)
             if np.sum(in_det) > max_bad:
                 msgs.warn(f"Too many bad orders in detector={dets[idet]} to attempt a refit.")
                 continue
@@ -801,7 +820,10 @@ class BuildWaveCalib:
                 spec_vec_norm = np.linspace(0,1,nspec)
                 wv_order_mod = self.wv_calib.wv_fit2d[idet].eval(spec_vec_norm, 
                                     x2=np.ones_like(spec_vec_norm)*order)/order
-
+                # get FWHM for this order
+                fwhm = autoid.set_fwhm(self.par, measured_fwhm=self.measured_fwhms[iord], verbose=True)
+                # get rms threshold for this order
+                wave_rms_thresh = round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
                 # Link me
                 tcent, spec_cont_sub, patt_dict_slit, tot_llist = autoid.match_to_arxiv(
                     self.lamps, self.arccen[:,iord], wv_order_mod, 
@@ -810,7 +832,7 @@ class BuildWaveCalib:
                 match_toler=self.par['match_toler'], 
                 nonlinear_counts=self.nonlinear_counts, 
                 sigdetect=wvutils.parse_param(self.par, 'sigdetect', iord),
-                fwhm=self.par['fwhm'])
+                fwhm=fwhm)
 
                 if not patt_dict_slit['acceptable']:
                     msgs.warn(f"Order {order} is still not acceptable after attempt to reidentify.")
@@ -820,20 +842,18 @@ class BuildWaveCalib:
                 n_final = wvutils.parse_param(self.par, 'n_final', iord)
                 # TODO - Make this cheaper
                 final_fit = wv_fitting.fit_slit(
-                    spec_cont_sub, patt_dict_slit, tcent, tot_llist, 
+                    self.arccen[:,iord], patt_dict_slit, tcent, tot_llist,
                     match_toler=self.par['match_toler'], 
                     func=self.par['func'], 
                     n_first=self.par['n_first'],
-                    #n_first=3,
-                    sigrej_first=self.par['sigrej_first'], 
+                    sigrej_first=self.par['sigrej_first'],
                     n_final=n_final, 
-                    sigrej_final=2.)
+                    sigrej_final=self.par['sigrej_final'])
                 msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                 # Keep?
-                # TODO -- Make this a parameter?
-                increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
+                if final_fit['rms'] < frac_rms_thresh*wave_rms_thresh:
+                    msgs.info('Updating wavelength solution.')
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA
@@ -843,17 +863,20 @@ class BuildWaveCalib:
                         out_dir=self.qa_path)
                     autoid.arc_fit_qa(final_fit,
                                     title=f'Arc Fit QA for slit/order: {order}',
-                                    outfile=outfile)
+                                    outfile=outfile, log=self.par['qa_log'])
                     # This is for I/O naming
                     final_fit.spat_id = self.slits.spat_id[iord]
+                    final_fit.ech_order = self.slits.ech_order[iord] if self.slits.ech_order is not None else None
                     final_fit.fwhm = self.measured_fwhms[iord]
                     # Save the wavelength solution fits
                     self.wv_calib.wv_fits[iord] = final_fit
                     self.wvc_bpm[iord] = False
                     fixed = True
+                else:
+                    msgs.warn(f'New RMS is too high (>{frac_rms_thresh}xRMS threshold). '
+                              f'Not updating wavelength solution.')
         #
         return fixed
-
 
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
@@ -1076,9 +1099,12 @@ class BuildWaveCalib:
         if self.par['echelle']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
-            # Test and scale by measured_fwhms 
-            bad_rms = rms > (self.par['rms_threshold'] * np.median(self.measured_fwhms)/self.par['fwhm'])
-            #embed(header='line 975 of wavecalib.py')
+            # get used FWHM
+            fwhm = self.par['fwhm'] if self.measured_fwhms is None or self.par['fwhm_fromlines'] is False \
+                else self.measured_fwhms.astype(float)
+            # get rms threshold for all orders
+            wave_rms_thresh = np.round(self.par['rms_thresh_frac_fwhm'] * fwhm, 3)
+            bad_rms = rms > wave_rms_thresh
             if np.any(bad_rms):
                 self.wvc_bpm[bad_rms] = True
                 msgs.warn("Masking one or more bad orders (RMS)")
@@ -1095,7 +1121,9 @@ class BuildWaveCalib:
             # Try a second attempt with 1D, if needed
             if np.any(bad_rms):
                 bad_orders = self.slits.ech_order[np.where(bad_rms)[0]]
-                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets)
+                any_fixed = self.redo_echelle_orders(bad_orders, dets, order_dets,
+                                                     bad_orders_maxfrac=self.par['bad_orders_maxfrac'],
+                                                     frac_rms_thresh=self.par['frac_rms_thresh'])
 
                 # Do another full 2D?
                 if any_fixed:

@@ -3,7 +3,7 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-m]
-                        [-v VERBOSITY] [-k]
+                        [-v VERBOSITY] [-k] [-G]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
@@ -24,8 +24,8 @@
                             lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
                             ldt_deveny, magellan_fire, magellan_fire_long,
                             magellan_mage, mdm_modspec, mdm_osmos_mdm4k,
-                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
+                            mdm_osmos_r4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
+                            not_alfosc, not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
                             p200_dbsp_red, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
@@ -67,4 +67,5 @@
                             option in pypeit_obslog; i.e., you have to tell
                             pypeit_setup to keep these frames, whereas you have to
                             tell pypeit_obslog to remove them. (default: False)
+      -G, --gui             Run setup in a GUI (default: False)
     

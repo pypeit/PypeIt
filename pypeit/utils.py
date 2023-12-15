@@ -1360,6 +1360,31 @@ def find_nearest(array, values):
     return idxs
 
 
+def replace_bad(frame, bpm):
+    """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
+
+    Parameters
+    ----------
+    frame : `numpy.ndarray`_
+        A frame that contains bad pixels that need to be replaced by the nearest good pixel
+    bpm : `numpy.ndarray`_
+        Boolean array (same shape as frame) indicating bad pixel values (bad=True)
+        that need to be replaced.
+
+    Returns
+    -------
+    _frame : `numpy.ndarray`_
+        A direct copy of the input frame, with the bad pixels replaced by the nearest good pixels.
+    """
+    # Do some checks on the inputs
+    if frame.shape != bpm.shape:
+        msgs.error("Input frame and BPM have different shapes")
+    # Replace bad pixels with the nearest (good) neighbour
+    msgs.info("Replacing bad pixels")
+    ind = scipy.ndimage.distance_transform_edt(bpm, return_distances=False, return_indices=True)
+    return frame[tuple(ind)]
+
+
 def yamlify(obj, debug=False):
     """
 
@@ -1398,11 +1423,12 @@ def yamlify(obj, debug=False):
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
+        obj = str(obj)
         # Worry about colons!
         if ':' in obj:
-            obj = '"' + str(obj) + '"'
-        else:
-            obj = str(obj)
+            # Do not add quotes if they've already been added
+            if not obj.startswith('"'):
+                obj = '"' + str(obj) + '"'
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
@@ -1789,25 +1815,27 @@ def is_float(s):
     return True
 
 
-def find_single_file(file_pattern) -> pathlib.Path:
-    """Find a single file matching a wildcard pattern.
+def find_single_file(file_pattern, required: bool=False) -> pathlib.Path:
+    """
+    Find a single file matching a wildcard pattern.
 
     Args:
-        file_pattern (str): A filename pattern, see the python 'glob' module.
+        file_pattern (str):
+            A filename pattern, see the python 'glob' module.
+        required (:obj:`bool`, optional):
+            If True and no files are found, an error is raised.
 
     Returns:
-        :obj:`pathlib.Path`: A file name, or None if no filename was found. This will give a warning
-             if multiple files are found and return the first one.
+        :obj:`pathlib.Path`: A file name, or None if no filename was found. This
+        will give a warning if multiple files are found and return the first
+        one.
     """
-
-    files = glob.glob(file_pattern)
-    if len(files) == 1:
-        return pathlib.Path(files[0])
-    elif len(files) == 0:
-        return None
-    else:
-        msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
-        return pathlib.Path(files[0])
+    files = sorted(glob.glob(file_pattern))
+    if len(files) > 1:
+        msgs.warn(f'Found multiple files matching {file_pattern}; using {files[0]}')
+    if len(files) == 0 and required:
+        msgs.error(f'No files matching pattern: {file_pattern}')
+    return None if len(files) == 0 else pathlib.Path(files[0])
 
 
 def DFS(v: int, visited: list[bool], group: list[int], adj: np.ndarray):

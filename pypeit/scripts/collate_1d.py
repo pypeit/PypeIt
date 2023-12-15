@@ -296,6 +296,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             msgs.warn(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(formatted_exception)
+            continue
             
         # Flux calibrate the spec1d file
         try:
@@ -309,6 +310,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             msgs.warn(f"Failed to flux calibrate {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(f"Failed to flux calibrate {spec1d_file}, skipping it.")
             failed_fluxing_msgs.append(formatted_exception)
+            continue
 
     # Return the succesfully fluxed files
     return flux_calibrated_files
@@ -774,16 +776,17 @@ class Collate1D(scriptbase.ScriptBase):
         # Flux the spec1ds based on a archived sensfunc
         spec1d_failure_msgs = []
         copied_spec1d = False
-        if par['collate1d']['flux']:
+        if par['collate1d']['flux'] and not args.dry_run:
             if par['collate1d']['spec1d_outdir'] is not None:
                 # Fluxing modifies the spec1d files, copy them to a new output directory
                 # if requested
                 spec1d_files = copy_spec1d_to_outdir(spec1d_files, par['collate1d']['spec1d_outdir'])
                 copied_spec1d = True                
             spec1d_files = flux(par, spectrograph, spec1d_files, spec1d_failure_msgs)
+        
 
         # Perform reference frame correction
-        if par['collate1d']['refframe'] in  ['heliocentric', 'barycentric']:
+        if par['collate1d']['refframe'] in  ['heliocentric', 'barycentric'] and not args.dry_run:
             if not copied_spec1d and par['collate1d']['spec1d_outdir'] is not None:
                 # Refframe correction modifies the spec1d files, copy them to a new output directory
                 # if requested and fluxing hasn't already done so
@@ -808,11 +811,17 @@ class Collate1D(scriptbase.ScriptBase):
         successful_source_list = []
         failed_source_msgs = []
         for source in source_list:
+
             coaddfile = os.path.join(par['collate1d']['outdir'], build_coadd_file_name(source))
             msgs.info(f'Creating {coaddfile} from the following sources:')
             for i in range(len(source.spec_obj_list)):
                 msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
                           f'({source.spec_obj_list[i].MASKDEF_OBJNAME})')
+
+            # Exclude sources with a single object to coadd
+            if len(source.spec_obj_list) == 1:
+                excluded_obj_msgs.append(f"Excluding {source.spec_obj_list[0].NAME} in {source.spec1d_file_list[0]} because there's no other SpecObj to coadd with.")
+                continue
 
             if not args.dry_run:
                 try:

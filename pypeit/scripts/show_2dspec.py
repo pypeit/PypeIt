@@ -107,7 +107,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('--no_clear', dest='clear', default=True, 
                             action='store_false',
                             help='Do *not* clear all existing tabs')
-        parser.add_argument('-v', '--verbosity', type=int, default=2,
+        parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]')
         return parser
 
@@ -119,8 +119,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             io.fits_open(args.file).info()
             return
 
-        # Setup for PypeIt imports
-        msgs.reset(verbosity=args.verbosity)
+        # Set the verbosity, and create a logfile if verbosity == 2
+        msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
 
         # Parse the detector name
         try:
@@ -200,7 +200,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                         msgs.info(f'Offseting slits by {sci_spat_flexure} pixels.')
                     pypeline = hdu[f'{detname}-SCIIMG'].header['PYPELINE'] \
                                     if 'PYPELINE' in hdu[f'{detname}-SCIIMG'].header else None
-                    if pypeline in ['MultiSlit', 'IFU']:
+                    if pypeline in ['MultiSlit', 'SlicerIFU']:
                         slit_slid_IDs = slit_spat_id
                     elif pypeline == 'Echelle':
                         slit_slid_IDs = hdu[_ext].data['ech_order'] \

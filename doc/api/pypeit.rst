@@ -15,6 +15,7 @@ Subpackages
    pypeit.move_median
    pypeit.par
    pypeit.scripts
+   pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
 
@@ -31,6 +32,7 @@ Submodules
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
+   pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction
@@ -47,6 +49,7 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling
+   pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
    pypeit.setup_package

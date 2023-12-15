@@ -443,7 +443,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
-               rotate=False, pstep=50, yval=None, color='blue'):
+               rotate=False, pstep=3, yval=None, color='blue'):
     r"""
 
     Args:
@@ -636,6 +636,32 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     canvas.add('constructedcanvas', canvas_list)
 
 
+def show_scattered_light(image_list, slits=None, wcs_match=True):
+    """
+    Interface to ginga to show the quality of the Scattered Light subtraction
 
-
+    Parameters
+    ----------
+    image_list : zip
+        A zip of the images to show, their names, and the scales
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
+        The current slit traces
+    wcs_match : :obj:`bool`, optional
+        Use a reference image for the WCS and match all image in other channels to it.
+    """
+    connect_to_ginga(raise_err=True, allow_new=True)
+    if slits is not None:
+        left, right, mask = slits.select_edges()
+        gpm = mask == 0
+    # Loop me
+    clear = True
+    for img, name, cut in image_list:
+        if img is None:
+            continue
+        viewer, ch = show_image(img, chname=name, cuts=cut, wcs_match=wcs_match, clear=clear)
+        if slits is not None:
+            show_slits(viewer, ch, left[:, gpm], right[:, gpm], slit_ids=slits.spat_id[gpm])
+        # Turn off clear
+        if clear:
+            clear = False
 

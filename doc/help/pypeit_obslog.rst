@@ -3,7 +3,7 @@
     $ pypeit_obslog -h
     usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
                          [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
-                         [-f FILE]
+                         [-f FILE] [-G]
                          spec
     
     Construct an observing log for a set of files from the provided spectrograph
@@ -23,8 +23,8 @@
                             lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
                             ldt_deveny, magellan_fire, magellan_fire_long,
                             magellan_mage, mdm_modspec, mdm_osmos_mdm4k,
-                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
+                            mdm_osmos_r4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
+                            not_alfosc, not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
                             p200_dbsp_red, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
@@ -92,4 +92,5 @@
                             always written in ascii format using
                             format=ascii.fixed_with for the call to
                             Astropy.table.Table.write . (default: None)
+      -G, --gui             View the obs log in a GUI (default: False)
     

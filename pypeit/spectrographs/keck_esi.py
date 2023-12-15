@@ -10,6 +10,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.time import Time
+import datetime
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -18,6 +19,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+
 
 class KeckESISpectrograph(spectrograph.Spectrograph):
     """
@@ -71,7 +73,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             numamplifiers   = 2,
             gain            = np.atleast_1d([1.3, 1.3]), 
-            ronoise         = np.atleast_1d([2.5,2.5]), 
+            ronoise         = np.atleast_1d([2.5, 2.5]),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -91,9 +93,8 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         # This is for 1x1
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.30   
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.103
         par['calibrations']['wavelengths']['fwhm'] = 2.9
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         #
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'NeI', 'HgI', 'XeI', 'ArII']
@@ -132,6 +133,10 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['maxnumber_std'] = 1  # Slit is narrow so allow one object per order
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
+        # Scattered light
+        par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
+        par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
+        par['scienceframe']['process']['subtract_scattlight'] = True
 
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
@@ -158,7 +163,7 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         
         self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -167,6 +172,11 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps -- Have varied in time..
+        # From Jim Lyke in the PypeIt slack:
+        # HgNe = LAMPAR1 = on
+        # CuAr = LAMPCU1 = on
+        # Xe   = LAMPNE1 = on
+
         self.meta['lampstat01'] = dict(ext=0, card='LAMPAR1')
         self.meta['lampstat02'] = dict(ext=0, card='LAMPCU1')
         self.meta['lampstat03'] = dict(ext=0, card='LAMPNE1')
@@ -195,6 +205,20 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
+        elif meta_key == 'mjd':
+            mjd = headarr[0].get('MJD-OBS', None)
+            if mjd is not None:
+                mjd_time = Time(mjd,format="mjd")
+                # The MJD header value is often invalid in a way that gives it a year > 9000, So sanity check it
+                try:
+                    mjd_year = mjd_time.to_value(format="decimalyear") 
+                    if mjd_year >= datetime.MINYEAR and mjd_year < 9000:
+                        return mjd_time.mjd
+                except Exception as e:
+                    # A problem parsing the MJD, we'll try DATE-OBS and UT
+                    msgs.warn("Problem parsing MJD-OBS, trying DATE-OBS and UT instead.")
+                    pass             
+            return Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UT'])).mjd
         elif meta_key == 'dispname':
             if headarr[0]['PRISMNAM'] == 'in':
                 dname = 'Echellette'
@@ -307,10 +331,66 @@ class KeckESISpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
+    def scattered_light_archive(self, binning, dispname):
+        """Archival model parameters for the scattered light. These are based on best fits to currently available data.
+
+        Parameters
+        ----------
+        binning : :obj:`str`, optional
+            Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
+        dispname : :obj:`str`, optional
+            Name of the disperser
+
+        Returns
+        -------
+        x0 : `numpy.ndarray`_
+            A 1D array containing the best-fitting model parameters
+        bounds : :obj:`tuple`
+            A tuple of two elements, containing two `numpy.ndarray`_ of the same length as x0. These
+            two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
+            bounds to consider on the scattered light model parameters.
+        """
+        # Grab the binning for convenience
+        specbin, spatbin = parse.parse_binning(binning)
+
+        # Get some starting parameters (these were determined by fitting spectra,
+        # and should be close to the final fitted values to reduce computational time)
+        # Note :: These values need to be originally based on data that uses 1x1 binning,
+        # and are now scaled here according to the binning of the current data to be analysed.
+        # These parameters give a cost of 8.0517e+08 with the science frame used as scattlight (1x1 binning, pad=5)
+        x0 = np.array([272.33958742493064 / specbin, 115.501464689107 / spatbin,  # Gaussian kernel widths
+                       272.3418000034377 / specbin, 168.0591427733949 / spatbin,  # Lorentzian kernel widths
+                       -141.2552517318941 / specbin, 79.25936221285629 / spatbin,  # pixel offsets
+                       1.0877734248786808, 1.0562808322123667,  # Zoom factor (spec, spat)
+                       5.876311151022701,  # constant flux offset
+                       0.0444248025888341,  # kernel angle
+                       0.6090358292193677,  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)
+                       0.135392229831296, -0.16167521454188258, # Polynomial terms (coefficients of "spat" and "spat*spec")
+                       0.06148093592863097, 0.10305719952486242])  # Polynomial terms (coefficients of spec**index)
+
+        # Now set the bounds of the fitted parameters
+        bounds = ([# Lower bounds:
+                      1, 1,  # Gaussian kernel widths
+                      1, 1,  # Lorentzian kernel widths
+                      -200 / specbin, -200 / spatbin,  # pixel offsets
+                      0, 0,  # Zoom factor (spec, spat)
+                      -1000, -(10 / 180) * np.pi, 0.0,  # constant flux offset, kernel angle, relative kernel scale
+                      -10, -10, -10, -10],  # Polynomial terms
+                  # Upper bounds
+                     [600 / specbin, 600 / spatbin,  # Gaussian kernel widths
+                      600 / specbin, 600 / spatbin,  # Lorentzian kernel widths
+                      200 / specbin, 200 / spatbin,  # pixel offsets
+                      2, 2,  # Zoom factor (spec, spat)
+                      1000.0, +(10 / 180) * np.pi, 1000.0,  # constant flux offset, kernel angle, relative kernel scale
+                      10, 10, 10, 10])  # Polynomial terms
+
+        # Return the best-fitting archival parameters and the bounds
+        return x0, bounds
+
     @property
     def norders(self):
         """
-        Number of orders for this spectograph. Should only defined for
+        Number of orders for this spectrograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
         return 10   # 15-6

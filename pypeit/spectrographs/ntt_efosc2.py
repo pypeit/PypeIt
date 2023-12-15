@@ -253,7 +253,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -303,6 +303,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             par['scienceframe']['process']['use_pixelflat'] = False
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_specillum'] = False
+        elif self.get_meta_value(scifile, 'dispname') == 'Gr#4':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 
