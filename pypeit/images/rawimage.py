@@ -1133,7 +1133,7 @@ class RawImage:
             Scattered light calibration frame
         slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Slit edge information
-        debug : :obj:`bool`_, optional
+        debug : :obj:`bool`, optional
             If True, debug the computed scattered light image
         """
         step = inspect.stack()[0][3]

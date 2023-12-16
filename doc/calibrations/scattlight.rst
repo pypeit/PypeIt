@@ -130,7 +130,7 @@ Current Scattered Light Data Model
 
 The datamodel written to disk is:
 
-.. include:: ../include/datamodel_scattlight.rst
+.. include:: ../include/class_datamodel_scatteredlight.rst
 
 The `astropy.io.fits.BinTableHDU`_ contains all the data from the underlying
 :class:`~pypeit.scattlight.ScatteredLight` class.  For details see its datamodel.
