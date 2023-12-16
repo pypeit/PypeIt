@@ -139,22 +139,6 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def configuration_keys(self):
-        """
-        Return the metadata keys that define a unique instrument
-        configuration.
-
-        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
-        identify the unique configurations among the list of frames read
-        for a given reduction.
-
-        Returns:
-            :obj:`list`: List of keywords of data pulled from file headers
-            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
-            object.
-        """
-        return []
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -176,6 +160,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
@@ -230,6 +216,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         # TODO - UPDATE ALL OF THIS
 
         # TODO -- May need to flip specflip
+        # TODO -- Deal with dataswec, oscansec
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
@@ -297,28 +284,12 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         """
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO: Should we allow the user to override these?
 
-        #detector = self.get_meta_value(scifile, 'detector')
-        #self.set_detector(detector)
-        # Wavelengths
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+        if self.get_meta_value(scifile, 'dispname') == 'SCFCGRMB01':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMB01.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            # Since we are using the sky to fit the wavelengths don't correct for flexure
-            par['flexure']['spec_method'] = 'skip'
-            #par['reduce']['skysub']['bspline_spacing'] = 0.6
-
-        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
-            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
+        else:
+            msgs.error(f'Not ready for this grism {self.get_meta_value(scifile, "dispname")}')
 
         return par
 
@@ -356,7 +327,9 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dispangle', 'decker', 'detector']
+        #return ['dispname', 'dispangle', 'decker', 'detector']
+        # TODO -- Consider dispangle
+        return ['dispname', 'decker', 'detector']
 
 
     # TODO -- Convert this into get_comb_group()
