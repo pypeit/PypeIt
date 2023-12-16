@@ -46,7 +46,10 @@ def flux_calibrate(spec1dfiles, sensfiles, par=None, outfiles=None, chk_version=
         sobjs = specobjs.SpecObjs.from_fitsfile(spec1, chk_version=chk_version)
         history = History(sobjs.header)
         if sensf != sensf_last:
-            sens = sensfunc.SensFunc.from_file(sensf, chk_version=chk_version)
+            try:
+                sens = sensfunc.SensFunc.from_file(sensf, chk_version=chk_version)
+            except:
+                embed(header='flux_calibrate 52')
             sensf_last = sensf
             history.append(f'PypeIt Flux calibration "{sensf}"')
         sobjs.apply_flux_calib(par, spectrograph, sens)

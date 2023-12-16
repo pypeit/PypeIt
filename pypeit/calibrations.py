@@ -964,9 +964,10 @@ class Calibrations:
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
+            # TODO - should all of this new code be removed??
             if self.par['wavelengths']['method'] == 'echelle':
                 msgs.info('Method set to Echelle -- checking wv_calib for 2dfits')
-                if not self.wv_calib.wv_fit2d:
+                if not hasattr(self.wv_calib, 'wv_fit2d'):
                     msgs.info('2d fit does not exist! Doing now: ')
                     is_arc = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID)
                     lamps = self.spectrograph.get_lamps(self.fitstbl[is_arc]) \
