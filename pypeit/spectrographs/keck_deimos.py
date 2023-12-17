@@ -741,8 +741,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
         detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
 
-        if hdu[0].header['AMPMODE'] != 'SINGLE:B':
-            msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
+        # TODO check that that read noise and gain are the same for this amplifier mode??
+        #if hdu[0].header['AMPMODE'] != 'SINGLE:B':
+        #    msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
             msgs.error('PypeIt can only reduce images with MOSMODE == Spectral.')
 
