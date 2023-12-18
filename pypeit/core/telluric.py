@@ -2339,7 +2339,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model, eval_obj_model,
-                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='PCA', tell_npca=4,
+                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='pca', tell_npca=4,
                  airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
