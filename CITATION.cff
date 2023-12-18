@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
   - family-names: Prochaska, Hennawi, Westfall, Cooke, Wang
-    given-names: J. Xavier, Joseph, Kyle, Ryan
+    given-names: J. Xavier, Joseph, Kyle, Ryan, Feige
 title: "PypeIt"
 version: 1.10.0
 doi: 10.5281/zenodo.3743493
