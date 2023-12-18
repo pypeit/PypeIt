@@ -168,7 +168,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - tell_pca: PCA component vectors
             - bounds_tell_pca: Maximum/minimum coefficient
             - coefs_tell_pca: Set of model coefficient values (for prior in future)
-            - teltype: Type of telluric model, i.e. 'PCA'
+            - teltype: Type of telluric model, i.e. 'pca'
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
@@ -385,13 +385,13 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     Args:
         theta_tell (`numpy.ndarray`_):
-            Vector with tell_npca PCA coefficients (if teltype='PCA')
+            Vector with tell_npca PCA coefficients (if teltype='pca')
             or pressure, temperature, humidity, and airmass (if teltype='grid'),
             followed by spectral resolution, shift, and stretch.
             Final length is then tell_npca+3 or 7.
         tell_dict (:obj:`dict`):
             Dictionary containing the telluric data. See
-            :func:`read_telluric_pca` if teltype=='PCA'.
+            :func:`read_telluric_pca` if teltype=='pca'.
             or
             :func:`read_telluric_grid` if teltype=='grid'.
         ind_lower (:obj:`int`, optional):
@@ -1300,7 +1300,7 @@ def eval_poly_model(theta, obj_dict):
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8,
-                      tell_npca=4, teltype='PCA',
+                      tell_npca=4, teltype='pca',
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
                       resln_guess=None, resln_frac_bounds=(0.6, 1.4), pix_shift_bounds=(-5.0, 5.0),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
@@ -1351,8 +1351,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
         Polynomial order for the sensitivity function fit.
-    teltype : :obj:`str`, optional, default = 'PCA'
-        Method for evaluating telluric models, either `PCA` or `grid`.
+    teltype : :obj:`str`, optional, default = 'pca'
+        Method for evaluating telluric models, either `pca` or `grid`.
     tell_npca : :obj:`int`, optional, default = 4
         Number of telluric PCA components used, must be <= 10
     mask_hydrogen_lines : :obj:`bool`, optional
@@ -1515,7 +1515,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile, npca=8,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
-                 teltype='PCA', tell_npca=4,
+                 teltype='pca', tell_npca=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
@@ -1551,8 +1551,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
     delta_zqso : :obj:`float`, optional
         During the fit, the QSO redshift is allowed to vary within
         ``+/-delta_zqso``.
-    teltype : :obj:`str`, optional, default = 'PCA'
-        Method for evaluating telluric models, either `PCA` or `grid`.
+    teltype : :obj:`str`, optional, default = 'pca'
+        Method for evaluating telluric models, either `pca` or `grid`.
     tell_npca : :obj:`int`, optional, default = 4
         Number of telluric PCA components used, must be <=10
     bounds_norm : :obj:`tuple`, optional
@@ -1685,7 +1685,7 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
-                  polyorder=5, teltype='PCA', tell_npca=4, mask_hydrogen_lines=True,
+                  polyorder=5, teltype='pca', tell_npca=4, mask_hydrogen_lines=True,
                   mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1793,7 +1793,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
-                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='PCA',
+                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='pca',
                   tell_npca=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
@@ -1936,13 +1936,13 @@ class Telluric(datamodel.DataContainer):
 
     The telluric model is governed by seven parameters --- for the `grid`
     approach: ``pressure``, ``temperature``, ``humidity``, ``airmass``; for
-    the `PCA` approach 4 PCA coefficients; plus ``resln``, ``shift``, and
+    the `pca` approach 4 PCA coefficients; plus ``resln``, ``shift``, and
     ``stretch`` --- where ``resln`` is the resolution of the spectrograph and
     ``shift`` is a shift in pixels. The ``stretch`` is a stretch of the pixel
     scale. The airmass of the object will be used to initalize the fit (this
     helps with initalizing the object model), but the models are sufficiently
     flexible that often the best-fit airmass actually differs from the
-    airmass of the spectrum. In the `PCA` approach, the number of PCA
+    airmass of the spectrum. In the `pca` approach, the number of PCA
     components used can be adjusted between 1 and 10, with a tradeoff between
     speed and accuracy.
 
@@ -1983,10 +1983,10 @@ class Telluric(datamodel.DataContainer):
             decomposition of such models, see
             :class:`~pypeit.par.pypeitpar.TelluricPar`.
         teltype (:obj:`str`, optional):
-            Method for evaluating telluric models, either `PCA` or `grid`.
+            Method for evaluating telluric models, either `pca` or `grid`.
             The `grid` method directly interpolates a pre-computed grid of
             HITRAN atmospheric models with nearest grid-point interpolation,
-            while the `PCA` method instead fits for the coefficients of a
+            while the `pca` method instead fits for the coefficients of a
             PCA decomposition of HITRAN atmospheric models, enabling a more
             flexible and far more file-size efficient interpolation
             of the telluric absorption model space.
@@ -2180,7 +2180,7 @@ class Telluric(datamodel.DataContainer):
                                  descr='File containing PCA components or grid of '
                                        'HITRAN atmosphere models'),
                  'teltype': dict(otype=str,
-                                 descr='Type of telluric model, `PCA` or `grid`'),
+                                 descr='Type of telluric model, `pca` or `grid`'),
                  'tell_npca': dict(otype=int,
                                     descr='Number of telluric PCA components used'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
