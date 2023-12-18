@@ -1145,7 +1145,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 raw_bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
                 # Now do the alignment
-                self.ra_offsets[ff], self.dec_offsets[ff] = hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, ra_img, dec_img,
+                self.ra_offsets[ff], self.dec_offsets[ff] = hst_alignment(ff, sciImg, ivar, waveimg, slitid_img_gpm, wghts, ra_img, dec_img,
                                                                           self.all_wcs[ff], spec2DObj.tilts, slits, alignSplines, darcorr,
                                                                           self._dspat, self._dwv, raw_bins=raw_bins)
             # TODO :: Does this need to be included anywhere?
@@ -1361,6 +1361,28 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                 reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
                                 specname=self.specname)
 
+        # Generate a temporary WCS
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = cube_wcs.wcs.equinox
+        w.wcs.name = cube_wcs.wcs.name
+        w.wcs.radesys = 'FK5'
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+        # Insert the coordinate frame
+        w.wcs.cname = ['RA', 'DEC', 'Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]  # Note, WAVE is vacuum wavelength
+        w.wcs.crval = [143.5099583333333+np.min(self.ra_offsets), 55.23983333333334+np.min(self.dec_offsets), 3922.758514]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [12.0, 69.5, 1.0]  # RA, DEC, and wavelength reference pixels
+        w.wcs.cd = np.array([[6.66766339319855e-05, 2.8623682502431446e-05, 0.0], [6.66766339319855e-05, -2.862368250243144e-05, 0.0], [0.0, 0.0, 0.115005]])
+        cube_wcs = w
+        extra_slice = 4
+        xbins = np.arange(1 + 24 + 2*extra_slice) - 24/2 - 0.5 - extra_slice + 3
+        ybins = np.arange(-75, 77) - 0.5
+        spec_bins = vox_edges[2]
+        vox_edges = (xbins, ybins, spec_bins)
+        self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 5, 5, 10
+
         sensfunc = None
         if self.flux_spline is not None:
             # Get wavelength of each pixel
@@ -1413,7 +1435,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                         outfile=outfile, spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel)
+                                                        slice_subpixel=self.slice_subpixel, idx=ff)
                     # Prepare the header
                     hdr = cube_wcs.to_header()
                     if self.fluxcal:
@@ -1427,9 +1449,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
 
 
-def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
+def hst_alignment(ff, sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
                   all_wcs, tilts, slits, astrom_trans, all_dar, dspat, dwave,
-                  spat_subpixel=5, spec_subpixel=5, slice_subpixel=10, raw_bins=None):
+                  spat_subpixel=10, spec_subpixel=1, slice_subpixel=30, raw_bins=None):
     """
     This is currently only used by RJC. This function adds corrections to the RA and Dec pixels
     to align the daatcubes to an HST image.
@@ -1451,15 +1473,28 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
     niter = 1
     for ii in range(niter):
         ############
-        ## STEP 1 ## - Create a datacube around Hgamma
+        ## STEP 1A ## - Create a datacube around Hgamma
         ############
         # Only use a small wavelength range
-        inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
+        inmask_Hg = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
         # Create a WCS for this subcube
-        subcube_wcs, voxedge, reference_image = datacube.create_wcs(raImg, decImg, waveimg, inmask, dspat, dwave)
+        subcube_wcs_Hg, voxedge_Hg, reference_image = datacube.create_wcs(raImg, decImg, waveimg, inmask_Hg, dspat, dwave)
         # Create the subcube
-        flxcube, sigcube, bpmcube, wave = \
-            datacube.generate_cube_subpixel(subcube_wcs, voxedge, sciImg, ivar, waveimg, inmask, wghts,
+        flxcube_Hg, sigcube_Hg, bpmcube_Hg, wave_Hg = \
+            datacube.generate_cube_subpixel(subcube_wcs_Hg, voxedge_Hg, sciImg, ivar, waveimg, inmask_Hg, wghts,
+                                            all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                                            overwrite=False, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
+                                            slice_subpixel=slice_subpixel)
+        ############
+        ## STEP 1B ## - Create a datacube around Hdelta
+        ############
+        # Only use a small wavelength range
+        inmask_Hd = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
+        # Create a WCS for this subcube
+        subcube_wcs_Hd, voxedge_Hd, reference_image = datacube.create_wcs(raImg, decImg, waveimg, inmask_Hd, dspat, dwave)
+        # Create the subcube
+        flxcube_Hd, sigcube_Hd, bpmcube_Hd, wave_Hd = \
+            datacube.generate_cube_subpixel(subcube_wcs_Hd, voxedge_Hd, sciImg, ivar, waveimg, inmask_Hd, wghts,
                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                                             overwrite=False, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
                                             slice_subpixel=slice_subpixel)
@@ -1472,13 +1507,16 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
         ## STEP 2 ## - Create an emission line map of Hgamma
         ############
         # Compute an emission line map that is as consistent as possible to an archival HST image
-        HgMap, HgMapErr = astrometry.fit_cube(flxcube, sigcube ** 2, subcube_wcs, line="HIgamma")
+        HgMap, HgMapErr = astrometry.fit_cube(flxcube_Hg, sigcube_Hg ** 2, wave_Hg, line="HIgamma", do_errors=True)
+        HdMap, HdMapErr = astrometry.fit_cube(flxcube_Hd, sigcube_Hd ** 2, wave_Hd, line="HIdelta", do_errors=True)
+        HgCont = np.median(flxcube_Hg, axis=0)
+        HdCont = np.median(flxcube_Hd, axis=0)
 
         ############
         ## STEP 3A ## - Generate another datacube using the raw_wcs and make an image of the emission line map
         # Need to generate a datacube near both Hgamma and Hdelta.
         ############
-        if True:
+        if False:
             # FIRST DO Hdelta
             inmask = slitid_img_gpm * ((waveimg > 4107.0) & (waveimg < 4119.0)).astype(int)
             flxcube, sigcube, bpmcube, wave = \
@@ -1486,7 +1524,8 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
                                                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset, overwrite=False,
                                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
                                                 slice_subpixel=slice_subpixel)
-            HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIdelta")
+            wavein = all_wcs.wcs_pix2world(0.0, 0.0, np.arange(data.shape[0]), 0)[2] * 1.0E10
+            HdMap_raw, HdMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, wavein, line="HIdelta")
             # THEN DO Hgamma
             inmask = slitid_img_gpm * ((waveimg > 4346.0) & (waveimg < 4358.0)).astype(int)
             flxcube, sigcube, bpmcube, wave = \
@@ -1494,7 +1533,8 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
                                                 all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                                                 overwrite=False, spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
                                                 slice_subpixel=slice_subpixel)
-            HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, all_wcs, line="HIgamma")
+            wavein = all_wcs.wcs_pix2world(0.0, 0.0, np.arange(data.shape[0]), 0)[2] * 1.0E10
+            HgMap_raw, HgMapErr_raw = astrometry.fit_cube(flxcube, sigcube**2, wavein, line="HIgamma")
             # Plot the emission line map
             from matplotlib import pyplot as plt
             plt.subplot(131)
@@ -1502,7 +1542,7 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
             plt.subplot(132)
             plt.imshow(HgMap_raw, vmin=0, vmax=300, aspect=0.5)
             plt.subplot(133)
-            plt.imshow(HdMap_raw*utils.inverse(HgMap_raw), vmin=0.5, vmax=0.7, aspect=0.5)
+            plt.imshow(HdMap_raw*utils.inverse(HgMap_raw), vmin=0.5, vmax=0.6, aspect=0.5)
             plt.show()
             embed()
             # np.save("Hd-Hg_preSlicerDAR.npy", HdMap_raw*utils.inverse(HgMap_raw))
@@ -1510,7 +1550,8 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
         ############
         ## STEP 3B ## - Map the emission line map to an HST image, and vice-versa
         ############
-        ra_corr, dec_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, raImg, decImg, slitid_img_gpm)#, ra_sort, dec_sort, raw_wcs)
+        ra_corr_Hd, dec_corr_Hd, src_wcs_Hd, dst_wcs, offs_factor, pars_Hd = astrometry.map_image(HdMap, HdMapErr, HdCont, subcube_wcs_Hd, raImg, decImg, slitid_img_gpm)#, ra_sort, dec_sort, raw_wcs)
+        ra_corr_Hg, dec_corr_Hg, src_wcs_Hg, dst_wcs, offs_factor, pars_Hg = astrometry.map_image(HgMap, HgMapErr, HgCont, subcube_wcs_Hg, raImg, decImg, slitid_img_gpm)#, ra_sort, dec_sort, raw_wcs)
         if False:
             # ra_corr, dec_corr, flx_corr = astrometry.map_image(HgMap, HgMapErr, subcube_wcs, ra_sort, dec_sort, raw_wcs, HgMap_raw, HgMapErr_raw, HdMap_raw, HdMapErr_raw)
             # Loop over the slits and apply the corrections
@@ -1518,6 +1559,12 @@ def hst_alignment(sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
             for ss, spatid in enumerate(slits.spat_id):
                 idx = np.where(all_spatid == spatid)[0]
                 # Calculate the correction as a function of wavelength
-
+        np.savetxt("radec_corrs_{0:02d}.txt".format(ff), np.vstack((np.append(ra_corr_Hg, ra_corr_Hd), np.append(dec_corr_Hg, dec_corr_Hd))).T)
+        np.save("src_wcs_Hg_{0:02d}.npy".format(ff), src_wcs_Hg)
+        np.save("src_wcs_Hd-Hg_{0:02d}.npy".format(ff), src_wcs_Hd-src_wcs_Hg)
+        np.save("dst_wcs.npy", dst_wcs)
+        np.save("offs_factor.npy", offs_factor)
+        np.save("pars_Hd_{0:02d}.npy".format(ff), pars_Hd)
+        np.save("pars_Hg_{0:02d}.npy".format(ff), pars_Hg)
     # embed()
-    return ra_corr, dec_corr
+    return ra_corr_Hg, dec_corr_Hg

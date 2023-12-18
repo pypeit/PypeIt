@@ -11,6 +11,7 @@ from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
 from scipy.interpolate import interp1d
+from skimage import transform
 import numpy as np
 
 from pypeit import msgs
@@ -1313,7 +1314,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
                            all_wcs, tilts, slits, astrom_trans, all_dar,
                            ra_offset, dec_offset,
                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5,
-                           overwrite=False, outfile=None, whitelight_range=None, debug=False):
+                           overwrite=False, outfile=None, whitelight_range=None, debug=False, idx=None):
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
@@ -1409,7 +1410,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                           all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                          debug=debug)
+                          debug=debug, idx=idx)
     # Extract the variables that we need
     if debug:
         flxcube, varcube, bpmcube, residcube = subpix
@@ -1449,7 +1450,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                  all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False):
+                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False, idx=None):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
     detector pixel into multiple subpixels and each IFU slice into multiple subslices.
@@ -1537,6 +1538,22 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
     numframes = len(_sciImg)
 
+    if idx is not None:
+        dst_wcs = np.load("dst_wcs.npy")
+        src_wcs_cons = np.load("src_wcs_Hg_{0:02d}.npy".format(idx))
+        src_wcs_grad = np.load("src_wcs_Hd-Hg_{0:02d}.npy".format(idx))
+        offs_factor = np.load("offs_factor.npy")
+        tform_cons = transform.estimate_transform('polynomial', dst_wcs, src_wcs_cons, 1)
+        tform_grad = transform.estimate_transform('polynomial', dst_wcs, src_wcs_grad, 1)
+        # Old approach
+        # tmp = np.loadtxt("radec_corrs_{0:02d}.txt".format(idx))
+        # Hgvals = tmp[0,:]
+        # Hdvals = tmp[1,:]
+        # ra_cons = Hgvals[0]
+        # dec_cons = Hgvals[1]
+        # ra_grad = (Hdvals[0]-ra_cons)/(4112.0-4352.0)
+        # dec_grad = (Hdvals[1]-dec_cons)/(4112.0-4352.0)
+
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
     binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
@@ -1608,9 +1625,23 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 # Evaluate the RA/Dec at the subpixel spatial positions
                 this_ra_int = ra_spl(spatpos_subpix)
                 this_dec_int = dec_spl(spatpos_subpix)
-                # Now apply the DAR correction and any user-supplied offsets
-                this_ra_int += ra_corr + _ra_offset[fr]
-                this_dec_int += dec_corr + _dec_offset[fr]
+                # Now apply the DAR correction
+                this_ra_int += ra_corr
+                this_dec_int += dec_corr
+                if idx is None:
+                    this_ra_int += _ra_offset[fr]
+                    this_dec_int += _dec_offset[fr]
+                else:
+                    # radec_cons = tform_cons(inp-offs_factor) + offs_factor
+                    # print(3600.0*(radec_cons-inp))
+                    # print(3600.0*np.median(radec_cons-inp, axis=0))
+                    inp = np.vstack((this_ra_int, this_dec_int)).T
+                    radec_cons = tform_cons(np.vstack((this_ra_int, this_dec_int)).T - offs_factor) + offs_factor
+                    radec_grad = tform_grad(np.vstack((this_ra_int, this_dec_int)).T - offs_factor)
+                    # print(3600.0*(radec_cons-inp))
+                    # print(sl, 3600.0*np.median(radec_cons-inp, axis=0))
+                    this_ra_int = radec_grad[:,0]*(this_wave_subpix - 4352.0)/(4112.0-4352.0) + radec_cons[:,0]
+                    this_dec_int = radec_grad[:,1]*(this_wave_subpix - 4352.0)/(4112.0-4352.0) + radec_cons[:,1]
                 # Convert world coordinates to voxel coordinates, then histogram
                 vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0)
                 # Use the "fast histogram" algorithm, that assumes regular bin spacing
