@@ -110,7 +110,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['standardframe']['exprng'] = [None, 180]
+        par['calibrations']['standardframe']['exprng'] = [None, 300]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['subtract_continuum'] = True
