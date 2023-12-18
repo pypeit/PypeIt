@@ -917,7 +917,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
     def load(self):
         """
-        TODO :: Update all of the docstrings!
         This is the main function that loads in the data, and performs several frame-specific corrections.
         If the user does not wish to align or combine the individual datacubes, then this routine will also
         produce a spec3d file, which is a DataCube representation of a PypeIt spec2d frame for SlicerIFU data.
@@ -938,19 +937,18 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         As well as the primary arrays that store the pixel information for multiple spec2d frames, including:
 
-        * self.all_wave
         * self.all_sci
         * self.all_ivar
-        * self.all_idx
+        * self.all_wave
+        * self.all_slitid
         * self.all_wghts
-        * self.all_spatpos
-        * self.all_specpos
-        * self.all_spatid
         * self.all_tilts
         * self.all_slits
         * self.all_align
-        * self.all_dar
         * self.all_wcs
+        * self.all_ra
+        * self.all_dec
+        * self.all_dar
         """
         # Load all spec2d files and prepare the data for making a datacube
         for ff, fil in enumerate(self.spec2d):

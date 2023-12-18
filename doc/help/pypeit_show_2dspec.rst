@@ -37,5 +37,5 @@
       --no_clear            Do *not* clear all existing tabs (default: True)
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all] (default:
-                            2)
+                            1)
     

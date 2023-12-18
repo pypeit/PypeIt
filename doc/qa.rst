@@ -2,6 +2,8 @@
 .. TODO: We should expand this page, showing examples of the QA plots and
 .. describing them in more detail.
 
+.. _qa:
+
 =========
 PypeIt QA
 =========
