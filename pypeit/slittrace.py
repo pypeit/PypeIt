@@ -40,6 +40,7 @@ class SlitTraceBitMask(BitMask):
             ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
+            ('BADALIGNCALIB', 'Alignment analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
             ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED (we may remove in v1.13) BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
@@ -57,7 +58,7 @@ class SlitTraceBitMask(BitMask):
     def exclude_for_flexure(self):
         # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
-        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
+        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB', 'BADALIGNCALIB',
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
