@@ -427,6 +427,17 @@ class CoAdd3D:
         self.scale_corr = scale_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
         self.dec_offsets = list(dec_offsets) if isinstance(dec_offsets, np.ndarray) else dec_offsets
+        # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
+        if self.numfiles == 1 and self.cubepar["reference_image"] is None:
+            if self.align:
+                msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
+                msgs.info("Setting 'align' to False")
+            self.align = False
+        if self.ra_offsets is not None:
+            if not self.align:
+                msgs.warn("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
+                msgs.info("Setting 'align' to True")
+            self.align = True
         # If no ra_offsets or dec_offsets have been provided, initialise the lists
         self.user_alignment = True
         if self.ra_offsets is None and self.dec_offsets is None:
@@ -458,17 +469,6 @@ class CoAdd3D:
         self._dspat = None if self.cubepar['spatial_delta'] is None else self.cubepar['spatial_delta'] / 3600.0  # binning size on the sky (/3600 to convert to degrees)
         self._dwv = self.cubepar['wave_delta']  # linear binning size in wavelength direction (in Angstroms)
 
-        # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
-        if self.numfiles == 1 and self.cubepar["reference_image"] is None:
-            if self.align:
-                msgs.warn("Parameter 'align' should be False when there is only one frame and no reference image")
-                msgs.info("Setting 'align' to False")
-            self.align = False
-        if self.ra_offsets is not None:
-            if not self.align:
-                msgs.warn("When 'ra_offset' and 'dec_offset' are set, 'align' must be True.")
-                msgs.info("Setting 'align' to True")
-            self.align = True
         # TODO :: The default behaviour (combine=False, align=False) produces a datacube that uses the instrument WCS
         #  It should be possible (and perhaps desirable) to do a spatial alignment (i.e. align=True), apply this to the
         #  RA,Dec values of each pixel, and then use the instrument WCS to save the output (or, just adjust the crval).
@@ -1381,7 +1381,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         ybins = np.arange(-75, 77) - 0.5
         spec_bins = vox_edges[2]
         vox_edges = (xbins, ybins, spec_bins)
-        self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 5, 5, 10
 
         sensfunc = None
         if self.flux_spline is not None:
