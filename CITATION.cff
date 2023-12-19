@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Prochaska, Hennawi, Westfall, Cooke, Wang, Hsyu, Davies, Farina, Pelliccia
+    given-names: J. Xavier, Joseph, Kyle, Ryan, Feige, Tiffany, Fred, Emanuele, Debora
+title: "PypeIt"
+version: 1.14.0
+doi: 10.21105/joss.02308
+date-released: 2020-08-28

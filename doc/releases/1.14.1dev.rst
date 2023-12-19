@@ -62,6 +62,7 @@ Instrument-specific Updates
 - Improvement to the wavelength calibration for Keck/HIRES. New arxiv templates added.
   Templates available for orders 35-117.
 - Various updates to default parameters for Keck/HIRES.
+- Added ``Keck-LRIS HOWTO`` documentation.
 
 Script Changes
 --------------
@@ -93,8 +94,9 @@ Under-the-hood Improvements
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 - Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
   deprecated ``numpy.polyfit()`` function.
-- Improvements to echelle wavelength calibration. Code changes in: ``pypeit/core/wavecal/wvutils.py``,
-``pypeit/core/wavecal/echelle.py``, ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Improvements to echelle wavelength calibration. Code changes in:
+  ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
+  ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
 
 Bug Fixes
 ---------
@@ -116,5 +118,6 @@ Bug Fixes
 - Aligned the documentation and parameters with the code for polynomial overscan
   subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
   ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
+- Fixed duplicate object bug reported in Issue #1690.
 
 

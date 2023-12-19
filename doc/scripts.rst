@@ -396,6 +396,8 @@ The script usage can be displayed by calling the script with the
 
 ----
 
+.. _inspect_scripts:
+
 Inspection Scripts
 ==================
 
