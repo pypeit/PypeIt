@@ -873,7 +873,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True
