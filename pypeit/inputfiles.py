@@ -935,28 +935,31 @@ class Coadd3DFile(InputFile):
 
         # Load coordinate offsets for each file. This is "Delta RA cos(dec)" and "Delta Dec"
         # Get the RA offset of each file
-        #off_ra = self.data['ra_offset'].tolist()
-        #if off_ra is None:
-        #    opts['ra_offset'] = None
-        #elif len(off_ra) == 1 and len(self.filenames) > 1:
-        #    # Convert from arcsec to degrees
-        #    opts['ra_offset'] = [off_ra[0]/3600.0 for _ in range(len(self.filenames))]
-        #elif len(off_ra) != 0:
-        #    # Convert from arcsec to degrees
-        #    opts['ra_offset'] = [ora/3600.0 for ora in off_ra]
+        off_ra, off_dec = None, None
+        if 'ra_offset' in self.data.keys():
+            off_ra = self.data['ra_offset'].tolist()
+            if off_ra is None:
+                opts['ra_offset'] = None
+            elif len(off_ra) == 1 and len(self.filenames) > 1:
+                # Convert from arcsec to degrees
+                opts['ra_offset'] = [off_ra[0]/3600.0 for _ in range(len(self.filenames))]
+            elif len(off_ra) != 0:
+                # Convert from arcsec to degrees
+                opts['ra_offset'] = [ora/3600.0 for ora in off_ra]
         # Get the DEC offset of each file
-        #off_dec = self.data['dec_offset'].tolist()
-        #if off_dec is None:
-        #    opts['dec_offset'] = None
-        #elif len(off_dec) == 1 and len(self.filenames) > 1:
-        #    # Convert from arcsec to degrees
-        #    opts['dec_offset'] = [off_dec[0]/3600.0 for _ in range(len(self.filenames))]
-        #elif len(off_dec) != 0:
-        #    # Convert from arcsec to degrees
-        #    opts['dec_offset'] = [odec/3600.0 for odec in off_dec]
-        # Check that both have been set
-        #if (off_ra is not None and off_dec is None) or (off_ra is None and off_dec is not None):
-        #    msgs.error("You must specify both or neither of the following arguments: ra_offset, dec_offset")
+        if 'dec_offset' in self.data.keys():
+            off_dec = self.data['dec_offset'].tolist()
+            if off_dec is None:
+                opts['dec_offset'] = None
+            elif len(off_dec) == 1 and len(self.filenames) > 1:
+                # Convert from arcsec to degrees
+                opts['dec_offset'] = [off_dec[0]/3600.0 for _ in range(len(self.filenames))]
+            elif len(off_dec) != 0:
+                # Convert from arcsec to degrees
+                opts['dec_offset'] = [odec/3600.0 for odec in off_dec]
+        # Check that both have been set or both are not set
+        if (off_ra is not None and off_dec is None) or (off_ra is None and off_dec is not None):
+            msgs.error("You must specify both or neither of the following arguments: ra_offset, dec_offset")
 
         # Return all options
         return opts
