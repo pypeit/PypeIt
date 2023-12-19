@@ -1035,6 +1035,8 @@ def get_std_trace(detname, std_outfile, chk_version=True):
             std_trace = std_trace.flatten()
         elif 'Echelle' in pypeline:
             std_trace = std_trace.T
+        elif 'SlicerIFU' in pypeline:
+            std_trace = None
         else:
             msgs.error('Unrecognized pypeline')
     else:
