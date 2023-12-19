@@ -1450,7 +1450,8 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                  all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False, idx=None):
+                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, apply_dar=True,
+                 debug=False, idx=None):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
     detector pixel into multiple subpixels and each IFU slice into multiple subslices.
@@ -1522,6 +1523,8 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             values give more reliable results, but note that the time required
             goes as (``slice_subpixel``). The default value is 5, which divides
             each IFU slice into 5 subslices in the slice direction.
+        apply_dar (bool, optional):
+            If True, apply the DAR correction to the datacube. The default is True.
         debug (bool, optional):
             If True, a residuals cube will be output. If the datacube generation
             is correct, the distribution of pixels in the residual cube with no
@@ -1539,6 +1542,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
     numframes = len(_sciImg)
 
     if idx is not None:
+        msgs.warn("Shouldn't be loading offsets unless this is IZw18 BH2!!")
         dst_wcs = np.load("dst_wcs.npy")
         src_wcs_cons = np.load("src_wcs_Hg_{0:02d}.npy".format(idx))
         src_wcs_grad = np.load("src_wcs_Hd-Hg_{0:02d}.npy".format(idx))
@@ -1605,11 +1609,9 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 tiltpos = np.add.outer(yspl, spec_y).flatten()
                 wspl = this_wav[this_sl]
                 asrt = np.argsort(yspl)
-                wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
                 # Calculate the wavelength at each subpixel
+                wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
                 this_wave_subpix = wave_spl(tiltpos)
-                # Calculate the DAR correction at each sub pixel
-                ra_corr, dec_corr = _all_dar[fr].correction(this_wave_subpix)  # This routine needs the wavelengths to be expressed in Angstroms
                 # Calculate spatial and spectral positions of the subpixels
                 spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
                 spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
@@ -1626,8 +1628,11 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 this_ra_int = ra_spl(spatpos_subpix)
                 this_dec_int = dec_spl(spatpos_subpix)
                 # Now apply the DAR correction
-                this_ra_int += ra_corr
-                this_dec_int += dec_corr
+                if apply_dar:
+                    # Calculate the DAR correction at each sub pixel
+                    ra_corr, dec_corr = _all_dar[fr].correction(this_wave_subpix)  # This routine needs the wavelengths to be expressed in Angstroms
+                    this_ra_int += ra_corr
+                    this_dec_int += dec_corr
                 if idx is None:
                     this_ra_int += _ra_offset[fr]
                     this_dec_int += _dec_offset[fr]
