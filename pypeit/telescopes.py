@@ -34,7 +34,7 @@ class KeckTelescopePar(TelescopePar):
 
 class SubaruTelescopePar(TelescopePar):
     def __init__(self):
-        loc = EarthLocation.of_site('W. M. Keck Observatory')
+        loc = EarthLocation.of_site('Subaru Telescope')
         super(SubaruTelescopePar, self).__init__(name='SUBARU',
                                                longitude=loc.lon.to(units.deg).value,
                                                latitude=loc.lat.to(units.deg).value,
