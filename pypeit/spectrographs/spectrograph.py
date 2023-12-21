@@ -806,37 +806,6 @@ class Spectrograph:
         """
         pass
 
-    # TODO: This feels like something that should be in the PypeItMetaData
-    # class, not the spectrograph class.
-    def vet_instrument(self, meta_tbl):
-        """
-        Confirm the metadata gathered for a set of measurements are all unique
-        and from this spectrograph, according to the expected instrument name in
-        the headers of its raw data files.
-
-        This function *only* issues warnings; no exceptions are raised.
-
-        Args:
-            meta_tbl (`astropy.table.Table`_):
-                Table with the meta data; see
-                :class:`~pypeit.metadata.PypeItMetaData`.
-        """
-        if 'instrument' in meta_tbl.keys():
-            if self.header_name is None:
-                msgs.error('CODING ERROR: header_name is not defined for '
-                           f'{self.__class__.__name__}!')
-            # Check that there is only one instrument
-            #  This could fail if one mixes is much older calibs
-            indx = meta_tbl['instrument'].data != None
-            instr_names = np.unique(meta_tbl['instrument'].data[indx])
-            if len(instr_names) != 1:
-                msgs.warn(f'More than one instrument in your dataset! {instr_names} \n'
-                          'Proceed with great caution...')
-            # Check the name
-            if instr_names[0] != self.header_name:
-                msgs.warn('The instrument name in the headers of the raw files does not match the '
-                          f'expected one! Found {instr_names[0]}, expected {self.header_name}.  '
-                          'You may have chosen the wrong PypeIt spectrograph name!')
 
     def config_independent_frames(self):
         """
@@ -1899,17 +1868,17 @@ class Spectrograph:
 
         Parameters
         ----------
-        binning : :obj:`str`_, optional
+        binning : :obj:`str`, optional
             Comma-separated binning along the spectral and spatial directions; e.g., ``2,1``
-        dispname : :obj:`str`_, optional
+        dispname : :obj:`str`, optional
             Name of the disperser
 
         Returns
         -------
         x0 : `numpy.ndarray`_
             A 1D array containing the best-fitting model parameters
-        bounds : :obj:`tuple`_
-            A tuple of two elements, containing two `np.ndarray`_ of the same length as x0. These
+        bounds : :obj:`tuple`
+            A tuple of two elements, containing two `numpy.ndarray`_ of the same length as x0. These
             two arrays contain the lower (first element of the tuple) and upper (second element of the tuple)
             bounds to consider on the scattered light model parameters.
         """

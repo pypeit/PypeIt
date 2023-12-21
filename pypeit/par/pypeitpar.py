@@ -2223,7 +2223,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, tell_npca=None, teltype=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2238,6 +2238,7 @@ class TelluricPar(ParSet):
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
@@ -2248,6 +2249,18 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
+        
+        defaults['tell_npca'] = 5
+        dtypes['tell_npca'] = int
+        descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
+        
+        defaults['teltype'] = 'pca'
+        options['teltype'] = TelluricPar.valid_teltype()
+        dtypes['teltype'] = str
+        descr['teltype'] = 'Method used to evaluate telluric models, either pca or grid. The grid option uses a ' \
+                           'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
+                           'observatory, whereas the pca option uses principal components of a larger model grid ' \
+                           'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2268,12 +2281,12 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
-        defaults['resln_frac_bounds'] = (0.5,1.5)
+        defaults['resln_frac_bounds'] = (0.6,1.4)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
-                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'This range is in units of the resln_guess, so the (0.6, 1.4) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
-                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+                                     'bounds_resln = (0.6*resln_guess, 1.4*resln_guess)'
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
@@ -2476,7 +2489,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'tell_npca',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
@@ -2493,12 +2506,27 @@ class TelluricPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+        
+    @staticmethod
+    def valid_teltype():
+        """
+        Return the valid telluric methods.
+        """
+        return ['pca', 'grid']
 
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
+            raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
+                             '(must be between 1 and 10).')
+                             
+        self.data['teltype'] = self.data['teltype'].lower()
+        if self.data['teltype'] not in TelluricPar.valid_teltype():
+            raise ValueError('Invalid teltype "{}"'.format(self.data['teltype'])+
+                             ', valid options are: {}.'.format(TelluricPar.valid_teltype()))
+        
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 
@@ -2645,11 +2673,12 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+    def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
+                 ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_thresh_frac_fwhm=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, numsearch=None,
+                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
+                 n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None):
@@ -2719,6 +2748,18 @@ class WavelengthSolutionPar(ParSet):
         descr['ech_sigrej'] = 'For echelle spectrographs, this is the sigma-clipping rejection ' \
                               'threshold in the 2d fit to spectral and order dimensions'
 
+        defaults['bad_orders_maxfrac'] = 0.25
+        dtypes['bad_orders_maxfrac'] = float
+        descr['bad_orders_maxfrac'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                      'this is the maximum fraction of orders (per detector) with failed 1D fit, ' \
+                                      'for PypeIt to attempt a refit.'
+
+        defaults['frac_rms_thresh'] = 1.5
+        dtypes['frac_rms_thresh'] = float
+        descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
+                                   'this is the fractional change in the RMS threshold used ' \
+                                   'when a 1D fit is re-attempted for failed orders.' \
+
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
         descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
@@ -2735,7 +2776,7 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
                          'recorded in the header of the arc frames (this is currently ' \
-                         'available only for Keck DEIMOS and LDT DeVeny).' # \
+                         'available only for Keck DEIMOS, Keck LRIS, MMT Blue Channel, and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2804,6 +2845,11 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
+        defaults['reid_cont_sub'] = True
+        dtypes['reid_cont_sub'] = bool
+        descr['reid_cont_sub'] = 'If True, continuum subtract the arc and arxiv spectrum before ' \
+                                 'the wavelength reidentification. ' \
+
         defaults['wvrng_arxiv'] = None
         dtypes['wvrng_arxiv'] = list
         descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
@@ -2812,6 +2858,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
                             '\'full_template\''
+
+        pars['cc_shift_range'] = tuple_force(pars['cc_shift_range'])
+        defaults['cc_shift_range'] = None
+        dtypes['cc_shift_range'] = tuple
+        descr['cc_shift_range'] = 'Range of pixel shifts allowed when cross-correlating the ' \
+                                  'input arc spectrum with the archive spectrum.  If None, the ' \
+                                  'range will be automatically determined.'
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, np.ndarray]
@@ -2844,8 +2897,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['rms_thresh_frac_fwhm'] = float
         descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
                                         'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
-                                        'FWHM will be computed from the arc lines in each slits ' \
-                                        '(the median value among all the slits is used), otherwise ``fwhm`` ' \
+                                        'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
                                         '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
                                         'a slit using the ``redo_slits`` parameter. '
@@ -2911,9 +2963,6 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
-
-
-
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -2927,9 +2976,9 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
+                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
