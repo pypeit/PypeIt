@@ -230,7 +230,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
-        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3)
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
         self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
 #        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
