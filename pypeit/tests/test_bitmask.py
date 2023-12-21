@@ -107,3 +107,20 @@ def test_wrong_bits():
 
     assert numpy.sum(image_bm.flagged(mask, flag='COSMIC')) == numpy.sum(cosmics_indx)
 
+def test_flag_order():
+
+    bm = ImageBitMask()
+
+    flags = bm.keys()
+    assert bm.correct_flag_order(flags), 'Flags should not be mismatched'
+
+    flags += ['NEWBIT']
+    assert bm.correct_flag_order(flags), 'Appending flags should be fine'
+
+    flags = bm.keys()[:-1]
+    assert bm.correct_flag_order(flags), 'Checking a subset of the flags should be fine'
+
+    flags = bm.keys()[::-1]
+    assert not bm.correct_flag_order(flags), 'Reordering the flags is not okay'
+
+
