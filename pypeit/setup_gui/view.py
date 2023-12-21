@@ -376,19 +376,18 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
             # Adjust the editor'x upper left corner so that the editor is vislbe for
             # cells along the bottom or right of the parent table
-            right_x = self.metadata_view.viewport().geometry().bottomRight().x() - self.metadata_view.viewportMargins().right()
-            if self.metadata_view.verticalScrollBar().isVisible():
-                right_x -= self.metadata_view.verticalScrollBar().sizeHint().width()
-
+            right_x  = self.metadata_view.viewport().geometry().bottomRight().x() - self.metadata_view.viewportMargins().right()
             bottom_y = self.metadata_view.viewport().geometry().bottomRight().y() - self.metadata_view.viewportMargins().bottom()
-            if self.metadata_view.horizontalScrollBar().isVisible():
-                bottom_y -= self.metadata_view.horizontalScrollBar().sizeHint().height()
 
             if editor_x + editor_width > right_x:
-                editor_x = right_x - editor_width
+                # The bottom x,y of the view port is measured without the margins, but the editor is placed relative to those
+                # margins, so we have to include the left margin in the below calculation
+                editor_x = right_x - (editor_width + self.metadata_view.viewportMargins().left())
 
             if editor_y + editor_min_size.height() > bottom_y:
-                editor_y = bottom_y - editor_min_size.height()
+                # The bottom x,y of the view port is measured without the margins, but the editor is placed relative to those
+                # margins, so we have to include the top margin in the below calculation
+                editor_y = bottom_y - (editor_min_size.height() + self.metadata_view.viewportMargins().top())
 
             msgs.info(f"viewport bottom x,y: {self.metadata_view.viewport().geometry().bottomRight().x()},{self.metadata_view.viewport().geometry().bottomRight().y()}")
             msgs.info(f"metadata view bottom x,y: {self.metadata_view.geometry().bottomRight().x()},{self.metadata_view.geometry().bottomRight().y()}")
