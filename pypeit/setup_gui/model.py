@@ -23,6 +23,7 @@ import qtpy
 from configobj import ConfigObj
 
 from pypeit import msgs, spectrographs
+from pypeit.spectrographs import available_spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile
@@ -149,10 +150,6 @@ class LogBuffer(io.TextIOBase):
         """Return a true status indicating we're ready to receive data"""
         return True
 
-def available_spectrographs():
-    """Return a list of the supported spectrographs"""
-    return spectrographs.available_spectrographs
-
 class PypeItMetadataUniquePathsProxy(QAbstractListModel):
     """A Proxy model filtering the content of a PypeItMetadataModel object to only show the
     unique paths within it to Qt views.
@@ -203,10 +200,8 @@ class PypeItMetadataUniquePathsProxy(QAbstractListModel):
         Return: 
             list of str: The list of paths, or an empty list of the model is empty.
         """
-        if self.metadata is not None:
-            return list(self.metadata['directory'][self._unique_index])
-        else:
-            return []
+        
+        return [] if self.metadata is not None else list(self.metadata['directory'][self._unique_index])
 
 class PypeItMetadataModel(QAbstractTableModel):
     """
@@ -359,23 +354,21 @@ class PypeItMetadataModel(QAbstractTableModel):
         if role==Qt.EditRole and self.metadata is not None:
             colname = self.colnames[index.column()]
             if colname in self.editable_columns:
+                max_length = self.getStringColumnSize(colname)
+                if max_length is not None:
+                    # This is a string type, does the new data fit
+                    value = str(value)
+                    if len(value) > max_length:
+                        # We need to increase the string size to make the new value fit
+                        self.resizeStringColumn(colname, len(value))
+                
                 try:
-                    max_length = self.getStringColumnSize(colname)
-                    if max_length is not None:
-                        # This is a string type, does the new data fit
-                        new_value = str(value)
-                        if len(new_value) > max_length:
-                            # We need to increase the string size to make the new value fit
-                            self.resizeStringColumn(colname, len(new_value))
-                        self.metadata[colname][index.row()] = new_value
-                    else:
-                        # Not a string data type
-                        self.metadata[colname][index.row()] = value
-
-                    self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
-                    return True
+                    self.metadata[colname][index.row()] = value
                 except ValueError as e:
                     msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
+
+                self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
+                return True
 
         return False
 
@@ -443,11 +436,9 @@ class PypeItMetadataModel(QAbstractTableModel):
         Return:
         A list of column names, in order to display.
         """
-        if self.metadata is not None:
-            default_columns = self.metadata.set_pypeit_cols(write_bkg_pairs=True)
-            return default_columns
-        else:
+        if self.metadata is None:
             return ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
+        return self.metadata.set_pypeit_cols(write_bkg_pairs=True)
 
     def getStringColumnSize(self, colname: str) -> typing.Union[int,None]:
         """
@@ -484,12 +475,12 @@ class PypeItMetadataModel(QAbstractTableModel):
         Reset the proxy assuming the metadata object has completely changed
         """
         # Tell views a model reset is happening
-        super().beginResetModel()
+        self.beginResetModel()
 
         # Reset column names
         self.colnames = self.getDefaultColumns()
 
-        super().endResetModel()
+        self.endResetModel()
 
     def setMetadata(self, metadata):
         """Sets the PypeItMetaData object being wrapped.
@@ -509,16 +500,16 @@ class PypeItMetadataModel(QAbstractTableModel):
         """
         if self.metadata is None:
             return None
-        else:
-            # Remove the row, making sure views are notified
-            # We do this in reverse sorted order so that indices don't change before deletes
-            for row in sorted(rows,reverse=True):
-                # We could try to group these rows into ranges, but
-                # it doesn't seem worth it
-                self.beginRemoveRows(QModelIndex(), row, row)
-                msgs.info(f"Removing metadata row {row}")
-                self.metadata.remove_rows([row])
-                self.endRemoveRows()
+
+        # Remove the row, making sure views are notified
+        # We do this in reverse sorted order so that indices don't change before deletes
+        for row in sorted(rows,reverse=True):
+            # We could try to group these rows into ranges, but
+            # it doesn't seem worth it
+            self.beginRemoveRows(QModelIndex(), row, row)
+            msgs.info(f"Removing metadata row {row}")
+            self.metadata.remove_rows([row])
+            self.endRemoveRows()
 
         
     def addMetadataRow(self, metadata_row):
@@ -696,10 +687,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         
         Return: True if the row is commented out, False otherwise.
         """
-        if self.metadata is not None:
-            if self.metadata[index.row()]['filename'].lstrip().startswith("#"):
-                return True
-        return False
+        return self.metadata is not None and self.metadata[index.row()]['filename'].lstrip().startswith("#")
 
 class _UserConfigTreeNode:
     """
@@ -1307,7 +1295,7 @@ class PypeItSetupGUIModel(QObject):
         else:
             raise ValueError(f"PypeIt input file {pypeit_file} is missing a configuration section with a spectrograph specified.")
 
-        if spec_name not in available_spectrographs():
+        if spec_name not in available_spectrographs:
             raise ValueError(f"PypeIt input file {pypeit_file} contains an unknown spectrograph name: '{spec_name}'")
 
 

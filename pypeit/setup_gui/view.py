@@ -6,7 +6,9 @@ from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItem
 from qtpy.QtGui import QIcon,QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
-from pypeit.setup_gui.model import ModelState, PypeItMetadataModel, available_spectrographs
+from pypeit.spectrographs import  available_spectrographs
+
+from pypeit.setup_gui.model import ModelState, PypeItMetadataModel
 from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, PersistentStringListModel
 from pypeit import msgs
@@ -786,7 +788,7 @@ class ObsLogView(TabManagerBaseTab):
         spectrograph_layout = QHBoxLayout()        
 
         self.spectrograph = QComboBox(spectrograph_box)
-        self.spectrograph.addItems(available_spectrographs())
+        self.spectrograph.addItems(available_spectrographs)
         self.spectrograph.setCurrentIndex(-1)
         self.spectrograph.setEditable(True)
         self.spectrograph.lineEdit().setPlaceholderText(self.tr("Select a spectrograph"))
@@ -918,7 +920,6 @@ class SpectrographValidator(QValidator):
     This is used by the spectrograph combo box to allow tab completion without
     allowing invalid names to be entered."""
     def __init__(self):
-        self._supported_spectrographs = available_spectrographs()
         super().__init__()
 
     def validate(self, str_input, int_input):
@@ -935,10 +936,10 @@ class SpectrographValidator(QValidator):
             QValidator.State: Acceptable, Intermediate, or Invalid based on the input.
         """
         if str_input is not None:
-            if str_input.lower() in self._supported_spectrographs:
+            if str_input.lower() in  available_spectrographs:
                 return QValidator.Acceptable, str_input, int_input
             else:
-                for spectrograph in self._supported_spectrographs:
+                for spectrograph in  available_spectrographs:
                     if spectrograph.startswith(str_input.lower()):
                         return QValidator.Intermediate, str_input, int_input
         return QValidator.Invalid, str_input, int_input
