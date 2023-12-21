@@ -35,7 +35,7 @@ class CoAdd1D:
         argument descriptions.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
-        return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
+        return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
             debug=debug, show=show)
 
@@ -518,3 +518,14 @@ class EchelleCoAdd1D(CoAdd1D):
         return waves, fluxes, ivars, gpms, weights_sens, headers
 
 
+class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
+    """
+    Child of MultiSlitCoAdd1d for SlicerIFU reductions.
+    """
+
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+        """
+        See :class:`CoAdd1D` instantiation for argument descriptions.
+        """
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
