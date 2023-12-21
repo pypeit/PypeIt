@@ -771,8 +771,8 @@ def calc_snr(fluxes, ivars, gpms):
 
     Returns
     -------
-    rms_sn (np.ndarray):
-        Array of shape (nexp,) of root-mean-square S/N value for each input spectra where nexp=len(fluxes).
+    rms_sn : list
+        List of length nexp root-mean-square S/N value for each input spectra where nexp=len(fluxes).
     sn_val : list
         List of length nexp containing the wavelength dependent S/N arrays for each input spectrum, i.e.
         each element contains the array flux*sqrt(ivar)
@@ -794,7 +794,8 @@ def calc_snr(fluxes, ivars, gpms):
             sn2.append(sn2_iexp)
             rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
 
-    return np.array(rms_sn), sn_val
+    return rms_sn, sn_val
+
 
 def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):
 
