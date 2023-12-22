@@ -1135,7 +1135,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             `astropy.io.fits.Header`_: Header object to include in
             all HDU extensions.
         """
-        _hdr = super(EdgeTraceSet, self)._base_header(hdr=hdr)
+        _hdr = super()._base_header(hdr=hdr)
         _hdr['QAPATH'] = 'None' if self.qa_path is None else str(self.qa_path)
         self.par.to_header(_hdr)
         self.bitmask.to_header(_hdr)
@@ -1259,7 +1259,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # parse traceimg because it's not a single-extension
         # DataContainer. It *will* parse pca, left_pca, and right_pca,
         # if they exist, but not their model components.
-        d, version_passed, type_passed, parsed_hdus = super(EdgeTraceSet, cls)._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu)
         if not type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
         if not version_passed:
