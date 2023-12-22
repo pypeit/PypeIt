@@ -36,6 +36,7 @@ from pypeit.pypmsgs import PypeItError
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import onespec
+from pypeit import utils
 
 
 def _enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
@@ -49,7 +50,9 @@ def _enforce_monotonic_wavelengths(wave, flux, ivar, strict=True):
     flux : `numpy.ndarray`_
         Spectrum flux
     ivar : `numpy.ndarray`_
-        Spectrum inverse variance. Can be None.
+        Spectrum inverse variance. Can be None or the standard deviation.  The
+        only operation on this and the ``flux`` vector is to downselect the
+        monotonically increasing values.
     strict : bool, optional
         Check that the wavelength vector is monotonically increasing.  If not,
         raise an error (as would be done by the `specutils.SpectrumList`_ class).
@@ -202,10 +205,11 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
             continue
         _wave, _flux, _ivar = _enforce_monotonic_wavelengths(_wave[_gpm], _flux[_gpm], _ivar[_gpm],
                                                              strict=strict)
+        _sigma = np.sqrt(utils.inverse(_ivar))
         flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if _cal else "electron")
         spec += \
             [Spectrum1D(flux=astropy.units.Quantity(_flux * flux_unit),
-                        uncertainty=astropy.nddata.InverseVariance(_ivar / flux_unit**2),
+                        uncertainty=astropy.nddata.StdDevUncertainty(_sigma * flux_unit),
                         meta={'name': sobj.NAME, 'extract': _ext, 'fluxed': _cal},
                         spectral_axis=astropy.units.Quantity(_wave * astropy.units.angstrom),
                         velocity_convention="doppler_optical",
@@ -256,7 +260,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
 
     flux_unit = astropy.units.Unit("1e-17 erg/(s cm^2 Angstrom)" if spec.fluxed else "ct/s")
     wave = spec.wave_grid_mid if grid else spec.wave
-    wave, flux, ivar = _enforce_monotonic_wavelengths(wave, spec.flux, spec.ivar, strict=strict)
+    wave, flux, sigma = _enforce_monotonic_wavelengths(wave, spec.flux, spec.sigma, strict=strict)
 
     # If the input filename is actually a string, assign it as the spectrum
     # name.  Otherwise, try assuming it's a _io.FileIO object, and if that
@@ -270,8 +274,9 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
             name = ''
 
     # TODO We should be dealing with masking here.
-    return Spectrum1D(flux=astropy.units.Quantity(spec.flux * flux_unit),
-                      uncertainty=None if spec.sigma is None else astropy.units.Quantity(spec.sigma * flux_unit),
+    return Spectrum1D(flux=astropy.units.Quantity(flux * flux_unit),
+                      uncertainty=None if spec.sigma is None 
+                                  else astropy.nddata.StdDevUncertainty(sigma * flux_unit),
                       meta={'name': name, 'extract': spec.ext_mode, 'fluxed': spec.fluxed,
                             'grid': grid},
                       spectral_axis=astropy.units.Quantity(wave * astropy.units.angstrom),
