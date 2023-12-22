@@ -1364,7 +1364,7 @@ class Coadd1DPar(ParSet):
             raise ValueError("'ex_value' must be one of:\n" + ", ".join(allowed_extensions))
 
         allowed_wave_methods = self.valid_wave_methods()
-        if self.data['ex_value'] not in allowed_wave_methods:
+        if self.data['wave_method'] not in allowed_wave_methods:
             raise ValueError("'wave_method' must be one of:\n" + ", ".join(allowed_wave_methods))
 
         allowed_scale_methods = self.valid_scale_methods()
