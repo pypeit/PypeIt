@@ -1171,6 +1171,7 @@ class Coadd1DPar(ParSet):
 
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
+        options['wave_method'] = Coadd1DPar.valid_wave_methods()
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
                                "the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are:" \
                                " "\
@@ -1229,6 +1230,7 @@ class Coadd1DPar(ParSet):
 
         defaults['scale_method'] = 'auto'
         dtypes['scale_method'] = str
+        options['scale_method'] = Coadd1DPar.valid_scale_methods()
         descr['scale_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
                                 " "\
                                 "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well.  "\
@@ -1247,6 +1249,7 @@ class Coadd1DPar(ParSet):
         descr['sn_min_polyscale'] = "For scale method set to ``auto``, this sets the minimum SNR for which polynomial scaling is attempted."
 
         defaults['weight_method'] = 'auto'
+        options['weight_method'] = Coadd1DPar.valid_weight_methods()
         dtypes['weight_method'] = str
         descr['weight_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
                         " " \
@@ -1357,13 +1360,21 @@ class Coadd1DPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        allowed_scale_methods = ['auto', 'poly', 'median', 'none', 'hand']
-        if self.data['scale_method'] not in allowed_scale_methods:
-            raise ValueError("If 'wave_method' is not None it must be one of:\n" + ", ".join(allowed_scale_methods))
+        allowed_extensions = self.valid_ex()
+        if self.data['ex_value'] not in allowed_extensions:
+            raise ValueError("'ex_value' must be one of:\n" + ", ".join(allowed_extensions))
 
-        allowed_weight_methods = ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']
+        allowed_wave_methods = self.valid_wave_methods()
+        if self.data['wave_method'] not in allowed_wave_methods:
+            raise ValueError("'wave_method' must be one of:\n" + ", ".join(allowed_wave_methods))
+
+        allowed_scale_methods = self.valid_scale_methods()
+        if self.data['scale_method'] not in allowed_scale_methods:
+            raise ValueError("'scale_method' must be one of:\n" + ", ".join(allowed_scale_methods))
+
+        allowed_weight_methods = self.valid_weight_methods()
         if self.data['weight_method'] not in allowed_scale_methods:
-            raise ValueError("If 'weight_method' is not None it must be one of:\n" + ", ".join(allowed_weight_methods))
+            raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
 
 
 
@@ -1373,6 +1384,26 @@ class Coadd1DPar(ParSet):
         Return the valid flat-field methods
         """
         return ['BOX', 'OPT']
+
+
+    @staticmethod
+    def valid_wave_methods():
+        """ Return the valid options for the wavelength grid of spectra. """
+
+        return ['iref', 'velocity', 'log10', 'linear', 'concatenate']
+
+    @staticmethod
+    def valid_scale_methods():
+        """ Return the valid options for the scaling of spectra. """
+
+        return ['auto', 'poly', 'median', 'none', 'hand']
+
+    @staticmethod
+    def valid_weight_methods():
+        """ Return the valid options for the weighting of spectra. """
+
+        return ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']
+
 
 
 class Coadd2DPar(ParSet):

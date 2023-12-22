@@ -480,17 +480,43 @@ class CoAdd2D:
            Array of object indices with shape = (nexp,) of the
            brightest object whose S/N will be used to determine the
            weight for each frame.
-        const_weights : :obj:`bool`
-           Use constant weights for coadding the exposures.
-           Default=False
+        weight_method: (`str`, optional)
+           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
+           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
+           Behavior is as follows:
+             'auto':
+                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
+             'constant':
+                Constant weights based on rms_sn**2
+             'uniform':
+               Uniform weighting.
+             'wave_dependent':
+               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
+               will not work well at low S/N ratio although it is useful for objects where only a small
+               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
+             'relative':
+               Calculate weights by fitting to the ratio of spectra? Note, relative
+               weighting will only work well when there is at least one spectrum with a
+               reasonable S/N, and a continuum.  RJC note - This argument may only be
+               better when the object being used has a strong continuum + emission
+               lines. The reference spectrum is assigned a value of 1 for all
+               wavelengths, and the weights of all other spectra will be determined
+               relative to the reference spectrum. This is particularly useful if you
+               are dealing with highly variable spectra (e.g. emission lines) and
+               require a precision better than ~1 per cent.
+             'ivar':
+               Use inverse variance weighting. This is not well tested and should probably be deprecated.
+
 
         Returns
         -------
-        rms_sn : ndarray, shape = (len(specobjs_list),)
-            Root mean square S/N value for each input spectra
-        weights : ndarray, shape (len(specobjs_list),)
-            Weights to be applied to the spectra. These are
-            signal-to-noise squared weights.
+        rms_sn : `numpy.ndarray`_
+            Array of root-mean-square S/N value for each input spectra. Shape = (nexp,)
+        weights : list
+            List of  len(nexp) containing the signal-to-noise squared weights to be
+            applied to the spectra. This output is aligned with the vector (or
+            vectors) provided in waves which is read in by this routine, i.e. it is a
+            list of arrays of type `numpy.ndarray`_  with the same shape as those in waves.
         """
 
         nexp = len(self.stack_dict['specobjs_list'])

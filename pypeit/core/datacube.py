@@ -737,7 +737,9 @@ def wcs_bounds(raImg, decImg, waveImg, slitid_img_gpm, ra_offsets=None, dec_offs
                ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None):
     """
     Calculate the bounds of the WCS and the expected edges of the voxels, based
-    on user-specified parameters or the extremities of the data.
+    on user-specified parameters or the extremities of the data. This is a
+    convenience function that calls the core function in
+    :mod:`~pypeit.core.datacube`.
 
     Parameters
     ----------
@@ -979,7 +981,7 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
 def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, dspat, dwv, mnmx_wv, wghtsImg,
                             all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                            sn_smooth_npix=None, relative_weights=False, reference_image=None, whitelight_range=None,
+                            sn_smooth_npix=None, weight_method='autod', reference_image=None, whitelight_range=None,
                             specname="PYPSPEC"):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
@@ -1042,8 +1044,32 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
             Number of pixels used for determining smoothly varying S/N ratio
             weights.  This is currently not required, since a relative weighting
             scheme with a polynomial fit is used to calculate the S/N weights.
-        relative_weights (bool, optional):
-            Calculate weights by fitting to the ratio of spectra?
+        weight_method: (`str`, optional)
+           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
+           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
+           Behavior is as follows:
+             'auto':
+                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
+             'constant':
+                Constant weights based on rms_sn**2
+             'uniform':
+               Uniform weighting.
+             'wave_dependent':
+               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
+               will not work well at low S/N ratio although it is useful for objects where only a small
+               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
+             'relative':
+               Calculate weights by fitting to the ratio of spectra? Note, relative
+               weighting will only work well when there is at least one spectrum with a
+               reasonable S/N, and a continuum.  RJC note - This argument may only be
+               better when the object being used has a strong continuum + emission
+               lines. The reference spectrum is assigned a value of 1 for all
+               wavelengths, and the weights of all other spectra will be determined
+               relative to the reference spectrum. This is particularly useful if you
+               are dealing with highly variable spectra (e.g. emission lines) and
+               require a precision better than ~1 per cent.
+             'ivar':
+               Use inverse variance weighting. This is not well tested and should probably be deprecated.
         reference_image (`numpy.ndarray`_):
             Reference image to use for the determination of the highest S/N spaxel in the image.
         specname (str):
@@ -1078,14 +1104,14 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                            all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                            wl_full[:, :, 0], dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
-                           sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
+                           sn_smooth_npix=sn_smooth_npix, weight_method=weight_method)
 
 
 def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                     all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                     whitelight_img, dspat, dwv,
                     ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                    sn_smooth_npix=None, relative_weights=False):
+                    sn_smooth_npix=None, weight_method='auto'):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength
@@ -1131,8 +1157,32 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             Number of pixels used for determining smoothly varying S/N ratio
             weights.  This is currently not required, since a relative weighting
             scheme with a polynomial fit is used to calculate the S/N weights.
-        relative_weights (bool, optional):
-            Calculate weights by fitting to the ratio of spectra?
+        weight_method: (`str`, optional)
+           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
+           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
+           Behavior is as follows:
+             'auto':
+                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
+             'constant':
+                Constant weights based on rms_sn**2
+             'uniform':
+               Uniform weighting.
+             'wave_dependent':
+               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
+               will not work well at low S/N ratio although it is useful for objects where only a small
+               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
+             'relative':
+               Calculate weights by fitting to the ratio of spectra? Note, relative
+               weighting will only work well when there is at least one spectrum with a
+               reasonable S/N, and a continuum.  RJC note - This argument may only be
+               better when the object being used has a strong continuum + emission
+               lines. The reference spectrum is assigned a value of 1 for all
+               wavelengths, and the weights of all other spectra will be determined
+               relative to the reference spectrum. This is particularly useful if you
+               are dealing with highly variable spectra (e.g. emission lines) and
+               require a precision better than ~1 per cent.
+             'ivar':
+               Use inverse variance weighting. This is not well tested and should probably be deprecated.
 
     Returns:
         list: Either a 2D `numpy.ndarray`_ or a list of 2D `numpy.ndarray`_ arrays containing the optimal
@@ -1198,7 +1248,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
     rms_sn, weights = coadd.sn_weights(utils.array_to_explist(flux_stack), utils.array_to_explist(ivar_stack), utils.array_to_explist(mask_stack),
-                                       sn_smooth_npix=sn_smooth_npix, relative_weights=relative_weights)
+                                       sn_smooth_npix=sn_smooth_npix, weight_method=weight_method)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = [np.ones(_sciImg[0].shape) for _ in range(numframes)]
