@@ -120,15 +120,6 @@ class OneSpec(datamodel.DataContainer):
         """
         return super()._bundle(ext='SPECTRUM')
 
-    #@property
-    #def sig(self):
-    #    """ Return the 1-sigma array
-    #
-    #    Returns:
-    #        `numpy.ndarray`_: error array
-    #    """
-    #    return np.sqrt(utils.inverse(self.ivar))
-        
     def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
