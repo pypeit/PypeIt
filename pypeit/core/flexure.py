@@ -945,7 +945,7 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     # Fit
     fit = this_flex_dict['polyfit'][cntr]
     if fit is not None:
-        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] + this_flex_dict['shift']
+        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] + this_flex_dict['shift'][cntr]
         # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
         model = fit.eval(xval)
         # model = utils.func_val(fit, xval, 'polynomial')
