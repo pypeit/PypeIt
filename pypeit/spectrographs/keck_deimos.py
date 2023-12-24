@@ -286,6 +286,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
+        par['flexure']['spectrum'] = 'model'
+        par['flexure']['spec_maxshift'] = 80
         # Set wave tilts order
         par['calibrations']['slitedges']['follow_span'] = 1000
         par['calibrations']['slitedges']['edge_thresh'] = 50.
