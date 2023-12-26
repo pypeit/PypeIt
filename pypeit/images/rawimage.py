@@ -612,6 +612,7 @@ class RawImage:
             self.subtract_bias(bias)
 
         # TODO: Checking for count (well-depth) saturation should be done here.
+        # TODO :: Non-linearity correction should be done here.
 
         #   - Create the dark current image(s).  The dark-current image *always*
         #     includes the tabulated dark current and the call below ensures
