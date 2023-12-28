@@ -1372,7 +1372,7 @@ class Coadd1DPar(ParSet):
             raise ValueError("'scale_method' must be one of:\n" + ", ".join(allowed_scale_methods))
 
         allowed_weight_methods = self.valid_weight_methods()
-        if self.data['weight_method'] not in allowed_scale_methods:
+        if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
 
 
@@ -1803,6 +1803,11 @@ class CubePar(ParSet):
                                  "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+
+        allowed_weight_methods = Coadd1DPar.valid_weight_methods()
+        if self.data['weight_method'] not in allowed_weight_methods:
+            raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
 
 
 class FluxCalibratePar(ParSet):
