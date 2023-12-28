@@ -1781,7 +1781,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
