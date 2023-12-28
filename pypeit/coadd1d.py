@@ -125,7 +125,6 @@ class CoAdd1D:
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
-        #wave_gpm = self.wave_grid_mid > 1.0
         # Generate the spectrum container object
         onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
