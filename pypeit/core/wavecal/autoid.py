@@ -52,7 +52,7 @@ def arc_fit_qa(waveFit,
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
-            ??
+            Only show the main panel with the arc spectrum and the identified lines
         title (:obj:`str`, optional):
             Add a title to the spectrum plot
         log (:obj:`bool`, optional):
@@ -142,6 +142,8 @@ def arc_fit_qa(waveFit,
     # Title
     if title is not None:
         fig.suptitle(title, fontsize='x-large', va='top')
+
+    # If we're only plotting the ID panel, save the figure and return
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         if outfile is None:
