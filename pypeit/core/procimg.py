@@ -705,7 +705,6 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 no_overscan[data_slice][:,0::2] -= even[:,None]
             else:
                 msgs.error('Not ready for this approach, please contact the Developers')
-            
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
