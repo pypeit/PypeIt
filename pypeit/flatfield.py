@@ -1747,7 +1747,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     # Axes showing the residual of the detector response fit
     ax_resd = plt.subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, origin='lower', vmin=vmin-1, vmax=vmax-1)
-    ax_resd.set_xlabel("data-model", fontsize='medium')
+    ax_resd.set_xlabel("1+data-model", fontsize='medium')
     ax_resd.axes.xaxis.set_ticks([])
     ax_resd.axes.yaxis.set_ticks([])
     # Add a colorbar
