@@ -1019,7 +1019,7 @@ class ScatteredLightPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
+    def __init__(self, method=None, finecorr_method=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1040,7 +1040,7 @@ class ScatteredLightPar(ParSet):
         options['method'] = ScatteredLightPar.valid_scattlight_methods()
         dtypes['method'] = str
         descr['method'] = 'Method used to fit the overscan. ' \
-                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '. ' + \
                           '\'model\' will the scattered light model parameters derived from a ' \
                           'user-specified frame during their reduction (note, you will need to make sure ' \
                           'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
@@ -1049,15 +1049,21 @@ class ScatteredLightPar(ParSet):
                           '\'archive\' will use an archival model parameter solution for the scattered ' \
                           'light (note that this option is not currently available for all spectrographs).'
 
-        defaults['finecorr'] = True
-        dtypes['finecorr'] = bool
-        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
-                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+        defaults['finecorr_method'] = None
+        options['finecorr_method'] = ScatteredLightPar.valid_finecorr_scattlight_methods()
+        dtypes['finecorr_method'] = str
+        descr['finecorr_method'] = 'If None, a fine correction to the scattered light will not be performed. ' \
+                                   'Otherwise, the allowed methods include: ' \
+                                   '{0}'.format(', '.join(options['finecorr_method'])) + '. ' + \
+                                   '\'median\' will subtract a constant value from an entire CCD row, based on a ' \
+                                   'median of the pixels that are not on slits (see also, \'finecorr_pad\'). ' \
+                                   '\'poly\' will fit a polynomial to the scattered light in each row, based ' \
+                                   'on the pixels that are not on slits (see also, \'finecorr_pad\').'
 
-        defaults['finecorr_pad'] = 2
+        defaults['finecorr_pad'] = 4
         dtypes['finecorr_pad'] = int
-        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
-                                'fine correction to the scattered light.'
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for ' \
+                                'the fine correction to the scattered light.'
 
         defaults['finecorr_order'] = 2
         dtypes['finecorr_order'] = int
@@ -1086,7 +1092,7 @@ class ScatteredLightPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
+        parkeys = ['method', 'finecorr_method', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1101,7 +1107,10 @@ class ScatteredLightPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        if self.data['method'] is not None and self.data['method'] not in self.valid_scattlight_methods():
+            raise ValueError("If 'method' is not None it must be one of:\n"+", ".join(self.valid_scattlight_methods()))
+        if self.data['finecorr_method'] is not None and self.data['finecorr_method'] not in self.valid_finecorr_scattlight_methods():
+            raise ValueError("If 'finecorr_method' is not None it must be one of:\n"+", ".join(self.valid_finecorr_scattlight_methods()))
 
     @staticmethod
     def valid_scattlight_methods():
@@ -1109,6 +1118,13 @@ class ScatteredLightPar(ParSet):
         Return the valid scattered light methods.
         """
         return ['model', 'frame', 'archive']
+
+    @staticmethod
+    def valid_finecorr_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['median', 'poly']
 
 
 class Coadd1DPar(ParSet):
