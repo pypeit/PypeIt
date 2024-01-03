@@ -8,7 +8,7 @@ Implements the flat-field class.
 import inspect
 import numpy as np
 
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -1627,6 +1627,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     norm_cut = normed[xmn:xmx, ymn:ymx]
     fcor_cut = finecorr[xmn:xmx, ymn:ymx]
     vmin, vmax = max(0.95, np.min(fcor_cut)), min(1.05, np.max(fcor_cut))  # Show maximum corrections of ~5%
+
+    # For display/visual purposes, apply a median filter to the data
+    norm_cut = ndimage.median_filter(norm_cut, size=(normed.shape[0]//100, 5))
 
     # Plot
     fighght = 8.5
