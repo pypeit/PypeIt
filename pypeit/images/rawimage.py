@@ -1224,10 +1224,10 @@ class RawImage:
             this_modpar = msscattlight.scattlight_param.copy()
             this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
-            do_finecorr = self.par["scattlight"]["finecorr"]
+            do_finecorr = self.par["scattlight"]["finecorr_method"] is not None
             if self.par["scattlight"]["method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(this_modpar, _img)
+                scatt_img = scattlight.scattered_light_model_pad(this_modpar, _img)
                 if debug:
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
@@ -1305,9 +1305,11 @@ class RawImage:
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
                                                                mask_regions=self.par['scattlight']['finecorr_mask'])
                 # Calculate the fine correction to the scattered light image, and add it to the full model
-                scatt_img += scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
-                                                        polyord=self.par['scattlight']['finecorr_order'])
-            # Subtract the scattered light model from the image
+                fine_corr_scatt_light = scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
+                                                                   method=self.par['scattlight']['finecorr_method'],
+                                                                   polyord=self.par['scattlight']['finecorr_order'])
+                scatt_img += fine_corr_scatt_light
+            # Subtract the total scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
