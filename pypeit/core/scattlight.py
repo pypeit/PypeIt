@@ -47,7 +47,6 @@ def scattered_light_model_pad(param, img, detpad=300):
         Model parameters that determine the scattered light based on the input img.
         Here is a list of the individual parameter meanings:
 
-        # TODO :: I think this is out of date...
         * param[0] = Gaussian kernel width in the spectral direction
         * param[1] = Gaussian kernel width in the spatial direction
         * param[2] = Lorentzian kernel width in the spectral direction
@@ -55,11 +54,12 @@ def scattered_light_model_pad(param, img, detpad=300):
         * param[4] = Pixel shift of the scattered light in the spectral direction
         * param[5] = Pixel shift of the scattered light in the spatial direction
         * param[6] = Zoom factor of the scattered light (~1)
-        * param[7] = Kernel angle
-        * param[8] = Relative importance of Gaussian vs Lorentzian.
-                     0 < value < 1 means Lorentzian is weighted more
-                     value > 1 means Gaussian is weighted more.
-        * param[9:] = Polynomial scaling coefficients
+        * param[7] = constant offset for scattered light (independent of img)
+        * param[8] = Kernel angle
+        * param[9] = Relative importance of Gaussian vs Lorentzian.
+                        0 < value < 1 means Lorentzian is weighted more
+                        value > 1 means Gaussian is weighted more.
+        * param[10:] = Polynomial scaling coefficients
     img : `numpy.ndarray`_
         Image used to generate the scattered light model
     detpad : int
@@ -89,7 +89,6 @@ def scattered_light_model(param, img):
         Model parameters that determine the scattered light based on the input img.
         Here is a list of the individual parameter meanings:
 
-        # TODO :: I think this is out of date...
         * param[0] = Gaussian kernel width in the spectral direction
         * param[1] = Gaussian kernel width in the spatial direction
         * param[2] = Lorentzian kernel width in the spectral direction
@@ -97,11 +96,12 @@ def scattered_light_model(param, img):
         * param[4] = Pixel shift of the scattered light in the spectral direction
         * param[5] = Pixel shift of the scattered light in the spatial direction
         * param[6] = Zoom factor of the scattered light (~1)
-        * param[7] = Kernel angle
-        * param[8] = Relative importance of Gaussian vs Lorentzian.
-                     0 < value < 1 means Lorentzian is weighted more
-                     value > 1 means Gaussian is weighted more.
-        * param[9:] = Polynomial scaling coefficients
+        * param[7] = constant offset for scattered light (independent of img)
+        * param[8] = Kernel angle
+        * param[9] = Relative importance of Gaussian vs Lorentzian.
+                        0 < value < 1 means Lorentzian is weighted more
+                        value > 1 means Gaussian is weighted more.
+        * param[10:] = Polynomial scaling coefficients
     img : `numpy.ndarray`_
         Raw image that you want to compute the scattered light model.
         shape is (nspec, nspat)
