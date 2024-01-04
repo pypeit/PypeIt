@@ -747,6 +747,7 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sig_res = np.fmax(sn_smooth_npix / 10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
+    # TODO Should we be setting a floor on the weights to prevent tiny numbers?
     return sn_conv
 
 # TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
@@ -796,7 +797,7 @@ def calc_snr(fluxes, ivars, gpms):
 
     return np.array(rms_sn), sn_val
 
-
+# TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
 def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):
 
     """

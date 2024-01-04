@@ -10,6 +10,7 @@ from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
 import scipy.optimize as opt
+from scipy import signal
 from scipy.interpolate import interp1d
 import numpy as np
 
@@ -1207,7 +1208,12 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                    ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min, wave_max=wave_max)
 
     # Find the location of the object with the highest S/N in the combined white light image
-    idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
+    med_filt_whitelight = signal.medfilt2d(whitelight_img, kernel_size=3)
+    idx_max = np.unravel_index(np.argmax(med_filt_whitelight), med_filt_whitelight.shape)
+    # TODO: Taking the maximum pixel of the whitelight image is extremely brittle to the case where
+    #  their are hot pixels in the white light image, which there are plenty of since the edges of the slits are very
+    #  poorly behaved.
+    #idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
     msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
 
     # Generate a 2D WCS to register all frames
@@ -1367,7 +1373,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
-
+    # TODO These docs need to indicate the shapes of the inputs
     Args:
         output_wcs (`astropy.wcs.WCS`_):
             Output world coordinate system.
@@ -1441,6 +1447,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             flux should have mean=0 and std=1.
 
     Returns:
+        TODO: These docs need to indicate the shapes of the returned arrays
         :obj:`tuple`: Four `numpy.ndarray`_ objects containing
         (1) the datacube generated from the subpixellated inputs,
         (2) the corresponding error cube (standard deviation),
@@ -1493,6 +1500,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
+
     # TODO :: Avoid transposing these large cubes
     return flxcube.T, np.sqrt(varcube.T), bpmcube.T, wave
 
