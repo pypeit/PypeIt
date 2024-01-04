@@ -771,8 +771,8 @@ def calc_snr(fluxes, ivars, gpms):
 
     Returns
     -------
-    rms_sn : list
-        List of length nexp root-mean-square S/N value for each input spectra where nexp=len(fluxes).
+    rms_sn : `numpy.ndarray`_
+        Array of shape (nexp,) of root-mean-square S/N value for each input spectra where nexp=len(fluxes).
     sn_val : list
         List of length nexp containing the wavelength dependent S/N arrays for each input spectrum, i.e.
         each element contains the array flux*sqrt(ivar)
@@ -782,10 +782,10 @@ def calc_snr(fluxes, ivars, gpms):
 
     # Calculate S/N
     sn_val, rms_sn, sn2 = [], [], []
-    for iexp in range(nexp):
-        sn_val_iexp = fluxes[iexp]*np.sqrt(ivars[iexp])
+    for iexp, (flux, ivar, gpm) in enumerate(zip(fluxes, ivars, gpms)):
+        sn_val_iexp = flux*np.sqrt(ivar)
         sn_val.append(sn_val_iexp)
-        sn_val_ma = np.ma.array(sn_val_iexp, mask=np.logical_not(gpms[iexp]))
+        sn_val_ma = np.ma.array(sn_val_iexp, mask=np.logical_not(gpm))
         sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
         sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
         if sn2_iexp is np.ma.masked:
@@ -794,7 +794,7 @@ def calc_snr(fluxes, ivars, gpms):
             sn2.append(sn2_iexp)
             rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
 
-    return rms_sn, sn_val
+    return np.array(rms_sn), sn_val
 
 
 def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):

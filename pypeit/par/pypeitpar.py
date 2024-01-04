@@ -1251,7 +1251,7 @@ class Coadd1DPar(ParSet):
         defaults['weight_method'] = 'auto'
         options['weight_method'] = Coadd1DPar.valid_weight_methods()
         dtypes['weight_method'] = str
-        descr['weight_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
+        descr['weight_method'] = "Method used to weight the spectra for coadding. The options are:" \
                         " " \
                         "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent." \
                         "'constant' -- Constant weights based on rms_sn**2" \
@@ -1373,7 +1373,7 @@ class Coadd1DPar(ParSet):
             raise ValueError("'scale_method' must be one of:\n" + ", ".join(allowed_scale_methods))
 
         allowed_weight_methods = self.valid_weight_methods()
-        if self.data['weight_method'] not in allowed_scale_methods:
+        if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
 
 
@@ -1550,7 +1550,7 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, relative_weights=None, align=None, combine=None, output_filename=None,
+    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
@@ -1577,12 +1577,35 @@ class CubePar(ParSet):
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True. ' \
                              'If the data uses fibres for all spaxels, set this to False.'
 
-        defaults['relative_weights'] = False
-        dtypes['relative_weights'] = [bool]
-        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme. ' \
-                                    'This only works well if there is a common continuum source in the field of ' \
-                                    'view of all input observations, and is generally only required if high ' \
-                                    'relative precision is desired.'
+        defaults['weight_method'] = 'auto'
+        options['weight_method'] = Coadd1DPar.valid_weight_methods()
+        dtypes['weight_method'] = str
+        descr['weight_method'] = "Method used to weight the spectra for coadding. The options are:" \
+                        " " \
+                        "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent." \
+                        "'constant' -- Constant weights based on rms_sn**2" \
+                        "'uniform' --  Uniform weighting" \
+                        "'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_" \
+                                            "sn ratio. This option will not work well at low S/N ratio although it is useful for " \
+                                            "objects where only a small fraction of the spectral coverage has high S/N ratio " \
+                                            "(like high-z quasars)." \
+                        "'relative' -- Apply relative weights implying one reference exposure will receive unit " \
+                                            "weight at all wavelengths and all others receive relatively wavelength dependent "\
+                                            "weights . Note, relative weighting will only work well " \
+                                            "when there is at least one spectrum with a reasonable S/N, and a continuum. " \
+                                            "This option may only be better when the object being used has a strong " \
+                                            "continuum + emission lines. This is particularly useful if you " \
+                                            "are dealing with highly variable spectra (e.g. emission lines) and" \
+                                            "require a precision better than ~1 per cent." \
+                        "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
+
+
+        #defaults['relative_weights'] = False
+        #dtypes['relative_weights'] = [bool]
+        #descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme. ' \
+        #                            'This only works well if there is a common continuum source in the field of ' \
+        #                            'view of all input observations, and is generally only required if high ' \
+        #                            'relative precision is desired.'
 
         defaults['align'] = False
         dtypes['align'] = [bool]
@@ -1764,8 +1787,8 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
+                   'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1787,6 +1810,11 @@ class CubePar(ParSet):
                                  "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+
+        allowed_weight_methods = Coadd1DPar.valid_weight_methods()
+        if self.data['weight_method'] not in allowed_weight_methods:
+            raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
 
 
 class FluxCalibratePar(ParSet):

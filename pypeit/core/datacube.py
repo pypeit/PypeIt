@@ -981,7 +981,7 @@ def generate_WCS(crval, cdelt, equinox=2000.0, name="PYP_SPEC"):
 def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, dspat, dwv, mnmx_wv, wghtsImg,
                             all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                            sn_smooth_npix=None, weight_method='autod', reference_image=None, whitelight_range=None,
+                            sn_smooth_npix=None, weight_method='auto', reference_image=None, whitelight_range=None,
                             specname="PYPSPEC"):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
@@ -1046,7 +1046,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
             scheme with a polynomial fit is used to calculate the S/N weights.
         weight_method: (`str`, optional)
            Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
-           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
+           Options are 'auto', 'constant', 'uniform', 'wave_dependent', 'relative', or 'ivar'. The defaulti is 'auto'.
            Behavior is as follows:
              'auto':
                 Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
@@ -1159,7 +1159,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
             scheme with a polynomial fit is used to calculate the S/N weights.
         weight_method: (`str`, optional)
            Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
-           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
+           Options are 'auto', 'constant', 'uniform', 'wave_dependent', 'relative', or 'ivar'. The defaulti is 'auto'.
            Behavior is as follows:
              'auto':
                 Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
