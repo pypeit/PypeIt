@@ -1305,10 +1305,9 @@ class RawImage:
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
                                                                mask_regions=self.par['scattlight']['finecorr_mask'])
                 # Calculate the fine correction to the scattered light image, and add it to the full model
-                fine_corr_scatt_light = scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
-                                                                   method=self.par['scattlight']['finecorr_method'],
-                                                                   polyord=self.par['scattlight']['finecorr_order'])
-                scatt_img += fine_corr_scatt_light
+                scatt_img += scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
+                                                        method=self.par['scattlight']['finecorr_method'],
+                                                        polyord=self.par['scattlight']['finecorr_order'])
             # Subtract the total scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
