@@ -705,7 +705,6 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 no_overscan[data_slice][:,0::2] -= even[:,None]
             else:
                 msgs.error('Not ready for this approach, please contact the Developers')
-            
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
@@ -835,7 +834,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Convert result to amplitude and phase
         amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
-        # STEP 2 - Using th emodel frequency, calculate how amplitude depends on pixel row (usually constant)
+        # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
         msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]

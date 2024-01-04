@@ -871,7 +871,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
         self.meta['cenwave'] = dict(ext=0, card='BCWAVE', rtol=0.01)
 
-
     def raw_header_cards(self):
         """
         Return additional raw header cards to be propagated in
@@ -919,9 +918,10 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
         par['scienceframe']['process']['subtract_scattlight'] = True
-        par['scienceframe']['process']['scattlight']['finecorr_pad'] = 2
+        par['scienceframe']['process']['scattlight']['finecorr_method'] = 'median'
+        par['scienceframe']['process']['scattlight']['finecorr_pad'] = 4  # This is the unbinned number of pixels to pad
         par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
-        par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
+        # par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
@@ -1167,13 +1167,13 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         msgs.info("Performing a 2D fit to the detector response")
 
         # Define a 2D sine function, which is a good description of KCWI data
-        def sinfunc2d(x, amp, scl, phase, wavelength, angle):
+        def sinfunc2d(x, amp, scl, quad, phase, wavelength, angle):
             """
             2D Sine function
             """
             xx, yy = x
             angle *= np.pi / 180.0
-            return 1 + (amp + xx * scl) * np.sin(
+            return 1 + (amp + xx*scl + xx*xx*quad) * np.sin(
                 2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle)) / wavelength + phase)
 
         x = np.arange(det_resp.shape[0])
@@ -1181,11 +1181,12 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         xx, yy = np.meshgrid(x, y, indexing='ij')
         # Prepare the starting parameters
         amp = 0.02  # Roughly a 2% effect
-        scale = 0.0  # Assume the amplitude is constant over the detector
+        scale, quad = 0.0, 0.0  # Assume the amplitude is constant over the detector
         wavelength = np.sqrt(det_resp.shape[0] ** 2 + det_resp.shape[1] ** 2) / 31.5  # 31-32 cycles of the pattern from corner to corner
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
-        p0 = [amp, scale, phase, wavelength, angle]
-        popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
+        p0 = [amp, scale, quad, phase, wavelength, angle]
+        this_bpm = gpmask & (np.abs(det_resp-1) < 0.1)  # Only expect this to be a 5% effect
+        popt, pcov = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
         return sinfunc2d((xx, yy), *popt)
 
 

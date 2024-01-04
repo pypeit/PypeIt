@@ -8,7 +8,7 @@ Implements the flat-field class.
 import inspect
 import numpy as np
 
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -1628,6 +1628,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     fcor_cut = finecorr[xmn:xmx, ymn:ymx]
     vmin, vmax = max(0.95, np.min(fcor_cut)), min(1.05, np.max(fcor_cut))  # Show maximum corrections of ~5%
 
+    # For display/visual purposes, apply a median filter to the data
+    norm_cut = ndimage.median_filter(norm_cut, size=(normed.shape[0]//100, 5))
+
     # Plot
     fighght = 8.5
     cutrat = fighght*norm_cut.shape[1]/norm_cut.shape[0]
@@ -1747,7 +1750,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     # Axes showing the residual of the detector response fit
     ax_resd = plt.subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, origin='lower', vmin=vmin-1, vmax=vmax-1)
-    ax_resd.set_xlabel("data-model", fontsize='medium')
+    ax_resd.set_xlabel("1+data-model", fontsize='medium')
     ax_resd.axes.xaxis.set_ticks([])
     ax_resd.axes.yaxis.set_ticks([])
     # Add a colorbar
