@@ -1152,8 +1152,11 @@ class FlatField:
             # Perform a fine correction to the spatial illumination profile
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
-                spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
+                spat_model = np.ones_like(spec_model)
+                spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]#np.exp(spec_bspl.value(spec_coo[onslit_padded])[0])
+                specspat_illum = np.fmax(spec_model, 1.0) * spat_model
+                norm_spatspec = rawflat / specspat_illum
+                self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1368,7 +1371,7 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
+    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
         """
         Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1376,8 +1379,8 @@ class FlatField:
 
         Parameters
         ----------
-        spat_illum : `numpy.ndarray`_
-            An image containing the generated spatial illumination profile for all slits.
+        normed : `numpy.ndarray`_
+            Raw flat field image, normalized by the spectral and spatial illuminations.
         onslit_tweak : `numpy.ndarray`_
             mask indicating which pixels are on the slit (True = on slit)
         slit_idx : int
@@ -1406,10 +1409,6 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        normed = self.rawflatimg.image.copy()
-        ivarnrm = self.rawflatimg.ivar.copy()
-        normed[onslit_tweak] *= utils.inverse(spat_illum)
-        ivarnrm[onslit_tweak] *= spat_illum**2
         left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
@@ -1431,18 +1430,6 @@ class FlatField:
         # Evaluation coordinates
         ypos = (this_wave - wave_min) / (wave_max - wave_min)  # Need to use the same wave_min and wave_max as the fitting coordinates
         xpos = xpos_img[this_slit]
-
-        # Normalise the image
-        delta = 0.5/self.slits.nspec  # include the endpoints
-        bins = np.linspace(0.0-delta, 1.0+delta, self.slits.nspec+1)
-        censpec, _ = np.histogram(ypos_fit, bins=bins, weights=normed[this_slit_trim])
-        nrm, _ = np.histogram(ypos_fit, bins=bins)
-        censpec *= utils.inverse(nrm)
-        tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
-                                       bounds_error=False, fill_value='extrapolate')
-        nrm_vals = tiltspl(ypos_fit)
-        normed[this_slit_trim] *= utils.inverse(nrm_vals)
-        ivarnrm[this_slit_trim] *= nrm_vals**2
 
         # Mask the edges and fit
         gpmfit = gpm[this_slit_trim]
