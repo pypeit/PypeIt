@@ -2627,8 +2627,8 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
     #  nspec, norder, nexp = shape
     # Decide how much to smooth the spectra by if this number was not passed in
-    nspec_good = []
-    ngood = []
+    #nspec_good = []
+    #ngood = []
     #if sn_smooth_npix is None:
     #    # Loop over setups
     #    for wave, norder, nexp in zip(waves_arr_setup, norders, nexps):
