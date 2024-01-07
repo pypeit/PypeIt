@@ -1616,13 +1616,6 @@ class CubePar(ParSet):
                         "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
 
-        #defaults['relative_weights'] = False
-        #dtypes['relative_weights'] = [bool]
-        #descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme. ' \
-        #                            'This only works well if there is a common continuum source in the field of ' \
-        #                            'view of all input observations, and is generally only required if high ' \
-        #                            'relative precision is desired.'
-
         defaults['align'] = False
         dtypes['align'] = [bool]
         descr['align'] = 'If set to True, the input frames will be spatially aligned by cross-correlating the ' \
