@@ -957,7 +957,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     """
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
-        #self.initialize_slits(slits, initial=True) # below is better. This was being done twice.
 
     def initialize_slits(self, slits, initial=True):
         """
@@ -1007,24 +1006,25 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         # Generate the waveimg which is needed if flexure is being computed
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-        # TODO: Can the flexure compensation be removed from this class or is it necessary for the joint skysub?
 
-        # Calculate spectral flexure
+        # Calculate spectral flexure, so that we can align all slices of the IFU. We need to do this on the model
+        # sky spectrum. It must be performed in this class if the joint sky fit is requested, because all of
+        # the wavelengths need to be aligned for different slits before the sky is fit.
         method = self.par['flexure']['spec_method']
         # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
         #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
         if method in ['slitcen']:
-            # TODO make waveimg an argument here and return values pass back the new waveimg and shifts
-            self.calculate_flexure(global_sky_sep)
+            self.slitshift = self.calculate_flexure(global_sky_sep)
+            # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
+            msgs.info("Generating wavelength image, accounting for spectral flexure")
+            self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
+                                                       spat_flexure=self.spat_flexure_shift)
 
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
         if not self.par['reduce']['skysub']['joint_fit']:
             return global_sky_sep
 
-        # TODO I'm not following the control flow here. Is it that we need the initial global sky to compute flexure
-        # for each slit so that then one can perform joint sky-subtraction with flexure corrected wavelengths? Some
-        # more information on the logic of this flow would make it clearer.
-
+        # If we reach this point in the code, a joint skysub has been requested.
         # Use sky information in all slits to perform a joint sky fit
         global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask,
                                        show_fit=show_fit, show=show, show_objs=show_objs,
@@ -1154,12 +1154,22 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     # else like a flexure compensation class or module.
     def calculate_flexure(self, global_sky):
         """
-        TODO: Need better docs. What is being assigned in this function? Need either docs or return values.
-        Convenience function to calculate the flexure of the IFU
+        Convenience function to calculate the flexure of an IFU. The flexure is calculated by cross-correlating the
+        sky model of a reference slit with an archival sky spectrum. This gives an "absolute" flexure correction for
+        the reference slit in pixels. Then, the flexure for all other slits is calculated by cross-correlating the
+        sky model of each slit with the sky model of the reference slit. This gives a "relative" flexure correction
+        for each slit in pixels. The relative flexure is then added to the absolute flexure to give the total flexure
+        correction for each slit in pixels.
 
-         Args:
-             global_sky (`numpy.ndarray`_):
-                Model of the sky
+        Parameters
+        ----------
+        global_sky : ndarray
+            Sky model
+
+        Returns
+        -------
+        new_slitshift: ndarray
+            The flexure in pixels
         """
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         box_rad = self.par['reduce']['extraction']['boxcar_radius']
@@ -1206,7 +1216,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         # Replace the reference slit with the absolute shift
         flex_list[sl_ref] = flex_dict_ref.copy()
         # Add this flexure to the previous flexure correction
-        self.slitshift += this_slitshift
+        new_slitshift = self.slitshift + this_slitshift
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
@@ -1219,13 +1229,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
             slit_bpm = np.zeros(self.slits.nslits, dtype=bool)
             flexure.spec_flexure_qa(self.slits.slitord_id, slit_bpm, basename, flex_list, out_dir=out_dir)
-
-        # Recalculate the wavelength image, and the global sky taking into account the spectral flexure
-        msgs.info("Generating wavelength image, accounting for spectral flexure")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spec_flexure=self.slitshift,
-                                                   spat_flexure=self.spat_flexure_shift)
-        return
-
+        return new_slitshift
 
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
@@ -1245,202 +1249,3 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         if np.any(_bpm):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
-
-    # RJC :: THIS FUNCTION IS NOT CURRENTLY USED, BUT RJC REQUESTS TO KEEP THIS CODE HERE FOR THE TIME BEING.
-    # def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
-    #     """
-    #     Calculate the residual spatial illumination profile using the sky regions.
-    #
-    #     The residual is calculated using the differential:
-    #
-    #     .. code-block:: python
-    #
-    #         correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
-    #
-    #     where ``y`` is the spatial profile determined from illumflat, and
-    #     spatial_shift is the residual spatial flexure shift in units of pixels.
-    #
-    #      Args:
-    #         skymask (`numpy.ndarray`_):
-    #             Mask of sky regions where the spatial illumination will be determined
-    #         trim_edg (:obj:`tuple`):
-    #             A tuple of two ints indicated how much of the slit edges should be
-    #             trimmed when fitting to the spatial profile.
-    #         debug (:obj:`bool`):
-    #             Show debugging plots?
-    #     """
-    #
-    #     msgs.info("Performing spatial sensitivity correction")
-    #     # Setup some helpful parameters
-    #     skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-    #     hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
-    #     gpm = self.sciImg.select_flag(invert=True)
-    #     slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-    #     spatScaleImg = np.ones_like(self.sciImg.image)
-    #     # For each slit, grab the spatial coordinates and a spline
-    #     # representation of the spatial profile from the illumflat
-    #     rawimg = self.sciImg.image.copy()
-    #     numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
-    #     spatbins = np.linspace(0.0, 1.0, numbins + 1)
-    #     spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
-    #     slitlength = np.median(self.slits.get_slitlengths(median=True))
-    #     coeff_fit = np.zeros((self.slits.nslits, 2))
-    #     for sl, slitnum in enumerate(self.slits.spat_id):
-    #         msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl + 1, self.slits.spat_id.size))
-    #         # Get the initial slit locations
-    #         onslit_b_init = (slitid_img_init == slitnum)
-    #
-    #         # Synthesize ximg, and edgmask from slit boundaries. Doing this outside this
-    #         # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
-    #         spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
-    #                                                       onslit_b_init, trim_edg=trim_edg)
-    #
-    #         # Make the model histogram
-    #         xspl = np.linspace(0.0, 1.0, 10 * int(slitlength))  # Sub sample each pixel with 10 subpixels
-    #         # TODO: caliBrate is no longer a dependency. If you need these b-splines pass them in.
-    #         modspl = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xspl)[0]
-    #         gradspl = interpolate.interp1d(xspl, np.gradient(modspl) / modspl, kind='linear', bounds_error=False,
-    #                                        fill_value='extrapolate')
-    #
-    #         # Ignore skymask
-    #         coord_msk = onslit_b_init & gpm
-    #         hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-    #         cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-    #         hist_slit_all = hist / (cntr + (cntr == 0))
-    #         histmod, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=gradspl(spatcoord[coord_msk]))
-    #         hist_model = histmod / (cntr + (cntr == 0))
-    #
-    #         # Repeat with skymask
-    #         coord_msk = onslit_b_init & gpm & skymask_now
-    #         hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-    #         cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-    #         hist_slit = hist / (cntr + (cntr == 0))
-    #
-    #         # Prepare for fit - take the non-zero elements and trim slit edges
-    #         if hist_trim == 0:
-    #             ww = (hist_slit != 0)
-    #             xfit = spat_slit[ww]
-    #             yfit = hist_slit_all[ww]
-    #             mfit = hist_model[ww]
-    #         else:
-    #             ww = (hist_slit[hist_trim:-hist_trim] != 0)
-    #             xfit = spat_slit[hist_trim:-hist_trim][ww]
-    #             yfit = hist_slit_all[hist_trim:-hist_trim][ww]
-    #             mfit = hist_model[hist_trim:-hist_trim][ww]
-    #
-    #         # Fit the function
-    #         spat_func = lambda par, ydata, model: par[0]*(1 + par[1] * model) - ydata
-    #         res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, mfit))
-    #         spatnorm = spat_func(res_lsq.x, 0.0, gradspl(spatcoord[onslit_b_init]))
-    #         spatnorm /= spat_func(res_lsq.x, 0.0, gradspl(0.5))
-    #         # Set the scaling factor
-    #         spatScaleImg[onslit_b_init] = spatnorm
-    #         coeff_fit[sl, :] = res_lsq.x
-    #
-    #     if debug:
-    #         from matplotlib import pyplot as plt
-    #         xplt = np.arange(24)
-    #         plt.subplot(121)
-    #         plt.plot(xplt[0::2], coeff_fit[::2, 0], 'rx')
-    #         plt.plot(xplt[1::2], coeff_fit[1::2, 0], 'bx')
-    #         plt.subplot(122)
-    #         plt.plot(xplt[0::2], coeff_fit[::2, 1]/10, 'rx')
-    #         plt.plot(xplt[1::2], coeff_fit[1::2, 1]/10, 'bx')
-    #         plt.show()
-    #         plt.imshow(spatScaleImg, vmin=0.99, vmax=1.01)
-    #         plt.show()
-    #         plt.subplot(133)
-    #         plt.plot(xplt[0::2], coeff_fit[::2, 2], 'rx')
-    #         plt.plot(xplt[1::2], coeff_fit[1::2, 2], 'bx')
-    #         plt.show()
-    #     # Apply the relative scale correction
-    #     self.apply_relative_scale(spatScaleImg)
-
-    # TODO This method appears to not be used. Should be removed?
-    def illum_profile_spectral(self, global_sky, skymask=None):
-        """Calculate the residual spectral illumination profile using the sky regions.
-        This uses the same routine as the flatfield spectral illumination profile.
-
-         Args:
-             global_sky (`numpy.ndarray`_):
-                Model of the sky
-             skymask (`numpy.ndarray`_, optional):
-                Mask of sky regions where the spectral illumination will be determined
-        """
-        trim = self.par['calibrations']['flatfield']['slit_trim']
-        sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        smooth_npix = self.par['calibrations']['flatfield']['slit_illum_smooth_npix']
-        gpm = self.sciImg.select_flag(invert=True)
-        # Note :: Need to provide wavelength to illum_profile_spectral (not the tilts) so that the
-        # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
-        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
-                                                    slit_illum_ref_idx=sl_ref, model=global_sky, gpmask=gpm,
-                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
-                                                    smooth_npix=smooth_npix)
-        # Now apply the correction to the science frame
-        self.apply_relative_scale(scaleImg)
-
-
-    def global_skysub_old(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
-                      reinit_bpm:bool=True):
-        """
-        Perform global sky subtraction. This SlicerIFU-specific routine ensures that the
-        edges of the slits are not trimmed, and performs a spatial and spectral
-        correction using the sky spectrum, if requested. See Reduce.global_skysub()
-        for parameter definitions.
-
-        See base class method for description of parameters.
-
-        Args:
-            reinit_bpm (:obj:`bool`, optional):
-                If True (default), the bpm is reinitialized to the initial bpm
-                Should be False on the final run in case there was a failure
-                upstream and no sources were found in the slit/order
-        """
-        if self.par['reduce']['findobj']['skip_skysub']:
-            msgs.info("Skipping global sky sub as per user request")
-            return np.zeros_like(self.sciImg.image)
-
-        # Generate a global sky sub for all slits separately
-        global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
-                                               trim_edg=trim_edg, show_fit=show_fit, show=show,
-                                               show_objs=show_objs, reinit_bpm=reinit_bpm)
-        # Check if any slits failed
-        if np.any(global_sky_sep[self.slitmask >= 0] == 0) and not self.bkg_redux:
-            # Cannot continue without a sky model for all slits
-            msgs.error("Global sky subtraction has failed for at least one slit.")
-
-        # Check if flexure or a joint fit is requested
-        if not self.par['reduce']['skysub']['joint_fit'] and self.par['flexure']['spec_method'] == 'skip':
-            return global_sky_sep
-        if self.wv_calib is None:
-            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
-        msgs.info("Generating wavelength image")
-
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
-        # Calculate spectral flexure
-        method = self.par['flexure']['spec_method']
-        # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
-        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
-        if method in ['slitcen']:
-            self.calculate_flexure(global_sky_sep)
-
-        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
-        if not self.par['reduce']['skysub']['joint_fit']:
-            return global_sky_sep
-
-        # Do the spatial scaling first
-        # if self.par['scienceframe']['process']['use_illumflat']:
-        #     # Perform the correction
-        #     self.illum_profile_spatial(skymask=skymask)
-        #     # Re-generate a global sky sub for all slits separately
-        #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-        #                                           show_fit=show_fit, show=show, show_objs=show_objs)
-
-        # Use sky information in all slits to perform a joint sky fit
-        global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-                                       show_fit=show_fit, show=show, show_objs=show_objs,
-                                       objs_not_masked=objs_not_masked)
-
-        return global_sky
