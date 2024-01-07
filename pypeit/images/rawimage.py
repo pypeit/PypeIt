@@ -1243,7 +1243,6 @@ class RawImage:
                                f"               {tmp[10]},  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)\n" + \
                                f"               {tmp[11]}, {tmp[12]},  # Polynomial terms (coefficients of \"spat\" and \"spat*spec\")\n" + \
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
-                               # f"               {tmp[13]}, {tmp[14]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
                     offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1

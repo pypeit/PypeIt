@@ -817,7 +817,6 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             bst = np.argmax(power)
             imin = np.clip(bst-2,0,None)
             imax = np.clip(bst+3,None,overscan.shape[1])
-            # TODO is this correct??
             cc = np.polyfit(LSfreq[imin:imax],power[imin:imax],2)
             all_freq[ii] = -0.5*cc[1]/cc[0]
         cc = np.polyfit(all_rows, all_freq, 1)
