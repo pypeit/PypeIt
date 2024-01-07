@@ -1150,8 +1150,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             self.show('global', global_sky=_global_sky, slits=True, sobjs=sobjs_show, clear=False)
         return _global_sky
 
-    # TODO is the flexure compensation needed in object finding. Can it be separated from this class and put somewhere
-    # else like a flexure compensation class or module.
+    # TODO :: This function should be removed from the find_objects() class, once the flexure code has been tidied up.
     def calculate_flexure(self, global_sky):
         """
         Convenience function to calculate the flexure of an IFU. The flexure is calculated by cross-correlating the
@@ -1222,7 +1221,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
                                                                                               self.slitshift[slit_idx]))
         # Save QA
-        # TODO :: Need to implement QA
+        # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
+        #         out of the find_objects() class.
         msgs.work("QA is not currently implemented for the flexure correction")
         if False:#flex_list is not None:
             basename = f'{self.basename}_global_{self.spectrograph.get_det_name(self.det)}'
