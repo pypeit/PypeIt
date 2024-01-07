@@ -1373,7 +1373,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
-    # TODO These docs need to indicate the shapes of the inputs
+
     Args:
         output_wcs (`astropy.wcs.WCS`_):
             Output world coordinate system.
@@ -1381,23 +1381,28 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
             and z wavelength coordinates
         sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the counts of each pixel
+            A list of 2D array containing the counts of each pixel. If a list,
+            the shape of each numpy array is (nspec, nspat).
         ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance of each pixel
+            A list of 2D array containing the inverse variance of each pixel. If a list,
+            the shape of each numpy array is (nspec, nspat).
         waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel
+            A list of 2D array containing the wavelength of each pixel. If a list,
+            the shape of each numpy array is (nspec, nspat).
         slitid_img_gpm (`numpy.ndarray`_, list):
-            A list of 2D array containing the slitmask of each pixel.
+            A list of 2D array containing the slitmask of each pixel. If a list,
+            the shape of each numpy array is (nspec, nspat).
             A zero value indicates that a pixel is either not on a slit or it is a bad pixel.
             All other values are the slit spatial ID number.
         wghtImg (`numpy.ndarray`_, list):
             A list of 2D array containing the weights of each pixel to be used in the
-            combination
+            combination. If a list, the shape of each numpy array is (nspec, nspat).
         all_wcs (`astropy.wcs.WCS`_, list):
-            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file
+            A list of `astropy.wcs.WCS`_ objects, one for each spec2d file.
         tilts (list):
             A list of `numpy.ndarray`_ objects, one for each spec2d file,
-            containing the tilts of each pixel
+            containing the tilts of each pixel. The shape of each numpy array
+            is (nspec, nspat).
         slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
             A list of `pypeit.slittrace.SlitTraceSet`_ objects, one for each
             spec2d file, containing the properties of the slit for each spec2d file
@@ -1447,12 +1452,15 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             flux should have mean=0 and std=1.
 
     Returns:
-        TODO: These docs need to indicate the shapes of the returned arrays
         :obj:`tuple`: Four `numpy.ndarray`_ objects containing
-        (1) the datacube generated from the subpixellated inputs,
-        (2) the corresponding error cube (standard deviation),
-        (3) the corresponding bad pixel mask cube, and
-        (4) a 1D array containing the wavelength at each spectral coordinate of the datacube.
+        (1) the datacube generated from the subpixellated inputs. The shape of
+        the datacube is (nwave, nspat1, nspat2).
+        (2) the corresponding error cube (standard deviation). The shape of the
+        error cube is (nwave, nspat1, nspat2).
+        (3) the corresponding bad pixel mask cube. The shape of the bad pixel
+        mask cube is (nwave, nspat1, nspat2).
+        (4) a 1D array containing the wavelength at each spectral coordinate of the datacube. The
+        shape of the wavelength array is (nwave,).
     """
     # Check the inputs
     if whitelight_range is not None or debug:
@@ -1529,23 +1537,28 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial
             and z wavelength coordinates
         sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the counts of each pixel
+            A list of 2D array containing the counts of each pixel. The shape of
+            each 2D array is (nspec, nspat).
         ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance of each pixel
+            A list of 2D array containing the inverse variance of each pixel. The shape of
+            each 2D array is (nspec, nspat).
         waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel
+            A list of 2D array containing the wavelength of each pixel. The shape of
+            each 2D array is (nspec, nspat).
         slitid_img_gpm (`numpy.ndarray`_, list):
-            A list of 2D array containing the slitmask of each pixel.
+            A list of 2D array containing the slitmask of each pixel. The shape of
+            each 2D array is (nspec, nspat).
             A zero value indicates that a pixel is either not on a slit or it is a bad pixel.
             All other values are the slit spatial ID number.
         wghtImg (`numpy.ndarray`_, list):
             A list of 2D array containing the weights of each pixel to be used in the
-            combination
+            combination. The shape of each 2D array is (nspec, nspat).
         all_wcs (`astropy.wcs.WCS`_, list):
             A list of `astropy.wcs.WCS`_ objects, one for each spec2d file
         tilts (list):
             A list of `numpy.ndarray`_ objects, one for each spec2d file,
-            containing the tilts of each pixel
+            containing the tilts of each pixel. The shape of each 2D array is
+            (nspec, nspat).
         slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
             A list of `pypeit.slittrace.SlitTraceSet`_ objects, one for each
             spec2d file, containing the properties of the slit for each spec2d file
