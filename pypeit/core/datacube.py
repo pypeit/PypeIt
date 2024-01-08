@@ -990,95 +990,106 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     first prepares a whitelight image, and then calls compute_weights() to
     determine the appropriate weights of each pixel.
 
-    Args:
-        raImg : (`numpy.ndarray`_, list):
-            A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
-        decImg : (`numpy.ndarray`_, list):
-            A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
-        waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
-        sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the science image of each pixel, with shape (nspec, nspat)
-        ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
-        slitidImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
-        dspat (float):
-            The size of each spaxel on the sky (in degrees)
-        dwv (float):
-            The size of each wavelength pixel (in Angstroms)
-        mnmx_wv (`numpy.ndarray`_):
-            The minimum and maximum wavelengths of every slit and frame. The shape is (Nframes, Nslits, 2),
-            The minimum and maximum wavelengths are stored in the [:,:,0] and [:,:,1] indices, respectively.
-        wghtsImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the weights of each pixel, with shape (nspec, nspat)
-        all_wcs (`astropy.wcs.WCS`_, list):
-            A list of WCS objects, one for each frame.
-        all_tilts (`numpy.ndarray`_, list):
-            2D wavelength tilts frame, or a list of tilt frames
-        all_slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
-            Information stored about the slits, or a list of SlitTraceSet objects
-        all_align (:class:`~pypeit.alignframe.AlignmentSplines`, list):
-            A Class containing the transformation between detector pixel
-            coordinates and WCS pixel coordinates, or a list of Alignment
-            Splines.
-        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
-            A Class containing the DAR correction information, or a list of DARcorrection
-            classes. If a list, it must be the same length as astrom_trans.
-        ra_offsets (float, list):
-            RA offsets for each frame in units of degrees
-        dec_offsets (float, list):
-            Dec offsets for each frame in units of degrees
-        ra_min (float, optional):
-            Minimum RA of the WCS (degrees)
-        ra_max (float, optional):
-            Maximum RA of the WCS (degrees)
-        dec_min (float, optional):
-            Minimum Dec of the WCS (degrees)
-        dec_max (float, optional):
-            Maximum Dec of the WCS (degrees)
-        wave_min (float, optional):
-            Minimum wavelength of the WCS (degrees)
-        wave_max (float, optional):
-            Maximum wavelength of the WCS (degrees)
-        sn_smooth_npix (float, optional):
-            Number of pixels used for determining smoothly varying S/N ratio
-            weights.  This is currently not required, since a relative weighting
-            scheme with a polynomial fit is used to calculate the S/N weights.
-        weight_method: (`str`, optional)
-           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
-           Options are 'auto', 'constant', 'uniform', 'wave_dependent', 'relative', or 'ivar'. The defaulti is 'auto'.
-           Behavior is as follows:
-             'auto':
-                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
-             'constant':
-                Constant weights based on rms_sn**2
-             'uniform':
-               Uniform weighting.
-             'wave_dependent':
-               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
-               will not work well at low S/N ratio although it is useful for objects where only a small
-               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
-             'relative':
-               Calculate weights by fitting to the ratio of spectra? Note, relative
-               weighting will only work well when there is at least one spectrum with a
-               reasonable S/N, and a continuum.  RJC note - This argument may only be
-               better when the object being used has a strong continuum + emission
-               lines. The reference spectrum is assigned a value of 1 for all
-               wavelengths, and the weights of all other spectra will be determined
-               relative to the reference spectrum. This is particularly useful if you
-               are dealing with highly variable spectra (e.g. emission lines) and
-               require a precision better than ~1 per cent.
-             'ivar':
-               Use inverse variance weighting. This is not well tested and should probably be deprecated.
-        reference_image (`numpy.ndarray`_):
-            Reference image to use for the determination of the highest S/N spaxel in the image.
-        specname (str):
-            Name of the spectrograph
+    Parameters
+    ----------
 
-    Returns:
-        `numpy.ndarray`_ : a 1D array the same size as all_sci, containing
-        relative wavelength dependent weights of each input pixel.
+    raImg : `numpy.ndarray`_, list
+        A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
+    decImg : `numpy.ndarray`_, list
+        A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
+    waveImg : `numpy.ndarray`_, list
+        A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
+    sciImg : `numpy.ndarray`_, list
+        A list of 2D array containing the science image of each pixel, with shape (nspec, nspat)
+    ivarImg : `numpy.ndarray`_, list
+        A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
+    slitidImg : `numpy.ndarray`_, list
+        A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
+    dspat : float
+        The size of each spaxel on the sky (in degrees)
+    dwv : float
+        The size of each wavelength pixel (in Angstroms)
+    mnmx_wv : `numpy.ndarray`_
+        The minimum and maximum wavelengths of every slit and frame. The shape is (Nframes, Nslits, 2),
+        The minimum and maximum wavelengths are stored in the [:,:,0] and [:,:,1] indices, respectively.
+    wghtsImg : `numpy.ndarray`_, list
+        A list of 2D array containing the weights of each pixel, with shape (nspec, nspat)
+    all_wcs : `astropy.wcs.WCS`_, list
+        A list of WCS objects, one for each frame.
+    all_tilts : `numpy.ndarray`_, list
+        2D wavelength tilts frame, or a list of tilt frames
+    all_slits : :class:`~pypeit.slittrace.SlitTraceSet`, list
+        Information stored about the slits, or a list of SlitTraceSet objects
+    all_align : :class:`~pypeit.alignframe.AlignmentSplines`, list
+        A Class containing the transformation between detector pixel
+        coordinates and WCS pixel coordinates, or a list of Alignment
+        Splines.
+    all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
+        A Class containing the DAR correction information, or a list of DARcorrection
+        classes. If a list, it must be the same length as astrom_trans.
+    ra_offsets : float, list
+        RA offsets for each frame in units of degrees
+    dec_offsets : float, list
+        Dec offsets for each frame in units of degrees
+    ra_min : float, optional
+        Minimum RA of the WCS (degrees)
+    ra_max : float, optional
+        Maximum RA of the WCS (degrees)
+    dec_min : float, optional
+        Minimum Dec of the WCS (degrees)
+    dec_max : float, optional
+        Maximum Dec of the WCS (degrees)
+    wave_min : float, optional
+        Minimum wavelength of the WCS (degrees)
+    wave_max : float, optional
+        Maximum wavelength of the WCS (degrees)
+    sn_smooth_npix : float, optional
+        Number of pixels used for determining smoothly varying S/N ratio
+        weights.  This is currently not required, since a relative weighting
+        scheme with a polynomial fit is used to calculate the S/N weights.
+    weight_method : `str`, optional
+        Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
+        Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+        ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
+
+            - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
+                use wavelength dependent.
+
+            - ``'constant'``: Constant weights based on rms_sn**2
+
+            - ``'uniform'``: Uniform weighting.
+
+            - ``'wave_dependent'``: Wavelength dependent weights will be
+                used irrespective of the rms_sn ratio. This option will not
+                work well at low S/N ratio although it is useful for objects
+                where only a small fraction of the spectral coverage has high
+                S/N ratio (like high-z quasars).
+
+            - ``'relative'``: Calculate weights by fitting to the ratio of
+                spectra? Note, relative weighting will only work well when
+                there is at least one spectrum with a reasonable S/N, and a
+                continuum.  RJC note - This argument may only be better when
+                the object being used has a strong continuum + emission lines.
+                The reference spectrum is assigned a value of 1 for all
+                wavelengths, and the weights of all other spectra will be
+                determined relative to the reference spectrum. This is
+                particularly useful if you are dealing with highly variable
+                spectra (e.g. emission lines) and require a precision better
+                than ~1 per cent.
+
+            - ``'ivar'``: Use inverse variance weighting. This is not well
+                tested and should probably be deprecated.
+
+    reference_image : `numpy.ndarray`_
+        Reference image to use for the determination of the highest S/N spaxel in the image.
+    specname : str
+        Name of the spectrograph
+
+    Returns
+    -------
+    weights : `numpy.ndarray`_ 
+        a 1D array the same size as all_sci, containing relative wavelength
+        dependent weights of each input pixel.
     """
     # Find the wavelength range where all frames overlap
     min_wl, max_wl = get_whitelight_range(np.max(mnmx_wv[:, :, 0]),  # The max blue wavelength
@@ -1117,77 +1128,88 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength
 
-    Args:
-        raImg : (`numpy.ndarray`_, list):
-            A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
-        decImg : (`numpy.ndarray`_, list):
-            A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
-        waveImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
-        sciImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the science image of each pixel, with shape (nspec, nspat)
-        ivarImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
-        slitidImg (`numpy.ndarray`_, list):
-            A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
-        all_wcs (`astropy.wcs.WCS`_, list):
-            A list of WCS objects, one for each frame.
-        all_tilts (`numpy.ndarray`_, list):
-            2D wavelength tilts frame, or a list of tilt frames
-        all_slits (:class:`~pypeit.slittrace.SlitTraceSet`, list):
-            Information stored about the slits, or a list of SlitTraceSet objects
-        all_align (:class:`~pypeit.alignframe.AlignmentSplines`, list):
-            A Class containing the transformation between detector pixel
-            coordinates and WCS pixel coordinates, or a list of Alignment
-            Splines.
-        all_dar (:class:`~pypeit.coadd3d.DARcorrection`, list):
-            A Class containing the DAR correction information, or a list of DARcorrection
-            classes. If a list, it must be the same length as astrom_trans.
-        ra_offsets (float, list):
-            RA offsets for each frame in units of degrees
-        dec_offsets (float, list):
-            Dec offsets for each frame in units of degrees
-        whitelight_img (`numpy.ndarray`_):
-            A 2D array containing a white light image, that was created with the
-            input ``all`` arrays.
-        dspat (float):
-            The size of each spaxel on the sky (in degrees)
-        dwv (float):
-            The size of each wavelength pixel (in Angstroms)
-        sn_smooth_npix (float, optional):
-            Number of pixels used for determining smoothly varying S/N ratio
-            weights.  This is currently not required, since a relative weighting
-            scheme with a polynomial fit is used to calculate the S/N weights.
-        weight_method: (`str`, optional)
-           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
-           Options are 'auto', 'constant', 'uniform', 'wave_dependent', 'relative', or 'ivar'. The defaulti is 'auto'.
-           Behavior is as follows:
-             'auto':
-                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
-             'constant':
-                Constant weights based on rms_sn**2
-             'uniform':
-               Uniform weighting.
-             'wave_dependent':
-               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
-               will not work well at low S/N ratio although it is useful for objects where only a small
-               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
-             'relative':
-               Calculate weights by fitting to the ratio of spectra? Note, relative
-               weighting will only work well when there is at least one spectrum with a
-               reasonable S/N, and a continuum.  RJC note - This argument may only be
-               better when the object being used has a strong continuum + emission
-               lines. The reference spectrum is assigned a value of 1 for all
-               wavelengths, and the weights of all other spectra will be determined
-               relative to the reference spectrum. This is particularly useful if you
-               are dealing with highly variable spectra (e.g. emission lines) and
-               require a precision better than ~1 per cent.
-             'ivar':
-               Use inverse variance weighting. This is not well tested and should probably be deprecated.
+    Parameters
+    ----------
 
-    Returns:
-        list: Either a 2D `numpy.ndarray`_ or a list of 2D `numpy.ndarray`_ arrays containing the optimal
-        weights of each pixel for all frames, with shape (nspec, nspat).
+    raImg : `numpy.ndarray`_, list
+        A list of 2D array containing the RA of each pixel, with shape (nspec, nspat)
+    decImg : `numpy.ndarray`_, list
+        A list of 2D array containing the Dec of each pixel, with shape (nspec, nspat)
+    waveImg : `numpy.ndarray`_, list
+        A list of 2D array containing the wavelength of each pixel, with shape (nspec, nspat)
+    sciImg : `numpy.ndarray`_, list
+        A list of 2D array containing the science image of each pixel, with shape (nspec, nspat)
+    ivarImg : `numpy.ndarray`_, list
+        A list of 2D array containing the inverse variance image of each pixel, with shape (nspec, nspat)
+    slitidImg : `numpy.ndarray`_, list
+        A list of 2D array containing the slit ID of each pixel, with shape (nspec, nspat)
+    all_wcs : `astropy.wcs.WCS`_, list
+        A list of WCS objects, one for each frame.
+    all_tilts : `numpy.ndarray`_, list
+        2D wavelength tilts frame, or a list of tilt frames
+    all_slits : :class:`~pypeit.slittrace.SlitTraceSet`, list
+        Information stored about the slits, or a list of SlitTraceSet objects
+    all_align : :class:`~pypeit.alignframe.AlignmentSplines`, list
+        A Class containing the transformation between detector pixel
+        coordinates and WCS pixel coordinates, or a list of Alignment
+        Splines.
+    all_dar : :class:`~pypeit.coadd3d.DARcorrection`, list
+        A Class containing the DAR correction information, or a list of DARcorrection
+        classes. If a list, it must be the same length as astrom_trans.
+    ra_offsets : float, list
+        RA offsets for each frame in units of degrees
+    dec_offsets : float, list
+        Dec offsets for each frame in units of degrees
+    whitelight_img : `numpy.ndarray`_
+        A 2D array containing a white light image, that was created with the
+        input ``all`` arrays.
+    dspat : float
+        The size of each spaxel on the sky (in degrees)
+    dwv : float
+        The size of each wavelength pixel (in Angstroms)
+    sn_smooth_npix : float, optional
+        Number of pixels used for determining smoothly varying S/N ratio
+        weights.  This is currently not required, since a relative weighting
+        scheme with a polynomial fit is used to calculate the S/N weights.
+    weight_method : `str`, optional
+        Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
+        Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+        ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
+
+            - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
+                use wavelength dependent.
+
+            - ``'constant'``: Constant weights based on rms_sn**2
+
+            - ``'uniform'``: Uniform weighting.
+
+            - ``'wave_dependent'``: Wavelength dependent weights will be
+                used irrespective of the rms_sn ratio. This option will not
+                work well at low S/N ratio although it is useful for objects
+                where only a small fraction of the spectral coverage has high
+                S/N ratio (like high-z quasars).
+
+            - ``'relative'``: Calculate weights by fitting to the ratio of
+                spectra? Note, relative weighting will only work well when
+                there is at least one spectrum with a reasonable S/N, and a
+                continuum.  RJC note - This argument may only be better when
+                the object being used has a strong continuum + emission lines.
+                The reference spectrum is assigned a value of 1 for all
+                wavelengths, and the weights of all other spectra will be
+                determined relative to the reference spectrum. This is
+                particularly useful if you are dealing with highly variable
+                spectra (e.g. emission lines) and require a precision better
+                than ~1 per cent.
+
+            - ``'ivar'``: Use inverse variance weighting. This is not well
+                tested and should probably be deprecated.
+
+    Returns
+    -------
+    all_wghts: list
+        Either a 2D `numpy.ndarray`_ or a list of 2D `numpy.ndarray`_ arrays
+        containing the optimal weights of each pixel for all frames, with shape
+        (nspec, nspat).
     """
     msgs.info("Calculating the optimal weights of each pixel")
     # Check the inputs for combinations of lists or not, and then determine the number of frames
@@ -1404,7 +1426,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             containing the tilts of each pixel. The shape of each numpy array
             is (nspec, nspat).
         slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
-            A list of `pypeit.slittrace.SlitTraceSet`_ objects, one for each
+            A list of :class:`pypeit.slittrace.SlitTraceSet` objects, one for each
             spec2d file, containing the properties of the slit for each spec2d file
         astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
             A Class containing the transformation between detector pixel
@@ -1560,7 +1582,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             containing the tilts of each pixel. The shape of each 2D array is
             (nspec, nspat).
         slits (:class:`pypeit.slittrace.SlitTraceSet`, list):
-            A list of `pypeit.slittrace.SlitTraceSet`_ objects, one for each
+            A list of :class:`pypeit.slittrace.SlitTraceSet` objects, one for each
             spec2d file, containing the properties of the slit for each spec2d file
         astrom_trans (:class:`~pypeit.alignframe.AlignmentSplines`, list):
             A Class containing the transformation between detector pixel

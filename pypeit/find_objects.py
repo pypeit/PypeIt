@@ -960,13 +960,14 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
     def initialize_slits(self, slits, initial=True):
         """
-        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes
-        that we'll use here in :class:`FindObjects. Identical to the parent but the slits are not trimmed.
-
+        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes that
+        we'll use here in :class:`FindObjects`. Identical to the parent but the
+        slits are not trimmed.
 
         Args:
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                SlitTraceSet object containing the slit boundaries that will be initialized.
+                SlitTraceSet object containing the slit boundaries that will be
+                initialized.
             initial (:obj:`bool`, optional):
                 Use the initial definition of the slits. If False,
                 tweaked slits are used.
