@@ -87,3 +87,6 @@ pypeit/data/QL_CALIB
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
 .DS_Store
+
+# added by M. Onodera
+.venv
