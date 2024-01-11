@@ -621,44 +621,45 @@ class RawImage:
         #     frame is provided and subtracted, its shape and orientation must
         #     match the *processed* image, and the units *must* be in
         #     electrons/counts.
-        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None,
-                        expscale=self.par['dark_expscale'])
+        if False:
+            self.build_dark(dark_image=dark if self.par['use_darkimage'] else None,
+                            expscale=self.par['dark_expscale'])
 
-        #   - Subtract dark current.  This simply subtracts the dark current
-        #     from the image being processed.  If available, uncertainty from
-        #     the dark subtraction is added to the processing variance.
-        self.subtract_dark()
+            #   - Subtract dark current.  This simply subtracts the dark current
+            #     from the image being processed.  If available, uncertainty from
+            #     the dark subtraction is added to the processing variance.
+            self.subtract_dark()
 
-        # Create the mosaic images.  This *must* come after trimming and
-        # orienting and before determining the spatial flexure shift and
-        # applying any flat-fielding.
-        if self.nimg > 1 and mosaic:
-            self.build_mosaic()
+            # Create the mosaic images.  This *must* come after trimming and
+            # orienting and before determining the spatial flexure shift and
+            # applying any flat-fielding.
+            if self.nimg > 1 and mosaic:
+                self.build_mosaic()
 
-        # Calculate flexure, if slits are provided and the correction is
-        # requested.  NOTE: This step must come after trim, orient (just like
-        # bias and dark subtraction) and before field flattening.  Also the
-        # function checks that the slits exist if running the spatial flexure
-        # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
-                                    if self.par['spat_flexure_correct'] else None
+            # Calculate flexure, if slits are provided and the correction is
+            # requested.  NOTE: This step must come after trim, orient (just like
+            # bias and dark subtraction) and before field flattening.  Also the
+            # function checks that the slits exist if running the spatial flexure
+            # correction, so no need to do it again here.
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
+                                        if self.par['spat_flexure_correct'] else None
 
-        #   - Subtract scattered light... this needs to be done before flatfielding.
-        if self.par['subtract_scattlight']:
-            self.subtract_scattlight(scattlight, slits)
+            #   - Subtract scattered light... this needs to be done before flatfielding.
+            if self.par['subtract_scattlight']:
+                self.subtract_scattlight(scattlight, slits)
 
-        # Flat-field the data.  This propagates the flat-fielding corrections to
-        # the variance.  The returned bpm is propagated to the PypeItImage
-        # bitmask below.
-        flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
+            # Flat-field the data.  This propagates the flat-fielding corrections to
+            # the variance.  The returned bpm is propagated to the PypeItImage
+            # bitmask below.
+            flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
 
-        # Calculate the inverse variance
-        self.ivar = self.build_ivar()
+            # Calculate the inverse variance
+            self.ivar = self.build_ivar()
 
-        #   - Subtract continuum level
-        if self.par['subtract_continuum']:
-            # Calculate a simple smooth continuum image, and subtract this from the frame
-            self.subtract_continuum()
+            #   - Subtract continuum level
+            if self.par['subtract_continuum']:
+                # Calculate a simple smooth continuum image, and subtract this from the frame
+                self.subtract_continuum()
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
@@ -686,8 +687,8 @@ class RawImage:
             pypeitImage.build_crmask(self.par)
 
         pypeitImage.build_mask(saturation='default', mincounts='default')
-        if flat_bpm is not None:
-            pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
+        # if flat_bpm is not None:
+        #     pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
         # Return
         return pypeitImage

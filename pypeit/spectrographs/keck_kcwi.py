@@ -244,7 +244,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                 # Parallactic angle expressed in radians
                 return headarr[0]['PARANG'] * np.pi / 180.0
             except KeyError:
-                msgs.error("Parallactic angle is not in header")
+                return 0.0
+                #msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'posang':
@@ -471,6 +472,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             :obj:`str`: A string that uniquely represents the lamp status.
         """
         # Loop through all lamps and collect their status
+        return "_".join([])
         kk = 1
         lampstat = []
         while True:
@@ -829,14 +831,14 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             # Some properties of the image
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
             numamps = hdu[0].header['NVIDINP']
-            specflip = True if hdu[0].header['AMPID1'] == 2 else False
+            specflip = False#True if hdu[0].header['AMPID1'] == 2 else False
             gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
 #            dsecarr = np.array(['']*numamps)
 
             for ii in range(numamps):
                 # Assign the gain for this amplifier
-                gainarr[ii] = hdu[0].header["GAIN{0:1d}".format(ii + 1)]# * gainmul
+                gainarr[ii] = hdu[0].header["CCDGAIN"]# * gainmul
 
         detector = dict(det             = det,
                         binning         = binning,
