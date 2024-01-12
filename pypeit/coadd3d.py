@@ -1272,7 +1272,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                          ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
                                                          dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
                                                          wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                                         relative_weights=self.cubepar['relative_weights'],
+                                                         weight_method=self.cubepar['weight_method'],
                                                          whitelight_range=self.cubepar['whitelight_range'],
                                                          reference_image=self.cubepar['reference_image'],
                                                          specname=self.specname)
