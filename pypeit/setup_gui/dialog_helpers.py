@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Optional
+from typing import Optional,Union
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -93,7 +93,7 @@ class FileDialog:
                  caption : str, 
                  file_mode : QFileDialog.FileMode, 
                  file_type : Optional[FileType] =None,
-                 default_file : Optional[str|Path] = None,
+                 default_file : Optional[Union[str,Path]] = None,
                  history : Optional[QStringListModel] = None, 
                  save : bool = False, 
                  ask_for_all : bool = False):
