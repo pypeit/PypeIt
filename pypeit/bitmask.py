@@ -532,5 +532,30 @@ class BitMask:
                 values += [i]
                 descr += [hdr.comments[k]]
         return keys, values, descr
+    
+    def correct_flag_order(self, flags):
+        """
+        Check if the provided flags are in the correct order compared to the
+        current definition of the object.
+
+        Args:
+            flags (:obj:`list`):
+                A list of strings that *must* be in the order of the bit
+                numbers.  I.e., bit 0 uses the string in the first element of
+                the list, bit 1 uses the second element, etc.  The number of
+                flags does not need to exactly match the current set of flags.
+                It can be longer or shorter, so long as it begins with the first
+                flag.
+
+        Returns:
+            :obj:`bool`: Indicates if the provides flags are in the correct order.
+        """
+        cls_flags = list(self.keys())
+        for i, flag in enumerate(flags):
+            if i >= self.nbits:
+                break
+            if cls_flags[i] != flag:
+                return False
+        return True
 
 

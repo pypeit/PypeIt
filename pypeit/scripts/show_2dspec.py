@@ -20,7 +20,7 @@ from pypeit import specobjs
 from pypeit import io
 from pypeit import utils
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItError, PypeItDataModelError
+from pypeit.pypmsgs import PypeItDataModelError, PypeItBitMaskError
 
 from pypeit.display import display
 from pypeit.images.imagebitmask import ImageBitMask
@@ -138,7 +138,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # for the datamodel version to be different
         try:
             spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
-        except PypeItDataModelError:
+        except (PypeItDataModelError, PypeItBitMaskError):
             try:
                 # Try to get the pypeit version used to write this file
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)

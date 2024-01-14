@@ -17,6 +17,7 @@ from astropy import units
 from astropy.stats import sigma_clipped_stats
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
+from pypeit.pypmsgs import PypeItBitMaskError
 from pypeit import msgs
 from pypeit import datamodel
 from pypeit import calibframe
@@ -32,7 +33,9 @@ class SlitTraceBitMask(BitMask):
     version = '1.0.1'
 
     def __init__(self):
-        # Only ever append new bits (and don't remove old ones)
+        # !!!!!!!!!!
+        # IMPORTANT: Only ever *append* new bits, and don't remove old ones
+        # !!!!!!!!!!
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
             ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough to be a valid '
@@ -245,11 +248,8 @@ class SlitTraceSet(calibframe.CalibFrame):
             self.slitbitm = ','.join(list(self.bitmask.keys()))
         else:
             # Validate -- All of the keys must be present and in current order, but new ones can exist
-            bitms = self.slitbitm.split(',')
-            curbitm = list(self.bitmask.keys())
-            for kk, bit in enumerate(bitms):
-                if curbitm[kk] != bit:
-                    msgs.error("Input BITMASK keys differ from current data model!")
+            if not self.bitmask.correct_flag_order(self.slitbitm.split(',')):
+                raise PypeItBitMaskError('Input BITMASK keys differ from current data model!')
             # Update to current, no matter what
             self.slitbitm = ','.join(list(self.bitmask.keys()))
         # Mask
