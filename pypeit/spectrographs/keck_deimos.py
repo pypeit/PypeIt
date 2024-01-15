@@ -211,6 +211,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         if hdu is not None:
             amp = self.get_meta_value(self.get_headarr(hdu), 'amp')
+            if amp == 'DUAL:A+B':
+                msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B or AMPMODE == SINGLE:A.')
             amp_folder = "ampA" if amp == 'SINGLE:A' else "ampB"
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
@@ -800,7 +802,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             rawdatasec_img = np.zeros_like(image, dtype=int)
             oscansec_img = np.zeros_like(image, dtype=int)
 
-        #embed(header='DEIMOS 754')
         # Loop over the chips
         for ii, tt in enumerate(chips):
             data, oscan = deimos_read_1chip(hdu, tt + 1)
