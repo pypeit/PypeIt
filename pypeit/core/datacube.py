@@ -536,7 +536,7 @@ def get_whitelight_range(wavemin, wavemax, wl_range):
     msgs.info("The white light images will cover the wavelength range: {0:.2f}A - {1:.2f}A".format(wlrng[0], wlrng[1]))
     return wlrng
 
-
+# TODO This code should be taking a gpm and using it in whitelight image construction
 def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
     """
     Generate a white light image using an input cube.
