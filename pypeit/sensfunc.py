@@ -807,7 +807,7 @@ class SensFunc(datamodel.DataContainer):
 
         Returns:
             `numpy.ndarray`_: sensfunc weights evaluated on the input waves
-            wavelength grid
+            wavelength grid, shape = same as waves
         """
         sens = cls.from_file(sensfile)
     #    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
@@ -819,6 +819,10 @@ class SensFunc(datamodel.DataContainer):
         elif waves.ndim == 3:
             nspec, norder, nexp = waves.shape
             waves_stack = waves
+        elif waves.ndim == 1:
+            nspec = waves.size
+            norder, nexp = 1, 1
+            waves_stack = np.reshape(waves, (nspec, 1, 1))
         else:
             msgs.error('Unrecognized dimensionality for waves')
 
@@ -839,8 +843,11 @@ class SensFunc(datamodel.DataContainer):
             coadd.weights_qa(utils.echarr_to_echlist(waves_stack)[0], utils.echarr_to_echlist(weights_stack)[0],
                              utils.echarr_to_echlist(waves_stack > 1.0)[0], title='sensfunc_weights')
 
+        # Reshape to be the same size/dimension as the input spectrum
         if waves.ndim == 2:
             weights_stack = np.reshape(weights_stack, (nspec, norder))
+        elif waves.ndim == 1:
+            weights_stack = np.reshape(weights_stack, (nspec))
 
         return weights_stack
 
