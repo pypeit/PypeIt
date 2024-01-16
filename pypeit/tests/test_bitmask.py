@@ -124,3 +124,34 @@ def test_flag_order():
     assert not bm.correct_flag_order(flags), 'Reordering the flags is not okay'
 
 
+def test_exclude_expunge():
+    
+    n = 1024
+    shape = (n,n)
+
+    rng = numpy.random.default_rng(99)
+
+    image_bm = ImageBitMask()
+    mask = numpy.zeros(shape, dtype=image_bm.minimum_dtype())
+
+    cosmics_indx = numpy.zeros(shape, dtype=bool)
+    cosmics_indx[rng.integers(0,high=n,size=9000), rng.integers(0,high=n,size=9000)] = True
+    mask[cosmics_indx] = image_bm.turn_on(mask[cosmics_indx], 'COSMIC')
+
+    saturated_indx = numpy.zeros(shape, dtype=bool)
+    saturated_indx[rng.integers(0,high=n,size=9000), rng.integers(0,high=n,size=9000)] = True
+    mask[saturated_indx] = image_bm.turn_on(mask[saturated_indx], 'SATURATED')
+
+    # NOTE: Want to make sure there are pixels flagged as both COSMIC and
+    # SATURATED.  Otherwise the `expunge` test is not useful.
+    assert numpy.sum(cosmics_indx & saturated_indx) > 0, 'Bad test setup'
+
+    assert numpy.array_equal(image_bm.flagged(mask), cosmics_indx | saturated_indx), \
+            'Mask incorrect'
+    assert numpy.array_equal(image_bm.flagged(mask, exclude='SATURATED'), cosmics_indx), \
+            'Exclude incorrect'
+
+    assert numpy.array_equal(image_bm.flagged(mask, expunge='SATURATED'),
+                             cosmics_indx & numpy.logical_not(saturated_indx)), 'Expunge incorrect'
+
+
