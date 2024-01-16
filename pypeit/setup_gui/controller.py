@@ -393,7 +393,8 @@ class PypeItMetadataController(QObject):
             # Display each file in its own ginga tab
             for indx in row_indices:
                 metadata_row = self._model.metadata[indx]
-                file = Path(metadata_row['directory'], metadata_row['filename'])
+                # Make sure to strip comments off commented out files
+                file = Path(metadata_row['directory'], metadata_row['filename'].lstrip('# '))
                 if not file.exists():
                     display_error(SetupGUIController.main_window, f"Could not find {file.name} in {file.parent}.")
                     return
@@ -418,7 +419,8 @@ class PypeItMetadataController(QObject):
             # Display each file in its window
             for indx in row_indices:
                 metadata_row = self._model.metadata[indx]
-                file = Path(metadata_row['directory'], metadata_row['filename'])
+                # Make sure to strip comments off commented out files
+                file = Path(metadata_row['directory'], metadata_row['filename'].strip('# '))
                 header_string_buffer = io.StringIO()
                 try:
                     with pypeit_io.fits_open(file) as hdul:
@@ -445,7 +447,7 @@ class PypeItMetadataController(QObject):
         
         Return: True if rows were copied, False if there were no rows to copy
         """
-        if self._view is not None:
+        if self._view is None:
             return False
 
         row_indices = self._view.selectedRows()
@@ -482,7 +484,7 @@ class PypeItMetadataController(QObject):
 
     def comment_out_metadata_rows(self):
         """Comment out one or more selected metadata rows."""
-        if self._view is not None:
+        if self._view is None:
             return
         row_indices = self._view.selectedRows()
         msgs.info(f"Commenting out {len(row_indices)} rows.")
@@ -491,7 +493,7 @@ class PypeItMetadataController(QObject):
     
     def uncomment_metadata_rows(self):
         """Uncomment previously commented out selected metadata rows."""
-        if self._view is not None:
+        if self._view is None:
             return
         row_indices = self._view.selectedRows()
         msgs.info(f"Unommenting out {len(row_indices)} rows.")
@@ -504,7 +506,7 @@ class PypeItMetadataController(QObject):
         Return: True if there were metadata rows deleted, False if there
                 weren't any rows to delete.
         """
-        if self._view is not None:
+        if self._view is None:
             return False
         row_indices = self._view.selectedRows()
         msgs.info(f"Removing {len(row_indices)} rows.")

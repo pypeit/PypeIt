@@ -7,7 +7,7 @@ The controller portion of the PypeIt Setup GUI.
 
 import os
 from collections import deque
-import re
+import copy
 import traceback
 import enum
 import glob
@@ -200,8 +200,7 @@ class PypeItMetadataUniquePathsProxy(QAbstractListModel):
         Return: 
             list of str: The list of paths, or an empty list of the model is empty.
         """
-        
-        return [] if self.metadata is not None else list(self.metadata['directory'][self._unique_index])
+        return [] if self.metadata is None else list(self.metadata['directory'][self._unique_index])
 
 class PypeItMetadataModel(QAbstractTableModel):
     """
@@ -808,7 +807,7 @@ class PypeItParamsProxy(QAbstractItemModel):
         self._userConfigTree = _UserConfigTreeNode(ConfigObj(cfg_lines))
 
     def getConfigLines(self):
-        return self._userConfigTree.getConfigLines()
+        return self.cfg_lines
 
     def rowCount(self, parent=QModelIndex()):
         """
@@ -1057,7 +1056,7 @@ class PypeItFileModel(QObject):
                 config_to_save = list(configs.keys())[0]
                 setup_dict = {f'Setup {self.name_stem}':configs[config_to_save]}
     
-            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False)    
+            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False,preserve_comments=True)    
 
             msgs.info(f"Saving filename: {self.filename}")
             if self.save_location is not None:
