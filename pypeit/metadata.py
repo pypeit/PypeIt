@@ -1914,7 +1914,7 @@ class PypeItMetaData:
 
         # Always write the table in ascii format
         with io.StringIO() as ff:
-            output_tbl.write(ff, format='ascii.fixed_width')
+            output_tbl.write(ff, format='ascii.fixed_width', bookend=False)
             data_lines = ff.getvalue().split('\n')[:-1]
 
         if ofile is None:
