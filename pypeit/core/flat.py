@@ -361,6 +361,43 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     return scaleImg
 
 
+def smooth_scale(arr, wave_ref=None, polydeg=None, sn_smooth_npix=None):
+    """
+    Smooth the relative sensitivity array using a polynomial fit or a boxcar filter.
+
+    Parameters
+    ----------
+    arr : `numpy.ndarray`_
+        Array containing the relative sensitivity
+    wave_ref : `numpy.ndarray`_, optional
+        Wavelength array corresponding to the relative sensitivity array. Only used if polydeg is not None.
+    polydeg : :obj:`int`, optional
+        Degree of the polynomial fit to the relative sensitivity array. If None, a boxcar filter will be used.
+    sn_smooth_npix : :obj:`int`, optional
+        Number of pixels to use for the boxcar filter. Only used if polydeg is None.
+
+    Returns
+    -------
+    arr_smooth : `numpy.ndarray`
+        Smoothed relative sensitivity array
+    """
+    # Do some checks on the input
+    if polydeg is not None and wave_ref is None:
+        msgs.error("Must provide a wavelength array if polydeg is not None")
+    if polydeg is None and sn_smooth_npix is None:
+        msgs.error("Must provide either polydeg or sn_smooth_npix")
+    # Smooth the relative sensitivity array
+    if polydeg is not None:
+        gd = (arr != 0)
+        wave_norm = (wave_ref - wave_ref[0]) / (wave_ref[1] - wave_ref[0])
+        coeff = np.polyfit(wave_norm[gd], arr[gd], polydeg)
+        ref_relscale = np.polyval(coeff, wave_norm)
+    else:
+        ref_relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
+    # Return the smoothed relative sensitivity array
+    return ref_relscale
+
+
 # TODO:: See pypeit/deprecated/flat.py for a spline version. The following polynomial version is faster, but
 #        the spline version is more versatile.
 def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
