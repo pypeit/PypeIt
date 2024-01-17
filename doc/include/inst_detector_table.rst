@@ -50,6 +50,8 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``keck_lris_red_orig``        1    1         False     False     2         1.98, 2.17                  6.1, 6.3                0.0       -1.0e+10  65535.0       0.7600     0.2110    
 ``keck_mosfire``              1    1         False     False     1         2.15                        5.8                     28.8      -1.0e+10  1000000000.0  1.0000     0.1798    
 ``keck_nires``                1    1         True      False     1         3.8                         5.0                     468.0     -1.0e+10  1000000.0     0.7600     0.1500    
+``keck_nirspec_high``         1    0         True      False     1         3.01                        11.56                   0.8       -1.0e+10  100000000.0   0.9000     0.1300    
+``keck_nirspec_high_old``     1    1         False     False     1         5.8                         23.0                    0.8       -1.0e+10  1000000.0     0.9000     0.2700    
 ``keck_nirspec_low``          1    0         False     False     1         5.8                         23.0                    2520.0    -1.0e+10  100000.0      1.0000     0.1930    
 ``lbt_luci1``                 1    1         False     False     1         2.0                         4.61                    0.0       -1.0e+10  100000000.0   0.8000     0.2500    
 ``lbt_luci2``                 1    1         False     False     1         2.0                         4.47                    0.0       -1.0e+10  100000000.0   0.8000     0.2500    

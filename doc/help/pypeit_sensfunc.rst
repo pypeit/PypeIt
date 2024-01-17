@@ -2,7 +2,7 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
-                           [-s SENS_FILE] [-f FLATFILE] [--debug]
+                           [-s SENS_FILE] [-f FLATFILE] [--dir] [--debug]
                            [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
                            spec1dfile
     
@@ -73,6 +73,7 @@
                              
                             Where Flat_A_0_DET01.fits is the flat file in your
                             Calibrations directory
+      --dir                 is spec1dfile actually a directory?
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the
