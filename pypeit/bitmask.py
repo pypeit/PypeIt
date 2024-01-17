@@ -216,7 +216,7 @@ class BitMask:
             return numpy.uint32 if asuint else numpy.int32
         return numpy.uint64 if asuint else numpy.int64
 
-    def flagged(self, value, flag=None, exclude=None, expunge=None):
+    def flagged(self, value, flag=None, exclude=None, and_not=None):
         """
         Determine if a bit is on in the provided bitmask value.  The
         function can be used to determine if any individual bit is on or
@@ -232,13 +232,13 @@ class BitMask:
             exclude (str, array-like, optional):
                 One or more bit names to *exclude* from the check.  If None, all
                 flags are included in the check.
-            expunge (str, array-like, optional):
-                One or more bit names to expunge from the check.  If any of
-                these bits are flagged, the element in the returned array is as
-                if was not flagged, even if other flags not in this list *are*
-                flagged.  I.e., the returned value can only be True if one of
-                these "expunge" bits are *not* flagged.  If None, no flags are
-                expunged.
+            and_not (str, array-like, optional):
+                One or more bit names to ensure are *not* selected by the check.
+                If any of these bits are flagged, the element in the returned
+                array is as if it was not flagged, even if other flags not in
+                this list *are* flagged.  I.e., the returned value can only be
+                True if one of these "and_not" bits are *not* flagged.  If None,
+                functionality ignored.
         
         Returns:
             bool, `numpy.ndarray`_: Boolean flags that the provided flags (or
@@ -260,12 +260,12 @@ class BitMask:
             _flag = numpy.setdiff1d(_flag, _exclude)
 
         # Bits to expunge
-        _exp = None if expunge is None else self.flagged(value, expunge)
+        _and_not = None if and_not is None else self.flagged(value, and_not)
 
         out = value & (1 << self.bits[_flag[0]]) != 0
         for i in range(1,len(_flag)):
             out |= (value & (1 << self.bits[_flag[i]]) != 0)
-        return out if _exp is None else out & numpy.logical_not(_exp)
+        return out if _and_not is None else out & numpy.logical_not(_and_not)
 
     def flagged_bits(self, value):
         """

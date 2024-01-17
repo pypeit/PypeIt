@@ -143,7 +143,7 @@ def test_exclude_expunge():
     mask[saturated_indx] = image_bm.turn_on(mask[saturated_indx], 'SATURATED')
 
     # NOTE: Want to make sure there are pixels flagged as both COSMIC and
-    # SATURATED.  Otherwise the `expunge` test is not useful.
+    # SATURATED.  Otherwise the `and_not` test is not useful.
     assert numpy.sum(cosmics_indx & saturated_indx) > 0, 'Bad test setup'
 
     assert numpy.array_equal(image_bm.flagged(mask), cosmics_indx | saturated_indx), \
@@ -151,7 +151,7 @@ def test_exclude_expunge():
     assert numpy.array_equal(image_bm.flagged(mask, exclude='SATURATED'), cosmics_indx), \
             'Exclude incorrect'
 
-    assert numpy.array_equal(image_bm.flagged(mask, expunge='SATURATED'),
+    assert numpy.array_equal(image_bm.flagged(mask, and_not='SATURATED'),
                              cosmics_indx & numpy.logical_not(saturated_indx)), 'Expunge incorrect'
 
 

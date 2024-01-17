@@ -145,7 +145,7 @@ class TraceAlignment:
 
         # Create a bad pixel mask
         self.slit_bpm = self.slits.bitmask.flagged(self.slits.mask,
-                                                   expunge=self.slits.bitmask.exclude_for_reducing)
+                                                   and_not=self.slits.bitmask.exclude_for_reducing)
 #        self.slit_bpm = self.slits.mask.astype(bool)
 #        self.slit_bpm &= np.logical_not(self.slits.bitmask.flagged(self.slits.mask,flag=self.slits.bitmask.exclude_for_reducing))
 
