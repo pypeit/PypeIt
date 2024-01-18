@@ -168,6 +168,7 @@ class DataCube(datamodel.DataContainer):
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
+    # TODO: Pass in chk_version here?
     @classmethod
     def from_file(cls, ifile):
         """

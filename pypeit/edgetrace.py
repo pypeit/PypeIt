@@ -1314,7 +1314,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
         if chk_version and hdr_bitmask.bits != self.bitmask.bits:
             msgs.error('The bitmask in this fits file appear to be out of date!  Recreate this '
-                       'file either by rerunning run_pypeit or pypeit_trace_edges.')
+                       'file by re-running the relevant script or set chk_version=False.',
+                       cls='PypeItBitMaskError')
 
         return self
 
