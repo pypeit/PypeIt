@@ -406,18 +406,14 @@ class CoAdd3D:
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
         # Do some quick checks on the input options
-        if skysub_frame is not None:
-            if len(skysub_frame) != self.numfiles:
-                msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
-        if scale_corr is not None:
-            if len(scale_corr) != self.numfiles:
-                msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
-        if ra_offsets is not None:
-            if len(ra_offsets) != self.numfiles:
-                msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
-        if dec_offsets is not None:
-            if len(dec_offsets) != self.numfiles:
-                msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
+        if skysub_frame is not None and len(skysub_frame) != self.numfiles:
+            msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
+        if scale_corr is not None and len(scale_corr) != self.numfiles:
+            msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
+        if ra_offsets is not None and len(ra_offsets) != self.numfiles:
+            msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
+        if dec_offsets is not None and len(dec_offsets) != self.numfiles:
+            msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
         # Make sure both ra_offsets and dec_offsets are either both None or both lists
         if ra_offsets is None and dec_offsets is not None:
             msgs.error("If you provide dec_offsets, you must also provide ra_offsets")
@@ -448,8 +444,8 @@ class CoAdd3D:
             # User offsets are not provided, so turn off the user_alignment
             self.user_alignment = False
             # Initialise the lists of ra_offsets and dec_offsets
-            self.ra_offsets = [0.0 for _ in range(self.numfiles)]
-            self.dec_offsets = [0.0 for _ in range(self.numfiles)]
+            self.ra_offsets = [0.0]*self.numfiles
+            self.dec_offsets = [0.0]*self.numfiles
 
         # Check on Spectrograph input
         if spectrograph is None:
@@ -1202,7 +1198,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.ifu_dec[0]) * np.pi / 180.0)
         # Initialize the RA and Dec offset arrays
-        ra_offsets, dec_offsets = [0 for _ in range(self.numfiles)], [0 for _ in range(self.numfiles)]
+        ra_offsets, dec_offsets = [0.0]*self.numfiles, [0.0]*self.numfiles
         # Register spatial offsets between all frames
         if self.user_alignment:
             # The user has specified offsets - update these values accounting for the difference in header RA/DEC

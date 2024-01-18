@@ -1153,7 +1153,7 @@ class FlatField:
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
                 spat_model = np.ones_like(spec_model)
-                spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]#np.exp(spec_bspl.value(spec_coo[onslit_padded])[0])
+                spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]
                 specspat_illum = np.fmax(spec_model, 1.0) * spat_model
                 norm_spatspec = rawflat / specspat_illum
                 self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
@@ -1795,11 +1795,10 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
             clear = False
 
 
+# TODO :: This could possibly be moved to core.flat
 def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
                            model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
     """
-    TODO :: This could possibly be moved to core.flat
-
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
 
@@ -1899,17 +1898,12 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
                 if (ii == 1) and (slits.spat_id[wvsrt[ss]] == slit_illum_ref_idx):
                     # This must be the first element of the loop by construction, but throw an error just in case
                     if ss != 0:
-                        msgs.error("An error has occurred in the relative spectral illumination. Please contact the developers.")
+                        msgs.error("CODING ERROR - An error has occurred in the relative spectral illumination." +
+                                   msgs.newline() + "Please contact the developers.")
                     tmp_cntr = cntr * spec_ref
                     tmp_arr = hist * utils.inverse(tmp_cntr)
                     # Calculate a smooth version of the relative response
-                    if polydeg is not None:
-                        gd = (tmp_arr != 0)
-                        wave_norm = (wave_ref-wave_ref[0]) / (wave_ref[1]-wave_ref[0])
-                        coeff = np.polyfit(wave_norm[gd], tmp_arr[gd], polydeg)
-                        ref_relscale = np.polyval(coeff, wave_norm)
-                    else:
-                        ref_relscale = coadd.smooth_weights(tmp_arr, (tmp_arr != 0), sn_smooth_npix)
+                    ref_relscale = flat.smooth_scale(tmp_arr, wave_ref=wave_ref, polydeg=polydeg, sn_smooth_npix=sn_smooth_npix)
                     # Update the reference spectrum
                     spec_ref /= ref_relscale
                 # Normalise by the reference spectrum
@@ -1917,20 +1911,14 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
                 norm = utils.inverse(cntr)
                 arr = hist * norm
                 # Calculate a smooth version of the relative response
-                if polydeg is not None:
-                    gd = (arr != 0)
-                    wave_norm = (wave_ref - wave_ref[0]) / (wave_ref[1] - wave_ref[0])
-                    coeff = np.polyfit(wave_norm[gd], arr[gd], polydeg)
-                    relscale = np.polyval(coeff, wave_norm)
-                else:
-                    relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
+                relscale = flat.smooth_scale(arr, wave_ref=wave_ref, polydeg=polydeg, sn_smooth_npix=sn_smooth_npix)
                 # Store the result
                 relscl_model[onslit_b_init] = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
                                                  fill_value="extrapolate")(waveimg[onslit_b_init])
 
                 # Build a new reference spectrum to increase wavelength coverage of the reference spectrum (and improve S/N)
                 if ii == 0:
-                    onslit_ref_trim = onslit_ref_trim | (onslit_b & gpm & skymask_now)
+                    onslit_ref_trim |= (onslit_b & gpm & skymask_now)
                     hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim]/relscl_model[onslit_ref_trim])
                     cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
                     cntr = cntr.astype(float)
