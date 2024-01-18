@@ -96,8 +96,7 @@ class WaveFit(datamodel.DataContainer):
         # Extension prefix (for being unique with slits)
         hdue_pref = self.hduext_prefix_from_spatid(self.spat_id)
         # Without PypeItFit
-        _d = super(WaveFit, self)._bundle(
-            ext=hdue_pref+'WAVEFIT', **kwargs)
+        _d = super()._bundle(ext=hdue_pref+'WAVEFIT', **kwargs)
         # Deal with PypeItFit
         if _d[0][hdue_pref+'WAVEFIT']['pypeitfit'] is not None:
             _d.append({hdue_pref+'PYPEITFIT': _d[0][hdue_pref + 'WAVEFIT'].pop('pypeitfit')})

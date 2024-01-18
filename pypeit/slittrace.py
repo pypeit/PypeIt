@@ -312,7 +312,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             return super()._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
         """
         Instantiate the object from an HDU extension.
 
@@ -322,15 +322,14 @@ class SlitTraceSet(calibframe.CalibFrame):
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            hdu_prefix (:obj:`str`, optional):
-                Maintained for consistency with the base class but is
-                not used by this method.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
+            **kwargs:
+                Passed directly to :func:`_parse`.
         """
         # Run the default parser
-        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check
         cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 

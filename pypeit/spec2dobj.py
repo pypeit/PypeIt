@@ -110,7 +110,7 @@ class Spec2DObj(datamodel.DataContainer):
                 ]
 
     @classmethod
-    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
+    def from_file(cls, ifile, detname, chk_version=True):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -120,21 +120,19 @@ class Spec2DObj(datamodel.DataContainer):
         Args:
             ifile (:obj:`str`, `Path`_):
                 Fits file with the data to read
-            verbose (:obj:`bool`, optional):
-                Print informational messages (not currently used)
+            detname (:obj:`str`):
+                The string identifier for the detector or mosaic used to select
+                the data that is read.
             chk_version (:obj:`bool`, optional):
                 Passed to :func:`from_hdu`.
-            kwargs (:obj:`dict`, optional):
-                Arguments passed directly to :func:`from_hdu`.
         """
         with io.fits_open(ifile) as hdu:
             # Check detname is valid
             detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
             if detname not in detnames:
                 msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
-            return cls.from_hdu(hdu, detname, chk_version=chk_version, **kwargs)
+            return cls.from_hdu(hdu, detname, chk_version=chk_version)
 
-    # TODO: Allow for **kwargs here?
     @classmethod
     def from_hdu(cls, hdu, detname, chk_version=True):
         """
