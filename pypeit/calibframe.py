@@ -169,15 +169,10 @@ class CalibFrame(datamodel.DataContainer):
             **kwargs:
                 Passed directly to :func:`~pypeit.datamodel.DataContainer._parse`.
         """
+        # Parse
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
-        # Check version and type?
-        if not dm_type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
-        if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f(f'Current version of {cls.__name__} object in code ({cls.version}) '
-               'does not match version used to write your HDU(s)!')
-
+        # Check
+        cls._check_parsed(dm_version_passed, dm_type_passed, chk_version=chk_version)
         # Instantiate
         self = cls.from_dict(d=d)
 

@@ -756,6 +756,7 @@ def general_spec_reader(specfile, ret_flam=False):
         head = spec.head0
     else:
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
+        # TODO: What bug?  Is it fixed now?  How can we test if it's fixed?
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header

@@ -410,13 +410,9 @@ class SensFunc(datamodel.DataContainer):
         """
         # Run the default parser to get most of the data. This correctly parses
         # everything except for the Telluric.model data table.
-        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu, allow_subclasses=True)
-        if not type_passed:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-        if not version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-               + ' does not match version used to write your HDU(s)!')
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu, allow_subclasses=True)
+        # Check
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         # Load the telluric model, if it exists
         if 'TELLURIC' in [h.name for h in hdu]:
