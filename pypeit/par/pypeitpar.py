@@ -2313,7 +2313,7 @@ class TelluricPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+        defaults['telgridfile'] = None
         dtypes['telgridfile'] = str
         descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
                                'generated from HITRAN models for each observatory using nominal site parameters. They ' \
