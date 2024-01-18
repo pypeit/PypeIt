@@ -802,7 +802,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         missing the targeted source.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
             spat_flexure (:obj:`float`):
                 Shifts, in spatial pixels, between this image and SlitTrace
@@ -812,7 +812,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 BOX_RADIUS in pixels to be used in the boxcar extraction
 
         Returns:
-            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have
+            :class:`~pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have
             been found and traced
 
         """

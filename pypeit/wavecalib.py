@@ -401,6 +401,7 @@ class WaveCalib(calibframe.CalibFrame):
         diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'
         # FWHM
+        # TODO: Why not me*a*sured_fwhm?
         diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
         diag['mesured_fwhm'].format = '0.1f'
         # RMS
