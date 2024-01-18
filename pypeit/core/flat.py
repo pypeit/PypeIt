@@ -19,6 +19,7 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.core import pixels
 from pypeit.core import tracewave
+from pypeit.core import coadd
 from pypeit import utils
 from pypeit.core import pydl
 

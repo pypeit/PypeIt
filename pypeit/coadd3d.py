@@ -787,11 +787,12 @@ class CoAdd3D:
         spat_flexure : :obj:`float`, optional:
             Spatial flexure in pixels
         """
+        # Check if the Flat file exists
+        if not os.path.exists(flatfile):
+            msgs.warn("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
+            return
         if flatfile not in self.flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
-            # Check if the Flat file exists
-            if not os.path.exists(flatfile):
-                msgs.error("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
             # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
