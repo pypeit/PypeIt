@@ -249,6 +249,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
     """
     # Try to load the file and ignoring any version mismatch
     try:
+        # TODO: Pass chk_version here?
         spec = onespec.OneSpec.from_file(filename)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
