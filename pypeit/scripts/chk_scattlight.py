@@ -27,6 +27,8 @@ class ChkScattLight(scriptbase.ScriptBase):
         parser.add_argument('--mask', type=bool, default=False,
                             help='If True, the detector pixels that are considered on the slit will be '
                                  'masked to highlight the scattered light regions')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -47,12 +49,11 @@ class ChkScattLight(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load scattered light calibration frame
-        # TODO: Pass chk_version here?
-        ScattLightImage = scattlight.ScatteredLight.from_file(args.file)
+        ScattLightImage = scattlight.ScatteredLight.from_file(args.file,
+                                                              chk_version=(not args.try_old))
 
         # Load slits information
-        # TODO: Pass chk_version here?
-        slits = slittrace.SlitTraceSet.from_file(args.slits)
+        slits = slittrace.SlitTraceSet.from_file(args.slits, chk_version=(not args.try_old))
 
         # Load the alternate file if requested
         display_frame = None  # The default is to display the frame used to calculate the scattered light model
@@ -60,8 +61,8 @@ class ChkScattLight(scriptbase.ScriptBase):
             msgs.error("displaying the spec2d scattered light is not currently supported")
             try:
                 # TODO :: the spec2d file may have already had the scattered light removed, so this is not correct. This script only works when the scattered light is turned off for the spec2d file
-                # TODO: Do not default to chk_version=False
-                spec2D = spec2dobj.Spec2DObj.from_file(args.spec2d, detname, chk_version=False)
+                spec2D = spec2dobj.Spec2DObj.from_file(args.spec2d, detname,
+                                                       chk_version=(not args.try_old))
             except PypeItDataModelError:
                 msgs.warn(f"Error loading spec2d file {args.spec2d} - attempting to load science image from fits")
                 spec2D = None

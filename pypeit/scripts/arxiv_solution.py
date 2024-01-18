@@ -25,6 +25,8 @@ class ArxivSolution(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename make_arxiv_solution_YYYYMMDD-HHMM.log')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -43,8 +45,7 @@ class ArxivSolution(scriptbase.ScriptBase):
             msgs.error("The following MasterWaveCalib file does not exist:" + msgs.newline() + args.file)
 
         # Load the wavelength calibration file
-        # TODO: Pass chk_version here?
-        wv_calib = WaveCalib.from_file(args.file)
+        wv_calib = WaveCalib.from_file(args.file, chk_version=(not args.try_old))
         # Check if a wavelength solution exists
         if wv_calib['wv_fits'][args.slit]['wave_soln'] is None:
             gd_slits = []

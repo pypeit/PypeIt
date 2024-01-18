@@ -64,9 +64,10 @@ class FluxCalib(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename flux_calib_YYYYMMDD-HHMM.log')
-
 #        parser.add_argument("--plot", default=False, action="store_true",
 #                            help="Show the sensitivity function?")
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -77,7 +78,6 @@ class FluxCalib(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
 
         # Load the file
-        # TODO: Pass chk_version here?
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
 
         # Read in spectrograph from spec1dfile header
@@ -110,7 +110,8 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'])
+        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'],
+                                     chk_version=(not args.try_old))
         msgs.info('Flux calibration complete')
         return 0
 

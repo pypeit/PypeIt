@@ -211,7 +211,8 @@ def generate_sci_pypeitfile(redux_path:str,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
-                            snr_thresh:float=None):
+                            snr_thresh:float=None,
+                            chk_version:bool=True):
     """
     Prepare to reduce the science frames:
 
@@ -350,8 +351,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Iterate through each file to find the one with the relevant mask ID.
         detname = None
         for sliittrace_file in slittrace_files:
-            # TODO: Somehow pass chk_version here?
-            slitTrace = SlitTraceSet.from_file(sliittrace_file)
+            slitTrace = SlitTraceSet.from_file(sliittrace_file, chk_version=chk_version)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
                 # Mosaic?
@@ -745,6 +745,9 @@ class QL(scriptbase.ScriptBase):
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
                                  'sampling, set value to >1.0).')
 
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
+
         return parser
 
 
@@ -961,7 +964,8 @@ class QL(scriptbase.ScriptBase):
                     slitspatnum=args.slitspatnum,
                     maskID=args.maskID, 
                     boxcar_radius=args.boxcar_radius,
-                    snr_thresh=args.snr_thresh)
+                    snr_thresh=args.snr_thresh,
+                    chk_version=(not args.try_old))
 
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)

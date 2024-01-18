@@ -17,6 +17,8 @@ class EdgeInspector(scriptbase.ScriptBase):
                                     width=width)
         parser.add_argument('trace_file', type=str, default=None,
                             help='PypeIt Edges file [e.g. Edges_A_0_DET01.fits.gz]')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -30,8 +32,7 @@ class EdgeInspector(scriptbase.ScriptBase):
         # Set the file name to the full path
         trace_file = Path(args.trace_file).resolve()
         # Load
-        # TODO: Pass chk_version here?
-        edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+        edges = edgetrace.EdgeTraceSet.from_file(trace_file, chk_version=(not args.try_old))
         # Inspector object
         pointer = edge_inspector.EdgeInspectorGUI(edges)
         # Run.  Ends when window is closed

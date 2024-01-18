@@ -31,12 +31,12 @@ class ChkTilts(scriptbase.ScriptBase):
         return parser
 
     @staticmethod
-    def main(pargs):
+    def main(args):
         from pypeit import wavetilts
 
         # Load
-        tilts = wavetilts.WaveTilts.from_file(pargs.file, chk_version=(not pargs.try_old))
-        tilts.show(in_ginga=np.logical_not(pargs.mpl), show_traces=pargs.show_traces)
+        tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=(not args.try_old))
+        tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces)
 
 
 

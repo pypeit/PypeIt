@@ -109,6 +109,8 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Do *not* clear all existing tabs')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -137,8 +139,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
-            # TODO: Do not always set chk_version to False
-            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname,
+                                                      chk_version=(not args.try_old))
         except PypeItDataModelError:
             try:
                 # Try to get the pypeit version used to write this file

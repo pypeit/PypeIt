@@ -168,6 +168,8 @@ class ChkNoise1D(scriptbase.ScriptBase):
                                                                              'save, a folder called spec1d*_noisecheck'
                                                                              ' will be created and all the relevant '
                                                                              'plot will be placed there.')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
 
         return parser
 
@@ -198,9 +200,9 @@ class ChkNoise1D(scriptbase.ScriptBase):
             head = fits.getheader(file)
 
             # I/O spec object
-            # TODO: Pass chk_version to OneSpec too?
-            specObjs = [OneSpec.from_file(file)] if args.fileformat == 'coadd1d' else \
-                            specobjs.SpecObjs.from_fitsfile(file, chk_version=False)
+            specObjs = [OneSpec.from_file(file, chk_version=(not args.try_old))] \
+                            if args.fileformat == 'coadd1d' else \
+                            specobjs.SpecObjs.from_fitsfile(file, chk_version=(not args.try_old))
 
             # loop on the spectra
             for spec in specObjs:
