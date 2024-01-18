@@ -5099,8 +5099,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         gpm = self.good_traces(include_box=include_box)
         good_slit = np.all(gpm.reshape(-1,2), axis=1)
 
-        # TODO: Use reference_row by default? Except that it's only
-        # defined if the PCA is defined.
+        # Set the spectral position to use as a reference.
         _spec = spec
         if _spec is None:
             if self.pcatype is None:
@@ -5217,7 +5216,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             self.edge_msk[:,flag] = self.bitmask.turn_on(self.edge_msk[:,flag], 'ORDERMISMATCH')
 
         # Minimum separation between the order and its matching slit;
-        # keep the signed value for reporting, but used the absolute
+        # keep the signed value for reporting, but use the absolute
         # value of the difference for vetting below.
         # NOTE: This includes indices for orders that were not found.  This is
         # largely for book-keeping purposes in the print statement below.
