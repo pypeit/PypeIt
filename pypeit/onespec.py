@@ -84,6 +84,7 @@ class OneSpec(datamodel.DataContainer):
                  'spect_meta',
                  'history']
 
+    # TODO: Add chk_version to this?
     @classmethod
     def from_file(cls, ifile):
         """
