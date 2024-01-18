@@ -79,11 +79,13 @@ class ParseSlits(scriptbase.ScriptBase):
             msgs.error("Bad file type input!")
 
         if file_type == 'Slits':
+            # TODO: Do not always set chk_version to False
             slits = slittrace.SlitTraceSet.from_file(pargs.input_file, chk_version=False)
             print('')
             print_slits(slits)
 
         elif file_type == 'AllSpec2D':
+            # TODO: Do not always set chk_version to False
             allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
             # Loop on Detectors
             for det in allspec2D.detectors:

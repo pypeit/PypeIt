@@ -36,8 +36,10 @@ class ShowWvCalib(scriptbase.ScriptBase):
         from matplotlib import pyplot as plt
 
         # Load
+        # TODO: Pass chk_version here?
         wvcalib = wavecalib.WaveCalib.from_file(pargs.file)
         if pargs.slit_file is not None:
+            # TODO: Pass chk_version here?
             slits = slittrace.SlitTraceSet.from_file(pargs.slit_file)
 
         # Parse

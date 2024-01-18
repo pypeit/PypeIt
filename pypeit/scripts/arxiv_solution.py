@@ -43,6 +43,7 @@ class ArxivSolution(scriptbase.ScriptBase):
             msgs.error("The following MasterWaveCalib file does not exist:" + msgs.newline() + args.file)
 
         # Load the wavelength calibration file
+        # TODO: Pass chk_version here?
         wv_calib = WaveCalib.from_file(args.file)
         # Check if a wavelength solution exists
         if wv_calib['wv_fits'][args.slit]['wave_soln'] is None:

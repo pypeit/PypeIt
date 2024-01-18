@@ -350,6 +350,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Iterate through each file to find the one with the relevant mask ID.
         detname = None
         for sliittrace_file in slittrace_files:
+            # TODO: Somehow pass chk_version here?
             slitTrace = SlitTraceSet.from_file(sliittrace_file)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname

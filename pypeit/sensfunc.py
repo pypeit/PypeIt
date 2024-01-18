@@ -293,8 +293,7 @@ class SensFunc(datamodel.DataContainer):
             `numpy.ndarray`_: The log10 blaze function. Shape = (nspec, norddet)
             if norddet > 1, else shape = (nspec,)
         """
-
-
+        # TODO: Somehow pass chk_version here?
         flatImages = flatfield.FlatImages.from_file(flatfile)
 
         pixelflat_raw = flatImages.pixelflat_raw
@@ -805,6 +804,7 @@ class SensFunc(datamodel.DataContainer):
             `numpy.ndarray`_: sensfunc weights evaluated on the input waves
             wavelength grid, shape = same as waves
         """
+        # TODO: Somehow pass chk_version here?
         sens = cls.from_file(sensfile)
     #    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
 

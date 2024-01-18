@@ -55,6 +55,7 @@ class SkySubRegions(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load it up
+        # TODO: Pass chk_version here?  Do not always set it to True
         spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
         frame = spec2DObj.sciimg
         hdr = fits.open(args.file)[0].header

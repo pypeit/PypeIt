@@ -314,6 +314,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.msarc = frame['class'].from_file(cal_file)
             return self.msarc
 
@@ -357,6 +358,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.mstilt = frame['class'].from_file(cal_file)
             return self.mstilt
 
@@ -405,6 +407,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.alignments = frame['class'].from_file(cal_file)
             self.alignments.is_synced(self.slits)
             return self.alignments
@@ -456,6 +459,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.msbias = frame['class'].from_file(cal_file)
             return self.msbias
 
@@ -495,6 +499,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.msdark = frame['class'].from_file(cal_file)
             return self.msdark
 
@@ -571,6 +576,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.msscattlight = frame['class'].from_file(cal_file)
             return self.msscattlight
 
@@ -689,6 +695,7 @@ class Calibrations:
         setup = illum_setup if pixel_setup is None else pixel_setup
         calib_id = illum_calib_id if pixel_calib_id is None else pixel_calib_id
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.flatimages = flatfield.FlatImages.from_file(cal_file)
             self.flatimages.is_synced(self.slits)
             # Load user defined files
@@ -845,6 +852,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.slits = frame['class'].from_file(cal_file)
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
@@ -858,6 +866,7 @@ class Calibrations:
         # If so, reuse it?
         if edges_file.exists() and self.reuse_calibs:
             # Yep!  Load it and parse it into slits.
+            # TODO: Somehow pass chk_version here?
             self.slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
             # Write the slits calibration file
             self.slits.to_file()
@@ -961,6 +970,7 @@ class Calibrations:
         # we want to reuse it, do so (or just load it):
         if cal_file.exists() and self.reuse_calibs: 
             # Load the file
+            # TODO: Somehow pass chk_version here?
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
@@ -1033,6 +1043,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
+            # TODO: Somehow pass chk_version here?
             self.wavetilts = wavetilts.WaveTilts.from_file(cal_file)
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)

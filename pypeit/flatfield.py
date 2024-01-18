@@ -414,6 +414,7 @@ class FlatImages(calibframe.CalibFrame):
             slits_file = slittrace.SlitTraceSet.construct_file_name(self.calib_key,
                                                                     calib_dir=self.calib_dir)
             try:
+                # TODO: Somehow pass chk_version here?
                 slits = slittrace.SlitTraceSet.from_file(slits_file)
             except (FileNotFoundError, PypeItError):
                 msgs.warn('Could not load slits to include when showing flat-field images.  File '

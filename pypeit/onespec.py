@@ -84,28 +84,31 @@ class OneSpec(datamodel.DataContainer):
                  'spect_meta',
                  'history']
 
-    # TODO: Add chk_version to this?
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
-        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        Instantiate the object from an extension in the specified fits file.
+
+        Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
-
+        
         Args:
-            ifile (str):
-                Filename holding the object
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
+            chk_version (:obj:`bool`, optional):
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
-        hdul = io.fits_open(ifile)
-        slf = super().from_hdu(hdul)
-
-        # Internals
-        slf.filename = ifile
-        slf.head0 = hdul[0].header
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
-        #
-        return slf
+        with io.fits_open(ifile) as hdu:
+            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            self.filename = ifile
+            self.head0 = hdu[0].header
+            self.spectrograph = load_spectrograph(self.PYP_SPEC)
+            self.spect_meta = self.spectrograph.parse_spec_header(self.head0)
+        return self
 
     def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, sigma=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):

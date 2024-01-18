@@ -198,6 +198,7 @@ class ChkNoise1D(scriptbase.ScriptBase):
             head = fits.getheader(file)
 
             # I/O spec object
+            # TODO: Pass chk_version to OneSpec too?
             specObjs = [OneSpec.from_file(file)] if args.fileformat == 'coadd1d' else \
                             specobjs.SpecObjs.from_fitsfile(file, chk_version=False)
 

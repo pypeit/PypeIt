@@ -24,10 +24,10 @@ from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
-from pypeit.images.mosaic import Mosaic
-from pypeit import slittrace
 from pypeit import utils
 
+
+# TODO: Make this a DataContainer
 class SpecObjs:
     """
     Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects

@@ -6,10 +6,6 @@ This script displays the flat images in an RC Ginga window.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import msgs
-from pypeit.pypmsgs import PypeItError, PypeItDataModelError
-from pypeit.images.detector_container import DetectorContainer
-from pypeit import io
 
 class ChkScattLight(scriptbase.ScriptBase):
 
@@ -37,6 +33,10 @@ class ChkScattLight(scriptbase.ScriptBase):
     def main(args):
 
         from pypeit import scattlight, spec2dobj, slittrace
+        from pypeit import msgs
+        from pypeit.pypmsgs import PypeItError, PypeItDataModelError
+        from pypeit.images.detector_container import DetectorContainer
+        from pypeit import io
 
         # Parse the detector name
         try:
@@ -47,9 +47,11 @@ class ChkScattLight(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load scattered light calibration frame
+        # TODO: Pass chk_version here?
         ScattLightImage = scattlight.ScatteredLight.from_file(args.file)
 
         # Load slits information
+        # TODO: Pass chk_version here?
         slits = slittrace.SlitTraceSet.from_file(args.slits)
 
         # Load the alternate file if requested
@@ -58,6 +60,7 @@ class ChkScattLight(scriptbase.ScriptBase):
             msgs.error("displaying the spec2d scattered light is not currently supported")
             try:
                 # TODO :: the spec2d file may have already had the scattered light removed, so this is not correct. This script only works when the scattered light is turned off for the spec2d file
+                # TODO: Do not default to chk_version=False
                 spec2D = spec2dobj.Spec2DObj.from_file(args.spec2d, detname, chk_version=False)
             except PypeItDataModelError:
                 msgs.warn(f"Error loading spec2d file {args.spec2d} - attempting to load science image from fits")

@@ -742,6 +742,7 @@ def general_spec_reader(specfile, ret_flam=False):
     hdul = fits.open(specfile)
     if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
         # Load
+        # TODO: Somehow pass chk_version here?
         spec = onespec.OneSpec.from_file(specfile)
         # Unpack
         wave = spec.wave

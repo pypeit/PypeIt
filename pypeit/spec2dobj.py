@@ -109,31 +109,30 @@ class Spec2DObj(datamodel.DataContainer):
                  'head0'                # Raw header
                 ]
 
-    # TODO: Allow for **kwargs here?
     @classmethod
-    def from_file(cls, file, detname, chk_version=True):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
-        Override base-class :func:`~pypeit.datamodel.DataContainer.from_file` to
-        specify detector to read.
+        Instantiate the object from an extension in the specified fits file.
 
+        Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
+        to specify detector to read.
+        
         Args:
-            file (:obj:`str`):
-                File name to read.
-            detname (:obj:`str`):
-                The string identifier for the detector or mosaic used to select
-                the data that is read.
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
             chk_version (:obj:`bool`, optional):
-                If False, allow a mismatch in datamodel to proceed
-
-        Returns:
-            :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
-        with io.fits_open(file) as hdu:
+        with io.fits_open(ifile) as hdu:
             # Check detname is valid
             detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
             if detname not in detnames:
                 msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
-            return cls.from_hdu(hdu, detname, chk_version=chk_version)
+            return cls.from_hdu(hdu, detname, chk_version=chk_version, **kwargs)
 
     # TODO: Allow for **kwargs here?
     @classmethod

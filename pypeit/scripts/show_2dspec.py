@@ -137,6 +137,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
+            # TODO: Do not always set chk_version to False
             spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
         except PypeItDataModelError:
             try:

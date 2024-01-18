@@ -62,6 +62,7 @@ class Identify(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('identify', args.verbosity)
 
         # Load the Arc file
+        # TODO: Pass chk_version here?
         msarc = ArcImage.from_file(args.arc_file)
 
         # Load the spectrograph
@@ -78,12 +79,14 @@ class Identify(scriptbase.ScriptBase):
         par['lamps'] = lamps
 
         # Load the slits
+        # TODO: Pass chk_version here?
         slits = slittrace.SlitTraceSet.from_file(args.slits_file)
         # Reset the mask
         slits.mask = slits.mask_init
 
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
+        # TODO: Pass chk_version here?
         wv_calib = WaveCalib.from_file(solnname) \
                         if os.path.exists(solnname) and args.solution else None
 

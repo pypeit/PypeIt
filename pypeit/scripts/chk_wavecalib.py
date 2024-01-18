@@ -44,11 +44,13 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                 msgs.error("Bad file type input!")
 
             if file_type == 'WaveCalib':
+                # TODO: Do not always set chk_version to False
                 waveCalib = wavecalib.WaveCalib.from_file(in_file, chk_version=False)
                 waveCalib.wave_diagnostics(print_diag=True)
                 continue
 
             elif file_type == 'AllSpec2D':
+                # TODO: Do not always set chk_version to False
                 allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=False)
                 for det in allspec2D.detectors:
                     print('')

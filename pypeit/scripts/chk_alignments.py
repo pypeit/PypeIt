@@ -28,6 +28,7 @@ class ChkAlignments(scriptbase.ScriptBase):
         from pypeit import alignframe
 
         # Load
+        # TODO: Pass chk_version here?
         alignments = alignframe.Alignments.from_file(pargs.file)
         # Show
         alignments.show()

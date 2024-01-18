@@ -77,6 +77,7 @@ class FluxCalib(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
 
         # Load the file
+        # TODO: Pass chk_version here?
         fluxFile = inputfiles.FluxFile.from_file(args.flux_file)
 
         # Read in spectrograph from spec1dfile header

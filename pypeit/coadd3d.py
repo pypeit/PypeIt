@@ -168,19 +168,27 @@ class DataCube(datamodel.DataContainer):
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
-    # TODO: Pass in chk_version here?
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
+        Instantiate the object from an extension in the specified fits file.
+
         Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
-
+        
         Args:
-            ifile (str):  Filename holding the object
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
+            chk_version (:obj:`bool`, optional):
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
         with io.fits_open(ifile) as hdu:
             # Read using the base class
-            self = super().from_hdu(hdu)
+            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
             # Internals
             self.filename = ifile
             self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
@@ -579,6 +587,7 @@ class CoAdd3D:
                 msgs.info("Loading default scale image for relative spectral illumination correction:" +
                           msgs.newline() + self.cubepar['scale_corr'])
                 try:
+                    # TODO: Somehow pass chk_version here?
                     spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'], self.detname)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
@@ -640,6 +649,7 @@ class CoAdd3D:
                 msgs.info("Loading the following frame for the relative spectral illumination correction:" +
                           msgs.newline() + scalecorr)
                 try:
+                    # TODO: Somehow pass chk_version here?
                     spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
@@ -671,6 +681,7 @@ class CoAdd3D:
             msgs.info("Loading default image for sky subtraction:" +
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
+                # TODO: Somehow pass chk_version here?
                 spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
                 skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
@@ -741,6 +752,7 @@ class CoAdd3D:
                 # Load a user specified frame for sky subtraction
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
+                    # TODO: Somehow pass chk_version here?
                     spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
                     skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
@@ -779,6 +791,7 @@ class CoAdd3D:
             if not os.path.exists(flatfile):
                 msgs.error("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
             # Load the Flat file
+            # TODO: Somehow pass chk_version here?
             flatimages = flatfield.FlatImages.from_file(flatfile)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
                           flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
@@ -882,6 +895,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 if os.path.exists(alignfile) and self.cubepar['astrometric']:
                     msgs.info("Loading alignments")
+                    # TODO: Somehow pass chk_version here?
                     alignments = alignframe.Alignments.from_file(alignfile)
             else:
                 msgs.warn(f'Processed alignment frame not recorded or not found!')
@@ -941,6 +955,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         for ff, fil in enumerate(self.spec2d):
             # Load it up
             msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
+            # TODO: Somehow pass chk_version here?
             spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname)
             detector = spec2DObj.detector
             spat_flexure = None  # spec2DObj.sci_spat_flexure

@@ -13,6 +13,8 @@ from IPython import embed
 
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit import msgs
@@ -151,7 +153,7 @@ class BitMaskArray(DataContainer):
         return d
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
         """
         Instantiate the object from an HDU extension.
 
@@ -161,24 +163,24 @@ class BitMaskArray(DataContainer):
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            hdu_prefix (:obj:`str`, optional):
-                Maintained for consistency with the base class but is
-                not used by this method.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
+            **kwargs:
+                Passed directly to :func:`_parse`.
         """
         # Run the default parser
-        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check
         cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         # Instantiate
         self = super().from_dict(d=d)
-        
+
         # Check the bitmasks. Bits should have been written to *any* header
         # associated with the object
-        hdr_bitmask = BitMask.from_header(hdu[parsed_hdus[0]].header)
+        hdr = hdu[parsed_hdus[0]].header if isinstance(hdu, fits.HDUList) else hdu.header
+        hdr_bitmask = BitMask.from_header(hdr)
         if chk_version and hdr_bitmask.bits != self.bitmask.bits:
             msgs.error('The bitmask in this fits file appear to be out of date!  Recreate this '
                        'file by re-running the relevant script or set chk_version=False.',

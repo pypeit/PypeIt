@@ -191,6 +191,7 @@ class WaveTilts(calibframe.CalibFrame):
         """
         # get tilt_img_dict
         if (Path(self.calib_dir).resolve() / self.tiltimg_filename).exists():
+            # TODO: Somehow pass chk_version here?
             tilt_img_dict = buildimage.TiltImage.from_file(Path(self.calib_dir).resolve() / self.tiltimg_filename)
         else:
             msgs.error(f'Tilt image {str((Path(self.calib_dir).resolve() / self.tiltimg_filename))} NOT FOUND.')
@@ -198,6 +199,7 @@ class WaveTilts(calibframe.CalibFrame):
         # get slits
         slitmask = None
         if (Path(self.calib_dir).resolve() / self.slits_filename).exists():
+            # TODO: Somehow pass chk_version here?
             slits = slittrace.SlitTraceSet.from_file(Path(self.calib_dir).resolve() / self.slits_filename)
             _slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
             _left, _right, _mask = slits.select_edges(flexure=self.spat_flexure)
@@ -215,6 +217,7 @@ class WaveTilts(calibframe.CalibFrame):
         if waveimg is None and slits is not None and same_size and in_ginga:
             wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
             if Path(wv_calib_name).resolve().exists():
+                # TODO: Somehow pass chk_version here?
                 wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name)
                 tilts = self.fit2tiltimg(slitmask, flexure=self.spat_flexure)
                 waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
