@@ -57,7 +57,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [1, 61]
         #
         par['scienceframe']['exprng'] = [61, None]
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def init_meta(self):
@@ -460,7 +460,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
         # algorithm is not the default.
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def init_meta(self):
@@ -684,7 +684,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['use_instr_flag'] = True
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
 
         return par

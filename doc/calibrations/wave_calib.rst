@@ -278,7 +278,7 @@ In general, the approach is:
     #. Fit a 2D solution to the lines using the order number as a basis
 
     #. Reject orders where the RMS of the fit (measured in binned pixels)
-       exceeds ``rms_threshold``
+       exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
 
     #. Attempt to recover the missing orders using the 2D fit and a higher RMS
        threshold
@@ -286,28 +286,25 @@ In general, the approach is:
     #. Refit the 2D solution
 
 One should always inspect the outputs, especially the 2D solution
-(global and orders).  One may then need to modify the ``rms_threshold``
+(global and orders).  One may then need to modify the ``rms_thresh_frac_fwhm``
 parameter and/or hand-fit a few of the orders to improve the solution.
 
 .. _wvcalib-rms-threshold:
 
-rms_threshold
+RMS threshold
 -------------
 
-All of the echelle spectrographs have a default ``rms_threshold`` 
-matched to a default ``FWHM`` parameter (also measured in binned pixels).
-The ``rms_threshold`` adopted in the analysis is one 
-scaled by the measured FWHM from the arc lines 
-(again, binned pixels) of the adopted calibration files
+The parameter that controls the RMS threshold is ``rms_thresh_frac_fwhm``, which
+is a fraction of the FWHM. If the parameter ``fwhm_fromlines`` is set to **True**,
+FWHM (in binned pixels) will be computed from the arc lines in each slits,
+otherwise the value set by the parameter ``fwhm`` will be used.
 
 That is, each order must satisfy the following:
 
 .. code-block:: ini
 
-    RMS < rms_threshold * (measured_FWHM/default_FWHM)
+    RMS < rms_thresh_frac_fwhm * FWHM     # FWHM in binned pixels
 
-Note: in a future release, we will re-define ``rms_threshold`` to be
-in units of the measured FWHM.
 
 Mosaics
 -------

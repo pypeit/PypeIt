@@ -1,11 +1,12 @@
 
-**Version**: 1.1.0
+**Version**: 1.1.1
 
 =============  =======================================  =================  ==================================================================
 Attribute      Type                                     Array Type         Description                                                       
 =============  =======================================  =================  ==================================================================
 ``cen_disp``   float                                                       Approximate wavelength dispersion                                 
 ``cen_wave``   float                                                       Central wavelength                                                
+``ech_order``  int, `numpy.integer`_                                       Echelle order number.                                             
 ``fwhm``       float                                                       Estimate FWHM of arc lines in binned pixels of the input arc frame
 ``ion_bits``   `numpy.ndarray`_                         `numpy.integer`_   Ion bit values for the Ion names                                  
 ``pixel_fit``  `numpy.ndarray`_                         `numpy.floating`_  Pixel values of arc lines                                         

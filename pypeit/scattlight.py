@@ -117,7 +117,7 @@ class ScatteredLight(calibframe.CalibFrame):
             the master Scattered Light frame wil be displayed by default
         slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
             The current slit traces
-        mask : :obj:`bool`_
+        mask : :obj:`bool`
             If True, the slits will be masked to show only the scattered light regions
         wcs_match : :obj:`bool`, optional
             Use a reference image for the WCS and match all image in other channels to it.

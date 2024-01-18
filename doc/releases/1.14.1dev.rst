@@ -13,7 +13,9 @@ Dependency Changes
 
 - Removes use of deprecated ``pkg_resources``.
 - Require version ``>=1.12`` for ``specutils``.
-- Add ``psutil`` as a dependency for [test] and [dev] installs.
+- Add ``psutil`` as a dependency for [dev] installs.
+- Add ``pytest-qt`` as a dependency for [dev] installs.
+- Require version ``>=0.3.1`` for ``linetools``
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -41,6 +43,8 @@ Functionality/Performance Improvements and Additions
   to reflect the *type* of polynomial being fit.  Both names point to the same
   code, but the name ``'polynomial'`` is deprecated and will be removed in the
   future.
+- Introduced PCA method for telluric corrections
+- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 
 Instrument-specific Updates
 ---------------------------
@@ -54,6 +58,10 @@ Instrument-specific Updates
 - Added support for NTT/EFOSC2 Gr#4
 - Keck/KCWI: FeAr are used for wavelength calibration, while the ThAr lamp is used
   to determine the wavelength tilt.
+- Improvement to the wavelength calibration for Keck/HIRES. New arxiv templates added.
+  Templates available for orders 35-117.
+- Various updates to default parameters for Keck/HIRES.
+- Added ``Keck-LRIS HOWTO`` documentation.
 
 Script Changes
 --------------
@@ -66,11 +74,18 @@ Script Changes
   light calibration frame model.
 - Added the ``pypeit_edge_inspector`` script, which allows users to edit the
   edge traces by-hand.
+- ``pypeit_parse_slits`` now prints also the echelle order number, if applicable.
+- Column ``SpatID`` in the output of ``pypeit_chk_wavecalib`` changed to ``SpatOrderID`` and
+  now show the echelle order number, if applicable, otherwise the slit number.
+- ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
+- Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
+  Setup GUI. 
 
 Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
+- Wavecalib and Wavefit datacontainers now store information about echelle order number, if applicable.
 
 Under-the-hood Improvements
 ---------------------------
@@ -78,6 +93,9 @@ Under-the-hood Improvements
 - The CoAdd3D code has been refactored into a series of core modules and PypeIt-specific routines.
 - Polynomial overscan fitting now uses the ``numpy.polynomial.Chebyshev`` class instead of the
   deprecated ``numpy.polyfit()`` function.
+- Improvements to echelle wavelength calibration. Code changes in:
+  ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
+  ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
 - Fixed some failure modes when matching measured order positions to expected
   positions for fixed-format echelle spectrographs.
 
@@ -101,5 +119,6 @@ Bug Fixes
 - Aligned the documentation and parameters with the code for polynomial overscan
   subtraction.  Docs/params specified 3 values to be passed in ``overscan_par`` for
   ``overscan_method = 'polynomial'``, but the code only uses one (poly order).
+- Fixed duplicate object bug reported in Issue #1690.
 
 

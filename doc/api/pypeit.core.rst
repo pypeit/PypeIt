@@ -40,6 +40,7 @@ Submodules
    pypeit.core.procimg
    pypeit.core.pydl
    pypeit.core.qa
+   pypeit.core.scattlight
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
    pypeit.core.telluric

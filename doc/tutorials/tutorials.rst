@@ -35,6 +35,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
 
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
+   Keck LRIS <lris_howto>
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
    Shane Kast <kast_howto>

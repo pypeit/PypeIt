@@ -125,6 +125,8 @@ class Identify(scriptbase.ScriptBase):
         else:
             waveCalib = None
 
+        waveCalib.copy_calib_internals(msarc)
+
         # Ask the user if they wish to store the result in PypeIt calibrations
         arcfitter.store_solution(final_fit, slits.binspec,
                                  wvcalib=waveCalib,
