@@ -671,7 +671,8 @@ class Collate1D(scriptbase.ScriptBase):
     @classmethod
     def get_parser(cls, width=None):
         # A blank Colate1DPar to avoid duplicating the help text.
-        blank_par = pypeitpar.Collate1DPar()
+        blank_pypar = pypeitpar.PypeItPar()
+        blank_par = blank_pypar['coadd1d']
 
         parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
                                                 'nights and prepare a directory for the KOA.',
@@ -730,7 +731,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument("--wv_rms_thresh", type=float, default = None, help=blank_par.descr['wv_rms_thresh'])
         parser.add_argument("--refframe", type=str, default = None, choices = pypeitpar.WavelengthSolutionPar.valid_reference_frames(),
                             help=blank_par.descr['refframe'])
-        parser.add_argument('--chk_version', action = 'store_true', help=blank_par.descr['chk_version'])
+        parser.add_argument('--chk_version', action = 'store_true', help=blank_pypar['rdx'].descr['chk_version'])
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename collate_1d_YYYYMMDD-HHMM.log')
