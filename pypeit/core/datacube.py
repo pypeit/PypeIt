@@ -1049,7 +1049,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
         scheme with a polynomial fit is used to calculate the S/N weights.
     weight_method : `str`, optional
         Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
-        Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+        Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``, ``'relative'``, or
         ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
 
             - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
@@ -1173,7 +1173,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         scheme with a polynomial fit is used to calculate the S/N weights.
     weight_method : `str`, optional
         Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
-        Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+        Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``, ``'relative'``, or
         ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
 
             - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise

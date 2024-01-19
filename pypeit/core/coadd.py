@@ -821,7 +821,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         wavelength dependent weights are not used.
     weight_method : str, optional
 
-        The weighting method to be used. Options are ``'auto'``, ``'constant'``,
+        The weighting method to be used. Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``,
         ``'relative'``, or ``'ivar'``. The default is ``'auto'``.  Behavior is
         as follows:
 
@@ -865,7 +865,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         vectors) provided in waves, i.e. it is a list of arrays of type
         `numpy.ndarray`_  with the same shape as those in waves.
     """
-    if weight_method not in ['auto', 'constant', 'wave_dependent', 'relative', 'ivar']:
+    if weight_method not in ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']:
         msgs.error('Unrecognized option for weight_method=%s').format(weight_method)
 
     nexp = len(fluxes)
