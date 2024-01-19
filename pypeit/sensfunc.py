@@ -128,7 +128,8 @@ class SensFunc(datamodel.DataContainer):
                  'steps',
                  'splice_multi_det',
                  'meta_spec',
-                 'std_dict'
+                 'std_dict',
+                 'chk_version'
                 ]
 
     _algorithm = None
@@ -1028,8 +1029,10 @@ class UVISSensFunc(SensFunc):
     _algorithm = 'UVIS'
     """Algorithm used for the sensitivity calculation."""
 
-    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
-        super().__init__(spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug)
+    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
+                 chk_version=True):
+        super().__init__(spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
+                         chk_version=chk_version)
 
         # Add some cards to the meta spec. These should maybe just be added
         # already in unpack object
