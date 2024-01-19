@@ -1615,7 +1615,7 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
         fits.
     show : :obj:`bool`, optional
         Show a QA plot of the final fit.
-    chk_version (:obj:`bool`, optional):
+    chk_version : :obj:`bool`, optional
         When reading in existing files written by PypeIt, perform strict version
         checking to ensure a valid file.  If False, the code will try to keep
         going, but this may lead to faults and quiet failures.  User beware!
