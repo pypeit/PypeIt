@@ -340,8 +340,9 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                     spectrograph=None, det=1, overwrite=False, show=False, debug=False):
+    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
+                     dec_offsets=None, spectrograph=None, det=1, overwrite=False, show=False,
+                     debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -354,15 +355,15 @@ class CoAdd3D:
             :class:`CoAdd3D`: One of the subclasses with
             :class:`CoAdd3D` as its base.
         """
-
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
-                        dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
-                        show=show, debug=debug)
+                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr,
+                        ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
+                        det=det, overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                 spectrograph=None, det=None, overwrite=False, show=False, debug=False):
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
+                 dec_offsets=None, spectrograph=None, det=None, overwrite=False, show=False,
+                 debug=False):
         """
 
         Args:
@@ -397,13 +398,13 @@ class CoAdd3D:
                 Show results in ginga
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
-
         """
         # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
         self.overwrite = overwrite
+        self.chk_version = self.par['rdx']['chk_version']
         # Do some quick checks on the input options
         if skysub_frame is not None:
             if len(skysub_frame) != len(spec2dfiles):
@@ -587,8 +588,9 @@ class CoAdd3D:
                 msgs.info("Loading default scale image for relative spectral illumination correction:" +
                           msgs.newline() + self.cubepar['scale_corr'])
                 try:
-                    # TODO: Somehow pass chk_version here?
-                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'], self.detname)
+                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'],
+                                                              self.detname,
+                                                              chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
@@ -649,8 +651,8 @@ class CoAdd3D:
                 msgs.info("Loading the following frame for the relative spectral illumination correction:" +
                           msgs.newline() + scalecorr)
                 try:
-                    # TODO: Somehow pass chk_version here?
-                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname)
+                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname,
+                                                                  chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + scalecorr)
@@ -681,8 +683,9 @@ class CoAdd3D:
             msgs.info("Loading default image for sky subtraction:" +
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
-                # TODO: Somehow pass chk_version here?
-                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
+                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'],
+                                                          self.detname,
+                                                          chk_version=self.chk_version)
                 skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
                 msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
@@ -752,8 +755,8 @@ class CoAdd3D:
                 # Load a user specified frame for sky subtraction
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
-                    # TODO: Somehow pass chk_version here?
-                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
+                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname,
+                                                                  chk_version=self.chk_version)
                     skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts_skysub)
@@ -791,8 +794,7 @@ class CoAdd3D:
             if not os.path.exists(flatfile):
                 msgs.error("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
             # Load the Flat file
-            # TODO: Somehow pass chk_version here?
-            flatimages = flatfield.FlatImages.from_file(flatfile)
+            flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
                           flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
@@ -857,11 +859,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                 spectrograph=None, det=1, overwrite=False, show=False, debug=False):
-        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
-                         dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
-                         show=show, debug=debug)
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
+                 dec_offsets=None, spectrograph=None, det=1, overwrite=False, show=False,
+                 debug=False):
+        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr,
+                         ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
+                         det=det, overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
@@ -895,8 +898,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 if os.path.exists(alignfile) and self.cubepar['astrometric']:
                     msgs.info("Loading alignments")
-                    # TODO: Somehow pass chk_version here?
-                    alignments = alignframe.Alignments.from_file(alignfile)
+                    alignments = alignframe.Alignments.from_file(alignfile,
+                                                                 chk_version=self.chk_version)
             else:
                 msgs.warn(f'Processed alignment frame not recorded or not found!')
                 msgs.info("Using slit edges for astrometric transform")
@@ -955,8 +958,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         for ff, fil in enumerate(self.spec2d):
             # Load it up
             msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
-            # TODO: Somehow pass chk_version here?
-            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
+                                                      chk_version=self.chk_version)
             detector = spec2DObj.detector
             spat_flexure = None  # spec2DObj.sci_spat_flexure
 

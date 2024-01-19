@@ -30,6 +30,6 @@ class ChkFlats(scriptbase.ScriptBase):
         # Load
         flatImages = flatfield.FlatImages.from_file(args.file, chk_version=(not args.try_old))
         # Show
-        flatImages.show(args.type)
+        flatImages.show(args.type, chk_version=(not args.try_old))
 
 

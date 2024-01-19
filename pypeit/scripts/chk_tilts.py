@@ -36,7 +36,8 @@ class ChkTilts(scriptbase.ScriptBase):
 
         # Load
         tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=(not args.try_old))
-        tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces)
+        tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces,
+                   chk_version=(not args.try_old))
 
 
 

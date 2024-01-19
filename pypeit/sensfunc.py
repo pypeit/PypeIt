@@ -189,20 +189,21 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
                          description='The good pixel mask for the fluxed standard star spectrum ')])
 
-
-
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
+    def get_instance(cls, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
+                     chk_version=True):
         """
         Instantiate the relevant subclass based on the algorithm provided in
         ``par``.
         """
         return next(c for c in cls.__subclasses__()
-                    if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par,
-                                                                    par_fluxcalib=par_fluxcalib, debug=debug)
+                    if c.__name__ == f"{par['algorithm']}SensFunc")(
+                        spec1dfile, sensfile, par, par_fluxcalib=par_fluxcalib, debug=debug,
+                        chk_version=chk_version)
 
-    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False):
+    def __init__(self, spec1dfile, sensfile, par, par_fluxcalib=None, debug=False,
+                 chk_version=True):
 
         # Instantiate as an empty DataContainer
         super().__init__()
@@ -211,6 +212,7 @@ class SensFunc(datamodel.DataContainer):
         self.spec1df = spec1dfile
         self.sensfile = sensfile
         self.par = par
+        self.chk_version = chk_version
         # Spectrograph
         header = fits.getheader(self.spec1df)
         self.PYP_SPEC = header['PYP_SPEC']
@@ -220,7 +222,8 @@ class SensFunc(datamodel.DataContainer):
         # spectrograph objects with configuration specific information from
         # spec1d files.
         self.spectrograph.dispname = header['DISPNAME']
-        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
+        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] \
+                                if par_fluxcalib is None else par_fluxcalib
 
         # Set the algorithm in the datamodel
         self.algorithm = self.__class__._algorithm
@@ -238,17 +241,21 @@ class SensFunc(datamodel.DataContainer):
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
         # Read in the Standard star data
-        self.sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df).get_std(multi_spec_det=self.par['multi_spec_det'])
+        self.sobjs_std = specobjs.SpecObjs.from_fitsfile(
+                                self.spec1df, chk_version=self.chk_version).get_std(
+                                    multi_spec_det=self.par['multi_spec_det'])
 
         if self.sobjs_std is None:
-            msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
+            msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
 
         # Unpack standard
-        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header = self.sobjs_std.unpack_object(ret_flam=False)
+        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
+                = self.sobjs_std.unpack_object(ret_flam=False)
 
         # Compute the blaze function
         # TODO Make the blaze function optional
-        log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) if par['flatfile'] is not None else None
+        log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) \
+                                    if par['flatfile'] is not None else None
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
@@ -269,7 +276,8 @@ class SensFunc(datamodel.DataContainer):
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
 
-    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0, min_blaze_value=1e-3, debug=False):
+    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0,
+                      min_blaze_value=1e-3, debug=False):
         """
         Compute the blaze function from a flat field image.
 
@@ -293,8 +301,7 @@ class SensFunc(datamodel.DataContainer):
             `numpy.ndarray`_: The log10 blaze function. Shape = (nspec, norddet)
             if norddet > 1, else shape = (nspec,)
         """
-        # TODO: Somehow pass chk_version here?
-        flatImages = flatfield.FlatImages.from_file(flatfile)
+        flatImages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
 
         pixelflat_raw = flatImages.pixelflat_raw
         pixelflat_norm = flatImages.pixelflat_norm
@@ -308,7 +315,8 @@ class SensFunc(datamodel.DataContainer):
         mask_box = (pixmsk != pixtot) & np.isfinite(wave) & (wave > 0.0)
 
         # TODO This is ugly and redundant with spec_atleast_2d, but the order of operations compels me to do it this way
-        blaze_function = (np.clip(flux_box*mask_box, 1e-3, 1e9)).reshape(-1,1) if flux_box.ndim == 1 else flux_box*mask_box
+        blaze_function = (np.clip(flux_box*mask_box, 1e-3, 1e9)).reshape(-1,1) \
+                            if flux_box.ndim == 1 else flux_box*mask_box
         wave_debug = wave.reshape(-1,1) if wave.ndim == 1 else wave
         log10_blaze_function = np.zeros_like(blaze_function)
         norddet = log10_blaze_function.shape[1]
@@ -459,9 +467,11 @@ class SensFunc(datamodel.DataContainer):
         # TODO assign this to the data model
 
         # Unpack the fluxed standard
-        _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ = self.sobjs_std.unpack_object(ret_flam=True)
+        _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ \
+                = self.sobjs_std.unpack_object(ret_flam=True)
         # Reshape to 2d arrays
-        wave, flam, flam_ivar, flam_mask, _, _, _ = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
+        wave, flam, flam_ivar, flam_mask, _, _, _ \
+                = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
         # Store in the sens table
         self.sens['SENS_FLUXED_STD_WAVE'] = wave.T
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
@@ -787,7 +797,7 @@ class SensFunc(datamodel.DataContainer):
 
 
     @classmethod
-    def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True):
+    def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True, chk_version=True):
         """
         Get the weights based on the sensfunc
 
@@ -799,14 +809,17 @@ class SensFunc(datamodel.DataContainer):
                 norders, nexp) or (nspec, norders).
             debug (bool): default=False
                 show the weights QA
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
 
         Returns:
             `numpy.ndarray`_: sensfunc weights evaluated on the input waves
             wavelength grid, shape = same as waves
         """
-        # TODO: Somehow pass chk_version here?
-        sens = cls.from_file(sensfile)
-    #    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+        sens = cls.from_file(sensfile, chk_version=chk_version)
 
         if waves.ndim == 2:
             nspec, norder = waves.shape

@@ -28,19 +28,19 @@ from pypeit.history import History
 class CoAdd1D:
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                     debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                     setup_id=None, debug=False, show=False, chk_version=True):
         """
-        Superclass factory method which generates the subclass instance. See :class:`CoAdd1D` instantiation for
-        argument descriptions.
+        Superclass factory method which generates the subclass instance. See
+        :class:`CoAdd1D` instantiation for argument descriptions.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
-            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
-            debug=debug, show=show)
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+            setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
 
         Args:
@@ -66,6 +66,11 @@ class CoAdd1D:
                 Debug. Default = False
             show (bool, optional):
                 Debug. Default = True
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
         """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
@@ -84,6 +89,7 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
+        self.chk_version = chk_version
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
         self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
@@ -159,14 +165,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
-        """
-        See :class:`CoAdd1D` instantiation for argument descriptions.
-        """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
-
-
     def load(self):
         """
         Load the arrays we need for performing coadds.
@@ -190,7 +188,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         waves, fluxes, ivars, gpms, headers = [], [], [], [], []
         for iexp in range(self.nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp],
+                                                    chk_version=self.chk_version)
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
                 msgs.error(
@@ -333,15 +332,14 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
-
-
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par,
+                         sensfuncfile=sensfuncfile, setup_id=setup_id, debug=debug, show=show,
+                         chk_version=chk_version)
 
         if sensfuncfile is None:
             msgs.error('sensfuncfile is a required argument for echelle coadding')
@@ -435,7 +433,7 @@ class EchelleCoAdd1D(CoAdd1D):
         """
         nexp = len(spec1dfiles)
         for iexp in range(nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.chk_version)
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
@@ -446,7 +444,9 @@ class EchelleCoAdd1D(CoAdd1D):
             # echelle coadding code to combine echelle and multislit data
             if wave_iexp.ndim == 1:
                 wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = np.atleast_2d(wave_iexp).T, np.atleast_2d(flux_iexp).T, np.atleast_2d(ivar_iexp).T, np.atleast_2d(gpm_iexp).T
-            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp, debug=self.debug)
+            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp,
+                                                                   debug=self.debug,
+                                                                   chk_version=self.chk_version)
             # Allocate arrays on first iteration
             # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
             if iexp == 0:

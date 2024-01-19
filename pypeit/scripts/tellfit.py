@@ -72,6 +72,10 @@ class TellFit(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename tellfit_YYYYMMDD-HHMM.log')
+        parser.add_argument('--chk_version', default=False, action='store_true',
+                            help='Ensure the datamodels are from the current PypeIt version. '
+                                 'By default (consistent with previous functionality) this is '
+                                 'not enforced and crashes may ensue ...')
         return parser
 
     @staticmethod
@@ -167,7 +171,8 @@ class TellFit(scriptbase.ScriptBase):
                                            popsize=par['telluric']['popsize'],
                                            tol=par['telluric']['tol'],
                                            debug_init=args.debug, disp=args.debug,
-                                           debug=args.debug, show=args.plot)
+                                           debug=args.debug, show=args.plot,
+                                           chk_version=args.chk_version)
         elif par['telluric']['objmodel']=='star':
             TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'],
                                              modelfile, outfile,
@@ -190,7 +195,8 @@ class TellFit(scriptbase.ScriptBase):
                                              popsize=par['telluric']['popsize'],
                                              tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
-                                             debug=args.debug, show=args.plot)
+                                             debug=args.debug, show=args.plot,
+                                             chk_version=args.chk_version)
         elif par['telluric']['objmodel']=='poly':
             TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'],
                                              modelfile, outfile,
@@ -209,7 +215,8 @@ class TellFit(scriptbase.ScriptBase):
                                              popsize=par['telluric']['popsize'],
                                              tol=par['telluric']['tol'],
                                              debug_init=args.debug, disp=args.debug,
-                                             debug=args.debug, show=args.plot)
+                                             debug=args.debug, show=args.plot,
+                                             chk_version=args.chk_version)
         else:
             msgs.error("Object model is not supported yet. Must be 'qso', 'star', or 'poly'.")
 

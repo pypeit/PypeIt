@@ -719,7 +719,7 @@ def unpack_orders(sobjs, ret_flam=False):
 
 # TODO: This function needs to be revisited.  Better yet, it would useful to
 # brainstorm about whether or not it's worth revisiting the spec1d datamodel.
-def general_spec_reader(specfile, ret_flam=False):
+def general_spec_reader(specfile, ret_flam=False, chk_version=True):
     """
     Read a spec1d file or a coadd spectrum file.
 
@@ -728,6 +728,11 @@ def general_spec_reader(specfile, ret_flam=False):
             File with the data
         ret_flam (:obj:`bool`, optional):
             Return FLAM instead of COUNTS.
+        chk_version (:obj:`bool`, optional):
+            When reading in existing files written by PypeIt, perform strict
+            version checking to ensure a valid file.  If False, the code will
+            try to keep going, but this may lead to faults and quiet failures.
+            User beware!
 
     Returns:
         :obj:`tuple`: Seven objects are returned.  The first five are
@@ -742,8 +747,7 @@ def general_spec_reader(specfile, ret_flam=False):
     hdul = fits.open(specfile)
     if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
         # Load
-        # TODO: Somehow pass chk_version here?
-        spec = onespec.OneSpec.from_file(specfile)
+        spec = onespec.OneSpec.from_file(specfile, chk_version=chk_version)
         # Unpack
         wave = spec.wave
         # wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
@@ -756,7 +760,7 @@ def general_spec_reader(specfile, ret_flam=False):
         spect_dict = spec.spect_meta
         head = spec.head0
     else:
-        sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
+        sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=chk_version)
         # TODO: What bug?  Is it fixed now?  How can we test if it's fixed?
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
@@ -1521,7 +1525,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
                  teltype='pca', tell_npca=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
+                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                 chk_version=True):
     """
     Fit and correct a QSO spectrum for telluric absorption.
 
@@ -1610,6 +1615,10 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
         fits.
     show : :obj:`bool`, optional
         Show a QA plot of the final fit.
+    chk_version (:obj:`bool`, optional):
+        When reading in existing files written by PypeIt, perform strict version
+        checking to ensure a valid file.  If False, the code will try to keep
+        going, but this may lead to faults and quiet failures.  User beware!
 
     Returns
     -------
@@ -1628,7 +1637,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
                                         'lbound_norm', 'ubound_norm', 'tell_norm_thresh'),
                       debug_init=debug_init)
 
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=True, chk_version=chk_version)
     header = fits.getheader(spec1dfile) # clean this up!
 
     # Mask the IGM and mask wavelengths that extend redward of our PCA
@@ -1692,7 +1702,8 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
+                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                  chk_version=True):
     """
     This needs a doc string.
 
@@ -1709,7 +1720,8 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         disp = True
 
     # Read in the data
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=False, chk_version=chk_version)
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
     star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
@@ -1800,7 +1812,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
                   tell_npca=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
-                  debug_init=False, debug=False, show=False):
+                  debug_init=False, debug=False, show=False, chk_version=True):
     """
     This needs a doc string.
 
@@ -1814,7 +1826,8 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         disp = True
 
     # Read in the data
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=False, chk_version=chk_version)
 
     if flux.ndim == 2:
         norders = flux.shape[1]
