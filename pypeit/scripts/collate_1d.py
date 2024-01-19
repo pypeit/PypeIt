@@ -672,7 +672,7 @@ class Collate1D(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         # A blank Colate1DPar to avoid duplicating the help text.
         blank_pypar = pypeitpar.PypeItPar()
-        blank_par = blank_pypar['coadd1d']
+        blank_par = blank_pypar['collate1d']
 
         parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
                                                 'nights and prepare a directory for the KOA.',
