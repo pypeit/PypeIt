@@ -196,16 +196,23 @@ but the grating angle of the two nights were slightly different).
 This is also needed if your standard star observations were taken
 with a slightly different setup. This correction requires that you
 have taken calibrations (i.e. flatfields) with the two different
-setups. By default, the grating correction will be applied, but it
-can be disabled by setting the following keyword argument in your
-``coadd3d`` file:
+setups. By default, the grating correction will not be applied. If
+you want to apply the grating correction, you will need to specify
+the relative path+file of the Flat calibration file for each spec2d
+file. You will need to specify a ``grating_corr`` file for each
+science frame, in the ``spec2d`` block of the ``.coadd3d`` file:
 
 .. code-block:: ini
 
-    [reduce]
-        [[cube]]
-            grating_corr = False
+    # Read in the data
+    spec2d read
+                               filename  |  grating_corr
+    Science/spec2d_scienceframe_01.fits  |  Calibrations/Flat_A_0_DET01.fits
+    Science/spec2d_scienceframe_02.fits  |  Calibrations/Flat_B_1_DET01.fits
+    spec2d end
 
+If all spec2d files were reduced with the same Flat calibration file,
+then you do not need to specify the grating correction file.
 
 Astrometric correction
 ======================
