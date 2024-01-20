@@ -218,9 +218,10 @@ class BitMask:
 
     def flagged(self, value, flag=None, exclude=None, and_not=None):
         """
-        Determine if a bit is on in the provided bitmask value.  The
-        function can be used to determine if any individual bit is on or
-        any one of many bits is on.
+
+        Determine if a bit is on in the provided integer(s).  The function can
+        be used to determine if any individual bit is on or any one of many bits
+        is on.
 
         Args:
             value (int, array-like):
@@ -234,10 +235,8 @@ class BitMask:
                 flags are included in the check.
             and_not (str, array-like, optional):
                 One or more bit names to ensure are *not* selected by the check.
-                If any of these bits are flagged, the element in the returned
-                array is as if it was not flagged, even if other flags not in
-                this list *are* flagged.  I.e., the returned value can only be
-                True if one of these "and_not" bits are *not* flagged.  If None,
+                I.e., if this bit is flagged the returned value is false, even
+                if other selected bits *are* flagged.  See examples.  If None,
                 functionality ignored.
         
         Returns:
@@ -250,6 +249,81 @@ class BitMask:
                 is not one of the valid bitmask names.
             TypeError: Raised if the provided *flag* does not contain
                 one or more strings.
+
+        Example:
+
+            Let the BitMask object have two flags, 'A' and 'B', and a bit
+            array ``v``, such that:
+
+            >>> import numpy
+            >>> from pypeit.bitmask import BitMask
+            >>> bm = BitMask(['A', 'B'])
+            >>> v = numpy.arange(4).astype(numpy.int16)
+            >>> v
+            array([0, 1, 2, 3], dtype=int16)
+            >>> print([bm.flagged_bits(_v) for _v in v])
+            [[], ['A'], ['B'], ['A', 'B']]
+
+            This function will return a boolean array that indicates where flags
+            are turned on in each bit value.
+            
+            - To find if a specific bit is on:
+
+              >>> bm.flagged(v, flag='A')
+              array([False,  True, False,  True])
+
+            - To find if *any* bit is on:
+
+              >>> bm.flagged(v)
+              array([False,  True,  True,  True])
+
+              This is identical to:
+
+              >>> bm.flagged(v, flag=['A', 'B'])
+              array([False,  True,  True,  True])
+
+              or a logical-or combination of all the bits:
+
+              >>> bm.flagged(v, flag='A') | bm.flagged(v, flag='B') 
+              array([False,  True,  True,  True])
+
+            - To find if any bit is on except for a given subset, use the
+              ``exclude`` keyword:
+
+              >>> bm.flagged(v, exclude='A')
+              array([False, False,  True,  True])
+
+              This is identical to:
+
+              >>> bm.flagged(v, flag='B')
+              array([False, False,  True,  True])
+
+              Obviously, this is more useful when there are many flags and
+              you're only trying to exclude a few.
+
+            - To find if a set of bits are on *and* a different set of bits are
+              *not* on, use the ``and_not`` keyword:
+
+              >>> bm.flagged(v, and_not='B')
+              array([False,  True, False, False])
+
+              This is equivalent to:
+
+              >>> bm.flagged(v, flag=['A', 'B'], and_not='B')
+              array([False,  True, False, False])
+
+              and:
+
+              >>> bm.flagged(v) & numpy.logical_not(bm.flagged(v, flag='B'))
+              array([False,  True, False, False]) 
+
+              Note that the returned values are False if the bit indicates that
+              flag 'B' is on, even though flag 'B' was in the list provided to
+              the ``flag`` keyword; i.e., the use of ``and_not`` supersedes any
+              elements of ``flag``.
+
+            - Currently there is no functionality that performs a logical-and
+              combination of flags.
         """
         _flag = self._prep_flags(flag)
         if exclude is not None:

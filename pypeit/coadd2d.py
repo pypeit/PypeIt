@@ -420,13 +420,14 @@ class CoAdd2D:
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
         # bpm for the first frame
-        reduce_bpm = (slits0.mask > 0) & (np.invert(slits0.bitmask.flagged(slits0.mask,
-                                                                           flag=slits0.bitmask.exclude_for_reducing)))
+
+        reduce_bpm = slits0.bitmask.flagged(slits0.mask,
+                                            and_not=slits0.bitmask.exclude_for_reducing)
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                              flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= slits.bitmask.flagged(slits.mask,
+                                                and_not=slits.bitmask.exclude_for_reducing)
         # these are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
