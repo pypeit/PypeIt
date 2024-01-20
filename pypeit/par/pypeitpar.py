@@ -1568,7 +1568,7 @@ class CubePar(ParSet):
     def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
+                 spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None):
 
         # Grab the parameter names and values from the function
@@ -1753,13 +1753,6 @@ class CubePar(ParSet):
         dtypes['astrometric'] = bool
         descr['astrometric'] = 'If true, an astrometric correction will be applied using the alignment frames.'
 
-        defaults['grating_corr'] = True
-        dtypes['grating_corr'] = bool
-        descr['grating_corr'] = 'This option performs a small correction for the relative blaze function of all ' \
-                                'input frames that have (even slightly) different grating angles, or if you are ' \
-                                'flux calibrating your science data with a standard star that was observed with ' \
-                                'a slightly different setup.'
-
         defaults['scale_corr'] = None
         dtypes['scale_corr'] = str
         descr['scale_corr'] = 'This option performs a small correction for the relative spectral illumination ' \
@@ -1797,7 +1790,7 @@ class CubePar(ParSet):
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
+                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1822,7 +1815,6 @@ class CubePar(ParSet):
         allowed_weight_methods = Coadd1DPar.valid_weight_methods()
         if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
-
 
 
 class FluxCalibratePar(ParSet):

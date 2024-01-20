@@ -913,7 +913,7 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(scale_corr=None, skysub_frame=None, ra_offset=None, dec_offset=None)
+        opts = dict(scale_corr=None, grating_corr=None, skysub_frame=None, ra_offset=None, dec_offset=None)
 
         # Get the scale correction files
         scale_corr = self.path_and_files('scale_corr', skip_blank=False, check_exists=False)
@@ -923,6 +923,15 @@ class Coadd3DFile(InputFile):
             opts['scale_corr'] = scale_corr.lower()*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
+
+        # Get the grating correction files
+        grating_corr = self.path_and_files('grating_corr', skip_blank=False, check_exists=False)
+        if grating_corr is None:
+            opts['grating_corr'] = [None]*len(self.filenames)
+        elif len(grating_corr) == 1 and len(self.filenames) > 1:
+            msgs.error("You cannot specify a single grating correction file for multiple input files.")
+        elif len(grating_corr) != 0:
+            opts['grating_corr'] = grating_corr
 
         # Get the skysub files
         skysub_frame = self.path_and_files('skysub_frame', skip_blank=False, check_exists=False)

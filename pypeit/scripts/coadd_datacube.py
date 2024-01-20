@@ -57,12 +57,13 @@ class CoAddDataCube(scriptbase.ScriptBase):
         dec_offsets = coadd3dfile.options['dec_offset']
         skysub_frame = coadd3dfile.options['skysub_frame']
         scale_corr = coadd3dfile.options['scale_corr']
+        grating_corr = coadd3dfile.options['grating_corr']
 
         # Instantiate CoAdd3d
         tstart = time.time()
         coadd = CoAdd3D.get_instance(coadd3dfile.filenames, parset, skysub_frame=skysub_frame, scale_corr=scale_corr,
-                                     ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
-                                     det=args.det, overwrite=args.overwrite)
+                                     grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+                                     spectrograph=spectrograph, det=args.det, overwrite=args.overwrite)
 
         # Coadd the files
         coadd.run()
