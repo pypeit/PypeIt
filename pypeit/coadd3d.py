@@ -22,6 +22,12 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
 
+# REMOVE THIS TODOLIST BEFORE PR MERGING
+#TODO :: tweaked edges (this needs a different algorithm than what is currently implemented)
+#     :: non-linearity correction
+#     :: incorporate flat products into spec2d files
+#     :: specc1d extractions from datacubes
+
 
 class DataCube(datamodel.DataContainer):
     """
@@ -340,9 +346,9 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
-                     dec_offsets=None, spectrograph=None, det=1, overwrite=False, show=False,
-                     debug=False):
+    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+                     ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                     overwrite=False, show=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -357,13 +363,13 @@ class CoAdd3D:
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr,
-                        ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
-                        det=det, overwrite=overwrite, show=show, debug=debug)
+                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, grating_corr=grating_corr,
+                        ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
+                        overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
-                 dec_offsets=None, spectrograph=None, det=None, overwrite=False, show=False,
-                 debug=False):
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+                 ra_offsets=None, dec_offsets=None,
+                 spectrograph=None, det=None, overwrite=False, show=False, debug=False):
         """
 
         Args:
@@ -380,6 +386,9 @@ class CoAdd3D:
                 entry of spec2dfiles. It should be the same length as spec2dfiles.
             scale_corr (:obj:`list`, optional):
                 If not None, this should be a list of relative scale correction options. It should be the
+                same length as spec2dfiles.
+            grating_corr (:obj:`list`, optional):
+                If not None, this should be a list of relative grating tilt correction options. It should be the
                 same length as spec2dfiles.
             ra_offsets (:obj:`list`, optional):
                 If not None, this should be a list of relative RA offsets of each frame. It should be the
@@ -420,6 +429,8 @@ class CoAdd3D:
             msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
         if scale_corr is not None and len(scale_corr) != self.numfiles:
             msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
+        if grating_corr is not None and len(grating_corr) != self.numfiles:
+            msgs.error("The grating_corr list should be identical length to the spec2dfiles list")
         if ra_offsets is not None and len(ra_offsets) != self.numfiles:
             msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
         if dec_offsets is not None and len(dec_offsets) != self.numfiles:
@@ -432,6 +443,7 @@ class CoAdd3D:
         # Set the frame specific options
         self.skysub_frame = skysub_frame
         self.scale_corr = scale_corr
+        self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
         self.dec_offsets = list(dec_offsets) if isinstance(dec_offsets, np.ndarray) else dec_offsets
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
@@ -584,15 +596,16 @@ class CoAdd3D:
         """
         self.fluxcal = True
         # The first standard star cube is used as the reference blaze spline
-        if self.cubepar['grating_corr']:
+        if self.grating_corr is not None:
             # Load the blaze information
             stdcube = fits.open(self.cubepar['standard_cube'])
             # If a reference blaze spline has not been set, do that now.
             self.set_blaze_spline(stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data)
         # Generate a spline representation of the sensitivity function
+        gratcorr = self.grating_corr is not None
         self.flux_spline = datacube.make_sensfunc(self.cubepar['standard_cube'], self.senspar,
                                                   blaze_wave=self.blaze_wave, blaze_spline=self.blaze_spline,
-                                                  grating_corr=self.cubepar['grating_corr'])
+                                                  grating_corr=gratcorr)
 
     def set_default_scalecorr(self):
         """
@@ -877,12 +890,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None,
-                 dec_offsets=None, spectrograph=None, det=1, overwrite=False, show=False,
-                 debug=False):
-        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr,
-                         ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph,
-                         det=det, overwrite=overwrite, show=show, debug=debug)
+    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                 overwrite=False, show=False, debug=False):
+        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, grating_corr=grating_corr,
+                         ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
+                         overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
@@ -1116,13 +1129,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Correct for sensitivity as a function of grating angle
             # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
             gratcorr_sort = 1.0
-            if self.cubepar['grating_corr']:
-                # Load the flatfield file
-                key = flatfield.FlatImages.calib_type.upper()
-                if key not in spec2DObj.calibs:
-                    msgs.error('Processed flat calibration file not recorded by spec2d file!')
-                flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+            if self.grating_corr is not None:
                 # Setup the grating correction
+                flatfile = self.grating_corr[ff]
                 self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
