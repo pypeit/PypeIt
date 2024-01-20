@@ -15,7 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse
 from pypeit.spectrographs.util import load_spectrograph
@@ -225,6 +225,30 @@ class DataCube(datamodel.DataContainer):
         if self._wcs is None:
             self._wcs = wcs.WCS(self.head0)
         return self._wcs
+
+    def extract_spec(self, parset, overwrite=False):
+        """
+        Extract a spectrum from the datacube
+
+        Parameters
+        ----------
+        parset : dict
+            A dictionary containing the parameters for the extraction.
+        overwrite : bool, optional
+            Overwrite any existing files
+        """
+        # Generate a spec1d object to hold the extracted spectrum
+        spec = specobj.SpecObj(self.spect_meta['pypeline'], 0)
+
+        # Extract the spectrum
+        spec = datacube.extract_standard_spec(self.wave, self.flux, self.sig, self.ivar, self.bpm, spec)
+
+        # Save the extracted spectrum
+        spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
+        spec.to_file(spec1d_filename, primary_hdr=self.head0, hdr=self.head0, overwrite=overwrite)
+
+        # Return
+        return
 
 
 class DARcorrection:
@@ -1110,7 +1134,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Correct for sensitivity as a function of grating angle
             # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
             gratcorr_sort = 1.0
-            if self.grating_corr is not None:
+            if self.grating_corr[ff] is not None:
                 # Setup the grating correction
                 flatfile = self.grating_corr[ff]
                 self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
