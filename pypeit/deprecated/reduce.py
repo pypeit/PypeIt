@@ -173,19 +173,8 @@ class Reduce:
         # Internal bpm mask
         # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
         # with other bad flag (for which bpm>2)
-        # TODO: To my mind, we should never be using the value of the bit to
-        # check for flags.  We should be using the BitMask functions.  I *think*
-        # what you want is this:
-        self.reduce_bpm = self.slits.bitmask.flagged(
-                                self.slits.mask,
-                                exclude='BOXSLIT',
-                                and_not=self.slits.bitmask.exclude_for_reducing)
-#        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
-#                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
-        # I.e., mask anything *except* slits flagged by only 'BOXSLIT', and also
-        # make sure any of the `exclude_for_reducing` flags are not on.  This
-        # previous code may also have included slits that were flagged as
-        # SHORTSLIT.  Was that on purpose?
+        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # These may be None (i.e. COADD2D)
@@ -382,12 +371,9 @@ class Reduce:
         """ Prepare the masks and wavelength image for extraction.
         """
         # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.reduce_bpm = self.slits.bitmask.flagged(
-                                self.slits.mask,
-                                and_not=self.slits.bitmask.exclude_for_reducing)
-#        self.reduce_bpm = (self.slits.mask > 0) & \
-#                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
-#                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        self.reduce_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
         # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
         self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing)
@@ -668,12 +654,10 @@ class Reduce:
             sigrej = 3.0
 
         # We use this tmp bpm so that we exclude the BOXSLITS during the global_skysub
-        tmp_bpm = self.slits.bitmask.flagged(self.slits.mask,
-                                             and_not=self.slits.bitmask.exclude_for_reducing)
-#        tmp_bpm = (self.slits.mask > 0) & \
-#                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
-#                                                                flag=self.slits.bitmask.exclude_for_reducing)))
-        gdslits = np.where(np.logical_not(tmp_bpm))[0]
+        tmp_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        gdslits = np.where(np.invert(tmp_bpm))[0]
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
