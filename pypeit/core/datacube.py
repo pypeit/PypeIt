@@ -187,7 +187,7 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_standard_spec(stdcube, subpixel=20):
+def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -216,10 +216,10 @@ def extract_standard_spec(stdcube, subpixel=20):
     numwave = flxcube.shape[2]
 
     # Setup the WCS
-    stdwcs = wcs.WCS(stdcube['FLUX'].header)
+    wcscube = wcs.WCS(stdcube['FLUX'].header)
 
-    wcs_scale = (1.0 * stdwcs.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
-    wave = wcs_scale * stdwcs.spectral.wcs_pix2world(np.arange(numwave), 0)[0]
+    wcs_scale = (1.0 * wcscube.spectral.wcs.cunit[0]).to(units.Angstrom).value  # Ensures the WCS is in Angstroms
+    wave = wcs_scale * wcscube.spectral.wcs_pix2world(np.arange(numwave), 0)[0]
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     wl_img = make_whitelight_fromcube(flxcube)
@@ -278,7 +278,7 @@ def extract_standard_spec(stdcube, subpixel=20):
     ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
 
     # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
-    arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
+    arcsecSQ = 3600.0*3600.0*(wcscube.wcs.cdelt[0]*wcscube.wcs.cdelt[1])
     ret_flux *= arcsecSQ
     ret_var *= arcsecSQ**2
     # Return the box extraction results
