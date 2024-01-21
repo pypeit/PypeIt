@@ -139,15 +139,18 @@ Flux calibration
 ================
 
 If you would like to flux calibrate your datacube, you need to
-produce your standard star datacube first, and when generating
-the datacube of the science frame you must pass in the name of
-the standard star cube in your ``coadd3d`` file as follows:
+produce your standard star datacube first. Then extract the spectrum
+of the standard star using the ``pypeit_extract_datacube`` script. This
+will produce a ``spec1d`` file that you will need to use to generate a
+sensitivity function in the usual way (see :doc:`_sensitivity_function`).
+Then, when generating the datacube of the science frame you must include
+the name of the sensitivity function in your ``coadd3d`` file as follows:
 
 .. code-block:: ini
 
     [reduce]
         [[cube]]
-            standard_cube = standard_star_cube.fits
+            sensfunc = my_sensfunc.fits
 
 
 Sky Subtraction
