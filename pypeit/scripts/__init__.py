@@ -65,5 +65,3 @@ def script_classes():
     return dict([ (n,c) for n,c in zip(scr_n[srt],scr_c[srt])])
 
 pypeit_scripts = list(script_classes().keys())
-
-
