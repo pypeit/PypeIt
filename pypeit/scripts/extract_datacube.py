@@ -23,6 +23,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
+        # TODO :: May consider adding another optional file that allows the user to pass in some extract parameters?
         parser = super().get_parser(description='Read in a datacube, extract a spectrum of a point source,'
                                                 'and save it as a spec1d file.', width=width)
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
@@ -42,21 +43,23 @@ class ExtractDataCube(scriptbase.ScriptBase):
         if args.file is None:
             msgs.error('You must input a spec3d (i.e. PypeIt DataCube) fits file')
 
-        # Read in the relevant information from the .extract file
-        ext3dfile = inputfiles.ExtractFile.from_file(args.file)
-        spectrograph = load_spectrograph(ext3dfile.config['rdx']['spectrograph'])
+        if False:
+            # Read in the relevant information from the .extract file
+            ext3dfile = inputfiles.ExtractFile.from_file(args.file)
+            spectrograph = load_spectrograph(ext3dfile.config['rdx']['spectrograph'])
 
-        # Parameters
-        spectrograph_def_par = spectrograph.default_pypeit_par()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=(ext3dfile.cfg_lines,))
+            # Parameters
+            spectrograph_def_par = spectrograph.default_pypeit_par()
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                  merge_with=(ext3dfile.cfg_lines,))
 
         # Load the DataCube
         tstart = time.time()
         extcube = DataCube.from_file(args.file)
 
         # Extract the spectrum
-        extcube.extract_spec(parset['reduce']['extraction'], overwrite=args.overwrite)
+        # extcube.extract_spec(parset['reduce']['extraction'], overwrite=args.overwrite)
+        extcube.extract_spec(None, overwrite=args.overwrite)
 
         # Report the extraction time
         msgs.info(utils.get_time_string(time.time()-tstart))
