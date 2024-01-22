@@ -216,7 +216,7 @@ class ProcessImagesPar(ParSet):
 #                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
-                 dark_expscale=None,
+                 dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
@@ -272,6 +272,15 @@ class ProcessImagesPar(ParSet):
                                 '\'chebyshev\' or \'polynomial\', set overcan_par = order; ' \
                                 'for \'savgol\', set overscan_par = order, window size ; ' \
                                 'for \'median\', set overscan_par = None or omit the keyword.'
+
+        defaults['correct_nonlinear'] = None
+        dtypes['correct_nonlinear'] = list
+        descr['correct_nonlinear'] = 'Correct for non-linear response of the detector.  If None, ' \
+                                     'no correction is performed. If a list, then the list should be ' \
+                                     'the non-linear correction parameter (alpha), where the functional ' \
+                                     'form is given by Ct = Cm (1 + alpha x Cm), with Ct and Cm the true ' \
+                                     'and measured counts. This parameter is usually ' \
+                                     'hard-coded for a given spectrograph, and should otherwise be left as None.' \
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -445,8 +454,8 @@ class ProcessImagesPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
                    'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
-                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
-                   'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine', 'correct_nonlinear',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',

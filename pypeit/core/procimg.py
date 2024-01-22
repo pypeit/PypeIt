@@ -1395,3 +1395,52 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
     return var
 
 
+def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
+    r"""
+    Apply a nonlinearity correction to the provided counts.
+
+    The nonlinearity correction is applied to the provided counts using the
+    hard-coded parameters in the provided ``nonlinearity_coeffs``.  The
+    correction is applied to the provided ``counts`` using the following
+    equation:
+
+    .. math::
+
+        C_{\rm corr} = C \left[ 1 + a_i C \right]
+
+    where :math:`C` is the provided counts, :math:`C_{\rm corr}` is the corrected counts
+    :math:`a_i` are the provided coefficients (one for each amplifier).
+
+    Parameters
+    ----------
+    counts : `numpy.ndarray`_
+        Array with the counts to correct.
+    ampimage : `numpy.ndarray`_
+        Array with the amplifier image.  This is used to determine the
+        amplifier-dependent nonlinearity correction coefficients.
+    nonlinearity_coeffs : `numpy.ndarray`_
+        Array with the nonlinearity correction coefficients.  The shape of the
+        array must be :math:`(N_{\rm amp})`, where :math:`N_{\rm amp}` is the
+        number of amplifiers. The coefficients are applied to the counts using
+        the equation above.
+
+    Returns
+    -------
+    corr_counts :
+        Array with the corrected counts.
+    """
+    msgs.info('Applying a non-linearity correction to the counts.')
+    # Check the input
+    if counts.shape != ampimage.shape:
+        msgs.error('Counts and amplifier image have different shapes.')
+    if isinstance(nonlinearity_coeffs, list):
+        nonlinearity_coeffs = np.array(nonlinearity_coeffs)
+    # Setup the output array
+    corr_counts = counts.copy()
+    unqamp = np.unique(ampimage)
+    for uu in range(unqamp.size):
+        thisamp = unqamp[uu]
+        indx = (ampimage == thisamp)
+        corr_counts[indx] = counts[indx] * (1. + nonlinearity_coeffs[thisamp]*counts[indx])
+    # Apply the correction
+    return corr_counts
