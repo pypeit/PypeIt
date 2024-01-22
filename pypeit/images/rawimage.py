@@ -177,6 +177,7 @@ class RawImage:
         self.steps = dict(apply_gain=False,
                           subtract_pattern=False,
                           subtract_overscan=False,
+                          correct_nonlinear=False,
                           subtract_continuum=False,
                           subtract_scattlight=False,
                           trim=False,
@@ -303,6 +304,28 @@ class RawImage:
         var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
+
+    def correct_nonlinear(self):
+        """
+        Apply a non-linear correction to the image.
+
+        This is a simple wrapper for :func:`~pypeit.core.procimg.nonlinear_counts`.
+
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step]:
+            # Already applied
+            msgs.warn('Non-linear correction was already applied.')
+            return
+
+        inim = self.image.copy()
+        for ii in range(self.nimg):
+            # Correct the image for non-linearity. Note that the variance image is not changed here.
+            self.image[ii, ...] = procimg.nonlinear_counts(self.image[ii, ...], self.datasec_img[ii, ...]-1,
+                                                           self.par['correct_nonlinear'])
+        embed()
+
+        self.steps[step] = True
 
     def estimate_readnoise(self):
         """ Estimate the readnoise (in electrons) based on the overscan regions of
@@ -612,7 +635,12 @@ class RawImage:
             self.subtract_bias(bias)
 
         # TODO: Checking for count (well-depth) saturation should be done here.
-        # TODO :: Non-linearity correction should be done here.
+
+        #   - Perform a non-linearity correction.  This is done before the
+        #     flat-field and dark correction because the flat-field modifies
+        #     the counts.
+        if self.par['correct_nonlinear'] is not None:
+            self.correct_nonlinear()
 
         #   - Create the dark current image(s).  The dark-current image *always*
         #     includes the tabulated dark current and the call below ensures
@@ -653,6 +681,8 @@ class RawImage:
         flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
 
         # Calculate the inverse variance
+        # TODO :: I think the IVAR should technically be calculated before the flat-fielding.
+        #         This is because the flat-fielding is done in counts, and the IVAR is in counts^2.
         self.ivar = self.build_ivar()
 
         #   - Subtract continuum level
