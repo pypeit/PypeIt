@@ -74,6 +74,9 @@ class FluxCalib(scriptbase.ScriptBase):
     def main(args):
         """ Runs fluxing steps
         """
+
+        chk_version = not args.try_old
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
 
@@ -111,7 +114,7 @@ class FluxCalib(scriptbase.ScriptBase):
 
         # Instantiate
         fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'],
-                                     chk_version=(not args.try_old))
+                                     chk_version=chk_version)
         msgs.info('Flux calibration complete')
         return 0
 

@@ -48,6 +48,8 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet
 
+        chk_version = not args.try_old
+
         # Parse the detector name
         try:
             det = int(args.det)
@@ -57,8 +59,7 @@ class SkySubRegions(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load it up
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname,
-                                                  chk_version=(not args.try_old))
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=chk_version)
         frame = spec2DObj.sciimg
         hdr = fits.open(args.file)[0].header
         fname = hdr['FILENAME']

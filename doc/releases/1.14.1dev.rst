@@ -85,7 +85,9 @@ Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
-- Wavecalib and Wavefit datacontainers now store information about echelle order number, if applicable.
+- Wavecalib and Wavefit datacontainers now store information about echelle order
+  number, if applicable.
+- Change to how Slit datamodel stores and checks bit flag values.
 
 Under-the-hood Improvements
 ---------------------------
@@ -96,6 +98,8 @@ Under-the-hood Improvements
 - Improvements to echelle wavelength calibration. Code changes in:
   ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
   ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- More extensive propagation of turning off datamodel version checking (using
+  ``try_old`` and ``chk_version``) throughout the code.
 
 Bug Fixes
 ---------

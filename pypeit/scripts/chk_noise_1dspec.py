@@ -175,6 +175,9 @@ class ChkNoise1D(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+
+        chk_version = not args.try_old
+
         # Load em
         line_names, line_wav = utils.list_of_spectral_lines()
             
@@ -200,9 +203,9 @@ class ChkNoise1D(scriptbase.ScriptBase):
             head = fits.getheader(file)
 
             # I/O spec object
-            specObjs = [OneSpec.from_file(file, chk_version=(not args.try_old))] \
+            specObjs = [OneSpec.from_file(file, chk_version=chk_version)] \
                             if args.fileformat == 'coadd1d' else \
-                            specobjs.SpecObjs.from_fitsfile(file, chk_version=(not args.try_old))
+                            specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
 
             # loop on the spectra
             for spec in specObjs:

@@ -35,8 +35,10 @@ class ChkEdges(scriptbase.ScriptBase):
 
         from pypeit import edgetrace, slittrace, msgs
 
+        chk_version = not args.try_old
+
         # Load
-        edges = edgetrace.EdgeTraceSet.from_file(args.trace_file, chk_version=(not args.try_old))
+        edges = edgetrace.EdgeTraceSet.from_file(args.trace_file, chk_version=chk_version)
 
         if args.mpl:
             edges.show(thin=10, include_img=True, idlabel=True)
@@ -60,7 +62,7 @@ class ChkEdges(scriptbase.ScriptBase):
                 msgs.warn(f'{slit_filename} does not exist!')
         # NOTE: At this point, slit_filename *must* be a Path object
 
-        slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=(not args.try_old)) \
+        slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=chk_version) \
                     if slit_filename.exists() else None
         edges.show(thin=10, in_ginga=True, slits=slits)
 

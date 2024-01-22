@@ -180,6 +180,8 @@ class ChkNoise2D(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        chk_version = not args.try_old
+
         # Parse the detector name
         try:
             det = int(args.det)
@@ -207,8 +209,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             if args.list:
                 io.fits_open(file).info()
                 continue
-            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname,
-                                                      chk_version=(not args.try_old))
+            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=chk_version)
 
             # Deal with redshifts
             if args.z is not None:

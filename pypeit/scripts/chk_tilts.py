@@ -26,7 +26,7 @@ class ChkTilts(scriptbase.ScriptBase):
         parser.add_argument('--show_traces', default=False, action='store_true',
                             help='Show the traced tilts. This slows down the plotting (mostly in Ginga). If not set, '
                                  'only the fitted, masked and rejected in the fit tilts are shown.')
-        parser.add_argument('--try_old', default=True, action='store_true',
+        parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
@@ -34,10 +34,12 @@ class ChkTilts(scriptbase.ScriptBase):
     def main(args):
         from pypeit import wavetilts
 
+        chk_version = not args.try_old
+
         # Load
-        tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=(not args.try_old))
+        tilts = wavetilts.WaveTilts.from_file(args.file, chk_version=chk_version)
         tilts.show(in_ginga=np.logical_not(args.mpl), show_traces=args.show_traces,
-                   chk_version=(not args.try_old))
+                   chk_version=chk_version)
 
 
 

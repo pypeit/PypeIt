@@ -35,6 +35,8 @@ class ArxivSolution(scriptbase.ScriptBase):
         from pypeit.wavecalib import WaveCalib
         from pypeit.core.wavecal import wvutils
 
+        chk_version = not args.try_old
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('arxiv_solution', args.verbosity)
 
@@ -45,7 +47,7 @@ class ArxivSolution(scriptbase.ScriptBase):
             msgs.error("The following MasterWaveCalib file does not exist:" + msgs.newline() + args.file)
 
         # Load the wavelength calibration file
-        wv_calib = WaveCalib.from_file(args.file, chk_version=(not args.try_old))
+        wv_calib = WaveCalib.from_file(args.file, chk_version=chk_version)
         # Check if a wavelength solution exists
         if wv_calib['wv_fits'][args.slit]['wave_soln'] is None:
             gd_slits = []

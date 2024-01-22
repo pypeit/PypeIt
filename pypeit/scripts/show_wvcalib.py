@@ -37,11 +37,12 @@ class ShowWvCalib(scriptbase.ScriptBase):
 
         from matplotlib import pyplot as plt
 
+        chk_version = not args.try_old
+
         # Load
-        wvcalib = wavecalib.WaveCalib.from_file(args.file, chk_version=(not args.try_old))
+        wvcalib = wavecalib.WaveCalib.from_file(args.file, chk_version=chk_version)
         if args.slit_file is not None:
-            slits = slittrace.SlitTraceSet.from_file(args.slit_file,
-                                                     chk_version=(not args.try_old))
+            slits = slittrace.SlitTraceSet.from_file(args.slit_file, chk_version=chk_version)
 
         # Parse
         if args.is_order:

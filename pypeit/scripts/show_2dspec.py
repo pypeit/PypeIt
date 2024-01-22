@@ -116,6 +116,8 @@ class Show2DSpec(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        chk_version = not args.try_old
+
         # List only?
         if args.list:
             io.fits_open(args.file).info()
@@ -139,8 +141,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
-            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname,
-                                                      chk_version=(not args.try_old))
+            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=chk_version)
         except PypeItDataModelError:
             try:
                 # Try to get the pypeit version used to write this file

@@ -744,7 +744,6 @@ class QL(scriptbase.ScriptBase):
                             help='If coadding, adjust the spatial grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
                                  'sampling, set value to >1.0).')
-
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
 
@@ -755,6 +754,8 @@ class QL(scriptbase.ScriptBase):
     def main(args):
 
         tstart = time.perf_counter()
+
+        chk_version = not args.try_old
 
         # Parse the raw files
         files = get_files(args.raw_files, args.raw_path)
@@ -965,7 +966,7 @@ class QL(scriptbase.ScriptBase):
                     maskID=args.maskID, 
                     boxcar_radius=args.boxcar_radius,
                     snr_thresh=args.snr_thresh,
-                    chk_version=(not args.try_old))
+                    chk_version=chk_version)
 
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)

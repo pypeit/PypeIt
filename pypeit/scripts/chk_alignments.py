@@ -30,7 +30,8 @@ class ChkAlignments(scriptbase.ScriptBase):
         from pypeit import alignframe
 
         # Load
-        alignments = alignframe.Alignments.from_file(args.file, chk_version=(not args.try_old))
+        chk_version = not args.try_old
+        alignments = alignframe.Alignments.from_file(args.file, chk_version=chk_version)
         # Show
         alignments.show()
 

@@ -60,11 +60,13 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
 
+        chk_version = not args.try_old
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('identify', args.verbosity)
 
         # Load the Arc file
-        msarc = ArcImage.from_file(args.arc_file, chk_version=(not args.try_old))
+        msarc = ArcImage.from_file(args.arc_file, chk_version=chk_version)
 
         # Load the spectrograph
         spec = load_spectrograph(msarc.PYP_SPEC)
@@ -80,13 +82,13 @@ class Identify(scriptbase.ScriptBase):
         par['lamps'] = lamps
 
         # Load the slits
-        slits = slittrace.SlitTraceSet.from_file(args.slits_file, chk_version=(not args.try_old))
+        slits = slittrace.SlitTraceSet.from_file(args.slits_file, chk_version=chk_version)
         # Reset the mask
         slits.mask = slits.mask_init
 
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
-        wv_calib = WaveCalib.from_file(solnname, chk_version=(not args.try_old)) \
+        wv_calib = WaveCalib.from_file(solnname, chk_version=chk_version) \
                         if os.path.exists(solnname) and args.solution else None
 
         # Load the calibration frame (if it exists and is desired).  Bad-pixel mask

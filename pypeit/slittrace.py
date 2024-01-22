@@ -335,7 +335,13 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         # Instantiate
         self = super().from_dict(d=d)
-        
+
+        # Calibration frame attributes
+        # NOTE: If multiple HDUs are parsed, this assumes that the information
+        # necessary to set all the calib internals is always in *every* header.
+        # BEWARE!
+        self.calib_keys_from_header(hdu[parsed_hdus[0]].header)
+
         # Check the bitmasks. Bits should have been written to *any* header
         # associated with the object
         hdr = hdu[parsed_hdus[0]].header if isinstance(hdu, fits.HDUList) else hdu.header

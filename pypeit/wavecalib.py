@@ -182,28 +182,28 @@ class WaveCalib(calibframe.CalibFrame):
                 else:
                     # TODO -- Replace the following with WaveFit._parse() and pass that back!!
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
-                    parsed_hdus += ihdu.name
+                    parsed_hdus += [ihdu.name]
                     if iwavefit.version != wv_fitting.WaveFit.version:
                         msgs.warn("Your WaveFit is out of date!!")
                     # Grab PypeItFit (if it exists)
                     hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
                     if hdname in [khdu.name for khdu in hdu]:
                         iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
-                        parsed_hdus += hdname
+                        parsed_hdus += [hdname]
                 list_of_wave_fits.append(iwavefit)
                 # Grab SPAT_ID for checking
                 spat_ids.append(iwavefit.spat_id)
             elif 'WAVE2DFIT' in ihdu.name:
                 iwave2dfit = fitting.PypeItFit.from_hdu(ihdu)
                 list_of_wave2d_fits.append(iwave2dfit)
-                parsed_hdus += ihdu.name
+                parsed_hdus += [ihdu.name]
             elif 'FWHMFIT' in ihdu.name:
                 # TODO: This is a hack.  We shouldn't be writing empty HDUs,
                 # except for the primary HDU.
                 ifwhmfit = fitting.PypeItFit() if len(ihdu.data) == 0 \
                                 else fitting.PypeItFit.from_hdu(ihdu)
                 list_of_fwhm_fits.append(ifwhmfit)
-                parsed_hdus += ihdu.name
+                parsed_hdus += [ihdu.name]
         # Check
         if spat_ids != _d['spat_ids'].tolist():
             #embed(header="198 of wavecalib.py")

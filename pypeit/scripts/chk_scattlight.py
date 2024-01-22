@@ -40,6 +40,8 @@ class ChkScattLight(scriptbase.ScriptBase):
         from pypeit.images.detector_container import DetectorContainer
         from pypeit import io
 
+        chk_version = not args.try_old
+
         # Parse the detector name
         try:
             det = int(args.det)
@@ -49,11 +51,10 @@ class ChkScattLight(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load scattered light calibration frame
-        ScattLightImage = scattlight.ScatteredLight.from_file(args.file,
-                                                              chk_version=(not args.try_old))
+        ScattLightImage = scattlight.ScatteredLight.from_file(args.file, chk_version=chk_version)
 
         # Load slits information
-        slits = slittrace.SlitTraceSet.from_file(args.slits, chk_version=(not args.try_old))
+        slits = slittrace.SlitTraceSet.from_file(args.slits, chk_version=chk_version)
 
         # Load the alternate file if requested
         display_frame = None  # The default is to display the frame used to calculate the scattered light model
@@ -62,7 +63,7 @@ class ChkScattLight(scriptbase.ScriptBase):
             try:
                 # TODO :: the spec2d file may have already had the scattered light removed, so this is not correct. This script only works when the scattered light is turned off for the spec2d file
                 spec2D = spec2dobj.Spec2DObj.from_file(args.spec2d, detname,
-                                                       chk_version=(not args.try_old))
+                                                       chk_version=chk_version)
             except PypeItDataModelError:
                 msgs.warn(f"Error loading spec2d file {args.spec2d} - attempting to load science image from fits")
                 spec2D = None

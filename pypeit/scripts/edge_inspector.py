@@ -29,10 +29,12 @@ class EdgeInspector(scriptbase.ScriptBase):
         from pypeit import edgetrace
         from pypeit.core.gui import edge_inspector
 
+        chk_version = not args.try_old
+
         # Set the file name to the full path
         trace_file = Path(args.trace_file).resolve()
         # Load
-        edges = edgetrace.EdgeTraceSet.from_file(trace_file, chk_version=(not args.try_old))
+        edges = edgetrace.EdgeTraceSet.from_file(trace_file, chk_version=chk_version)
         # Inspector object
         pointer = edge_inspector.EdgeInspectorGUI(edges)
         # Run.  Ends when window is closed

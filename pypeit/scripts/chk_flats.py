@@ -27,9 +27,11 @@ class ChkFlats(scriptbase.ScriptBase):
 
         from pypeit import flatfield
 
+        chk_version = not args.try_old
+
         # Load
-        flatImages = flatfield.FlatImages.from_file(args.file, chk_version=(not args.try_old))
+        flatImages = flatfield.FlatImages.from_file(args.file, chk_version=chk_version)
         # Show
-        flatImages.show(args.type, chk_version=(not args.try_old))
+        flatImages.show(args.type, chk_version=chk_version)
 
 

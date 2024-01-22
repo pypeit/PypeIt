@@ -29,6 +29,8 @@ class ChkWaveCalib(scriptbase.ScriptBase):
         from astropy.io import fits
         from pypeit import wavecalib, spec2dobj, msgs
 
+        chk_version = not args.try_old
+
         # Loop over the input files
         for in_file in args.input_file:
 
@@ -45,13 +47,12 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                 msgs.error("Bad file type input!")
 
             if file_type == 'WaveCalib':
-                waveCalib = wavecalib.WaveCalib.from_file(in_file, chk_version=(not args.try_old))
+                waveCalib = wavecalib.WaveCalib.from_file(in_file, chk_version=chk_version)
                 waveCalib.wave_diagnostics(print_diag=True)
                 continue
 
             elif file_type == 'AllSpec2D':
-                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file,
-                                                             chk_version=(not args.try_old))
+                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=chk_version)
                 for det in allspec2D.detectors:
                     print('')
                     print('='*50 + f'{det:^7}' + '='*51)
