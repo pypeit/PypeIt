@@ -15,7 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, specobj, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse
 from pypeit.spectrographs.util import load_spectrograph
@@ -237,15 +237,13 @@ class DataCube(datamodel.DataContainer):
         overwrite : bool, optional
             Overwrite any existing files
         """
-        # Generate a spec1d object to hold the extracted spectrum
-        spec = specobj.SpecObj(self.spect_meta['pypeline'], 0)
-
         # Extract the spectrum
-        spec = datacube.extract_standard_spec(self.wave, self.flux, self.sig, self.ivar, self.bpm, spec)
+        # TODO :: Avoid transposing these large cubes
+        sobj = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs, pypeline=self.spectrograph.pypeline)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
-        spec.to_file(spec1d_filename, primary_hdr=self.head0, hdr=self.head0, overwrite=overwrite)
+        sobj.to_file(spec1d_filename, primary_hdr=self.head0, hdr=self.head0, overwrite=overwrite)
 
         # Return
         return
@@ -535,8 +533,8 @@ class CoAdd3D:
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
-        if self.cubepar['standard_cube'] is not None:
-            self.make_sensfunc()
+        # if self.cubepar['standard_cube'] is not None:
+        #     self.make_sensfunc()
 
         # If a reference image has been set, check that it exists
         if self.cubepar['reference_image'] is not None:
