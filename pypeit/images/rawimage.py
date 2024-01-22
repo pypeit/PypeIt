@@ -323,7 +323,6 @@ class RawImage:
             # Correct the image for non-linearity. Note that the variance image is not changed here.
             self.image[ii, ...] = procimg.nonlinear_counts(self.image[ii, ...], self.datasec_img[ii, ...]-1,
                                                            self.par['correct_nonlinear'])
-        embed()
 
         self.steps[step] = True
 
