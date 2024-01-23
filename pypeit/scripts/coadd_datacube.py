@@ -5,13 +5,6 @@ from SlicerIFU instruments into a 3D cube with a defined WCS.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import time
-from pypeit import msgs
-from pypeit import par
-from pypeit import inputfiles
-from pypeit import utils
-from pypeit.coadd3d import CoAdd3D
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
 from IPython import embed
 
@@ -32,6 +25,15 @@ class CoAddDataCube(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        import time
+
+        from pypeit import msgs
+        from pypeit import par
+        from pypeit import inputfiles
+        from pypeit import utils
+        from pypeit.coadd3d import CoAdd3D
+        from pypeit.spectrographs.util import load_spectrograph
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('coadd_datacube', args.verbosity)
 
