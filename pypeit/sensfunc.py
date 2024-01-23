@@ -224,7 +224,7 @@ class SensFunc(datamodel.DataContainer):
         # TODO: This line is necessary until we figure out a way to instantiate
         # spectrograph objects with configuration specific information from
         # spec1d files.
-        # self.spectrograph.dispname = header['DISPNAME']
+        self.spectrograph.dispname = header['DISPNAME']
         self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
 
         # Set the algorithm in the datamodel
