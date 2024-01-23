@@ -14,7 +14,7 @@ from scipy import signal
 from scipy.interpolate import interp1d
 import numpy as np
 
-from pypeit import msgs, utils, specobj
+from pypeit import msgs, utils, specobj, specobjs
 from pypeit.core import coadd, flux_calib
 
 # Use a fast histogram for speed!
@@ -293,8 +293,11 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     sobj.BOX_COUNTS_SKY = skyspec  # This is not the real sky, it is the residual sky. The datacube is presumed to be sky subtracted
     sobj.S2N = np.median(ret_flux * np.sqrt(utils.inverse(ret_var)))
 
+    # Make a specobjs object
+    sobjs = specobjs.SpecObjs()
+    sobjs.add_sobj(sobj)
     # Return the specobj object
-    return sobj
+    return sobjs
 
 
 def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_corr=False):
@@ -318,6 +321,9 @@ def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_
     Returns:
         `numpy.ndarray`_: A mask of the good sky pixels (True = good)
     """
+    # TODO :: This routine has not been updated to the new spec1d plan of passing in a sensfunc object
+    #      :: Probably, this routine should be removed and the functionality moved to the sensfunc object
+    msgs.error("coding error - make_sensfunc is not currently supported.  Please contact the developers")
     # Check if the standard star datacube exists
     if not os.path.exists(ss_file):
         msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)

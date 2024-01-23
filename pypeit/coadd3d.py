@@ -248,11 +248,11 @@ class DataCube(datamodel.DataContainer):
         """
         # Extract the spectrum
         # TODO :: Avoid transposing these large cubes
-        sobj = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs, pypeline=self.spectrograph.pypeline)
+        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs, pypeline=self.spectrograph.pypeline)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
-        sobj.to_file(spec1d_filename, primary_hdr=self.head0, hdr=self.head0, overwrite=overwrite)
+        sobjs.write_to_fits(self.head0, spec1d_filename, overwrite=overwrite)
 
         # Return
         return
