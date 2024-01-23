@@ -124,9 +124,7 @@ def find_slits_to_exclude(spec2d_files, par):
     exclude_map = dict()
     for spec2d_file in spec2d_files:
 
-        allspec2d = AllSpec2DObj.from_fits(spec2d_file,
-                                           chk_version=par['rdx']['chk_version'])
-#                                           chk_version=par['collate1d']['chk_version'])
+        allspec2d = AllSpec2DObj.from_fits(spec2d_file, chk_version=par['rdx']['chk_version'])
         for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
             for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
                 for flag in exclude_flags:
@@ -249,9 +247,7 @@ def read_spec1d_files(par, spec1d_files, failure_msgs):
     good_spec1d_files = []
     for spec1d_file in spec1d_files:
         try:
-            sobjs = SpecObjs.from_fitsfile(spec1d_file,
-                                           chk_version=par['rdx']['chk_version'])
-#                                           chk_version=par['collate1d']['chk_version'])
+            sobjs = SpecObjs.from_fitsfile(spec1d_file, chk_version=par['rdx']['chk_version'])
             specobjs_list.append(sobjs)
             good_spec1d_files.append(spec1d_file)
         except Exception as e:
@@ -307,7 +303,6 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             msgs.info(f"Running flux calibrate on {spec1d_file}")
             FxCalib = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'],
                                                    chk_version=par['rdx']['chk_version'])
-#                                                   chk_version=par['collate1d']['chk_version'])
             flux_calibrated_files.append(spec1d_file)
 
         except Exception:
@@ -431,9 +426,6 @@ def coadd(par, coaddfile, source):
     # Set destination file for coadding
     par['coadd1d']['coaddfile'] = coaddfile
     
-#    # Whether to be forgiving of data model versions
-#    par['coadd1d']['chk_version'] = par['collate1d']['chk_version']
-
     # Determine if we should coadd flux calibrated data
     flux_key = par['coadd1d']['ex_value'] + "_FLAM"
 
@@ -616,7 +608,6 @@ def build_parameters(args):
         params['collate1d']['refframe'] = args.refframe
 
     if args.chk_version is True:
-#        params['collate1d']['chk_version'] = True
         params['rdx']['chk_version'] = True
 
     return params, spectrograph, spec1d_files
@@ -677,9 +668,6 @@ class Collate1D(scriptbase.ScriptBase):
         parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
                                                 'nights and prepare a directory for the KOA.',
                                     width=width, formatter=scriptbase.SmartFormatter)
-
-#                                 'F|  chk_version           If true, spec1ds and archival sensfuncs must match the currently\n'
-#                                 'F|                        supported versions. If false (the default) version numbers are not checked.\n'
 
         # TODO: Is the file optional?  If so, shouldn't the first argument start
         # with '--'?

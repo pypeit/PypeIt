@@ -1321,17 +1321,6 @@ class Coadd1DPar(ParSet):
         dtypes['coaddfile'] = str
         descr['coaddfile'] = 'Output filename'
 
-        # NOTE: Deprecated in favor of the parameter in ReduxPar!
-#        defaults['chk_version'] = True
-#        dtypes['chk_version'] = bool
-#        descr['chk_version'] = 'If True, enforce strict PypeIt version checking to ensure that ' \
-#                               'all reused PypeIt files were created with the current version ' \
-#                               'of PypeIt.  If set to False, the code will attempt to read ' \
-#                               'out-of-date files and keep going.  Beware (!!) that this can ' \
-#                               'lead to unforeseen bugs that either cause the code to crash or ' \
-#                               'produce erroneous results. I.e., you really need to know what ' \
-#                               'you are doing if you set this to False!'
-
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -5260,11 +5249,6 @@ class Collate1DPar(ParSet):
         dtypes['refframe'] = str
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
-
-        # NOTE: Deprecated in favor of the parameter in ReduxPar!
-#        defaults['chk_version'] = False
-#        dtypes['chk_version'] = bool
-#        descr['chk_version'] = "Whether to check the data model versions of spec1d files and sensfunc files."
 
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),

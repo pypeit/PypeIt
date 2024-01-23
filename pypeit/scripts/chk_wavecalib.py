@@ -58,7 +58,7 @@ class ChkWaveCalib(scriptbase.ScriptBase):
                     print('='*50 + f'{det:^7}' + '='*51)
                     wave_diag = allspec2D[det].wavesol
                     for colname in ['minWave', 'Wave_cen', 'maxWave', 'IDs_Wave_cov(%)',
-                                    'mesured_fwhm']:
+                                    'measured_fwhm']:
                         wave_diag[colname].format = '0.1f'
                     for colname in ['dWave', 'RMS']:
                         wave_diag[colname].format = '0.3f'

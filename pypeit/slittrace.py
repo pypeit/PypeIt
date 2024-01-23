@@ -30,7 +30,13 @@ class SlitTraceBitMask(BitMask):
     Mask bits used during slit tracing.
     """
     version = '1.0.1'
-    # TODO: Need a unique bit prefix?
+
+    # TODO: Consider using a unique bit prefix for when the bits are written to
+    # the header, like so:
+    #
+    # prefix = 'SLITB'
+    #
+    # It's not necessary, though.
 
     def __init__(self):
         # Only ever append new bits (and don't remove old ones)
