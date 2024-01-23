@@ -237,6 +237,7 @@ class SpecObjs:
         ech_orders = np.zeros(norddet, dtype=int)
 
         # TODO make the extraction that is desired OPT vs BOX an optional input variable.
+        #   This TODO is already so, right?
         for iorddet in range(norddet):
             wave[:, iorddet] = getattr(self, wave_key)[iorddet]
             flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]
@@ -244,7 +245,7 @@ class SpecObjs:
             if self[0].PYPELINE == 'Echelle':
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
-            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
+            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
             trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
             trace_spec[:, iorddet] = self[iorddet].trace_spec
 

@@ -15,7 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs, utils, specobj, specobjs
-from pypeit.core import coadd, flux_calib
+from pypeit.core import coadd, extract, flux_calib
 
 # Use a fast histogram for speed!
 from fast_histogram import histogramdd
@@ -207,6 +207,13 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     gpm_star : `numpy.ndarray`_
         good pixel mask for Nlam_star
     """
+    # Generate a spec1d object to hold the extracted spectrum
+    msgs.info("Initialising a PypeIt SpecObj spec1d file")
+    sobj = specobj.SpecObj(pypeline, "DET01", SLITID=0)
+    sobj.RA = wcscube.wcs.crval[0]
+    sobj.DEC = wcscube.wcs.crval[1]
+    sobj.SLITID = 0
+
     # Extract some information from the HDU list
     varcube = utils.inverse(ivarcube)
     # flxcube = stdcube['FLUX'].data.T.copy()
@@ -277,14 +284,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     ret_flux *= arcsecSQ
     ret_var *= arcsecSQ**2
 
-    # Generate a spec1d object to hold the extracted spectrum
-    msgs.info("Initialising a PypeIt SpecObj spec1d file")
-    sobj = specobj.SpecObj(pypeline, "det01", SLITID=0)
-    sobj.RA = wcscube.wcs.crval[0]
-    sobj.DEC = wcscube.wcs.crval[1]
-    # sobj.NAME = stdname
-    sobj.SLITID = 0
-    # sobj.setup_crmask(numwave)
+    # Store the BOXCAR extraction information
     sobj.BOX_RADIUS = wid
     sobj.BOX_WAVE = wave.astype(float)
     sobj.BOX_COUNTS = ret_flux
@@ -292,6 +292,39 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     sobj.BOX_MASK = ret_gpm
     sobj.BOX_COUNTS_SKY = skyspec  # This is not the real sky, it is the residual sky. The datacube is presumed to be sky subtracted
     sobj.S2N = np.median(ret_flux * np.sqrt(utils.inverse(ret_var)))
+
+    # Now do the OPTIMAL extraction
+    msgs.info("Extracting an optimal spectrum of datacube")
+    # First, we need to rearrange the datacube and inverse variance cube into a 2D array.
+    # The 3D -> 2D conversion is done so that there is a spectral and spatial dimension online,
+    # and the brightest white light pixel is transformed to be at the centre column of the 2D
+    # array. Then, the second brightest white light pixel is transformed to be next to the centre
+    # column of the 2D array, and so on. This is done so that the optimal extraction algorithm
+    # can be applied.
+    # TODO :: The wl_img_masked should be replaced with a 2D model fit to the white light image.
+    wl_img_masked = wl_img * mask[:,:,0]
+    asrt = np.argsort(wl_img_masked, axis=None)
+    tmp = asrt.reshape((asrt.size//2,2))
+    objprof_idx = np.append(tmp[:,0], tmp[::-1,1])
+    objprof = wl_img_masked[np.unravel_index(objprof_idx, wl_img.shape)]  # TODO :: Does this need to be normalized?
+    # Now slice the datacube and inverse variance cube into a 2D array
+    spat, spec = np.meshgrid(objprof_idx, np.arange(numwave), indexing='ij')
+    spatspl = np.apply_along_axis(np.unravel_index, 1, spat, wl_img.shape)
+    # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
+    numspat = objprof_idx.size
+    flxslice = (spatspl[:,0,:], spatspl[:,1,:], spec)
+    flxcube2d = flxcube[flxslice].T * arcsecSQ
+    ivarcube2d = ivarcube[flxslice].T / arcsecSQ**2
+    gpmcube2d = np.logical_not(bpmcube[flxslice].T)
+    waveimg = wave.reshape((numwave,1)).repeat(numspat, axis=1)
+    skyimg = skyspec.reshape((numwave,1)).repeat(numspat, axis=1) * arcsecSQ
+    oprof = objprof.reshape((1,numspat)).repeat(numwave, axis=0)
+    thismask = np.ones_like(flxcube2d, dtype=bool)
+
+    # Now do the optimal extraction
+    # TODO :: Perhaps add support for pypeitpar parameters
+    extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
+                            sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
