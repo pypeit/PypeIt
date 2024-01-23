@@ -1384,7 +1384,7 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
     """
 
     eff_aperture_m2 = eff_aperture*units.m**2
-    S_lam_units = 1e-17*units.erg/units.cm**2
+    S_lam_units = PYPEIT_FLUX_SCALE*units.erg/units.cm**2
     # Set the throughput to be -1 in places where it is not defined.
     throughput = np.full_like(zeropoint, -1.0)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)

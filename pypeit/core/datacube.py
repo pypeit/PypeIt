@@ -231,6 +231,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     msgs.info("Making whitelight image")
+    # TODO :: Probably should set minimum and maximum wavelength to use for whitelight image
     wl_img = make_whitelight_fromcube(flxcube)
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
     wid = max(popt[3], popt[4])
@@ -267,7 +268,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     nrmsky = skymask.sum(0).sum(0)
     skyspec *= utils.inverse(nrmsky)
     flxcube -= skyspec.reshape((1, 1, numwave))
-    # Now subtract the residual sky from the whitelight image
+    # Now subtract the residual sky from the white light image
     sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
     wl_img -= sky_val
 
@@ -312,7 +313,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     # array. Then, the second brightest white light pixel is transformed to be next to the centre
     # column of the 2D array, and so on. This is done so that the optimal extraction algorithm
     # can be applied.
-    wl_img_masked = wl_img * mask[:,:,0]
+    wl_img_masked = wl_img# * mask[:,:,0]
     # Normalise the white light image
     wl_img_masked /= np.sum(wl_img_masked)
     asrt = np.argsort(wl_img_masked, axis=None)
