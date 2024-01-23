@@ -696,15 +696,9 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
     Returns:
-        Tuple: Returns:
-
-    Returns
-    -------
-    meta_table: `astropy.table.Table`_
-        Table containing meta data for the sensitivity function
-    out_table: `astropy.table.Table`_
-        Table containing the sensitivity function
-
+        tuple: Returns the following:
+        - meta_table: `astropy.table.Table`_ Table containing meta data for the sensitivity function
+        - out_table: `astropy.table.Table`_ Table containing the sensitivity function
     """
 
     wave_arr, counts_arr, ivar_arr, mask_arr, log10_blaze_func, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)

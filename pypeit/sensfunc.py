@@ -224,9 +224,8 @@ class SensFunc(datamodel.DataContainer):
         # TODO: This line is necessary until we figure out a way to instantiate
         # spectrograph objects with configuration specific information from
         # spec1d files.
-        self.spectrograph.dispname = header['DISPNAME']
-        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] \
-                                if par_fluxcalib is None else par_fluxcalib
+        # self.spectrograph.dispname = header['DISPNAME']
+        self.par_fluxcalib = self.spectrograph.default_pypeit_par()['fluxcalib'] if par_fluxcalib is None else par_fluxcalib
 
         # Set the algorithm in the datamodel
         self.algorithm = self.__class__._algorithm
@@ -304,7 +303,8 @@ class SensFunc(datamodel.DataContainer):
             `numpy.ndarray`_: The log10 blaze function. Shape = (nspec, norddet)
             if norddet > 1, else shape = (nspec,)
         """
-        flatImages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
+
+        flatImages = flatfield.FlatImages.from_file(flatfile)
 
         pixelflat_raw = flatImages.pixelflat_raw
         pixelflat_norm = flatImages.pixelflat_norm
@@ -336,7 +336,6 @@ class SensFunc(datamodel.DataContainer):
         # TODO It would probably better to just return an array of shape (nspec, norddet) even if norddet = 1, i.e.
         # to get rid of this .squeeze()
         return log10_blaze_function.squeeze()
-
 
     def _bundle(self):
         """
@@ -480,7 +479,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
-
 
     def eval_zeropoint(self, wave, iorddet):
         """

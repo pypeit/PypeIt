@@ -719,16 +719,23 @@ class SpecObjs:
 
         Args:
             subheader (:obj:`dict`):
+                Dictionary with header keywords and values to be added to the
+                primary header of the output file.
             outfile (str):
+                Name of the output file
             overwrite (bool, optional):
+                Overwrite the output file if it exists?
+            update_det (int or list, optional):
+              If provided, do not clobber the existing file but only update
+              the indicated detectors.  Useful for re-running on a subset of detectors
             slitspatnum (:obj:`str` or :obj:`list`, optional):
               Restricted set of slits for reduction.
               If provided, do not clobber the existing file but only update
               the indicated slits.  Useful for re-running on a subset of slits
-            update_det (int or list, optional):
-              If provided, do not clobber the existing file but only update
-              the indicated detectors.  Useful for re-running on a subset of detectors
-
+            history (:obj:`str`, optional):
+                String to be added to the header HISTORY keyword.
+            debug (:obj:`bool`, optional):
+                If True, run in debug mode.
         """
         if os.path.isfile(outfile) and not overwrite:
             msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')
