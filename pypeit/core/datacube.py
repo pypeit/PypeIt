@@ -97,15 +97,19 @@ def fitGaussian2D(image, norm=False):
     y = np.linspace(0, image.shape[1] - 1, image.shape[1])
     xx, yy = np.meshgrid(x, y, indexing='ij')
     # Setup the fitting params
-    idx_max = [image.shape[0]/2, image.shape[1]/2]  # Just use the centre of the image as the best guess
-    #idx_max = np.unravel_index(np.argmax(image), image.shape)
+    med_filt_image = signal.medfilt2d(image, kernel_size=3)
+    # idx_max = [image.shape[0]/2, image.shape[1]/2]  # Just use the centre of the image as the best guess
+    idx_max = np.unravel_index(np.argmax(med_filt_image), image.shape)
     initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
     bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
               [np.inf, image.shape[0], image.shape[1], image.shape[0], image.shape[1], np.pi, np.inf])
     # Perform the fit
+    # TODO :: May want to generate the image on a finer pixel scale first
     popt, pcov = opt.curve_fit(gaussian2D, (xx, yy), image.ravel() / wlscl, bounds=bounds, p0=initial_guess)
+    # Generate a best fit model
+    model = gaussian2D((xx, yy), *popt).reshape(image.shape) * wlscl
     # Return the fitting results
-    return popt, pcov
+    return popt, pcov, model
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure,
@@ -192,20 +196,25 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
 
     Parameters
     ----------
-    TODO: Fill this in
+    wave : `numpy.ndarray`_
+        Wavelength array for the datacube
+    flxcube : `numpy.ndarray`_
+        Datacube of the flux
+    ivarcube : `numpy.ndarray`_
+        Datacube of the inverse variance
+    bpmcube : `numpy.ndarray`_
+        Datacube of the bad pixel mask
+    wcscube : `astropy.wcs.WCS`_
+        WCS of the datacube
     subpixel : int
         Number of pixels to subpixelate spectrum when creating mask
+    pypeline : str
+        PypeIt pipeline used to reduce the datacube
 
     Returns
     -------
-    wave : `numpy.ndarray`_
-        Wavelength of the star.
-    Nlam_star : `numpy.ndarray`_
-        counts/second/Angstrom
-    Nlam_ivar_star : `numpy.ndarray`_
-        inverse variance of Nlam_star
-    gpm_star : `numpy.ndarray`_
-        good pixel mask for Nlam_star
+    sobjs : `pypeit.specobjs.SpecObjs`_
+        SpecObjs object containing the extracted spectrum
     """
     # Generate a spec1d object to hold the extracted spectrum
     msgs.info("Initialising a PypeIt SpecObj spec1d file")
@@ -223,7 +232,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     msgs.info("Making whitelight image")
     wl_img = make_whitelight_fromcube(flxcube)
-    popt, pcov = fitGaussian2D(wl_img, norm=True)
+    popt, pcov, model = fitGaussian2D(wl_img, norm=True)
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
@@ -280,9 +289,11 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
 
     # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
-    arcsecSQ = 3600.0*3600.0*(wcscube.wcs.cdelt[0]*wcscube.wcs.cdelt[1])
-    ret_flux *= arcsecSQ
-    ret_var *= arcsecSQ**2
+    # TODO :: Need to think whether or not this is needed, for extended objects this is probably needed,
+    #  but probably this should be done in the flux calibration step for datacubes.
+    # arcsecSQ = 3600.0*3600.0*(wcscube.wcs.cdelt[0]*wcscube.wcs.cdelt[1])
+    # ret_flux *= arcsecSQ
+    # ret_var *= arcsecSQ**2
 
     # Store the BOXCAR extraction information
     sobj.BOX_RADIUS = wid
@@ -301,28 +312,30 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     # array. Then, the second brightest white light pixel is transformed to be next to the centre
     # column of the 2D array, and so on. This is done so that the optimal extraction algorithm
     # can be applied.
-    # TODO :: The wl_img_masked should be replaced with a 2D model fit to the white light image.
     wl_img_masked = wl_img * mask[:,:,0]
+    # Normalise the white light image
+    wl_img_masked /= np.sum(wl_img_masked)
     asrt = np.argsort(wl_img_masked, axis=None)
     tmp = asrt.reshape((asrt.size//2,2))
     objprof_idx = np.append(tmp[:,0], tmp[::-1,1])
-    objprof = wl_img_masked[np.unravel_index(objprof_idx, wl_img.shape)]  # TODO :: Does this need to be normalized?
+    objprof = wl_img_masked[np.unravel_index(objprof_idx, wl_img.shape)]
+
     # Now slice the datacube and inverse variance cube into a 2D array
     spat, spec = np.meshgrid(objprof_idx, np.arange(numwave), indexing='ij')
     spatspl = np.apply_along_axis(np.unravel_index, 1, spat, wl_img.shape)
     # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
     numspat = objprof_idx.size
     flxslice = (spatspl[:,0,:], spatspl[:,1,:], spec)
-    flxcube2d = flxcube[flxslice].T * arcsecSQ
-    ivarcube2d = ivarcube[flxslice].T / arcsecSQ**2
+    flxcube2d = flxcube[flxslice].T
+    ivarcube2d = ivarcube[flxslice].T
     gpmcube2d = np.logical_not(bpmcube[flxslice].T)
     waveimg = wave.reshape((numwave,1)).repeat(numspat, axis=1)
-    skyimg = skyspec.reshape((numwave,1)).repeat(numspat, axis=1) * arcsecSQ
+    skyimg = skyspec.reshape((numwave,1)).repeat(numspat, axis=1)
     oprof = objprof.reshape((1,numspat)).repeat(numwave, axis=0)
     thismask = np.ones_like(flxcube2d, dtype=bool)
 
     # Now do the optimal extraction
-    # TODO :: Perhaps add support for pypeitpar parameters
+    # TODO :: Perhaps add support for pypeitpar extraction parameters
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
                             sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
 

@@ -9,14 +9,7 @@ DataCube, and use it to flux calibrate the science DataCubes.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import time
-from pypeit import msgs
-from pypeit import par
-from pypeit import inputfiles
-from pypeit import utils
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
-from pypeit.coadd3d import DataCube
 
 
 class ExtractDataCube(scriptbase.ScriptBase):
@@ -36,6 +29,15 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
+        import time
+
+        from pypeit import msgs
+        from pypeit import par
+        from pypeit import inputfiles
+        from pypeit import utils
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.coadd3d import DataCube
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('extract_datacube', args.verbosity)
 
@@ -43,6 +45,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
         if args.file is None:
             msgs.error('You must input a spec3d (i.e. PypeIt DataCube) fits file')
 
+        # TODO :: May consider adding another optional file that allows the user to pass in some extract parameters?
         if False:
             # Read in the relevant information from the .extract file
             ext3dfile = inputfiles.ExtractFile.from_file(args.file)
