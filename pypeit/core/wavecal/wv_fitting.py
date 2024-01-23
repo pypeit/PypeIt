@@ -369,7 +369,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
                     ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
-        #msgs.warn(f'Using {ifit} lines in the fit')
         # Increment order?
         if n_order < n_final:
             n_order += 1

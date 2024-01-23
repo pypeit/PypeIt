@@ -519,8 +519,6 @@ class SpecObj(datamodel.DataContainer):
                 Extrapolate the sensitivity function (instead of crashing out)
             sens_fwhm (`numpy.ndarray`_, optional):
                 Use the fwhm from the sensitivity function to estimate the slit loss
-            dat_fwhm (`numpy.ndarray`_, optional):
-                Use the fwhm from the data to estimate the slit loss
 
         """
         # Loop on extraction modes

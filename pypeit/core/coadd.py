@@ -812,8 +812,6 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
     if ivar_weights and relative_weights:
         msgs.warn("Performing inverse variance weights instead of relative weighting")
         relative_weights = False
-    msgs.info(f'fluxe shape = {np.shape(fluxes)}')
-    msgs.info(f'nexp = {nexp}')
     # Calculate S/N
     sn_val, rms_sn, sn2 = [], [], []
     for iexp in range(nexp):
@@ -994,12 +992,6 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
-    msgs.info(f'flux_ref = {flux_ref}')
-    msgs.info(f'ivar_ref = {ivar_ref}')
-    msgs.info(f'snr_ref = {snr_ref}' )
-    msgs.info(f'mask_ref = {mask_ref}' )
-    msgs.info(f'ref_percentile = {ref_percentile}' )
-    msgs.info(f'snr_do_not_rescale = {snr_do_not_rescale}' )
     
     snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),snr_do_not_rescale)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask

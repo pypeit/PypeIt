@@ -92,11 +92,15 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
     #for solutions with saved line IDs and pixels
     try:
         tbl_line_pix = tbl['lines_pix'].data
-        tbl_line_wav = tbl['lines_wav'].data
-        tbl_line_fit_ord = tbl['lines_fit_ord'].data
     except:
         tbl_line_pix = None
+    try:
+        tbl_line_wav = tbl['lines_wav'].data
+    except:
         tbl_line_wav = None
+    try:
+        tbl_line_fit_ord = tbl['lines_fit_ord'].data
+    except:
         tbl_line_fit_ord = None
 
 

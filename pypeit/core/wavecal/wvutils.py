@@ -373,28 +373,9 @@ def shift_and_stretch(spec, shift, stretch):
     # Positive value of shift means features shift to larger pixel values
 
     nspec = spec.shape[0]
-    '''
-    # pad the spectrum on both sizes
-    x1 = np.arange(nspec)/float(nspec-1)
-    nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # Now create a shifted version
-    ind_shift = np.arange(nspec_stretch) - shift
-    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # Now interpolate onto the original grid
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    '''
     # Can do the stretch and shift in one operation
 
     spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    '''
-    plt.figure()
-    plt.plot(np.arange(nspec), spec)
-    plt.plot(np.arange(nspec), spec_out)
-    plt.plot(np.arange(nspec), spec_out2)
-    plt.show()
-    '''
     return spec_out
 
 def shift_and_stretch2(spec, shift, stretch, stretch2):
@@ -426,32 +407,11 @@ def shift_and_stretch2(spec, shift, stretch, stretch2):
     # Positive value of shift means features shift to larger pixel values
 
     nspec = spec.shape[0]
-    '''
-    # pad the spectrum on both sizes
-    x1 = np.arange(nspec)/float(nspec-1)
-    nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # Now create a shifted version
-    ind_shift = np.arange(nspec_stretch) - shift
-    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # Now interpolate onto the original grid
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    '''
     
     # Can do the stretch and shift in one operation
 
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
-                                           spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    '''
-    plt.figure()
-    plt.plot(np.arange(nspec), spec)
-    plt.plot(np.arange(nspec), spec_out)
-    #plt.plot(np.arange(nspec), spec_out2)
-    plt.title(f'shift = {shift}, stretch = {stretch}, stretch2 = {stretch2}')
-    plt.show()
-    '''
-    return spec_out
+    return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
+                                           spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0)(np.arange(nspec))
 
 
 def zerolag_shift_stretch(theta, y1, y2):
@@ -523,10 +483,9 @@ def zerolag_shift_stretch2(theta, y1, y2):
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     if corr_denom == 0.0:
-        msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
+        msgs.error('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
         raise PypeItError()
-    corr_norm = corr_zero / corr_denom
-    return -corr_norm
+    return -corr_zero / corr_denom
 
 
 def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
@@ -669,7 +628,6 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
                                                                                      cont_frac_fwhm=1.0, cont_samp=30, 
                                                                                      nfind=1)
-    #max_lag_allowed_inds = np.abs(lags) < 0.25*nspec
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -806,7 +764,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
 
     nspec = inspec1.size
-    #percent_ceil = 80.0
     y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
     y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
@@ -821,9 +778,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                                     sigdetect = sigdetect, fwhm=fwhm, max_lag_frac = max_lag_frac, debug = debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
-    #if corr_cc < -np.inf: # < cc_thresh:
-    #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
-    #shift_mnmx = np.array([-0.02, 0.02])
     bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx, (-1.0e-6, 1.0e-6)]
     x0_guess = np.array([shift_cc, 1.0, 0.0])
     # TODO Can we make the differential evolution run faster?
@@ -833,11 +787,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         except PypeItError:
             msgs.warn("Differential evolution failed.")
             return 0, None, None, None, None, None, None
-        else:
-            corr_de = -result.fun
-            shift_de = result.x[0]
-            stretch_de = result.x[1]
-            stretch2_de = result.x[2]
+        corr_de = -result.fun
+        shift_de = result.x[0]
+        stretch_de = result.x[1]
+        stretch2_de = result.x[2]
     if stretch_func == 'linear':
         try:
             bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
@@ -846,11 +799,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         except PypeItError:
             msgs.warn("Differential evolution failed.")
             return 0, None, None, None, None, None, None
-        else:
-            corr_de = -result.fun
-            shift_de = result.x[0]
-            stretch_de = result.x[1]
-            stretch2_de = 0.0
+        corr_de = -result.fun
+        shift_de = result.x[0]
+        stretch_de = result.x[1]
+        stretch2_de = 0.0
 
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
@@ -983,6 +935,12 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
             If True, overwrite any existing file
         cache (bool, optional):
             Store the wavelength solution in the pypeit cache?
+        lines_pix_arr (`numpy.ndarray`_, optional):
+            Pixel values of identified arc line centroids
+        lines_wav_arr (`numpy.ndarray`_, optional):
+            Wavelength values of identified arc line centroids
+        lines_fit_ord (`numpy.ndarray`_, optional):
+            Polynomial order of the wavelength solution
     """
     tbl = Table()
     tbl['wave'] = nwwv

@@ -265,10 +265,7 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         # Run
         coAdd1d.run()
         # Save to file
-        if args.save_multi:
-            coAdd1d.save(coaddfile, order_stacks = coAdd1d.order_stacks)
-        else:
-            coAdd1d.save(coaddfile)
+        coAdd1d.save(coaddfile)#, order_stacks = coAdd1d.order_stacks)
         msgs.info('Coadding complete')
 
 

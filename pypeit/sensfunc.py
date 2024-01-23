@@ -899,7 +899,6 @@ class IRSensFunc(SensFunc):
         TelObj : :class:`~pypeit.core.telluric.Telluric`
             Best-fitting telluric model
         """
-        #msgs.info(f'log10_blaze_function = {self.log10_blaze_function}')
         self.telluric = telluric.sensfunc_telluric(self.wave_cnts, self.counts, self.counts_ivar,
                                                    self.counts_mask, self.meta_spec['EXPTIME'],
                                                    self.meta_spec['AIRMASS'], self.std_dict,

@@ -1065,12 +1065,6 @@ class BuildWaveCalib:
         # Update the mask
         self.wvc_bpm |= arc_maskslit
 
-        #print(' WVC_BPM HAS SHAPE ', np.shape(self.wvc_bpm))
-        #print(' AND CONTENT ', self.wvc_bpm)
-        #print(' ARCCEN HAS SHAPE ', np.shape(arccen))
-        #plt.figure()
-        #plt.plot(arccen[:,3])
-        #plt.show()
         return arccen, self.wvc_bpm
 
 

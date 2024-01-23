@@ -27,7 +27,7 @@ class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                     debug=False, show=False, save_multi = False):
+                     debug=False, show=False, save_multi=False):
         """
         Superclass factory method which generates the subclass instance. See :class:`CoAdd1D` instantiation for
         argument descriptions.
@@ -35,10 +35,10 @@ class CoAdd1D:
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
-            debug=debug, show=show, save_multi = save_multi)
+            debug=debug, show=show, save_multi=save_multi)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False, save_multi = False):
+                 debug=False, show=False, save_multi=False):
         """
 
         Args:
@@ -117,7 +117,7 @@ class CoAdd1D:
         msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
 
 
-    def save(self, coaddfile, telluric=None, obj_model=None, order_stacks = None, overwrite=True):
+    def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
         Generate a :class:`~pypeit.onespec.OneSpec` object and write it to disk.
 
@@ -151,11 +151,11 @@ class CoAdd1D:
             onespec.telluric  = telluric[wave_gpm]
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_gpm]
-        if order_stacks is not None:
-            onespec.wave_stack = order_stacks[0,:,:]
-            onespec.flux_stack = order_stacks[1,:,:]
-            onespec.ivar_stack = order_stacks[2,:,:]
-            onespec.mask_stack = order_stacks[3,:,:].astype(int)
+        if self.order_stacks is not None:
+            onespec.wave_stack = self.order_stacks[0,:,:]
+            onespec.flux_stack = self.order_stacks[1,:,:]
+            onespec.ivar_stack = self.order_stacks[2,:,:]
+            onespec.mask_stack = self.order_stacks[3,:,:].astype(int)
         #elif order_stacks is None:
             #onespec.order_stacks = None
         # Write
@@ -174,12 +174,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
-                 debug=False, show=False, save_multi = False):
+                 debug=False, show=False, save_multi=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show)
 
 
     def load(self):
@@ -349,14 +349,14 @@ class EchelleCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False, save_multi = False):
+                 debug=False, show=False, save_multi=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
 
 
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show, save_multi=save_multi)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show, save_multi=save_multi)
 
         if sensfuncfile is None:
             msgs.error('sensfuncfile is a required argument for echelle coadding')

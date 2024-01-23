@@ -96,8 +96,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             band = filter2
         
 
-        print(lamps_list, 'Xe' in lamps_list[0])
-        print('filter1 = ', filter1)
         if 'Xe' in lamps_list[0]:
             #print('Using Arclamps probably')
             #print(f'filter1 = {filter1}')
@@ -114,95 +112,13 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                 angle_fits_file = 'keck_nirspec_k_old_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_k_old_composite_arc.fits'
         elif 'OH' in lamps_list[0]:
-            print('Using OH Lines')
+            msgs.info('Using OH Lines')
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
 
         return [angle_fits_file, composite_arc_file]
 
-    '''
-    def get_echelle_angle_files(self, lamps_list, filter1):
-        """ Pass back the files required
-        to run the echelle method of wavecalib
-
-        Created for the pre-upgrade NIRSPEC
-
-        Returns:
-            list: List of files
-        """
-        band = filter1        
-
-        print(lamps_list, 'Xe' in lamps_list[0])
-        print('filter1 = ', filter1)
-        if 'Xe' in lamps_list[0]:
-            #print('Using Arclamps probably')
-            #print(f'filter1 = {filter1}')
-            if band == 'NIRSPEC-1':
-                angle_fits_file = 'keck_nirspec_old_y_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_old_y_composite_arc.fits'
-            if band == 'NIRSPEC-3':
-                angle_fits_file = 'keck_nirspec_old_j_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_old_j_composite_arc.fits'
-            if band == 'NIRSPEC-7':
-                angle_fits_file = 'keck_nirspec_k_preupgrade_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_k_preupgrade_composite_arc.fits'
-        elif 'OH' in lamps_list[0]:
-            print('Using OH Lines')
-            if band == 'NIRSPEC-1':
-                angle_fits_file = 'keck_nirspec_y_old_OH_angle_fits.fits'
-                composite_arc_file = 'keck_nirspec_y_old_composite_OH.fits'
-
-        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
-        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
-    
-        return [angle_fits_file, composite_arc_file]
-    '''
-
-     #def filter(self, fitstbl):
-
-    '''
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Processed bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
-        #bpm_img[:, :20] = 1.
-        #bpm_img[:, 1000:] = 1.
-
-        return bpm_img
-    '''
 
 
     def order_platescale(self, order_vec, binning=None):
@@ -398,7 +314,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             spatflip        = False,
             platescale      = 0.13,
             darkcurr        = 0.8,
-            saturation      = 100000000.,
+            saturation      = 1.0e5,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
@@ -662,11 +578,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             band = filter2
         
 
-        print(lamps_list, 'Xe' in lamps_list[0])
-        print('filter1 = ', filter1)
+        msgs.info(lamps_list, 'Xe' in lamps_list[0])
+        msgs.info('filter1 = ', filter1)
         if 'Xe' in lamps_list[0]:
-            #print('Using Arclamps probably')
-            #print(f'filter1 = {filter1}')
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
@@ -686,7 +600,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_l_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_l_composite_arc.fits'
         elif 'OH' in lamps_list[0]:
-            print('Using OH Lines')
+            msgs.info('Using OH Lines')
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
@@ -1117,8 +1031,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         band = filter1        
 
         if 'Xe' in lamps_list[0]:
-            #print('Using Arclamps probably')
-            #print(f'filter1 = {filter1}')
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_preupgrade_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_y_preupgrade_composite_arc.fits'
@@ -1140,12 +1052,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_j_preupgrade_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_j_preupgrade_composite_OH.fits'
 
-        #angle_fits_file = 'keck_nirspec_y_OH_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_OH.fits'
-        #angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_y_composite_arc.fits'
-        #angle_fits_file = 'keck_nirspec_k_angle_fits.fits'
-        #composite_arc_file = 'keck_nirspec_k_composite_arc.fits'
     
         return [angle_fits_file, composite_arc_file]
 
@@ -1236,46 +1142,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    #def filter(self, fitstbl):
-
-    '''
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Processed bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
-        #bpm_img[:, :20] = 1.
-        #bpm_img[:, 1000:] = 1.
-
-        return bpm_img
-    '''
 
 
     def order_platescale(self, order_vec, binning=None):

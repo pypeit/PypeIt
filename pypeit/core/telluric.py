@@ -789,7 +789,7 @@ def general_spec_reader(specfile, ret_flam=False, ret_stacks = False):
     meta_spec['core'] = spect_dict
 
     if ret_stacks:
-        print('outputting order stacks')
+        msgs.info('Outputting order stacks')
         return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 

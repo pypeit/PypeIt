@@ -4,6 +4,7 @@
 from datetime import datetime
 import os
 import copy
+from pathlib import Path
 import numpy as np
 import matplotlib
 try:
@@ -818,6 +819,10 @@ class Identify:
             Spectral binning
         rmstol : float
             RMS tolerance allowed for the wavelength solution to be stored in the archive
+
+        Optional Parameters
+        -------------------
+        
         force_save : bool
             Force save
         multi : bool
@@ -836,24 +841,12 @@ class Identify:
         Returns
         -------
 
-        wvarxiv_name : :obj:`str` or :obj:`None`
-            The name of the wvarxiv file if saved, else None
+        wvarxiv_name : :obj:`str`
+            The name of the wvarxiv file if saved. "None" if not saved
         """
         # For return
         wvarxiv_name = None
-
-        # Line IDs
-        # not implemented for the multi trace procedure
-        '''
-        ans = ''
-        if not force_save:
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store the line IDs? (y/n): ")
-        else:
-            ans = 'y'
-        if ans == 'y':
-            self.save_IDs()
-        '''
+        
         # Solution
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
@@ -889,7 +882,8 @@ class Identify:
                                 #orders were successfully parsed!
                                 #we're ready to exit the loop.
                                 break
-                    else: order_vec = None
+                    else: 
+                        order_vec = None
                     make_arxiv = ''
                     if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
                         make_arxiv = 'n'
@@ -907,12 +901,9 @@ class Identify:
                             if fitdict is not None and fitdict['full_fit'] is not None:
                                 wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
                                                                         (specdata[iord,:].size - 1))
-                            else:
-                                if wvcalib is not None:
-                                    if wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
-                                        wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                            elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
+                                wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
 
-                        #order = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                         # Instead of a generic name, save the wvarxiv with a unique identifier
                         date_str = datetime.now().strftime("%Y%m%dT%H%M")
                         wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
@@ -922,7 +913,7 @@ class Identify:
                             wvarxiv_name_new = ''
                             while len(wvarxiv_name_new) < 2:
                                 wvarxiv_name_new = input('Please enter the desired filename: ')
-                            if not ('.fits' in wvarxiv_name_new):
+                            if '.fits' not in wvarxiv_name_new:
                                 wvarxiv_name_new += '.fits'
                             wvarxiv_name = wvarxiv_name_new
                         order_vec = np.flip(order_vec, axis = 0)
@@ -948,16 +939,6 @@ class Identify:
                                 slit_list_str += str(islit) + ','
                             else: slit_list_str += str(islit)
                         
-                        '''
-                        This should no longer be necessary
-                        msgs.info(f"Your WaveCalib solution has also been saved.{msgs.newline()}"
-                                f"To utilize this wavelength solution, insert the{msgs.newline()}"
-                                f"following block in your PypeIt Reduction File:{msgs.newline()}"
-                                f" [calibrations]{msgs.newline()}"
-                                f"   [[wavelengths]]{msgs.newline()}"
-                                f"     redo_slits = [{slit_list_str}]{msgs.newline()}"
-                                f"     \n")
-                        '''
                         if slits:
                             print('               ')
                             msgs.info('Unflagging Slits from WaveCalib: ')
@@ -969,7 +950,11 @@ class Identify:
                         clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
                                             ' calibrations except the Arcs, Slits, and WaveCalib files. y/[n]: ')
                         if clean_calib == 'y':
-                            os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
+                            cal_root = Path('Calibrations').resolve()  
+                            for cal in ['Tilt', 'Flat', 'Edge']:  
+                                for f in cal_root.glob(f'{cal}*'):  
+                                    f.unlink() 
+                            #os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:

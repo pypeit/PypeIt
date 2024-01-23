@@ -1193,9 +1193,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         needed to construct the model variance (this is the same as
         ``noise_floor`` in :func:`~pypeit.core.procimg.variance_model`); see
         ``model_noise``.
-    no_local_sky : bool, optional
-        If True, do not fit local sky model, only object profile and extract optimally
-        The objimage will be all zeros.
     base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
         The "base-level" variance in the data, set by the detector properties and
         the image processing steps.  See

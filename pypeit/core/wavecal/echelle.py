@@ -91,7 +91,7 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(int(angle_fits_params['ech_n_final'] + 1)):
             coeff_predict[ic] = fitting.evaluate_fit(
-                ech_angle_coeffs[indx, ic, :].flatten(), angle_fits_params['ech_func'],
+                ech_angle_coeffs[indx, ic, :].ravel(), angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
@@ -215,6 +215,8 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Number of orders to pad the coverage by on the blue and red side.
     debug : bool, optional
         Passed to xcorr_shift
+    xcorr_percent_ceil: float
+        The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
 
     Returns
     -------

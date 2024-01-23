@@ -1149,8 +1149,7 @@ class Spectrograph:
         try: 
             hdu = io.fits_open(raw_file)
         except Exception as e:
-            msgs.warn(e)
-            msgs.info('Error probably due to missing END card, trying to ignore:')
+            msgs.warn(f'{e}, Error probably due to missing END card, trying to ignore:')
             hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
 
         # Validate the entered (list of) detector(s)

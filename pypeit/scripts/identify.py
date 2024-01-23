@@ -26,7 +26,7 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument("--slits", type=str, default='0',
                             help="Which slit to load for wavelength calibration. " 
                             "Format should be [0,1,...] for multiple slits, 0 for only one slit. "
-                            "If created a new WaveCalib with the -n flag, this is not necessary.")
+                            "If creating a new WaveCalib with the -n flag, this is not necessary.")
         parser.add_argument('-m', '--multi', default=False, action = 'store_true',
                             help="Are we making multiple trace solutions or just one?")
         parser.add_argument('-n', '--new_sol', default=False, action = 'store_true',
@@ -104,7 +104,7 @@ class Identify(scriptbase.ScriptBase):
             wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
                                     msbpm=msarc.select_flag())
             # Obtain a list of good slits
-            ok_mask_idx = np.where(np.invert(wavecal.wvc_bpm))[0]
+            ok_mask_idx = np.where(np.logical_not(wavecal.wvc_bpm))[0]
 
             # print to screen the slit widths if maskdef_designtab is available
             if slits.maskdef_designtab is not None:
@@ -164,12 +164,11 @@ class Identify(scriptbase.ScriptBase):
             lines_fit_ord = []
             custom_wav = []
             custom_wav_ind = []
-            #print(args.slits, slits_inds)
             for slit_val in slits_inds:
                 # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
                 # set to any flagged pixel in Arc.
                 wv_calib_slit = None
-                if wv_calib:
+                if wv_calib is not None:
                     if not np.any(wv_calib.wv_fits):
                         wv_calib_slit = None
                     else:
@@ -233,6 +232,11 @@ class Identify(scriptbase.ScriptBase):
                             try:
                                 min_wav_str = input('Minimum Wavelength = ')
                                 min_wav = float(min_wav_str)
+                            except ValueError:
+                                print("Sorry, try that again...")
+                                #better try again... Return to the start of the loop
+                                continue
+                            try:
                                 max_wav_str = input('Maximum Wavelength = ')
                                 max_wav = float(max_wav_str)
 

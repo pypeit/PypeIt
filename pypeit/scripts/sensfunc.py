@@ -7,6 +7,7 @@ Script to determine the sensitivity function for a PypeIt 1D spectrum.
 from IPython import embed
 
 from pypeit.scripts import scriptbase
+from pathlib import Path
 
 
 class SensFunc(scriptbase.ScriptBase):
@@ -124,76 +125,75 @@ class SensFunc(scriptbase.ScriptBase):
         #Check if we want to compute a sensfile for every object in the directory
         if args.dir:
             msgs.info(f'Searching for files in directory: {args.dir}')
-            import glob
-            files_list = glob.glob(args.spec1dfile + 'spec1d*.fits')
-            print(files_list)
-            for file in files_list:
-                if ('spec1d' in file) and ('.fits' in file):
-                    msgs.info('--------------------------------------------------------------------------------------')
-                    msgs.info('--------------------------------------------------------------------------------------')
-                    msgs.info(f'Creating sensfunc file for {file}')
-                    hdul = io.fits.open(file)
+            files = sorted(Path(args.spec1dfile).resolve().glob('spec1d*.fits'))
+        else:
+            files = [Path(args.spec1dfile).resolve()]
 
-                    spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
-                    spectrograph_config_par = spectrograph.config_specific_par(hdul)
+        for file in files:
+            if not file.exists():
+                msgs.warn(f'{file} does not exist')
+                continue
+            with io.fits_open(file) as hdul:
+                spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
+                spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
-                    # Construct a primary FITS header that includes the spectrograph's
-                    #   config keys for inclusion in the output sensfunc file
-                    primary_hdr = io.initialize_header()
-                    add_keys = (
-                        ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
-                        + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
-                    )
-                    for key in add_keys:
-                        if key.upper() in hdul[0].header.keys():
-                            primary_hdr[key.upper()] = hdul[0].header[key.upper()]
+                # Construct a primary FITS header that includes the spectrograph's
+                #   config keys for inclusion in the output sensfunc file
+                primary_hdr = io.initialize_header()
+                add_keys = (
+                    ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
+                    + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
+                )
+                for key in add_keys:
+                    if key.upper() in hdul[0].header.keys():
+                        primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
-                    # If the .sens file was passed in read it and overwrite default parameters
+                # If the .sens file was passed in read it and overwrite default parameters
 
-                    if args.sens_file is not None:
-                        sensFile = inputfiles.SensFile.from_file(args.sens_file)
-                        # Read sens file
-                        par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
-                            merge_with=(sensFile.cfg_lines,))
-                    else:
-                        par = spectrograph_config_par 
-
-
-                    # If algorithm was provided override defaults. Note this does undo .sens
-                    # file since they cannot both be passed
-                    if args.algorithm is not None:
-                        par['sensfunc']['algorithm'] = args.algorithm
-
-                    # If flatfile was provided override defaults. Note this does undo .sens
-                    # file since they cannot both be passed
-                    if args.flatfile is not None:
-                        par['sensfunc']['flatfile'] = args.flatfile
-
-                    # If multi was set override defaults. Note this does undo .sens file
-                    # since they cannot both be passed
-                    if args.multi is not None:
-                        # parse
-                        multi_spec_det  = [int(item) for item in args.multi.split(',')]
-                        par['sensfunc']['multi_spec_det'] = multi_spec_det
-
-                    # TODO Add parsing of detectors here. If detectors passed from the
-                    # command line, overwrite the parset values read in from the .sens file
+                if args.sens_file is not None:
+                    sensFile = inputfiles.SensFile.from_file(args.sens_file)
+                    # Read sens file
+                    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
+                        merge_with=(sensFile.cfg_lines,))
+                else:
+                    par = spectrograph_config_par 
 
 
-                    # Parse the output filename
-                    outfile = (os.path.basename(file)).replace('spec1d','sens') 
-                    #\
-                    #                if args.outfile is None else args.outfile
-                    # Instantiate the relevant class for the requested algorithm
-                    sensobj = sensfunc.SensFunc.get_instance(file, outfile, par['sensfunc'],
-                                                            debug=args.debug)
-                    # Generate the sensfunc
-                    sensobj.run()
-                    msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
-                    # Write it out to a file, including the new primary FITS header
-                    sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
-                    msgs.info('--------------------------------------------------------------------------------------')                    
-                    msgs.info('--------------------------------------------------------------------------------------')                    
+                # If algorithm was provided override defaults. Note this does undo .sens
+                # file since they cannot both be passed
+                if args.algorithm is not None:
+                    par['sensfunc']['algorithm'] = args.algorithm
+
+                # If flatfile was provided override defaults. Note this does undo .sens
+                # file since they cannot both be passed
+                if args.flatfile is not None:
+                    par['sensfunc']['flatfile'] = args.flatfile
+
+                # If multi was set override defaults. Note this does undo .sens file
+                # since they cannot both be passed
+                if args.multi is not None:
+                    # parse
+                    multi_spec_det  = [int(item) for item in args.multi.split(',')]
+                    par['sensfunc']['multi_spec_det'] = multi_spec_det
+
+                # TODO Add parsing of detectors here. If detectors passed from the
+                # command line, overwrite the parset values read in from the .sens file
+
+
+                # Parse the output filename
+                outfile = (os.path.basename(file)).replace('spec1d','sens') 
+                #\
+                #                if args.outfile is None else args.outfile
+                # Instantiate the relevant class for the requested algorithm
+                sensobj = sensfunc.SensFunc.get_instance(file, outfile, par['sensfunc'],
+                                                        debug=args.debug)
+                # Generate the sensfunc
+                sensobj.run()
+                msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
+                # Write it out to a file, including the new primary FITS header
+                sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
+                msgs.info('--------------------------------------------------------------------------------------')                    
+                msgs.info('--------------------------------------------------------------------------------------')                    
 
             # Write the par to disk
             #msgs.info(f'Writing the parameters to {args.par_outfile}')

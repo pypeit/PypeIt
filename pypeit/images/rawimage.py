@@ -745,6 +745,8 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            maxlag (:obj:'float', optional):
+                Maximum range of lag values over which to compute the CCF.
 
         Return:
             float: The calculated flexure correction

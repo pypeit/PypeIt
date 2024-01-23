@@ -89,10 +89,6 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
-    #If xcorr is broad but has a defined peak, use that since detect_lines might fail
-    # NOTE: This is definitely a kludge, but may be necessary for NIRSPEC - ASC
-    if xcorr_max < np.max(xcorr_norm):
-        lag_max = [lags[lags > 0][np.argmax(xcorr_norm[lags > 0])]]
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
 
     if debug:

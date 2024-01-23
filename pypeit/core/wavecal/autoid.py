@@ -1074,6 +1074,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     -------
     wvcalib : dict
         Dict of wavelength calibration solutions
+    order : ndarray
+        Array containing the order IDs of the slits if using an Echelle spectrograph. "None" otherwise.
 
     """
     # Load line lists
@@ -1092,8 +1094,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         temp_spec_og = template_dict['spec']
         temp_bin = template_dict['bin']
 
-    temp_wv = np.sort(np.reshape(temp_wv_og, -1))
-    temp_spec = np.reshape(temp_spec_og, -1)[np.argsort(np.reshape(temp_wv_og, -1))]
+    srt = np.argsort(temp_wv_og.ravel())
+    temp_wv = temp_wv_og.ravel()[srt]
+    temp_spec = temp_spec_og.ravel()[srt]
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
@@ -1209,16 +1212,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                         spec=obs_spec_i, wave_soln = wave_soln, sigrej=3.0,
                                         shift=0., tcent=dets, rms=rms_pix)
 
-                    '''
-                    final_fit = wv_fitting.iterative_fitting(obs_spec_i, dets, gd_det,
-                                                    IDs[gd_det], line_lists, bdisp,
-                                                    verbose=False, n_first=par['n_first'],
-                                                    match_toler=par['match_toler'],
-                                                    func=par['func'],
-                                                    n_final= lines_fit_ord[slit],
-                                                    sigrej_first=par['sigrej_first'],
-                                                    sigrej_final=par['sigrej_final'])
-                    '''
                 except TypeError:
                     #embed(header='974 of autoid')
                     wvcalib[str(slit)] = None
@@ -1291,7 +1284,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               percent_ceil = par['xcorr_percent_ceil'],
                                                               cc_shift_range=par['cc_shift_range'],
                                                               cc_thresh=0.1, fwhm=fwhm, stretch_func='linear')
-            print(patt_dict)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
