@@ -95,6 +95,7 @@ class DataCube(datamodel.DataContainer):
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
     internals = ['head0',
+                 'headwcs',
                  'filename',
                  'spectrograph',
                  'spect_meta',
@@ -112,6 +113,8 @@ class DataCube(datamodel.DataContainer):
         # Initialise the internals
         self._ivar = None
         self._wcs = None
+        self.head0 = None  # This contains the primary header of the spec2d used to make the datacube
+        self.headwcs = None  # This contains the WCS of the datacube
 
     def _bundle(self):
         """
@@ -197,7 +200,8 @@ class DataCube(datamodel.DataContainer):
             self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
             # Internals
             self.filename = ifile
-            self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
+            self.head0 = hdu[0].header
+            self.headwcs = hdu[1].header
             # Meta
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
@@ -232,7 +236,10 @@ class DataCube(datamodel.DataContainer):
             not be accessed directly, and you should only call self.wcs
         """
         if self._wcs is None:
-            self._wcs = wcs.WCS(self.head0)
+            if self.headwcs is None:
+                msgs.error('No WCS information stored in the DataCube')
+            else:
+                self._wcs = wcs.WCS(self.headwcs)
         return self._wcs
 
     def extract_spec(self, parset, overwrite=False):
@@ -248,7 +255,9 @@ class DataCube(datamodel.DataContainer):
         """
         # Extract the spectrum
         # TODO :: Avoid transposing these large cubes
-        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs, pypeline=self.spectrograph.pypeline)
+        # TODO :: Pass in the parset parameters here
+        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
+                                               pypeline=self.spectrograph.pypeline)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
@@ -503,7 +512,7 @@ class CoAdd3D:
         self.ifu_ra, self.ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
 
         self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
-        self.all_tilts, self.all_slits, self.all_align = [], [], []
+        self.all_tilts, self.all_slits, self.all_align, self.all_header = [], [], [], []
         self.all_wcs, self.all_ra, self.all_dec, self.all_dar = [], [], [], []
         self.weights = np.ones(self.numfiles)  # Weights to use when combining cubes
 
@@ -1015,6 +1024,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Load the header
             hdr0 = spec2DObj.head0
+            self.all_header.append(hdr0)
             self.ifu_ra = np.append(self.ifu_ra, self.spec.compound_meta([hdr0], 'ra'))
             self.ifu_dec = np.append(self.ifu_dec, self.spec.compound_meta([hdr0], 'dec'))
 
@@ -1226,7 +1236,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.info("Saving datacube as: {0:s}".format(outfile))
                     final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                           sensfunc=None, fluxed=self.fluxcal)
-                    final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                    final_cube.to_file(outfile, primary_hdr=self.all_header[ff], hdr=hdr, overwrite=self.overwrite)
                 # No need to proceed and store arrays - we are writing individual datacubes
                 continue
 
@@ -1435,7 +1445,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 msgs.info("Saving datacube as: {0:s}".format(outfile))
                 final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                       sensfunc=sensfunc, fluxed=self.fluxcal)
-                final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                # Note, we only store in the primary header the first spec2d file
+                final_cube.to_file(outfile, primary_hdr=self.all_header[0], hdr=hdr, overwrite=self.overwrite)
             else:
                 for ff in range(self.numfiles):
                     outfile = datacube.get_output_filename("", self.cubepar['output_filename'], False, ff)
@@ -1462,4 +1473,4 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.info("Saving datacube as: {0:s}".format(outfile))
                     final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                           sensfunc=sensfunc, fluxed=self.fluxcal)
-                    final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                    final_cube.to_file(outfile, primary_hdr=self.all_header[ff], hdr=hdr, overwrite=self.overwrite)
