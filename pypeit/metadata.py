@@ -176,7 +176,7 @@ class PypeItMetaData:
                     msgs.warn(f'More than one instrument in your dataset! {instr_names} \n'
                               'Proceed with great caution...')
                 # Check the name
-                if instr_names[0] != self.spectrograph.header_name:
+                if not instr_names[0].startswith(self.spectrograph.header_name):
                     msgs.warn('The instrument name in the headers of the raw files does not match the '
                               f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
                               'You may have chosen the wrong PypeIt spectrograph name!')
