@@ -822,7 +822,7 @@ class Identify:
 
         Optional Parameters
         -------------------
-        
+
         force_save : bool
             Force save
         multi : bool
@@ -948,10 +948,10 @@ class Identify:
                             print('               ')
                         print('         ')
                         clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
-                                            ' calibrations except the Arcs, Slits, and WaveCalib files. y/[n]: ')
+                                            ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
                         if clean_calib == 'y':
                             cal_root = Path('Calibrations').resolve()  
-                            for cal in ['Tilt', 'Flat', 'Edge']:  
+                            for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
                                 for f in cal_root.glob(f'{cal}*'):  
                                     f.unlink() 
                             #os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')

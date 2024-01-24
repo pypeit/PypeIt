@@ -1011,8 +1011,6 @@ class Calibrations:
         # wavelength calibration.  Create EchelleCalibrations and
         # EchelleBuildWaveCalib subclasses instead..
         msgs.info(f'Preparing a {wavecalib.WaveCalib.calib_type} calibration frame.')
-        if hasattr(self.msarc.detector, 'nonlinear_counts'):
-            msgs.info(f'Nonlinear level set to {self.msarc.detector.nonlinear_counts()}')
         waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], lamps, meta_dict=meta_dict,
                                              det=self.det, qa_path=self.qa_path)

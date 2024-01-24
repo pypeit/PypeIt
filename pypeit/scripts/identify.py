@@ -1,5 +1,5 @@
 """
-Launch the identify_multi GUI tool.
+Launch the pypeit_identify GUI tool.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -13,7 +13,7 @@ class Identify(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Launch PypeIt identify_multi tool, display extracted '
+        parser = super().get_parser(description='Launch PypeIt pypeit_identify tool, display extracted '
                                                 'Arc, and load linelist.', width=width)
         parser.add_argument('arc_file', type=str, default=None, help='PypeIt Arc file')
         parser.add_argument('slits_file', type=str, default=None, help='PypeIt Slits file')
