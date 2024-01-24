@@ -28,7 +28,6 @@ from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit.core import fitting
-from pypeit.core import coadd
 from pypeit import slittrace
 
 

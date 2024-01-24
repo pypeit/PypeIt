@@ -52,7 +52,7 @@ tst*.fits
 # Logs and databases #
 ######################
 *.log
-!pypeit/data/spectrographs/keck_deimos/gain_ronoise/*.log
+!pypeit/data/spectrographs/keck_deimos/gain_ronoise/*/*.log
 *.sql
 *.sqlite
 
