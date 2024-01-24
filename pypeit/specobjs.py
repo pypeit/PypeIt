@@ -24,6 +24,9 @@ from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
+# NOTE: Mosaic cannot be found in this module explicitly, but it is used in
+# statements like: dmodcls = eval(hdu.header['DMODCLS'])
+from pypeit.images.mosaic import Mosaic
 from pypeit import utils
 
 
