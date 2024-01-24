@@ -15,7 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse
 from pypeit.spectrographs.util import load_spectrograph
@@ -478,7 +478,7 @@ class CoAdd3D:
             msgs.error("If you provide ra_offsets, you must also provide dec_offsets")
         # Set the frame specific options
         self.skysub_frame = skysub_frame
-        self.sensfile = sensfile if sensfile is not None else self.cubepar['sensfile']
+        self.sensfile = sensfile if sensfile is not None else self.numfiles*[self.cubepar['sensfile']]
         self.scale_corr = scale_corr
         self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
@@ -555,12 +555,10 @@ class CoAdd3D:
         self.check_outputs()
 
         # Check the reference cube and image exist, if requested
-        self.fluxcal = False
+        self.fluxcal = False if self.sensfile is None else True
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
-        # if self.cubepar['sensfunc'] is not None:
-        #     self.make_sensfunc()
 
         # If a reference image has been set, check that it exists
         if self.cubepar['reference_image'] is not None:
@@ -626,23 +624,6 @@ class CoAdd3D:
             self.blaze_wave, self.blaze_spec = wave_spl, spec_spl
             self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
                                          bounds_error=False, fill_value="extrapolate")
-
-    def make_sensfunc(self):
-        """
-        Generate the sensitivity function to be used for the flux calibration.
-        """
-        self.fluxcal = True
-        # The first standard star cube is used as the reference blaze spline
-        if self.grating_corr is not None:
-            # Load the blaze information
-            stdcube = fits.open(self.cubepar['standard_cube'])
-            # If a reference blaze spline has not been set, do that now.
-            self.set_blaze_spline(stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data)
-        # Generate a spline representation of the sensitivity function
-        gratcorr = self.grating_corr is not None
-        self.flux_spline = datacube.make_sensfunc(self.cubepar['standard_cube'], self.senspar,
-                                                  blaze_wave=self.blaze_wave, blaze_spline=self.blaze_spline,
-                                                  grating_corr=gratcorr)
 
     def set_default_scalecorr(self):
         """
@@ -1158,6 +1139,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Compute the extinction correction
             msgs.info("Applying extinction correction")
+            # TODO :: Should the extinct_file be part of the IR algorithm?
             extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
                                                       self.spec.telescope['latitude'],
                                                       self.senspar['UVIS']['extinct_file'])
@@ -1175,13 +1157,21 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],
                                                                self.blaze_wave, self.blaze_spline)
-            # Sensitivity function
-            sensfunc_sort = 1.0
+            # Sensitivity function - note that the sensitivity function factors in the exposure time, so if the
+            # flux calibration will not be applied, the sens_factor needs to be scaled by the exposure time
+            sens_factor = 1.0/exptime  # If no sensitivity function is provided
+            # TODO :: Need to think about exposure time some more... Does the pypeit_sensfunc algorithm expect counts/s as input, or counts? This could affect the throughput calculation, perhaps?
+            #      :: More generally, should we be adding the counts when we make the datacube, or should we be averaging the counts/s with the appropriate weights?
             if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
-                sensfunc_sort = self.flux_spline(wave_sort)
-            # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
-            extcorr_sort *= sensfunc_sort / (exptime * gratcorr_sort)
+                # Load the sensitivity function
+                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
+                # Interpolate the sensitivity function onto the wavelength grid of the data
+                sens_factor = flux_calib.get_sensfunc_factor(
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, extinct_correct=False,
+                    extrap_sens=self.par['fluxcalib']['extrap_sens'])
+            # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
+            extcorr_sort *= sens_factor / gratcorr_sort
             # Correct for extinction
             sciImg[onslit_gpm] *= extcorr_sort[resrt]
             ivar[onslit_gpm] /= extcorr_sort[resrt] ** 2
