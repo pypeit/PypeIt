@@ -897,7 +897,7 @@ class Coadd3DFile(InputFile):
 
                 [reduce]
                     [[cube]]
-                        sensfunc = sensfunc.fits
+                        sensfile = sens.fits
 
         - ``scale_corr``: The name of an alternative spec2d file that is used for
           the relative spectral scale correction.  This parameter can also be set
@@ -940,17 +940,17 @@ class Coadd3DFile(InputFile):
             Dictionary containing cube options.
         """
         # Define the list of allowed parameters
-        opts = dict(sensfunc=None, scale_corr=None, grating_corr=None, skysub_frame=None,
+        opts = dict(sensfile=None, scale_corr=None, grating_corr=None, skysub_frame=None,
                     ra_offset=None, dec_offset=None)
 
         # Get the sensfunc files
-        sensfile = self.path_and_files('sensfunc', skip_blank=False, check_exists=False)
+        sensfile = self.path_and_files('sensfile', skip_blank=False, check_exists=False)
         if sensfile is None:
-            opts['sensfunc'] = [None]*len(self.filenames)
+            opts['sensfile'] = [None]*len(self.filenames)
         elif len(sensfile) == 1 and len(self.filenames) > 1:
-            opts['sensfunc'] = sensfile*len(self.filenames)
+            opts['sensfile'] = sensfile*len(self.filenames)
         elif len(sensfile) != 0:
-            opts['sensfunc'] = sensfile
+            opts['sensfile'] = sensfile
 
         # Get the scale correction files
         scale_corr = self.path_and_files('scale_corr', skip_blank=False, check_exists=False)

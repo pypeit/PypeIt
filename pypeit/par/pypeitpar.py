@@ -1575,7 +1575,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 sensfunc=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+                 sensfile=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None):
@@ -1644,9 +1644,9 @@ class CubePar(ParSet):
                                    'the combined datacube. If combine=False, the output filenames will be ' \
                                    'prefixed with ``spec3d_*``'
 
-        defaults['sensfunc'] = None
-        dtypes['sensfunc'] = str
-        descr['sensfunc'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
+        defaults['sensfile'] = None
+        dtypes['sensfile'] = str
+        descr['sensfile'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
                             'The sensitivity function file will also be used to correct the relative scales ' \
                             'of the slits.'
 
@@ -1796,7 +1796,7 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'sensfunc', 'reference_image', 'save_whitelight',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range']
