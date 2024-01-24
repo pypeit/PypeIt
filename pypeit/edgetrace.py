@@ -2403,23 +2403,23 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Quality check and masking of the synchronized edges.
 
-        Before executing this method, the slit edges must be
-        synchronized (see :func:`sync`) and ordered spatially in
-        left-right pairs (see :func:`spatial_sort`). The former is
-        checked explicitly. Any traces fully masked as bad (see
-        :func:`clean_traces`) are removed, along with its
-        synchronized partner.
+        Before executing this method, the slit edges must be synchronized (see
+        :func:`sync`) and ordered spatially in left-right pairs (see
+        :func:`spatial_sort`); only the former is checked explicitly. Any traces
+        fully masked as bad (see :func:`clean_traces`) are removed, along with
+        its synchronized partner.
 
         Used parameters from :attr:`par`
-        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
-        `minimum_slit_gap`, `minimum_slit_length`,
-        `minimum_slit_length_sci`, and `length_range`.
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are ``minimum_slit_gap``,
+        ``minimum_slit_length``, ``minimum_slit_length_sci``, and
+        ``length_range``.
 
         Checks are:
-            - Any trace falling off the edge of the detector is
-              masked (see :class:`EdgeTraceBitMask`). This is the
-              only check performed by default (i.e., when no keyword
-              arguments are provided).
+
+            - Any trace falling off the edge of the detector is masked (see
+              :class:`EdgeTraceBitMask`). This is the only check performed by
+              default (i.e., when no keyword arguments are provided).
+
             - Traces that form slit gaps (the median difference
               between the right and left traces of adjacent slits)
               that are below an absolute tolerance are removed and
@@ -2427,6 +2427,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
               the checks of the slit length below such that the
               merged slit is assessed in any expected slit length
               constraints.
+
             - Traces that form a slit with a length (the median
               difference between the left and right edges) below an
               absolute tolerance (i.e., `right-left < atol`) are
@@ -2469,15 +2470,20 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         if self.is_empty:
             msgs.warn('No traces to check.')
+            return
 
         # Decide if the PCA should be rebuilt
         _rebuild_pca = rebuild_pca and self.pcatype is not None and self.can_pca()
+        if rebuild_pca and not _rebuild_pca:
+            msgs.warn('Rebuilding the PCA was requested but is not possible.')
 
         # Remove any fully masked traces and its synced counterpart;
         # force the removal of traces marked as SYNCERROR, even if
         # those traces were inserted.
         self.clean_traces(force_flag='SYNCERROR', rebuild_pca=_rebuild_pca, sync_mode='both',
                           assume_synced=True)
+
+        embed(header='check_synced: after clean')
 
         # Use the fit data if available
         trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
@@ -2495,6 +2501,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_synced:
             msgs.error('Edge traces are not yet (or improperly) synced.  Either sync() failed '
                        'or has not yet been executed.')
+
+        embed(header='check_synced: after checking is_synced')
 
         # Parse parameters and report
         gap_atol = None
@@ -2545,13 +2553,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info('Found {0} slit(s) with gaps below {1} arcsec ({2:.2f} pixels).'.format(
                             np.sum(indx), self.par['minimum_slit_gap'], gap_atol))
                 rmtrace = np.concatenate(([False],np.repeat(indx,2),[False]))
-                self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
+                self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
                 # TODO: This should never happen, but keep this around
                 # until we're sure it doesn't.
                 if self.is_empty:
                     msgs.error('Coding error: Removing gaps removed all traces.')
                 # Reset the trace center data to use
                 trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
+
+        embed(header='check_synced: after gap_atol')
 
         # Calculate the slit length and gap
         slit_length = np.squeeze(np.diff(trace_cen.reshape(self.nspec,-1,2), axis=-1))
@@ -2607,6 +2617,17 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 self.edge_msk[:,long] \
                         = self.bitmask.turn_on(self.edge_msk[:,long], 'ABNORMALSLIT_LONG')
 
+        # TODO: Consider removing slits that have large length changes.  Like so:
+#        # Remove traces that have significant changes in their spatial extent
+#        # along the dispersion direction.
+#        dl_flag = self.fully_masked_traces(flag='LARGELENGTHCHANGE')
+#        if np.any(dl_flag):
+#            msgs.info(f'Removing {np.sum(dl_flag)} traces because of large spatial extent '
+#                      ' changes along the dispersion direction.')
+#            self.remove_traces(dl_flag, rebuild_pca=_rebuild_pca)
+
+        embed(header='check_synced: after length checks')
+
         # Get the slits that have been flagged as abnormally short.  This should
         # be the same as the definition above, it's just redone here to ensure
         # `short` is defined when `length_rtol` is None.
@@ -2634,12 +2655,17 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Remove the flagged traces, resort the edges, and rebuild the pca
             self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
 
+            embed(header='check_synced: after removing traces prompted by overlap check')
+
             # If this de-synchronizes the traces, we effectively have to start
             # the synchronization process over again, with the adjustments for
             # the "short" slits that are assumed to be overlap regions.
             if not self.is_synced:
                 msgs.info('Checking/cleaning traces for overlap led to de-syncronization.')
                 return False
+
+        embed(header='check_synced: after overlap')
+        exit()
 
         # TODO: Check that slit edges meet a minimum slit gap?
 
@@ -3442,8 +3468,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         troughs in :attr:`sobelsig` are detected and traced.
 
         Note that this effectively reinstantiates much of the object
-        attributes, including :attr:`traceid` :attr:`edge_cen`
-        :attr:`edge_err` :attr:`edge_msk` :attr:`edge_img`
+        attributes, including :attr:`traceid`, :attr:`edge_cen`,
+        :attr:`edge_err`, :attr:`edge_msk`, :attr:`edge_img`,
         :attr:`edge_fit`, and :attr:`fittype`.
 
         Used parameters from :attr:`par`
@@ -3528,8 +3554,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Iterate through each side
             for side in ['left', 'right']:
                 # Get the image relevant to tracing
-#                _sobelsig = trace.prepare_sobel_for_trace(self.sobelsig, bpm=self.bpm, boxcar=5,
-#                                                          side=side)
                 _sobelsig = self._side_dependent_sobel(side)
                 _pca = self.left_pca if side == 'left' else self.right_pca
 
@@ -3575,7 +3599,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if ntrace < self.ntrace:
             msgs.warn('Found fewer traces using peak finding than originally available.  '
                       'May want to reset peak threshold.')
-
+            
+        embed(header='peak refine')
+        exit()
+        
+        # TODO: Possibly put in a check that compares the locations of the new
+        # and old traces, which removes new traces that are too different (above
+        # some tolerance) from the old traces.  Maybe this is a way to catch
+        # traces that result from poorly constrained polynomial fits.
+            
         # Reset the trace data
         self.traceid = np.zeros(ntrace, dtype=int)
         self.traceid[:nleft] = -1-np.arange(nleft)
@@ -4040,10 +4072,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info('Show instance includes inserted traces but before checking the sync.')
                 self.show(flag='any')
 
+            embed(header=f'iter {i+1}: after insert')
+
             # Check the full synchronized list and log completion of the
             # method
             if self.check_synced(rebuild_pca=rebuild_pca):
                 break
+
+            embed(header=f'iter {i+1}: after sync')
 
             i += 1
             if i == maxiter:
