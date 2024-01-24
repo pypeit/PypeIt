@@ -377,7 +377,7 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+    def get_instance(cls, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                      ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
                      overwrite=False, show=False, debug=False):
         """
@@ -394,11 +394,11 @@ class CoAdd3D:
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, grating_corr=grating_corr,
-                        ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
-                        overwrite=overwrite, show=show, debug=debug)
+                        spec2dfiles, par, skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
+                        grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+                        spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                  ra_offsets=None, dec_offsets=None,
                  spectrograph=None, det=None, overwrite=False, show=False, debug=False):
         """
@@ -414,6 +414,9 @@ class CoAdd3D:
                 for the relevant spectrograph class).
             skysub_frame (:obj:`list`, optional):
                 If not None, this should be a list of frames to use for the sky subtraction of each individual
+                entry of spec2dfiles. It should be the same length as spec2dfiles.
+            sensfile (:obj:`list`, optional):
+                If not None, this should be a list of frames to use for the sensitivity function of each individual
                 entry of spec2dfiles. It should be the same length as spec2dfiles.
             scale_corr (:obj:`list`, optional):
                 If not None, this should be a list of relative scale correction options. It should be the
@@ -458,6 +461,8 @@ class CoAdd3D:
         # Do some quick checks on the input options
         if skysub_frame is not None and len(skysub_frame) != self.numfiles:
             msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
+        if sensfile is not None and len(sensfile) != self.numfiles:
+            msgs.error("The sensfile list should be identical length to the spec2dfiles list")
         if scale_corr is not None and len(scale_corr) != self.numfiles:
             msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
         if grating_corr is not None and len(grating_corr) != self.numfiles:
@@ -473,6 +478,7 @@ class CoAdd3D:
             msgs.error("If you provide ra_offsets, you must also provide dec_offsets")
         # Set the frame specific options
         self.skysub_frame = skysub_frame
+        self.sensfile = sensfile if sensfile is not None else self.cubepar['sensfile']
         self.scale_corr = scale_corr
         self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
@@ -553,7 +559,7 @@ class CoAdd3D:
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
-        # if self.cubepar['standard_cube'] is not None:
+        # if self.cubepar['sensfunc'] is not None:
         #     self.make_sensfunc()
 
         # If a reference image has been set, check that it exists
