@@ -718,6 +718,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     return meta_table, out_table
 
+
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
     """
@@ -728,27 +729,28 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     Args:
         wave (float `numpy.ndarray`_): shape = (nspec,)
-           Senstivity
+            Wavelength vector for the spectrum to be flux calibrated
         wave_zp (float `numpy.ndarray`_):
-           Zerooint wavelength vector shape = (nsens,)
+            Zeropoint wavelength vector shape = (nsens,)
         zeropoint (float `numpy.ndarray`_): shape = (nsens,)
-           Zeropoint, i.e. sensitivity function
+            Zeropoint, i.e. sensitivity function
         exptime (float):
-        tellmodel (float  `numpy.ndarray`_, optional): shape = (nspec,)
-           Apply telluric correction if it is passed it. Note this is deprecated.
+            Exposure time in seconds
+        tellmodel (float, `numpy.ndarray`_, optional):
+            Apply telluric correction if it is passed it (shape = (nspec,)). Note this is deprecated.
         extinct_correct (bool, optional)
-           If True perform an extinction correction. Deafult = False
+            If True perform an extinction correction. Default = False
         airmass (float, optional):
-           Airmass used if extinct_correct=True. This is required if extinct_correct=True
+            Airmass used if extinct_correct=True. This is required if extinct_correct=True
         longitude (float, optional):
             longitude in degree for observatory
             Required for extinction correction
         latitude:
             latitude in degree for observatory
-            Required  for extinction correction
+            Required for extinction correction
         extinctfilepar (str):
-                [sensfunc][UVIS][extinct_file] parameter
-                Used for extinction correction
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
 
