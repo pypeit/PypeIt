@@ -130,8 +130,8 @@ class TellFit(scriptbase.ScriptBase):
             if par['sensfunc']['IR']['telgridfile'] is not None:
                 par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
             else:
-                par['telluric']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
-                msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
+                par['telluric']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+                msgs.warn(f"No telluric file given. Using PCA method with {par['telluric']['telgridfile']}.")
 
         # Checks
         if par['telluric']['telgridfile'] is None:
