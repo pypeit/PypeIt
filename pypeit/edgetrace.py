@@ -3617,8 +3617,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info(f' {self.edge_fit[reference_row][gpm][peak_indx[i]]:8.1f}'
                           f' {fit[reference_row][i]:8.1f} {rms[i]:8.3f}')
 
-            # TODO: Add a report to the screen or a QA plot?
-
             # Select traces below the RMS tolerance or that were newly
             # identified by peak_trace.  I.e., this will *not* catch newly
             # identified traces found by peak_trace that are also poorly
