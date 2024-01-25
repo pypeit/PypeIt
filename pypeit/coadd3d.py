@@ -256,7 +256,7 @@ class DataCube(datamodel.DataContainer):
         # Extract the spectrum
         # TODO :: Avoid transposing these large cubes
         # TODO :: Pass in the parset parameters here
-        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
+        sobjs = datacube.extract_standard_spec(self.wave, 1200.0*self.flux.T, self.ivar.T/1200.0**2, self.bpm.T, self.wcs,
                                                pypeline=self.spectrograph.pypeline)
 
         # Save the extracted spectrum
@@ -908,10 +908,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, grating_corr=None,
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                  ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
                  overwrite=False, show=False, debug=False):
-        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, grating_corr=grating_corr,
+        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, sensfile=sensfile,
+                         scale_corr=scale_corr, grating_corr=grating_corr,
                          ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
                          overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
@@ -1181,6 +1182,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
             scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
+            print(np.median(scl_units))
             sciImg[onslit_gpm] /= scl_units[resrt]
             ivar[onslit_gpm] *= scl_units[resrt] ** 2
 
