@@ -233,7 +233,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     arcsecSQ = (wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec)) * \
                (wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
     if fluxed:
-        # The datacube is flux calibrated, in units of erg/s/cm**2/Ang/arcsec**2
+        # The datacube is flux calibrated, in units of 10^-17 erg/s/cm**2/Ang/arcsec**2
         # Scale the flux and ivar cubes to be in units of erg/s/cm**2/Ang
         unitscale = arcsecSQ
     else:
