@@ -258,7 +258,8 @@ class DataCube(datamodel.DataContainer):
         # TODO :: Pass in the extraction parset parameters here
         exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
-                                               exptime=exptime, pypeline=self.spectrograph.pypeline)
+                                               exptime=exptime, pypeline=self.spectrograph.pypeline,
+                                               fluxed=self.fluxed)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
@@ -478,8 +479,16 @@ class CoAdd3D:
         if ra_offsets is not None and dec_offsets is None:
             msgs.error("If you provide ra_offsets, you must also provide dec_offsets")
         # Set the frame specific options
+        self.sensfile = None
+        if sensfile is None:
+            # User didn't provide a sensfile for each frame. Check if they provided a single one.
+            if self.cubepar['sensfile'] is not None:
+                # User provided a single sensfile. Use this for all frames.
+                self.sensfile = self.numfiles*[self.cubepar['sensfile']]
+        else:
+            # User provided a sensfile for each frame. Use these.
+            self.sensfile = sensfile
         self.skysub_frame = skysub_frame
-        self.sensfile = sensfile if sensfile is not None else self.numfiles*[self.cubepar['sensfile']]
         self.scale_corr = scale_corr
         self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
@@ -1159,19 +1168,21 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],
                                                                self.blaze_wave, self.blaze_spline)
-            # Sensitivity function - note that the sensitivity function factors in the exposure time, so if the
-            # flux calibration will not be applied, the sens_factor needs to be scaled by the exposure time
-            sens_factor = 1.0/exptime  # If no sensitivity function is provided
+            # Sensitivity function - note that the sensitivity function factors in the exposure time and the
+            # wavelength sampling, so if the flux calibration will not be applied, the sens_factor needs to be
+            # scaled by the exposure time and the wavelength sampling
+            sens_factor = 1.0/(exptime * dwav_sort)  # If no sensitivity function is provided
             # TODO :: Need to think about exposure time some more... Does the pypeit_sensfunc algorithm expect counts/s as input, or counts? This could affect the throughput calculation, perhaps?
             #      :: More generally, should we be adding the counts when we make the datacube, or should we be averaging the counts/s with the appropriate weights?
-            if self.fluxcal and False:
+            if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
                 # Load the sensitivity function
-                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
+                # TODO :: reinstate this chk_version once Kyle's PR is merged
+                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=True)#self.par['rdx']['chk_version'])
                 # Interpolate the sensitivity function onto the wavelength grid of the data
                 sens_factor = flux_calib.get_sensfunc_factor(
-                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, extinct_correct=False,
-                    extrap_sens=self.par['fluxcalib']['extrap_sens'])
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=dwav_sort,
+                    extinct_correct=False, extrap_sens=self.par['fluxcalib']['extrap_sens'])
             # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
             extcorr_sort *= sens_factor / gratcorr_sort
             # Correct for extinction
@@ -1180,11 +1191,12 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
+            unitscale = self.all_wcs[ff].wcs.cunit[0].to(units.arcsec) * self.all_wcs[ff].wcs.cunit[1].to(units.arcsec)
             sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
-            scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
-            sciImg[onslit_gpm] /= scl_units[resrt]
-            ivar[onslit_gpm] *= scl_units[resrt] ** 2
+            scl_units = unitscale * sl_deg * px_deg
+            sciImg[onslit_gpm] /= scl_units
+            ivar[onslit_gpm] *= scl_units ** 2
 
             # Calculate the weights relative to the zeroth cube
             self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
