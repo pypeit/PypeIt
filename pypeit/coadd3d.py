@@ -255,9 +255,10 @@ class DataCube(datamodel.DataContainer):
         """
         # Extract the spectrum
         # TODO :: Avoid transposing these large cubes
-        # TODO :: Pass in the parset parameters here
-        sobjs = datacube.extract_standard_spec(self.wave, 1200.0*self.flux.T, self.ivar.T/1200.0**2, self.bpm.T, self.wcs,
-                                               pypeline=self.spectrograph.pypeline)
+        # TODO :: Pass in the extraction parset parameters here
+        exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
+        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
+                                               exptime=exptime, pypeline=self.spectrograph.pypeline)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
@@ -1163,7 +1164,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             sens_factor = 1.0/exptime  # If no sensitivity function is provided
             # TODO :: Need to think about exposure time some more... Does the pypeit_sensfunc algorithm expect counts/s as input, or counts? This could affect the throughput calculation, perhaps?
             #      :: More generally, should we be adding the counts when we make the datacube, or should we be averaging the counts/s with the appropriate weights?
-            if self.fluxcal:
+            if self.fluxcal and False:
                 msgs.info("Calculating the sensitivity function")
                 # Load the sensitivity function
                 sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
@@ -1182,7 +1183,6 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
             scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
-            print(np.median(scl_units))
             sciImg[onslit_gpm] /= scl_units[resrt]
             ivar[onslit_gpm] *= scl_units[resrt] ** 2
 
