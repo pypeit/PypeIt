@@ -3606,6 +3606,17 @@ class EdgeTraceSet(calibframe.CalibFrame):
             diff = fit - self.edge_fit.T[gpm][peak_indx].T
             rms = np.sqrt(np.mean((diff - np.mean(diff, axis=0)[None,:])**2, axis=0))
 
+            # Report
+            msgs.info('-'*30)
+            msgs.info('Matched spatial locations and RMS difference along spectral direction')
+            msgs.info(f' {"OLD":>8} {"NEW":>8} {"RMS":>8}')
+            msgs.info(' '+'-'*8+' '+'-'*8+' '+'-'*8)
+            for i in range(len(peak_indx)):
+                if peak_indx[i] < 0:
+                    continue
+                msgs.info(f' {self.edge_fit[reference_row][gpm][peak_indx[i]]:8.1f}'
+                          f' {fit[reference_row][i]:8.1f} {rms[i]:8.3f}')
+
             # TODO: Add a report to the screen or a QA plot?
 
             # Select traces below the RMS tolerance or that were newly
@@ -3613,7 +3624,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # identified traces found by peak_trace that are also poorly
             # constrained!
             indx = (rms < self.par['trace_rms_tol']) | (peak_indx == -1)
-            if not all(indx):
+            if not np.all(indx):
                 msgs.info(f'Removing {indx.size - np.sum(indx)} trace(s) due to large RMS '
                           'difference with previous trace locations.')
                 fit = fit[:,indx]

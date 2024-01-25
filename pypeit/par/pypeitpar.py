@@ -3328,10 +3328,10 @@ class EdgeTracePar(ParSet):
         
         dtypes['trace_rms_tol'] = [int, float]
         descr['trace_rms_tol'] = 'After retracing edges using peaks detected in the rectified ' \
-                                 'and collapsed image, the RMS difference between the original ' \
-                                 'and refit traces are calculated.  This sets the upper limit ' \
-                                 'of the RMS for traces that will be removed.  If None, no ' \
-                                 'limit is set and all new traces are kept.'
+                                 'and collapsed image, the RMS difference (in pixels) between ' \
+                                 'the original and refit traces are calculated.  This sets the ' \
+                                 'upper limit of the RMS for traces that will be removed.  If ' \
+                                 'None, no limit is set and all new traces are kept.'
 
         defaults['fwhm_uniform'] = 3.0
         dtypes['fwhm_uniform'] = [int, float]
