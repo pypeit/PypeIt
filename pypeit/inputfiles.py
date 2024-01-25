@@ -946,7 +946,7 @@ class Coadd3DFile(InputFile):
         # Get the sensfunc files
         sensfile = self.path_and_files('sensfile', skip_blank=False, check_exists=False)
         if sensfile is None:
-            opts['sensfile'] = [None]*len(self.filenames)
+            opts['sensfile'] = None
         elif len(sensfile) == 1 and len(self.filenames) > 1:
             opts['sensfile'] = sensfile*len(self.filenames)
         elif len(sensfile) != 0:
