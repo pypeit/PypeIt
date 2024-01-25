@@ -190,7 +190,7 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20, pypeline="SlicerIFU"):
+def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, subpixel=20, pypeline="SlicerIFU"):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -206,9 +206,11 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
         Datacube of the bad pixel mask
     wcscube : `astropy.wcs.WCS`_
         WCS of the datacube
-    subpixel : int
+    exptime : float
+        Exposure time listed in the header of the datacube
+    subpixel : int, optional
         Number of pixels to subpixelate spectrum when creating mask
-    pypeline : str
+    pypeline : str, optional
         PypeIt pipeline used to reduce the datacube
 
     Returns
@@ -223,51 +225,57 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     sobj.DEC = wcscube.wcs.crval[1]
     sobj.SLITID = 0
 
-    # Extract some information from the HDU list
-    varcube = utils.inverse(ivarcube)
-    # flxcube = stdcube['FLUX'].data.T.copy()
-    # bpmcube = stdcube['BPM'].data.T.copy()
-    numwave = flxcube.shape[2]
+    # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
+    numxx, numyy, numwave = flxcube.shape
+    arcsecSQ = (wcscube.wcs.cdelt[0]*wcscube.wcs.cunit[0].to(units.arcsec)) * \
+               (wcscube.wcs.cdelt[1]*wcscube.wcs.cunit[1].to(units.arcsec))
+    deltawave = wcscube.wcs.cdelt[2]*wcscube.wcs.cunit[2].to(units.Angstrom)
+    unitscale = exptime * deltawave * arcsecSQ
+
+    # Scale the flux and ivar cubes to be in units of counts
+    _flxcube = flxcube * unitscale
+    _ivarcube = ivarcube / unitscale**2
+    _varcube = utils.inverse(_ivarcube)
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     msgs.info("Making whitelight image")
     # TODO :: Probably should set minimum and maximum wavelength to use for whitelight image
-    wl_img = make_whitelight_fromcube(flxcube)
+    wl_img = make_whitelight_fromcube(_flxcube)
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
-    x = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subpixel)
-    y = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subpixel)
+    x = np.linspace(0, numxx - 1, numxx * subpixel)
+    y = np.linspace(0, numyy - 1, numyy * subpixel)
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Generate a mask
     msgs.info("Generating an object mask")
-    newshape = (flxcube.shape[0] * subpixel, flxcube.shape[1] * subpixel)
+    newshape = (numxx * subpixel, numyy * subpixel)
     mask = np.zeros(newshape)
     nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
     mask[ww] = 1
-    mask = utils.rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+    mask = utils.rebinND(mask, (numxx, numyy)).reshape(numxx, numyy, 1)
 
     # Generate a sky mask
     msgs.info("Generating a sky mask")
-    newshape = (flxcube.shape[0] * subpixel, flxcube.shape[1] * subpixel)
+    newshape = (numxx * subpixel, numyy * subpixel)
     smask = np.zeros(newshape)
     nsig = 8  # 8 sigma should be far enough
     ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
     smask[ww] = 1
-    smask = utils.rebinND(smask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+    smask = utils.rebinND(smask, (numxx, numyy)).reshape(numxx, numyy, 1)
     smask -= mask
 
     msgs.info("Subtracting the residual sky")
     # Subtract the residual sky from the datacube
     skymask = np.logical_not(bpmcube) * smask
-    skycube = flxcube * skymask
+    skycube = _flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
     nrmsky = skymask.sum(0).sum(0)
     skyspec *= utils.inverse(nrmsky)
-    flxcube -= skyspec.reshape((1, 1, numwave))
+    _flxcube -= skyspec.reshape((1, 1, numwave))
     # Now subtract the residual sky from the white light image
     sky_val = np.sum(wl_img[:, :, np.newaxis] * smask) / np.sum(smask)
     wl_img -= sky_val
@@ -280,30 +288,21 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     # Extract boxcar
     cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
     flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
-    scimask = flxcube * cntmask
-    varmask = varcube * cntmask**2
+    scimask = _flxcube * cntmask
+    varmask = _varcube * cntmask**2
     nrmcnt = utils.inverse(flxscl)
     box_flux = scimask.sum(0).sum(0) * nrmcnt
     box_var = varmask.sum(0).sum(0) * nrmcnt**2
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
-    # Setup the return values
-    ret_flux, ret_var, ret_gpm = box_flux, box_var, box_gpm
-
-    # Convert from counts/s/Ang/arcsec**2 to counts/s/Ang
-    # TODO :: Need to think whether or not this is needed, for extended objects this is probably needed,
-    #  but probably this should be done in the flux calibration step for datacubes.
-    # arcsecSQ = 3600.0*3600.0*(wcscube.wcs.cdelt[0]*wcscube.wcs.cdelt[1])
-    # ret_flux *= arcsecSQ
-    # ret_var *= arcsecSQ**2
 
     # Store the BOXCAR extraction information
     sobj.BOX_RADIUS = wid
     sobj.BOX_WAVE = wave.astype(float)
-    sobj.BOX_COUNTS = ret_flux
-    sobj.BOX_COUNTS_IVAR = utils.inverse(ret_var)
-    sobj.BOX_MASK = ret_gpm
+    sobj.BOX_COUNTS = box_flux
+    sobj.BOX_COUNTS_IVAR = utils.inverse(box_var)
+    sobj.BOX_MASK = box_gpm
     sobj.BOX_COUNTS_SKY = skyspec  # This is not the real sky, it is the residual sky. The datacube is presumed to be sky subtracted
-    sobj.S2N = np.median(ret_flux * np.sqrt(utils.inverse(ret_var)))
+    sobj.S2N = np.median(box_flux * np.sqrt(utils.inverse(box_var)))
 
     # Now do the OPTIMAL extraction
     msgs.info("Extracting an optimal spectrum of datacube")
@@ -327,8 +326,8 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, subpixel=20
     # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
     numspat = objprof_idx.size
     flxslice = (spatspl[:,0,:], spatspl[:,1,:], spec)
-    flxcube2d = flxcube[flxslice].T
-    ivarcube2d = ivarcube[flxslice].T
+    flxcube2d = _flxcube[flxslice].T
+    ivarcube2d = _ivarcube[flxslice].T
     gpmcube2d = np.logical_not(bpmcube[flxslice].T)
     waveimg = wave.reshape((numwave,1)).repeat(numspat, axis=1)
     skyimg = skyspec.reshape((numwave,1)).repeat(numspat, axis=1)
