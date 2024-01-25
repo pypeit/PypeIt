@@ -805,7 +805,6 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
         msgs.info('Applying telluric correction')
         sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
 
-
     if extinct_correct:
         if longitude is None or latitude is None:
             msgs.error('You must specify longitude and latitude if we are extinction correcting')
