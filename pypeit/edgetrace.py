@@ -2480,8 +2480,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.clean_traces(force_flag='SYNCERROR', rebuild_pca=_rebuild_pca, sync_mode='both',
                           assume_synced=True)
 
-        embed(header='check_synced: after clean')
-
         # Use the fit data if available
         trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
 
@@ -2498,8 +2496,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_synced:
             msgs.error('Edge traces are not yet (or improperly) synced.  Either sync() failed '
                        'or has not yet been executed.')
-
-        embed(header='check_synced: after checking is_synced')
 
         # Parse parameters and report
         gap_atol = None
@@ -2557,8 +2553,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
                     msgs.error('Coding error: Removing gaps removed all traces.')
                 # Reset the trace center data to use
                 trace_cen = self.edge_cen if self.edge_fit is None else self.edge_fit
-
-        embed(header='check_synced: after gap_atol')
 
         # Calculate the slit length and gap
         slit_length = np.squeeze(np.diff(trace_cen.reshape(self.nspec,-1,2), axis=-1))
@@ -2623,8 +2617,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
 #                      ' changes along the dispersion direction.')
 #            self.remove_traces(dl_flag, rebuild_pca=_rebuild_pca)
 
-        embed(header='check_synced: after length checks')
-
         # Get the slits that have been flagged as abnormally short.  This should
         # be the same as the definition above, it's just redone here to ensure
         # `short` is defined when `length_rtol` is None.
@@ -2652,17 +2644,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Remove the flagged traces, resort the edges, and rebuild the pca
             self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
 
-            embed(header='check_synced: after removing traces prompted by overlap check')
-
             # If this de-synchronizes the traces, we effectively have to start
             # the synchronization process over again, with the adjustments for
             # the "short" slits that are assumed to be overlap regions.
             if not self.is_synced:
                 msgs.info('Checking/cleaning traces for overlap led to de-syncronization.')
                 return False
-
-        embed(header='check_synced: after overlap')
-        exit()
 
         # TODO: Check that slit edges meet a minimum slit gap?
 
@@ -3597,9 +3584,41 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.warn('Found fewer traces using peak finding than originally available.  '
                       'May want to reset peak threshold.')
             
-        embed(header='peak refine')
-        exit()
-        
+        if self.par['trace_rms_tol'] is not None:
+            # Get the PCA reference row.  The PCA *must* have been defined to get
+            # this far (see pcatype test at the beginning of the function).
+            reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
+                                else self.pca.reference_row
+            # Match the new trace positions to the input ones
+            gpm = np.logical_not(self.bitmask.flagged(self.edge_msk[reference_row]))
+            # TODO: Include a tolerance here?  Needs testing with more datasets.
+            peak_indx = slitdesign_matching.match_positions_1D(
+                            self.edge_fit[reference_row][gpm],
+                            fit[reference_row])
+
+            # Determine the RMS difference between the input and output traces.
+            # This allows us to compare traces that had alreaday been identified
+            # to their new measurements resulting from peak_trace, and remove
+            # them if they are too discrepant from their original form.  This is
+            # largely meant to find and remove poorly constrained traces, where
+            # the polynomial fit goes wonky.
+            diff = fit - self.edge_fit.T[gpm][peak_indx].T
+            rms = np.sqrt(np.mean((diff - np.mean(diff, axis=0)[None,:])**2, axis=0))
+
+            # TODO: Add a report to the screen or a QA plot?
+
+            # Select traces below the RMS tolerance or that were newly
+            # identified by peak_trace
+            indx = (rms < self.par['trace_rms_tol']) | (peak_indx == -1)
+            if not all(indx):
+                msgs.info(f'Removing {indx.size - np.sum(indx)} trace(s) due to large RMS '
+                          'difference with previous trace locations.')
+                fit = fit[:,indx]
+                cen = cen[:,indx]
+                err = err[:,indx]
+                msk = msk[:,indx]
+                nleft -= np.sum(np.where(np.logical_not(indx))[0] < nleft)
+
         # TODO: Possibly put in a check that compares the locations of the new
         # and old traces, which removes new traces that are too different (above
         # some tolerance) from the old traces.  Maybe this is a way to catch
@@ -4069,14 +4088,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info('Show instance includes inserted traces but before checking the sync.')
                 self.show(flag='any')
 
-            embed(header=f'iter {i+1}: after insert')
-
             # Check the full synchronized list and log completion of the
             # method
             if self.check_synced(rebuild_pca=rebuild_pca):
                 break
-
-            embed(header=f'iter {i+1}: after sync')
 
             i += 1
             if i == maxiter:

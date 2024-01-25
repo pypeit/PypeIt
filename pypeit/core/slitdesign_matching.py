@@ -394,7 +394,7 @@ def match_positions_1D(measured, nominal, tol=None):
     # Calculate the (m,n) separation matrix
     # NOTE: This is the brute force approach.  For *lots* of measurements, this
     # can be sped up by using a KDTree to build a sparse matrix with only a
-    # subset of the distances calculated.
+    # subset of the separations calculated.
     sep = np.absolute(nominal[:,None] - measured[None,:])
 
     # Perform the match
