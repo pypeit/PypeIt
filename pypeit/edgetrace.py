@@ -2416,7 +2416,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             - Any trace falling off the edge of the detector is masked (see
               :class:`EdgeTraceBitMask`). This is the only check performed by
               default (i.e., when no keyword arguments are provided).
-
             - Traces that form slit gaps (the median difference
               between the right and left traces of adjacent slits)
               that are below an absolute tolerance are removed and
@@ -2424,7 +2423,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
               the checks of the slit length below such that the
               merged slit is assessed in any expected slit length
               constraints.
-
             - Traces that form a slit with a length (the median
               difference between the left and right edges) below an
               absolute tolerance (i.e., `right-left < atol`) are
@@ -3435,33 +3433,36 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
     def peak_refine(self, rebuild_pca=False, debug=False):
         """
-        Refine the trace by isolating peaks and troughs in the
-        Sobel-filtered image.
+        Refine the trace by isolating peaks and troughs in the Sobel-filtered
+        image.
 
         This function *requires* that the PCA model exists; see
-        :func:`build_pca` or :func:`pca_refine`. It is also primarily
-        a wrapper for :func:`~pypeit.core.trace.peak_trace`. See the
-        documentation of that function for the explanation of the
-        algorithm.
+        :func:`build_pca` or :func:`pca_refine`. It is also primarily a wrapper
+        for :func:`~pypeit.core.trace.peak_trace`. See the documentation of that
+        function for the explanation of the algorithm.
 
-        If the left and right traces have separate PCA
-        decompositions, this function makes one call to
-        :func:`~pypeit.core.trace.peak_trace` for each side.
-        Otherwise, a single call is made to
-        :func:`~pypeit.core.trace.peak_trace` where both the peak and
-        troughs in :attr:`sobelsig` are detected and traced.
+        If the left and right traces have separate PCA decompositions, this
+        function makes one call to :func:`~pypeit.core.trace.peak_trace` for
+        each side.  Otherwise, a single call is made to
+        :func:`~pypeit.core.trace.peak_trace` where both the peak and troughs in
+        :attr:`sobelsig` are detected and traced.
 
-        Note that this effectively reinstantiates much of the object
-        attributes, including :attr:`traceid`, :attr:`edge_cen`,
-        :attr:`edge_err`, :attr:`edge_msk`, :attr:`edge_img`,
-        :attr:`edge_fit`, and :attr:`fittype`.
+        Optionally, the code will match and compare the traces found and fit by
+        :func:`~pypeit.core.trace.peak_trace` to the original traces.  If the
+        RMS difference between the matched traces is large, they can be removed
+        (see ``trace_rms_tol`` in :class:`~pypeit.par.pypeitpar.EdgeTracePar`).
+
+        Note that this effectively reinstantiates much of the object attributes,
+        including :attr:`traceid`, :attr:`edge_cen`, :attr:`edge_err`,
+        :attr:`edge_msk`, :attr:`edge_img`, :attr:`edge_fit`, and
+        :attr:`fittype`.
 
         Used parameters from :attr:`par`
-        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
-        ``left_right_pca``, ``edge_thresh``, ``smash_range``,
-        ``edge_detect_clip``, ``trace_median_frac``, ``trace_thresh``,
-        ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``fwhm_uniform``,
-        ``niter_gaussian``, ``niter_gaussian``, ``fit_maxdev``, and
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are ``left_right_pca``,
+        ``edge_thresh``, ``smash_range``, ``edge_detect_clip``,
+        ``trace_median_frac``, ``trace_thresh``, ``trace_rms_tol``,
+        ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``niter_uniform``,
+        ``fwhm_gaussian``, ``niter_gaussian``, ``fit_maxdev``, and
         ``fit_maxiter``.
 
         Args:
@@ -3597,7 +3598,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                             fit[reference_row])
 
             # Determine the RMS difference between the input and output traces.
-            # This allows us to compare traces that had alreaday been identified
+            # This allows us to compare traces that had already been identified
             # to their new measurements resulting from peak_trace, and remove
             # them if they are too discrepant from their original form.  This is
             # largely meant to find and remove poorly constrained traces, where
@@ -3608,7 +3609,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # TODO: Add a report to the screen or a QA plot?
 
             # Select traces below the RMS tolerance or that were newly
-            # identified by peak_trace
+            # identified by peak_trace.  I.e., this will *not* catch newly
+            # identified traces found by peak_trace that are also poorly
+            # constrained!
             indx = (rms < self.par['trace_rms_tol']) | (peak_indx == -1)
             if not all(indx):
                 msgs.info(f'Removing {indx.size - np.sum(indx)} trace(s) due to large RMS '
@@ -3619,11 +3622,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msk = msk[:,indx]
                 nleft -= np.sum(np.where(np.logical_not(indx))[0] < nleft)
 
-        # TODO: Possibly put in a check that compares the locations of the new
-        # and old traces, which removes new traces that are too different (above
-        # some tolerance) from the old traces.  Maybe this is a way to catch
-        # traces that result from poorly constrained polynomial fits.
-            
         # Reset the trace data
         self.traceid = np.zeros(ntrace, dtype=int)
         self.traceid[:nleft] = -1-np.arange(nleft)

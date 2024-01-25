@@ -403,8 +403,9 @@ def match_positions_1D(measured, nominal, tol=None):
     # Remove any matches that don't meet the provided tolerance.
     # NOTE: It's possible this approach yields a non-optimal match.  I.e., when
     # multiple matches are near the tolerance, removing the largest separations
-    # might yield a more optimal result for the ones that remain.  But this
-    # approach has worked so far.
+    # *before* performing the match (above) might ultimately yield a more
+    # optimal result for the ones that remain.  But this approach has worked so
+    # far.
     if tol is not None:
         indx = sep[n_m,m_m] < tol
         n_m = n_m[indx]
