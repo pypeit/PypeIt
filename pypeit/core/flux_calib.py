@@ -719,7 +719,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     return meta_table, out_table
 
 
-def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
+def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta_wave=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
@@ -738,6 +738,8 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
             Exposure time in seconds
         tellmodel (float, `numpy.ndarray`_, optional):
             Apply telluric correction if it is passed it (shape = (nspec,)). Note this is deprecated.
+        delta_wave (float, `numpy.ndarray`_, optional):
+            The wavelength sampling of the spectrum to be flux calibrated.
         extinct_correct (bool, optional)
             If True perform an extinction correction. Default = False
         airmass (float, optional):
@@ -760,10 +762,17 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         This quantity is defined to be sensfunc_interp/exptime/delta_wave. shape = (nspec,)
 
     """
-
+    # Initialise some variables
     zeropoint_obs = np.zeros_like(wave)
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
-    delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+    if delta_wave is not None:
+        # Check that the delta_wave is the same size as the wave vector
+        if wave.size != delta_wave.size:
+            msgs.error('The wavelength vector and delta_wave vector must be the same size')
+        _delta_wave = delta_wave
+    else:
+        # If delta_wave is not passed in, then we will use the native wavelength sampling of the spectrum
+        _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
 
 #    print(f'get_sensfunc_factor: {np.amin(wave_zp):.1f}, {np.amax(wave_zp):.1f}, '
 #          f'{np.amin(wave[wave_mask]):.1f}, {np.amax(wave[wave_mask]):.1f}')
@@ -811,7 +820,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom
-    return senstot/exptime/delta_wave
+    return senstot/exptime/_delta_wave
 
 
 def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude, extinctfilepar):
