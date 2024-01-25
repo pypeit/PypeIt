@@ -190,7 +190,8 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, subpixel=20, pypeline="SlicerIFU"):
+def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
+                          subpixel=20, pypeline="SlicerIFU", fluxed=False):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -212,6 +213,8 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, su
         Number of pixels to subpixelate spectrum when creating mask
     pypeline : str, optional
         PypeIt pipeline used to reduce the datacube
+    fluxed : bool, optional
+        Is the datacube fluxed?
 
     Returns
     -------
@@ -227,14 +230,22 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, su
 
     # Convert from counts/s/Ang/arcsec**2 to counts. The sensitivity function expects counts as input
     numxx, numyy, numwave = flxcube.shape
-    arcsecSQ = (wcscube.wcs.cdelt[0]*wcscube.wcs.cunit[0].to(units.arcsec)) * \
-               (wcscube.wcs.cdelt[1]*wcscube.wcs.cunit[1].to(units.arcsec))
-    deltawave = wcscube.wcs.cdelt[2]*wcscube.wcs.cunit[2].to(units.Angstrom)
-    unitscale = exptime * deltawave * arcsecSQ
+    arcsecSQ = (wcscube.wcs.cdelt[0] * wcscube.wcs.cunit[0].to(units.arcsec)) * \
+               (wcscube.wcs.cdelt[1] * wcscube.wcs.cunit[1].to(units.arcsec))
+    if fluxed:
+        # The datacube is flux calibrated, in units of erg/s/cm**2/Ang/arcsec**2
+        # Scale the flux and ivar cubes to be in units of erg/s/cm**2/Ang
+        unitscale = arcsecSQ
+    else:
+        # Scale the flux and ivar cubes to be in units of counts
+        deltawave = wcscube.wcs.cdelt[2]*wcscube.wcs.cunit[2].to(units.Angstrom)
+        unitscale = exptime * deltawave * arcsecSQ
 
-    # Scale the flux and ivar cubes to be in units of counts
+    # Apply the relevant scaling
     _flxcube = flxcube * unitscale
     _ivarcube = ivarcube / unitscale**2
+
+    # Calculate the variance cube
     _varcube = utils.inverse(_ivarcube)
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
@@ -298,10 +309,16 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, su
     # Store the BOXCAR extraction information
     sobj.BOX_RADIUS = wid
     sobj.BOX_WAVE = wave.astype(float)
-    sobj.BOX_COUNTS = box_flux
-    sobj.BOX_COUNTS_IVAR = utils.inverse(box_var)
+    if fluxed:
+        sobj.BOX_FLAM = box_flux
+        sobj.BOX_FLAM_SIG = np.sqrt(box_var)
+        sobj.BOX_FLAM_IVAR = utils.inverse(box_var)
+    else:
+        sobj.BOX_COUNTS = box_flux
+        sobj.BOX_COUNTS_SIG = np.sqrt(box_var)
+        sobj.BOX_COUNTS_IVAR = utils.inverse(box_var)
+        sobj.BOX_COUNTS_SKY = skyspec  # This is not the real sky, it is the residual sky. The datacube is presumed to be sky subtracted
     sobj.BOX_MASK = box_gpm
-    sobj.BOX_COUNTS_SKY = skyspec  # This is not the real sky, it is the residual sky. The datacube is presumed to be sky subtracted
     sobj.S2N = np.median(box_flux * np.sqrt(utils.inverse(box_var)))
 
     # Now do the OPTIMAL extraction
@@ -338,6 +355,12 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime, su
     # TODO :: Perhaps add support for pypeitpar extraction parameters
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
                             sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
+
+    # Fudge factor to include the fluxed extraction in the specobjs object
+    if fluxed:
+        sobj.OPT_FLAM = sobj.OPT_COUNTS
+        sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
+        sobj.OPT_FLAM_IVAR = sobj.OPT_COUNTS_IVAR
 
     # Make a specobjs object
     sobjs = specobjs.SpecObjs()
