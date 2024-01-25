@@ -376,9 +376,9 @@ def match_positions_1D(measured, nominal, tol=None):
     position to every nominal position is used as the cost matrix.
 
     Args:
-        measured (`numpy.array`_):
+        measured (`numpy.ndarray`_):
             Measured positions.  Shape is ``(n,)``.
-        nominal (`numpy.array`_):
+        nominal (`numpy.ndarray`_):
             Expected positions.  Shape is ``(m,)``.
         tol (:obj:`float`, optional):
             Maximum separation between measured and nominal positions to be
@@ -401,6 +401,10 @@ def match_positions_1D(measured, nominal, tol=None):
     n_m, m_m = optimize.linear_sum_assignment(sep)
 
     # Remove any matches that don't meet the provided tolerance.
+    # NOTE: It's possible this approach yields a non-optimal match.  I.e., when
+    # multiple matches are near the tolerance, removing the largest separations
+    # might yield a more optimal result for the ones that remain.  But this
+    # approach has worked so far.
     if tol is not None:
         indx = sep[n_m,m_m] < tol
         n_m = n_m[indx]
