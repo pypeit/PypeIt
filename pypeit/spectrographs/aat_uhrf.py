@@ -32,6 +32,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
     camera = 'UHRF'
     supported = True
     header_name = 'uhrf'
+    allowed_extensions = ["FTS"]
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -48,21 +49,25 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        # Binning is not recorded in the header, so we need to estimate it based on the image size
+        binspat = int(np.floor(hdu[0].header['NAXIS1']/1024))
+        binspec = int(np.floor(hdu[0].header['NAXIS2']/1024))
+        print(binspat, binspec)
         # Detector 1
         detector_dict = dict(
-            binning='1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning=f'{binspat},{binspec}',
             det=1,
             dataext=0,
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.43,
+            platescale=0.05,  # Not sure about this value
             saturation=65535.,
             mincounts=-1e10,
             nonlinear=0.76,
-            numamplifiers=2,
-            gain=np.asarray([1.2, 1.2]),
-            ronoise=np.asarray([3.7, 3.7]),
+            numamplifiers=1,
+            gain=np.asarray([1.0]),  # Not sure about this value
+            ronoise=np.asarray([0.0]),  # Determine the read noise from the overscan region
             xgap=0.,
             ygap=0.,
             ysize=1.,
@@ -113,22 +118,19 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['ra'] = dict(ext=0, card='APPRA')
+        self.meta['dec'] = dict(ext=0, card='APPDEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         # dispname is arm specific (blue/red)
-        self.meta['decker'] = dict(ext=0, card='SLIT_N')
+        self.meta['decker'] = dict(ext=0, card=None, required=False)
+        self.meta['dispname'] = dict(ext=0, card='WINDOW')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['exptime'] = dict(ext=0, card='TOTALEXP')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS', required=False)
         # Additional ones, generally for configuration determination or time
-        self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
-        self.meta['instrument'] = dict(ext=0, card='VERSION')
-        lamp_names = [ '1', '2', '3', '4', '5',
-                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+        # self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        # self.meta['instrument'] = dict(ext=0, card='VERSION')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -145,8 +147,9 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'mjd':
-            time = headarr[0]['DATE']
-            ttime = Time(time, format='isot')
+            time = headarr[0]['UTSTART']
+            date = headarr[0]['UTDATE']
+            ttime = Time(f'{date}T{time}', format='isot')
             return ttime.mjd
         msgs.error("Not ready for this compound meta")
 
@@ -165,7 +168,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             object.
         """
         # decker is not included because arcs are often taken with a 0.5" slit
-        return ['dispname', 'dichroic' ]
+        return ['dispname']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -188,55 +191,20 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & self.lamps(fitstbl, 'off')
+            return good_exp
         if ftype == 'bias':
-            return good_exp # & (fitstbl['target'] == 'Bias')
+            return good_exp
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
+            return good_exp
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
+            return good_exp
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-  
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check. Can be ``'off'``, ``'arcs'``, or
-                ``'dome'``.
-
-        Returns:
-            `numpy.ndarray`_: A boolean array selecting fits files that meet
-            the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-        if status == 'off':
-            # Check if all are off
-            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
-                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(6,17) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
-            # Check if any dome lamps are on
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
-                                            if k in dome_lamp_stat]), axis=0)
-        raise ValueError('No implementation for status = {0}'.format(status))
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -268,23 +236,3 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
         # Return
         return par
-
-    def raw_header_cards(self):
-        """
-        Return additional raw header cards to be propagated in
-        downstream output files for configuration identification.
-
-        The list of raw data FITS keywords should be those used to populate
-        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
-        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
-        for a particular spectrograph, if different from the name of the
-        PypeIt metadata keyword.
-
-        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
-        to include additional FITS keywords in downstream output files.
-
-        Returns:
-            :obj:`list`: List of keywords from the raw data files that should
-            be propagated in output files.
-        """
-        return ['GRISM_N', 'BSPLIT_N']

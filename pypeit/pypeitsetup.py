@@ -186,6 +186,11 @@ class PypeItSetup:
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
+        from pypeit.spectrographs.util import load_spectrograph
+        spec = load_spectrograph(spectrograph)
+        allext = spec.allowed_extensions
+        embed()
+        # TODO :: Check all allowed extensions
         return cls.from_rawfiles(io.files_from_extension(root, extension=extension), spectrograph)
 
     @classmethod
