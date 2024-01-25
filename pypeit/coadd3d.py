@@ -1181,7 +1181,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=True)#self.par['rdx']['chk_version'])
                 # Interpolate the sensitivity function onto the wavelength grid of the data
                 sens_factor = flux_calib.get_sensfunc_factor(
-                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=dwav_sort,
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=cd_wv,
                     extinct_correct=False, extrap_sens=self.par['fluxcalib']['extrap_sens'])
             # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
             extcorr_sort *= sens_factor / gratcorr_sort
