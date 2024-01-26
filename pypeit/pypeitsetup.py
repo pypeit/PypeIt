@@ -186,12 +186,18 @@ class PypeItSetup:
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        from pypeit.spectrographs.util import load_spectrograph
         spec = load_spectrograph(spectrograph)
-        allext = spec.allowed_extensions
-        embed()
-        # TODO :: Check all allowed extensions
-        return cls.from_rawfiles(io.files_from_extension(root, extension=extension), spectrograph)
+        allext = [extension]
+        filelist = io.files_from_extension(root, extension=extension)
+        # Check all allowed extensions as well
+        if spec.allowed_extensions is not None:
+            for ext in spec.allowed_extensions:
+                if ext not in allext:
+                    filelist += io.files_from_extension(root, extension=ext)
+                    allext += [ext]
+        msgs.info("Found {0} files with extensions: {1}".format(len(filelist), ", ".join(allext)))
+        # Check for files
+        return cls.from_rawfiles(filelist, spectrograph)
 
     @classmethod
     def from_rawfiles(cls, data_files:list, spectrograph:str, frametype=None):
