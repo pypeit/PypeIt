@@ -97,6 +97,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
 
         # Set some parameters for the calibrations
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['n_final'] = 3
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['arcframe']['exprng'] = [None, 60.0]
