@@ -521,9 +521,8 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, 
-                 flexure=None,
-                 exclude_flag=None, use_spatial=True):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
+                 use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -567,8 +566,8 @@ class SlitTraceSet(calibframe.CalibFrame):
                 :attr:`right_init`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
-            exclude_flag (:obj:`str`, optional):
-                Bitmask flag to ignore when masking
+            exclude_flag (:obj:`str`, :obj:`list`, optional):
+                One or more bitmask flag names to ignore when masking
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
@@ -600,10 +599,11 @@ class SlitTraceSet(calibframe.CalibFrame):
         if slitidx is not None:
             slitidx = np.atleast_1d(slitidx).ravel()
         else:
-            bpm = self.mask.astype(bool)
-            if exclude_flag:
-                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
-            slitidx = np.where(np.invert(bpm))[0]
+            bpm = self.bitmask.flagged(self.mask, and_not=exclude_flag)
+#            bpm = self.mask.astype(bool)
+#            if exclude_flag:
+#                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
+            slitidx = np.where(np.logical_not(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -1410,7 +1410,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         """
         # Loop on all the FLATFIELD BPM keys
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
-            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag)
+            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag=flag)
             if np.any(bad_flats):
                 self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
 
