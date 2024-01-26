@@ -19,7 +19,6 @@ from pypeit.images import detector_container
 from pypeit import data
 
 
-
 class AATUHRFSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle AAT/UHRF specific code
@@ -32,7 +31,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
     camera = 'UHRF'
     supported = True
     header_name = 'uhrf'
-    allowed_extensions = ["FTS"]
+    allowed_extensions = [".FTS"]
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -49,13 +48,11 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning is not recorded in the header, so we need to estimate it based on the image size
-        binspat = int(np.floor(hdu[0].header['NAXIS1']/1024))
-        binspec = int(np.floor(hdu[0].header['NAXIS2']/1024))
-        print(binspat, binspec)
+        # Retrieve the binning
+        binning = self.compound_meta(self.get_headarr(hdu), "binning")
         # Detector 1
         detector_dict = dict(
-            binning=f'{binspat},{binspec}',
+            binning=binning,
             det=1,
             dataext=0,
             specaxis=1,
@@ -122,9 +119,9 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='APPDEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         # dispname is arm specific (blue/red)
-        self.meta['decker'] = dict(ext=0, card=None, required=False)
+        self.meta['decker'] = dict(ext=0, card='WINDOW')
         self.meta['dispname'] = dict(ext=0, card='WINDOW')
-        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['binning'] = dict(ext=0, card=None, compound=True)
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='TOTALEXP')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS', required=False)
@@ -147,10 +144,14 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'mjd':
+            date = headarr[0]['UTDATE'].replace(":","-")
             time = headarr[0]['UTSTART']
-            date = headarr[0]['UTDATE']
             ttime = Time(f'{date}T{time}', format='isot')
             return ttime.mjd
+        elif meta_key == 'binning':
+            binspat = int(np.ceil(1024/headarr[0]['NAXIS1']))
+            binspec = int(np.ceil(1024/headarr[0]['NAXIS2']))
+            return f'{binspat},{binspec}'
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
