@@ -50,12 +50,13 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         # Retrieve the binning
         binning = self.compound_meta(self.get_headarr(hdu), "binning")
+        dsec = 1 + 1024//int(binning.split(',')[0])
         # Detector 1
         detector_dict = dict(
             binning=binning,
             det=1,
             dataext=0,
-            specaxis=1,
+            specaxis=0,
             specflip=False,
             spatflip=False,
             platescale=0.05,  # Not sure about this value
@@ -70,8 +71,8 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             ysize=1.,
             darkcurr=0.0,  # e-/pixel/hour
             # These are rows, columns on the raw frame, 1-indexed
-            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),
-            oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
+            datasec=np.asarray(['[:, 1:{:d}]'.format(dsec)]),
+            oscansec=np.asarray(['[:, {:d}:]'.format(dsec+1)])
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -91,19 +92,16 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         # Bound the detector with slit edges if no edges are found
         par['calibrations']['slitedges']['bound_detector'] = True
 
-        # Always correct for flexure, starting with default parameters
-        par['flexure']['spec_method'] = 'boxcar'
+        # Never correct for flexure
+        par['flexure']['spec_method'] = 'skip'
+
+        # Set some parameters for the calibrations
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-        par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['arcframe']['exprng'] = [None, 61]
-        par['calibrations']['standardframe']['exprng'] = [1, 61]
-        #
+        par['calibrations']['arcframe']['exprng'] = [None, 60.0]
+        par['calibrations']['tiltframe']['exprng'] = [None, 60.0]
         par['scienceframe']['exprng'] = [61, None]
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def init_meta(self):
@@ -124,7 +122,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(ext=0, card=None, compound=True)
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='TOTALEXP')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS', required=False)
+        self.meta['airmass'] = dict(ext=0, card=None, compound=True)
         # Additional ones, generally for configuration determination or time
         # self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
         # self.meta['instrument'] = dict(ext=0, card='VERSION')
@@ -152,6 +150,11 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             binspat = int(np.ceil(1024/headarr[0]['NAXIS1']))
             binspec = int(np.ceil(1024/headarr[0]['NAXIS2']))
             return f'{binspat},{binspec}'
+        elif meta_key == 'airmass':
+            # Calculate the zenith distance
+            zendist = 0.5*(headarr[0]['ZDSTART']+headarr[0]['ZDEND'])
+            # Return the airmass based on the zenith distance
+            return 1./np.cos(np.deg2rad(zendist))
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
@@ -191,13 +194,15 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
+        if ftype in ['science']:
             return good_exp
+        if ftype in ['standard']:
+            return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'bias':
-            return good_exp
+            return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp
+            return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -225,15 +230,11 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
-        # TODO: Should we allow the user to override these?
 
-        if self.get_meta_value(scifile, 'dispname') == '600/4310':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '452/3306':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_452.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '830/3460':  # NOT YET TESTED
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_830.fits'
+        if self.get_meta_value(scifile, 'dispname') == 'UHRF_X8':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'aat_uhrf_UFC27405.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
         else:
-            msgs.error("NEED TO ADD YOUR GRISM HERE!")
+            msgs.error("Wavelength setup not supported!")
         # Return
         return par
