@@ -2511,7 +2511,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.info('Binning: {0}'.format(self.traceimg.detector.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_dlength'] is not None:
-                length_atol = self.par['minimum_slit_dlength']/platescale
+                dlength_atol = self.par['minimum_slit_dlength']/platescale
             if self.par['minimum_slit_length'] is not None:
                 length_atol = self.par['minimum_slit_length']/platescale
             if self.par['minimum_slit_length_sci'] is not None:
