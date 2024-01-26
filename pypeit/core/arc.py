@@ -1015,7 +1015,10 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # Peak up the centers and determine the widths using a Gaussian fit
     nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
     fwhm_max = max_frac_fwhm*fwhm
-    tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
+    try:
+        tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
+    except:
+        embed(header='arc.detect_lines: fit_arcspec failed 1021')
 
     # Set the amplitudes using the spectra directly for both the input
     # and continuum-subtracted spectrum.

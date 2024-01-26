@@ -925,8 +925,14 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
             this_cent = np.append(this_cent, cent[best])
             this_fwhm = np.append(this_fwhm, scale*wdth[best])  # Scale convert sig to spectral FWHM
             this_samp = np.append(this_samp, slitsamp[ss]*np.ones(wdth[best].size))
+            
         # Perform a 2D robust fit on the measures for this slit
-        resmap[sl] = fitting.robust_fit(this_cent, this_fwhm, _ord, x2=this_samp, lower=3, upper=3, function='polynomial2d')
+        if this_cent.size > 0:
+            resmap[sl] = fitting.robust_fit(
+                this_cent, this_fwhm, _ord, x2=this_samp, 
+                lower=3, upper=3, function='polynomial2d')
+        else:
+            msgs.warn(f"No arc lines detected for slit {sl+1}/{nslits}.")
 
     # Return an array containing the PypeIt fits
     return np.array(resmap)

@@ -615,7 +615,10 @@ class BuildWaveCalib:
                 continue
             # Measure the spectral FWHM (in pixels) at the midpoint of the slit
             # (i.e. the midpoint in both the spectral and spatial directions)
-            measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
+            if fwhm_map[islit] is None:
+                measured_fwhms[islit] = 0.
+            else:
+                measured_fwhms[islit] = fwhm_map[islit].eval(self.msarc.image.shape[0]//2, 0.5)
 
         # Save for redo's
         self.measured_fwhms = measured_fwhms
