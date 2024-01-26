@@ -195,6 +195,8 @@ class PypeItSetup:
                 if ext not in allext:
                     filelist += io.files_from_extension(root, extension=ext)
                     allext += [ext]
+        # Only keep unique files
+        filelist = list(set(filelist))
         msgs.info("Found {0} files with extensions: {1}".format(len(filelist), ", ".join(allext)))
         # Check for files
         return cls.from_rawfiles(filelist, spectrograph)
