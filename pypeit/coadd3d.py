@@ -390,7 +390,6 @@ class CoAdd3D:
                 Show QA for debugging.
 
         """
-        # TODO :: Before PR merge, add information to the release notes about the slicer subpixellation.
         # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
         # Set the variables
         self.spec2d = spec2dfiles
