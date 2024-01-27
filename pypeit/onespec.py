@@ -46,7 +46,7 @@ class OneSpec(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.1'
+    version = '1.0.2'
 
     datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating,
                               # TODO: The "weighted by pixel contributions" part
@@ -62,6 +62,8 @@ class OneSpec(datamodel.DataContainer):
                                     'see ``fluxed``'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Inverse variance array (matches units of flux)'),
+                 'sigma': dict(otype=np.ndarray, atype=np.floating,
+                              descr='One sigma noise array, equivalent to 1/sqrt(ivar) (matches units of flux)'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Mask array (1=Good,0=Bad)'),
                  'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
@@ -104,7 +106,7 @@ class OneSpec(datamodel.DataContainer):
         #
         return slf
 
-    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
+    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, sigma=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -118,15 +120,6 @@ class OneSpec(datamodel.DataContainer):
         """
         return super()._bundle(ext='SPECTRUM')
 
-    @property
-    def sig(self):
-        """ Return the 1-sigma array
-
-        Returns:
-            `numpy.ndarray`_: error array
-        """
-        return np.sqrt(utils.inverse(self.ivar))
-        
     def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`

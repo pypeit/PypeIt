@@ -14,6 +14,7 @@ import glob
 import numpy as np
 import astropy.table
 import io
+import typing
 from pathlib import Path
 from functools import partial
 from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
@@ -218,7 +219,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         metadata: The PypeItMetaData object being wrapped. If this is None, the
                   model is in a "NEW" state.
     """
-    def __init__(self, metadata : PypeItMetaData | None):
+    def __init__(self, metadata : typing.Union[PypeItMetaData, None]):
         super().__init__()
 
         self.metadata = metadata
@@ -448,7 +449,7 @@ class PypeItMetadataModel(QAbstractTableModel):
         else:
             return ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
 
-    def getStringColumnSize(self, colname: str) -> int | None:
+    def getStringColumnSize(self, colname: str) -> typing.Union[int,None]:
         """
         Return the maximum size of a string column.
 
