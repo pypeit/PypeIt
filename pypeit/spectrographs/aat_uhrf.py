@@ -92,7 +92,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         # Bound the detector with slit edges if no edges are found
         par['calibrations']['slitedges']['bound_detector'] = True
 
-        # Never correct for flexure
+        # Never correct for flexure - the sky is subdominant compared to the object and basically never detected.
         par['flexure']['spec_method'] = 'skip'
 
         # Set some parameters for the calibrations
@@ -100,8 +100,14 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final'] = 3
 
         # Set the default exposure time ranges for the frame typing
+        # Trace frames should be the same as arc frames - it will force a bound detector and this
+        # allows the scattered light to be subtracted. A pixel-to-pixel sensitivity correction is
+        # not needed for this instrument, since it's a small slicer that projects the target onto
+        # multiple pixels. This instrument observes bright objects only, so sky subtraction is not
+        # important, but the sky subtraction routine is used to subtract scattered light, instead.
         par['calibrations']['arcframe']['exprng'] = [None, 60.0]
         par['calibrations']['tiltframe']['exprng'] = [None, 60.0]
+        par['calibrations']['traceframe']['exprng'] = [None, 60.0]
         par['scienceframe']['exprng'] = [61, None]
         return par
 
