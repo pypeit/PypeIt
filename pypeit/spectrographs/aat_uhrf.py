@@ -95,6 +95,13 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         # Never correct for flexure - the sky is subdominant compared to the object and basically never detected.
         par['flexure']['spec_method'] = 'skip'
 
+        # Sky subtraction parameters - this instrument has no sky lines, but we still use the sky subtraction
+        # routine to subtract scattered light.
+        par['reduce']['skysub']['no_poly'] = False
+        par['reduce']['skysub']['bspline_spacing'] = 3.0
+        par['reduce']['skysub']['user_regions'] = ':10,75:'  # This is about right for most setups tested so far
+        par['scienceframe']['process']['sigclip'] = 100.0
+
         # Set some parameters for the calibrations
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['n_final'] = 3
@@ -109,6 +116,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tiltframe']['exprng'] = [None, 60.0]
         par['calibrations']['traceframe']['exprng'] = [None, 60.0]
         par['scienceframe']['exprng'] = [61, None]
+
         return par
 
     def init_meta(self):
