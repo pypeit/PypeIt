@@ -245,7 +245,6 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     return ythis
 
 
-
 def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None, fullbkpt=None):
     """
     Utility routine used by local_skysub_extract that performs the joint b-spline fit for sky-background
@@ -898,7 +897,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 isub, = np.where(localmask.flatten())
                 #sortpix = (piximg.flat[isub]).argsort()
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
-                skymask = outmask & np.invert(edgmask)
+                skymask = outmask & np.logical_not(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(
                         piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
                         obj_profiles_flat[isub, :], spatial_img=spatial_img.flat[isub],
