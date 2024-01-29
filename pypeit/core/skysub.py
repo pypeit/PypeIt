@@ -868,6 +868,40 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         show_profile=show_profile)
+
+                    # TODO :: RJC HAS ADDED THIS CODE TO DEAL WITH AAT UHRF DATA.
+                    #      :: THIS IS USED TO GENERATE A BETTER PROFILE FOR EXTENDED OBJECTS
+                    if True:
+                        msgs.info("Fitting KDE profile for obj # " + "{:}".format(sobjs[iobj].OBJID) + " of {:}".format(nobj))
+                        # Make a KDE profile
+                        from sklearn.neighbors import KernelDensity
+                        import time
+                        spatimrect = (spat_img-sobjs[iobj].TRACE_SPAT[:,None])[ipix]
+                        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(spatimrect.reshape(-1, 1),
+                                                                                sample_weight=np.clip(sign * (img_minsky * outmask)[ipix].flatten(), 0, None))
+                        atime = time.time()
+                        spat_score = np.linspace(np.min(spatimrect), np.max(spatimrect), sciimg.shape[1])
+                        log_dens = kde.score_samples(spat_score.reshape(-1, 1))
+                        msgs.info(f"total time for KDE = {time.time() - atime}")
+                        # Linearly interpolate the profile onto the pixel grid
+                        profile_model = np.exp(np.interp(spatimrect.flatten(), spat_score, log_dens)).reshape(spatimrect.shape)
+                        # Subtract off the background
+                        profile_model -= np.median(profile_model[:,80:], axis=1)[:, None]
+                        profile_model = np.clip(profile_model, 0, None)
+                        norm = np.trapz(profile_model, x=spatimrect[0,:], axis=1)[:, None]
+                        profile_model /= norm
+                        # Now plot it up to see how it looks
+                        obj_profiles[ipix[0], ipix[1], ii] = profile_model
+                        gpm_sigclip = outmask# & objmask
+                        npix_smash = np.sum(gpm_sigclip, axis=0)
+                        flux_sum_smash = np.sum((obj_profiles[:,:,ii] * gpm_sigclip), axis=0)
+                        yplt = flux_sum_smash / (npix_smash + (npix_smash == 0.0))
+                        plt.plot(yplt/np.max(yplt), 'r-', drawstyle='steps-mid')
+                        flux_sum_smash = np.sum(((sciimg-skyimage) * gpm_sigclip), axis=0)
+                        yplt = flux_sum_smash / (npix_smash + (npix_smash == 0.0))
+                        plt.plot(np.arange(yplt.size), yplt/np.max(yplt), 'k-', drawstyle='steps-mid')
+                        plt.show()
+
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
