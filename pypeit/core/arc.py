@@ -1112,9 +1112,6 @@ def mask_around_peaks(spec, inbpm):
             # Mask all pixels to the right of the peak
             maxi = min(nmask[0], ww.size)
             outbpm[pks[i]:ww[maxi]+2] = True
-    plt.plot(spec, 'k-', drawstyle='steps-mid')
-    plt.plot(np.logical_not(outbpm) * spec, 'r-', drawstyle='steps-mid')
-    plt.show()
     # Return the output bpm
     return outbpm
 
