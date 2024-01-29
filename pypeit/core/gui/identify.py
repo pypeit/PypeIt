@@ -980,8 +980,17 @@ class Identify:
                     wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
 
                     # Write the WVCalib file
-                    outfname = "wvcalib.fits"
+                    outfname = f"wvcalib_{self.specname}_{date_str}.fits"
                     if wvcalib is not None:
+                        name_check = input(f'Do you want to use the default wvcalib file name? ({outfname}) [y]/n: ')
+                        if name_check == 'n':
+                            outfname_new = ''
+                            while len(outfname_new) < 2:
+                                outfname_new = input('Please enter the desired filename: ')
+                            if '.fits' not in outfname_new:
+                                outfname_new += '.fits'
+                            wvarxiv_name = outfname_new
+                        
                         wvcalib.to_file(outfname, overwrite=True)
                         msgs.info("A WaveCalib container was written to wvcalib.fits")
 
