@@ -98,6 +98,8 @@ Under-the-hood Improvements
 - Improvements to echelle wavelength calibration. Code changes in:
   ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
   ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Fixed some failure modes when matching measured order positions to expected
+  positions for fixed-format echelle spectrographs.
 
 Bug Fixes
 ---------
