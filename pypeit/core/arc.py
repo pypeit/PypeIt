@@ -506,6 +506,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
     arc_spec[arc_spec_bpm] = 0.0
     return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
+
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
@@ -782,7 +783,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     max_nmask = int(np.ceil((max_mask_frac)*nspec_available))
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
-        mask_sigclip = np.invert(cont_mask & gpm)
+        mask_sigclip = np.logical_not(cont_mask & gpm)
         (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
@@ -1062,6 +1063,60 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     # TODO: Change this to return `good` instead of `ww`
     return tampl_true, tampl, tcent, twid, centerr, ww, arc, nsig
+
+
+def mask_around_peaks(spec, inbpm):
+    """
+    Find peaks in the input spectrum and mask pixels around them.
+
+    All pixels to the left and right of a peak is masked until
+    a pixel has a lower value than the adjacent pixel. At this
+    point, we assume that spec has reached the noise level.
+
+    Parameters
+    ----------
+    spec: `numpy.ndarray`_
+        Spectrum (1D array) in counts
+    inbpm: `numpy.ndarray`_
+        Input bad pixel mask
+
+    Returns
+    -------
+    outbpm: `numpy.ndarray`_
+        Bad pixel mask with pixels around peaks masked
+    """
+    # Find the peak locations
+    pks = detect_peaks(spec)
+
+    # Initialise some useful variables and the output bpm
+    xarray = np.arange(spec.size)
+    specdiff = np.append(np.diff(spec), 0.0)
+    outbpm = inbpm.copy()
+
+    # Loop over the peaks and mask pixels around them
+    for i in range(len(pks)):
+        # Find all pixels to the left of the peak that are above the noise level
+        wl = np.where((xarray <= pks[i]) & (specdiff > 0.0))[0]
+        ww = (pks[i]-wl)[::-1]
+        # Find the first pixel to the left of the peak that is below the noise level
+        nmask = np.where(np.diff(ww) > 1)[0]
+        if nmask.size != 0 and nmask[0] > 5:
+            # Mask all pixels to the left of the peak
+            mini = max(0,wl.size-nmask[0]-1)
+            outbpm[wl[mini]:pks[i]] = True
+        # Find all pixels to the right of the peak that are above the noise level
+        ww = np.where((xarray >= pks[i]) & (specdiff < 0.0))[0]
+        # Find the first pixel to the right of the peak that is below the noise level
+        nmask = np.where(np.diff(ww) > 1)[0]
+        if nmask.size != 0 and nmask[0] > 5:
+            # Mask all pixels to the right of the peak
+            maxi = min(nmask[0], ww.size)
+            outbpm[pks[i]:ww[maxi]+2] = True
+    plt.plot(spec, 'k-', drawstyle='steps-mid')
+    plt.plot(np.logical_not(outbpm) * spec, 'r-', drawstyle='steps-mid')
+    plt.show()
+    # Return the output bpm
+    return outbpm
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
