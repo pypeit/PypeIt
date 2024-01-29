@@ -100,7 +100,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['no_poly'] = False
         par['reduce']['skysub']['bspline_spacing'] = 3.0
         par['reduce']['skysub']['user_regions'] = ':10,75:'  # This is about right for most setups tested so far
-        par['scienceframe']['process']['sigclip'] = 100.0
+        par['scienceframe']['process']['sigclip'] = 10.0
 
         # Set some parameters for the calibrations
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
