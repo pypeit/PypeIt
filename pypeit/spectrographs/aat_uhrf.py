@@ -97,7 +97,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters - this instrument has no sky lines, but we still use the sky subtraction
         # routine to subtract scattered light.
-        par['reduce']['skysub']['no_poly'] = False
+        par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 3.0
         par['reduce']['skysub']['user_regions'] = ':10,75:'  # This is about right for most setups tested so far
         par['scienceframe']['process']['sigclip'] = 10.0
@@ -105,6 +105,8 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         # Set some parameters for the calibrations
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['n_final'] = 3
+        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['tilts']['spec_order'] = 1
 
         # Set the default exposure time ranges for the frame typing
         # Trace frames should be the same as arc frames - it will force a bound detector and this
