@@ -202,7 +202,6 @@ class CalibFrame(datamodel.DataContainer):
             self.calib_id = self.ingest_calib_id(hdr['CALIBID'])
         else:
             msgs.warn('Header does not have CALIBID card; cannot parse calibration IDs.')
-        return self
 
     @staticmethod
     def parse_key_dir(inp, from_filename=False):
