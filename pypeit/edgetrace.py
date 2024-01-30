@@ -1054,13 +1054,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # coordinates
         self.edge_img = np.zeros((self.nspec, self.ntrace), dtype=int)
         for i in range(self.ntrace):
-            row, col = np.where(np.invert(trace_id_img.mask)
+            row, col = np.where(np.logical_not(trace_id_img.mask)
                                     & (trace_id_img.data == self.traceid[i]))
             self.edge_img[row,i] = col
             self.edge_msk[row,i] = 0            # Turn-off the mask
 
             # Flag any insert traces
-            row, col = np.where(np.invert(trace_id_img.mask) & inserted_edge
+            row, col = np.where(np.logical_not(trace_id_img.mask) & inserted_edge
                                     & (trace_id_img.data == self.traceid[i]))
             if len(row) > 0:
                 self.edge_msk[row,i] = self.bitmask.turn_on(self.edge_msk[row,i], 'ORPHANINSERT')
@@ -1413,7 +1413,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             fit = self.edge_fit
             err = np.ma.MaskedArray(self.edge_err, mask=np.ma.getmaskarray(cen).copy())
             msk = None if flag is None \
-                    else np.ma.MaskedArray(self.edge_cen, mask=np.invert(
+                    else np.ma.MaskedArray(self.edge_cen, mask=np.logical_not(
                                            self.bitmask.flagged(self.edge_msk, flag=_flag)))
             is_left = self.is_left
             is_right = self.is_right
@@ -1448,7 +1448,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             nslits = slits.nslits
             is_left = np.ones(2*nslits, dtype=bool)
             is_left[nslits:] = False
-            is_right = np.invert(is_left)
+            is_right = np.logical_not(is_left)
             gpm = np.ones(2*nslits, dtype=bool)
             traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
             synced = True
@@ -2079,7 +2079,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if subset is not None:
             msgs.info('Tolerance for finding repeat traces: {0:.1f}'.format(self.par['match_tol']))
             side = -1 if np.all(self.traceid[indx] < 0) else 1
-            compare = (side*self.traceid > 0) & np.invert(indx)
+            compare = (side*self.traceid > 0) & np.logical_not(indx)
             if np.any(compare):
                 # Use masked arrays to ease exclusion of masked data
                 _col = np.ma.MaskedArray(np.round(_cen).astype(int), mask=_bpm)
@@ -2090,7 +2090,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 # TODO: This tolerance uses the integer image
                 # coordinates, not the floating-point centroid
                 # coordinates....
-                repeat[indx] =  (mindiff.data < self.par['match_tol']) & np.invert(mindiff.mask)
+                repeat[indx] = (mindiff.data < self.par['match_tol']) & np.logical_not(mindiff.mask)
                 if np.any(repeat):
                     _msk[:,repeat] = self.bitmask.turn_on(_msk[:,repeat], 'DUPLICATE')
                     msgs.info('Found {0} repeat trace(s).'.format(np.sum(repeat)))
@@ -2100,7 +2100,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if minimum_spec_length is not None:
             msgs.info('Minimum spectral length of any trace (pixels): {0:.2f}'.format(
                       minimum_spec_length))
-            short[indx] = np.sum(np.invert(_bpm[:,indx]), axis=0) < minimum_spec_length
+            short[indx] = np.sum(np.logical_not(_bpm[:,indx]), axis=0) < minimum_spec_length
             if np.any(short):
                 _msk[:,short] = self.bitmask.turn_on(_msk[:,short], 'SHORTRANGE')
                 msgs.info('Found {0} short trace(s).'.format(np.sum(short)))
@@ -2112,7 +2112,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         hit_min = np.zeros_like(indx, dtype=bool)
         if min_spatial is not None:
             hit_min[indx] = (col[self.nspec//2,indx] <= min_spatial) \
-                                & np.invert(_bpm[self.nspec//2,indx])
+                                & np.logical_not(_bpm[self.nspec//2,indx])
             if np.any(hit_min):
                 _msk[:,hit_min] = self.bitmask.turn_on(_msk[:,hit_min], 'HITMIN')
                 msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hit_min)))
@@ -2123,7 +2123,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         hit_max = np.zeros_like(indx, dtype=bool)
         if max_spatial is not None:
             hit_max[indx] = (col[self.nspec//2,indx] >= max_spatial) \
-                                & np.invert(_bpm[self.nspec//2,indx])
+                                & np.logical_not(_bpm[self.nspec//2,indx])
             if np.any(hit_max):
                 _msk[:,hit_max] = self.bitmask.turn_on(_msk[:,hit_max], 'HITMAX')
                 msgs.info('{0} trace(s) hit the maximum centroid value.'.format(np.sum(hit_max)))
@@ -2140,7 +2140,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Good traces
         bad = indx & (repeat | short | hit_min | hit_max | off_detector)
         msgs.info('Identified {0} bad trace(s) in all.'.format(np.sum(bad)))
-        good = indx & np.invert(bad)
+        good = indx & np.logical_not(bad)
         return good, bad
 
     def merge_traces(self, merge_frac=0.5, refit=True, debug=False):
@@ -2211,7 +2211,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         for side in ['left', 'right']:
             # Match traces on the same side and 
             indx = np.where((self.is_left if side == 'left' else self.is_right)
-                                & np.invert(np.all(cen_match.mask, axis=0)))[0]
+                                & np.logical_not(np.all(cen_match.mask, axis=0)))[0]
             if indx.size == 0:
                 continue
 
@@ -2227,7 +2227,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 merge = np.append(indx[i], indx[i+1:][merge])
                 msgs.info('Merging traces: {0}'.format(self.traceid[merge]))
                 merged_trace = np.ma.mean(cen_merge[:,merge], axis=1)
-                gpm = np.invert(np.ma.getmaskarray(merged_trace))
+                gpm = np.logical_not(np.ma.getmaskarray(merged_trace))
                 self.edge_cen[gpm,indx[i]] = merged_trace[gpm]
                 self.edge_msk[gpm,indx[i]] = 0
 
@@ -2949,7 +2949,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Reorder the trace numbers
         indx = self.traceid < 0
         self.traceid[indx] = -1-np.arange(np.sum(indx))
-        indx = np.invert(indx)
+        indx = np.logical_not(indx)
         self.traceid[indx] = 1+np.arange(np.sum(indx))
 
     def _reset_pca(self, rebuild):
@@ -3074,7 +3074,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             _sobelsig = self._side_dependent_sobel(side)
             # Select traces on this side and that are not fully masked
             indx = (self.is_left if side == 'left' else self.is_right) \
-                        & np.invert(np.all(edge_bpm, axis=0))
+                        & np.logical_not(np.all(edge_bpm, axis=0))
             if not np.any(indx):
                 continue
 
@@ -3150,7 +3150,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # NOTE: Because of the run of check_traces above, short traces
         # are fully flagged meaning that we can just check if the
         # length of the trace is larger than 0.
-        good = np.sum(np.invert(self.bitmask.flagged(self.edge_msk)), axis=0) > 0
+        good = np.sum(np.logical_not(self.bitmask.flagged(self.edge_msk)), axis=0) > 0
 
         # Returned value depends on whether or not the left and right
         # traces are done separately
@@ -3704,7 +3704,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Build a masked array with the trace positions at that
         # spectral row, masked where new traces are supposed to go.
         trace_ref = np.ma.masked_all(add_edge.size)
-        trace_ref[np.invert(add_edge)] = trace_cen[reference_row,:]
+        trace_ref[np.logical_not(add_edge)] = trace_cen[reference_row,:]
         trace_ref = trace_ref.reshape(-1,2)
 
         # Get the length and center of each slit in pixels

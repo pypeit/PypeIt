@@ -780,7 +780,7 @@ class BuildWaveTilts:
         # Record the Mask
         bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
         for flag in ['BADTILTCALIB']:
-            bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
+            bpm = self.slits.bitmask.flagged(self.slits.mask, flag=flag)
             if np.any(bpm):
                 bpmtilts[bpm] = self.slits.bitmask.turn_on(bpmtilts[bpm], flag)
 

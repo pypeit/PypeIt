@@ -128,7 +128,7 @@ def find_slits_to_exclude(spec2d_files, par):
         for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
             for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
                 for flag in exclude_flags:
-                    if bit_mask.flagged(mask, flag):
+                    if bit_mask.flagged(mask, flag=flag):
                         if slit_mask_id not in exclude_map:
                             exclude_map[slit_mask_id] = {flag}
                         else:

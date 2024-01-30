@@ -1257,7 +1257,7 @@ class PypeItMetaData:
         if ftype == 'None':
             return self['framebit'] == 0
         # Select frames
-        indx = self.type_bitmask.flagged(self['framebit'], ftype)
+        indx = self.type_bitmask.flagged(self['framebit'], flag=ftype)
 
         if calib_ID is not None:
             # Select frames in the same calibration group
@@ -1954,7 +1954,7 @@ class PypeItMetaData:
         """
         if 'calibbit' not in self.keys():
             msgs.error('Calibration groups are not set.  First run set_calibration_groups.')
-        return self.calib_bitmask.flagged(self['calibbit'].data, grp)
+        return self.calib_bitmask.flagged(self['calibbit'].data, flag=grp)
 
     def find_frame_calib_groups(self, row):
         """
