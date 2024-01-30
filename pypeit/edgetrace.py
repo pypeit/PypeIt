@@ -2400,23 +2400,22 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Quality check and masking of the synchronized edges.
 
-        Before executing this method, the slit edges must be
-        synchronized (see :func:`sync`) and ordered spatially in
-        left-right pairs (see :func:`spatial_sort`). The former is
-        checked explicitly. Any traces fully masked as bad (see
-        :func:`clean_traces`) are removed, along with its
-        synchronized partner.
+        Before executing this method, the slit edges must be synchronized (see
+        :func:`sync`) and ordered spatially in left-right pairs (see
+        :func:`spatial_sort`); only the former is checked explicitly. Any traces
+        fully masked as bad (see :func:`clean_traces`) are removed, along with
+        its synchronized partner.
 
         Used parameters from :attr:`par`
-        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
-        `minimum_slit_gap`, `minimum_slit_length`,
-        `minimum_slit_length_sci`, and `length_range`.
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are ``minimum_slit_gap``,
+        ``minimum_slit_length``, ``minimum_slit_length_sci``, and
+        ``length_range``.
 
         Checks are:
-            - Any trace falling off the edge of the detector is
-              masked (see :class:`EdgeTraceBitMask`). This is the
-              only check performed by default (i.e., when no keyword
-              arguments are provided).
+
+            - Any trace falling off the edge of the detector is masked (see
+              :class:`EdgeTraceBitMask`). This is the only check performed by
+              default (i.e., when no keyword arguments are provided).
             - Traces that form slit gaps (the median difference
               between the right and left traces of adjacent slits)
               that are below an absolute tolerance are removed and
@@ -2466,9 +2465,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         if self.is_empty:
             msgs.warn('No traces to check.')
+            return
 
         # Decide if the PCA should be rebuilt
         _rebuild_pca = rebuild_pca and self.pcatype is not None and self.can_pca()
+        if rebuild_pca and not _rebuild_pca:
+            msgs.warn('Rebuilding the PCA was requested but is not possible.')
 
         # Remove any fully masked traces and its synced counterpart;
         # force the removal of traces marked as SYNCERROR, even if
@@ -2509,7 +2511,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             msgs.info('Binning: {0}'.format(self.traceimg.detector.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_dlength'] is not None:
-                length_atol = self.par['minimum_slit_dlength']/platescale
+                dlength_atol = self.par['minimum_slit_dlength']/platescale
             if self.par['minimum_slit_length'] is not None:
                 length_atol = self.par['minimum_slit_length']/platescale
             if self.par['minimum_slit_length_sci'] is not None:
@@ -2542,7 +2544,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info('Found {0} slit(s) with gaps below {1} arcsec ({2:.2f} pixels).'.format(
                             np.sum(indx), self.par['minimum_slit_gap'], gap_atol))
                 rmtrace = np.concatenate(([False],np.repeat(indx,2),[False]))
-                self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
+                self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
                 # TODO: This should never happen, but keep this around
                 # until we're sure it doesn't.
                 if self.is_empty:
@@ -2603,6 +2605,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 msgs.info(f'Flagging {np.sum(long)} abnormally long slit edges.')
                 self.edge_msk[:,long] \
                         = self.bitmask.turn_on(self.edge_msk[:,long], 'ABNORMALSLIT_LONG')
+
+        # TODO: Consider removing slits that have large length changes.  Like so:
+#        # Remove traces that have significant changes in their spatial extent
+#        # along the dispersion direction.
+#        dl_flag = self.fully_masked_traces(flag='LARGELENGTHCHANGE')
+#        if np.any(dl_flag):
+#            msgs.info(f'Removing {np.sum(dl_flag)} traces because of large spatial extent '
+#                      ' changes along the dispersion direction.')
+#            self.remove_traces(dl_flag, rebuild_pca=_rebuild_pca)
 
         # Get the slits that have been flagged as abnormally short.  This should
         # be the same as the definition above, it's just redone here to ensure
@@ -3422,33 +3433,36 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
     def peak_refine(self, rebuild_pca=False, debug=False):
         """
-        Refine the trace by isolating peaks and troughs in the
-        Sobel-filtered image.
+        Refine the trace by isolating peaks and troughs in the Sobel-filtered
+        image.
 
         This function *requires* that the PCA model exists; see
-        :func:`build_pca` or :func:`pca_refine`. It is also primarily
-        a wrapper for :func:`~pypeit.core.trace.peak_trace`. See the
-        documentation of that function for the explanation of the
-        algorithm.
+        :func:`build_pca` or :func:`pca_refine`. It is also primarily a wrapper
+        for :func:`~pypeit.core.trace.peak_trace`. See the documentation of that
+        function for the explanation of the algorithm.
 
-        If the left and right traces have separate PCA
-        decompositions, this function makes one call to
-        :func:`~pypeit.core.trace.peak_trace` for each side.
-        Otherwise, a single call is made to
-        :func:`~pypeit.core.trace.peak_trace` where both the peak and
-        troughs in :attr:`sobelsig` are detected and traced.
+        If the left and right traces have separate PCA decompositions, this
+        function makes one call to :func:`~pypeit.core.trace.peak_trace` for
+        each side.  Otherwise, a single call is made to
+        :func:`~pypeit.core.trace.peak_trace` where both the peak and troughs in
+        :attr:`sobelsig` are detected and traced.
 
-        Note that this effectively reinstantiates much of the object
-        attributes, including :attr:`traceid` :attr:`edge_cen`
-        :attr:`edge_err` :attr:`edge_msk` :attr:`edge_img`
-        :attr:`edge_fit`, and :attr:`fittype`.
+        Optionally, the code will match and compare the traces found and fit by
+        :func:`~pypeit.core.trace.peak_trace` to the original traces.  If the
+        RMS difference between the matched traces is large, they can be removed
+        (see ``trace_rms_tol`` in :class:`~pypeit.par.pypeitpar.EdgeTracePar`).
+
+        Note that this effectively reinstantiates much of the object attributes,
+        including :attr:`traceid`, :attr:`edge_cen`, :attr:`edge_err`,
+        :attr:`edge_msk`, :attr:`edge_img`, :attr:`edge_fit`, and
+        :attr:`fittype`.
 
         Used parameters from :attr:`par`
-        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
-        ``left_right_pca``, ``edge_thresh``, ``smash_range``,
-        ``edge_detect_clip``, ``trace_median_frac``, ``trace_thresh``,
-        ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``fwhm_uniform``,
-        ``niter_gaussian``, ``niter_gaussian``, ``fit_maxdev``, and
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are ``left_right_pca``,
+        ``edge_thresh``, ``smash_range``, ``edge_detect_clip``,
+        ``trace_median_frac``, ``trace_thresh``, ``trace_rms_tol``,
+        ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``niter_uniform``,
+        ``fwhm_gaussian``, ``niter_gaussian``, ``fit_maxdev``, and
         ``fit_maxiter``.
 
         Args:
@@ -3525,8 +3539,6 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Iterate through each side
             for side in ['left', 'right']:
                 # Get the image relevant to tracing
-#                _sobelsig = trace.prepare_sobel_for_trace(self.sobelsig, bpm=self.bpm, boxcar=5,
-#                                                          side=side)
                 _sobelsig = self._side_dependent_sobel(side)
                 _pca = self.left_pca if side == 'left' else self.right_pca
 
@@ -3572,6 +3584,52 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if ntrace < self.ntrace:
             msgs.warn('Found fewer traces using peak finding than originally available.  '
                       'May want to reset peak threshold.')
+            
+        if self.par['trace_rms_tol'] is not None:
+            # Get the PCA reference row.  The PCA *must* have been defined to get
+            # this far (see pcatype test at the beginning of the function).
+            reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
+                                else self.pca.reference_row
+            # Match the new trace positions to the input ones
+            gpm = np.logical_not(self.bitmask.flagged(self.edge_msk[reference_row]))
+            # TODO: Include a tolerance here?  Needs testing with more datasets.
+            peak_indx = slitdesign_matching.match_positions_1D(
+                            self.edge_fit[reference_row][gpm],
+                            fit[reference_row])
+
+            # Determine the RMS difference between the input and output traces.
+            # This allows us to compare traces that had already been identified
+            # to their new measurements resulting from peak_trace, and remove
+            # them if they are too discrepant from their original form.  This is
+            # largely meant to find and remove poorly constrained traces, where
+            # the polynomial fit goes wonky.
+            diff = fit - self.edge_fit.T[gpm][peak_indx].T
+            rms = np.sqrt(np.mean((diff - np.mean(diff, axis=0)[None,:])**2, axis=0))
+
+            # Report
+            msgs.info('-'*30)
+            msgs.info('Matched spatial locations and RMS difference along spectral direction')
+            msgs.info(f' {"OLD":>8} {"NEW":>8} {"RMS":>8}')
+            msgs.info(' '+'-'*8+' '+'-'*8+' '+'-'*8)
+            for i in range(len(peak_indx)):
+                if peak_indx[i] < 0:
+                    continue
+                msgs.info(f' {self.edge_fit[reference_row][gpm][peak_indx[i]]:8.1f}'
+                          f' {fit[reference_row][i]:8.1f} {rms[i]:8.3f}')
+
+            # Select traces below the RMS tolerance or that were newly
+            # identified by peak_trace.  I.e., this will *not* catch newly
+            # identified traces found by peak_trace that are also poorly
+            # constrained!
+            indx = (rms < self.par['trace_rms_tol']) | (peak_indx == -1)
+            if not np.all(indx):
+                msgs.info(f'Removing {indx.size - np.sum(indx)} trace(s) due to large RMS '
+                          'difference with previous trace locations.')
+                fit = fit[:,indx]
+                cen = cen[:,indx]
+                err = err[:,indx]
+                msk = msk[:,indx]
+                nleft -= np.sum(np.where(np.logical_not(indx))[0] < nleft)
 
         # Reset the trace data
         self.traceid = np.zeros(ntrace, dtype=int)

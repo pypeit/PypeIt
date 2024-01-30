@@ -47,6 +47,8 @@ Functionality/Performance Improvements and Additions
 - Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 - Added slicer subpixel sampling for DataCube generation
 
+- Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
+  poorly constrained traces for spectrally truncated slits/orders.
 
 Instrument-specific Updates
 ---------------------------
