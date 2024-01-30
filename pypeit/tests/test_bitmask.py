@@ -7,6 +7,7 @@ import numpy
 from astropy.io import fits
 
 from pypeit.bitmask import BitMask
+from pypeit.slittrace import SlitTraceBitMask
 
 #-----------------------------------------------------------------------------
 
@@ -124,7 +125,7 @@ def test_flag_order():
     assert not bm.correct_flag_order(flags), 'Reordering the flags is not okay'
 
 
-def test_exclude_expunge():
+def test_exclude_and_not():
     
     n = 1024
     shape = (n,n)
@@ -153,5 +154,18 @@ def test_exclude_expunge():
 
     assert numpy.array_equal(image_bm.flagged(mask, and_not='SATURATED'),
                              cosmics_indx & numpy.logical_not(saturated_indx)), 'Expunge incorrect'
+
+def test_boxslit():
+    """
+    Tests old vs. new bpm after adding `and_not` functionality.
+    """
+    bm = SlitTraceBitMask()
+    v = numpy.array([10,0,2])
+
+    desired_bpm = (v > 2) & (numpy.invert(bm.flagged(v, flag=bm.exclude_for_reducing)))
+
+    new_bpm = bm.flagged(v, exclude='BOXSLIT', and_not=bm.exclude_for_reducing)
+
+    assert numpy.all(new_bpm == desired_bpm)
 
 
