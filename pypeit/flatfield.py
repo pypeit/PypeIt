@@ -16,7 +16,7 @@ from matplotlib import gridspec
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.pypmsgs import PypeItError
+from pypeit.pypmsgs import PypeItDataModelError
 from pypeit import utils
 from pypeit import bspline
 
@@ -420,7 +420,7 @@ class FlatImages(calibframe.CalibFrame):
                                                                     calib_dir=self.calib_dir)
             try:
                 slits = slittrace.SlitTraceSet.from_file(slits_file, chk_version=chk_version)
-            except (FileNotFoundError, PypeItError):
+            except (FileNotFoundError, PypeItDataModelError):
                 msgs.warn('Could not load slits to include when showing flat-field images.  File '
                           'was either not provided directly, or it could not be read based on its '
                           f'expected name: {slits_file}.')

@@ -148,12 +148,16 @@ class Show2DSpec(scriptbase.ScriptBase):
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)
             except KeyError:
                 file_pypeit_version = '*unknown*'
+            addendum = 'You can also try setting --try_old.  That will ignore any version ' \
+                       'differences, but still may be unable to parse your spec2d file into the ' \
+                       'relevant PypeIt object if the changes to the datamodel are too extensive.'
             msgs.warn(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
                       f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
                       'are strongly encouraged to re-reduce your data using this (or, better yet, '
-                      'the most recent) version of PypeIt.  Script will try to parse only the '
-                      'relevant bits from the spec2d file and continue (possibly with more '
-                      'limited functionality).')
+                      'the most recent) version of PypeIt.  This script will continue by trying '
+                      'to parse only the relevant bits from the spec2d file and continue '
+                      '(possibly with more limited functionality).'
+                      + (f'  {addendum}' if chk_version else ''))
             spec2DObj = None
 
         if spec2DObj is None:
