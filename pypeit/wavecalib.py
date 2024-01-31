@@ -304,8 +304,9 @@ class WaveCalib(calibframe.CalibFrame):
 
         # Setup
         #ok_slits = slits.mask == 0
-        bpm = slits.mask.astype(bool)
-        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+#        bpm = slits.mask.astype(bool)
+#        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+        bpm = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
         ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)

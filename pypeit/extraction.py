@@ -164,8 +164,9 @@ class Extract:
         self.initialize_slits(slits)
 
         # Internal bpm mask
-        self.extract_bpm = (self.slits.mask > 0) & (np.logical_not(self.slits.bitmask.flagged(
-                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
+        self.extract_bpm = self.slits.bitmask.flagged(
+                                self.slits.mask,
+                                and_not=self.slits.bitmask.exclude_for_reducing)
         self.extract_bpm_init = self.extract_bpm.copy()
 
         # These may be None (i.e. COADD2D)

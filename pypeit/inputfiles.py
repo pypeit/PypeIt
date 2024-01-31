@@ -938,9 +938,7 @@ class Coadd3DFile(InputFile):
         off_ra, off_dec = None, None
         if 'ra_offset' in self.data.keys():
             off_ra = self.data['ra_offset'].tolist()
-            if off_ra is None:
-                opts['ra_offset'] = None
-            elif len(off_ra) == 1 and len(self.filenames) > 1:
+            if len(off_ra) == 1 and len(self.filenames) > 1:
                 # Convert from arcsec to degrees
                 opts['ra_offset'] = [off_ra[0]/3600.0 for _ in range(len(self.filenames))]
             elif len(off_ra) != 0:
@@ -949,9 +947,7 @@ class Coadd3DFile(InputFile):
         # Get the DEC offset of each file
         if 'dec_offset' in self.data.keys():
             off_dec = self.data['dec_offset'].tolist()
-            if off_dec is None:
-                opts['dec_offset'] = None
-            elif len(off_dec) == 1 and len(self.filenames) > 1:
+            if len(off_dec) == 1 and len(self.filenames) > 1:
                 # Convert from arcsec to degrees
                 opts['dec_offset'] = [off_dec[0]/3600.0 for _ in range(len(self.filenames))]
             elif len(off_dec) != 0:

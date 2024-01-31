@@ -574,7 +574,7 @@ class SpecObjs:
 
         # TODO enbaling this for now in case someone wants to treat the IFU as a slit spectrograph
         #  (not recommnneded but useful for quick reductions where you don't want to construct cubes and don't care about DAR).
-        if spectrograph.pypeline in ['Multislit','SlicerIFU']:
+        if spectrograph.pypeline in ['MultiSlit','SlicerIFU']:
             for ii, sci_obj in enumerate(self.specobjs):
                 if sens.wave.shape[1] == 1:
                     sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
