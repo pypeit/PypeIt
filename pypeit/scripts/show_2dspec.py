@@ -134,6 +134,9 @@ class Show2DSpec(scriptbase.ScriptBase):
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]
 
+        # Need to update clear throughout in case only some channels are being displayed
+        _clear = args.clear
+
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
@@ -266,8 +269,9 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # Show the bitmask?
         if args.showmask and bpmmask is not None:
-            viewer, ch_mask = display.show_image(bpmmask, chname='MASK', waveimg=waveimg,
-                                                 clear=args.clear)
+            viewer, ch_mask = display.show_image(bpmmask.mask, chname='MASK', waveimg=waveimg,
+                                                 clear=_clear)
+            _clear = False
 
         channel_names = []
         # SCIIMG
@@ -278,7 +282,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             chname_sci = args.prefix+f'sciimg-{detname}'
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
-                                                clear=args.clear, cuts=(cut_min, cut_max))
+                                                clear=_clear, cuts=(cut_min, cut_max))
+            _clear=False
             if sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_sci)
             display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
@@ -294,8 +299,9 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_max = mean + 4.0 * sigma
             chname_skysub = args.prefix+f'skysub-{detname}'
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
-                                                   waveimg=waveimg, cuts=(cut_min, cut_max),
+                                                   waveimg=waveimg, clear=_clear, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_skysub)
             display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
@@ -328,7 +334,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             chname_skyresids = args.prefix+f'sky_resid-{detname}'
             image = (sciimg - skymodel) * np.sqrt(ivarmodel) * model_gpm.astype(float)
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=waveimg,
-                                                       cuts=(-5.0, 5.0))
+                                                       clear=_clear, cuts=(-5.0, 5.0))
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_sky_resids)
             display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
@@ -341,7 +348,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             # full model residual map
             image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * img_gpm.astype(float)
             viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                                   cuts=(-5.0, 5.0), wcs_match=True)
+                                                   clear=_clear, cuts=(-5.0, 5.0), wcs_match=True)
+            _clear = False
             if not args.removetrace and sobjs is not None:
                 show_trace(sobjs, detname, viewer, ch_resids)
             display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
