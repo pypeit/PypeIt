@@ -28,65 +28,72 @@ the following bits:
 
 .. include:: include/imagebitmask_table.rst
 
-Interpreting the bit values
----------------------------
+Viewing and interpreting the bit mask image
+-------------------------------------------
 
-You can construct the appropriate bitmask in two ways:
+To access the bitmask array, we recommend using
+:class:`~pypeit.spec2dobj.Spec2DObj` directly:
 
-    - (Recommended) Instantiate the bitmask directly:
+.. code-block:: python
 
-      .. code-block:: python
+    from pathlib import Path
+    from pypeit.spec2dobj import Spec2DObj
 
-        from pypeit.images.imagebitmask import ImageBitMask
-        bm = ImageBitMask()
+    f = Path('spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits').resolve()
+    detname = 'DET01'
+    spec2d = Spec2DObj.from_file(f, detname)
+    mask = spec2d.bpmmask
 
-    - Specifically for the ``spec2d*`` files, the names of the bits
-      and their order is saved to the header. You can instantiate a
-      generic :class:`~pypeit.bitmask.BitMask` from the header;
-      however, it's not clear how long this behavior will remain. To
-      instantiate the relevant :class:`~pypeit.bitmask.BitMask` from
-      the header:
+The bitmask array is held by the ``spec2d.bpmmask`` attribute.
 
-      .. code-block:: python
+But you can read it directly from the spec2d file:
 
-        from astropy.io import fits
-        from pypeit.bitmask import BitMask
-        hdu = fits.open('spec2d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
-        bm = BitMask(hdu[1].header['IMGBITM'].split(','))
+.. code-block:: python
+
+    from astropy.io import fits
+    from pypeit.images.imagebitmask import ImageBitMaskArray
+
+    f = Path('spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits').resolve()
+    detname = 'DET01'
+    hdu = fits.open(f)
+    mask = ImageBitMaskArray.from_array(hdu[f'{detname}-BPMMASK'].data)
+
+To show all the bit values directly:
+
+.. code-block:: python
+
+    from matplotlib import pyplot as plt
+
+    plt.imshow(mask, origin='lower', interpolation='nearest')
+    plt.show()
+
+However, this isn't necessarily as useful as creating boolean arrays that
+identify which pixels are flagged due to one or more reasons.
+
+E.g., to show all pixels flagged for having cosmic rays:
+
+.. code-block:: python
+
+    plt.imshow(mask.flagged(flag='CR').astype(int), origin='lower', interpolation='nearest')
+    plt.show()
+
+or as being part of the instrument-specific bad-pixel mask *or* not part of any slit:
+
+.. code-block:: python
+
+    plt.imshow(mask.flagged(flag=['BPM', 'OFFSLITS']).astype(int),
+               origin='lower', interpolation='nearest')
+    plt.show()
+
+You can also use the :ref:`pypeit_show_2dspec` script to include an image that
+shows the full mask or an image that selects specific flags.
+
+To print the human-readable reason(s) any given value is flagged:
+
+.. code-block:: python
+
+    coo = (0,0)   # Tuple with the 2D coordinate of the pixel
+    print(mask.flagged_bits(coo))
 
 
-With the :class:`~pypeit.bitmask.BitMask` or
-:class:`~pypeit.images.imagebitmask.ImageBitMask` instantiated, you
-can interpret the meaning of the ``BPMMASK`` extensions as follows:
-
-    - Use the :func:`~pypeit.bitmask.BitMask.flagged` method to
-      produce a boolean array that selects pixels flagged with a
-      given bit:
-
-      .. code-block:: python
-
-        extract_flag = bm.flagged(hdu['DET01-BPMMASK'].data, flag='EXTRACT')
-
-    - Use the same method to select multiple bits:
-
-      .. code-block:: python
-
-        process_flag = bm.flagged(hdu['DET01-BPMMASK'].data, flag=['BPM', 'CR', 'SATURATION'])
-
-    - Or select bits that are flagged for *any* reason:
-
-      .. code-block:: python
-
-        # You can use the `flagged` method for this
-        any_flag = bm.flagged(hdu['DET01-BPMMASK'].data)
-        # or equivalently
-        _any_flag = hdu['DET01-BPMMASK'].data > 0
-
-    - To get the human-readable reason that any given value is flagged, use the
-      :func:`~pypeit.bitmask.BitMask.flagged_bits` method.  Currently this can
-      only be used with a *single* bit value:
-
-      .. code-block:: python
-
-        print(bm.flagged_bits(hdu['DET01-BPMMASK'].data[0,0])) 
 

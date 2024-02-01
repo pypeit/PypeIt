@@ -88,8 +88,15 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Restrict plotting to this slit (PypeIt ID notation)')
         parser.add_argument('--maskID', type=int, default=None,
                             help='Restrict plotting to this maskID')
-        parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
-                            action='store_true')
+        parser.add_argument('--showmask', nargs='*', default=None,
+                            help='Include a channel showing the mask.  If no arguments are '
+                                 'provided, the mask bit values are provided directly.  You can '
+                                 'also specify one or more mask flags used to construct an '
+                                 'images identifying which pixels are flagged by any of these '
+                                 'issues.  E.g., to show pixels flagged by the instrument '
+                                 'specific bad-pixel mask or cosmic arrays, use --showmask BPM CR '
+                                 '.  See https://pypeit.readthedocs.io/en/release/out_masks.html '
+                                 'for the list of flags.')
         parser.add_argument('--removetrace', default=False, action='store_true',
                             help='Do not overplot traces in the skysub, sky_resid, and resid '
                                  'channels')
@@ -246,7 +253,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 sobjs = None
                 msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                           '                          No objects were extracted.')
-
+                
         # TODO: This may be too restrictive, i.e. ignore BADFLTCALIB??
         slit_gpm = slit_mask == 0
 
@@ -268,8 +275,10 @@ class Show2DSpec(scriptbase.ScriptBase):
         display.connect_to_ginga(raise_err=True, allow_new=True)
 
         # Show the bitmask?
-        if args.showmask and bpmmask is not None:
-            viewer, ch_mask = display.show_image(bpmmask.mask, chname='MASK', waveimg=waveimg,
+        if args.showmask is not None and bpmmask is not None:
+            _mask = bpmmask.mask if len(args.showmask) == 0 \
+                        else bpmmask.flagged(flag=args.showmask)
+            viewer, ch_mask = display.show_image(_mask, chname='MASK', waveimg=waveimg,
                                                  clear=_clear)
             _clear = False
 

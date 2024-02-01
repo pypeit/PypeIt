@@ -2,8 +2,8 @@
 
     $ pypeit_show_2dspec -h
     usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--spat_id SPAT_ID]
-                              [--maskID MASKID] [--showmask] [--removetrace]
-                              [--embed] [--ignore_extract_mask]
+                              [--maskID MASKID] [--showmask [SHOWMASK ...]]
+                              [--removetrace] [--embed] [--ignore_extract_mask]
                               [--channels CHANNELS] [--prefix PREFIX] [--no_clear]
                               [-v VERBOSITY]
                               file
@@ -24,7 +24,16 @@
       --spat_id SPAT_ID     Restrict plotting to this slit (PypeIt ID notation)
                             (default: None)
       --maskID MASKID       Restrict plotting to this maskID (default: None)
-      --showmask            Overplot masked pixels (default: False)
+      --showmask [SHOWMASK ...]
+                            Include a channel showing the mask. If no arguments are
+                            provided, the mask bit values are provided directly. You
+                            can also specify one or more mask flags used to
+                            construct an images identifying which pixels are flagged
+                            by any of these issues. E.g., to show pixels flagged by
+                            the instrument specific bad-pixel mask or cosmic arrays,
+                            use --showmask BPM CR . See
+                            https://pypeit.readthedocs.io/en/release/out_masks.html
+                            for the list of flags. (default: None)
       --removetrace         Do not overplot traces in the skysub, sky_resid, and
                             resid channels (default: False)
       --embed               Upon completion embed in ipython shell (default: False)

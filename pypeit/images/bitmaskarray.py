@@ -58,6 +58,13 @@ class BitMaskArray(DataContainer):
         self._set_keys()
         self.mask = np.zeros(shape, dtype=self.bitmask.minimum_dtype(asuint=asuint))
 
+    @classmethod
+    def from_array(cls, arr):
+        # Instantiate using the shape of the provided array
+        self = cls(arr.shape, asuint=np.issubdtype(arr.dtype, np.unsignedinteger))
+        self.mask[...] = arr[...]
+        return self
+
     def _set_keys(self):
         """
         Set :attr:`lower_keys`, which are needed for the bit access convenience
