@@ -45,6 +45,8 @@ Functionality/Performance Improvements and Additions
   future.
 - Introduced PCA method for telluric corrections
 - Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
+- Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
+  poorly constrained traces for spectrally truncated slits/orders.
 
 Instrument-specific Updates
 ---------------------------
@@ -98,6 +100,8 @@ Under-the-hood Improvements
 - Improvements to echelle wavelength calibration. Code changes in:
   ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
   ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Fixed some failure modes when matching measured order positions to expected
+  positions for fixed-format echelle spectrographs.
 - More extensive propagation of turning off datamodel version checking (using
   ``try_old`` and ``chk_version``) throughout the code.
 
