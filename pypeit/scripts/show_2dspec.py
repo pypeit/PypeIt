@@ -109,10 +109,14 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Do *not* clear all existing tabs')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
     def main(args):
+
+        chk_version = not args.try_old
 
         # List only?
         if args.list:
@@ -137,19 +141,32 @@ class Show2DSpec(scriptbase.ScriptBase):
         # Try to read the Spec2DObj using the current datamodel, but allowing
         # for the datamodel version to be different
         try:
-            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=chk_version)
         except PypeItDataModelError:
             try:
                 # Try to get the pypeit version used to write this file
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)
             except KeyError:
                 file_pypeit_version = '*unknown*'
-            msgs.warn(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
+            if chk_version:
+                msgs_func = msgs.error
+                addendum = 'To allow the script to attempt to read the data anyway, use the ' \
+                           '--try_old command-line option.  This will first try to simply ' \
+                           'ignore the version number.  If the datamodels are incompatible ' \
+                           '(e.g., the new datamodel contains components not in a previous ' \
+                           'version), this may not be enough and the script will continue by ' \
+                           'trying to parse only the components necessary for use by this ' \
+                           'script. In either case, BEWARE that the displayed data may be in ' \
+                           'error!'
+            else:
+                msgs_func = msgs.warn
+                addendum = 'The datamodels are sufficiently different that the script will now ' \
+                           'try to parse only the components necessary for use by this ' \
+                           'script.  BEWARE that the displayed data may be in error!'
+            msgs_func(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
                       f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
                       'are strongly encouraged to re-reduce your data using this (or, better yet, '
-                      'the most recent) version of PypeIt.  Script will try to parse only the '
-                      'relevant bits from the spec2d file and continue (possibly with more '
-                      'limited functionality).')
+                      'the most recent) version of PypeIt.  ' + addendum)
             spec2DObj = None
 
         if spec2DObj is None:

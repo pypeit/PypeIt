@@ -924,59 +924,6 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
     return np.array(rms_sn), weights
 
 
-# TODO: This was commented out and would need to be refactored if brought back
-# because of changes to the SensFunc and Telluric datamodels.
-## TODO Rename this function to something sensfunc related
-#def get_tell_from_file(sensfile, waves, masks, iord=None):
-#    '''
-#    Get the telluric model from the sensfile.
-#
-#    Args:
-#        sensfile (str): the name of your fits format sensfile
-#        waves (ndarray): wavelength grid for your output telluric model
-#        masks (ndarray, bool): mask for the wave
-#        iord (int or None): if None returns telluric model for all orders, otherwise return the order you want
-#
-#    Returns:
-#         ndarray: telluric model on your wavelength grid
-#    '''
-#
-#
-#    sens_param = Table.read(sensfile, 1)
-#    sens_table = Table.read(sensfile, 2)
-#    telluric = np.zeros_like(waves)
-#
-#    if (waves.ndim == 1) and (iord is None):
-#        msgs.info('Loading Telluric from Longslit sensfiles.')
-#        tell_interp = scipy.interpolate.interp1d(sens_table[0]['WAVE'], sens_table[0]['TELLURIC'], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_interp
-#    elif (waves.ndim == 1) and (iord is not None):
-#        msgs.info('Loading order {:} Telluric from Echelle sensfiles.'.format(iord))
-#        wave_tell_iord = sens_table[iord]['WAVE']
-#        tell_mask = (wave_tell_iord > 1.0)
-#        tell_iord = sens_table[iord]['TELLURIC']
-#        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_iord_interp
-#    else:
-#        norder = np.shape(waves)[1]
-#        for iord in range(norder):
-#            wave_iord = waves[:, iord]
-#            mask_iord = masks[:, iord]
-#
-#            # Interpolate telluric to the same grid with waves
-#            # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
-#            wave_tell_iord = sens_table[iord]['WAVE']
-#            tell_mask = (wave_tell_iord > 1.0)
-#            tell_iord = sens_table[iord]['TELLURIC']
-#            tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                                    bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
-#            telluric[mask_iord, iord] = tell_iord_interp
-#
-#    return telluric
-
-
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
                         maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
                         verbose=False):
