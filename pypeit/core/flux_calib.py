@@ -986,9 +986,8 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
         flux array of your spectrum
     ivar_star: `numpy.ndarray`_
         ivar array of your spectrum
-    mask_star: bool, optional
-        whether you need to mask Hydrogen recombination line region. 
-        If False, the returned msk_star are all good.
+    mask_star: `numpy.ndarray`_
+        gpm array of your spectrum
     mask_hydrogen_lines: bool, optional
         whether you need to mask hydrogen absorption lines, mask width set
         by ``hydrogen_mask_wid``
@@ -1010,7 +1009,7 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     -------
     msk_bad: bool `numpy.ndarray`_
         mask for bad pixels.
-    msk_star: bool `numpy.ndarray`_
+    mask_recomb: bool `numpy.ndarray`_
         mask for recombination lines in star spectrum.
     msk_tell: bool `numpy.ndarray`_
         mask for telluric regions.
@@ -1021,7 +1020,6 @@ def get_mask(wave_star, flux_star, ivar_star, mask_star,
     mask_recomb = np.ones_like(flux_star).astype(bool)
     # mask for telluric regions
     mask_tell = np.ones_like(flux_star).astype(bool)
-
     # masking bad entries
     msgs.info(" Masking bad pixels")
     mask_bad = mask_star.copy()

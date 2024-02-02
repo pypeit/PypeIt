@@ -957,10 +957,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             else:
                 msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
                 msgs.warn('       Moving on......')
-                obj_profiles = np.zeros_like(obj_profiles)
+                # obj_profiles = np.zeros_like(obj_profiles)
                 isub, = np.where(localmask.flatten())
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
+                if iiter == niter:
+                    msgs.warn('LOCAL SKY SUBTRACTION NOT PERFORMED')
 
         outmask_extract = outmask if use_2dmodel_mask else inmask
 

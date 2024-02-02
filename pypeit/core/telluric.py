@@ -890,7 +890,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
     pypeitFit = fitting.robust_fit(wave, zeropoint_poly, obj_params['polyorder_vec'][iord],
                                    function=obj_params['func'], minx=wave_min, maxx=wave_max,
                                    in_gpm=zeropoint_data_gpm, lower=obj_params['sigrej'],
-                                   upper=obj_params['sigrej'], use_mad=True)
+                                   upper=obj_params['sigrej'], use_mad=True, sticky=False)
     zeropoint_fit = flux_calib.eval_zeropoint(pypeitFit.fitc, obj_params['func'], wave, wave_min, wave_max,
                                               log10_blaze_func_per_ang=obj_params['log10_blaze_func_per_ang'])
     zeropoint_fit_gpm = pypeitFit.bool_gpm
@@ -2409,7 +2409,6 @@ class Telluric(datamodel.DataContainer):
             self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                                 wave_max=self.wave_in_arr[wv_gpm].max())
 
-            
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] \
@@ -2437,7 +2436,7 @@ class Telluric(datamodel.DataContainer):
         _, _, self.wave_mask_arr, _ = coadd.interp_spec(self.wave_grid, self.wave_in_arr,
                                                      np.ones_like(self.flux_in_arr),
                                                      np.ones_like(self.ivar_in_arr),
-                                                     (self.wave_in_arr > 1.0).astype(float))
+                                                     wv_gpm.astype(float))
         # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
         self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, self.sn_clip,
                                         gpm=self.mask_arr)
@@ -2455,7 +2454,8 @@ class Telluric(datamodel.DataContainer):
         self.arg_dict_list = [None]*self.norders
         self.max_ntheta_obj = 0
         for counter, iord in enumerate(self.srt_order_tell):
-            msgs.info(f'Initializing object model for order: {iord}, {counter}/{self.norders}'
+            this_order = self.ech_orders[iord] if self.ech_orders is not None else iord
+            msgs.info(f'Initializing object model for order: {this_order}, {counter}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
                                         ind_lower=self.ind_lower[iord],
@@ -2518,7 +2518,8 @@ class Telluric(datamodel.DataContainer):
         for counter, iord in enumerate(self.srt_order_tell):
             if iord not in good_orders:
                 continue
-            msgs.info(f'Fitting object + telluric model for order: {iord}, {counter}/{self.norders}'
+            this_order = self.ech_orders[iord] if self.ech_orders is not None else iord
+            msgs.info(f'Fitting object + telluric model for order: {this_order}, {counter}/{self.norders}'
                       + f' with user supplied function: {self.init_obj_model.__name__}')
             self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] \
                     = fitting.robust_optimize(self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],

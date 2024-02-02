@@ -115,7 +115,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 2
         par['calibrations']['tilts']['spec_order'] = 5  # [5, 5, 5] + 12*[7] # + [5]
 
         # 1D wavelength solution
@@ -156,10 +156,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['polyorder'] = 9 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
         par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
-        
+
         # Telluric parameters
         # HIRES is usually oversampled, so the helio shift can be large
         par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
