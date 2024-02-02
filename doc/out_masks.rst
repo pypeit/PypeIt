@@ -28,8 +28,8 @@ the following bits:
 
 .. include:: include/imagebitmask_table.rst
 
-Viewing and interpreting the bit mask image
--------------------------------------------
+Viewing and interpreting the bit mask image (python)
+----------------------------------------------------
 
 To access the bitmask array, we recommend using
 :class:`~pypeit.spec2dobj.Spec2DObj` directly:
@@ -95,5 +95,31 @@ To print the human-readable reason(s) any given value is flagged:
     coo = (0,0)   # Tuple with the 2D coordinate of the pixel
     print(mask.flagged_bits(coo))
 
+.. _pypeit_print_bpm:
+
+pypeit_print_bpm
+----------------
+
+This simple executable allows you to effectively do the above via a command-line
+script.  The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_print_bpm.rst
+
+A typical call and its output looks like this:
+
+.. code-block:: bash
+
+    % pypeit_print_bpm 23
+    [INFO]    :: Using the default PypeIt bad pixel mask.
+    [INFO]    :: The bad pixel mask value (23) corresponds to the following:
+
+                 * BPM        : Component of the instrument-specific bad pixel mask
+                 * CR         : Cosmic ray detected
+                 * SATURATION : Saturated pixel
+                 * OFFSLITS   : Pixel does not belong to any slit
+
+    [INFO]    :: Please see the following website for more information:
+                 https://pypeit.readthedocs.io/en/release/out_masks.html
 
 
