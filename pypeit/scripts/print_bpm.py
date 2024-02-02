@@ -28,7 +28,7 @@ from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
 
-class Show2DSpec(scriptbase.ScriptBase):
+class PrintBPM(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
