@@ -623,7 +623,9 @@ def test_refframe_correction(monkeypatch):
 
     # Test where one VEL_CORR is already set, and the SpecObj objects have no RA/DEC so the header RA/DEC must be used instead
     sobjs = MockSpecObjs("spec1d_file4")
-    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", lambda x: sobjs)
+    def mock_from_fitsfile(*args, **kwargs):
+        return sobjs
+    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_from_fitsfile)
 
     refframe_correction(par, spectrograph, spec1d_files, spec1d_failure_msgs)
     assert len(spec1d_failure_msgs) == 1

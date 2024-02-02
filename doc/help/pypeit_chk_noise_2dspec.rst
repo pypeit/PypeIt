@@ -5,7 +5,7 @@
                                    [--maskdef_id MASKDEF_ID] [--pypeit_id PYPEIT_ID]
                                    [--pad PAD] [--aspect_ratio ASPECT_RATIO]
                                    [--wavemin WAVEMIN] [--wavemax WAVEMAX]
-                                   [--mode MODE] [--list]
+                                   [--mode MODE] [--list] [--try_old]
                                    [files ...]
     
     Examine the noise in a PypeIt slit/order
@@ -43,4 +43,6 @@
                             placed. "print" will cause the check noise values to be
                             printed in the terminal. (default: plot)
       --list                List the extensions only? (default: False)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     

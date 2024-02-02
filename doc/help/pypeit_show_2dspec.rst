@@ -5,7 +5,7 @@
                               [--maskID MASKID] [--showmask [SHOWMASK ...]]
                               [--removetrace] [--embed] [--ignore_extract_mask]
                               [--channels CHANNELS] [--prefix PREFIX] [--no_clear]
-                              [-v VERBOSITY]
+                              [-v VERBOSITY] [--try_old]
                               file
     
     Display sky subtracted, spec2d image in a ginga viewer.
@@ -47,4 +47,6 @@
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all] (default:
                             1)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     
