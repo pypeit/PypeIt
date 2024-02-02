@@ -148,16 +148,25 @@ class Show2DSpec(scriptbase.ScriptBase):
                 file_pypeit_version = fits.getval(args.file, 'VERSPYP', 0)
             except KeyError:
                 file_pypeit_version = '*unknown*'
-            addendum = 'You can also try setting --try_old.  That will ignore any version ' \
-                       'differences, but still may be unable to parse your spec2d file into the ' \
-                       'relevant PypeIt object if the changes to the datamodel are too extensive.'
-            msgs.warn(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
+            if chk_version:
+                msgs_func = msgs.error
+                addendum = 'To allow the script to attempt to read the data anyway, use the ' \
+                           '--try_old command-line option.  This will first try to simply ' \
+                           'ignore the version number.  If the datamodels are incompatible ' \
+                           '(e.g., the new datamodel contains components not in a previous ' \
+                           'version), this may not be enough and the script will continue by ' \
+                           'trying to parse only the components necessary for use by this ' \
+                           'script. In either case, BEWARE that the displayed data may be in ' \
+                           'error!'
+            else:
+                msgs_func = msgs.warn
+                addendum = 'The datamodels are sufficiently different that the script will now ' \
+                           'try to parse only the components necessary for use by this ' \
+                           'script.  BEWARE that the displayed data may be in error!'
+            msgs_func(f'Your installed version of PypeIt ({__version__}) cannot be used to parse '
                       f'{args.file}, which was reduced using version {file_pypeit_version}.  You '
                       'are strongly encouraged to re-reduce your data using this (or, better yet, '
-                      'the most recent) version of PypeIt.  This script will continue by trying '
-                      'to parse only the relevant bits from the spec2d file and continue '
-                      '(possibly with more limited functionality).'
-                      + (f'  {addendum}' if chk_version else ''))
+                      'the most recent) version of PypeIt.  ' + addendum)
             spec2DObj = None
 
         if spec2DObj is None:
