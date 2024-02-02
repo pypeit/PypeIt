@@ -92,7 +92,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Include a channel showing the mask.  If no arguments are '
                                  'provided, the mask bit values are provided directly.  You can '
                                  'also specify one or more mask flags used to construct an '
-                                 'images identifying which pixels are flagged by any of these '
+                                 'image identifying which pixels are flagged by any of these '
                                  'issues.  E.g., to show pixels flagged by the instrument '
                                  'specific bad-pixel mask or cosmic arrays, use --showmask BPM CR '
                                  '.  See https://pypeit.readthedocs.io/en/release/out_masks.html '
