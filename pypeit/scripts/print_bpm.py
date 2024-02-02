@@ -5,24 +5,13 @@ based on a spec2d file.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
-import numpy as np
-
-from IPython import embed
-
 from astropy.io import fits
-from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import specobjs
 from pypeit import io
-from pypeit import utils
 from pypeit import __version__
-from pypeit.pypmsgs import PypeItError, PypeItDataModelError
+from pypeit.pypmsgs import PypeItDataModelError
 
-from pypeit.display import display
-from pypeit.images.imagebitmask import ImageBitMask
 from pypeit.images.detector_container import DetectorContainer
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
