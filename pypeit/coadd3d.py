@@ -400,7 +400,7 @@ class CoAdd3D:
                         grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
                         spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None,
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
                  ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
                  overwrite=False, show=False, debug=False):
         """
