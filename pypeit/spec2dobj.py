@@ -157,7 +157,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         if len(ext) == 0:
             # No relevant extensions!
-            msgs.error(f'{detname} not available in any extension of {file}')
+            msgs.error(f'{detname} not available in any extension of the input HDUList.')
 
         mask_ext = f'{detname}-BPMMASK'
         has_mask = mask_ext in ext
