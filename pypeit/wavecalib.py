@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 
 from linetools.utils import jsonify
 from astropy.table import Table
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.core import arc, qa
@@ -159,62 +160,85 @@ class WaveCalib(calibframe.CalibFrame):
         return _d
 
     @classmethod
-    def _parse(cls, hdu, **kwargs):
+    def from_hdu(cls, hdu, chk_version=True, **kwargs):
         """
-        See :func:`~pypeit.datamodel.DataContainer._parse` for description and
-        list of returned objects.  All keyword arguments are ignored by this
-        function!
+        Instantiate the object from an HDU extension.
+
+        This overrides the base-class method. Overriding this method is
+        preferrable to overriding the ``_parse`` method because it makes it
+        easier to deal with the :class:`~pypeit.datamodel.DataContainer` nesting
+        of this object.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+            kwargs (:obj:`dict`, optional):
+                Used for consistency with base class. Ignored.
         """
-        # Grab everything but the bsplines
-        _d, dm_version_passed, dm_type_passed, parsed_hdus = super()._parse(hdu)
-        # Now the wave_fits
-        list_of_wave_fits = []
-        list_of_wave2d_fits = []
-        list_of_fwhm_fits = []
-        spat_ids = []
-        for ihdu in hdu:
-            if 'WAVEFIT' in ihdu.name:
-                # Allow for empty
-                if len(ihdu.data) == 0:
-                    # TODO: This is a hack.  We shouldn't be writing empty HDUs,
-                    # except for the primary HDU.
-                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'], ech_order=ihdu.header.get('ECH_ORDER'))
-                else:
-                    # TODO -- Replace the following with WaveFit._parse() and pass that back!!
-                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)# , chk_version=False)
-                    parsed_hdus += ihdu.name
-                    if iwavefit.version != wv_fitting.WaveFit.version:
-                        msgs.warn("Your WaveFit is out of date!!")
-                    # Grab PypeItFit (if it exists)
-                    hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
-                    if hdname in [khdu.name for khdu in hdu]:
-                        iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
-                        parsed_hdus += hdname
-                list_of_wave_fits.append(iwavefit)
-                # Grab SPAT_ID for checking
-                spat_ids.append(iwavefit.spat_id)
-            elif 'WAVE2DFIT' in ihdu.name:
-                iwave2dfit = fitting.PypeItFit.from_hdu(ihdu)
-                list_of_wave2d_fits.append(iwave2dfit)
-                parsed_hdus += ihdu.name
-            elif 'FWHMFIT' in ihdu.name:
-                # TODO: This is a hack.  We shouldn't be writing empty HDUs,
-                # except for the primary HDU.
-                ifwhmfit = fitting.PypeItFit() if len(ihdu.data) == 0 \
-                                else fitting.PypeItFit.from_hdu(ihdu)
-                list_of_fwhm_fits.append(ifwhmfit)
-                parsed_hdus += ihdu.name
+        # Run the default parser to get most of the data. This won't parse the
+        # extensions with the WAVEFIT, WAVE2DFIT, or FWHMFIT results.
+        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu)
         # Check
-        if spat_ids != _d['spat_ids'].tolist():
-            #embed(header="198 of wavecalib.py")
-            msgs.error("Bad parsing of WaveCalib")
-        # Finish
-        _d['wv_fits'] = np.asarray(list_of_wave_fits)
-        if len(list_of_wave2d_fits) > 0:
-            _d['wv_fit2d'] = np.asarray(list_of_wave2d_fits)
-        if len(list_of_fwhm_fits) > 0:
-            _d['fwhm_map'] = np.asarray(list_of_fwhm_fits)
-        return _d, dm_version_passed, dm_type_passed, parsed_hdus
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
+
+        # Get the list of all extensions
+        ext = [h.name for h in hdu] if isinstance(hdu, fits.HDUList) else [hdu.name]
+
+        # Get the SPAT_IDs
+        if 'SPAT_IDS' in parsed_hdus:
+            # Use the ones parsed above
+            spat_ids = d['spat_ids']
+        else:
+            # This line parses all the spat_ids from the extension names,
+            # filters out any None values from the list, and gets the unique set
+            # of integers
+            spat_ids = np.unique(list(filter(None.__ne__,
+                            [wv_fitting.WaveFit.parse_spatid_from_hduext(e) for e in ext])))
+
+        # Parse all the WAVEFIT extensions
+        wave_fits = []
+        for spat_id in spat_ids:
+            _ext = wv_fitting.WaveFit.hduext_prefix_from_spatid(spat_id)+'WAVEFIT'
+            if _ext not in ext:
+                continue
+            # TODO: I (KBW) don't think we should be writing empty HDUs
+            if len(hdu[_ext].data) == 0:
+                wave_fits += [wv_fitting.WaveFit(hdu[_ext].header['SPAT_ID'],
+                                                 ech_order=hdu[_ext].header.get('ECH_ORDER'))]
+            else:
+                wave_fits += [wv_fitting.WaveFit.from_hdu(hdu, spat_id=spat_id,
+                                                          chk_version=chk_version)]
+        if len(wave_fits) > 0:
+            d['wv_fits'] = np.asarray(wave_fits)
+                
+        # Parse all the WAVE2DFIT extensions
+        # TODO: It would be good to have the WAVE2DFIT extensions follow the
+        # same naming convention as the WAVEFIT extensions...
+        wave2d_fits = [fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
+                            for e in ext if 'WAVE2DFIT' in e]
+        if len(wave2d_fits) > 0:
+            d['wv_fit2d'] = np.asarray(wave2d_fits)
+
+        # Parse all the FWHMFIT extensions
+        fwhm_fits = []
+        for _ext in ext:
+            if 'FWHMFIT' not in _ext:
+                continue
+            # TODO: I (KBW) don't think we should be writing empty HDUs
+            fwhm_fits += [fitting.PypeItFit() if len(hdu[_ext].data) == 0 \
+                            else fitting.PypeItFit.from_hdu(hdu[_ext], chk_version=chk_version)]
+        if len(fwhm_fits) > 0:
+            d['fwhm_map'] = np.asarray(fwhm_fits)
+
+        # Instantiate the object
+        self = cls.from_dict(d=d)
+        # This is a CalibFrame, so parse the relevant keys for the naming system
+        self.calib_keys_from_header(hdu[parsed_hdus[0]].header)
+        # Return the constructed object
+        return self
 
     @property
     def par(self):
@@ -402,8 +426,8 @@ class WaveCalib(calibframe.CalibFrame):
         diag['IDs_Wave_cov(%)'] = lines_cov
         diag['IDs_Wave_cov(%)'].format = '0.1f'
         # FWHM
-        diag['mesured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
-        diag['mesured_fwhm'].format = '0.1f'
+        diag['measured_fwhm'] = [0. if wvfit.fwhm is None else wvfit.fwhm for wvfit in self.wv_fits]
+        diag['measured_fwhm'].format = '0.1f'
         # RMS
         diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'

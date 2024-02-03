@@ -1140,7 +1140,7 @@ class Coadd1DPar(ParSet):
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None,
                  weight_method=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
-                 mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
+                 mag_type=None, filter=None, filter_mag=None, filter_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1337,13 +1337,6 @@ class Coadd1DPar(ParSet):
         dtypes['coaddfile'] = str
         descr['coaddfile'] = 'Output filename'
 
-
-        # Version checking
-        defaults['chk_version'] = True
-        dtypes['chk_version'] = bool
-        descr['chk_version'] = 'If True enforce strict PypeIt version checking to ensure that spec1d*.fits files were created' \
-                               'with the current version of PypeIt'
-
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -1359,7 +1352,7 @@ class Coadd1DPar(ParSet):
                    'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'weight_method', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
+                   'maxrej', 'sn_clip', 'nbests', 'coaddfile',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -2638,7 +2631,7 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None):
+                 maskIDs=None, quicklook=None, chk_version=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2718,6 +2711,17 @@ class ReduxPar(ParSet):
         descr['redux_path'] = 'Path to folder for performing reductions.  Default is the ' \
                               'current working directory.'
 
+        # Version checking
+        defaults['chk_version'] = True
+        dtypes['chk_version'] = bool
+        descr['chk_version'] = 'If True enforce strict PypeIt version checking to ensure that ' \
+                               'all files were created with the current version of PypeIt.  If ' \
+                               'set to False, the code will attempt to read out-of-date files ' \
+                               'and keep going.  Beware (!!) that this can lead to unforeseen ' \
+                               'bugs that either cause the code to crash or lead to erroneous ' \
+                               'results. I.e., you really need to know what you are doing if ' \
+                               'you set this to False!'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2733,7 +2737,7 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -5194,7 +5198,9 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None, chk_version=False):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
+                 exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
+                 spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5273,10 +5279,6 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
-        defaults['chk_version'] = False
-        dtypes['chk_version'] = bool
-        descr['chk_version'] = "Whether to check the data model versions of spec1d files and sensfunc files."
-
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -5288,7 +5290,9 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe', 'chk_version']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
+                   'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
+                   'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
