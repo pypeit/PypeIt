@@ -510,19 +510,6 @@ class PypeItMetadataModel(QAbstractTableModel):
             self.metadata.remove_rows([row])
             self.endRemoveRows()
 
-        
-    def addMetadataRow(self, metadata_row):
-        """Add a new row to the metadata.
-        
-        Args:
-            metadata_row (array-like): A row of data to add.
-        """
-        new_index = len(self.metadata)
-
-        # Add the row
-        self.beginInsertRows(QModelIndex(), new_index, new_index)
-        self.metadata.add_row(metadata_row)
-        self.endInsertRows()
 
     def pasteFrom(self, other_metadata_model):
         if self.metadata is None:
@@ -1148,7 +1135,7 @@ class PypeItObsLogModel(QObject):
         Scans all of the raw data directories for raw data files.
 
         Returns:
-            int: The number of raw data files found.
+            list[str]: The raw data files found.
         """
         allowed_extensions = self._spectrograph.allowed_extensions
         if allowed_extensions is None or len(allowed_extensions) == 0:
