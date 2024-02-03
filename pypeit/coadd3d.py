@@ -178,17 +178,26 @@ class DataCube(datamodel.DataContainer):
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
+        Instantiate the object from an extension in the specified fits file.
+
         Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
 
         Args:
-            ifile (str):  Filename holding the object
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
+            chk_version (:obj:`bool`, optional):
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
         with io.fits_open(ifile) as hdu:
             # Read using the base class
-            self = super().from_hdu(hdu)
+            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
             # Internals
             self.filename = ifile
             self.head0 = hdu[0].header
@@ -385,16 +394,15 @@ class CoAdd3D:
             :class:`CoAdd3D`: One of the subclasses with
             :class:`CoAdd3D` as its base.
         """
-
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
                         spec2dfiles, par, skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
                         grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
                         spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
-                 ra_offsets=None, dec_offsets=None,
-                 spectrograph=None, det=None, overwrite=False, show=False, debug=False):
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
+                 overwrite=False, show=False, debug=False):
         """
 
         Args:
@@ -435,15 +443,14 @@ class CoAdd3D:
                 Show results in ginga
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
-
         """
-        # TODO :: Before PR merge, add information to the release notes about the slicer subpixellation.
         # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
         # Set the variables
         self.spec2d = spec2dfiles
         self.numfiles = len(spec2dfiles)
         self.par = par
         self.overwrite = overwrite
+        self.chk_version = self.par['rdx']['chk_version']
         # Extract some parsets for simplicity
         self.cubepar = self.par['reduce']['cube']
         self.flatpar = self.par['calibrations']['flatfield']
@@ -636,7 +643,9 @@ class CoAdd3D:
                 msgs.info("Loading default scale image for relative spectral illumination correction:" +
                           msgs.newline() + self.cubepar['scale_corr'])
                 try:
-                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'], self.detname)
+                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'],
+                                                              self.detname,
+                                                              chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
@@ -697,7 +706,8 @@ class CoAdd3D:
                 msgs.info("Loading the following frame for the relative spectral illumination correction:" +
                           msgs.newline() + scalecorr)
                 try:
-                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname)
+                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname,
+                                                                  chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + scalecorr)
@@ -728,7 +738,9 @@ class CoAdd3D:
             msgs.info("Loading default image for sky subtraction:" +
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
-                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
+                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'],
+                                                          self.detname,
+                                                          chk_version=self.chk_version)
                 skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
                 msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
@@ -798,7 +810,8 @@ class CoAdd3D:
                 # Load a user specified frame for sky subtraction
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
-                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
+                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname,
+                                                                  chk_version=self.chk_version)
                     skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts_skysub)
@@ -837,7 +850,7 @@ class CoAdd3D:
         if flatfile not in self.flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
             # Load the Flat file
-            flatimages = flatfield.FlatImages.from_file(flatfile)
+            flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
             total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
                           flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
@@ -941,7 +954,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 if os.path.exists(alignfile) and self.cubepar['astrometric']:
                     msgs.info("Loading alignments")
-                    alignments = alignframe.Alignments.from_file(alignfile)
+                    alignments = alignframe.Alignments.from_file(alignfile,
+                                                                 chk_version=self.chk_version)
             else:
                 msgs.warn(f'Processed alignment frame not recorded or not found!')
                 msgs.info("Using slit edges for astrometric transform")
@@ -997,7 +1011,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         for ff, fil in enumerate(self.spec2d):
             # Load it up
             msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
-            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
+                                                      chk_version=self.chk_version)
             detector = spec2DObj.detector
             spat_flexure = None  # spec2DObj.sci_spat_flexure
 

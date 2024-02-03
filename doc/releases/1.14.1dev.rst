@@ -45,7 +45,10 @@ Functionality/Performance Improvements and Additions
   future.
 - Introduced PCA method for telluric corrections
 - Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
+- Added slicer subpixel sampling for DataCube generation
 
+- Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
+  poorly constrained traces for spectrally truncated slits/orders.
 
 Instrument-specific Updates
 ---------------------------
@@ -81,12 +84,17 @@ Script Changes
 - ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
 - Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
   Setup GUI.
+- Improvements and bug fixes for how the mask is displayed by
+  ``pypeit_show_2dspec``, and added ``pypeit_print_bpm`` to allow for a quick
+  report on the flags associated with a given bit value.
 
 Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
-- Wavecalib and Wavefit datacontainers now store information about echelle order number, if applicable.
+- Wavecalib and Wavefit datacontainers now store information about echelle order
+  number, if applicable.
+- Change to how Slit datamodel stores and checks bit flag values.
 
 Under-the-hood Improvements
 ---------------------------
@@ -97,6 +105,10 @@ Under-the-hood Improvements
 - Improvements to echelle wavelength calibration. Code changes in:
   ``pypeit/core/wavecal/wvutils.py``, ``pypeit/core/wavecal/echelle.py``,
   ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
+- Fixed some failure modes when matching measured order positions to expected
+  positions for fixed-format echelle spectrographs.
+- More extensive propagation of turning off datamodel version checking (using
+  ``try_old`` and ``chk_version``) throughout the code.
 
 Bug Fixes
 ---------

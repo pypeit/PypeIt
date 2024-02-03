@@ -49,6 +49,7 @@ class CoAddDataCube(scriptbase.ScriptBase):
         spectrograph_def_par = spectrograph.default_pypeit_par()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                               merge_with=(coadd3dfile.cfg_lines,))
+
         # If detector was passed as an argument override whatever was in the coadd3d file
         if args.det is not None:
             msgs.info("Restricting to detector={}".format(args.det))

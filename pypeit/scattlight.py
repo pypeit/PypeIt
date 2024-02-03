@@ -141,3 +141,4 @@ class ScatteredLight(calibframe.CalibFrame):
 
         # Display frames
         display.show_scattered_light(image_list, slits=slits, wcs_match=wcs_match)
+
