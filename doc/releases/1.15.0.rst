@@ -1,6 +1,6 @@
 
-Version 1.14.1dev
-=================
+Version 1.15.0
+==============
 
 Installation Changes
 --------------------
