@@ -34,7 +34,6 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
-- Add support for the R4K detector for MDM OSMOS
 - Enabled interpolation and extrapolation of missing echelle orders.  This is
   currently only used for Keck/HIRES, but the code is general.
 - Allow the specification of wavelength limits on the flexure cross-correlation
@@ -45,15 +44,14 @@ Functionality/Performance Improvements and Additions
   code, but the name ``'polynomial'`` is deprecated and will be removed in the
   future.
 - Introduced PCA method for telluric corrections
-- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 - Added slicer subpixel sampling for DataCube generation
-
 - Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
   poorly constrained traces for spectrally truncated slits/orders.
 
 Instrument-specific Updates
 ---------------------------
 
+- Add support for the R4K detector for MDM OSMOS
 - Updated archival sensitivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
@@ -83,6 +81,7 @@ Script Changes
 - Column ``SpatID`` in the output of ``pypeit_chk_wavecalib`` changed to ``SpatOrderID`` and
   now show the echelle order number, if applicable, otherwise the slit number.
 - ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
+- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 - Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
   Setup GUI.
 - Improvements and bug fixes for how the mask is displayed by
@@ -93,9 +92,9 @@ Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
-- Wavecalib and Wavefit datacontainers now store information about echelle order
+- WaveCalib and WaveFit datacontainers now store information about echelle order
   number, if applicable.
-- Change to how Slit datamodel stores and checks bit flag values.
+- Change to how SlitTraceSet datamodel stores and checks bit flag values.
 
 Under-the-hood Improvements
 ---------------------------
