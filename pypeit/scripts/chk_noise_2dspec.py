@@ -171,12 +171,16 @@ class ChkNoise2D(scriptbase.ScriptBase):
                                                                      'noise values to be printed in the terminal.')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
 
 
     @staticmethod
     def main(args):
+
+        chk_version = not args.try_old
 
         # Parse the detector name
         try:
@@ -205,7 +209,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             if args.list:
                 io.fits_open(file).info()
                 continue
-            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=False)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=chk_version)
 
             # Deal with redshifts
             if args.z is not None:

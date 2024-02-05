@@ -181,7 +181,7 @@ class EdgeTraceBitMask(BitMask):
                                   'order missed by the automated tracing'),
             ('LARGELENGTHCHANGE', 'Large difference in the slit length as a function of '
                                   'wavelength.')])
-        super(EdgeTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+        super().__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
     def bad_flags(self):
@@ -494,7 +494,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                  show_stages=False):
 
         # Instantiate as an empty DataContainer
-        super(EdgeTraceSet, self).__init__()
+        super().__init__()
 
         # Check input types
         if not isinstance(traceimg, TraceImage):
@@ -1132,7 +1132,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             `astropy.io.fits.Header`_: Header object to include in
             all HDU extensions.
         """
-        _hdr = super(EdgeTraceSet, self)._base_header(hdr=hdr)
+        _hdr = super()._base_header(hdr=hdr)
         _hdr['QAPATH'] = 'None' if self.qa_path is None else str(self.qa_path)
         self.par.to_header(_hdr)
         self.bitmask.to_header(_hdr)
@@ -1204,7 +1204,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Do not need to change the default behavior if the PCA
             # doesn't exist or there is only one PCA for both left and
             # right edges.
-            return super(EdgeTraceSet, self).to_hdu(**kwargs)
+            return super().to_hdu(**kwargs)
 
         # TODO: We need a better solution for multiple levels of nested
         # DataContainers. Here the commpication is that we're writing
@@ -1217,7 +1217,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.left_pca, self.right_pca = None, None
 
         # Run the default (with add_primary = False)
-        hdu = super(EdgeTraceSet, self).to_hdu(**kwargs)
+        hdu = super().to_hdu(**kwargs)
 
         # Reset them
         self.left_pca, self.right_pca = _left_pca, _right_pca
@@ -1256,13 +1256,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # parse traceimg because it's not a single-extension
         # DataContainer. It *will* parse pca, left_pca, and right_pca,
         # if they exist, but not their model components.
-        d, version_passed, type_passed, parsed_hdus = super(EdgeTraceSet, cls)._parse(hdu)
-        if not type_passed:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-        if not version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-               + ' does not match version used to write your HDU(s)!')
+        d, version_passed, type_passed, parsed_hdus = cls._parse(hdu)
+        # Check
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         # Instantiate the TraceImage from the header
         d['traceimg'] = TraceImage.from_hdu(hdu, chk_version=chk_version)
@@ -1289,7 +1285,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                         else cls.datamodel[key]['atype'])
 
         # Instantiate
-        self = super(EdgeTraceSet, cls).from_dict(d=d)
+        self = super().from_dict(d=d)
 
         # Calibration frame attributes
         # NOTE: If multiple HDUs are parsed, this assumes that the information
@@ -1315,7 +1311,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
         if chk_version and hdr_bitmask.bits != self.bitmask.bits:
             msgs.error('The bitmask in this fits file appear to be out of date!  Recreate this '
-                       'file either by rerunning run_pypeit or pypeit_trace_edges.')
+                       'file by re-running the relevant script or set chk_version=False.',
+                       cls='PypeItBitMaskError')
 
         return self
 
