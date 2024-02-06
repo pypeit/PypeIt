@@ -110,7 +110,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['standardframe']['exprng'] = [None, 180]
+        par['calibrations']['standardframe']['exprng'] = [None, 300]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['subtract_continuum'] = True
@@ -384,7 +384,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
@@ -955,7 +955,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'

@@ -1121,7 +1121,8 @@ class Coadd1DPar(ParSet):
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
                  sn_smooth_npix=None, sigrej_exp=None, wave_method=None, dv=None, dwave=None, dloglam=None,
                  wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
-                 sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
+                 sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None,
+                 weight_method=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
 
@@ -1169,6 +1170,7 @@ class Coadd1DPar(ParSet):
 
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
+        options['wave_method'] = Coadd1DPar.valid_wave_methods()
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
                                "the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are:" \
                                " "\
@@ -1223,8 +1225,11 @@ class Coadd1DPar(ParSet):
         dtypes['sigrej_scale'] = [int, float]
         descr['sigrej_scale'] = 'Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.'
 
+
+
         defaults['scale_method'] = 'auto'
         dtypes['scale_method'] = str
+        options['scale_method'] = Coadd1DPar.valid_scale_methods()
         descr['scale_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
                                 " "\
                                 "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well.  "\
@@ -1232,6 +1237,7 @@ class Coadd1DPar(ParSet):
                                 "'median' -- Median rescaling  " \
                                 "'none' -- Do not rescale.  " \
                                 "'hand' -- Pass in hand scaling factors. This option is not well tested."
+
 
         defaults['sn_min_medscale'] = 0.5
         dtypes['sn_min_medscale'] = [int, float]
@@ -1241,6 +1247,27 @@ class Coadd1DPar(ParSet):
         dtypes['sn_min_polyscale'] = [int, float]
         descr['sn_min_polyscale'] = "For scale method set to ``auto``, this sets the minimum SNR for which polynomial scaling is attempted."
 
+        defaults['weight_method'] = 'auto'
+        options['weight_method'] = Coadd1DPar.valid_weight_methods()
+        dtypes['weight_method'] = str
+        descr['weight_method'] = "Method used to weight the spectra for coadding. The options are:" \
+                        " " \
+                        "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent." \
+                        "'constant' -- Constant weights based on rms_sn**2" \
+                        "'uniform' --  Uniform weighting" \
+                        "'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_" \
+                                            "sn ratio. This option will not work well at low S/N ratio although it is useful for " \
+                                            "objects where only a small fraction of the spectral coverage has high S/N ratio " \
+                                            "(like high-z quasars)." \
+                        "'relative' -- Apply relative weights implying one reference exposure will receive unit " \
+                                            "weight at all wavelengths and all others receive relatively wavelength dependent "\
+                                            "weights . Note, relative weighting will only work well " \
+                                            "when there is at least one spectrum with a reasonable S/N, and a continuum. " \
+                                            "This option may only be better when the object being used has a strong " \
+                                            "continuum + emission lines. This is particularly useful if you " \
+                                            "are dealing with highly variable spectra (e.g. emission lines) and" \
+                                            "require a precision better than ~1 per cent." \
+                        "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
 
         defaults['maxiter_reject'] = 5
         dtypes['maxiter_reject'] = int
@@ -1315,7 +1342,7 @@ class Coadd1DPar(ParSet):
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'sigrej_exp',
                    'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
-                   'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
+                   'sn_min_medscale', 'sn_min_polyscale', 'weight_method', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
@@ -1332,7 +1359,23 @@ class Coadd1DPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        allowed_extensions = self.valid_ex()
+        if self.data['ex_value'] not in allowed_extensions:
+            raise ValueError("'ex_value' must be one of:\n" + ", ".join(allowed_extensions))
+
+        allowed_wave_methods = self.valid_wave_methods()
+        if self.data['wave_method'] not in allowed_wave_methods:
+            raise ValueError("'wave_method' must be one of:\n" + ", ".join(allowed_wave_methods))
+
+        allowed_scale_methods = self.valid_scale_methods()
+        if self.data['scale_method'] not in allowed_scale_methods:
+            raise ValueError("'scale_method' must be one of:\n" + ", ".join(allowed_scale_methods))
+
+        allowed_weight_methods = self.valid_weight_methods()
+        if self.data['weight_method'] not in allowed_weight_methods:
+            raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
+
 
     @staticmethod
     def valid_ex():
@@ -1340,6 +1383,26 @@ class Coadd1DPar(ParSet):
         Return the valid flat-field methods
         """
         return ['BOX', 'OPT']
+
+
+    @staticmethod
+    def valid_wave_methods():
+        """ Return the valid options for the wavelength grid of spectra. """
+
+        return ['iref', 'velocity', 'log10', 'linear', 'concatenate']
+
+    @staticmethod
+    def valid_scale_methods():
+        """ Return the valid options for the scaling of spectra. """
+
+        return ['auto', 'poly', 'median', 'none', 'hand']
+
+    @staticmethod
+    def valid_weight_methods():
+        """ Return the valid options for the weighting of spectra. """
+
+        return ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']
+
 
 
 class Coadd2DPar(ParSet):
@@ -1476,6 +1539,7 @@ class Coadd2DPar(ParSet):
 
 
 
+
 class CubePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1485,7 +1549,7 @@ class CubePar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, slit_spec=None, relative_weights=None, align=None, combine=None, output_filename=None,
+    def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
@@ -1512,12 +1576,28 @@ class CubePar(ParSet):
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True. ' \
                              'If the data uses fibres for all spaxels, set this to False.'
 
-        defaults['relative_weights'] = False
-        dtypes['relative_weights'] = [bool]
-        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme. ' \
-                                    'This only works well if there is a common continuum source in the field of ' \
-                                    'view of all input observations, and is generally only required if high ' \
-                                    'relative precision is desired.'
+        defaults['weight_method'] = 'auto'
+        options['weight_method'] = Coadd1DPar.valid_weight_methods()
+        dtypes['weight_method'] = str
+        descr['weight_method'] = "Method used to weight the spectra for coadding. The options are:" \
+                        " " \
+                        "'auto' -- Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent." \
+                        "'constant' -- Constant weights based on rms_sn**2" \
+                        "'uniform' --  Uniform weighting" \
+                        "'wave_dependent' -- Wavelength dependent weights will be used irrespective of the rms_" \
+                                            "sn ratio. This option will not work well at low S/N ratio although it is useful for " \
+                                            "objects where only a small fraction of the spectral coverage has high S/N ratio " \
+                                            "(like high-z quasars)." \
+                        "'relative' -- Apply relative weights implying one reference exposure will receive unit " \
+                                            "weight at all wavelengths and all others receive relatively wavelength dependent "\
+                                            "weights . Note, relative weighting will only work well " \
+                                            "when there is at least one spectrum with a reasonable S/N, and a continuum. " \
+                                            "This option may only be better when the object being used has a strong " \
+                                            "continuum + emission lines. This is particularly useful if you " \
+                                            "are dealing with highly variable spectra (e.g. emission lines) and" \
+                                            "require a precision better than ~1 per cent." \
+                        "'ivar' -- Use inverse variance weighting. This is not well tested and should probably be deprecated."
+
 
         defaults['align'] = False
         dtypes['align'] = [bool]
@@ -1694,7 +1774,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
-                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'relative_weights', 'align', 'combine',
+                   'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1716,6 +1796,11 @@ class CubePar(ParSet):
                                  "\nor, the relative path to a spec2d file.")
         if len(self.data['whitelight_range']) != 2:
             raise ValueError("The 'whitelight_range' must be a two element list of either NoneType or float")
+
+        allowed_weight_methods = Coadd1DPar.valid_weight_methods()
+        if self.data['weight_method'] not in allowed_weight_methods:
+            raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
+
 
 
 class FluxCalibratePar(ParSet):
@@ -2209,7 +2294,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, tell_npca=None, teltype=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2224,6 +2309,7 @@ class TelluricPar(ParSet):
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
@@ -2234,6 +2320,18 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
+        
+        defaults['tell_npca'] = 5
+        dtypes['tell_npca'] = int
+        descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
+        
+        defaults['teltype'] = 'pca'
+        options['teltype'] = TelluricPar.valid_teltype()
+        dtypes['teltype'] = str
+        descr['teltype'] = 'Method used to evaluate telluric models, either pca or grid. The grid option uses a ' \
+                           'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
+                           'observatory, whereas the pca option uses principal components of a larger model grid ' \
+                           'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2254,12 +2352,12 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
-        defaults['resln_frac_bounds'] = (0.5,1.5)
+        defaults['resln_frac_bounds'] = (0.6,1.4)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
-                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'This range is in units of the resln_guess, so the (0.6, 1.4) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
-                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+                                     'bounds_resln = (0.6*resln_guess, 1.4*resln_guess)'
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
@@ -2462,7 +2560,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'tell_npca',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
@@ -2479,12 +2577,27 @@ class TelluricPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+        
+    @staticmethod
+    def valid_teltype():
+        """
+        Return the valid telluric methods.
+        """
+        return ['pca', 'grid']
 
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        if self.data['tell_npca'] < 1 or self.data['tell_npca'] > 10:
+            raise ValueError('Invalid value {:d} for tell_npca '.format(self.data['tell_npca'])+
+                             '(must be between 1 and 10).')
+                             
+        self.data['teltype'] = self.data['teltype'].lower()
+        if self.data['teltype'] not in TelluricPar.valid_teltype():
+            raise ValueError('Invalid teltype "{}"'.format(self.data['teltype'])+
+                             ', valid options are: {}.'.format(TelluricPar.valid_teltype()))
+        
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 
