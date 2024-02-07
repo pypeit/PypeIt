@@ -42,6 +42,8 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename identify_YYYYMMDD-HHMM.log')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -58,11 +60,13 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
 
+        chk_version = not args.try_old
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('identify', args.verbosity)
 
         # Load the Arc file
-        msarc = ArcImage.from_file(args.arc_file)
+        msarc = ArcImage.from_file(args.arc_file, chk_version=chk_version)
 
         # Load the spectrograph
         spec = load_spectrograph(msarc.PYP_SPEC)
@@ -78,13 +82,13 @@ class Identify(scriptbase.ScriptBase):
         par['lamps'] = lamps
 
         # Load the slits
-        slits = slittrace.SlitTraceSet.from_file(args.slits_file)
+        slits = slittrace.SlitTraceSet.from_file(args.slits_file, chk_version=chk_version)
         # Reset the mask
         slits.mask = slits.mask_init
 
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
-        wv_calib = WaveCalib.from_file(solnname) \
+        wv_calib = WaveCalib.from_file(solnname, chk_version=chk_version) \
                         if os.path.exists(solnname) and args.solution else None
 
         # Load the calibration frame (if it exists and is desired).  Bad-pixel mask

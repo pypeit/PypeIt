@@ -8,7 +8,7 @@ Implements the flat-field class.
 import inspect
 import numpy as np
 
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -16,7 +16,7 @@ from matplotlib import gridspec
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.pypmsgs import PypeItError
+from pypeit.pypmsgs import PypeItDataModelError
 from pypeit import utils
 from pypeit import bspline
 
@@ -28,7 +28,6 @@ from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit.core import fitting
-from pypeit.core import coadd
 from pypeit import slittrace
 
 
@@ -389,7 +388,7 @@ class FlatImages(calibframe.CalibFrame):
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
-    def show(self, frametype='all', slits=None, wcs_match=True):
+    def show(self, frametype='all', slits=None, wcs_match=True, chk_version=True):
         """
         Simple wrapper to :func:`show_flats`.
 
@@ -403,6 +402,11 @@ class FlatImages(calibframe.CalibFrame):
             wcs_match (:obj:`bool`, optional):
                 (Attempt to) Match the WCS coordinates of the output images in
                 the `ginga`_ viewer.
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
         """
         illumflat_pixel, illumflat_illum = None, None
         pixelflat_finecorr, illumflat_finecorr = None, None
@@ -414,8 +418,8 @@ class FlatImages(calibframe.CalibFrame):
             slits_file = slittrace.SlitTraceSet.construct_file_name(self.calib_key,
                                                                     calib_dir=self.calib_dir)
             try:
-                slits = slittrace.SlitTraceSet.from_file(slits_file)
-            except (FileNotFoundError, PypeItError):
+                slits = slittrace.SlitTraceSet.from_file(slits_file, chk_version=chk_version)
+            except (FileNotFoundError, PypeItDataModelError):
                 msgs.warn('Could not load slits to include when showing flat-field images.  File '
                           'was either not provided directly, or it could not be read based on its '
                           f'expected name: {slits_file}.')
@@ -1152,8 +1156,11 @@ class FlatField:
             # Perform a fine correction to the spatial illumination profile
             spat_illum_fine = 1  # Default value if the fine correction is not performed
             if exit_status <= 1 and self.flatpar['slit_illum_finecorr']:
-                spat_illum = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                self.spatial_fit_finecorr(spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
+                spat_model = np.ones_like(spec_model)
+                spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]
+                specspat_illum = np.fmax(spec_model, 1.0) * spat_model
+                norm_spatspec = rawflat / specspat_illum
+                self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1368,7 +1375,7 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, spat_illum, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
+    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
         """
         Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1376,8 +1383,8 @@ class FlatField:
 
         Parameters
         ----------
-        spat_illum : `numpy.ndarray`_
-            An image containing the generated spatial illumination profile for all slits.
+        normed : `numpy.ndarray`_
+            Raw flat field image, normalized by the spectral and spatial illuminations.
         onslit_tweak : `numpy.ndarray`_
             mask indicating which pixels are on the slit (True = on slit)
         slit_idx : int
@@ -1406,10 +1413,6 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        normed = self.rawflatimg.image.copy()
-        ivarnrm = self.rawflatimg.ivar.copy()
-        normed[onslit_tweak] *= utils.inverse(spat_illum)
-        ivarnrm[onslit_tweak] *= spat_illum**2
         left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
@@ -1431,18 +1434,6 @@ class FlatField:
         # Evaluation coordinates
         ypos = (this_wave - wave_min) / (wave_max - wave_min)  # Need to use the same wave_min and wave_max as the fitting coordinates
         xpos = xpos_img[this_slit]
-
-        # Normalise the image
-        delta = 0.5/self.slits.nspec  # include the endpoints
-        bins = np.linspace(0.0-delta, 1.0+delta, self.slits.nspec+1)
-        censpec, _ = np.histogram(ypos_fit, bins=bins, weights=normed[this_slit_trim])
-        nrm, _ = np.histogram(ypos_fit, bins=bins)
-        censpec *= utils.inverse(nrm)
-        tiltspl = interpolate.interp1d(0.5*(bins[1:]+bins[:-1]), censpec, kind='linear',
-                                       bounds_error=False, fill_value='extrapolate')
-        nrm_vals = tiltspl(ypos_fit)
-        normed[this_slit_trim] *= utils.inverse(nrm_vals)
-        ivarnrm[this_slit_trim] *= nrm_vals**2
 
         # Mask the edges and fit
         gpmfit = gpm[this_slit_trim]
@@ -1572,7 +1563,7 @@ class FlatField:
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
-        rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
+        rawflat = self.rawflatimg.image / (self.msillumflat * self.mspixelflat)
         # Grab the GPM and the slit images
         if gpm is None:
             # TODO: Should this be *any* flag, or just BPM?
@@ -1627,6 +1618,9 @@ def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None
     norm_cut = normed[xmn:xmx, ymn:ymx]
     fcor_cut = finecorr[xmn:xmx, ymn:ymx]
     vmin, vmax = max(0.95, np.min(fcor_cut)), min(1.05, np.max(fcor_cut))  # Show maximum corrections of ~5%
+
+    # For display/visual purposes, apply a median filter to the data
+    norm_cut = ndimage.median_filter(norm_cut, size=(normed.shape[0]//100, 5))
 
     # Plot
     fighght = 8.5
@@ -1747,7 +1741,7 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
     # Axes showing the residual of the detector response fit
     ax_resd = plt.subplot(gs[2])
     ax_resd.imshow(det_resp-det_resp_model, origin='lower', vmin=vmin-1, vmax=vmax-1)
-    ax_resd.set_xlabel("data-model", fontsize='medium')
+    ax_resd.set_xlabel("1+data-model", fontsize='medium')
     ax_resd.axes.xaxis.set_ticks([])
     ax_resd.axes.yaxis.set_ticks([])
     # Add a colorbar
@@ -1770,19 +1764,18 @@ def detector_structure_qa(det_resp, det_resp_model, outfile=None, title="Detecto
 
 def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
     """
-    Interface to ginga to show a set of flat images
+    Show the flat-field images
 
-    Args:
-        pixelflat (`numpy.ndarray`_):
-        illumflat (`numpy.ndarray`_ or None):
-        procflat (`numpy.ndarray`_):
-        flat_model (`numpy.ndarray`_):
-        spec_illum (`numpy.ndarray`_ or None):
-        wcs_match (bool, optional):
-        slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-        waveimg (`numpy.ndarray`_ or None):
-
-    Returns:
+    Parameters
+    ----------
+    image_list : list
+        List of tuples containing the image data, image name and the cut levels
+    wcs_match : bool, optional
+        Match the WCS of the images
+    slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
+        Slit traces to be overplotted on the images
+    waveimg : `numpy.ndarray`_, optional
+        Wavelength image to be overplotted on the images
 
     """
     display.connect_to_ginga(raise_err=True, allow_new=True)
@@ -1806,11 +1799,10 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
             clear = False
 
 
-def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+# TODO :: This could possibly be moved to core.flat
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
+                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
     """
-    TODO :: This could possibly be moved to core.flat
-
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
 
@@ -1826,6 +1818,9 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Index of slit that is used as the reference.
     smooth_npix : int, optional
         smoothing used for determining smoothly varying relative weights by sn_weights
+    polydeg : int, optional
+        Degree of polynomial to be used for determining relative spectral sensitivity. If None,
+        coadd.smooth_weights will be used, with the smoothing length set to smooth_npix.
     model : `numpy.ndarray`_, None
         A model of the rawimg data. If None, rawimg will be used.
     gpmask : `numpy.ndarray`_, None
@@ -1837,6 +1832,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         when deriving the spectral illumination
     flexure : float, None
         Spatial flexure
+    maxiter : :obj:`int`
+        Maximum number of iterations to perform
 
     Returns
     -------
@@ -1844,6 +1841,10 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         An image containing the appropriate scaling
     """
     msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
+    if polydeg is not None:
+        msgs.info("Using polynomial of degree {0:d} for relative spectral sensitivity".format(polydeg))
+    else:
+        msgs.info("Using 'smooth_weights' algorithm for relative spectral sensitivity")
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1879,37 +1880,54 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     sn_smooth_npix = wave_ref.size // smooth_npix if (smooth_npix is not None) else wave_ref.size // 10
 
     # Iterate until convergence
-    maxiter = 5
     lo_prev, hi_prev = 1.0E-32, 1.0E32
     for rr in range(maxiter):
-        # Reset the relative scaling for this iteration
-        relscl_model = np.ones_like(rawimg)
-        # Build the relative illumination, by successively finding the slits closest in wavelength to the reference
-        for ss in range(slits.spat_id.size):
-            # Calculate the region of overlap
-            onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
-            onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
-            onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
-            hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg_copy[onslit_b_olap])
-            cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
-            cntr = cntr.astype(float)
-            cntr *= spec_ref
-            norm = utils.inverse(cntr)
-            arr = hist * norm
-            # Calculate a smooth version of the relative response
-            relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
-            rescale_model = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
+        # Perform two iterations:
+        # (ii=0) dynamically build reference spectrum
+        # (ii=1) used fixed reference spectrum to calculate the relative illumination.
+        for ii in range(2):
+            # Reset the relative scaling for this iteration
+            relscl_model = np.ones_like(rawimg)
+            # Build the relative illumination, by successively finding the slits closest in wavelength to the reference
+            for ss in range(1, slits.spat_id.size):
+                # Calculate the region of overlap
+                onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
+                onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
+                onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
+                hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg_copy[onslit_b_olap])
+                cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
+                cntr = cntr.astype(float)
+                # Note, if ii=1 (i.e. the reference spectrum is fixed), we want to make sure that the
+                # spec_ref will give a result of 1 for all wavelengths. Apply this correction first.
+                if (ii == 1) and (slits.spat_id[wvsrt[ss]] == slit_illum_ref_idx):
+                    # This must be the first element of the loop by construction, but throw an error just in case
+                    if ss != 0:
+                        msgs.error("CODING ERROR - An error has occurred in the relative spectral illumination." +
+                                   msgs.newline() + "Please contact the developers.")
+                    tmp_cntr = cntr * spec_ref
+                    tmp_arr = hist * utils.inverse(tmp_cntr)
+                    # Calculate a smooth version of the relative response
+                    ref_relscale = flat.smooth_scale(tmp_arr, wave_ref=wave_ref, polydeg=polydeg, sn_smooth_npix=sn_smooth_npix)
+                    # Update the reference spectrum
+                    spec_ref /= ref_relscale
+                # Normalise by the reference spectrum
+                cntr *= spec_ref
+                norm = utils.inverse(cntr)
+                arr = hist * norm
+                # Calculate a smooth version of the relative response
+                relscale = flat.smooth_scale(arr, wave_ref=wave_ref, polydeg=polydeg, sn_smooth_npix=sn_smooth_npix)
+                # Store the result
+                relscl_model[onslit_b_init] = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
                                                  fill_value="extrapolate")(waveimg[onslit_b_init])
-            # Store the result
-            relscl_model[onslit_b_init] = rescale_model.copy()
 
-            # Build a new reference spectrum to increase wavelength coverage of the reference spectrum (and improve S/N)
-            onslit_ref_trim = onslit_ref_trim | (onslit_b & gpm & skymask_now)
-            hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim]/relscl_model[onslit_ref_trim])
-            cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
-            cntr = cntr.astype(float)
-            norm = utils.inverse(cntr)
-            spec_ref = hist * norm
+                # Build a new reference spectrum to increase wavelength coverage of the reference spectrum (and improve S/N)
+                if ii == 0:
+                    onslit_ref_trim |= (onslit_b & gpm & skymask_now)
+                    hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim]/relscl_model[onslit_ref_trim])
+                    cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
+                    cntr = cntr.astype(float)
+                    norm = utils.inverse(cntr)
+                    spec_ref = hist * norm
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         if 1/minv + maxv > lo_prev+hi_prev:
             # Adding noise, so break

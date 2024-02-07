@@ -10,7 +10,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.wcs import wcs
-from astropy.io import fits 
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -39,7 +39,7 @@ class GeminiGMOSMosaicLookUp:
     .. code-block:: python
 
         from geminidr.gmos.lookups.geometry_conf import geometry
-    
+
     Updating to any changes made to the DRAGONS version requires by-hand editing
     of the PypeIt code.
     """
@@ -248,7 +248,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
@@ -530,48 +530,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2,3)]
 
-    def list_detectors(self, mosaic=False):
-        """
-        List the *names* of the detectors in this spectrograph.
-
-        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
-        to measure the mean offset between the measured and expected slit
-        locations.
-
-        Detectors separated along the dispersion direction should be ordered
-        along the first axis of the returned array.  For example, Keck/DEIMOS
-        returns:
-        
-        .. code-block:: python
-        
-            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
-                             ['DET05', 'DET06', 'DET07', 'DET08']])
-
-        such that all the bluest detectors are in ``dets[0]``, and the slits
-        found in detectors 1 and 5 are just from the blue and red counterparts
-        of the same slit.
-
-        Args:
-            mosaic (:obj:`bool`, optional):
-                Is this a mosaic reduction?
-                It is used to determine how to list the detector, i.e., 'DET' or 'MSC'.
-
-        Returns:
-            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
-            the array is 2D, there are detectors separated along the dispersion
-            axis.
-        """
-        if mosaic:
-            return np.array([self.get_det_name(_det) for _det in self.allowed_mosaics])
-
-        return np.array([detector_container.DetectorContainer.get_name(i+1)
-                             for i in range(self.ndet)]).reshape(2,-1)
-
     @property
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-    
+
     def get_slitmask(self, filename):
         """
         Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
@@ -596,15 +559,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
         slit_length = mask_tbl['slitsize_y'].to('arcsec').value # arcsec
-        topdist = np.round(slit_length/2. - 
+        topdist = np.round(slit_length/2. -
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
-        botdist = np.round(slit_length/2. + 
+        botdist = np.round(slit_length/2. +
                            mask_tbl['slitpos_y'].to('arcsec').value, 3)
 
         # Coordinates
         # WARNING -- GMOS TABLE IS ONLY IN FLOAT32!!!
-        obj_ra = mask_tbl['RA'].value * 15.  
-        obj_dec = mask_tbl['DEC'].value 
+        obj_ra = mask_tbl['RA'].value * 15.
+        obj_dec = mask_tbl['DEC'].value
         objname = mask_tbl['ID'].value.astype(str)
 
         slitID = mask_tbl['ID'].value # Slit and objects are the same
@@ -620,7 +583,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                            topdist,
                            botdist]).T
         # Mask pointing
-        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'], 
+        mask_coord = SkyCoord(mask_tbl.meta['RA_IMAG'], mask_tbl.meta['DEC_IMAG'],
                               unit=("hourangle", "deg"))
 
         # PA corresponding to positive x on detector (spatial)
@@ -631,8 +594,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Slit positions
         obj_coord = SkyCoord(ra=obj_ra, dec=obj_dec, unit='deg')
         offsets = np.sqrt(
-                mask_tbl['slitpos_x'].to('arcsec').value**2 + 
-                mask_tbl['slitpos_y'].to('arcsec').value**2) 
+                mask_tbl['slitpos_x'].to('arcsec').value**2 +
+                mask_tbl['slitpos_y'].to('arcsec').value**2)
         # NOT READY FOR TILTS
         if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
             msgs.error('NOT READY FOR TILTED SLITS')
@@ -648,7 +611,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 slit_pa*units.deg, off_sign*offset*units.arcsec)
             slit_ra.append(slit_coord.ra.deg)
             slit_dec.append(slit_coord.dec.deg)
-            
+
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(
@@ -660,12 +623,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
              np.zeros(slitID.size),
              np.zeros(slitID.size),
              np.zeros(slitID.size),
-             np.zeros(slitID.size)]).T.reshape(-1,4,2), 
+             np.zeros(slitID.size)]).T.reshape(-1,4,2),
             slitid=np.array(slitID, dtype=int),
             align=mask_tbl['priority'].value == b'0',
             science=mask_tbl['priority'].value != b'0',
             onsky=np.array([
-                slit_ra, slit_dec, 
+                slit_ra, slit_dec,
                 np.array(mask_tbl['slitsize_y'].to('arcsec').value, dtype=float),
                 np.array(mask_tbl['slitsize_x'].to('arcsec').value, dtype=float),
                 slit_pas]).T,
@@ -684,7 +647,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Args:
             binning (_type_, optional): _description_. Defaults to None.
             binning(str, optional): spec,spat binning of the flat field image
-            filename (:obj:`list`, optional): Names 
+            filename (:obj:`list`, optional): Names
                 the mask design info and wcs_file in that order
             debug (:obj:`bool`, optional): Debug
             ccdnum (:obj:`int`, optional): detector number
@@ -710,10 +673,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.get_slitmask(maskfile)
 
         # Binning of flat
-        _, bin_spat= parse.parse_binning(binning) 
+        _, bin_spat= parse.parse_binning(binning)
 
         # Slit center
-        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0],
                                dec=self.slitmask.onsky[:,1], unit='deg')
         mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
                               dec=self.slitmask.mask_radec[1], unit='deg')
@@ -721,7 +684,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Load up the acquisition image (usually a sciframe)
         hdul_acq = fits.open(wcs_file)
         acq_binning = self.get_meta_value(self.get_headarr(hdul_acq), 'binning')
-        _, bin_spat_acq = parse.parse_binning(acq_binning) 
+        _, bin_spat_acq = parse.parse_binning(acq_binning)
         wcss = [wcs.WCS(hdul_acq[i].header) for i in range(1, len(hdul_acq))]
 
         left_edges = []
@@ -736,7 +699,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             right_coord = slit_coords[islit].directional_offset_by(
                 self.slitmask.onsky[islit,4]*units.deg,
                 self.slitmask.onsky[islit,2]*units.arcsec/2.)
-                
+
             got_it = False
             for kk, iwcs in enumerate(wcss):
                 pix_xy = iwcs.world_to_pixel(left_coord)
@@ -753,8 +716,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
 #        DEBUGGING
 #        tbl = Table()
-#        tbl['left'] = left_edges                
-#        tbl['right'] = right_edges                
+#        tbl['left'] = left_edges
+#        tbl['right'] = right_edges
 #        tbl['ID'] = self.slitmask.slitid
 #        tbl.sort('left')
 #        embed(header='641 of gemini_gmos')
@@ -866,14 +829,14 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         # Bound the detector with slit edges if no edges are found. These data are often trimmed
         # so we implement this here as the default.
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -922,7 +885,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         hdrs = self.get_headarr(filename)
         binning = self.get_meta_value(hdrs, 'binning')
         obs_epoch = self.get_meta_value(hdrs, 'mjd')
-        bin_spec, bin_spat= parse.parse_binning(binning) 
+        bin_spec, bin_spat= parse.parse_binning(binning)
 
         # Add the detector-specific, hard-coded bad columns
         if 1 in _det:
@@ -944,7 +907,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             # Bad amp as of January 28, 2022
             # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
             if obs_epoch > 2022.07:
-                badr = (768*2)//bin_spec 
+                badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
@@ -983,7 +946,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # The bad amp needs a larger follow_span for slit edge tracing
         obs_epoch = self.get_meta_value(scifile, 'mjd')
         binning = self.get_meta_value(scifile, 'binning')
-        bin_spec, bin_spat= parse.parse_binning(binning) 
+        bin_spec, bin_spat= parse.parse_binning(binning)
         if obs_epoch > 2022.07:
             par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
@@ -1349,7 +1312,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v_mosaic.fits'
             # The blue wavelengths are *faint*
             #   But redder observations may prefer something closer to the default
-            par['calibrations']['wavelengths']['sigdetect'] = 1.  
+            par['calibrations']['wavelengths']['sigdetect'] = 1.
         # Return
         return par
 

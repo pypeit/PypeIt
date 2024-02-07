@@ -36,8 +36,7 @@ cooked_required = pytest.mark.skipif(
 
 # Tests require the Telluric file (Mauna Kea)
 par = Spectrograph.default_pypeit_par()
-tell_test_grid = data.get_telgrid_filepath('TelFit_MaunaKea_3100_26100_R20000.fits')
-#tell_test_grid = data.Paths.telgrid / 'TelFit_MaunaKea_3100_26100_R20000.fits'
+tell_test_grid = data.get_telgrid_filepath('TellPCA_3000_26000_R25000.fits')
 telluric_required = pytest.mark.skipif(not tell_test_grid.is_file(),
                                        reason='no Mauna Kea telluric file')
 

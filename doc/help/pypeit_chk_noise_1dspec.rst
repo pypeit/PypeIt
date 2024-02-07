@@ -6,6 +6,7 @@
                                    [--z [Z ...]] [--maskdef_objname MASKDEF_OBJNAME]
                                    [--pypeit_name PYPEIT_NAME] [--wavemin WAVEMIN]
                                    [--wavemax WAVEMAX] [--plot_or_save PLOT_OR_SAVE]
+                                   [--try_old]
                                    [files ...]
     
     Examine the noise in a PypeIt spectrum
@@ -41,4 +42,6 @@
                             window. If you choose save, a folder called
                             spec1d*_noisecheck will be created and all the relevant
                             plot will be placed there. (default: plot)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     
