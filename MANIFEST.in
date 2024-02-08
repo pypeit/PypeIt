@@ -1,19 +1,24 @@
 
+# Remove directories
 prune build
 prune dist
 prune deprecated
-prune doc/_build
+prune doc
 prune proposals
 prune presentations
 prune paper
 
+# Remove file types
 global-exclude *.pyc *.o *.so *.DS_Store
 
+# Remove large data sets
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
 recursive-exclude pypeit/data/sensfuncs *.fits
 recursive-exclude pypeit/data/skisim *.dat
 
+# Remove individual files
 exclude checkout_current_tag
+exclude environment.yml
 exclude sphinx.readme
 exclude update_docs
 
