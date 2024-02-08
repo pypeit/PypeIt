@@ -334,7 +334,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'dateobs', 'frameno']
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
 
 
 
