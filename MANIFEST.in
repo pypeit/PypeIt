@@ -1,7 +1,4 @@
 
-#include CITATION.cff
-include readthdocs.yml
-
 prune build
 prune dist
 prune deprecated
