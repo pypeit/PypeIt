@@ -747,6 +747,7 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sig_res = np.fmax(sn_smooth_npix / 10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
+    # TODO Should we be setting a floor on the weights to prevent tiny numbers?
     return sn_conv
 
 # TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
@@ -796,7 +797,7 @@ def calc_snr(fluxes, ivars, gpms):
 
     return np.array(rms_sn), sn_val
 
-
+# TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
 def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):
 
     """
@@ -818,31 +819,39 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         Number of pixels used for determining smoothly varying S/N ratio
         weights. This must be passed for all weight methods excpet for weight_method='constant' or 'uniform', since then
         wavelength dependent weights are not used.
-    weight_method (str):
-        The weighting method to be used. Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
-        Behavior is as follows:
-           'auto':
-               Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
-           'constant':
-               Constant weights based on rms_sn**2
-           'uniform':
-               Uniform weighting.
-           'wave_dependent':
-               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
-               will not work well at low S/N ratio although it is useful for objects where only a small
-               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
-           'relative':
-               Calculate weights by fitting to the ratio of spectra? Note, relative
-               weighting will only work well when there is at least one spectrum with a
-               reasonable S/N, and a continuum.  RJC note - This argument may only be
-               better when the object being used has a strong continuum + emission
-               lines. The reference spectrum is assigned a value of 1 for all
-               wavelengths, and the weights of all other spectra will be determined
-               relative to the reference spectrum. This is particularly useful if you
-               are dealing with highly variable spectra (e.g. emission lines) and
-               require a precision better than ~1 per cent.
-           'ivar':
-               Use inverse variance weighting. This is not well tested and should probably be deprecated.
+    weight_method : str, optional
+
+        The weighting method to be used. Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``,
+        ``'relative'``, or ``'ivar'``. The default is ``'auto'``.  Behavior is
+        as follows:
+
+            - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise use
+              wavelength dependent.
+
+            - ``'constant'``: Constant weights based on rms_sn**2
+
+            - ``'uniform'``: Uniform weighting.
+
+            - ``'wave_dependent'``: Wavelength dependent weights will be used
+              irrespective of the rms_sn ratio. This option will not work well
+              at low S/N ratio although it is useful for objects where only a
+              small fraction of the spectral coverage has high S/N ratio (like
+              high-z quasars).
+
+            - ``'relative'``: Calculate weights by fitting to the ratio of
+              spectra? Note, relative weighting will only work well when there
+              is at least one spectrum with a reasonable S/N, and a continuum.
+              RJC note - This argument may only be better when the object being
+              used has a strong continuum + emission lines. The reference
+              spectrum is assigned a value of 1 for all wavelengths, and the
+              weights of all other spectra will be determined relative to the
+              reference spectrum.  This is particularly useful if you are
+              dealing with highly variable spectra (e.g. emission lines) and
+              require a precision better than ~1 per cent.
+
+            - ``'ivar'``: Use inverse variance weighting. This is not well
+              tested and should probably be deprecated.
+
     verbose : bool, optional
         Verbosity of print out.
 
@@ -856,7 +865,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
         vectors) provided in waves, i.e. it is a list of arrays of type
         `numpy.ndarray`_  with the same shape as those in waves.
     """
-    if weight_method not in ['auto', 'constant', 'wave_dependent', 'relative', 'ivar']:
+    if weight_method not in ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']:
         msgs.error('Unrecognized option for weight_method=%s').format(weight_method)
 
     nexp = len(fluxes)
@@ -922,59 +931,6 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
 
     # Finish
     return np.array(rms_sn), weights
-
-
-# TODO: This was commented out and would need to be refactored if brought back
-# because of changes to the SensFunc and Telluric datamodels.
-## TODO Rename this function to something sensfunc related
-#def get_tell_from_file(sensfile, waves, masks, iord=None):
-#    '''
-#    Get the telluric model from the sensfile.
-#
-#    Args:
-#        sensfile (str): the name of your fits format sensfile
-#        waves (ndarray): wavelength grid for your output telluric model
-#        masks (ndarray, bool): mask for the wave
-#        iord (int or None): if None returns telluric model for all orders, otherwise return the order you want
-#
-#    Returns:
-#         ndarray: telluric model on your wavelength grid
-#    '''
-#
-#
-#    sens_param = Table.read(sensfile, 1)
-#    sens_table = Table.read(sensfile, 2)
-#    telluric = np.zeros_like(waves)
-#
-#    if (waves.ndim == 1) and (iord is None):
-#        msgs.info('Loading Telluric from Longslit sensfiles.')
-#        tell_interp = scipy.interpolate.interp1d(sens_table[0]['WAVE'], sens_table[0]['TELLURIC'], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_interp
-#    elif (waves.ndim == 1) and (iord is not None):
-#        msgs.info('Loading order {:} Telluric from Echelle sensfiles.'.format(iord))
-#        wave_tell_iord = sens_table[iord]['WAVE']
-#        tell_mask = (wave_tell_iord > 1.0)
-#        tell_iord = sens_table[iord]['TELLURIC']
-#        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_iord_interp
-#    else:
-#        norder = np.shape(waves)[1]
-#        for iord in range(norder):
-#            wave_iord = waves[:, iord]
-#            mask_iord = masks[:, iord]
-#
-#            # Interpolate telluric to the same grid with waves
-#            # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
-#            wave_tell_iord = sens_table[iord]['WAVE']
-#            tell_mask = (wave_tell_iord > 1.0)
-#            tell_iord = sens_table[iord]['TELLURIC']
-#            tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                                    bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
-#            telluric[mask_iord, iord] = tell_iord_interp
-#
-#    return telluric
 
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,

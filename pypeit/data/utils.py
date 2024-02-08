@@ -790,3 +790,4 @@ def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
         (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
     return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec / sky_file))
+
