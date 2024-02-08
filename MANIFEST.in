@@ -1,4 +1,4 @@
-include README.md
+include README.rst
 include LICENSE.rst
 #include CHANGES.rst
 include pyproject.toml
@@ -13,9 +13,11 @@ recursive-include cextern *
 recursive-include scripts *
 
 prune build
-prune docs/_build
-prune docs/api
+prune doc/_build
 prune deprecated
+prune proposals
+prune presentations
+prune paper
 
 global-exclude *.pyc *.o *.so *.DS_Store
 
