@@ -82,24 +82,24 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['rdx']['detnum'] = [(1,2,3)]
 
         # Adjustments to parameters for Keck HIRES
-        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
-                       use_darkimage=False, use_illumflat=False, use_pixelflat=False,
-                       use_specillum=False)
-        par.reset_all_processimages_par(**turn_on)
-        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
-
+        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
+        par.reset_all_processimages_par(**turn_off_on)
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
         # the option to use different sets of biases for different standards,
         # or use the overscan for standards but not for science frames
-        # TODO testing
-        par['scienceframe']['process']['use_biasimage'] = False
-        par['scienceframe']['process']['use_illumflat'] = False
-        par['scienceframe']['process']['use_pixelflat'] = False
-        par['calibrations']['standardframe']['process']['use_illumflat'] = False
-        par['calibrations']['standardframe']['process']['use_pixelflat'] = False
-        # par['scienceframe']['useframe'] ='overscan'
 
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
+        par['calibrations']['traceframe']['exprng'] = [None, 60]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [1, 600]
+        par['scienceframe']['exprng'] = [601, None]
+
+        # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -145,6 +145,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.6
@@ -234,9 +235,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
 #        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
-        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['lampstat01'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -262,6 +264,34 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['MJD']
             else:
                 return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'lampstat01':
+            if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
+                return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
+            elif headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1'):
+                # LAMPNAME is a configurable keyword, so there is no guarantee that the values are correct,
+                # so we use LAMPQTZ2, but LAMPQTZ1 keyword doesn't exist, so we use LAMPNAME and hope for the best
+                return 'on'
+            else:
+                return 'off'
+
+        if meta_key == 'idname':
+            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+                    not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
+                if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
+                    return 'Object'
+                elif not headarr[0].get('HATOPEN'):
+                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
+                    return 'slitlessFlat'
+                else:
+                    return 'Line'
+            elif headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
+                    and not headarr[0].get('HATOPEN'):
+                return 'IntFlat'
+
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -310,7 +340,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno']
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
 
 
 
@@ -345,7 +375,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat')
         if ftype in ['arc', 'tilt']:
