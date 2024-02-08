@@ -274,7 +274,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             else:
                 return 'off'
 
-        if meta_key == 'idname':
+        elif meta_key == 'idname':
             if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
                     not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
