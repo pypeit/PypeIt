@@ -231,7 +231,7 @@ def h2o_lines():
         Flux of the H2O atmospheric spectrum.
     """
     msgs.info("Reading in the water atmsopheric spectrum")
-    h2o = np.loadtxt(data.get_skisim_filepath('HITRAN.txt'),
+    h2o = np.loadtxt(data.get_skisim_filepath('HITRAN.dat'),
                      usecols=(0, 1))
     h2o_wv = 1./ h2o[:,0] * 1e4 # microns
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL

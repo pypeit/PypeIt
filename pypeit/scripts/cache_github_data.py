@@ -89,7 +89,7 @@ class CacheGithubData(scriptbase.ScriptBase):
 
         # Download the currently used skisim files
         skisim_files = ['rousselot2000.dat','atm_transmission_secz1.5_1.6mm.dat',
-                        'HITRAN.txt','mktrans_zm_10_10.dat']
+                        'HITRAN.dat','mktrans_zm_10_10.dat']
         dload_skisim = [listing for listing in skisim_listing for skisim in skisim_files 
                         if skisim in listing.name]
         msgs.info("Downloading sky transmission files")

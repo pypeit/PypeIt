@@ -1,27 +1,22 @@
-include README.rst
-include LICENSE.rst
-#include CHANGES.rst
-include pyproject.toml
-include setup.cfg
 
-recursive-include pypeit *.pyx *.c *.pxd *.h
-recursive-include pypeit/data *
-recursive-include pypeit/tests *
-recursive-include docs *
-recursive-include licenses *
-recursive-include cextern *
-recursive-include scripts *
+#include CITATION.cff
+include readthdocs.yml
 
 prune build
-prune doc/_build
+prune dist
 prune deprecated
+prune doc/_build
 prune proposals
 prune presentations
 prune paper
 
 global-exclude *.pyc *.o *.so *.DS_Store
 
-# Exclude certain package data for compactness
-recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json
+recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
 recursive-exclude pypeit/data/sensfuncs *.fits
 recursive-exclude pypeit/data/skisim *.dat
+
+exclude checkout_current_tag
+exclude sphinx.readme
+exclude update_docs
+
