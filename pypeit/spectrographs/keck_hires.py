@@ -13,6 +13,7 @@ import numpy as np
 from scipy.io import readsav
 
 from astropy.table import Table
+from astropy import time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -221,7 +222,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['mjd'] = dict(card=None, compound=True)
         # This may depend on the old/new detector
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -230,7 +231,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
-        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3)
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
         self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
 #        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
@@ -258,8 +259,12 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
-
-        if meta_key == 'lampstat01':
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD', None) is not None:
+                return headarr[0]['MJD']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'lampstat01':
             if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
                 return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
             elif headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1'):
@@ -269,7 +274,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             else:
                 return 'off'
 
-        if meta_key == 'idname':
+        elif meta_key == 'idname':
             if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
                     not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
@@ -289,6 +294,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         else:
             msgs.error("Not ready for this compound meta")
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -303,7 +309,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'echangle', 'xdangle', 'binning']
+        return ['decker', 'dispname', 'filter1', 'echangle', 'xdangle', 'binning']
 
     def raw_header_cards(self):
         """
