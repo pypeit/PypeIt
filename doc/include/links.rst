@@ -95,6 +95,8 @@
 .. _astropy.stats.sigma_clipped_stats: https://docs.astropy.org/en/stable/api/astropy.stats.sigma_clipped_stats.html
 .. _astropy.units.Unit: https://docs.astropy.org/en/stable/api/astropy.units.Unit.html
 .. _astropy.units.Quantity: https://docs.astropy.org/en/stable/api/astropy.units.Quantity.html
+.. _astropy.utils.data: https://docs.astropy.org/en/stable/utils/data.html
+.. _astropy.utils.data.download_file: https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html
 
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html

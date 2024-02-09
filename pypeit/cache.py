@@ -80,6 +80,8 @@ import github
 from linetools.spectra import xspectrum1d
 import requests
 
+# NOTE: To avoid circular imports, avoid (if possible) importing anything from
+# pypeit!  msgs is the possible exception for now.
 from pypeit import msgs
 
 # AstroPy download/cache infrastructure ======================================#
@@ -91,7 +93,8 @@ def fetch_remote_file(
     force_update: bool=False,
     full_url: str=None,
 ) -> pathlib.Path:
-    """Use ``astropy.utils.data`` to fetch file from remote or cache
+    """
+    Use `astropy.utils.data`_ to fetch file from remote or cache
 
     The function ``download_file()`` will first look in the local cache (the option
     ``cache=True`` is used with this function to retrieve downloaded files from
@@ -101,25 +104,26 @@ def fetch_remote_file(
 
     Args:
         filename (str):
-          The base filename to search for
+            The base filename to search for
         filetype (str):
-          The subdirectory of ``pypeit/data/`` in which to find the file
-          (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
+            The subdirectory of ``pypeit/data/`` in which to find the file
+            (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
         remote_host (:obj:`str`, optional):
-          The remote host scheme.  Currently only 'github' and 's3_cloud' are
-          supported.  Defaults to 'github'].
+            The remote host scheme.  Currently only 'github' and 's3_cloud' are
+            supported.  Defaults to 'github'.
         install_script (:obj:`bool`, optional):
-          This function is being called from an install script (i.e.,
-          ``pypeit_install_telluric``) -- relates to warnings displayed.
-          Defaults to False.
+            This function is being called from an install script (i.e.,
+            ``pypeit_install_telluric``) -- relates to warnings displayed.
+            Defaults to False.
         force_update (:obj:`bool`, optional):
-          Force ``astropy.utils.data.download_file()`` to update the cache by
-          downloading the latest version.  Defaults to False.
+            Force `astropy.utils.data.download_file`_ to update the cache by
+            downloading the latest version.  Defaults to False.
         full_url (:obj:`str`, optional):
-          The full url (i.e., skip _build_remote_url())  Defaults to None.
+            The full url.  If None, use :func:`_build_remote_url`).  Defaults to
+            None.
 
     Returns:
-        :obj:`pathlib.Path`: The local path to the desired file in the cache
+        `pathlib.Path`_: The local path to the desired file in the cache
     """
     # In some cases, we have the full URL already, but most of the time not
     if full_url:
@@ -130,9 +134,10 @@ def fetch_remote_file(
     if remote_host == "s3_cloud" and not install_script:
         # Display a warning that this may take a while, and the user
         #   may wish to download using the `pypeit_install_telluric` script
+        # TODO: Is this only true for telluric files?
         msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
-                    f"independently from your reduction by using the{msgs.newline()}"
-                    "`pypeit_install_telluric` script.")
+                  f"independently from your reduction by using the{msgs.newline()}"
+                  "`pypeit_install_telluric` script.")
 
     # Get the file from cache, if available, or download from the remote server
     try:
@@ -187,26 +192,27 @@ def fetch_remote_file(
         msgs.error(err_msg)
 
     except TimeoutError as error:
-        msgs.error(f"Timeout Error enountered: {error}")
+        msgs.error(f"Timeout Error encountered: {error}")
 
     # If no error, return the pathlib object
     return pathlib.Path(cache_fn).resolve()
 
 
 def search_cache(pattern_str: str) -> list[pathlib.Path]:
-    """Search the cache for items matching a pattern string
+    """
+    Search the cache for items matching a pattern string
 
     This function searches the PypeIt cache for files whose URL keys contain
     the input ``pattern_str``, and returns the local filesystem path to those
     files.
 
     Args:
-        pattern_str (str):
-          The filename pattern to match
+        pattern_str (:obj:`str`):
+            The filename pattern to match
 
     Returns:
-        list: The list of local paths for the objects whose normal filenames
-        match the ``pattern_str``.
+        :obj:`list`: The list of local paths for the objects whose normal
+        filenames match the ``pattern_str``.
     """
     # Retreive a dictionary of the cache contents
     cache_dict = astropy.utils.data.cache_contents(pkgname="pypeit")
@@ -216,7 +222,8 @@ def search_cache(pattern_str: str) -> list[pathlib.Path]:
 
 
 def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_host: str="github"):
-    """Use ``astropy.utils.data`` to save local file to cache
+    """
+    Use `astropy.utils.data`_ to save local file to cache
 
     This function writes a local file to the PypeIt cache as if it came from a
     remote server.  This is useful for being able to use locally created or
@@ -224,15 +231,15 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
 
     Args:
         filename (str):
-          The filename of the local file to save
+            The filename of the local file to save
         cachename (str):
-          The name of the cached version of the file
+            The name of the cached version of the file
         filetype (str):
-          The subdirectory of ``pypeit/data/`` in which to find the file
-          (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
+            The subdirectory of ``pypeit/data/`` in which to find the file
+            (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
         remote_host (:obj:`str`, optional):
-          The remote host scheme.  Currently only 'github' and 's3_cloud' are
-          supported.  Defaults to 'github'.
+            The remote host scheme.  Currently only 'github' and 's3_cloud' are
+            supported.  Defaults to 'github'.
     """
     # Build the `url_key` as if this file were in the remote location
     url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
@@ -241,34 +248,37 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
-def _build_remote_url(f_name: str, f_type: str, remote_host: str=""):
-    """Build the remote URL for the ``astropy.utils.data`` functions
+def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
+    """
+    Build the remote URL for the `astropy.utils.data`_ functions
 
     This function keeps the URL-creation in one place.  In the event that files
     are moved from GitHub or S3_Cloud, this is the only place that would need
     to be changed.
 
-    Args:
-        f_name (str):
-          The base filename to search for
-        f_type (str):
-          The subdirectory of ``pypeit/data/`` in which to find the file
-          (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
-        remote_host (:obj:`str`, optional):
-          The remote host scheme.  Currently only 'github' and 's3_cloud' are
-          supported.  Defaults to ''.
+    Parameters
+    ----------
+    f_name : str
+        The base filename to search for
+    f_type : str
+        The subdirectory of ``pypeit/data/`` in which to find the file
+        (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
+    remote_host : :obj:`str`, optional
+        The remote host scheme.  Currently only 'github' and 's3_cloud' are
+        supported.  Defaults to None.
 
-    Returns:
-        tuple: URLs for both cache storage name and current download link:
-
-           * url (str): The URL of the ``f_name`` of ``f_type`` on server ``remote_host``
-           * sources (:obj:`list` or :obj:`None`): For 's3_cloud', the list of URLs to
-                actually try, passed to ``download_file()``, used in the event that the
-                S3 location changes.  We maintain the static URL for the name to prevent
-                re-downloading of large data files in the event the S3 location changes
-                (but the file itself is unchanged).  If None (e.g. for 'github'), then
-                ``download_file()`` is unaffected, and the ``url`` (above) is what
-                controls the download.
+    Returns
+    -------
+    url : str
+        The URL of the ``f_name`` of ``f_type`` on server ``remote_host``
+    sources : :obj:`list` or :obj:`None`
+        For 's3_cloud', the list of URLs to actually try, passed to
+        `astropy.utils.data.download_file`_, used in the event that the S3
+        location changes.  We maintain the static URL for the name to prevent
+        re-downloading large data files in the event the S3 location changes
+        (but the file itself is unchanged).  If None (e.g. for 'github'), then
+        `astropy.utils.data.download_file`_ is unaffected, and the ``url``
+        (above) is what controls the download.
     """
     if remote_host == "github":
         # Hard-wire the URL based on PypeIt Version
@@ -288,16 +298,19 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=""):
 
 
 def _get_s3_hostname() -> str:
-    """Get the current S3 hostname from the package file
+    """
+    Get the current S3 hostname from the package file
 
     Since the S3 server hostname used to hold package data such as telluric
     atmospheric grids may change periodically, we keep the current hostname
     in a separate file (s3_url.txt), and pull the current version from the
     PypeIt ``release`` branch whenever needed.
 
-    NOTE: When/if the S3 URL changes, the ``release`` branch version of
-          ``s3_url.txt`` can be updated easily with a hotfix PR, and this
-          routine will pull it.
+    .. note::
+
+        When/if the S3 URL changes, the ``release`` branch version of
+        ``s3_url.txt`` can be updated easily with a hotfix PR, and this routine
+        will pull it.
 
     If GitHub cannot be reached, the routine uses the version of ``s3_url.txt``
     included with the package distribution.

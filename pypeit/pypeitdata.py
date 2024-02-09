@@ -12,7 +12,9 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import cache
 
-
+# NOTE: A better approach may be to subclass from Path.  I briefly tried that,
+# but quickly realized it was going to be more complicated than I'd hoped.  This
+# is a clean and sufficient solution for now.
 class PypeItDataPath:
     """
     """
@@ -24,10 +26,13 @@ class PypeItDataPath:
         return self.path.glob(search_str)
 
     def __repr__(self):
-        return str(self.path)
-    
+        return f"{self.__class__.__name__}('{str(self.path)}')"
+
     def __truediv__(self, subdir):
-        return self.path / subdir
+        """
+        Instantiate a new path object that points to a subdirectory.
+        """
+        return PypeItDataPath(str((self.path / subdir).relative_to(self.data)))
 
     @staticmethod
     def check_isdir(path:pathlib.Path) -> pathlib.Path:
@@ -85,9 +90,7 @@ class PypeItDataPath:
 
 class PypeItDataPaths:
     """
-    List of hardwired paths within the pypeit.data module
-
-    Each `@property` method returns a :obj:`pathlib.Path` object
+    List of hardwired data path objects.
     """
     def __init__(self):
         # Tests

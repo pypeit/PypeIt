@@ -185,72 +185,7 @@ class Paths:
         if not path.is_dir():
             msgs.error(f"Unable to find {path}.  Check your installation.")
         return path
-    
 
-def _get_data_file_return(f, return_format):
-    if return_format:
-        return f, f.suffix.replace('.','').lower()
-    return f
-    
-
-def get_data_file(data_root, data_file, symlink_in_pkdir=False, return_format=False):
-    """
-    Test
-    """
-    _package_root = resources.files('pypeit')
-
-    # Make sure the file is a Path object
-    _data_file = pathlib.Path(data_file).resolve()
-
-    # Check if the file exists on disk, as provided 
-    if _data_file.is_file():
-        # If so, assume this points directly to the file to be read
-        return _get_data_file_return(_data_file, return_format)
-
-    # Otherwise, construct the file name given the root path:
-    _data_file = _package_root / data_root / data_file
-
-    # If the file exists, return it 
-    if _data_file.is_file():
-        # Return the full path and the file format
-        return _get_data_file_return(_data_file, return_format)
-
-    # If it does not, inform the user and download it into the cache.
-    # NOTE: This should not be required for from-source (dev) installations.
-    msgs.info(f'{data_file} does not exist in the expected package directory ({data_root}).  '
-                'Checking cache or downloading the file now.')
-
-    _cached_file = fetch_remote_file(data_file, data_root)
-
-    # If requested, create a symlink to the cached file in the package data
-    # directory
-    if symlink_in_pkgdir:
-        # Create and return values for the symlink
-        _data_file.symlink_to(_cached_file)
-        return _get_data_file_return(_data_file, return_format)
-    
-    return _get_data_file_return(_cached_file, return_format)
-
-def _get_reid_arxiv_filepath(arxiv_file):
-    return get_data_file(Paths.reid_arxiv, arxiv_file)
-
-def _get_skisim_filepath(skisim_file):
-    return get_data_file(Paths.skisim, skisim_file)
-
-def _get_sensfunc_filepath(sensfunc_file, symlink_in_pkgdir=False):
-    return get_data_file(Paths.sensfuncs, sensfunc_file, symlink_in_pkgdir=symlink_in_pkgdir)
-
-def _get_telgrid_filepath(telgrid_file):
-    return get_data_file(Paths.telgrid, telgrid_file)
-
-def _get_linelist_filepath(linelist_file):
-    return get_data_file(Paths.linelist, linelist_file)
-
-def _get_extinctfile_filepath(extinction_file):
-    return get_data_file(Paths.extinction, extinction_file)
-
-def get_test_filepath(test_file):
-    return get_data_file(Paths.tests, test_file)
 
 # Remote-fetch functions for package data not distributed via PyPI ===========#
 def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
