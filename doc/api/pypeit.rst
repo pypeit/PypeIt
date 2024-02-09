@@ -28,6 +28,7 @@ Submodules
    pypeit.alignframe
    pypeit.archive
    pypeit.bitmask
+   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d

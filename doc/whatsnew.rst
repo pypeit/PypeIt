@@ -13,6 +13,9 @@ What's New in PypeIt
 
 .. include:: releases/1.15.1dev.rst
 
+Sphinx complains because the 1.15.1dev.rst doc ends with an empty section.
+Remove this line once we include a bug fix in the above.
+
 ----
 
 .. include:: releases/1.15.0.rst
