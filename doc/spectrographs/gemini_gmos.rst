@@ -165,3 +165,50 @@ The two files provided must be located either:
  (2) the current working data, and/or
  (3) be named with the full path.
 
+Wavelength calibration
+----------------------
+
+Wavelength calibration for GMOS multi-object data is non trivial due to the
+wavelength solution changing non-trivially in the spatial direction. To
+mitigate this, one can generate manually generate wavelength archives using
+:ref:`pypeit_identify`. However, this procedure would have to be repeated for each
+setup and therefore is tedious. Alternatively, we recommend using the ``reidentify``
+method in the ``wavelengths`` section of the :ref:`pypeit_file`. This is enabled by
+generating a single fits file with all the wavelength solutions tabulated in it.
+
+The fits table should contain a single ``BinaryTable`` with the following columns:
+(1) wave: Each entry is a float array with wavelength in angstroms from the user generated wvarxiv.
+(2) flux: Each entry is an float array with the flux value from the user generated wvarxiv.
+(3) order: Each entry is 0 (int). See the ``pypeit/data/arc_lines/reid_arxiv/gemini_gmos_b600_ham_mosaic.fits`` file for an example within the PypeIt installation.
+
+If one has a set of wvarxiv solutions from :ref:`pypeit_identify`, one can use the following snippet to generate the fits file:
+
+.. code-block:: python
+
+    from astropy.io import fits
+    import numpy as np
+    from astropy.table import Table
+    import glob
+
+    # Read in the wvarxiv files
+    wavarxiv_files = glob.glob('path/to/wvarxiv/files/*.fits')
+
+    # Generate the fits file
+    wavearrays = []
+    fluxarrays = []
+    # Instead of 3134, replace with the array size in your actual wvarxiv files.
+    reid_table = Table(names=('wave', 'flux', 'order'), dtype=('(3134,)>f8', '(3134,)>f8', '>i8'))
+    for fitsfile in wavarxiv_files:
+        tab = Table.read(fitsfile)
+        reid_table.add_row([tab['wave'].data, tab['flux'].data, 0])
+
+    # Write to file
+    reid_table.write('path/to/gemini_gmos_<north/south>_ham_<grating>.fits', format='fits')
+
+To use reidentify, add the following user-level parameters to the :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            reid_arxiv = gemini_gmos_<north/south>_ham_<grating>.fits
