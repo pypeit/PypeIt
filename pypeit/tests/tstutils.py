@@ -22,18 +22,6 @@ from pypeit.inputfiles import PypeItFile
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform
 
-# Tests require the PypeIt dev-suite
-#dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
-#                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
-#                                        reason='test requires dev suite')
-
-# Tests require the Cooked data
-cooked_required = pytest.mark.skipif(
-    os.getenv('PYPEIT_DEV') is None
-    or not (pathlib.Path(os.getenv('PYPEIT_DEV')) / 'Cooked').is_dir(),
-    reason='no dev-suite cooked directory'
-)
-
 # Tests require the Telluric file (Mauna Kea)
 par = Spectrograph.default_pypeit_par()
 tell_test_grid = data.get_telgrid_filepath('TellPCA_3000_26000_R25000.fits')

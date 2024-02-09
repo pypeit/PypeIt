@@ -32,6 +32,11 @@ __coverage__ = 0.55
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
 
+# Import and instantiate the data path parser
+# NOTE: This *MUST* come after msgs is defined above
+from pypeit import pypeitdata
+dataPaths = pypeitdata.PypeItDataPaths()
+
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
 from pypeit.core.qa import close_qa

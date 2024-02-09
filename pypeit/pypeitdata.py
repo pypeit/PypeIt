@@ -1,180 +1,48 @@
 # -*- coding: utf-8 -*-
 """
-Data utilities for built-in ``PypeIt`` data files
-
-.. note::
-
-    If the hostname URL for the telluric atmospheric grids on S3 changes, the
-    only place that needs to change is the file ``s3_url.txt``.
-
-----
-
-Implementation Documentation
-----------------------------
-
-This module contains the organization scheme for the ``pypeit/data`` files
-needed by the ``PypeIt`` package.  Any routine in the package that needs to load
-a data file stored in this directory should use the paths supplied by this
-module and not call, e.g. `importlib.resources.files
-<https://docs.python.org/3/library/importlib.resources.html#importlib.resources.files>`__
-or attempt to otherwise directly access the package directory structure.  In
-this way, if structural changes to this directory are needed, only this module
-need be modified and the remainder of the package can remain ignorant of those
-changes and continue to call the paths supplied by this module.
-
-Furthermore, all paths returned by this module are :obj:`pathlib.Path` objects
-rather than pure strings, with all of the functionality therein contained.
-
-Most (by number) of the package data files here are distributed with the
-``PypeIt`` package and are accessed via the :class:`~pypeit.data.utils.Paths`
-class.  For instance, the NIR spectrophotometry for Vega is accessed via:
-
-.. code-block:: python
-
-    vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
-
-For some directories, however, the size of the included files is large enough
-that it was beginning to cause problems with distributing the package via PyPI.
-For these specific directories, the data is still stored in the GitHub
-repository but is not distributed with the PyPI package.  In order to access
-and use these files, we use the AstroPy download/cache system, and specific
-functions (``get_*_filepath()``) are required to interact with these files.
-Currently, the directories covered by the AstroPy download/cache system are:
-
-    * arc_lines/reid_arxiv
-    * skisim
-    * sensfuncs
-
-From time to time, it may be necessary to add additional files/directories to
-the AstroPy download/cache system.  In this case, there is a particular
-sequence of steps required.  The caching routines look for remote-hosted data
-files in either the ``develop`` tree or a tagged version tree (e.g., ``1.8.0``)
-of the repository, any new files must be already present in the repo before
-testing a new ``get_*_filepath()`` routine.  Order of operations is:
-
-    #. Add any new remote-hosted files to the GitHub repo via a separate PR
-       that also modifies ``MANIFEST.in`` to exclude these files from the
-       distributed package.
-
-    #. Create a new ``get_*_filepath()`` function in this module, following the
-       example of one of the existing functions.  Elsewhere in ``PypeIt``, load
-       the needed file by invoking the new ``get_*_filepath()`` function.  An
-       example of this can be found in ``pypeit/core/flux_calib.py`` where
-       ``get_skisim_filepath()`` is called to locate sky transmission files.
-
-If new package-included data are added that are not very large (total directory
-size < a few MB), it is not necessary to use the AstroPy cache/download system.
-In this case, simply add the directory path to the
-:class:`~pypeit.data.utils.Paths` class and access the enclosed files similarly
-to the Vega example above.
+Basic class used to facilitate the cache system used for data files.
 
 .. include:: ../include/links.rst
 """
 from importlib import resources
 import pathlib
-import shutil
-import urllib.error
 
-import astropy.utils.data
-import github
-from linetools.spectra import xspectrum1d
-import requests
-
-from pypeit import io
 from pypeit import msgs
-from pypeit import __version__
 
-__all__ = ['Paths', 'load_telluric_grid', 'load_thar_spec',
-           'load_sky_spectrum', 'get_reid_arxiv_filepath',
-           'get_skisim_filepath', 'get_sensfunc_filepath',
-           'get_telgrid_filepath', 'get_linelist_filepath',
-           'get_extinctfile_filepath',
-           'fetch_remote_file', 'search_cache',
-           'write_file_to_cache']
-
-
-# Package-Data Paths =========================================================#
-class Paths:
-    """List of hardwired paths within the pypeit.data module
+class PypeItDataPaths:
+    """
+    List of hardwired paths within the pypeit.data module
 
     Each `@property` method returns a :obj:`pathlib.Path` object
     """
+    def __init__(self):
+        # Determine the location of the data directory on this system
+        self.pkg = resources.files('pypeit')
+        self.data = self.check_isdir(self.pkg / 'data')
 
-    # Determine the location of the data directory on this system
-    _data = resources.files('pypeit') / 'data'
+        # Telluric
+        self.telluric = self.check_isdir(self.data / 'telluric')
+        self.telgrid  = self.check_isdir(self.telluric / 'atm_grids')
+        self.tel_model = self.check_isdir(self.telluric / 'models')
 
-    @classmethod
-    @property
-    def data(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data)
+        # Wavelength Calibrations
+        self.arclines = self.check_isdir(self.data / 'arc_lines')
+        self.reid_arxiv = self.check_isdir(self.arc_lines / 'reid_arxiv')
+        self.linelist = self.check_isdir(self.arc_lines / 'lists')
+        self.nist = self.check_isdir(self.arc_lines / 'NIST')
+        self.arc_plot = self.check_isdir(self.arc_lines / 'plots')
 
-    # Telluric Corrections
-    @classmethod
-    @property
-    def telgrid(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'telluric' / 'atm_grids')
-    @classmethod
-    @property
-    def tel_model(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'telluric' / 'models')
+        # Flux Calibrations
+        self.standards = self.check_isdir(self.data / 'standards')
+        self.extinction = self.check_isdir(self.data / 'extinction')
+        self.skisim = self.check_isdir(self.data / 'skisim')
+        self.filters = self.check_isdir(self.data / 'filters')
+        self.sensfuncs = self.check_isdir(self.data / 'sensfuncs')
 
-    # Wavelength Calibrations
-    @classmethod
-    @property
-    def arclines(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'arc_lines')
-    @classmethod
-    @property
-    def reid_arxiv(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'arc_lines' / 'reid_arxiv')
-    @classmethod
-    @property
-    def linelist(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'arc_lines' / 'lists')
-    @classmethod
-    @property
-    def nist(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'arc_lines' / 'NIST')
-    @classmethod
-    @property
-    def arc_plot(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'arc_lines' /'plots')
-
-    # Flux Calibrations
-    @classmethod
-    @property
-    def standards(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'standards')
-    @classmethod
-    @property
-    def extinction(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'extinction')
-    @classmethod
-    @property
-    def skisim(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'skisim')
-    @classmethod
-    @property
-    def filters(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'filters')
-    @classmethod
-    @property
-    def sensfuncs(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'sensfuncs')
-
-    # Other
-    @classmethod
-    @property
-    def sky_spec(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'sky_spec')
-    @classmethod
-    @property
-    def static_calibs(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'static_calibs')
-    @classmethod
-    @property
-    def spectrographs(cls) -> pathlib.Path:
-        return cls.check_isdir(cls._data / 'spectrographs')
+        # Other
+        self.sky_spec = self.check_isdir(self.data / 'sky_spec')
+        self.static_calibs = self.check_isdir(self.data / 'static_calibs')
+        self.spectrographs = self.check_isdir(self.data / 'spectrographs')
 
     @staticmethod
     def check_isdir(path:pathlib.Path) -> pathlib.Path:
@@ -186,50 +54,49 @@ class Paths:
             msgs.error(f"Unable to find {path}.  Check your installation.")
         return path
     
+    @staticmethod
+    def _get_file_path_return(f, return_format):
+        if return_format:
+            return f, f.suffix.replace('.','').lower()
+        return f
 
-def _get_data_file_return(f, return_format):
-    if return_format:
-        return f, f.suffix.replace('.','').lower()
-    return f
+    def get_file_path(self, data_root, data_file, symlink_in_pkdir=False, return_format=False):
+        """
+        Test
+        """
+        _package_root = resources.files('pypeit')
+
+        # Make sure the file is a Path object
+        _data_file = pathlib.Path(data_file).resolve()
+
+        # Check if the file exists on disk, as provided 
+        if _data_file.is_file():
+            # If so, assume this points directly to the file to be read
+            return _get_file_path_return(_data_file, return_format)
+
+        # Otherwise, construct the file name given the root path:
+        _data_file = _package_root / data_root / data_file
+
+        # If the file exists, return it 
+        if _data_file.is_file():
+            # Return the full path and the file format
+            return _get_file_path_return(_data_file, return_format)
+
+        # If it does not, inform the user and download it into the cache.
+        # NOTE: This should not be required for from-source (dev) installations.
+        msgs.info(f'{data_file} does not exist in the expected package directory ({data_root}).  '
+                    'Checking cache or downloading the file now.')
+
+        _cached_file = fetch_remote_file(data_file, data_root)
+
+        # If requested, create a symlink to the cached file in the package data
+        # directory
+        if symlink_in_pkgdir:
+            # Create and return values for the symlink
+            _data_file.symlink_to(_cached_file)
+            return _get_file_path_return(_data_file, return_format)
     
-
-def get_data_file(data_root, data_file, symlink_in_pkdir=False, return_format=False):
-    """
-    Test
-    """
-    _package_root = resources.files('pypeit')
-
-    # Make sure the file is a Path object
-    _data_file = pathlib.Path(data_file).resolve()
-
-    # Check if the file exists on disk, as provided 
-    if _data_file.is_file():
-        # If so, assume this points directly to the file to be read
-        return _get_data_file_return(_data_file, return_format)
-
-    # Otherwise, construct the file name given the root path:
-    _data_file = _package_root / data_root / data_file
-
-    # If the file exists, return it 
-    if _data_file.is_file():
-        # Return the full path and the file format
-        return _get_data_file_return(_data_file, return_format)
-
-    # If it does not, inform the user and download it into the cache.
-    # NOTE: This should not be required for from-source (dev) installations.
-    msgs.info(f'{data_file} does not exist in the expected package directory ({data_root}).  '
-                'Checking cache or downloading the file now.')
-
-    _cached_file = fetch_remote_file(data_file, data_root)
-
-    # If requested, create a symlink to the cached file in the package data
-    # directory
-    if symlink_in_pkgdir:
-        # Create and return values for the symlink
-        _data_file.symlink_to(_cached_file)
-        return _get_data_file_return(_data_file, return_format)
-    
-    return _get_data_file_return(_cached_file, return_format)
+        return _get_file_path_return(_cached_file, return_format)
 
 def _get_reid_arxiv_filepath(arxiv_file):
     return get_data_file(Paths.reid_arxiv, arxiv_file)
