@@ -25,8 +25,6 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
-from pypeit import par
-#from pypeit import inputfiles
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
