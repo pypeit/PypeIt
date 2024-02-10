@@ -822,10 +822,22 @@ class FlatField:
         gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
 
         # Flat-field modeling is done in the log of the counts
+        # log of the flat
         flat_log = np.log(np.fmax(rawflat, 1.0))
-        gpm_log = (rawflat > 1.0) & gpm
-        # set errors to just be 0.5 in the log
+        # good pixel mask in the log
+        gpm_log = rawflat > 1.0
+        # log of ivar (real ivar of the rawflat image)
+        # set errors to just be 0.5 in the log if not gpm_log
         ivar_log = gpm_log.astype(float)/0.5**2
+        # get rawflat sigma
+        rawflat_sigma = np.sqrt(utils.inverse(self.rawflatimg.ivar))
+        # convert it to the log
+        sigma_log = np.ones(rawflat.shape, dtype=float)
+        sigma_log[gpm_log] = rawflat_sigma[gpm_log] / rawflat[gpm_log]
+        # convert it to the log of the ivar
+        ivar_log[gpm_log] = utils.inverse(sigma_log[gpm_log] ** 2)
+        # combine the gpm in the log with the original gpm
+        gpm_log &= gpm
 
         # Get the non-linear count level
         # TODO: This is currently hacked to deal with Mosaics
@@ -1299,6 +1311,12 @@ class FlatField:
         trimmed_slitid_img_new = self.slits.slit_img(pad=-trim, initial=False)
         tweaked_slitid_img = self.slits.slit_img(initial=False)
         self.mspixelflat[(trimmed_slitid_img_new < 0) & (tweaked_slitid_img > 0)] = 1.0
+
+        # set bpm pixels to 1
+        twod_bpm = np.logical_not(twod_gpm_out)
+        self.mspixelflat[twod_bpm] = 1.0
+        self.msillumflat[twod_bpm] = 1.0
+        self.flat_model[twod_bpm] = 1.0
 
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
