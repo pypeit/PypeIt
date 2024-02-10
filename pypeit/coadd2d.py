@@ -420,13 +420,14 @@ class CoAdd2D:
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
         # bpm for the first frame
-        reduce_bpm = (slits0.mask > 0) & (np.invert(slits0.bitmask.flagged(slits0.mask,
-                                                                           flag=slits0.bitmask.exclude_for_reducing)))
+
+        reduce_bpm = slits0.bitmask.flagged(slits0.mask,
+                                            and_not=slits0.bitmask.exclude_for_reducing)
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                              flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= slits.bitmask.flagged(slits.mask,
+                                                and_not=slits.bitmask.exclude_for_reducing)
         # these are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
@@ -474,39 +475,44 @@ class CoAdd2D:
         Parameters
         ----------
         slitorderid : :obj:`int`
-           The slit or order id that has the brightest object whose
-           S/N will be used to determine the weight for each frame.
+            The slit or order id that has the brightest object whose
+            S/N will be used to determine the weight for each frame.
         objid : `numpy.ndarray`_
-           Array of object indices with shape = (nexp,) of the
-           brightest object whose S/N will be used to determine the
-           weight for each frame.
-        weight_method: (`str`, optional)
-           Weight method to be used in `coadd.sn_weights`. Default is 'auto'.
-           Options are 'auto', 'constant', 'relative', or 'ivar'. The defaulti is'auto'.
-           Behavior is as follows:
-             'auto':
-                Use constant weights if rms_sn < 3.0, otherwise use wavelength dependent.
-             'constant':
-                Constant weights based on rms_sn**2
-             'uniform':
-               Uniform weighting.
-             'wave_dependent':
-               Wavelength dependent weights will be used irrespective of the rms_sn ratio. This option
-               will not work well at low S/N ratio although it is useful for objects where only a small
-               fraction of the spectral coverage has high S/N ratio (like high-z quasars).
-             'relative':
-               Calculate weights by fitting to the ratio of spectra? Note, relative
-               weighting will only work well when there is at least one spectrum with a
-               reasonable S/N, and a continuum.  RJC note - This argument may only be
-               better when the object being used has a strong continuum + emission
-               lines. The reference spectrum is assigned a value of 1 for all
-               wavelengths, and the weights of all other spectra will be determined
-               relative to the reference spectrum. This is particularly useful if you
-               are dealing with highly variable spectra (e.g. emission lines) and
-               require a precision better than ~1 per cent.
-             'ivar':
-               Use inverse variance weighting. This is not well tested and should probably be deprecated.
+            Array of object indices with shape = (nexp,) of the
+            brightest object whose S/N will be used to determine the
+            weight for each frame.
+        weight_method : `str`, optional
+            Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
+            Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+            ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
 
+                - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
+                  use wavelength dependent.
+
+                - ``'constant'``: Constant weights based on rms_sn**2
+
+                - ``'uniform'``: Uniform weighting.
+
+                - ``'wave_dependent'``: Wavelength dependent weights will be
+                  used irrespective of the rms_sn ratio. This option will not
+                  work well at low S/N ratio although it is useful for objects
+                  where only a small fraction of the spectral coverage has high
+                  S/N ratio (like high-z quasars).
+
+                - ``'relative'``: Calculate weights by fitting to the ratio of
+                  spectra? Note, relative weighting will only work well when
+                  there is at least one spectrum with a reasonable S/N, and a
+                  continuum.  RJC note - This argument may only be better when
+                  the object being used has a strong continuum + emission lines.
+                  The reference spectrum is assigned a value of 1 for all
+                  wavelengths, and the weights of all other spectra will be
+                  determined relative to the reference spectrum. This is
+                  particularly useful if you are dealing with highly variable
+                  spectra (e.g. emission lines) and require a precision better
+                  than ~1 per cent.
+
+                - ``'ivar'``: Use inverse variance weighting. This is not well
+                  tested and should probably be deprecated.
 
         Returns
         -------
@@ -813,8 +819,6 @@ class CoAdd2D:
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
-        #pseudo_reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-        #                                                                 flag=slits.bitmask.exclude_for_reducing)))
 
         # Initiate FindObjects object
         objFind = find_objects.FindObjects.get_instance(sciImage, pseudo_dict['slits'], self.spectrograph, parcopy,

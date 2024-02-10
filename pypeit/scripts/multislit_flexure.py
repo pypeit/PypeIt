@@ -95,12 +95,12 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
         return parser
 
     @staticmethod
-    def main(pargs):
+    def main(args):
 
         from astropy.io import fits
 
         # Load the file
-        flexFile = inputfiles.FlexureFile.from_file(pargs.flex_file)
+        flexFile = inputfiles.FlexureFile.from_file(args.flex_file)
 
         # Read in spectrograph from spec1dfile header
         header = fits.getheader(flexFile.filenames[0])
@@ -141,8 +141,7 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
 
             # Write
             msgs.info("Write to disk")
-            mdFlex.to_file(pargs.outroot+root+'.fits',
-                           overwrite=pargs.clobber)
+            mdFlex.to_file(args.outroot+root+'.fits', overwrite=args.clobber)
 
             # Apply??
 

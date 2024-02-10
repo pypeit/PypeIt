@@ -254,20 +254,20 @@ class SlitMask:
     @property
     def alignment_slit(self):
         """Boolean array selecting the alignment slits."""
-        return self.bitmask.flagged(self.mask, 'ALIGN')
+        return self.bitmask.flagged(self.mask, flag='ALIGN')
 
     def is_alignment(self, i):
         """Check if specific slit is an alignment slit."""
-        return self.bitmask.flagged(self.mask[i], 'ALIGN')
+        return self.bitmask.flagged(self.mask[i], flag='ALIGN')
 
     @property
     def science_slit(self):
         """Boolean array selecting the slits with science targets."""
-        return self.bitmask.flagged(self.mask, 'SCIENCE')
+        return self.bitmask.flagged(self.mask, flag='SCIENCE')
 
     def is_science(self, i):
         """Check if specific slit should have a science target."""
-        return self.bitmask.flagged(self.mask[i], 'SCIENCE')
+        return self.bitmask.flagged(self.mask[i], flag='SCIENCE')
 
 
 class SlitRegister:
