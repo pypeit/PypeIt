@@ -268,6 +268,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         # Set the user-defined width
         wid = boxcar_width/np.sqrt(arcsecSQ)
     # Set the width of the extraction boxcar for the sky determination
+    msgs.info("Using a boxcar width of {:0.2f} arcsec".format(wid*np.sqrt(arcsecSQ)))
     widsky = 2 * wid
 
     # Setup the coordinates of the mask
@@ -385,7 +386,9 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
                             sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
 
-    # Fudge factor to include the fluxed extraction in the specobjs object
+    # Note that extract.extract_optimal() stores the optimal extraction in the
+    # sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG, and sobj.OPT_COUNTS_IVAR attributes.
+    # We need to store the fluxed extraction into the FLAM attributes (a slight fudge).
     if fluxed:
         sobj.OPT_FLAM = sobj.OPT_COUNTS
         sobj.OPT_FLAM_SIG = sobj.OPT_COUNTS_SIG
