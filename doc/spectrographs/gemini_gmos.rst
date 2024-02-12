@@ -169,12 +169,11 @@ Wavelength calibration
 ----------------------
 
 Wavelength calibration for GMOS multi-object data is non trivial due to the
-wavelength solution changing non-trivially in the spatial direction. To
-mitigate this, one can generate manually generate wavelength archives using
+wavelength solution changing non-linearly as a function of the location of the slit
+on the detector. To
+mitigate this, one can manually generate wavelength archives using
 :ref:`pypeit_identify`. However, this procedure would have to be repeated for each
-setup and therefore is tedious. Alternatively, we recommend using the ``reidentify``
-method in the ``wavelengths`` section of the :ref:`pypeit_file`. This is enabled by
-generating a single fits file with all the wavelength solutions tabulated in it.
+setup and sometimes for multiple slits per setup. To reduce tis tedium, we recommend using the ``reidentify`` method in the ``wavelengths`` section of the :ref:`pypeit_file`. This is possible through a compilation of all currently available wavelength solutions tabulated in it.
 
 The fits table should contain a single ``BinaryTable`` with the following columns:
 (1) wave: Each entry is a float array with wavelength in angstroms from the user generated wvarxiv.
@@ -212,3 +211,7 @@ To use reidentify, add the following user-level parameters to the :ref:`pypeit_f
     [calibrations]
         [[wavelengths]]
             reid_arxiv = gemini_gmos_<north/south>_ham_<grating>.fits
+
+Currently, this method is only supported for the B600 grating on GMOS-S. If you have MOS data with a different grating, please consider compiling your wvarxiv solutions as described above to expand this feature for other users. Please submit a pull request (or contact the PypeIt team) to the PypeIt repository with the fits file.
+
+"""
