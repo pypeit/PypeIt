@@ -250,7 +250,8 @@ class DataCube(datamodel.DataContainer):
         # Extract the spectrum
         fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
 
-        exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
+        # exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
+        exptime = 1.0  # All DataCubes are stored in counts/second
         # TODO :: Avoid transposing these large cubes
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
                                                exptime=exptime, pypeline=self.spectrograph.pypeline,
