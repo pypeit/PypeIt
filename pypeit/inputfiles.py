@@ -727,6 +727,16 @@ class SensFile(InputFile):
     datablock_required = False
     setup_required = False
 
+
+class ExtractFile(InputFile):
+    """Child class for the Extraction input file
+    """
+    data_block = 'extract'  # Defines naming of data block
+    flavor = 'Extract'  # Defines naming of file
+    setup_required = False
+    datablock_required = False
+
+
 class FluxFile(InputFile):
     """Child class for the Fluxing input file
     """
@@ -957,7 +967,7 @@ class Coadd3DFile(InputFile):
         if scale_corr is None:
             opts['scale_corr'] = [None]*len(self.filenames)
         elif len(scale_corr) == 1 and len(self.filenames) > 1:
-            opts['scale_corr'] = scale_corr.lower()*len(self.filenames)  # TODO :: Why is this .lower()?
+            opts['scale_corr'] = scale_corr*len(self.filenames)
         elif len(scale_corr) != 0:
             opts['scale_corr'] = scale_corr
 
