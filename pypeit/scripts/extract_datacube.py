@@ -16,11 +16,10 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        # TODO :: May consider adding another optional file that allows the user to pass in some extract parameters?
         parser = super().get_parser(description='Read in a datacube, extract a spectrum of a point source,'
                                                 'and save it as a spec1d file.', width=width)
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
-        parser.add_argument("-s", "--ext_file", type=str,
+        parser.add_argument("-e", "--ext_file", type=str,
                             help='Configuration file with extraction parameters')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
