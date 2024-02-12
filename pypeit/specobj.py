@@ -486,7 +486,7 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
-    #      It is, right? Can this be TODO be removed?
+    #      It is, right? Can this TODO be removed?
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None,
                          extrap_sens=False):
