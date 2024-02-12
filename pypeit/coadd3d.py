@@ -249,17 +249,19 @@ class DataCube(datamodel.DataContainer):
         Parameters
         ----------
         parset : dict
-            A dictionary containing the parameters for the extraction.
+            A dictionary containing the 'Reduce' PypeItPar parameters.
         overwrite : bool, optional
             Overwrite any existing files
         """
         # Extract the spectrum
-        # TODO :: Avoid transposing these large cubes
-        # TODO :: Pass in the extraction parset parameters here
+        fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
+
         exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
+        # TODO :: Avoid transposing these large cubes
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
                                                exptime=exptime, pypeline=self.spectrograph.pypeline,
-                                               fluxed=self.fluxed)
+                                               fluxed=self.fluxed, boxcar_width=parset['extraction']['boxcar_radius'],
+                                               optfwhm=fwhm)
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')

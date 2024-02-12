@@ -191,7 +191,8 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
 
 
 def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
-                          subpixel=20, pypeline="SlicerIFU", fluxed=False):
+                          subpixel=20, boxcar_width=None, optfwhm=None,
+                          pypeline="SlicerIFU", fluxed=False):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -211,6 +212,11 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         Exposure time listed in the header of the datacube
     subpixel : int, optional
         Number of pixels to subpixelate spectrum when creating mask
+    boxcar_width : float, optional
+        Width of the boxcar (in arcseconds) to use for the extraction
+    optfwhm : float, optional
+        FWHM of the PSF in pixels that is used to generate a Gaussian profile
+        for the optimal extraction.
     pypeline : str, optional
         PypeIt pipeline used to reduce the datacube
     fluxed : bool, optional
@@ -249,11 +255,18 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     _varcube = utils.inverse(_ivarcube)
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
-    msgs.info("Making whitelight image")
+    msgs.info("Making white light image")
     # TODO :: Probably should set minimum and maximum wavelength to use for whitelight image
     wl_img = make_whitelight_fromcube(_flxcube)
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
-    wid = max(popt[3], popt[4])
+    if boxcar_width is None:
+        nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
+        wid = nsig * max(popt[3], popt[4])
+    else:
+        # Set the user-defined width
+        wid = boxcar_width/np.sqrt(arcsecSQ)
+    # Set the width of the extraction boxcar for the sky determination
+    widsky = 2 * wid
 
     # Setup the coordinates of the mask
     x = np.linspace(0, numxx - 1, numxx * subpixel)
@@ -264,8 +277,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     msgs.info("Generating an object mask")
     newshape = (numxx * subpixel, numyy * subpixel)
     mask = np.zeros(newshape)
-    nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
-    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
+    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < wid))
     mask[ww] = 1
     mask = utils.rebinND(mask, (numxx, numyy)).reshape(numxx, numyy, 1)
 
@@ -273,10 +285,10 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     msgs.info("Generating a sky mask")
     newshape = (numxx * subpixel, numyy * subpixel)
     smask = np.zeros(newshape)
-    nsig = 8  # 8 sigma should be far enough
-    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
+    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < widsky))
     smask[ww] = 1
     smask = utils.rebinND(smask, (numxx, numyy)).reshape(numxx, numyy, 1)
+    # Subtract off the object mask region, so that we just have an annulus around the object
     smask -= mask
 
     msgs.info("Subtracting the residual sky")
@@ -307,7 +319,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
 
     # Store the BOXCAR extraction information
-    sobj.BOX_RADIUS = wid
+    sobj.BOX_RADIUS = wid  # Size of boxcar radius in pixels
     sobj.BOX_WAVE = wave.astype(float)
     if fluxed:
         sobj.BOX_FLAM = box_flux
@@ -324,22 +336,38 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     # Now do the OPTIMAL extraction
     msgs.info("Extracting an optimal spectrum of datacube")
     # First, we need to rearrange the datacube and inverse variance cube into a 2D array.
-    # The 3D -> 2D conversion is done so that there is a spectral and spatial dimension online,
+    # The 3D -> 2D conversion is done so that there is a spectral and spatial dimension,
     # and the brightest white light pixel is transformed to be at the centre column of the 2D
     # array. Then, the second brightest white light pixel is transformed to be next to the centre
     # column of the 2D array, and so on. This is done so that the optimal extraction algorithm
     # can be applied.
-    wl_img_masked = wl_img# * mask[:,:,0]
+    optkern = wl_img
+    if optfwhm is not None:
+        msgs.info("Generating a 2D Gaussian kernel for the optimal extraction, with FWHM = {:.2f} pixels".format(optfwhm))
+        x = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+        y = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
+        xx, yy = np.meshgrid(x, y, indexing='ij')
+        # Generate a Gaussian kernel
+        intflux = 1
+        xo, yo = popt[1], popt[2]
+        fwhm2sigma = 1.0 / (2 * np.sqrt(2 * np.log(2)))
+        sigma_x, sigma_y = optfwhm*fwhm2sigma, optfwhm*fwhm2sigma
+        theta, offset, = 0.0, 0.0
+        optkern = gaussian2D((xx, yy), intflux, xo, yo, sigma_x, sigma_y, theta, offset).reshape(wl_img.shape)
+        # Normalise the kernel
+        optkern /= np.sum(optkern)
+
+    optkern_masked = optkern# * mask[:,:,0]
     # Normalise the white light image
-    wl_img_masked /= np.sum(wl_img_masked)
-    asrt = np.argsort(wl_img_masked, axis=None)
+    optkern_masked /= np.sum(optkern_masked)
+    asrt = np.argsort(optkern_masked, axis=None)
     tmp = asrt.reshape((asrt.size//2,2))
     objprof_idx = np.append(tmp[:,0], tmp[::-1,1])
-    objprof = wl_img_masked[np.unravel_index(objprof_idx, wl_img.shape)]
+    objprof = optkern_masked[np.unravel_index(objprof_idx, optkern.shape)]
 
     # Now slice the datacube and inverse variance cube into a 2D array
     spat, spec = np.meshgrid(objprof_idx, np.arange(numwave), indexing='ij')
-    spatspl = np.apply_along_axis(np.unravel_index, 1, spat, wl_img.shape)
+    spatspl = np.apply_along_axis(np.unravel_index, 1, spat, optkern.shape)
     # Now slice the datacube and corresponding cubes/vectors into a series of 2D arrays
     numspat = objprof_idx.size
     flxslice = (spatspl[:,0,:], spatspl[:,1,:], spec)
@@ -352,7 +380,6 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     thismask = np.ones_like(flxcube2d, dtype=bool)
 
     # Now do the optimal extraction
-    # TODO :: Perhaps add support for pypeitpar extraction parameters
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
                             sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
 

@@ -10,7 +10,7 @@ DataCube, and use it to flux calibrate the science DataCubes.
 .. include:: ../include/links.rst
 """
 from pypeit.scripts import scriptbase
-
+from IPython import embed
 
 class ExtractDataCube(scriptbase.ScriptBase):
 
@@ -20,6 +20,8 @@ class ExtractDataCube(scriptbase.ScriptBase):
         parser = super().get_parser(description='Read in a datacube, extract a spectrum of a point source,'
                                                 'and save it as a spec1d file.', width=width)
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
+        parser.add_argument("-s", "--ext_file", type=str,
+                            help='Configuration file with extraction parameters')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -44,12 +46,14 @@ class ExtractDataCube(scriptbase.ScriptBase):
         # Check that a file has been provided
         if args.file is None:
             msgs.error('You must input a spec3d (i.e. PypeIt DataCube) fits file')
+        extcube = DataCube.from_file(args.file)
+        spectrograph = load_spectrograph(extcube.PYP_SPEC)
 
-        # TODO :: May consider adding another optional file that allows the user to pass in some extract parameters?
-        if False:
+        if args.ext_file is None:
+            parset = spectrograph.default_pypeit_par()
+        else:
             # Read in the relevant information from the .extract file
-            ext3dfile = inputfiles.ExtractFile.from_file(args.file)
-            spectrograph = load_spectrograph(ext3dfile.config['rdx']['spectrograph'])
+            ext3dfile = inputfiles.ExtractFile.from_file(args.ext_file)
 
             # Parameters
             spectrograph_def_par = spectrograph.default_pypeit_par()
@@ -58,11 +62,9 @@ class ExtractDataCube(scriptbase.ScriptBase):
 
         # Load the DataCube
         tstart = time.time()
-        extcube = DataCube.from_file(args.file)
 
         # Extract the spectrum
-        # extcube.extract_spec(parset['reduce']['extraction'], overwrite=args.overwrite)
-        extcube.extract_spec(None, overwrite=args.overwrite)
+        extcube.extract_spec(parset['reduce'], overwrite=args.overwrite)
 
         # Report the extraction time
         msgs.info(utils.get_time_string(time.time()-tstart))
