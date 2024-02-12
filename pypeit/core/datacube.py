@@ -191,7 +191,7 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
 
 
 def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
-                          subpixel=20, boxcar_width=None, optfwhm=None,
+                          subpixel=20, boxcar_width=None, optfwhm=None, whitelight_range=None,
                           pypeline="SlicerIFU", fluxed=False):
     """
     Extract a spectrum of a standard star from a datacube
@@ -227,6 +227,9 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     sobjs : `pypeit.specobjs.SpecObjs`_
         SpecObjs object containing the extracted spectrum
     """
+    if whitelight_range is None:
+        whitelight_range = [np.min(wave), np.max(wave)]
+
     # Generate a spec1d object to hold the extracted spectrum
     msgs.info("Initialising a PypeIt SpecObj spec1d file")
     sobj = specobj.SpecObj(pypeline, "DET01", SLITID=0)
@@ -256,8 +259,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     msgs.info("Making white light image")
-    # TODO :: Probably should set minimum and maximum wavelength to use for whitelight image
-    wl_img = make_whitelight_fromcube(_flxcube)
+    wl_img = make_whitelight_fromcube(_flxcube, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
     if boxcar_width is None:
         nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)

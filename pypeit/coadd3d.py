@@ -22,12 +22,6 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
 
-# REMOVE THIS TODOLIST BEFORE PR MERGING
-#TODO :: tweaked edges (this needs a different algorithm than what is currently implemented)
-#     :: non-linearity correction
-#     :: incorporate flat products into spec2d files
-#     :: specc1d extractions from datacubes
-
 
 class DataCube(datamodel.DataContainer):
     """
@@ -261,7 +255,7 @@ class DataCube(datamodel.DataContainer):
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
                                                exptime=exptime, pypeline=self.spectrograph.pypeline,
                                                fluxed=self.fluxed, boxcar_width=parset['extraction']['boxcar_radius'],
-                                               optfwhm=fwhm)
+                                               optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
 
         # Save the extracted spectrum
         spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
@@ -1148,7 +1142,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Compute the extinction correction
             msgs.info("Applying extinction correction")
-            # TODO :: Should the extinct_file be part of the IR algorithm?
+            # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
             extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
                                                       self.spec.telescope['latitude'],
                                                       self.senspar['UVIS']['extinct_file'])
@@ -1175,8 +1169,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
                 # Load the sensitivity function
-                # TODO :: reinstate this chk_version once Kyle's PR is merged
-                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=True)#self.par['rdx']['chk_version'])
+                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
                 # Interpolate the sensitivity function onto the wavelength grid of the data
                 sens_factor = flux_calib.get_sensfunc_factor(
                     wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=cd_wv,
