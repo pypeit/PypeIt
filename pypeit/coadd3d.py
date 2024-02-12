@@ -165,9 +165,12 @@ class DataCube(datamodel.DataContainer):
             subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
         else:
             subheader = {}
-        # Add em in
+        # Add them in
         for key in subheader:
             primary_hdr[key] = subheader[key]
+        # Set the exposure time to 1, since datacubes are counts/second.
+        # This is needed for the sensitivity function calculation
+        primary_hdr['EXPTIME'] = 1.0
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
@@ -250,8 +253,10 @@ class DataCube(datamodel.DataContainer):
         # Extract the spectrum
         fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
 
-        # exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
-        exptime = 1.0  # All DataCubes are stored in counts/second
+        exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
+        if exptime != 1.0:
+            msgs.error("The exposure time is not 1.0, which is required for the datacube extraction.")
+
         # TODO :: Avoid transposing these large cubes
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
                                                exptime=exptime, pypeline=self.spectrograph.pypeline,
@@ -1011,7 +1016,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Load all spec2d files and prepare the data for making a datacube
         for ff, fil in enumerate(self.spec2d):
             # Load it up
-            msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
+            msgs.info(f"Loading PypeIt spec2d frame ({ff+1}/{len(self.spec2d)}):" + msgs.newline() + fil)
             spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
                                                       chk_version=self.chk_version)
             detector = spec2DObj.detector

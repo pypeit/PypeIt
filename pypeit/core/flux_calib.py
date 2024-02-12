@@ -798,9 +798,15 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
     if delta_wave is not None:
         # Check that the delta_wave is the same size as the wave vector
-        if wave.size != delta_wave.size:
-            msgs.error('The wavelength vector and delta_wave vector must be the same size')
-        _delta_wave = delta_wave
+        if isinstance(delta_wave, float):
+            _delta_wave = delta_wave
+        elif isinstance(delta_wave, np.ndarray):
+            if wave.size != delta_wave.size:
+                msgs.error('The wavelength vector and delta_wave vector must be the same size')
+            _delta_wave = delta_wave
+        else:
+            msgs.warn('Invalid type for delta_wave - using a default value')
+            _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
     else:
         # If delta_wave is not passed in, then we will use the native wavelength sampling of the spectrum
         _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
