@@ -6,7 +6,7 @@ Script to install quick-look calibration files into the user's pypeit installati
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import data
+from pypeit.pypeitdata import PypeItDataPath
 
 
 class InstallQLCalibs(scriptbase.ScriptBase):
@@ -70,7 +70,7 @@ class InstallQLCalibs(scriptbase.ScriptBase):
 
         # Create a symlink to the QL_CALIB directory in the pypeit/data
         # directory.
-        create_symlink(ql_dir, data.Paths.data, overwrite=True)
+        create_symlink(ql_dir, PypeItDataPath._data, overwrite=True)
 
         # Remove the zip file if the user requested
         if args.rmzip:

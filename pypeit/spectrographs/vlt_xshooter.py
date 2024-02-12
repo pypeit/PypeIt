@@ -484,12 +484,15 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = data.Paths.static_calibs / 'vlt_xshoooter'
+            # Creates another PypeItDataPath object
+            vlt_sc = dataPaths.static_calibs / 'vlt_xshoooter'
             try :
-                bpm_loc = np.loadtxt(bpm_dir / 'BP_MAP_RP_NIR.dat', usecols=(0,1))
+                bpm_loc = np.loadtxt(vlt_sc.get_file_path('BP_MAP_RP_NIR.dat'), usecols=(0,1))
             except IOError :
+                # TODO: Do we need this anymore?  Both the *.dat and *.fits.gz
+                # files are present in the repo.
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = io.fits_open(bpm_dir / 'BP_MAP_RP_NIR.fits.gz')
+                bpm_fits = io.fits_open(vlt_sc.get_file_path('BP_MAP_RP_NIR.fits.gz'))
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -505,7 +508,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
                 y_bpm, x_bpm = np.where(filt_bpm)
                 bpm_loc = np.array([y_bpm,x_bpm]).T
-                np.savetxt(bpm_dir / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
+                # NOTE: This directly access the path, but we shouldn't be doing that...
+                np.savetxt(vlt_sc.path / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
                 bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 

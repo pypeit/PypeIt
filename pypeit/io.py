@@ -24,8 +24,6 @@ import numpy
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
-
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
 import scipy
@@ -33,6 +31,11 @@ import astropy
 import sklearn
 import pypeit
 import time
+
+from linetools.spectra import xspectrum1d
+
+from pypeit import msgs
+from pypeit import dataPaths
 
 # TODO -- Move this module to core/
 
@@ -921,3 +924,69 @@ def load_object(module, obj=None):
         spec.loader.exec_module(Module)
 
     return getattr(Module, obj)
+
+
+def load_telluric_grid(filename: str):
+    """
+    Load a telluric atmospheric grid from the PypeIt data directory.
+
+    Args:
+        filename (:obj:`str`):
+            The filename (NO PATH) of the telluric atmospheric grid to use.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: Telluric Grid FITS HDU list
+    """
+    # Check for existence of file parameter
+    # TODO: Do we need this check?
+    if not isinstance(filename, str) or len(filename) == 0:
+        msgs.error("No file specified for telluric correction.  "
+                   "See https://pypeit.readthedocs.io/en/latest/telluric.html")
+
+    # Get the data path for the filename, whether in the package directory or cache
+    file_with_path = dataPaths.telgrid.get_file_path(filename)
+
+    # Check for existance of file
+    # NOTE: With the use of `PypeItDataPath.get_file_path`, this should never fault
+    if not file_with_path.is_file():
+        msgs.error(f"File {file_with_path} is not on your disk.  "
+                   "You likely need to download the Telluric files.  "
+                   "See https://pypeit.readthedocs.io/en/release/installing.html"
+                   "#atmospheric-model-grids")
+
+    return fits_open(file_with_path)
+
+
+def load_thar_spec():
+    """
+    Load the archived ThAr spectrum from the PypeIt data directory.
+
+    The spectrum read is *always*
+    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
+    """
+    return fits_open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
+
+
+def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
+    """
+    Load a sky spectrum from the PypeIt data directory into an XSpectrum1D
+    object.
+
+    .. todo::
+
+        Try to eliminate the XSpectrum1D dependancy
+
+    Args:
+        sky_file (:obj:`str`):
+            The filename (NO PATH) of the sky file to use.
+
+    Returns:
+        `linetools.spectra.xspectrum1d.XSpectrum1D`_: Sky spectrum
+    """
+    path = dataPaths.sky_spec.get_file_path(sky_file)
+    return xspectrum1d.XSpectrum1D.from_file(str(path))
+
+

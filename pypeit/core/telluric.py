@@ -16,14 +16,14 @@ import scipy.special
 from astropy import table
 from astropy.io import fits
 
+from pypeit import msgs
+from pypeit import io
 from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import fitting
-from pypeit import data
 from pypeit import specobjs
 from pypeit import utils
-from pypeit import msgs
 from pypeit import onespec
 
 from pypeit.spectrographs.util import load_spectrograph
@@ -64,8 +64,8 @@ def qso_init_pca(filename,wave_grid,redshift,npca):
     # The relevant pieces are the wavelengths (wave_pca_c), the PCA components (pca_comp_c),
     # and the Gaussian mixture model prior (mix_fit)
 
-    # The PCA file location is provided by data.Paths.tel_model
-    file_with_path = data.Paths.tel_model / filename
+    # The PCA file location is provided by dataPaths.tel_model
+    file_with_path = dataPaths.tel_model.get_file_path(filename)
 
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
@@ -171,7 +171,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - teltype: Type of telluric model, i.e. 'pca'
     """
     # load_telluric_grid() takes care of path and existance check
-    hdul = data.load_telluric_grid(filename)
+    hdul = io.load_telluric_grid(filename)
     wave_grid_full = hdul[1].data
     pca_comp_full = hdul[0].data
     nspec_full = wave_grid_full.size
@@ -228,7 +228,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - teltype: Type of telluric model, i.e. 'grid'
     """
     # load_telluric_grid() takes care of path and existance check
-    hdul = data.load_telluric_grid(filename)
+    hdul = io.load_telluric_grid(filename)
     wave_grid_full = 10.0*hdul[1].data
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size

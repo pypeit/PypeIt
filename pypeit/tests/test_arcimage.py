@@ -35,8 +35,12 @@ def test_io():
                                                     detname='DET01')
     # Set paths and check name
     ofile = Path(arcImage.get_path()).resolve()
+    embed()
+    exit()
+
     assert str(ofile) == str(Path(data_path('Arc_A_1_DET01.fits')).resolve()), \
             'Calibration file name changed'
+    
     # Write
     arcImage.to_file(overwrite=True)
     # Read
@@ -56,4 +60,5 @@ def test_io():
     # Cleanup
     ofile.unlink()
 
+test_io()
 

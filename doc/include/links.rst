@@ -13,6 +13,7 @@
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 .. _Path: https://docs.python.org/3/library/pathlib.html
+.. _Path.glob: https://docs.python.org/3.9/library/pathlib.html#pathlib.Path.glob
 .. _io.TextIOWrapper: https://docs.python.org/3/library/io.html#io.TextIOWrapper
 
 .. numpy

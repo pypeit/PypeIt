@@ -1,79 +1,34 @@
 # -*- coding: utf-8 -*-
 """
-Data utilities for built-in ``PypeIt`` data files
+PypeIt uses the `astropy.utils.data`_ caching system to limit the size of its
+package distribution in PyPI by enabling on-demand downloading of reference
+files needed for specific data-reduction steps.  This module provides the
+low-level utility functions that interface with the cache.
+
+Access to the data files are handled in the code base using the
+:class:`~pypeit.pypeitdata.PypeItDataPaths` object instantiated every time
+PypeIt is imported.
+
+To get the location of your pypeit cache (by default ``~/.pypeit/cache``) you
+can run:
+
+.. code-block:: python
+
+    import astropy.config.paths
+    print(astropy.config.paths.get_cache_dir('pypeit'))
 
 .. note::
 
     If the hostname URL for the telluric atmospheric grids on S3 changes, the
     only place that needs to change is the file ``s3_url.txt``.
 
-----
-
-Implementation Documentation
-----------------------------
-
-This module contains the organization scheme for the ``pypeit/data`` files
-needed by the ``PypeIt`` package.  Any routine in the package that needs to load
-a data file stored in this directory should use the paths supplied by this
-module and not call, e.g. `importlib.resources.files
-<https://docs.python.org/3/library/importlib.resources.html#importlib.resources.files>`__
-or attempt to otherwise directly access the package directory structure.  In
-this way, if structural changes to this directory are needed, only this module
-need be modified and the remainder of the package can remain ignorant of those
-changes and continue to call the paths supplied by this module.
-
-Furthermore, all paths returned by this module are :obj:`pathlib.Path` objects
-rather than pure strings, with all of the functionality therein contained.
-
-Most (by number) of the package data files here are distributed with the
-``PypeIt`` package and are accessed via the :class:`~pypeit.data.utils.Paths`
-class.  For instance, the NIR spectrophotometry for Vega is accessed via:
-
-.. code-block:: python
-
-    vega_file = data.Paths.standards / 'vega_tspectool_vacuum.dat'
-
-For some directories, however, the size of the included files is large enough
-that it was beginning to cause problems with distributing the package via PyPI.
-For these specific directories, the data is still stored in the GitHub
-repository but is not distributed with the PyPI package.  In order to access
-and use these files, we use the AstroPy download/cache system, and specific
-functions (``get_*_filepath()``) are required to interact with these files.
-Currently, the directories covered by the AstroPy download/cache system are:
-
-    * arc_lines/reid_arxiv
-    * skisim
-    * sensfuncs
-
-From time to time, it may be necessary to add additional files/directories to
-the AstroPy download/cache system.  In this case, there is a particular
-sequence of steps required.  The caching routines look for remote-hosted data
-files in either the ``develop`` tree or a tagged version tree (e.g., ``1.8.0``)
-of the repository, any new files must be already present in the repo before
-testing a new ``get_*_filepath()`` routine.  Order of operations is:
-
-    #. Add any new remote-hosted files to the GitHub repo via a separate PR
-       that also modifies ``MANIFEST.in`` to exclude these files from the
-       distributed package.
-
-    #. Create a new ``get_*_filepath()`` function in this module, following the
-       example of one of the existing functions.  Elsewhere in ``PypeIt``, load
-       the needed file by invoking the new ``get_*_filepath()`` function.  An
-       example of this can be found in ``pypeit/core/flux_calib.py`` where
-       ``get_skisim_filepath()`` is called to locate sky transmission files.
-
-If new package-included data are added that are not very large (total directory
-size < a few MB), it is not necessary to use the AstroPy cache/download system.
-In this case, simply add the directory path to the
-:class:`~pypeit.data.utils.Paths` class and access the enclosed files similarly
-to the Vega example above.
-
 .. include:: ../include/links.rst
 """
 from importlib import resources
 import pathlib
-import shutil
 import urllib.error
+
+from IPython import embed
 
 import astropy.utils.data
 import github
@@ -81,8 +36,11 @@ from linetools.spectra import xspectrum1d
 import requests
 
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
-# pypeit!  msgs is the possible exception for now.
+# pypeit!  Objects created or available in pypeit/__init__.py are the
+# exceptions, for now.
 from pypeit import msgs
+from pypeit import __version__
+
 
 # AstroPy download/cache infrastructure ======================================#
 def fetch_remote_file(
@@ -246,6 +204,38 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
 
     # Use `import file_to_cache()` to place the `filename` into the cache
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
+
+
+def delete_file_in_cache(cachename: str, filetype: str, remote_host: str="github"):
+    """
+    Remove a previously downloaded file from the pypeit-specific
+    `astropy.utils.data`_ cache.
+
+    Args:
+        cachename (str):
+            The name of the cached version of the file
+        filetype (str):
+            The subdirectory of ``pypeit/data/`` in which to find the file
+            (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
+        remote_host (:obj:`str`, optional):
+            The remote host scheme.  Currently only 'github' and 's3_cloud' are
+            supported.  Defaults to 'github'.
+    """
+    # First search for the cachename
+    result = search_cache(cachename)
+    if len(result) == 0:
+        # Warn the user that the search pattern failed
+        msgs.warn(f'Cache does not include {cachename}.  Ignoring deletion request.')
+    if len(result) > 1:
+        # More than one match!
+        msgs.error(f'More than one item in the cache match the search pattern {cachename}.  Must '
+                   'be more specific.')
+        
+    # Build the `url_key` as if this file were in the remote location
+    url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
+
+    # Use `import file_to_cache()` to place the `filename` into the cache
+    astropy.utils.data.clear_download_cache(hashorurl=url_key, pkgname='pypeit')
 
 
 def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):

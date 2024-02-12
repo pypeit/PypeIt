@@ -43,7 +43,7 @@ def get_multirow_metadata(file_info):
 
 def cmp_files(file1, file2):
     """
-    Compre two text files line by line. This function exists because
+    Compare two text files line by line. This function exists because
     out test suite has to work under Windows and Linux, and the filecmp
     package doesn't handle mixed newline styles.
 
@@ -147,3 +147,6 @@ def test_archive_dir(tmp_path):
 
     assert cmp_files(good_file1, metadata_file1) is True
     assert cmp_files(good_file2, metadata_file2) is True
+
+
+
