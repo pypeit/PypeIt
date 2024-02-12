@@ -10,7 +10,7 @@ DataCube, and use it to flux calibrate the science DataCubes.
 .. include:: ../include/links.rst
 """
 from pypeit.scripts import scriptbase
-from IPython import embed
+
 
 class ExtractDataCube(scriptbase.ScriptBase):
 
