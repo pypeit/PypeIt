@@ -18,12 +18,6 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile 
 
-# ----------------------------------------------------------------------
-# pytest @decorators setting the tests to perform
-
-# Tests require the Telluric file (Mauna Kea)
-tell_test_grid = dataPaths.telgrid.get_file_path('TellPCA_3000_26000_R25000.fits')
-telluric_required = pytest.mark.skipif(not tell_test_grid.is_file(), reason='no telluric file')
 
 # Tests require the bspline c extension
 try:
@@ -36,13 +30,6 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 # ----------------------------------------------------------------------
 
 
-#def data_path(filename):
-#    data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
-#    # TODO: This really should have the `.resolve()`, but it crashes the
-#    #       Windows/python3.9 CI test (only that one).  When PypeIt advances
-#    #       to python>=3.10, reinstate the last part of the following line:
-#    return str(data_dir.joinpath(filename))#.resolve())
-
 # NOTE: Now that the test data files are kept remotely, we have to distinguish
 # between paths to files that are *written* (data_output_path) as part of the
 # tests and those that are *read* (data_input_path) as part of the tests.  I.e.,
@@ -51,10 +38,12 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 def data_input_path(filename, to_pkg=None):
     return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
 
+
 def data_output_path(filename):
     if len(filename) == 0:
         return str(dataPaths.tests.path)
     return str(dataPaths.tests.path / filename)
+
 
 def get_kastb_detector():
     """

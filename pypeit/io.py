@@ -36,6 +36,7 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import dataPaths
+from pypeit import __version__
 
 # TODO -- Move this module to core/
 
@@ -944,7 +945,8 @@ def load_telluric_grid(filename: str):
                    "See https://pypeit.readthedocs.io/en/latest/telluric.html")
 
     # Get the data path for the filename, whether in the package directory or cache
-    file_with_path = dataPaths.telgrid.get_file_path(filename)
+    to_pkg = 'move' if ".dev" in __version__ else None
+    file_with_path = dataPaths.telgrid.get_file_path(filename, to_pkg=to_pkg)
 
     # Check for existance of file
     # NOTE: With the use of `PypeItDataPath.get_file_path`, this should never fault
