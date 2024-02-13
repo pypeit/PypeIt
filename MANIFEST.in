@@ -1,5 +1,6 @@
 
 # Remove directories
+prune .github
 prune build
 prune dist
 prune deprecated
@@ -9,7 +10,7 @@ prune presentations
 prune paper
 
 # Remove file types
-global-exclude *.pyc *.o *.so *.DS_Store
+global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
 
 # Remove large data sets
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
@@ -21,6 +22,7 @@ recursive-exclude pypeit/data/standards *.gz *.fits *.dat
 recursive-exclude pypeit/data/tests *.gz *.fits *.npz
 
 # Remove individual files
+exclude .gitignore
 exclude checkout_current_tag
 exclude environment.yml
 exclude sphinx.readme
