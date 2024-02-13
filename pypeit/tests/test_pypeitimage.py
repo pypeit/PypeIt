@@ -231,3 +231,4 @@ def test_calib_io():
 
     # Remove the file
     opath.unlink()
+
