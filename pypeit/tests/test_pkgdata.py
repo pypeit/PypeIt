@@ -126,7 +126,7 @@ def test_truediv():
     with pytest.raises(PypeItPathError):
         data_file = p / 'junk'
 
-    subdir = 'MF_shane_kast_blue'
+    subdir = 'ipac'
     _p = p / subdir
     assert isinstance(_p, PypeItDataPath), \
             'Should return a PypeItDataPath for a valid subdirectory'

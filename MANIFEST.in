@@ -13,8 +13,12 @@ global-exclude *.pyc *.o *.so *.DS_Store
 
 # Remove large data sets
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
+recursive-exclude pypeit/data/arc_lines/NIST *.ascii
+#recursive-exclude pypeit/data/filters *.fits
 recursive-exclude pypeit/data/sensfuncs *.fits
 recursive-exclude pypeit/data/skisim *.dat
+recursive-exclude pypeit/data/standards *.gz *.fits *.dat
+recursive-exclude pypeit/data/tests *.gz *.fits *.npz
 
 # Remove individual files
 exclude checkout_current_tag
