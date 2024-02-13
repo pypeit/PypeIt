@@ -31,6 +31,9 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
+class PypeItBitMaskError(PypeItError):
+    pass
+
 class PypeItDataModelError(PypeItError):
     pass
 
