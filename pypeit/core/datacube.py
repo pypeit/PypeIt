@@ -6,6 +6,7 @@ Module containing routines used by 3D datacubes.
 
 import os
 
+import matplotlib.pyplot as plt
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
@@ -360,7 +361,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         # Normalise the kernel
         optkern /= np.sum(optkern)
 
-    optkern_masked = optkern# * mask[:,:,0]
+    optkern_masked = optkern * mask[:,:,0]
     # Normalise the white light image
     optkern_masked /= np.sum(optkern_masked)
     asrt = np.argsort(optkern_masked, axis=None)
@@ -378,7 +379,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     ivarcube2d = _ivarcube[flxslice].T
     gpmcube2d = np.logical_not(bpmcube[flxslice].T)
     waveimg = wave.reshape((numwave,1)).repeat(numspat, axis=1)
-    skyimg = skyspec.reshape((numwave,1)).repeat(numspat, axis=1)
+    skyimg = np.zeros((numwave, numspat))  # Note, the residual sky has already been subtracted off _flxcube
     oprof = objprof.reshape((1,numspat)).repeat(numwave, axis=0)
     thismask = np.ones_like(flxcube2d, dtype=bool)
 
