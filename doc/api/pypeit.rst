@@ -9,7 +9,6 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
-   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.move_median
