@@ -20,22 +20,10 @@ from pypeit.tests.tstutils import dummy_fitstbl, data_output_path
 
 @pytest.fixture
 def fitstbl():
-    if os.getenv('PYPEIT_DEV') is None:
-        fitstbl = dummy_fitstbl(directory=data_output_path(''))
-        fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
-        fitstbl['filename'][1] = 'b1.fits.gz'
-        fitstbl['filename'][5] = 'b27.fits.gz'
-        return fitstbl
-
-    fitstbl = dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
-                                                   'shane_kast_blue', '600_4310_d55'))
-    # Set the Bias to known
+    fitstbl = dummy_fitstbl(directory=data_output_path(''))
     fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
     fitstbl['filename'][1] = 'b1.fits.gz'
-    for ii in range(2,5):
-        fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
-
     return fitstbl
 
 
