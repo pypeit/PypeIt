@@ -9,7 +9,7 @@ import numpy as np
 from pypeit.core import skysub
 from pypeit.images.buildimage import SkyRegions
 from pypeit.slittrace import SlitTraceSet
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_userregions():
@@ -60,7 +60,7 @@ def test_generatemask():
 def test_skyregions_io():
     tstmsk = np.zeros((1000, 1000), dtype=bool)
     tstmsk[:, 744:901] = True
-    ofile = Path(data_path('test_skyregions.fits')).resolve()
+    ofile = Path(data_output_path('test_skyregions.fits')).resolve()
     if ofile.exists():
         ofile.unlink()
     SkyRegions(image=tstmsk.astype(float), PYP_SPEC='dummy').to_file(file_path=ofile)

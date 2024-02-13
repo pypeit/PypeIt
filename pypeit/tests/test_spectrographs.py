@@ -13,13 +13,13 @@ from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
 from pypeit.tests import tstutils
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_input_path, data_output_path
 
 
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = data_path('b1.fits.gz')
+    example_file = data_input_path('b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     det=1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
@@ -31,7 +31,7 @@ def test_shanekastblue():
 def test_select_detectors_pypeit_file():
     # Generate a PypeIt file
     pypeItFile = tstutils.make_shane_kast_blue_pypeitfile()
-    pypeit_file = data_path('test.pypeit')
+    pypeit_file = data_output_path('test.pypeit')
     pypeItFile.write(pypeit_file)
 
     # Perform the setup
@@ -42,7 +42,9 @@ def test_select_detectors_pypeit_file():
             'Incorrect detectors selected.'
 
     # Clean-up
-    os.remove(data_path('test.pypeit'))
+    os.remove(pypeit_file)
+
+test_select_detectors_pypeit_file()
 
 
 def test_select_detectors_mosaic():

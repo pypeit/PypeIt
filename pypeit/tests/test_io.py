@@ -9,7 +9,7 @@ from astropy.table import Table
 
 from pypeit import io
 from pypeit import inputfiles
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_remove_suffix():
@@ -23,11 +23,11 @@ def test_remove_suffix():
 
 def test_grab_rawfiles():
 
-    tst_file = Path(data_path('test.rawfiles')).resolve()
+    tst_file = Path(data_output_path('test.rawfiles')).resolve()
     if tst_file.exists():
         tst_file.unlink()
 
-    root = Path(data_path('')).resolve()
+    root = Path(data_output_path('')).resolve()
     raw_files = [root / 'b11.fits.gz', root / 'b12.fits.gz']
     assert all([f.exists() for f in raw_files]), 'Files missing'
 

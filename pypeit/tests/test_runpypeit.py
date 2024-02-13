@@ -13,7 +13,7 @@ from pypeit.scripts.setup import Setup
 from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.scripts.sensfunc import SensFunc
 from pypeit.scripts.flux_calib import FluxCalib
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit import specobjs, sensfunc
 from pypeit.par import pypeitpar 
 
@@ -21,7 +21,7 @@ from pypeit.par import pypeitpar
 def test_run_pypeit():
 
     # Just get a few files
-    testrawdir = Path(data_path('')).resolve()
+    testrawdir = Path(data_output_path('')).resolve()
     outdir = testrawdir / 'REDUX_OUT_TEST'
 
     # For previously failed tests

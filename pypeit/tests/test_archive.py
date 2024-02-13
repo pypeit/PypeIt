@@ -8,7 +8,7 @@ from functools import partial
 import filecmp
 
 from pypeit.archive import ArchiveMetadata, ArchiveDir
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_input_path, data_output_path
 
 
 class mock_file_info:
@@ -108,7 +108,7 @@ def test_archive_dir(tmp_path):
     archive_root = str(tmp_path)
     metadata_file1 = os.path.join(archive_root, "by_id_meta.dat")
     metadata_file2 = os.path.join(archive_root, "by_object_meta.dat")
-    source_path = data_path("")
+    source_path = data_output_path('')
 
     # Test an Archiver with two metadta files, one with multiple rows per item
     col_names1 = ["id", "file", "num", "date"]
@@ -141,9 +141,8 @@ def test_archive_dir(tmp_path):
     assert dest_file2.exists()
 
     # Verify ipac metadata files are correct
-    good_path = data_path("ipac")
-    good_file1 = os.path.join(good_path, 'by_id_meta.dat')
-    good_file2 = os.path.join(good_path, 'by_object_meta.dat')
+    good_file1 = data_input_path('ipac/by_id_meta.dat')
+    good_file2 = data_input_path('ipac/by_object_meta.dat')
 
     assert cmp_files(good_file1, metadata_file1) is True
     assert cmp_files(good_file2, metadata_file2) is True

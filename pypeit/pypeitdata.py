@@ -209,10 +209,11 @@ class PypeItDataPath:
         """
         Return the path to a file.
 
-        If ``data_file`` is a valid path or is a file within :attr:`path`, the
-        full path is returned.  Otherwise, it is assumed that the file is
-        accessible remotely in the GitHub repository and can be downloaded using
-        :func:`~pypeit.cache.fetch_remote_file`.
+        If ``data_file`` is a valid path to a file or is a file within
+        :attr:`path`, the full path is returned.  Otherwise, it is assumed that
+        the file is accessible remotely in the GitHub repository and can be
+        downloaded using :func:`~pypeit.cache.fetch_remote_file`.  Note,
+        ``data_file`` *must* be a file, not a subdirectory within :attr:`path`.
 
         Throughout the code base, this is the main function that should be used
         to obtain paths to files within :attr:`path`.  I.e., for *any* data in

@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 
 #from pypeit.par.util import parse_pypeit_file
-from pypeit.tests.tstutils import data_path, make_fake_fits_files
+from pypeit.tests.tstutils import data_output_path, make_fake_fits_files
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
@@ -21,13 +21,13 @@ def test_read_combid():
 
     # ------------------------------------------------------------------
     # In case of failed tests
-    config_dir = Path(data_path('shane_kast_blue_A')).resolve()
+    config_dir = Path(data_output_path('shane_kast_blue_A')).resolve()
     if config_dir.exists():
         shutil.rmtree(config_dir)
     # ------------------------------------------------------------------
 
     # Generate the pypeit file with the comb_id
-    droot = data_path('b')
+    droot = data_output_path('b')
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
                              '--extension', 'fits.gz', '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit import wavetilts
 
 
@@ -21,7 +21,7 @@ def test_wavetilts():
                         func2d='legendre2d')
 
     wvtilts = wavetilts.WaveTilts(**instant_dict)
-    wvtilts.set_paths(data_path(''), 'A', '1', 'DET01')
+    wvtilts.set_paths(data_output_path(''), 'A', '1', 'DET01')
     # I/O
     ofile = Path(wvtilts.get_path()).resolve()
     wvtilts.to_file(overwrite=True)

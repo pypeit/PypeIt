@@ -48,11 +48,11 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 # tests and those that are *read* (data_input_path) as part of the tests.  I.e.,
 # files to be written should not exist on GitHub, so we should not attempt to
 # download them.
-def data_input_path(filename):
-    return str(dataPaths.tests.get_file_path(filename))
+def data_input_path(filename, to_pkg=None):
+    return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
 
-def data_output_path(filename=None):
-    if filename is None:
+def data_output_path(filename):
+    if len(filename) == 0:
         return str(dataPaths.tests.path)
     return str(dataPaths.tests.path / filename)
 
@@ -155,10 +155,18 @@ def make_shane_kast_blue_pypeitfile():
     # Bits needed to generate a PypeIt file
     confdict = {'rdx': {'spectrograph': 'shane_kast_blue'}}
 
+    raw_files = [
+        'b21.fits.gz',
+        'b22.fits.gz',
+        'b23.fits.gz',
+        'b24.fits.gz',
+        'b27.fits.gz'
+    ]
+
     data = Table()
-    data['filename'] = [os.path.basename(item) for item in glob.glob(data_path('b2*fits.gz'))]
+    data['filename'] = [os.path.basename(data_input_path(f, to_pkg='symlink')) for f in raw_files]
     data['frametype'] = ['science']*len(data)
-    file_paths = [data_path('')]
+    file_paths = [data_output_path('')]
     setup_dict = {'Setup A': ' '}
 
     # Return

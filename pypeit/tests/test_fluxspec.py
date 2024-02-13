@@ -17,11 +17,10 @@ from astropy.io import fits
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
-from pypeit.tests import tstutils
 from pypeit import inputfiles 
 
 from pypeit import fluxcalibrate
@@ -32,7 +31,7 @@ def test_input_flux_file():
     """Tests for generating and reading fluxing input files
     """
     # Generate an input file
-    flux_input_file = tstutils.data_path('test.flux')
+    flux_input_file = data_output_path('test.flux')
     if os.path.isfile(flux_input_file):
         os.remove(flux_input_file)
 
@@ -46,7 +45,7 @@ def test_input_flux_file():
                         'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
     data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
     # 
-    paths = [tstutils.data_path('')]
+    paths = [data_output_path('')]
 
     fluxFile = inputfiles.FluxFile(config=cfg_lines, 
                         file_paths=paths,
@@ -140,7 +139,7 @@ def test_flux_calib(tmp_path, monkeypatch):
         config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
         with open(config_file_no_sens, "w") as f:
             print("flux read", file=f)
-            print(f"path {data_path('')}", file=f)
+            print(f"path {data_output_path('')}", file=f)
             print("filename", file=f)
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
@@ -161,8 +160,8 @@ def test_extinction_correction_ir():
     extinction_correction_tester('IR')
 
 def extinction_correction_tester(algorithm):
-    spec1d_file = data_path('spec1d_test.fits')
-    sens_file = data_path('sens_test.fits')
+    spec1d_file = data_output_path('spec1d_test.fits')
+    sens_file = data_output_path('sens_test.fits')
 
     if os.path.isfile(spec1d_file):
         os.remove(spec1d_file)

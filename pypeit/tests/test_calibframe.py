@@ -12,7 +12,7 @@ import pytest
 from pypeit.pypmsgs import PypeItError
 from pypeit.calibframe import CalibFrame
 from pypeit import io
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 class NoTypeCalibFrame(CalibFrame):
@@ -48,7 +48,7 @@ def test_implementation_faults():
 
 def test_init():
     calib = MinimalCalibFrame()
-    odir = Path(data_path('')).resolve()
+    odir = Path(data_output_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
     ofile = Path(calib.get_path()).name
     assert ofile == 'Minimal_A_1_DET01.fits', 'Wrong file name'
@@ -63,7 +63,7 @@ def test_init():
 
 def test_io():
     calib = MinimalCalibFrame()
-    odir = Path(data_path('')).resolve()
+    odir = Path(data_output_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
     opath = Path(calib.get_path()).resolve()
@@ -144,7 +144,7 @@ def test_parse_calib_id():
 
 def test_parse_key_dir():
     calib = MinimalCalibFrame()
-    odir = Path(data_path('')).resolve()
+    odir = Path(data_output_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
     opath = Path(calib.get_path()).resolve()
@@ -166,7 +166,7 @@ def test_parse_key_dir():
 
 def test_hdr():
     calib = MinimalCalibFrame()
-    odir = Path(data_path('')).resolve()
+    odir = Path(data_output_path('')).resolve()
     calib.set_paths(odir, 'A', '1', 'DET01')
 
     hdr = calib._base_header()

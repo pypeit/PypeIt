@@ -8,7 +8,7 @@ from IPython import embed
 import numpy as np
 
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_bits():
@@ -42,7 +42,7 @@ def test_io():
 
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
                          'MultiSlit', nspat=10, PYP_SPEC='dummy')
-    slits.set_paths(data_path(''), 'A', '1', 'DET01')
+    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
     ofile = Path(slits.get_path()).resolve()
 
     # Try to save it
@@ -66,7 +66,7 @@ def test_io_single():
                          'MultiSlit',
                          nspat=10, PYP_SPEC='dummy',
                          maskfile=file)
-    slits.set_paths(data_path(''), 'A', '1', 'DET01')
+    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
     ofile = Path(slits.get_path()).resolve()
 
     # Try to save it

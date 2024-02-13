@@ -10,7 +10,7 @@ import numpy as np
 from pypeit import flatfield
 from pypeit import bspline
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_flatimages():
@@ -33,7 +33,7 @@ def test_flatimages():
     assert flatImages.pixelflat_model is None
     assert flatImages.pixelflat_spec_illum is None
     assert flatImages.pixelflat_spat_bsplines is not None
-    flatImages.set_paths(data_path(''), 'A', '1', 'DET01')
+    flatImages.set_paths(data_output_path(''), 'A', '1', 'DET01')
 
     # I/O
     ofile = Path(flatImages.get_path()).resolve()

@@ -14,7 +14,7 @@ from astropy.table import Table
 from pypeit.scripts.setup import Setup
 from pypeit.inputfiles import PypeItFile
 from pypeit.inputfiles import RawFiles
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_input_path, data_output_path
 
 
 def expected_file_extensions():
@@ -25,14 +25,14 @@ def test_read_list_rawfiles():
     """ Read in a file which is a 
     list of raw data files for setting up
     """
-    tst_file = data_path('test.rawfiles')
+    tst_file = data_output_path('test.rawfiles')
     if os.path.isfile(tst_file):
         os.remove(tst_file)
 
     # Bulid
     tbl = Table()
     tbl['filename'] = ['b11.fits.gz', 'b12.fits.gz']
-    iRaw = RawFiles(file_paths=[data_path('')],
+    iRaw = RawFiles(file_paths=[data_output_path('')],
                     data_table=tbl)
 
     # Write
@@ -52,8 +52,8 @@ def test_read_list_rawfiles():
 def test_run_setup():
     """ Test the setup script
     """
-    droot = data_path('b')
-    odir = Path(data_path('')).resolve() / 'shane_kast_blue_A'
+    droot = data_output_path('b')
+    odir = Path(data_output_path('')).resolve() / 'shane_kast_blue_A'
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all',
                               '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
     Setup.main(pargs)
@@ -70,7 +70,7 @@ def test_setup_made_pypeit_file():
 
     This test depends on the one above
     """
-    pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
+    pypeit_file = data_input_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
     pypeItFile = PypeItFile.from_file(pypeit_file)
 
     # Test
@@ -79,4 +79,4 @@ def test_setup_made_pypeit_file():
     assert pypeItFile.setup_name == 'A'
 
     # Cleanup
-    shutil.rmtree(data_path('shane_kast_blue_A'))
+    shutil.rmtree(data_output_path('shane_kast_blue_A'))

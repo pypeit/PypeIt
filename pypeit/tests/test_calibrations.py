@@ -16,12 +16,12 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from IPython import embed
 
-from pypeit.tests.tstutils import dummy_fitstbl, data_path
+from pypeit.tests.tstutils import dummy_fitstbl, data_output_path
 
 @pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
-        fitstbl = dummy_fitstbl(directory=data_path(''))
+        fitstbl = dummy_fitstbl(directory=data_output_path(''))
         fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
         fitstbl['filename'][1] = 'b1.fits.gz'
         fitstbl['filename'][5] = 'b27.fits.gz'
@@ -57,7 +57,7 @@ def multi_caliBrate(fitstbl):
     #calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
-    caldir = data_path('Calibrations')
+    caldir = data_output_path('Calibrations')
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph, caldir)
     return reset_calib(multi_caliBrate)
@@ -78,7 +78,7 @@ def reset_calib(calib):
 def test_abstract_init(fitstbl):
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_path('Calibrations')
+    caldir = data_output_path('Calibrations')
     calib = calibrations.Calibrations.get_instance(fitstbl, par, spectrograph, caldir)
     assert isinstance(calib, calibrations.MultiSlitCalibrations), 'Wrong calibration object type'
     spectrograph = load_spectrograph('keck_nires')
@@ -92,7 +92,7 @@ def test_abstract_init(fitstbl):
 def test_instantiate(fitstbl):
     par = pypeitpar.CalibrationsPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caldir = data_path('Calibrations')
+    caldir = data_output_path('Calibrations')
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par, spectrograph, caldir)
 
 
