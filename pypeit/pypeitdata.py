@@ -285,7 +285,9 @@ class PypeItDataPaths:
     """
     List of hardwired data path objects, primarily for developers.
 
-    The top-level directory for all attributes is ``pypeit/data``.
+    The top-level directory for all attributes is ``pypeit/data``.  All of these
+    directories should, at minimum, include a README file that is
+    version-controlled and hosted by GitHub.
 
     Attributes:
         tests (:class:`~pypeit.pypeitdata.PypeItDataPath`):
