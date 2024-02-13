@@ -386,6 +386,14 @@ class FlatImages(calibframe.CalibFrame):
                 illumflat[onslit] = spat_bsplines[slit_idx].eval(spat_coo[onslit], spec_coo)
             else:
                 illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+
+        # In `FlatField.fit()`, the bpm pixels are set to 1 for `mspixelflat`, `msillumflat`, and `flat_model`.
+        # So we need to repeat it for `msillumflat` here.
+        # find the bad pixels
+        if self.pixelflat_model is not None:
+            bpm = self.pixelflat_model == 1.0
+            # set the bad pixels to 1
+            illumflat[bpm] = 1.0
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
@@ -827,12 +835,12 @@ class FlatField:
         # good pixel mask in the log
         gpm_log = rawflat > 1.0
         # log of ivar (real ivar of the rawflat image)
-        # set errors to just be 0.5 in the log if not gpm_log
+        # set errors to just be 0.5 in the log if NOT gpm_log
         ivar_log = gpm_log.astype(float)/0.5**2
         # get rawflat sigma
         rawflat_sigma = np.sqrt(utils.inverse(self.rawflatimg.ivar))
         # convert it to the log
-        sigma_log = np.ones(rawflat.shape, dtype=float)
+        sigma_log = np.ones(rawflat.shape, dtype=float)*0.5
         sigma_log[gpm_log] = rawflat_sigma[gpm_log] / rawflat[gpm_log]
         # convert it to the log of the ivar
         ivar_log[gpm_log] = utils.inverse(sigma_log[gpm_log] ** 2)
