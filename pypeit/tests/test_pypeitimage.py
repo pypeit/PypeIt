@@ -216,6 +216,8 @@ def test_calib_io():
     img.set_paths(odir, 'A', '1', 'DET01')
     assert img.calib_dir == str(odir), 'Bad output directory'
     opath = Path(img.get_path()).resolve()
+    if opath.is_file():
+        opath.unlink()
 
     img.to_file(overwrite=True)
     assert opath.exists(), 'File not written'
@@ -227,3 +229,5 @@ def test_calib_io():
     assert img.calib_key == _img.calib_key, 'Calibration key changed'
     assert img.calib_dir == _img.calib_dir, 'Calibration directory changed'
 
+    # Remove the file
+    opath.unlink()
