@@ -15,7 +15,6 @@ global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
 # Remove large data sets
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
 recursive-exclude pypeit/data/arc_lines/NIST *.ascii
-#recursive-exclude pypeit/data/filters *.fits
 recursive-exclude pypeit/data/sensfuncs *.fits
 recursive-exclude pypeit/data/skisim *.dat
 recursive-exclude pypeit/data/standards *.gz *.fits *.dat
