@@ -17,6 +17,7 @@ from astropy import table
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit import dataPaths
 from pypeit import io
 from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
