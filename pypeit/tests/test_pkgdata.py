@@ -99,9 +99,9 @@ def test_waveio_load_reid_arxiv():
 
 
 def test_datapath():
-    # NOTE: Because dataPaths is created everytime pypeit is imported, the first
-    # part of this test is basically guaranteed to pass, if pypeit is imported
-    # properly.
+    # NOTE: Because dataPaths is created every time pypeit is imported, the
+    # first part of this test is basically guaranteed to pass, if pypeit is
+    # imported properly.
     try:
         # Try to define a path that should exist
         p = PypeItDataPath('tests')
