@@ -81,7 +81,7 @@ def fetch_remote_file(
             None.
 
     Returns:
-        `pathlib.Path`_: The local path to the desired file in the cache
+        `Path`_: The local path to the desired file in the cache
     """
     # In some cases, we have the full URL already, but most of the time not
     if full_url:

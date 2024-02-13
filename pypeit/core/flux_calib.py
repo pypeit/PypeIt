@@ -153,8 +153,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     closest = dict(sep=999 * units.deg)
 
     for sset in std_sets:
-        # This creates a new PypeItDataPath object
-        stds_path = dataPaths.standards / sset
+        stds_path = dataPaths.standards / sset  # This creates a new PypeItDataPath object
         star_file = stds_path.get_file_path(f"{sset}_info.txt")
         if not star_file.is_file():
             msgs.warn(f"File does not exist!: {star_file}")
@@ -463,7 +462,7 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
         # Observation coordinates
         obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
         # Read list
-        # TODO: We need to get this a different name!
+        # TODO: We should give this file a different name!
         extinct_summ = dataPaths.extinction.get_file_path('README')
         extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
         # Coords

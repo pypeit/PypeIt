@@ -136,7 +136,6 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     """
 
     # Read in the echelle angle fits
-#    angle_fits_file, _ = data.get_reid_arxiv_filepath(angle_fits_file)
     angle_fits_file = dataPaths.reid_arxiv.get_file_path(angle_fits_file)
     hdu = fits.open(angle_fits_file)
     angle_fits_params = Table(hdu[1].data)[0]
@@ -144,7 +143,6 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     xd_angle_coeffs = hdu[3].data
 
     # Read in the composite arc spectrum
-#    composite_arc_file, _ = data.get_reid_arxiv_filepath(composite_arc_file)
     composite_arc_file = dataPaths.reid_arxiv.get_file_path(composite_arc_file)
     hdu = fits.open(composite_arc_file)
     composite_arc_params = Table(hdu[1].data)[0]
