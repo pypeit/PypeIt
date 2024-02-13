@@ -1167,7 +1167,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     # Compute the weights
     return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                            all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
-                           wl_full[:, :, 0], dspat, dwv,
+                           wl_full, dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
                            sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, correct_dar=correct_dar)
 
@@ -1417,36 +1417,37 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             correction will not be applied.
 
     Returns:
-        `numpy.ndarray`_: The white light images for all frames
+        `numpy.ndarray`_: The white light images for all frames. If combine=True,
+        this will be a single 2D image. Otherwise, it will be a 3D array with
+        dimensions (numra, numdec, numframes).
     """
     # Perform some checks on the input -- note, more complete checks are performed in subpixellate()
     _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
         check_inputs([sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg, all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset])
-    numframes = len(_sciImg)
 
-    # Prepare the array of white light images to be stored
-    numra = bins[0].size-1
-    numdec = bins[1].size-1
-    all_wl_imgs = np.zeros((numra, numdec, numframes))
-
-    # Loop through all frames and generate white light images
-    for fr in range(numframes):
-        msgs.info(f"Creating image {fr+1}/{numframes}")
-        if combine:
-            # Subpixellate
-            img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
-                                     _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     skip_subpix_weights=True, correct_dar=correct_dar)
-        else:
+    # Generate the white light images
+    if combine:
+        # Subpixellate
+        img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
+                                 _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
+                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+        return img[:, :, 0]
+    else:
+        # Prepare the array of white light images to be stored
+        numframes = len(_sciImg)
+        numra = bins[0].size - 1
+        numdec = bins[1].size - 1
+        all_wl_imgs = np.zeros((numra, numdec, numframes))
+        # Loop through all frames and generate white light images
+        for fr in range(numframes):
+            msgs.info(f"Creating image {fr + 1}/{numframes}")
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     skip_subpix_weights=True, correct_dar=correct_dar)
-        all_wl_imgs[:, :, fr] = img[:, :, 0]
-    # Return the constructed white light images
-    return all_wl_imgs
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+            all_wl_imgs[:, :, fr] = img[:, :, 0]
+        # Return the constructed white light images
+        return all_wl_imgs
 
 
 def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
