@@ -387,6 +387,10 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     extract.extract_optimal(flxcube2d, ivarcube2d, gpmcube2d, waveimg, skyimg, thismask, oprof,
                             sobj, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None)
 
+    # TODO :: The optimal extraction may suffer from residual DAR correction issues. This is because the
+    #      :: object profile assumes that the white light image represents the true spatial profile of the
+    #      :: object. One possibility is to fit a (linear?) model to the ratio of box/optimal extraction
+    #      :: and then apply this model to the optimal extraction. This is a bit of a fudge.
     # Note that extract.extract_optimal() stores the optimal extraction in the
     # sobj.OPT_COUNTS, sobj.OPT_COUNTS_SIG, and sobj.OPT_COUNTS_IVAR attributes.
     # We need to store the fluxed extraction into the FLAM attributes (a slight fudge).
