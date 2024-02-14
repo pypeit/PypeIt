@@ -12,7 +12,7 @@ from pypeit import inputfiles
 from pypeit import utils
 from pypeit.scripts import scriptbase
 
-class WvarxivCompile(scriptbase.ScriptBase):
+class CompileWVarxiv(scriptbase.ScriptBase):
     """
     A class for compiling a set of wxarxiv solutions from Identify into a single fits file.
 
@@ -40,8 +40,8 @@ class WvarxivCompile(scriptbase.ScriptBase):
         parser = super().get_parser(description='Read in a set of wxarxiv solutions from Identify and compile them into a '
                                                 'single fits file to be used with the reidentify method.', width=width)
         parser.add_argument('wvarxiv_folder', type = str, default=None, help='Location of the WVarxiv files')
-        parser.add_argument('instrument', type = str, default=None, help='Name of instrument. e.g. keck_lris_blue, keck_deimos, gemini_gmos_s_ham')
-        parser.add_argument('grating', type=str, help="Instrument grating name. E.g. B600, R400, 600_10000.")
+        parser.add_argument('instrument', type = str, default=None, help='Name of instrument. e.g. keck_lris_blue, keck_deimos, gemini_gmos_south_ham')
+        parser.add_argument('grating', type=str, help="Instrument grating name. E.g. b600, r400, 600_10000.")
         parser.add_argument('--append', default=False, action='store_true', help='Append to an existing file for this instrument.')
 
         return parser
