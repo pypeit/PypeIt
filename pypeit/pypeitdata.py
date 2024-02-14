@@ -265,8 +265,7 @@ class PypeItDataPath:
         msgs.info(f'{data_file} does not exist in the expected package directory ({self.path}).  '
                     'Checking cache or downloading the file now.')
 
-        # TODO: Fix self.path
-        _cached_file = cache.fetch_remote_file(data_file, self.path)
+        _cached_file = cache.fetch_remote_file(data_file, str(self.path.relative_to(self.data)))
 
         # If requested, either create a symlink to the cached file or move it
         # into the package data directory
