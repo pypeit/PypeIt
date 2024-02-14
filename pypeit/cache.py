@@ -35,11 +35,23 @@ import github
 from linetools.spectra import xspectrum1d
 import requests
 
+try:
+    from pygit2 import Repository
+except:
+    Repository = None
+
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit!  Objects created or available in pypeit/__init__.py are the
 # exceptions, for now.
 from pypeit import msgs
 from pypeit import __version__
+
+
+# For development versions, try to get the branch name
+def git_branch():
+    if Repository is None:
+        return 'develop' if '.dev' in __version__ else __version__
+    return Repository(resources.files('pypeit')).head.shorthand
 
 
 # AstroPy download/cache infrastructure ======================================#
@@ -274,7 +286,7 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         # Hard-wire the URL based on PypeIt Version
         data_url = (
             "https://raw.githubusercontent.com/pypeit/PypeIt/"
-            f"{'develop' if '.dev' in __version__ else __version__}"
+            f"{git_branch()}"
             f"/pypeit/data/{f_type}/{f_name}"
         )
         return data_url, None

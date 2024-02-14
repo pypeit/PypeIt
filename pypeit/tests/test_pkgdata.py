@@ -145,8 +145,50 @@ def test_get_file_path():
 
     assert p.get_file_path('bspline_model.npz', return_format=True)[1] == 'npz', 'Wrong file format'
 
-    # TODO: We need a way to test the cache system (with to_pkg = symlink or move).
 
+def test_cache_to_pkg():
+    test_file_name = 'cache_test.txt'
+    test_file = dataPaths.tests.path / test_file_name
+
+    # Make sure the file is not currently in the cache
+    if len(cache.search_cache(test_file_name)) > 0:
+        subdir = str(dataPaths.tests.path.relative_to(dataPaths.tests.data))
+        cache.delete_file_in_cache(test_file_name, subdir)
+
+    assert test_file.is_file(), 'File should exist on disk at the start of the test'
+
+    # Remove the file
+    test_file.unlink()
+
+    # Use the cache system to access it
+    _test_file = dataPaths.tests.get_file_path(test_file_name)
+
+    # Check that the file is in the cache
+    assert len(cache.search_cache(test_file_name)) == 1, 'File not found in cache'
+
+    # Symlink the file from the cache to the repository
+    _test_file = dataPaths.tests.get_file_path(test_file_name, to_pkg='symlink')
+
+    # The file should now exist in the package directory
+    assert test_file.is_file(), 'File should now exist'
+    # ... as a symlink
+    assert test_file.is_symlink(), 'File shoule be a symlink'
+    # ... that points to the cache file
+    assert cache.search_cache(test_file_name)[0] == test_file.readlink(), \
+            'symlink has the wrong target'
+
+    # Remove the symlink
+    test_file.unlink()
+    # .. and instead move the file from the cache to the package directory
+    _test_file = dataPaths.tests.get_file_path(test_file_name, to_pkg='move')
+
+    # Now the file should be back in the right place
+    assert test_file.is_file(), 'File not moved from cache'
+    # ... it should not be a symlink
+    assert not test_file.is_symlink(), 'File should not be a symlink'
+    # ... and should no longer exist in the cache
+    assert len(cache.search_cache(test_file_name)) == 0, \
+            'File should have been removed from the cache'
 
 
 
