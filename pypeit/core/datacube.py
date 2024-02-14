@@ -365,7 +365,13 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     # Normalise the white light image
     optkern_masked /= np.sum(optkern_masked)
     asrt = np.argsort(optkern_masked, axis=None)
-    tmp = asrt.reshape((asrt.size//2,2))
+    # Need to ensure that the number of pixels in the object profile is even
+    if asrt.size % 2 != 0:
+        # Remove the pixel with the lowest kernel weight.
+        # It should be a zero value (given the mask), so it doesn't matter if we remove it
+        asrt = asrt[1:]
+    # Now sort the indices of the pixels in the object profile
+    tmp = asrt.reshape((asrt.size//2, 2))
     objprof_idx = np.append(tmp[:,0], tmp[::-1,1])
     objprof = optkern_masked[np.unravel_index(objprof_idx, optkern.shape)]
 

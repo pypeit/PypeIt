@@ -21,6 +21,8 @@ class ExtractDataCube(scriptbase.ScriptBase):
         parser.add_argument('file', type = str, default=None, help='spec3d.fits DataCube file')
         parser.add_argument("-e", "--ext_file", type=str,
                             help='Configuration file with extraction parameters')
+        parser.add_argument("-s", "--save", type=str,
+                            help='Output spec1d filename')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -59,11 +61,14 @@ class ExtractDataCube(scriptbase.ScriptBase):
             parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                   merge_with=(ext3dfile.cfg_lines,))
 
+        # Set the output name
+        outname = None if args.save is None else args.save
+
         # Load the DataCube
         tstart = time.time()
 
         # Extract the spectrum
-        extcube.extract_spec(parset['reduce'], overwrite=args.overwrite)
+        extcube.extract_spec(parset['reduce'], outname=outname, overwrite=args.overwrite)
 
         # Report the extraction time
         msgs.info(utils.get_time_string(time.time()-tstart))
