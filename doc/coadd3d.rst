@@ -57,6 +57,7 @@ saved as ``BB1245p4238.coadd3d``:
     [reduce]
         [[cube]]
             combine = True
+            align = True
             output_filename = BB1245p4238_datacube.fits
             save_whitelight = True
 
@@ -74,18 +75,39 @@ If you want to combine all exposures into a single datacube, you need to set ``c
 as in the above example, and provide an ``output_filename``. This is very useful if you want to
 combine several standard star exposures into a single datacube for flux calibration, for example.
 
-The spec2d block provides a list of :doc:`out_spec2D` files. You can also specify an optional scale correction
-as part of the spec2d block. This relative scale correction ensures that the relative spectral sensitivity of the
-datacube is constant across the field of view. The spec2d file used for the ``scale_corr`` column should either be a
-twilight or dome flat reduced as a ``science`` frame (see :doc:`spectrographs/keck_kcwi` for a description of what you need to do).
-In order to use this functionality, you should not reduce your science data with a spectral illumination correction.
-In other words, in your :doc:`pypeit_file` file, set the following when you execute :ref:`run-pypeit`:
+The spec2d block provides a list of :doc:`out_spec2D` files. You can also specify several optional
+corrections as part of the spec2d block, including:
 
-.. code-block:: ini
+* ``scale_corr``: A relative scale correction file that is used to correct the relative
+    spectral sensitivity of the datacube. This relative scale correction ensures that the
+    relative spectral sensitivity of the datacube is constant across the field of view.
+    The spec2d file used for the ``scale_corr`` column should either be a twilight or dome flat
+    reduced as a ``science`` frame (see :doc:`spectrographs/keck_kcwi` for a description of what
+    you need to do). In order to use this functionality, you should not reduce your science data
+    with a spectral illumination correction. In other words, in your :doc:`pypeit_file` file, set
+    the following when you execute :ref:`run-pypeit`:
 
-    [scienceframe]
-        [[process]]
-            use_specillum = False
+    .. code-block:: ini
+
+        [scienceframe]
+            [[process]]
+                use_specillum = False
+
+* ``grating_corr``: A grating correction file that is used to correct the grating relative sensitivity
+    of individual spec2d files. It is unlikely that you will require this correction. This is only required
+    if you are combining spec2d files that have very slightly different wavelength solutions *and* you only
+    have a sensitivity function for one of these setups. Otherwise, if you have a sensitivity function for
+    each setup, you should use the ``sensfile`` option to specify the sensitivity function for each wavelength
+    setup. For further details, see :ref:`coadd3d_gratcorr`.
+* ``skysub_frame``: A sky subtraction frame that is used to remove the sky background of the datacube.
+    For further details, see :ref:`coadd3d_skysub`.
+* ``ra_offset``: A right ascension offset that is used to correct the pointing of the datacube.
+    For further details, see :ref:`coadd3d_offsets`.
+* ``dec_offset``: A declination offset that is used to correct the pointing of the datacube.
+    For further details, see :ref:`coadd3d_offsets`.
+* ``sensfile``: A sensitivity function file that is used to correct the absolute sensitivity of the datacube.
+    The required input file is the sensitivity function, which is generated with the ``pypeit_sensfunc`` script.
+    For further details, see :ref:`coadd3d_fluxing`.
 
 run
 ---
@@ -96,10 +118,50 @@ Then run the script:
 
     pypeit_coadd_datacube BB1245p4238.coadd3d -o
 
+There are several recommended steps of the coadd3d process that can be run separately. These are:
+
+#. Step 1 - Create a datacube of your standard star exposures. It is worthwhile noting that the
+    standard star exposures should be reduced with the same setup as the science exposures. The
+    datacube is then used to flux calibrate the science exposures.
+    The datacube is created by running the following command:
+
+    .. code-block:: console
+
+        pypeit_coadd_datacube StandardStarName.coadd3d -o
+
+#. Step 2 - Extract the 1D spectra from the datacube. This is done by running the following command,
+    assuming that the output datacube from the previous step was called ``StandardStarName.fits``.
+    The ``pypeit_extract_datacube`` script will produce an output file called
+    ``StandardStarName_spec1d.fits``:
+
+    .. code-block:: console
+
+        pypeit_extract_datacube StandardStarName.fits -o
+
+#. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
+    command, assuming that the output 1D spectra from the previous step was called
+    ``StandardStarName_spec1d.fits``. The ``pypeit_sensfunc`` script will produce an output file called
+    ``StandardStarName_sens.fits``:
+
+    .. code-block:: console
+
+        pypeit_sensfunc StandardStarName_spec1d.fits -o StandardStarName_sens.fits
+
+    For further details, see :doc:`_sensitivity_function`.
+
+#. Step 4 - Generate a datacube of the science exposures. This is done by running the following command:
+
+    .. code-block:: console
+
+        pypeit_coadd_datacube ScienceName.coadd3d -o
+
+    Note that you will need to specify the sensitivity function file using the ``sensfile`` option in the
+    :doc:`coadd3d_file` file. For further details, see :ref:`coadd3d_fluxing`.
+
 Combination options
 ===================
 
-PypeIt currently supports two different methods to convert an spec2d frame into a datacube;
+PypeIt currently supports two different methods to convert a spec2d frame into a datacube;
 these options are called ``subpixel`` (default) and ``NGP`` (which is short for, nearest grid point),
 and can be set using the following keyword arguments:
 
@@ -114,26 +176,30 @@ into many subpixels, and assigns each subpixel to a voxel of the datacube. Flux 
 but voxels are correlated, and the error spectrum does not account for covariance between
 adjacent voxels. The subpixellation scale can be separately set in the spatial and spectral
 direction on the 2D detector. If you would like to change the subpixellation factors from
-the default values (5), you can set the ``spec_subpixel`` and  ``spat_subpixel`` keywords
-as follows:
+the default values (5), you can optionally set (one or all of) the ``spec_subpixel``,
+``spat_subpixel``, and ``slice_subpixel`` parameters as follows:
 
 .. code-block:: ini
 
     [reduce]
         [[cube]]
             method = subpixel
-            spec_subpixel = 8
-            spat_subpixel = 10
+            spec_subpixel = 3
+            spat_subpixel = 7
+            slice_subpixel = 10
 
 The total number of subpixels generated for each detector pixel on the spec2d frame is
-spec_subpixel x spat_subpixel. The default values (5) divide each spec2d pixel into 25 subpixels
-during datacube creation. As an alternative, you can convert the spec2d frames into a datacube
+spec_subpixel x spat_subpixel x slice_subpixel. The default values (5) divide each spec2d pixel
+into 125 subpixels during datacube creation.
+As an alternative, you can convert the spec2d frames into a datacube
 with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
 than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
 the same downsides as any histogram; the choice of bin sizes can change how the datacube appears.
 This algorithm takes each pixel on the spec2d frame and puts the flux of this pixel into one voxel
 in the datacube. Depending on the binning used, some voxels may be empty (zero flux) while a
 neighbouring voxel might contain the flux from two spec2d pixels.
+
+.. _coadd3d_fluxing:
 
 Flux calibration
 ================
@@ -152,6 +218,8 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
         [[cube]]
             sensfunc = my_sensfunc.fits
 
+
+.. _coadd3d_skysub:
 
 Sky Subtraction
 ===============
@@ -175,19 +243,20 @@ then you can specify the ``skysub_frame`` in the ``spec2d`` block of the
 above. If you have dedicated sky frames, then it is generally
 recommended to reduce these frames as if they are regular science
 frames, but add the following keyword arguments at the top of your
-:doc:`pypeit_file`:
+:doc:`coadd3d_file`:
 
 .. code-block:: ini
 
     [reduce]
         [[skysub]]
-            joint_fit = True
-            user_regions = :
+            user_regions = 5:95
     [flexure]
         spec_method = slitcen
 
-This ensures that all pixels in the slit are used to generate a
-complete model of the sky.
+This ensures that the innermost 90 percent of pixels in each slit are
+used to generate a model of the sky.
+
+.. _coadd3d_gratcorr:
 
 Grating correction
 ==================
@@ -215,7 +284,11 @@ science frame, in the ``spec2d`` block of the ``.coadd3d`` file:
     spec2d end
 
 If all spec2d files were reduced with the same Flat calibration file,
-then you do not need to specify the grating correction file.
+then you do not need to specify the grating correction file. Also, if you
+generate a sensitivity function for each spec2d file, then you do not need
+to specify the grating correction file. The grating correction file is only
+needed if you have one sensitivity function for all spec2d files, even though
+the spec2d files were acquired with different grating angles.
 
 Astrometric correction
 ======================
@@ -234,12 +307,16 @@ file:
         [[cube]]
             astrometric = False
 
+If a :doc:`calibrations/align` frame is not available, then the astrometric
+correction will be based on the slit edges.
 
 White light image
 =================
 
 A white light image can be generated for the combined frame, or
-for each individual frame if ``combine=False``, by setting the following
+for each individual frame if ``combine=False``, by setting the
+``save_whitelight`` keyword argument. You can set the wavelength
+range of the white light image by setting the ``whitelight_range``
 keyword argument:
 
 .. code-block:: ini
@@ -247,9 +324,12 @@ keyword argument:
     [reduce]
         [[cube]]
             save_whitelight = True
+            whitelight_range = 5000,6000
 
 White light images are not produced by default. The output filename for
 the white light images are given the suffix ``_whitelight.fits``.
+
+.. _coadd3d_offsets:
 
 Spatial alignment with different setups
 =======================================
