@@ -808,6 +808,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta
     # Did the user request a telluric correction?
     if tellmodel is not None:
         # This assumes there is a separate telluric key in this dict.
+        msgs.warn("Telluric corrections via this method are deprecated")
         msgs.info('Applying telluric correction')
         sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
 
@@ -1278,6 +1279,7 @@ def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     factor = np.zeros_like(wave)
     factor[gpm] = np.power(10.0, -0.4*(zeropoint[gpm] - ZP_UNIT_CONST))/np.square(wave[gpm])
     return factor
+
 
 def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     r"""
