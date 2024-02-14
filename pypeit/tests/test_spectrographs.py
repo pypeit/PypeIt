@@ -44,8 +44,6 @@ def test_select_detectors_pypeit_file():
     # Clean-up
     os.remove(pypeit_file)
 
-test_select_detectors_pypeit_file()
-
 
 def test_select_detectors_mosaic():
 
