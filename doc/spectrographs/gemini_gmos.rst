@@ -178,31 +178,15 @@ setup and sometimes for multiple slits per setup. To reduce tis tedium, we recom
 The fits table should contain a single ``BinaryTable`` with the following columns:
 (1) wave: Each entry is a float array with wavelength in angstroms from the user generated wvarxiv.
 (2) flux: Each entry is an float array with the flux value from the user generated wvarxiv.
-(3) order: Each entry is 0 (int). See the ``pypeit/data/arc_lines/reid_arxiv/gemini_gmos_b600_ham_mosaic.fits`` file for an example within the PypeIt installation.
+(3) order: Each entry is 0 (int). See the ``pypeit/data/arc_lines/reid_arxiv/gemini_gmos_south_ham_b600_compiled.fits`` file for an example within the PypeIt installation.
 
-If one has a set of wvarxiv solutions from :ref:`pypeit_identify`, one can use the following snippet to generate the fits file:
+If one has a set of wvarxiv solutions from :ref:`pypeit_identify`, one can use the ``pypeit_compile_wvarxiv`` script to compile the fits file as follows:
 
-.. code-block:: python
+.. code-block:: bash
 
-    from astropy.io import fits
-    import numpy as np
-    from astropy.table import Table
-    import glob
+    pypeit_compile_wvarxiv <path_to_wvarxiv_files> <instrument> <grating>
 
-    # Read in the wvarxiv files
-    wavarxiv_files = glob.glob('path/to/wvarxiv/files/*.fits')
-
-    # Generate the fits file
-    wavearrays = []
-    fluxarrays = []
-    # Instead of 3134, replace with the array size in your actual wvarxiv files.
-    reid_table = Table(names=('wave', 'flux', 'order'), dtype=('(3134,)>f8', '(3134,)>f8', '>i8'))
-    for fitsfile in wavarxiv_files:
-        tab = Table.read(fitsfile)
-        reid_table.add_row([tab['wave'].data, tab['flux'].data, 0])
-
-    # Write to file
-    reid_table.write('path/to/gemini_gmos_<north/south>_ham_<grating>.fits', format='fits')
+Use the ``-h`` flag to see more details regarding usage. This script produces a fits file in the ````pypeit/data/arc_lines/reid_arxiv/`` folder.
 
 To use reidentify, add the following user-level parameters to the :ref:`pypeit_file`:
 
@@ -210,8 +194,6 @@ To use reidentify, add the following user-level parameters to the :ref:`pypeit_f
 
     [calibrations]
         [[wavelengths]]
-            reid_arxiv = gemini_gmos_<north/south>_ham_<grating>.fits
+            reid_arxiv = gemini_gmos_south_ham_b600_compiled.fits
 
 Currently, this method is only supported for the B600 grating on GMOS-S. If you have MOS data with a different grating, please consider compiling your wvarxiv solutions as described above to expand this feature for other users. Please submit a pull request (or contact the PypeIt team) to the PypeIt repository with the fits file.
-
-"""
