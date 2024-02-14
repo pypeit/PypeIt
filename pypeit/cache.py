@@ -49,9 +49,16 @@ from pypeit import __version__
 
 # For development versions, try to get the branch name
 def git_branch():
+    """
+    Return the name/hash of the currently checked out branch
+
+    Returns:
+        :obj:`str`: Branch name or hash
+    """
     if Repository is None:
         return 'develop' if '.dev' in __version__ else __version__
-    return Repository(resources.files('pypeit')).head.shorthand
+    repo = Repository(resources.files('pypeit'))
+    return repo.head.target if repo.head_is_detached else repo.head.shorthand
 
 
 # AstroPy download/cache infrastructure ======================================#
