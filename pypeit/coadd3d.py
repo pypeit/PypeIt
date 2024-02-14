@@ -239,7 +239,7 @@ class DataCube(datamodel.DataContainer):
                 self._wcs = wcs.WCS(self.headwcs)
         return self._wcs
 
-    def extract_spec(self, parset, overwrite=False):
+    def extract_spec(self, parset, outname=None, overwrite=False):
         """
         Extract a spectrum from the datacube
 
@@ -247,15 +247,16 @@ class DataCube(datamodel.DataContainer):
         ----------
         parset : dict
             A dictionary containing the 'Reduce' PypeItPar parameters.
+        outname : str, optional
+            Name of the output file
         overwrite : bool, optional
             Overwrite any existing files
         """
         # Extract the spectrum
+        # TODO :: should we set the boxcar_width argument to None so the automated algorithm is used by default? At the moment, the user needs to set the boxcar_width to None in the parset to use the automated algorithm
         fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
 
-        # exptime = self.spectrograph.compound_meta([self.head0], 'exptime')
-        # if exptime != 1.0:
-        #     msgs.error("The exposure time is not 1.0, which is required for the datacube extraction.")
+        # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
         # TODO :: Avoid transposing these large cubes
         sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
@@ -264,11 +265,8 @@ class DataCube(datamodel.DataContainer):
                                                optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
 
         # Save the extracted spectrum
-        spec1d_filename = self.filename.replace('.fits', '_spec1d.fits')
+        spec1d_filename = self.filename.replace('.fits', '_spec1d.fits') if outname is None else outname
         sobjs.write_to_fits(self.head0, spec1d_filename, overwrite=overwrite)
-
-        # Return
-        return
 
 
 class DARcorrection:
@@ -1146,14 +1144,25 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
             darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
 
-            # Compute the extinction correction
-            msgs.info("Applying extinction correction")
-            # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
-            extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
-                                                      self.spec.telescope['latitude'],
-                                                      self.senspar['UVIS']['extinct_file'])
-            # extinction_correction requires the wavelength is sorted
-            extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
+            # TODO :: Need to make a note somewhere that the extinction correction cannot currently be done
+            #         in the datacube because the sensitivity function algorithms correct the standard star
+            #         for extinction when generating the sensitivity function. Including the extinction correction
+            #         in the datacube would result in a double correction of the standard star for extinction.
+            #         This could be wrong when combining multiple standard star exposures if the airmass of the
+            #         standard star exposures is significantly different. For now, to stay consistent with the
+            #         current pipeline, the extinction correction is done in the sensitivity function algorithms,
+            #         with the caveat that the standard star exposures are assumed to have similar airmasses.
+            #         For now, comment out the extinction correction, and reapply this later when the sensitivity
+            #         function algorithms are unified.
+            if False:
+                # Compute the extinction correction
+                msgs.info("Applying extinction correction")
+                # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
+                                                          self.spec.telescope['latitude'],
+                                                          self.senspar['UVIS']['extinct_file'])
+                # extinction_correction requires the wavelength is sorted
+                extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
 
             # Correct for sensitivity as a function of grating angle
             # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
@@ -1169,22 +1178,23 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Sensitivity function - note that the sensitivity function factors in the exposure time and the
             # wavelength sampling, so if the flux calibration will not be applied, the sens_factor needs to be
             # scaled by the exposure time and the wavelength sampling
-            sens_factor = 1.0/(exptime * dwav_sort)  # If no sensitivity function is provided
-            # TODO :: Need to think about exposure time some more... Does the pypeit_sensfunc algorithm expect counts/s as input, or counts? This could affect the throughput calculation, perhaps?
-            #      :: More generally, should we be adding the counts when we make the datacube, or should we be averaging the counts/s with the appropriate weights?
+            sens_sort = 1.0/(exptime * dwav_sort)  # If no sensitivity function is provided
             if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
                 # Load the sensitivity function
                 sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
                 # Interpolate the sensitivity function onto the wavelength grid of the data
-                sens_factor = flux_calib.get_sensfunc_factor(
-                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=cd_wv,
-                    extinct_correct=False, extrap_sens=self.par['fluxcalib']['extrap_sens'])
+                # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                sens_sort = flux_calib.get_sensfunc_factor(
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=dwav_sort,
+                    extinct_correct=True, longitude=self.spec.telescope['longitude'],
+                    latitude=self.spec.telescope['latitude'], extinctfilepar=self.senspar['UVIS']['extinct_file'],
+                    airmass=airmass, extrap_sens=self.par['fluxcalib']['extrap_sens'])
             # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
-            extcorr_sort *= sens_factor / gratcorr_sort
+            sens_sort /= gratcorr_sort
             # Correct for extinction
-            sciImg[onslit_gpm] *= extcorr_sort[resrt]
-            ivar[onslit_gpm] /= extcorr_sort[resrt] ** 2
+            sciImg[onslit_gpm] *= sens_sort[resrt]
+            ivar[onslit_gpm] /= sens_sort[resrt] ** 2
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
