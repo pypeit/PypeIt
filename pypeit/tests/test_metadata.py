@@ -8,8 +8,7 @@ import pytest
 
 import numpy as np
 
-#from pypeit.par.util import parse_pypeit_file
-from pypeit.tests.tstutils import data_output_path, make_fake_fits_files
+from pypeit.tests import tstutils
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts.setup import Setup
@@ -21,13 +20,15 @@ def test_read_combid():
 
     # ------------------------------------------------------------------
     # In case of failed tests
-    config_dir = Path(data_output_path('shane_kast_blue_A')).resolve()
+    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).resolve()
     if config_dir.exists():
         shutil.rmtree(config_dir)
     # ------------------------------------------------------------------
 
+    tstutils.install_shane_kast_blue_raw_data()
+
     # Generate the pypeit file with the comb_id
-    droot = data_output_path('b')
+    droot = tstutils.data_output_path('b')
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
                              '--extension', 'fits.gz', '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)
@@ -102,7 +103,7 @@ def test_setup_iter():
 
 
 def test_multiple_setups():
-    filelist = make_fake_fits_files()
+    filelist = tstutils.make_fake_fits_files()
     spectrograph = load_spectrograph("shane_kast_blue")
     # Set the metadata
     fitstbl = PypeItMetaData(spectrograph, spectrograph.default_pypeit_par(), files=filelist, strict=True)

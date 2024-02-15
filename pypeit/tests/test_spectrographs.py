@@ -30,6 +30,7 @@ def test_shanekastblue():
 
 def test_select_detectors_pypeit_file():
     # Generate a PypeIt file
+    tstutils.install_shane_kast_blue_raw_data()
     pypeItFile = tstutils.make_shane_kast_blue_pypeitfile()
     pypeit_file = data_output_path('test.pypeit')
     pypeItFile.write(pypeit_file)

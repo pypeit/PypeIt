@@ -50,7 +50,7 @@ def test_input_flux_file():
     # If pulling from the cache, make sure there are symlinks at the expected path
     for f in data['filename']:
         dataPaths.tests.get_file_path(f, to_pkg='symlink')
-    dataPaths.tests.get_path_file(data['sensfile'][0], to_pkg='symlink')
+    dataPaths.tests.get_file_path(data['sensfile'][0], to_pkg='symlink')
 
     fluxFile = inputfiles.FluxFile(config=cfg_lines, 
                         file_paths=paths,
