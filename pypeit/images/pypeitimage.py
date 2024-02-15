@@ -284,13 +284,8 @@ class PypeItImage(datamodel.DataContainer):
 
         # Parse everything *but* the mask extension
         d, version_passed, type_passed, parsed_hdus \
-                = super()._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
-        if not type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
-        if not version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f(f'Current version of {cls.__name__} object in code (v{cls.version})'
-               ' does not match version used to write your HDU(s)!')
+                = cls._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         if mask_ext in hdu:
             # If the mask extension exists, parse it

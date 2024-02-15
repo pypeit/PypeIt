@@ -1129,6 +1129,30 @@ class DataContainer:
         return _d, dm_version_passed and found_data, dm_type_passed and found_data, \
                     np.unique(parsed_hdus).tolist()
 
+    @classmethod
+    def _check_parsed(cls, version_passed, type_passed, chk_version=True):
+        """
+        Convenience function that issues the warnings/errors caused by parsing a
+        file into a datamodel.
+
+        Args:
+            version_passed (:obj:`bool`):
+                Flag that the datamodel version is correct.
+            type_passed (:obj:`bool`):
+                Flag that the datamodel class type is correct.
+            chk_version (:obj:`bool`, optional):
+                Flag to impose strict version checking.
+        """
+        if not type_passed:
+            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
+                       cls='PypeItDataModelError')
+        if not version_passed:
+            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
+                  'does not match version used to write your HDU(s)!'
+            if chk_version:
+                msgs.error(msg, cls='PypeItDataModelError')
+            else:
+                msgs.warn(msg)
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1424,18 +1448,10 @@ class DataContainer:
             **kwargs:
                 Passed directly to :func:`_parse`.
         """
+        # Parse the data
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check version and type?
-        if not dm_type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
-                       cls='PypeItDataModelError')
-        if not dm_version_passed:
-            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
-                  'does not match version used to write your HDU(s)!'
-            if chk_version:
-                msgs.error(msg, cls='PypeItDataModelError')
-            else:
-                msgs.warn(msg)
+        cls._check_parsed(dm_version_passed, dm_type_passed, chk_version=chk_version)
 
         # Instantiate
         # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by

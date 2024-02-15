@@ -104,7 +104,7 @@ class DetectorContainer(datamodel.DataContainer):
                                         'where the valid data sections can be obtained, one '
                                         'per amplifier. If defined explicitly should be in '
                                         'FITS format (e.g., [1:2048,10:4096]).'),
-                 'det': dict(otype=int,
+                 'det': dict(otype=(int, np.integer),
                              descr='PypeIt designation for detector number (1-based).'),
                  'binning': dict(otype=str,
                                  descr='Binning in PypeIt orientation (not the original)')}

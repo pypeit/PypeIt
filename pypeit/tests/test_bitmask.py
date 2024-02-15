@@ -7,6 +7,7 @@ import numpy
 from astropy.io import fits
 
 from pypeit.bitmask import BitMask
+from pypeit.slittrace import SlitTraceBitMask
 
 #-----------------------------------------------------------------------------
 
@@ -106,4 +107,65 @@ def test_wrong_bits():
         out = image_bm.flagged(mask, flag=['COSMIC', 'JUNK'])
 
     assert numpy.sum(image_bm.flagged(mask, flag='COSMIC')) == numpy.sum(cosmics_indx)
+
+def test_flag_order():
+
+    bm = ImageBitMask()
+
+    flags = bm.keys()
+    assert bm.correct_flag_order(flags), 'Flags should not be mismatched'
+
+    flags += ['NEWBIT']
+    assert bm.correct_flag_order(flags), 'Appending flags should be fine'
+
+    flags = bm.keys()[:-1]
+    assert bm.correct_flag_order(flags), 'Checking a subset of the flags should be fine'
+
+    flags = bm.keys()[::-1]
+    assert not bm.correct_flag_order(flags), 'Reordering the flags is not okay'
+
+
+def test_exclude_and_not():
+    
+    n = 1024
+    shape = (n,n)
+
+    rng = numpy.random.default_rng(99)
+
+    image_bm = ImageBitMask()
+    mask = numpy.zeros(shape, dtype=image_bm.minimum_dtype())
+
+    cosmics_indx = numpy.zeros(shape, dtype=bool)
+    cosmics_indx[rng.integers(0,high=n,size=9000), rng.integers(0,high=n,size=9000)] = True
+    mask[cosmics_indx] = image_bm.turn_on(mask[cosmics_indx], 'COSMIC')
+
+    saturated_indx = numpy.zeros(shape, dtype=bool)
+    saturated_indx[rng.integers(0,high=n,size=9000), rng.integers(0,high=n,size=9000)] = True
+    mask[saturated_indx] = image_bm.turn_on(mask[saturated_indx], 'SATURATED')
+
+    # NOTE: Want to make sure there are pixels flagged as both COSMIC and
+    # SATURATED.  Otherwise the `and_not` test is not useful.
+    assert numpy.sum(cosmics_indx & saturated_indx) > 0, 'Bad test setup'
+
+    assert numpy.array_equal(image_bm.flagged(mask), cosmics_indx | saturated_indx), \
+            'Mask incorrect'
+    assert numpy.array_equal(image_bm.flagged(mask, exclude='SATURATED'), cosmics_indx), \
+            'Exclude incorrect'
+
+    assert numpy.array_equal(image_bm.flagged(mask, and_not='SATURATED'),
+                             cosmics_indx & numpy.logical_not(saturated_indx)), 'Expunge incorrect'
+
+def test_boxslit():
+    """
+    Tests old vs. new bpm after adding `and_not` functionality.
+    """
+    bm = SlitTraceBitMask()
+    v = numpy.array([10,0,2])
+
+    desired_bpm = (v > 2) & (numpy.invert(bm.flagged(v, flag=bm.exclude_for_reducing)))
+
+    new_bpm = bm.flagged(v, exclude='BOXSLIT', and_not=bm.exclude_for_reducing)
+
+    assert numpy.all(new_bpm == desired_bpm)
+
 
