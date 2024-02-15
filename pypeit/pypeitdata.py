@@ -210,6 +210,7 @@ class PypeItDataPath:
         _f = f.with_suffix('') if f.suffix == '.gz' else f
         return _f.suffix.replace('.','').lower()
 
+    # TODO: Should to_pkg default to 'symlink'?
     def get_file_path(self, data_file, to_pkg=None, return_format=False):
         """
         Return the path to a file.
