@@ -12,48 +12,13 @@ import numpy as np
 import scipy.interpolate
 import scipy.ndimage
 import matplotlib.pyplot as plt
+from astropy import convolution
 
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.core import parse
-from pypeit.core import pixels
-from pypeit.core import tracewave
 from pypeit.core import coadd
 from pypeit import utils
-from pypeit.core import pydl
-
-# TODO: Put this in utils
-def linear_interpolate(x1, y1, x2, y2, x):
-    r"""
-    Interplate or extrapolate between two points.
-
-    Given a line defined two points, :math:`(x_1,y_1)` and
-    :math:`(x_2,y_2)`, return the :math:`y` value of a new point on
-    the line at coordinate :math:`x`.
-
-    This function is meant for speed. No type checking is performed and
-    the only check is that the two provided ordinate coordinates are not
-    numerically identical. By definition, the function will extrapolate
-    without any warning.
-
-    Args:
-        x1 (:obj:`float`):
-            First abscissa position
-        y1 (:obj:`float`):
-            First ordinate position
-        x2 (:obj:`float`):
-            Second abscissa position
-        y3 (:obj:`float`):
-            Second ordinate position
-        x (:obj:`float`):
-            Abcissa for new value
-
-    Returns:
-        :obj:`float`: Interpolated/extrapolated value of ordinate at
-        :math:`x`.
-    """
-    return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
 # TODO: Make this function more general and put it in utils.
@@ -505,9 +470,9 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
-def tweak_slit_edges(left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
-    """
-    Tweak the slit edges based on the normalized slit illumination profile.
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat):
+    r""" Adjust slit edges based on the gradient of the normalized
+    flat-field illumination profile.
 
     Args:
         left (`numpy.ndarray`_):
@@ -525,27 +490,6 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, method='threshold', thres
         norm_flat (`numpy.ndarray`_)
             Normalized flat data that provide the slit illumination
             profile. Shape is :math:`(N_{\rm flat},)`.
-        method (:obj:`str`, optional):
-            Method to use for tweaking the slit edges. Options are:
-                - 'threshold': Use the threshold to set the slit edge
-                    and then shift it to the left or right based on the
-                    illumination profile.
-                - 'gradient': Use the gradient of the illumination
-                    profile to set the slit edge and then shift it to
-                    the left or right based on the illumination profile.
-        thresh (:obj:`float`, optional):
-            Threshold of the normalized flat profile at which to
-            place the two slit edges.
-        maxfrac (:obj:`float`, optional):
-            The maximum fraction of the slit width that the slit edge
-            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
-            this means the maximum change in the slit width (either
-            narrowing or broadening) is 20% (i.e., 10% for either
-            edge).
-        debug (:obj:`bool`, optional):
-            Show flow interrupting plots that show illumination
-            profile in the case of a failure and the placement of the
-            tweaked edge for each side of the slit regardless.
 
     Returns:
         tuple: Returns six objects:
@@ -559,25 +503,34 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, method='threshold', thres
               the left
             - The adjusted right edge
     """
-    # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
-    # Tweak the edges via the specified method
-    if method == "threshold":
-        return tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=thresh, maxfrac=maxfrac, debug=debug)
-    elif method == "gradient":
-        return tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
-    else:
-        msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
-
-
-def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, debug=False):
-    """
-
-    """
     # Check input
     nspec = len(left)
     if len(right) != nspec:
         msgs.error('Input left and right traces must have the same length!')
-    embed()
+
+    # Median slit width
+    slitwidth = np.median(right - left)
+
+    # Calculate the gradient of the normalized flat profile
+    grad_norm_flat = np.gradient(norm_flat)
+    # Smooth with a Gaussian kernel
+    sig_res = norm_flat.size / slitwidth
+    gauss_kernel = convolution.Gaussian1DKernel(sig_res)
+    grad_norm_flat_smooth = convolution.convolve(grad_norm_flat, gauss_kernel, boundary='extend')
+
+    # Find the location of the minimum/maximum gradient - this is the amount of shift required
+    left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
+    right_shift = spat_coo[np.argmin(grad_norm_flat_smooth)]-1.0
+
+    # Calculate the tweak for the left edge
+    new_left = np.copy(left) + left_shift * slitwidth
+    new_right = np.copy(right) + right_shift * slitwidth
+
+    # Calculate the value of the threshold at the new slit edges
+    left_thresh = np.interp(left_shift, spat_coo, norm_flat)
+    right_thresh = np.interp(1+right_shift, spat_coo, norm_flat)
+
+    return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
 
 # TODO: See pypeit/deprecated/flat.py for the previous version. We need
@@ -689,8 +642,8 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
                         100*maxfrac))
             left_shift = maxfrac
         else:
-            left_shift = linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
-                                           spat_coo[i+1], left_thresh)
+            left_shift = utils.linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
+                                                  spat_coo[i+1], left_thresh)
         msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
                   ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
@@ -743,15 +696,15 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
                         100*maxfrac))
             right_shift = maxfrac
         else:
-            right_shift = 1-linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
-                                               spat_coo[i], right_thresh)
+            right_shift = 1-utils.linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
+                                                     spat_coo[i], right_thresh)
         msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
                   ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
-#def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, snframe=None, varframe=None):
+
 def flatfield(sciframe, flatframe, varframe=None):
     r"""
     Field flatten the input image.

@@ -1093,6 +1093,7 @@ class FlatField:
                         = self.tweak_slit_edges(self.slits.left_init[:,slit_idx],
                                                 self.slits.right_init[:,slit_idx],
                                                 spat_coo_data, spat_flat_data,
+                                                method=tweak_method,
                                                 thresh=tweak_slits_thresh,
                                                 maxfrac=tweak_slits_maxfrac, debug=debug)
                 # TODO: Because the padding doesn't consider adjacent
@@ -1637,8 +1638,7 @@ class FlatField:
             return flat.tweak_slit_edges_threshold(left, right, spat_coo, norm_flat,
                                                    thresh=thresh, maxfrac=maxfrac, debug=debug)
         elif method == "gradient":
-            return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat,
-                                                  maxfrac=maxfrac, debug=debug)
+            return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=debug)
         else:
             msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
 
