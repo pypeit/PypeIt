@@ -56,6 +56,13 @@ def get_kastb_detector():
     return load_spectrograph('shane_kast_blue').get_detector_par(1)
 
 
+def install_shane_kast_blue_raw_data():
+    # Download and move all the b*fits.gz files into the local package
+    # installation
+    files = [dataPaths.tests.get_file_path(f'b{i}.fits.gz', to_pkg='symlink') 
+                for i in [1, 11, 12, 13, 21, 22, 23, 24, 27]]
+
+
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
     Generate a dummy fitstbl for testing

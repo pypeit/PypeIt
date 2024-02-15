@@ -31,7 +31,7 @@ def test_find_standard():
     # G191b2b
     coord = SkyCoord('J050630.6+524951.0', unit=(units.hourangle, units.deg))  #
     # Grab
-    std_dict = flux_calib.find_standard_file(coord.ra.value, coord.dec.value)
+    std_dict = flux_calib.find_standard_file(coord.ra.value, coord.dec.value, to_pkg='symlink')
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stisnic_002.fits.gz'

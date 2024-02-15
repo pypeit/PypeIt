@@ -108,7 +108,9 @@ def load_reid_arxiv(arxiv_file):
     """
     # This function allows users to specify their own `reid_arxiv`, in
     #   particular, the output from `pypeit_identify`.
-    calibfile, arxiv_fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
+    # NOTE: This *must* at least be symlinked so that the extention of the file is correct.
+    calibfile, arxiv_fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True,
+                                                              to_pkg='symlink')
 
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if arxiv_fmt == 'json':

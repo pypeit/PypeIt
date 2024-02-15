@@ -14,6 +14,7 @@ import configobj
 from astropy.table import Table
 from astropy.io import fits
 
+from pypeit import dataPaths
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
@@ -46,6 +47,10 @@ def test_input_flux_file():
     data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
     # 
     paths = [data_output_path('')]
+    # If pulling from the cache, make sure there are symlinks at the expected path
+    for f in data['filename']:
+        dataPaths.tests.get_file_path(f, to_pkg='symlink')
+    dataPaths.tests.get_path_file(data['sensfile'][0], to_pkg='symlink')
 
     fluxFile = inputfiles.FluxFile(config=cfg_lines, 
                         file_paths=paths,
@@ -103,6 +108,9 @@ def test_flux_calib(tmp_path, monkeypatch):
         # depends on the side effect of fluxing
         return None 
 
+    # Make sure the required files are in the expected place
+    dataPaths.tests.get_file_path('spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                                  to_pkg='symlink')
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
@@ -141,6 +149,7 @@ def test_flux_calib(tmp_path, monkeypatch):
             print("flux read", file=f)
             print(f"path {data_output_path('')}", file=f)
             print("filename", file=f)
+            # TODO: Are these meant to be the same file?
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("flux end", file=f)

@@ -104,7 +104,7 @@ def blackbody_func(a, teff):
 ZP_UNIT_CONST = zp_unit_const()
 
 
-def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
+def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None):
     """
     Find a match for the input file to one of the archived
     standard star files (hopefully).
@@ -127,6 +127,18 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     check : bool, optional
         If True, the routine will only check to see if a standard
         star exists within the input ra, dec, and toler range.
+    to_pkg : str, optional
+        Passed directly to
+        :class:`~pypeit.pypeitdata.PypeItDataPath.get_file_path`: If the file is
+        in the cache, this argument affects how the cached file is connected to
+        the package installation.  If ``'symlink'``, a symbolic link is created
+        in the package directory tree that points to the cached file.  If
+        ``'move'``, the cached file is *moved* (not copied) from the cache into
+        the package directory tree.  If anything else (including None), no
+        operation is performed; no warning is issued if the value of ``to_pkg``
+        is not one of these three options (None, ``'symlink'``, or ``'move'``).
+        This argument is ignored if the requested standard file is already in
+        the package directory structure.
 
     Returns
     -------
@@ -171,7 +183,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             # Generate a dict
             _idx = int(idx)
-            std_dict = dict(cal_file=stds_path.get_file_path(star_tbl[_idx]['File']),
+            # TODO: Is there every a case where the name of the file is
+            # required?  If so, we should change to_pkg so that it is always
+            # either 'symlink' or 'move'.  I.e., if the file is only in the
+            # cache, the file name will always be "contents".
+            std_dict = dict(cal_file=stds_path.get_file_path(star_tbl[_idx]['File'], to_pkg=to_pkg),
                             name=star_tbl[_idx]['Name'],
 #                            std_ra=star_tbl[_idx]['RA_2000'],
 #                            std_dec=star_tbl[_idx]['DEC_2000'])

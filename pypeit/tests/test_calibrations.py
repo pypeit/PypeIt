@@ -31,7 +31,7 @@ def fitstbl():
         'b24.fits.gz',   # standard
         'b27.fits.gz'    # science
     ]
-    files = [dataPaths.tests.get_file_path(f, to_pkg='move') for f in file_names]
+    files = [dataPaths.tests.get_file_path(f, to_pkg='symlink') for f in file_names]
 
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     setupc.build_fitstbl(files)
