@@ -803,6 +803,7 @@ class FlatField:
         # Set parameters (for convenience;
         spec_samp_fine = self.flatpar['spec_samp_fine']
         spec_samp_coarse = self.flatpar['spec_samp_coarse']
+        tweak_method = self.flatpar['tweak_method']
         tweak_slits = self.flatpar['tweak_slits']
         tweak_slits_thresh = self.flatpar['tweak_slits_thresh']
         tweak_slits_maxfrac = self.flatpar['tweak_slits_maxfrac']
@@ -1089,7 +1090,7 @@ class FlatField:
                 # TODO: Will this break if
                 left_thresh, left_shift, self.slits.left_tweak[:,slit_idx], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit_idx] \
-                        = flat.tweak_slit_edges(self.slits.left_init[:,slit_idx],
+                        = self.tweak_slit_edges(self.slits.left_init[:,slit_idx],
                                                 self.slits.right_init[:,slit_idx],
                                                 spat_coo_data, spat_flat_data,
                                                 thresh=tweak_slits_thresh,
@@ -1575,6 +1576,71 @@ class FlatField:
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
                                       flexure=self.wavetilts.spat_flexure,
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+
+    def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
+        """
+        Tweak the slit edges based on the normalized slit illumination profile.
+
+        Args:
+            left (`numpy.ndarray`_):
+                Array with the left slit edge for a single slit. Shape is
+                :math:`(N_{\rm spec},)`.
+            right (`numpy.ndarray`_):
+                Array with the right slit edge for a single slit. Shape
+                is :math:`(N_{\rm spec},)`.
+            spat_coo (`numpy.ndarray`_):
+                Spatial pixel coordinates in fractions of the slit width
+                at each spectral row for the provided normalized flat
+                data. Coordinates are relative to the left edge (with the
+                left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
+                Function assumes the coordinate array is sorted.
+            norm_flat (`numpy.ndarray`_)
+                Normalized flat data that provide the slit illumination
+                profile. Shape is :math:`(N_{\rm flat},)`.
+            method (:obj:`str`, optional):
+                Method to use for tweaking the slit edges. Options are:
+                    - 'threshold': Use the threshold to set the slit edge
+                        and then shift it to the left or right based on the
+                        illumination profile.
+                    - 'gradient': Use the gradient of the illumination
+                        profile to set the slit edge and then shift it to
+                        the left or right based on the illumination profile.
+            thresh (:obj:`float`, optional):
+                Threshold of the normalized flat profile at which to
+                place the two slit edges.
+            maxfrac (:obj:`float`, optional):
+                The maximum fraction of the slit width that the slit edge
+                can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+                this means the maximum change in the slit width (either
+                narrowing or broadening) is 20% (i.e., 10% for either
+                edge).
+            debug (:obj:`bool`, optional):
+                Show flow interrupting plots that show illumination
+                profile in the case of a failure and the placement of the
+                tweaked edge for each side of the slit regardless.
+
+        Returns:
+            tuple: Returns six objects:
+
+                - The threshold used to set the left edge
+                - The fraction of the slit that the left edge is shifted to
+                  the right
+                - The adjusted left edge
+                - The threshold used to set the right edge
+                - The fraction of the slit that the right edge is shifted to
+                  the left
+                - The adjusted right edge
+        """
+        # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
+        # Tweak the edges via the specified method
+        if method == "threshold":
+            return flat.tweak_slit_edges_threshold(left, right, spat_coo, norm_flat,
+                                                   thresh=thresh, maxfrac=maxfrac, debug=debug)
+        elif method == "gradient":
+            return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat,
+                                                  maxfrac=maxfrac, debug=debug)
+        else:
+            msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
 
 
 def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None, title=None, half_slen=50):
