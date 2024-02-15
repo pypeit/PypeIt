@@ -1154,6 +1154,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             #         with the caveat that the standard star exposures are assumed to have similar airmasses.
             #         For now, comment out the extinction correction, and reapply this later when the sensitivity
             #         function algorithms are unified.
+            extcorr_sort = 1.0
             if False:
                 # Compute the extinction correction
                 msgs.info("Applying extinction correction")
@@ -1191,7 +1192,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     latitude=self.spec.telescope['latitude'], extinctfilepar=self.senspar['UVIS']['extinct_file'],
                     airmass=airmass, extrap_sens=self.par['fluxcalib']['extrap_sens'])
             # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
-            sens_sort /= gratcorr_sort
+            sens_sort *= extcorr_sort/gratcorr_sort
             # Correct for extinction
             sciImg[onslit_gpm] *= sens_sort[resrt]
             ivar[onslit_gpm] /= sens_sort[resrt] ** 2
