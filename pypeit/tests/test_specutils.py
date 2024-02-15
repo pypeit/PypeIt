@@ -29,7 +29,7 @@ def test_onespec_io():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_output_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
 
     _spec = Spectrum1D.read(ofile)
@@ -45,7 +45,7 @@ def test_onespec_io():
 @specutils_required
 def test_spec1d_io():
 
-    ofile = Path(tstutils.data_output_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
 
     spec1 = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     npix_spec = 100
@@ -145,7 +145,7 @@ def test_onespec_monotonic():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_output_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
 
     with pytest.raises(PypeItError):

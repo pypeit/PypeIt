@@ -29,7 +29,7 @@ def test_io():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(data_output_path('tmp.fits')).resolve()
+    ofile = Path(data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
     _spec = onespec.OneSpec.from_file(ofile)
     assert np.array_equal(spec.flux, _spec.flux), 'Flux munged'

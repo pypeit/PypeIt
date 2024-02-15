@@ -60,7 +60,7 @@ def test_generatemask():
 def test_skyregions_io():
     tstmsk = np.zeros((1000, 1000), dtype=bool)
     tstmsk[:, 744:901] = True
-    ofile = Path(data_output_path('test_skyregions.fits')).resolve()
+    ofile = Path(data_output_path('test_skyregions.fits')).absolute()
     if ofile.exists():
         ofile.unlink()
     SkyRegions(image=tstmsk.astype(float), PYP_SPEC='dummy').to_file(file_path=ofile)

@@ -36,7 +36,7 @@ def test_flatimages():
     flatImages.set_paths(data_output_path(''), 'A', '1', 'DET01')
 
     # I/O
-    ofile = Path(flatImages.get_path()).resolve()
+    ofile = Path(flatImages.get_path()).absolute()
     flatImages.to_file(overwrite=True)
     assert ofile.exists(), 'File not written'
 

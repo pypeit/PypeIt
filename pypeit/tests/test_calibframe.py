@@ -48,11 +48,11 @@ def test_implementation_faults():
 
 def test_init():
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).resolve()
+    odir = Path(data_output_path('')).absolute()
     calib.set_paths(odir, 'A', '1', 'DET01')
     ofile = Path(calib.get_path()).name
     assert ofile == 'Minimal_A_1_DET01.fits', 'Wrong file name'
-    opath = Path(calib.get_path()).resolve() # Now with the full path
+    opath = Path(calib.get_path()).absolute() # Now with the full path
     assert opath.parent == odir, 'Wrong parent directory'
     assert opath.name == ofile, 'Wrong file name'
 
@@ -63,10 +63,10 @@ def test_init():
 
 def test_io():
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).resolve()
+    odir = Path(data_output_path('')).absolute()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
-    opath = Path(calib.get_path()).resolve()
+    opath = Path(calib.get_path()).absolute()
     calib.to_file(overwrite=True)
 
     with io.fits_open(str(opath)) as hdu:
@@ -84,7 +84,7 @@ def test_io():
 
     calib.set_paths(odir, 'A', [1,2], 'DET01')
     calib.to_file(overwrite=True)
-    opath = Path(calib.get_path()).resolve()
+    opath = Path(calib.get_path()).absolute()
     with io.fits_open(str(opath)) as hdu:
         assert hdu[1].header['CALIBID'] == '1,2', 'Calibration ID incorrect'
     _calib = MinimalCalibFrame.from_file(str(opath))
@@ -144,10 +144,10 @@ def test_parse_calib_id():
 
 def test_parse_key_dir():
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).resolve()
+    odir = Path(data_output_path('')).absolute()
     calib.set_paths(odir, 'A', '1', 'DET01')
     calib.PYP_SPEC = 'this is a test'
-    opath = Path(calib.get_path()).resolve()
+    opath = Path(calib.get_path()).absolute()
     calib.to_file(overwrite=True)
 
     key, _odir = CalibFrame.parse_key_dir(str(opath), from_filename=True)
@@ -166,7 +166,7 @@ def test_parse_key_dir():
 
 def test_hdr():
     calib = MinimalCalibFrame()
-    odir = Path(data_output_path('')).resolve()
+    odir = Path(data_output_path('')).absolute()
     calib.set_paths(odir, 'A', '1', 'DET01')
 
     hdr = calib._base_header()

@@ -169,7 +169,7 @@ class PypeItDataPath:
         return path
     
     @staticmethod
-    def _get_file_path_return(f, return_format):
+    def _get_file_path_return(f, return_format, format=None):
         """
         Convience function that formats the return of :func:`get_file_path`,
         depending on whether or not the "format" of the file is requested.
@@ -180,13 +180,18 @@ class PypeItDataPath:
             return_format (:obj:`bool`):
                 If True, parse and return the file suffix (e.g., 'fits').  If
                 False, only the file path is returned.
+            format (:obj:`str`):
+                If ``return_format`` is True, override (i.e. do not parse) the
+                format from the file name, and use this string instead.  Ignored
+                if None or ``return_format`` is False.
 
         Returns:
             `Path`_, tuple: The file path and, if requested, the file format.
             See the arguments list.
         """
         if return_format:
-            return f, PypeItDataPath._parse_format(f)
+            _format = PypeItDataPath._parse_format(f) if format is None else format
+            return f, _format
         return f
     
     @staticmethod
@@ -245,7 +250,7 @@ class PypeItDataPath:
             see ``return_format``.
         """
         # Make sure the file is a Path object
-        _data_file = pathlib.Path(data_file).resolve()
+        _data_file = pathlib.Path(data_file).absolute()
 
         # Check if the file exists on disk, as provided 
         if _data_file.is_file():
@@ -268,18 +273,26 @@ class PypeItDataPath:
         subdir = str(self.path.relative_to(self.data))
         _cached_file = cache.fetch_remote_file(data_file, subdir)
 
-        # If requested, either create a symlink to the cached file or move it
-        # into the package data directory
-        if to_pkg is not None:
-            # Create and return values for the symlink
-            if to_pkg == 'symlink':
-                _data_file.symlink_to(_cached_file)
-            elif to_pkg == 'move':
-                shutil.move(_cached_file, _data_file)
-                cache.delete_file_in_cache(data_file, subdir)
-            return self._get_file_path_return(_data_file, return_format)
-        # Return the cached file path 
-        return self._get_file_path_return(_cached_file, return_format)
+        # If we've made it this far, the file is being pulled from the cache.
+        if to_pkg is None:
+            # The cache file is not symlinked or moved, meaning the filename is
+            # always ``contents``.  That means, if the format is returned, we
+            # should use the *expected* file name.
+            format = PypeItDataPath._parse_format(_data_file) if return_format else None
+            # Return the cached file path 
+            return self._get_file_path_return(_cached_file, return_format, format=format)
+
+        # Create a symlink to the cached file or move it into the package
+        # data directory
+        if to_pkg == 'symlink':
+            _data_file.symlink_to(_cached_file)
+        elif to_pkg == 'move':
+            # Move the file
+            shutil.move(_cached_file, _data_file)
+            # ... and delete it from the cache
+            cache.delete_file_in_cache(data_file, subdir)
+        # Return the symlinked or moved file
+        return self._get_file_path_return(_data_file, return_format)
     
 
 class PypeItDataPaths:

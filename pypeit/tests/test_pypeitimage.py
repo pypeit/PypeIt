@@ -24,7 +24,7 @@ def test_full():
     assert 'detector' in pypeitImage.keys(), 'Detector somehow missing!'
 
     # I/O
-    outfile = Path(data_output_path('tst_pypeitimage.fits')).resolve()
+    outfile = Path(data_output_path('tst_pypeitimage.fits')).absolute()
     pypeitImage.to_file(str(outfile), overwrite=True)
     _pypeitImage = pypeitimage.PypeItImage.from_file(str(outfile))
 
@@ -135,7 +135,7 @@ def test_bitmaskarray():
 
 
 def test_bitmaskarray_io():
-    path = Path(data_output_path('test.fits')).resolve()
+    path = Path(data_output_path('test.fits')).absolute()
     if path.exists():
         path.unlink()
 
@@ -212,10 +212,10 @@ def test_calib_io():
 
     img = MinimalPypeItCalibrationImage(ran_image)
     img.PYP_SPEC = 'test'
-    odir = Path(data_output_path('')).resolve()
+    odir = Path(data_output_path('')).absolute()
     img.set_paths(odir, 'A', '1', 'DET01')
     assert img.calib_dir == str(odir), 'Bad output directory'
-    opath = Path(img.get_path()).resolve()
+    opath = Path(img.get_path()).absolute()
     if opath.is_file():
         opath.unlink()
 

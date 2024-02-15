@@ -155,7 +155,7 @@ def make_example_sorted_file():
     ps.run(setup_only=True)
 
     # Write the sorted file,
-    sorted_file = pathlib.Path().resolve() / ps.pypeit_file.replace('.pypeit', '.sorted')
+    sorted_file = pathlib.Path().absolute() / ps.pypeit_file.replace('.pypeit', '.sorted')
     ps.fitstbl.write_sorted(sorted_file)
 
     oroot = PYP_ROOT / 'doc' / 'include'

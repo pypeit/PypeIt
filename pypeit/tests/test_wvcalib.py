@@ -26,7 +26,7 @@ def test_wavefit_hduprefix():
 
 def test_wavefit():
     "Fuss with the WaveFit DataContainer"
-    out_file = Path(data_output_path('test_wavefit.fits')).resolve()
+    out_file = Path(data_output_path('test_wavefit.fits')).absolute()
     if out_file.exists():
         out_file.unlink()
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
@@ -82,7 +82,7 @@ def test_wavecalib():
                                     fwhm_map=np.array([pypeitFit2]))
     waveCalib.set_paths(data_output_path(''), 'A', '1', 'DET01')
 
-    ofile = Path(waveCalib.get_path()).resolve()
+    ofile = Path(waveCalib.get_path()).absolute()
 
     # Write
     waveCalib.to_file(overwrite=True)
@@ -137,7 +137,7 @@ def test_wvcalib_no2d():
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
                                     nslits=2, spat_ids=spat_ids)
     waveCalib.set_paths(data_output_path(''), 'A', '1', 'DET01')
-    ofile = Path(waveCalib.get_path()).resolve()
+    ofile = Path(waveCalib.get_path()).absolute()
 
     waveCalib.to_file(overwrite=True)
     assert ofile.exists(), 'File not written'

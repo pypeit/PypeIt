@@ -135,7 +135,7 @@ def test_bpm(multi_caliBrate):
 
 
 def test_asn(multi_caliBrate):
-    caldir = Path().resolve()
+    caldir = Path().absolute()
     ofile = caldir / 'test.calib'
     if ofile.exists():
         ofile.unlink()
@@ -164,7 +164,7 @@ def test_asn(multi_caliBrate):
 
 def test_asn_calib_ID_dict(multi_caliBrate):
 
-    caldir = Path().resolve()
+    caldir = Path().absolute()
     setup = 'A'
     calib_ID = 0
     det = 1

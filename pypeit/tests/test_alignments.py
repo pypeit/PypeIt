@@ -27,7 +27,7 @@ def test_alignments():
 
     alignments = alignframe.Alignments(**instant_dict)
     alignments.set_paths(data_output_path(''), 'A', '1', 'DET01')
-    ofile = Path(alignments.get_path()).resolve()
+    ofile = Path(alignments.get_path()).absolute()
 
     # I/O
     alignments.to_file(overwrite=True)

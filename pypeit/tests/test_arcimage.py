@@ -34,8 +34,8 @@ def test_io():
                                                     setup='A', calib_id=['1'],
                                                     detname='DET01')
     # Set paths and check name
-    ofile = Path(arcImage.get_path()).resolve()
-    assert str(ofile) == str(Path(data_output_path('Arc_A_1_DET01.fits')).resolve()), \
+    ofile = Path(arcImage.get_path()).absolute()
+    assert str(ofile) == str(Path(data_output_path('Arc_A_1_DET01.fits')).absolute()), \
             'Calibration file name changed'
     
     # Write

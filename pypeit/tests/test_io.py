@@ -24,7 +24,7 @@ def test_remove_suffix():
 
 def test_grab_rawfiles():
 
-    tst_file = Path(tstutils.data_output_path('test.rawfiles')).resolve()
+    tst_file = Path(tstutils.data_output_path('test.rawfiles')).absolute()
     if tst_file.exists():
         tst_file.unlink()
 
@@ -32,7 +32,7 @@ def test_grab_rawfiles():
     # installation
     tstutils.install_shane_kast_blue_raw_data()
 
-    root = Path(tstutils.data_output_path('')).resolve()
+    root = Path(tstutils.data_output_path('')).absolute()
     raw_files = [root / 'b11.fits.gz', root / 'b12.fits.gz']
     assert all([f.exists() for f in raw_files]), 'Files missing'
 

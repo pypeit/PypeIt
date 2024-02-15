@@ -785,7 +785,7 @@ def fits_open(filename, **kwargs):
     # string before checking that it exists.  There should be a more robust way
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
-    if isinstance(filename, (str, Path)) and not Path(filename).resolve().exists():
+    if isinstance(filename, (str, Path)) and not Path(filename).absolute().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
@@ -917,7 +917,7 @@ def load_object(module, obj=None):
     try:
         Module = importlib.import_module(_module)
     except (ModuleNotFoundError, ImportError, TypeError) as e:
-        p = Path(module + '.py').resolve()
+        p = Path(module + '.py').absolute()
         if not p.exists():
             raise ImportError(f'Unable to load module {_module}!') from e
         spec = importlib.util.spec_from_file_location(_module, str(p))

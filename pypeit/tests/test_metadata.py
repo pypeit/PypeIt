@@ -20,7 +20,7 @@ def test_read_combid():
 
     # ------------------------------------------------------------------
     # In case of failed tests
-    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).resolve()
+    config_dir = Path(tstutils.data_output_path('shane_kast_blue_A')).absolute()
     if config_dir.exists():
         shutil.rmtree(config_dir)
     # ------------------------------------------------------------------
@@ -51,11 +51,14 @@ def test_read_combid():
 
     b27_indx = pmd['filename'] == 'b27.fits.gz'
     b24_indx = pmd['filename'] == 'b24.fits.gz'
+    no_combid_indx = np.logical_not(b27_indx | b24_indx)
+    b27_indx = np.where(b27_indx)[0][0]
+    b24_indx = np.where(b24_indx)[0][0]
+
     assert pmd['comb_id'][b27_indx] > 0, 'Science file should have a combination group ID'
     assert pmd['comb_id'][b24_indx] > 0, 'Standard file should have a combination group ID'
     assert pmd['comb_id'][b27_indx] != pmd['comb_id'][b24_indx], 'Science and standard should not have same combination group ID'
-    no_combid_indx = np.logical_not(b27_indx | b24_indx)
-    assert pmd['comb_id'][np.where(no_combid_indx)[0]][0] == -1, 'Incorrect combination group ID'
+    assert pmd['comb_id'][np.where(no_combid_indx)[0][0]] == -1, 'Incorrect combination group ID'
 
     shutil.rmtree(config_dir)
 

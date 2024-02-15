@@ -43,7 +43,7 @@ def test_io():
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
                          'MultiSlit', nspat=10, PYP_SPEC='dummy')
     slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
-    ofile = Path(slits.get_path()).resolve()
+    ofile = Path(slits.get_path()).absolute()
 
     # Try to save it
     slits.to_file(overwrite=True)
@@ -67,7 +67,7 @@ def test_io_single():
                          nspat=10, PYP_SPEC='dummy',
                          maskfile=file)
     slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
-    ofile = Path(slits.get_path()).resolve()
+    ofile = Path(slits.get_path()).absolute()
 
     # Try to save it
     slits.to_file()

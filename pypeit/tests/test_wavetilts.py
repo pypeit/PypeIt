@@ -23,7 +23,7 @@ def test_wavetilts():
     wvtilts = wavetilts.WaveTilts(**instant_dict)
     wvtilts.set_paths(data_output_path(''), 'A', '1', 'DET01')
     # I/O
-    ofile = Path(wvtilts.get_path()).resolve()
+    ofile = Path(wvtilts.get_path()).absolute()
     wvtilts.to_file(overwrite=True)
     assert ofile.exists(), 'File not written'
 

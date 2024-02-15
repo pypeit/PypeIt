@@ -61,7 +61,7 @@ def test_run_setup():
     tstutils.install_shane_kast_blue_raw_data()
 
     droot = tstutils.data_output_path('b')
-    odir = Path(tstutils.data_output_path('')).resolve() / 'shane_kast_blue_A'
+    odir = Path(tstutils.data_output_path('')).absolute() / 'shane_kast_blue_A'
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all',
                               '--extension', 'fits.gz', '--output_path', f'{odir.parent}'])
     Setup.main(pargs)

@@ -513,7 +513,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
         # Directory for QA plots
-        self.qa_path = None if qa_path is None else Path(qa_path).resolve()
+        self.qa_path = None if qa_path is None else Path(qa_path).absolute()
 
         # Inherit the calibration frame attributes from the trace image:
         self.copy_calib_internals(self.traceimg)
@@ -1305,7 +1305,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.spectrograph = load_spectrograph(hdu['SOBELSIG'].header['PYP_SPEC'])
         self.spectrograph.dispname = self.dispname
         self.par = EdgeTracePar.from_header(hdu['SOBELSIG'].header)
-        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).resolve()
+        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).absolute()
 
         # Check the bitmasks
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
