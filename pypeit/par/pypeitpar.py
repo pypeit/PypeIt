@@ -649,6 +649,16 @@ class FlatFieldPar(ParSet):
         descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
                                'This will work even if illumflatten is set to False '
 
+        defaults['tweak_method'] = 'threshold'
+        options['tweak_method'] = FlatFieldPar.valid_tweak_methods()
+        dtypes['tweak_method'] = str
+        descr['tweak_method'] = 'Method used to tweak the slit edges (when "tweak_slits" is set to True).  ' \
+                                'Options include: {0:s}. '.format(', '.join(options['tweak_method'])) + \
+                                'The "threshold" method determines when the left and right slit edges ' \
+                                'fall below a threshold relative to the peak illumination. ' \
+                                'The "gradient" method determines where the gradient is the highest at ' \
+                                'the left and right slit edges.' \
+
         defaults['tweak_slits_thresh'] = 0.93
         dtypes['tweak_slits_thresh'] = float
         descr['tweak_slits_thresh'] = 'If tweak_slits is True, this sets the illumination function threshold used to ' \
@@ -786,6 +796,13 @@ class FlatFieldPar(ParSet):
         Return the valid flat-field methods
         """
         return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+
+    @staticmethod
+    def valid_tweak_methods():
+        """
+        Return the valid options for tweaking slits.
+        """
+        return ['threshold', 'gradient']
 
     @staticmethod
     def valid_saturated_slits_methods():

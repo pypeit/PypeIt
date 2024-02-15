@@ -505,10 +505,85 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
+def tweak_slit_edges(left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
+    """
+    Tweak the slit edges based on the normalized slit illumination profile.
+
+    Args:
+        left (`numpy.ndarray`_):
+            Array with the left slit edge for a single slit. Shape is
+            :math:`(N_{\rm spec},)`.
+        right (`numpy.ndarray`_):
+            Array with the right slit edge for a single slit. Shape
+            is :math:`(N_{\rm spec},)`.
+        spat_coo (`numpy.ndarray`_):
+            Spatial pixel coordinates in fractions of the slit width
+            at each spectral row for the provided normalized flat
+            data. Coordinates are relative to the left edge (with the
+            left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
+            Function assumes the coordinate array is sorted.
+        norm_flat (`numpy.ndarray`_)
+            Normalized flat data that provide the slit illumination
+            profile. Shape is :math:`(N_{\rm flat},)`.
+        method (:obj:`str`, optional):
+            Method to use for tweaking the slit edges. Options are:
+                - 'threshold': Use the threshold to set the slit edge
+                    and then shift it to the left or right based on the
+                    illumination profile.
+                - 'gradient': Use the gradient of the illumination
+                    profile to set the slit edge and then shift it to
+                    the left or right based on the illumination profile.
+        thresh (:obj:`float`, optional):
+            Threshold of the normalized flat profile at which to
+            place the two slit edges.
+        maxfrac (:obj:`float`, optional):
+            The maximum fraction of the slit width that the slit edge
+            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+            this means the maximum change in the slit width (either
+            narrowing or broadening) is 20% (i.e., 10% for either
+            edge).
+        debug (:obj:`bool`, optional):
+            Show flow interrupting plots that show illumination
+            profile in the case of a failure and the placement of the
+            tweaked edge for each side of the slit regardless.
+
+    Returns:
+        tuple: Returns six objects:
+
+            - The threshold used to set the left edge
+            - The fraction of the slit that the left edge is shifted to
+              the right
+            - The adjusted left edge
+            - The threshold used to set the right edge
+            - The fraction of the slit that the right edge is shifted to
+              the left
+            - The adjusted right edge
+    """
+    # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
+    # Tweak the edges via the specified method
+    if method == "threshold":
+        return tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=thresh, maxfrac=maxfrac, debug=debug)
+    elif method == "gradient":
+        return tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
+    else:
+        msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
+
+
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, debug=False):
+    """
+
+    """
+    # Check input
+    nspec = len(left)
+    if len(right) != nspec:
+        msgs.error('Input left and right traces must have the same length!')
+    embed()
+
+
 # TODO: See pypeit/deprecated/flat.py for the previous version. We need
 # to continue to vet this algorithm to make sure there are no
 # unforeseen corner cases that cause errors.
-def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
+def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
     r"""
     Adjust slit edges based on the normalized slit illumination profile.
 
