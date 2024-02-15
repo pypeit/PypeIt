@@ -524,6 +524,8 @@ class PypeIt:
         initial_sky_list = []
         # list of sciImg
         sciImg_list = []
+        # list of nobkg_sciimg
+        nobkg_sciimg_list = []
         # List of detectors with successful calibration
         calibrated_det = []
         # list of successful slits calibrations to be used in the extraction loop
@@ -570,14 +572,14 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(
+            initial_sky, sobjs_obj, sciImg, nobkg_sciimg, objFind = self.objfind_one(
                 frames, self.det, bg_frames=bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
+            nobkg_sciimg_list.append(nobkg_sciimg)
             objFind_list.append(objFind)
-
 
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
@@ -622,7 +624,7 @@ class PypeIt:
 
             # Extract
             all_spec2d[detname], tmp_sobjs \
-                    = self.extract_one(frames, self.det, sciImg_list[i], objFind_list[i],
+                    = self.extract_one(frames, self.det, sciImg_list[i], nobkg_sciimg_list[i], objFind_list[i],
                                        initial_sky_list[i], all_specobjs_on_det)
             # Hold em
             if tmp_sobjs.nobj > 0:
@@ -699,7 +701,7 @@ class PypeIt:
                                              self.par['rdx']['maskIDs'])
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
-            self.calibrations_path, qadir=self.qa_path, 
+            self.calibrations_path, qadir=self.qa_path,
             reuse_calibs=self.reuse_calibs, show=self.show, user_slits=user_slits,
             chk_version=self.par['rdx']['chk_version'])
         # These need to be separate to accomodate COADD2D
@@ -734,6 +736,11 @@ class PypeIt:
             List of objects found
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
+        nobkg_sciimg : :obj:`dict`
+            Dictionary containing the science image and ivar
+            before background subtraction if self.bkg_redux is True,
+            otherwise None. It's used to generate a global sky
+            model without bkg subtraction.
         objFind : :class:`~pypeit.find_objects.FindObjects`
             Object finding speobject
 
@@ -765,8 +772,15 @@ class PypeIt:
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
+        # get no bkg subtracted sciImg to generate a global sky model without bkg subtraction.
+        # it's a dictionary with only `image` and `ivar` keys if bkg_redux=False, otherwise it's None
+        nobkg_sciimg = None
+
         # Background Image?
         if bg_frames is not None and len(bg_frames) > 0:
+            # get no bkg subtracted sciImg
+            nobkg_sciimg = {'image': sciImg.image.copy(), 'ivar': sciImg.ivar.copy()}
+            # Build the background image
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
             bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
                                                    bpm=self.caliBrate.msbpm,
@@ -815,7 +829,7 @@ class PypeIt:
         initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=self.show)
 
         # Return
-        return initial_sky, sobjs_obj, sciImg, objFind
+        return initial_sky, sobjs_obj, sciImg, nobkg_sciimg, objFind
 
     def load_skyregions(self, initial_slits=False, scifile=None, frame=None, spat_flexure=None):
         """
@@ -905,7 +919,7 @@ class PypeIt:
         return skysub.generate_mask(self.spectrograph.pypeline, regions, self.caliBrate.slits,
                                     slits_left, slits_right, spat_flexure=spat_flexure)
 
-    def extract_one(self, frames, det, sciImg, objFind, initial_sky, sobjs_obj):
+    def extract_one(self, frames, det, sciImg, nobkg_sciimg, objFind, initial_sky, sobjs_obj):
         """
         Extract Objects in a single exposure/detector pair
 
@@ -920,6 +934,11 @@ class PypeIt:
             sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
+            nobkg_sciimg (:obj:`dict`, optional):
+                Dictionary containing the science image and ivar
+                before background subtraction if self.bkg_redux is True,
+                otherwise None. It's used to generate a global sky
+                model without bkg subtraction.
             objFind : :class:`~pypeit.find_objects.FindObjects`
                 Object finding object
             initial_sky (`numpy.ndarray`_):
@@ -948,6 +967,7 @@ class PypeIt:
         # control structure.
 
         # Update the global sky
+        skymask = None
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_skysub'] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
@@ -956,9 +976,17 @@ class PypeIt:
         else:
             # Update the skymask
             skymask = objFind.create_skymask(sobjs_obj)
-            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, 
+            final_global_sky = objFind.global_skysub(previous_sky=initial_sky,
                                                      skymask=skymask, show=self.show,
                                                      reinit_bpm=False)
+        # get the nobkg_global_sky
+        nobkg_global_sky = None
+        if self.bkg_redux:
+            skymask = objFind.create_skymask(sobjs_obj) if skymask is None else skymask
+            # DO NOT reinit_bpm, nor update_crmask
+            nobkg_global_sky = objFind.global_skysub(skymask=skymask, nobkg_sciimg=nobkg_sciimg,
+                                                     reinit_bpm=False, update_crmask=False, show=self.show)
+
         scaleImg = objFind.scaleimg
 
         # Each spec2d file includes the slits object with unique flagging
@@ -982,19 +1010,20 @@ class PypeIt:
             # TODO Are we repeating steps in the init for FindObjects and Extract??
             self.exTract = extraction.Extract.get_instance(
                 sciImg, slits, sobjs_obj, self.spectrograph,
-                self.par, self.objtype, global_sky=final_global_sky, waveTilts=self.caliBrate.wavetilts,
-                wv_calib=self.caliBrate.wv_calib,
+                self.par, self.objtype, global_sky=final_global_sky, nobkg_global_sky=nobkg_global_sky,
+                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
                 bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
                 std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction
-            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts, slits = self.exTract.run()
+            skymodel, nobkg_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts, slits = self.exTract.run()
             slitgpm = np.logical_not(self.exTract.extract_bpm)
             slitshift = self.exTract.slitshift
         else:
             msgs.info(f"Extraction skipped for {self.basename} on det={det}")
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
+            skymodel, nobkg_skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = \
                 final_global_sky, \
+                nobkg_global_sky, \
                 np.zeros_like(objFind.sciImg.image), \
                 np.copy(objFind.sciImg.ivar), \
                 objFind.sciImg.fullmask, \
@@ -1026,6 +1055,7 @@ class PypeIt:
         spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                         ivarraw=sciImg.ivar,
                                         skymodel=skymodel,
+                                        nobkg_skymodel=nobkg_skymodel,
                                         objmodel=objmodel,
                                         ivarmodel=ivarmodel,
                                         scaleimg=scaleImg,
