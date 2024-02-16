@@ -783,9 +783,11 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
         sens_fwhm (`numpy.ndarray`_, optional):
-            Use the fwhm from the sensitivity function to estimate the slit loss
+            Use the fwhm from the sensitivity function to estimate the slit loss. 
+            Only used to print as reference.
         dat_fwhm (`numpy.ndarray`_, optional):
-            Use the fwhm from the data to estimate the slit loss
+            Use the fwhm from the data to estimate the slit loss. 
+            Only used to print as refernce.
 
     Returns
     -------

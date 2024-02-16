@@ -1093,6 +1093,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         temp_wv_og = template_dict['wave']
         temp_spec_og = template_dict['spec']
         temp_bin = template_dict['bin']
+        lines_pix = template_dict['lines_pix'] 
+        lines_wav = template_dict['lines_wav'] 
+        lines_fit_ord = template_dict['lines_fit_ord']
 
     srt = np.argsort(temp_wv_og.ravel())
     temp_wv = temp_wv_og.ravel()[srt]
@@ -1157,7 +1160,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             if lines_pix[slit] is not None:
                 msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 msgs.info('Checking for possible shifts')
-                shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, percent_ceil=50.0)#par['xcorr_percent_ceil'])
+                shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, 
+                                                        percent_ceil=50.0, lag_range=par['cc_shift_range'])#par['xcorr_percent_ceil'])
                 msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
                 pix_arxiv_ss = lines_pix[slit] - shift_cc
                 bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
@@ -1218,9 +1222,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                 else:
                     wvcalib[str(slit)] = copy.deepcopy(final_fit)
 
-                #Load order information for Echelle:
-                if np.any(order):
-                    slit_ids = order
                 continue
             else:
                 msgs.info('No solution yet for this slit, so making one now...')
@@ -1321,9 +1322,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
         
-        #Load order information for Echelle:
-        if np.any(order):
-            slit_ids = order
     # Finish
     return wvcalib, order
 
@@ -1452,7 +1450,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             spec[:, iord], spec_arxiv[:, iord], wave_arxiv[:, iord], tot_line_list, par['nreid_min'],
             cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
-            nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=par['fwhm'],
+            nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
             percent_ceil= par['xcorr_percent_ceil'], max_lag_frac= par['xcorr_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
