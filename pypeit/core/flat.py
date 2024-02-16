@@ -470,7 +470,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
-def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat):
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
     r""" Adjust slit edges based on the gradient of the normalized
     flat-field illumination profile.
 
@@ -490,6 +490,9 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat):
         norm_flat (`numpy.ndarray`_)
             Normalized flat data that provide the slit illumination
             profile. Shape is :math:`(N_{\rm flat},)`.
+        debug (:obj:`bool`, optional):
+            If True, the function will output plots to test if the
+            fitting is working correctly.
 
     Returns:
         tuple: Returns six objects:
@@ -521,6 +524,10 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat):
     # Find the location of the minimum/maximum gradient - this is the amount of shift required
     left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
     right_shift = spat_coo[np.argmin(grad_norm_flat_smooth)]-1.0
+    msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
+              ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
+    msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
+                ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
     # Calculate the tweak for the left edge
     new_left = np.copy(left) + left_shift * slitwidth
@@ -530,6 +537,24 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat):
     left_thresh = np.interp(left_shift, spat_coo, norm_flat)
     right_thresh = np.interp(1+right_shift, spat_coo, norm_flat)
 
+    if debug:
+        plt.subplot(211)
+        plt.plot(spat_coo, norm_flat, 'k-')
+        plt.axvline(0.0, color='b', linestyle='-', label='initial')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-', label='tweak (gradient)')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.axhline(left_thresh, xmax=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.axhline(right_thresh, xmin=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.legend()
+        plt.subplot(212)
+        plt.plot(spat_coo, grad_norm_flat, 'k-')
+        plt.plot(spat_coo, grad_norm_flat_smooth, 'm-')
+        plt.axvline(0.0, color='b', linestyle='-')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.show()
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
 
@@ -645,7 +670,7 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             left_shift = utils.linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
                                                   spat_coo[i+1], left_thresh)
         msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
-                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
 
     # ------------------------------------------------------------------
@@ -699,7 +724,7 @@ def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, ma
             right_shift = 1-utils.linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
                                                      spat_coo[i], right_thresh)
         msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
-                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
