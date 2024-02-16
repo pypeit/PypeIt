@@ -95,8 +95,8 @@ class SensFunc(datamodel.DataContainer):
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
                                     descr='Spectrograph throughput measurements'),
-                 'spat_fwhm_std': dict(otype=np.ndarray, atype=float,
-                                    descr='Measured spatial fwhm of the standard source'),
+                 #'spat_fwhm_std': dict(otype=np.ndarray, atype=float,
+                 #                   descr='Measured spatial fwhm of the standard source'),
                  'algorithm': dict(otype=str, descr='Algorithm used for the sensitivity calculation.')}
 #                                    ,
 #                 'wave_splice': dict(otype=np.ndarray, atype=float,
