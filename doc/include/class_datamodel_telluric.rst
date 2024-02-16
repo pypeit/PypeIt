@@ -23,7 +23,7 @@ Attribute             Type                          Array Type  Description
 ``telgrid``           str                                       File containing PCA components or grid of HITRAN atmosphere models                                    
 ``tell_norm_thresh``  float                                     ??                                                                                                    
 ``tell_npca``         int                                       Number of telluric PCA components used                                                                
-``teltype``           str                                       Type of telluric model, `PCA` or `grid`                                                               
+``teltype``           str                                       Type of telluric model, `pca` or `grid`                                                               
 ``tol``               float                                     Relative tolerance for converage of the differential evolution optimization.                          
 ``ubound_norm``       float                                     Flux normalization upper bound                                                                        
 ``z_qso``             float                                     Redshift of the QSO                                                                                   

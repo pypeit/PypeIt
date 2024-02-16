@@ -64,6 +64,11 @@ class Calibrations:
         user_slits (:obj:`dict`, optional):
             A limited set of slits selected by the user for analysis.  See
             :func:`~pypeit.slittrace.SlitTraceSet.user_mask`.
+        chk_version (:obj:`bool`, optional):
+            When reading in existing files written by PypeIt, perform strict
+            version checking to ensure a valid file.  If False, the code will
+            try to keep going, but this may lead to faults and quiet failures.
+            User beware!
 
     Attributes:
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
@@ -134,7 +139,7 @@ class Calibrations:
         return calibclass(fitstbl, par, spectrograph, caldir, **kwargs)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
-                 reuse_calibs=False, show=False, user_slits=None):
+                 reuse_calibs=False, show=False, user_slits=None, chk_version=True):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -153,6 +158,7 @@ class Calibrations:
 
         # Calibrations
         self.reuse_calibs = reuse_calibs
+        self.chk_version = chk_version
         self.calib_dir = Path(caldir).resolve()
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
@@ -314,7 +320,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.msarc = frame['class'].from_file(cal_file)
+            self.msarc = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.msarc
 
         # Reset the BPM
@@ -357,7 +363,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.mstilt = frame['class'].from_file(cal_file)
+            self.mstilt = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.mstilt
 
         # Reset the BPM
@@ -405,7 +411,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.alignments = frame['class'].from_file(cal_file)
+            self.alignments = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             self.alignments.is_synced(self.slits)
             return self.alignments
 
@@ -456,7 +462,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.msbias = frame['class'].from_file(cal_file)
+            self.msbias = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.msbias
 
         # Otherwise, create the processed file.
@@ -495,7 +501,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.msdark = frame['class'].from_file(cal_file)
+            self.msdark = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.msdark
 
         # TODO: If a bias has been constructed and it will be subtracted from
@@ -571,7 +577,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.msscattlight = frame['class'].from_file(cal_file)
+            self.msscattlight = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.msscattlight
 
         # Scattered light model does not exist or we're not reusing it.
@@ -689,7 +695,8 @@ class Calibrations:
         setup = illum_setup if pixel_setup is None else pixel_setup
         calib_id = illum_calib_id if pixel_calib_id is None else pixel_calib_id
         if cal_file.exists() and self.reuse_calibs:
-            self.flatimages = flatfield.FlatImages.from_file(cal_file)
+            self.flatimages = flatfield.FlatImages.from_file(cal_file,
+                                                             chk_version=self.chk_version)
             self.flatimages.is_synced(self.slits)
             # Load user defined files
             if self.par['flatfield']['pixelflat_file'] is not None:
@@ -845,7 +852,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.slits = frame['class'].from_file(cal_file)
+            self.slits = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             self.slits.mask = self.slits.mask_init.copy()
             if self.user_slits is not None:
                 self.slits.user_mask(detname, self.user_slits)
@@ -858,7 +865,8 @@ class Calibrations:
         # If so, reuse it?
         if edges_file.exists() and self.reuse_calibs:
             # Yep!  Load it and parse it into slits.
-            self.slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
+            self.slits = edgetrace.EdgeTraceSet.from_file(edges_file,
+                                                          chk_version=self.chk_version).get_slits()
             # Write the slits calibration file
             self.slits.to_file()
             if self.user_slits is not None:
@@ -961,7 +969,7 @@ class Calibrations:
         # we want to reuse it, do so (or just load it):
         if cal_file.exists() and self.reuse_calibs: 
             # Load the file
-            self.wv_calib = wavecalib.WaveCalib.from_file(cal_file)
+            self.wv_calib = wavecalib.WaveCalib.from_file(cal_file, chk_version=self.chk_version)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
             # TODO - should all of this new code be removed??
@@ -1039,7 +1047,7 @@ class Calibrations:
         # If a processed calibration frame exists and we want to reuse it, do
         # so:
         if cal_file.exists() and self.reuse_calibs:
-            self.wavetilts = wavetilts.WaveTilts.from_file(cal_file)
+            self.wavetilts = wavetilts.WaveTilts.from_file(cal_file, chk_version=self.chk_version)
             self.wavetilts.is_synced(self.slits)
             self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts

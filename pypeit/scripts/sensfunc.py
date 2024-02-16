@@ -258,17 +258,17 @@ class SensFunc(scriptbase.ScriptBase):
             # pypeit.par.parset.ParSet.to_config method in the
             # pypeit.par.pypeitpar.SensFuncPar class.
 
-            # Parse the output filename
-            outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
-                            if args.outfile is None else args.outfile
-            # Instantiate the relevant class for the requested algorithm
-            sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                    debug=args.debug)
-            # Generate the sensfunc
-            sensobj.run()
-            msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
-            # Write it out to a file, including the new primary FITS header
-            sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
+        # Parse the output filename
+        outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
+                        if args.outfile is None else args.outfile
+        # Instantiate the relevant class for the requested algorithm
+        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
+                                                 debug=args.debug,
+                                                 chk_version=par['rdx']['chk_version'])
+        # Generate the sensfunc
+        sensobj.run()
+        # Write it out to a file, including the new primary FITS header
+        sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 
             #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 

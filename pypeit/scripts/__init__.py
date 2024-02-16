@@ -32,6 +32,7 @@ from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
 from pypeit.scripts import parse_slits
+from pypeit.scripts import print_bpm
 from pypeit.scripts import qa_html
 from pypeit.scripts import ql
 #from pypeit.scripts import ql_multislit

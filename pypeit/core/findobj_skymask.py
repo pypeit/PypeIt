@@ -2556,13 +2556,13 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
-                                trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                idx=sobjs.NAME, debug=show_fits)[0]
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
+                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
-                                trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
+                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):

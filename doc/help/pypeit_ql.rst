@@ -11,7 +11,7 @@
                      [--ignore_std] [--skip_display] [--coadd2d]
                      [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
                      [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
-                     [--spat_samp_fact SPAT_SAMP_FACT]
+                     [--spat_samp_fact SPAT_SAMP_FACT] [--try_old]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
@@ -134,4 +134,6 @@
                             If coadding, adjust the spatial grid sampling by this
                             factor. For a finer grid, set value to <1.0; for coarser
                             sampling, set value to >1.0). (default: 1.0)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     

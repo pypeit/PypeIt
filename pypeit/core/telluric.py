@@ -168,7 +168,7 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
             - tell_pca: PCA component vectors
             - bounds_tell_pca: Maximum/minimum coefficient
             - coefs_tell_pca: Set of model coefficient values (for prior in future)
-            - teltype: Type of telluric model, i.e. 'PCA'
+            - teltype: Type of telluric model, i.e. 'pca'
     """
     # load_telluric_grid() takes care of path and existance check
     hdul = data.load_telluric_grid(filename)
@@ -385,13 +385,13 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 
     Args:
         theta_tell (`numpy.ndarray`_):
-            Vector with tell_npca PCA coefficients (if teltype='PCA')
+            Vector with tell_npca PCA coefficients (if teltype='pca')
             or pressure, temperature, humidity, and airmass (if teltype='grid'),
             followed by spectral resolution, shift, and stretch.
             Final length is then tell_npca+3 or 7.
         tell_dict (:obj:`dict`):
             Dictionary containing the telluric data. See
-            :func:`read_telluric_pca` if teltype=='PCA'.
+            :func:`read_telluric_pca` if teltype=='pca'.
             or
             :func:`read_telluric_grid` if teltype=='grid'.
         ind_lower (:obj:`int`, optional):
@@ -719,7 +719,7 @@ def unpack_orders(sobjs, ret_flam=False):
 
 # TODO: This function needs to be revisited.  Better yet, it would useful to
 # brainstorm about whether or not it's worth revisiting the spec1d datamodel.
-def general_spec_reader(specfile, ret_flam=False, ret_stacks = False):
+def general_spec_reader(specfile, ret_flam=False, chk_version=True, ret_stacks = False):
     """
     Read a spec1d file or a coadd spectrum file.
 
@@ -728,6 +728,11 @@ def general_spec_reader(specfile, ret_flam=False, ret_stacks = False):
             File with the data
         ret_flam (:obj:`bool`, optional):
             Return FLAM instead of COUNTS.
+        chk_version (:obj:`bool`, optional):
+            When reading in existing files written by PypeIt, perform strict
+            version checking to ensure a valid file.  If False, the code will
+            try to keep going, but this may lead to faults and quiet failures.
+            User beware!
 
     Returns:
         :obj:`tuple`: Seven objects are returned.  The first five are
@@ -742,7 +747,7 @@ def general_spec_reader(specfile, ret_flam=False, ret_stacks = False):
     hdul = fits.open(specfile)
     if 'DMODCLS' in hdul[1].header and hdul[1].header['DMODCLS'] == 'OneSpec':
         # Load
-        spec = onespec.OneSpec.from_file(specfile)
+        spec = onespec.OneSpec.from_file(specfile, chk_version=chk_version)
         # Unpack
         wave = spec.wave
         # wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
@@ -760,7 +765,8 @@ def general_spec_reader(specfile, ret_flam=False, ret_stacks = False):
         counts_ivar_stack = spec.ivar_stack
         counts_gpm_stack = spec.mask_stack
     else:
-        sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
+        sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=chk_version)
+        # TODO: What bug?  Is it fixed now?  How can we test if it's fixed?
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
@@ -829,7 +835,8 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spec
     wave_gpm = wave > 1.0
 
     spec = onespec.OneSpec(wave=wave[wave_gpm], wave_grid_mid=None if wave_grid_mid is None else wave_grid_mid[wave_gpm],
-                           flux=flux[wave_gpm], PYP_SPEC=spectrograph, ivar=ivar[wave_gpm], mask=gpm[wave_gpm].astype(int),
+                           flux=flux[wave_gpm], PYP_SPEC=spectrograph, ivar=ivar[wave_gpm], sigma=np.sqrt(utils.inverse(ivar[wave_gpm])),
+                           mask=gpm[wave_gpm].astype(int),
                            telluric=None if telluric is None else telluric[wave_gpm],
                            obj_model=None if obj_model is None else obj_model[wave_gpm],
                            ext_mode=ex_value, fluxed=True)
@@ -1308,7 +1315,7 @@ def eval_poly_model(theta, obj_dict):
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, log10_blaze_function=None, ech_orders=None, polyorder=8,
-                      tell_npca=4, teltype='PCA',
+                      tell_npca=4, teltype='pca',
                       mask_hydrogen_lines=True, mask_helium_lines=False, hydrogen_mask_wid=10.,
                       resln_guess=None, resln_frac_bounds=(0.6, 1.4), pix_shift_bounds=(-5.0, 5.0),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
@@ -1359,8 +1366,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         If passed, provides the true order numbers for the spectra provided.
     polyorder : :obj:`int`, optional, default = 8
         Polynomial order for the sensitivity function fit.
-    teltype : :obj:`str`, optional, default = 'PCA'
-        Method for evaluating telluric models, either `PCA` or `grid`.
+    teltype : :obj:`str`, optional, default = 'pca'
+        Method for evaluating telluric models, either `pca` or `grid`.
     tell_npca : :obj:`int`, optional, default = 4
         Number of telluric PCA components used, must be <= 10
     mask_hydrogen_lines : :obj:`bool`, optional
@@ -1523,10 +1530,11 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile, npca=8,
                  pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
-                 teltype='PCA', tell_npca=4,
+                 teltype='pca', tell_npca=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
+                 pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                 chk_version=True):
     """
     Fit and correct a QSO spectrum for telluric absorption.
 
@@ -1559,8 +1567,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
     delta_zqso : :obj:`float`, optional
         During the fit, the QSO redshift is allowed to vary within
         ``+/-delta_zqso``.
-    teltype : :obj:`str`, optional, default = 'PCA'
-        Method for evaluating telluric models, either `PCA` or `grid`.
+    teltype : :obj:`str`, optional, default = 'pca'
+        Method for evaluating telluric models, either `pca` or `grid`.
     tell_npca : :obj:`int`, optional, default = 4
         Number of telluric PCA components used, must be <=10
     bounds_norm : :obj:`tuple`, optional
@@ -1615,6 +1623,10 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
         fits.
     show : :obj:`bool`, optional
         Show a QA plot of the final fit.
+    chk_version : :obj:`bool`, optional
+        When reading in existing files written by PypeIt, perform strict version
+        checking to ensure a valid file.  If False, the code will try to keep
+        going, but this may lead to faults and quiet failures.  User beware!
 
     Returns
     -------
@@ -1633,7 +1645,8 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
                                         'lbound_norm', 'ubound_norm', 'tell_norm_thresh'),
                       debug_init=debug_init)
 
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=True, chk_version=chk_version)
     header = fits.getheader(spec1dfile) # clean this up!
 
     # Mask the IGM and mask wavelengths that extend redward of our PCA
@@ -1693,11 +1706,12 @@ def qso_telluric(spec1dfile, telgridfile,  pca_file, z_qso, telloutfile, outfile
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                   star_mag=None, star_ra=None, star_dec=None, func='legendre', model='exp',
-                  polyorder=5, teltype='PCA', tell_npca=4, mask_hydrogen_lines=True,
+                  polyorder=5, teltype='pca', tell_npca=4, mask_hydrogen_lines=True,
                   mask_helium_lines=False, hydrogen_mask_wid=10., delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
-                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False):
+                  pix_shift_bounds=(-5.0,5.0), debug_init=False, debug=False, show=False,
+                  chk_version=True):
     """
     This needs a doc string.
 
@@ -1714,7 +1728,8 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         disp = True
 
     # Read in the data
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=False, chk_version=chk_version)
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
     star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
@@ -1801,11 +1816,11 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
-                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='PCA',
+                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, teltype='pca',
                   tell_npca=4, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, pix_shift_bounds=(-5.0,5.0),
-                  debug_init=False, debug=False, show=False):
+                  debug_init=False, debug=False, show=False, chk_version=True):
     """
     This needs a doc string.
 
@@ -1819,7 +1834,8 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         disp = True
 
     # Read in the data
-    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header \
+            = general_spec_reader(spec1dfile, ret_flam=False, chk_version=chk_version)
 
     if flux.ndim == 2:
         norders = flux.shape[1]
@@ -1944,13 +1960,13 @@ class Telluric(datamodel.DataContainer):
 
     The telluric model is governed by seven parameters --- for the `grid`
     approach: ``pressure``, ``temperature``, ``humidity``, ``airmass``; for
-    the `PCA` approach 4 PCA coefficients; plus ``resln``, ``shift``, and
+    the `pca` approach 4 PCA coefficients; plus ``resln``, ``shift``, and
     ``stretch`` --- where ``resln`` is the resolution of the spectrograph and
     ``shift`` is a shift in pixels. The ``stretch`` is a stretch of the pixel
     scale. The airmass of the object will be used to initalize the fit (this
     helps with initalizing the object model), but the models are sufficiently
     flexible that often the best-fit airmass actually differs from the
-    airmass of the spectrum. In the `PCA` approach, the number of PCA
+    airmass of the spectrum. In the `pca` approach, the number of PCA
     components used can be adjusted between 1 and 10, with a tradeoff between
     speed and accuracy.
 
@@ -1991,10 +2007,10 @@ class Telluric(datamodel.DataContainer):
             decomposition of such models, see
             :class:`~pypeit.par.pypeitpar.TelluricPar`.
         teltype (:obj:`str`, optional):
-            Method for evaluating telluric models, either `PCA` or `grid`.
+            Method for evaluating telluric models, either `pca` or `grid`.
             The `grid` method directly interpolates a pre-computed grid of
             HITRAN atmospheric models with nearest grid-point interpolation,
-            while the `PCA` method instead fits for the coefficients of a
+            while the `pca` method instead fits for the coefficients of a
             PCA decomposition of HITRAN atmospheric models, enabling a more
             flexible and far more file-size efficient interpolation
             of the telluric absorption model space.
@@ -2188,7 +2204,7 @@ class Telluric(datamodel.DataContainer):
                                  descr='File containing PCA components or grid of '
                                        'HITRAN atmosphere models'),
                  'teltype': dict(otype=str,
-                                 descr='Type of telluric model, `PCA` or `grid`'),
+                                 descr='Type of telluric model, `pca` or `grid`'),
                  'tell_npca': dict(otype=int,
                                     descr='Number of telluric PCA components used'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
@@ -2347,7 +2363,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model, eval_obj_model,
-                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='PCA', tell_npca=4,
+                 log10_blaze_function=None, ech_orders=None, sn_clip=30.0, teltype='pca', tell_npca=4,
                  airmass_guess=1.5, resln_guess=None, resln_frac_bounds=(0.3, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,

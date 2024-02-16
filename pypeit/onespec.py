@@ -46,7 +46,7 @@ class OneSpec(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.1'
+    version = '1.0.2'
 
     datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating,
                               # TODO: The "weighted by pixel contributions" part
@@ -62,6 +62,8 @@ class OneSpec(datamodel.DataContainer):
                                     'see ``fluxed``'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Inverse variance array (matches units of flux)'),
+                 'sigma': dict(otype=np.ndarray, atype=np.floating,
+                              descr='One sigma noise array, equivalent to 1/sqrt(ivar) (matches units of flux)'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Mask array (1=Good,0=Bad)'),
                  'wave_stack': dict(otype=np.ndarray, atype=np.floating,
@@ -92,28 +94,32 @@ class OneSpec(datamodel.DataContainer):
                  'history']
 
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
-        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        Instantiate the object from an extension in the specified fits file.
+
+        Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
-
+        
         Args:
-            ifile (str):
-                Filename holding the object
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
+            chk_version (:obj:`bool`, optional):
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
-        hdul = io.fits_open(ifile)
-        slf = super().from_hdu(hdul)
+        with io.fits_open(ifile) as hdu:
+            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
+            self.filename = ifile
+            self.head0 = hdu[0].header
+            self.spectrograph = load_spectrograph(self.PYP_SPEC)
+            self.spect_meta = self.spectrograph.parse_spec_header(self.head0)
+        return self
 
-        # Internals
-        slf.filename = ifile
-        slf.head0 = hdul[0].header
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
-        #
-        return slf
-
-    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
+    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, sigma=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -127,15 +133,6 @@ class OneSpec(datamodel.DataContainer):
         """
         return super()._bundle(ext='SPECTRUM')
 
-    @property
-    def sig(self):
-        """ Return the 1-sigma array
-
-        Returns:
-            `numpy.ndarray`_: error array
-        """
-        return np.sqrt(utils.inverse(self.ivar))
-        
     def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`

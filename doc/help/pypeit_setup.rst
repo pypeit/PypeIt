@@ -3,7 +3,7 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-f] [-m]
-                        [-v VERBOSITY] [-k]
+                        [-v VERBOSITY] [-k] [-G]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
@@ -70,4 +70,5 @@
                             option in pypeit_obslog; i.e., you have to tell
                             pypeit_setup to keep these frames, whereas you have to
                             tell pypeit_obslog to remove them. (default: False)
+      -G, --gui             Run setup in a GUI (default: False)
     

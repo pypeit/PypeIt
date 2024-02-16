@@ -55,6 +55,8 @@ class Setup(scriptbase.ScriptBase):
                                  'pypeit_obslog; i.e., you have to tell pypeit_setup to keep '
                                  'these frames, whereas you have to tell pypeit_obslog to remove '
                                  'them.')
+        parser.add_argument('-G', '--gui', default=False, action='store_true',
+                            help='Run setup in a GUI')        
 
         # NOTE: These are only used to prevent updates to some of the automated
         # document building just based on changes in the pypeit version or the
@@ -88,6 +90,17 @@ class Setup(scriptbase.ScriptBase):
                              f'\tOptions are: {", ".join(available_spectrographs)}\n'
                              '\tSelect an available instrument or consult the documentation '
                              'on how to add a new instrument.')
+
+        if args.gui:
+            from pypeit.scripts.setup_gui import SetupGUI
+            if isinstance(args.root,list):
+                root_args = args.root
+            else:
+                # If the root argument is a single string, convert it to a lsit.
+                # This can happen when the default for --root is used
+                root_args = [args.root]
+            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-e", args.extension, "-r", *root_args])
+            SetupGUI.main(gui_args)
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)

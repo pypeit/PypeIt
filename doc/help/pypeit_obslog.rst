@@ -3,7 +3,7 @@
     $ pypeit_obslog -h
     usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
                          [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
-                         [-f FILE]
+                         [-f FILE] [-G]
                          spec
     
     Construct an observing log for a set of files from the provided spectrograph
@@ -93,4 +93,5 @@
                             always written in ascii format using
                             format=ascii.fixed_with for the call to
                             Astropy.table.Table.write . (default: None)
+      -G, --gui             View the obs log in a GUI (default: False)
     

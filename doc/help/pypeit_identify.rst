@@ -6,6 +6,7 @@
                            [--fwhm FWHM] [--sigdetect SIGDETECT] [--pixtol PIXTOL]
                            [--linear] [--force_save] [--rescale_resid]
                            [-v VERBOSITY]
+                           [--try_old]
                            arc_file slits_file
     
     Launch PypeIt identify_multi tool, display extracted Arc, and load linelist.
@@ -45,4 +46,6 @@
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename identify_YYYYMMDD-
                             HHMM.log (default: 1)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     

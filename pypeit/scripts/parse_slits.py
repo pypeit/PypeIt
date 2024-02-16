@@ -58,14 +58,18 @@ class ParseSlits(scriptbase.ScriptBase):
         parser = super().get_parser(description='Print info on slits from a input file',
                                     width=width)
         parser.add_argument('input_file', type=str, help='Either a spec2D or Slits filename')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
 
     @staticmethod
-    def main(pargs):
+    def main(args):
+
+        chk_version = not args.try_old
 
         # What kind of file are we??
-        hdul = fits.open(pargs.input_file)
+        hdul = fits.open(args.input_file)
         head0 = hdul[0].header
         head1 = hdul[1].header
         file_type = None
@@ -79,12 +83,12 @@ class ParseSlits(scriptbase.ScriptBase):
             msgs.error("Bad file type input!")
 
         if file_type == 'Slits':
-            slits = slittrace.SlitTraceSet.from_file(pargs.input_file, chk_version=False)
+            slits = slittrace.SlitTraceSet.from_file(args.input_file, chk_version=chk_version)
             print('')
             print_slits(slits)
 
         elif file_type == 'AllSpec2D':
-            allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.input_file, chk_version=False)
+            allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.input_file, chk_version=chk_version)
             # Loop on Detectors
             for det in allspec2D.detectors:
                 print('')
