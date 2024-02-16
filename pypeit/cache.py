@@ -292,7 +292,7 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         (above) is what controls the download.
     """
     if remote_host == "github":
-        parts = ['https://raw.githubusercontent.com/pypeit/PypeIt/', f'{git_branch()}',
+        parts = ['https://raw.githubusercontent.com/pypeit/PypeIt/', f'{git_branch()}/',
                  'pypeit/', 'data/'] + [f'{p}/' for p in pathlib.Path(f_type).parts] + [f'{f_name}']
         return reduce(lambda a, b: urljoin(a, b), parts), None
 
