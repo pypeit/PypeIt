@@ -30,7 +30,7 @@ def test_cloud_url():
     get = requests.head(telgrid_src[0])
     assert (get.status_code == requests.codes.ok), \
            f"Got status {get.status_code} (!= 200) for URL {telgrid_src[0]}"
-    
+
 
 def test_fetch_github_files():
 

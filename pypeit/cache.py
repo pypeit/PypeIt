@@ -302,7 +302,7 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         parts_perm = ['https://s3.cloud.com/pypeit/'] + parts
         parts_fake = [f'https://{_get_s3_hostname()}/pypeit/'] + parts
         return reduce(lambda a, b: urljoin(a, b), parts_perm), \
-                reduce(lambda a, b: urljoin(a, b), parts_fake)
+                [reduce(lambda a, b: urljoin(a, b), parts_fake)]
 
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
 
