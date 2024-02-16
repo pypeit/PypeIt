@@ -1,7 +1,7 @@
-pypeit.core.ref\_index module
+pypeit.setup\_gui.view module
 =============================
 
-.. automodule:: pypeit.core.ref_index
+.. automodule:: pypeit.setup_gui.view
    :members:
    :private-members:
    :undoc-members:

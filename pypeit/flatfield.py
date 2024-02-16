@@ -16,7 +16,7 @@ from matplotlib import gridspec
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.pypmsgs import PypeItError
+from pypeit.pypmsgs import PypeItDataModelError
 from pypeit import utils
 from pypeit import bspline
 
@@ -389,7 +389,7 @@ class FlatImages(calibframe.CalibFrame):
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
-    def show(self, frametype='all', slits=None, wcs_match=True):
+    def show(self, frametype='all', slits=None, wcs_match=True, chk_version=True):
         """
         Simple wrapper to :func:`show_flats`.
 
@@ -403,6 +403,11 @@ class FlatImages(calibframe.CalibFrame):
             wcs_match (:obj:`bool`, optional):
                 (Attempt to) Match the WCS coordinates of the output images in
                 the `ginga`_ viewer.
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
         """
         illumflat_pixel, illumflat_illum = None, None
         pixelflat_finecorr, illumflat_finecorr = None, None
@@ -414,8 +419,8 @@ class FlatImages(calibframe.CalibFrame):
             slits_file = slittrace.SlitTraceSet.construct_file_name(self.calib_key,
                                                                     calib_dir=self.calib_dir)
             try:
-                slits = slittrace.SlitTraceSet.from_file(slits_file)
-            except (FileNotFoundError, PypeItError):
+                slits = slittrace.SlitTraceSet.from_file(slits_file, chk_version=chk_version)
+            except (FileNotFoundError, PypeItDataModelError):
                 msgs.warn('Could not load slits to include when showing flat-field images.  File '
                           'was either not provided directly, or it could not be read based on its '
                           f'expected name: {slits_file}.')
