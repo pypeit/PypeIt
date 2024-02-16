@@ -24,9 +24,11 @@ can run:
 
 .. include:: ../include/links.rst
 """
+from functools import reduce
 from importlib import resources
 import pathlib
 import urllib.error
+from urllib.parse import urljoin
 
 from IPython import embed
 
@@ -290,18 +292,17 @@ def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):
         (above) is what controls the download.
     """
     if remote_host == "github":
-        # Hard-wire the URL based on PypeIt Version
-        data_url = (
-            "https://raw.githubusercontent.com/pypeit/PypeIt/"
-            f"{git_branch()}"
-            f"/pypeit/data/{f_type}/{f_name}"
-        )
-        return data_url, None
+        parts = ['https://raw.githubusercontent.com/pypeit/PypeIt/', f'{git_branch()}',
+                 'pypeit/', 'data/'] + [f'{p}/' for p in pathlib.Path(f_type).parts] + [f'{f_name}']
+        return reduce(lambda a, b: urljoin(a, b), parts), None
 
     if remote_host == "s3_cloud":
         # Build up the (permanent, fake) `remote_url` and (fluid, real) `sources` for S3 Cloud
-        return (f"https://s3.cloud.com/pypeit/{f_type}/{f_name}",
-               [f"https://{_get_s3_hostname()}/pypeit/{f_type}/{f_name}"])
+        parts = [f'{p}/' for p in pathlib.Path(f_type).parts] + [f'{f_name}']
+        parts_perm = ['https://s3.cloud.com/pypeit/'] + parts
+        parts_fake = [f'https://{_get_s3_hostname()}/pypeit/'] + parts
+        return reduce(lambda a, b: urljoin(a, b), parts_perm), \
+                reduce(lambda a, b: urljoin(a, b), parts_fake)
 
     msgs.error(f"Remote host type {remote_host} is not supported for package data caching.")
 
