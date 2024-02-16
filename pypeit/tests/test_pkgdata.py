@@ -2,6 +2,7 @@
 Module to test the various routines in `pypeit.data.utils`
 """
 
+import os
 import requests
 from pathlib import Path
 
@@ -177,7 +178,7 @@ def test_cache_to_pkg():
     # ... as a symlink
     assert test_file.is_symlink(), 'File shoule be a symlink'
     # ... that points to the cache file
-    assert cache.search_cache(test_file_name)[0] == test_file.readlink(), \
+    assert str(cache.search_cache(test_file_name)[0]) == os.path.realpath(test_file), \
             'symlink has the wrong target'
 
     # Remove the symlink
@@ -192,6 +193,5 @@ def test_cache_to_pkg():
     # ... and should no longer exist in the cache
     assert len(cache.search_cache(test_file_name)) == 0, \
             'File should have been removed from the cache'
-
 
 
