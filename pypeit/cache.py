@@ -346,7 +346,7 @@ def _get_s3_hostname() -> str:
         github.GithubException,
         TimeoutError,
     ):
-        filepath = Paths.data / "s3_url.txt"
+        filepath = resources.files('pypeit') / 'data' / 's3_url.txt'
 
     # Open the file and return the URL
     with open(filepath, "r", encoding="utf-8") as fileobj:
