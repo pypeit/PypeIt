@@ -1041,7 +1041,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         canvas_list = points_mask + points_omask + text_mask + text_omask
         canvas.add('constructedcanvas', canvas_list)
 
-    return skyimage[thismask], nobkg_skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask]
+    return skyimage[thismask], nobkg_skyimage[thismask] if nobkg_skyimage is not None else None, \
+        objimage[thismask], modelivar[thismask], outmask[thismask]
 
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
@@ -1401,7 +1402,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         # True  = Good, False = Bad for inmask
         inmask = fullmask.flagged(invert=True) & thismask
         # Local sky subtraction and extraction
-        skymodel[thismask], nobkg_skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
+        skymodel[thismask], _this_nobkg_skymodel, objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
             = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        nobkg_global_sky=nobkg_global_sky,
@@ -1414,6 +1415,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
                                        show_resids=show_resids, show_profile=show_profile,
                                        adderr=adderr, base_var=base_var, count_scale=count_scale)
+        if nobkg_skymodel is not None:
+            nobkg_skymodel[thismask] = _this_nobkg_skymodel
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.SLITID == slitids[iord])
         fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)

@@ -338,7 +338,8 @@ class Spec2DObj(datamodel.DataContainer):
             inmask = slitmask == spat_id
             # Get em all
             for imgname in ['sciimg','ivarraw','skymodel', 'nobkg_skymodel', 'objmodel','ivarmodel','waveimg','bpmmask']:
-                self[imgname][inmask] = spec2DObj[imgname][inmask]
+                if self[imgname] is not None and spec2DObj[imgname] is not None:
+                    self[imgname][inmask] = spec2DObj[imgname][inmask]
 
     def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
         """ Calculate a chi map and run some stats on it

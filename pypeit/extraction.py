@@ -359,7 +359,7 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, sobj, nobkg_global_sky=nobkg_global_sky,
+                                       global_sky, sobj, nobkg_skyimg=nobkg_global_sky,
                                        fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
@@ -770,7 +770,7 @@ class MultiSlitExtract(Extract):
             # prof_nsigma = self.par['reduce']['extraction']['std_prof_nsigma'] if IS_STANDARD else None
 
             # Local sky subtraction and extraction
-            self.skymodel[thismask], self.nobkg_skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] \
+            self.skymodel[thismask], _tihs_nobkg_skymodel, self.ivarmodel[thismask], self.extractmask[thismask] \
                 = skysub.local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.tilts, self.waveimg, self.global_sky,
                                               thismask, self.slits_left[:,slit_idx],
@@ -789,6 +789,8 @@ class MultiSlitExtract(Extract):
                                               base_var=self.sciImg.base_var,
                                               count_scale=self.sciImg.img_scale,
                                               adderr=self.sciImg.noise_floor)
+            if self.nobkg_skymodel is not None:
+                self.nobkg_skymodel[thismask] = _tihs_nobkg_skymodel
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
