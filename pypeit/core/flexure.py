@@ -571,7 +571,7 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_
         msgs.info(f"Working on spectral flexure for object # {ss} in slit {slits.spat_id[islit]}")
 
         # get 1D spectrum for this object
-        obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sobj.BOX_WAVE, sobj.BOX_COUNTS_SKY))
+        obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sobj.BOX_WAVE[sobj.BOX_MASK], sobj.BOX_COUNTS_SKY[sobj.BOX_MASK]))
 
         # Calculate the shift
         fdict = spec_flex_shift(obj_sky, sky_file, mxshft=mxshft, excess_shft=excess_shft,
@@ -935,7 +935,7 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     spec.BOX_RADIUS = box_radius
     # Extract
     extract.extract_boxcar(sciimg, ivar, thismask, waveimg, global_sky, spec)
-    slit_wave, slit_sky = spec.BOX_WAVE, spec.BOX_COUNTS_SKY
+    slit_wave, slit_sky = spec.BOX_WAVE[spec.BOX_MASK], spec.BOX_COUNTS_SKY[spec.BOX_MASK]
     # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
     obj_skyspec = xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky))
     return obj_skyspec
