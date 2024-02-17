@@ -642,7 +642,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.75,1.25), sigdetect = 5.0, sig_ceil=10.0,
+                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
                         fwhm = 4.0, max_lag_frac = 1.0, lag_range = None, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
 
     """
@@ -773,7 +773,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, 
+    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, lag_range=lag_range,
                                     sigdetect = sigdetect, fwhm=fwhm, max_lag_frac = max_lag_frac, debug = debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values

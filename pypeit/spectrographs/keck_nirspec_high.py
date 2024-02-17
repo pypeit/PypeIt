@@ -463,8 +463,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
             par['calibrations']['slitedges']['overlap'] = False
@@ -474,8 +474,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
             par['calibrations']['slitedges']['overlap'] = False
@@ -485,8 +485,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             if self.get_meta_value(headarr, 'xdangle') == 36.72:
                 par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
@@ -497,8 +497,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 0
 
         if filter2 == 'NIRSPEC-1':
@@ -506,8 +506,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
             #par['calibrations']['slitedges']['rm_slits'] = '1:'
 
@@ -578,8 +578,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             band = filter2
         
 
-        msgs.info(lamps_list, 'Xe' in lamps_list[0])
-        msgs.info('filter1 = ', filter1)
+        #msgs.info(lamps_list, 'Xe' in lamps_list[0])
+        #msgs.info('filter1 = ', filter1)
         if 'Xe' in lamps_list[0]:
             if band == 'NIRSPEC-1':
                 angle_fits_file = 'keck_nirspec_y_angle_fits.fits'
@@ -883,8 +883,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
             par['calibrations']['slitedges']['overlap'] = False
@@ -894,8 +894,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
             par['calibrations']['slitedges']['overlap'] = False
@@ -905,8 +905,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 70.0
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
 
 
@@ -915,8 +915,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 0
 
         if filter2 == 'NIRSPEC-1':
@@ -924,8 +924,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
             par['calibrations']['wavelengths']['cc_local_thresh'] = 0.5
-            par['calibrations']['wavelengths']['xcorr_offset_minmax'] = 0.25
-            par['calibrations']['wavelengths']['xcorr_percent_ceil'] = 99.9
+            par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
+            par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
         if decker == '0.144x12':
             par['calibrations']['wavelengths']['fwhm'] = 2.0
@@ -1079,7 +1079,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
 
         if ftype in ['science']:
-            print(f"is science? { good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') }")
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == '0') 
         if ftype in 'dark':
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == '1') 
@@ -1124,17 +1123,13 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             lamp_stat = [k for k in fitstbl.keys() if 'lampstat' in k]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)), dtype=bool)
             for kk, key in enumerate(lamp_stat):
-                #print('off', key, fitstbl[key], fitstbl[key] == '0')
-                #retarr[kk,:] = np.array([int(tabval) for tabval in fitstbl[key] .data]) == 0
                 retarr[kk,:] = fitstbl[key] == '0'
-            #print(retarr)
             return np.all(retarr, axis=0)
         if status == 'arcs':
             # Check if any arc lamps are on
             lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
             retarr = np.zeros((len(lamp_stat), len(fitstbl)))
             for kk, key in enumerate(lamp_stat):
-                #print('on', key, fitstbl[key])
                 retarr[kk,:] = fitstbl[key] == '1'
             return np.any(retarr, axis=0)
         if status == 'dome':

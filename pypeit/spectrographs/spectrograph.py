@@ -1148,7 +1148,7 @@ class Spectrograph:
         self._check_extensions(raw_file)
         try: 
             hdu = io.fits_open(raw_file)
-        except Exception as e:
+        except OSError as e:
             msgs.warn(f'{e}, Error probably due to missing END card, trying to ignore:')
             hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
 

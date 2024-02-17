@@ -1161,7 +1161,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                 msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
                 msgs.info('Checking for possible shifts')
                 shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, 
-                                                        percent_ceil=50.0, lag_range=par['cc_shift_range'])#par['xcorr_percent_ceil'])
+                                                        percent_ceil=50.0, lag_range=par['cc_shift_range'])#par['cc_percent_ceil'])
                 msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
                 pix_arxiv_ss = lines_pix[slit] - shift_cc
                 bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
@@ -1282,7 +1282,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              percent_ceil = par['xcorr_percent_ceil'],
+                                                              percent_ceil = par['cc_percent_ceil'],
                                                               cc_shift_range=par['cc_shift_range'],
                                                               cc_thresh=0.1, fwhm=fwhm, stretch_func='linear')
             # Deal with IDs
@@ -1451,7 +1451,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
-            percent_ceil= par['xcorr_percent_ceil'], max_lag_frac= par['xcorr_offset_minmax'],
+            percent_ceil= par['cc_percent_ceil'], max_lag_frac= par['cc_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
             debug_reid=(debug_reid or debug_all))
