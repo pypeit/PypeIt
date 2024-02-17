@@ -27,6 +27,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.display import display
 from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
@@ -238,25 +239,30 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     msgs.work("Need to mask bad pixels")
 
     # Deal with underlying continuum
-    msgs.work("Consider taking median first [5 pixel]")
-    everyn = obj_skyspec.npix // 20
-    pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
-                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
-                                       maxiter = 15, upper = 3.0, lower = 3.0)
-    obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
+    # msgs.work("Consider taking median first [5 pixel]")
+    # everyn = obj_skyspec.npix // 20
+    # pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
+    #                                    nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+    #                                    maxiter = 15, upper = 3.0, lower = 3.0)
+    # obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
+    #
+    # obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
+    # pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
+    #                                    nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+    #                                    maxiter = 15, upper = 3.0, lower = 3.0)
+    # arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
+    # arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
-    obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
-                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
-                                       maxiter = 15, upper = 3.0, lower = 3.0)
-    arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
-    arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
+    # DP: ANY OBJECTION to changing the above to the following? It seems working much better.
+    _, _, _, _, obj_skyspec_contsub = wvutils.arc_lines_from_spec(obj_skyspec.flux.value)
+    _, _, _, _, arx_skyspec_contsub = wvutils.arc_lines_from_spec(arx_skyspec.flux.value)
+    arx_sky_flux = wvutils.get_xcorr_arc(arx_skyspec_contsub)
+    obj_sky_flux = wvutils.get_xcorr_arc(obj_skyspec_contsub)
 
     # Consider sharpness filtering (e.g. LowRedux)
     msgs.work("Consider taking median first [5 pixel]")
 
     #Cross correlation of spectra
-    #corr = np.correlate(arx_skyspec.flux, obj_skyspec.flux, "same")
     corr = np.correlate(arx_sky_flux, obj_sky_flux, "same")
 
     #Create array around the max of the correlation function for fitting for subpixel max
