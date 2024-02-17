@@ -617,10 +617,16 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         return 0.0, 0.0
 
     nspec = y1.shape[0]
-    lag_max_range = int(nspec*max_lag_frac)
-    lags = np.arange(-nspec + 1, nspec)
-    lags = np.arange(-lag_max_range + 1, lag_max_range)
-    corr = scipy.signal.correlate(y1, y2, mode='full')[np.abs(np.arange(-nspec + 1, nspec)) < lag_max_range ]
+    if lag_range is not None:  
+        lagmin = lag_range[0]  
+        lagmax = lag_range[1]  
+    else:  
+        lagmin = -int(nspec*max_lag_frac) + 1  
+        lagmax = int(nspec*max_lag_frac)  
+
+    lags = np.linspace(lagmin, lagmax, 2*nspec-1)  
+    corr = scipy.signal.correlate(y1, y2, mode='full')  
+
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
@@ -777,8 +783,13 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
                                     sigdetect = sigdetect, fwhm=fwhm, max_lag_frac = max_lag_frac, debug = debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
-    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx, (-1.0e-6, 1.0e-6)]
-    x0_guess = np.array([shift_cc, 1.0, 0.0])
+    #if corr_cc < -np.inf: # < cc_thresh:
+    #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
+
+    if lag_range is None:
+        lag_range = (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1])
+    bounds = [lag_range, stretch_mnmx]
+    x0_guess = np.array([shift_cc, 1.0])
     # TODO Can we make the differential evolution run faster?
     if stretch_func == 'quad':
         try:
