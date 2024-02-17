@@ -123,8 +123,8 @@ class SensFunc(scriptbase.ScriptBase):
 
 
         #Check if we want to compute a sensfile for every object in the directory
-        if args.dir:
-            msgs.info(f'Searching for files in directory: {args.dir}')
+        if Path(args.spec1dfile).resolve().is_dir:
+            msgs.info(f'Searching for files in directory: {args.spec1dfile}')
             files = sorted(Path(args.spec1dfile).resolve().glob('spec1d*.fits'))
         else:
             files = [Path(args.spec1dfile).resolve()]
@@ -200,76 +200,5 @@ class SensFunc(scriptbase.ScriptBase):
             #par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
 
-        else:
-
-            # Determine the spectrograph and generate the primary FITS header
-            with io.fits_open(args.spec1dfile) as hdul:
-                spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
-                spectrograph_config_par = spectrograph.config_specific_par(hdul)
-
-                # Construct a primary FITS header that includes the spectrograph's
-                #   config keys for inclusion in the output sensfunc file
-                primary_hdr = io.initialize_header()
-                add_keys = (
-                    ['PYP_SPEC', 'DATE-OBS', 'TELESCOP', 'INSTRUME', 'DETECTOR']
-                    + spectrograph.configuration_keys() + spectrograph.raw_header_cards()
-                )
-                for key in add_keys:
-                    if key.upper() in hdul[0].header.keys():
-                        primary_hdr[key.upper()] = hdul[0].header[key.upper()]
-
-            # If the .sens file was passed in read it and overwrite default parameters
-
-            if args.sens_file is not None:
-                sensFile = inputfiles.SensFile.from_file(args.sens_file)
-                # Read sens file
-                par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
-                    merge_with=(sensFile.cfg_lines,))
-            else:
-                par = spectrograph_config_par 
-
-            # If algorithm was provided override defaults. Note this does undo .sens
-            # file since they cannot both be passed
-            if args.algorithm is not None:
-                par['sensfunc']['algorithm'] = args.algorithm
-
-            # If flatfile was provided override defaults. Note this does undo .sens
-            # file since they cannot both be passed
-            if args.flatfile is not None:
-                par['sensfunc']['flatfile'] = args.flatfile
-
-            # If multi was set override defaults. Note this does undo .sens file
-            # since they cannot both be passed
-            if args.multi is not None:
-                # parse
-                multi_spec_det  = [int(item) for item in args.multi.split(',')]
-                par['sensfunc']['multi_spec_det'] = multi_spec_det
-
-            # TODO Add parsing of detectors here. If detectors passed from the
-            # command line, overwrite the parset values read in from the .sens file
-
-            # Write the par to disk
-            msgs.info(f'Writing the parameters to {args.par_outfile}')
-            par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
-
-            # TODO JFH I would like to be able to run only
-            # par['sensfunc'].to_config('sensfunc.par') but this crashes.
-            # TODO: KBW - You can do that if you override the
-            # pypeit.par.parset.ParSet.to_config method in the
-            # pypeit.par.pypeitpar.SensFuncPar class.
-
-        # Parse the output filename
-        outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
-                        if args.outfile is None else args.outfile
-        # Instantiate the relevant class for the requested algorithm
-        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                 debug=args.debug,
-                                                 chk_version=par['rdx']['chk_version'])
-        # Generate the sensfunc
-        sensobj.run()
-        # Write it out to a file, including the new primary FITS header
-        sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
-
-            #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
 

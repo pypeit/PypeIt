@@ -466,6 +466,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
             par['calibrations']['slitedges']['overlap'] = False
             
@@ -477,6 +478,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
             par['calibrations']['slitedges']['overlap'] = False
 
@@ -488,6 +490,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
             if self.get_meta_value(headarr, 'xdangle') == 36.72:
                 par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
@@ -500,6 +503,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 0
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
         if filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -509,6 +513,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
             #par['calibrations']['slitedges']['rm_slits'] = '1:'
 
 
@@ -886,6 +891,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
             par['calibrations']['slitedges']['overlap'] = False
 
@@ -897,6 +903,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
             par['calibrations']['slitedges']['overlap'] = False
 
@@ -908,6 +915,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 70.0
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
 
         if filter2 == 'NIRSPEC-3':
@@ -918,6 +926,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 0
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
         if filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
@@ -927,6 +936,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['cc_offset_minmax'] = 0.25
             par['calibrations']['wavelengths']['cc_percent_ceil'] = 99.9
             par['calibrations']['wavelengths']['echelle_pad'] = 1
+            par['calibrations']['wavelengths']['stretch_func'] = 'quad'
         if decker == '0.144x12':
             par['calibrations']['wavelengths']['fwhm'] = 2.0
         if decker == '0.288x12' or decker == '0.288x24':

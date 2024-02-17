@@ -380,7 +380,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
                sigdetect=5.0, fwhm=4.0, percent_ceil = 50, max_lag_frac = 1.0,
-               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'quad'):
+               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear'):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -1284,7 +1284,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               match_toler=par['match_toler'],
                                                               percent_ceil = par['cc_percent_ceil'],
                                                               cc_shift_range=par['cc_shift_range'],
-                                                              cc_thresh=0.1, fwhm=fwhm, stretch_func='linear')
+                                                              cc_thresh=0.1, fwhm=fwhm, stretch_func=par['stretch_func'])
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -1451,10 +1451,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
-            percent_ceil= par['cc_percent_ceil'], max_lag_frac= par['cc_offset_minmax'],
+            percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
-            debug_reid=(debug_reid or debug_all))
+            debug_reid=(debug_reid or debug_all), stretch_func=par['strech_func'])
 
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
@@ -1774,7 +1774,7 @@ class ArchiveReid:
                            cc_shift_range=self.par['cc_shift_range'], cc_local_thresh=self.cc_local_thresh,
                            nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid=self.debug_reid)
+                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'])
             # str for the reports below
             order_str = '' if orders is None else ', order={}'.format(orders[slit])
             # Check if an acceptable reidentification solution was found

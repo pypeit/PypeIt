@@ -2760,7 +2760,7 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None, 
-                 cc_percent_ceil = None, echelle_pad = None, cc_offset_minmax = None, no_2dfit = False):
+                 cc_percent_ceil = None, echelle_pad = None, cc_offset_minmax = None, no_2dfit = False, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3062,7 +3062,12 @@ class WavelengthSolutionPar(ParSet):
                             'when cross-correlating the input arc spectrum with the archive spectrum.'\
                           'Restricting this can be crucial if there are few reference lines and the cross correlation can get confused.'
         
-        
+        defaults['stretch_func'] = 'linear'
+        dtypes['stretch_func'] = str
+        descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch the extracted arcs when identifying' \
+                                'emission lines with reidentify. For NIRSPEC, the quadratic mode tends to do better because the wavelength solution' \
+                                'is typically at least 2nd or 3rd order.'
+                
         
 
 
@@ -3086,7 +3091,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'no_2dfit']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'no_2dfit', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
