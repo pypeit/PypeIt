@@ -454,7 +454,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         self.filter1 = self.get_meta_value(headarr, 'filter1')
         self.filter2 = self.get_meta_value(headarr, 'filter2')
         decker = self.get_meta_value(headarr, 'decker')
-        self.lamps_list = par['lamps']
+        self.lamps_list = par['calibrations']['wavelengths']['lamps']
         
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
@@ -879,7 +879,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         headarr = self.get_headarr(scifile)
         self.filter1 = self.get_meta_value(headarr, 'filter1')
         self.filter2 = self.get_meta_value(headarr, 'filter2')
-        self.lamps_list = par['lamps']
+        self.lamps_list = par['calibrations']['wavelengths']['lamps']
         decker = self.get_meta_value(headarr, 'decker')
 
 

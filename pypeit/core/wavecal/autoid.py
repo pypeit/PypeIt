@@ -1455,7 +1455,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
-            debug_reid=(debug_reid or debug_all), stretch_func=par['strech_func'])
+            debug_reid=(debug_reid or debug_all), stretch_func=par['stretch_func'])
 
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
@@ -2443,7 +2443,7 @@ class HolyGrail:
                 # spec_gs_adj is the stretched spectrum
                 success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
                     wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs],
-                                                cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug)
+                                                cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug, stretch_func=self.par['stretch_func'])
                 if success != 1:
                     msgs.warn('cross-correlation failed or cc<cc_thresh.')
                     continue

@@ -691,7 +691,7 @@ class BuildWaveCalib:
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'], 
-                                             x_percentile=self.par['percent_ceil'])#,
+                                             x_percentile=self.par['cc_percent_ceil'])#,
                                              #debug=True, debug_reid=True, debug_xcorr=True)
             # Grab arxiv for redo later?
             if self.par['echelle']: 
@@ -711,7 +711,7 @@ class BuildWaveCalib:
                     angle_fits_file,
                     composite_arc_file,
                     pad = self.par['echelle_pad'], 
-                    xcorr_percent_ceil = self.par['xcorr_percent_ceil'], debug=False)
+                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
             # Padding should be a spectrograph-specific, or calibration-mode-specific quantity.
             # Default was 3 from HIRES. Set to 0 for NIRSPEC testing.
 
