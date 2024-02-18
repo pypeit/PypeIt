@@ -690,7 +690,8 @@ class BuildWaveCalib:
                                              self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'])#,
+                                             nsnippet=self.par['nsnippet'], 
+                                             x_percentile=self.par['percent_ceil'])#,
                                              #debug=True, debug_reid=True, debug_xcorr=True)
             # Grab arxiv for redo later?
             if self.par['echelle']: 
@@ -699,20 +700,7 @@ class BuildWaveCalib:
                 self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
-            try:
-                if self.spectrograph.multi_ech_settings:
-                    #print(self.par.keys())
-                    # kludge to handle Keck/NIRSPEC. Should potentially be implemented inside the NIRSPEC instrument stuff.
-                    if self.meta_dict['filter2'] == '':
-                        angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files(self.par['lamps'], 
-                                                                                                        self.meta_dict['filter1'])
-                    else:
-                        angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files(self.par['lamps'], 
-                                                                                                        self.meta_dict['filter1'], 
-                                                                                                        self.meta_dict['filter2'])
-            except:
-                msgs.info('Assuming only one echelleogram reference needed')
-                angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
+            angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
 
             # Identify the echelle orders
             msgs.info("Finding the echelle orders")

@@ -57,7 +57,7 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
     Parameters
     ----------
     arxiv_file : str
-        File with archive spectrum
+        File with archive spectrum, potentially including emission line pixel ids, wavelengths, and fit polynomial order.
     det : int
         Detector number
     wvrng : list, optional

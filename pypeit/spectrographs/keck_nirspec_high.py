@@ -287,7 +287,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_high'
     supported = True
     comment = 'High-dispersion grating'
-    multi_ech_settings = True
+    lamps_list = []
+    filter1 = ''
+    filter2 = ''
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -390,7 +392,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_biasimage=False, use_overscan=False,
-                        use_darkimage=False, use_specillum=False, use_illumflat = False) #use_illumflat=True, 
+                        use_darkimage=False, use_specillum=False, use_illumflat = False, use_pixelflat=False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
         '''
@@ -449,16 +451,17 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
-        filter1 = self.get_meta_value(headarr, 'filter1')
-        filter2 = self.get_meta_value(headarr, 'filter2')
+        self.filter1 = self.get_meta_value(headarr, 'filter1')
+        self.filter2 = self.get_meta_value(headarr, 'filter2')
         decker = self.get_meta_value(headarr, 'decker')
-
+        self.lamps_list = par['lamps']
+        
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'Kband-new', 'KL']
-        if (filter1 not in supported_filters) and (filter2 not in supported_filters):
-            msgs.warn(f'Filter {filter1} or {filter2} may not be supported!!')
+        if (self.filter1 not in supported_filters) and (self.filter2 not in supported_filters):
+            msgs.warn(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
         
-        if filter1 == 'Kband-new' or filter2 == 'NIRSPEC-7':
+        if self.filter1 == 'Kband-new' or self.filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -470,7 +473,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
             par['calibrations']['slitedges']['overlap'] = False
             
-        if filter1 == 'KL' or filter2 == 'KL':
+        if self.filter1 == 'KL' or self.filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -482,7 +485,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
             par['calibrations']['slitedges']['overlap'] = False
 
-        if filter2 == 'NIRSPEC-5':
+        if self.filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -495,7 +498,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                 par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
 
-        if filter2 == 'NIRSPEC-3':
+        if self.filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -505,7 +508,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 0
             par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
-        if filter2 == 'NIRSPEC-1':
+        if self.filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -570,18 +573,18 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
 
 
-    def get_echelle_angle_files(self, lamps_list, filter1, filter2):
+    def get_echelle_angle_files(self):
         """ Pass back the files required
         to run the echelle method of wavecalib
 
         Returns:
             list: List of files
         """
-        if filter1 == 'Kband-new' or filter1 == 'KL' or filter2 == '':
-            band = filter1
+        if self.filter1 == 'Kband-new' or self.filter1 == 'KL' or self.filter2 == '':
+            band = self.filter1
         else:
-            band = filter2
-        
+            band = self.filter2
+        lamps_list = np.copy(self.lamps_list)
 
         #msgs.info(lamps_list, 'Xe' in lamps_list[0])
         #msgs.info('filter1 = ', filter1)
@@ -639,6 +642,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
+        #define science filters so we know the band we're working in for the wavelength calss
         if ftype in ['science']:
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') 
         if ftype in 'dark':
@@ -711,8 +715,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_high_old'
     supported = True
     comment = 'High-dispersion grating, pre-upgrade'
-    multi_ech_settings = True
-
+    lamps_list = []
+    filter = ''
     comment = 'see :doc:`keck_nirspec_high_old`'
 
     def get_detector_par(self, det, hdu=None):
@@ -817,7 +821,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False)
+                        use_darkimage=False, use_pixelflat=False)
         par.reset_all_processimages_par(**turn_off)
 
         #turn_off = dict(use_biasimage=False, use_overscan=False)
@@ -873,17 +877,18 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
-        filter1 = self.get_meta_value(headarr, 'filter1')
-        filter2 = self.get_meta_value(headarr, 'filter2')
+        self.filter1 = self.get_meta_value(headarr, 'filter1')
+        self.filter2 = self.get_meta_value(headarr, 'filter2')
+        self.lamps_list = par['lamps']
         decker = self.get_meta_value(headarr, 'decker')
 
 
         # wavelength calibration
         supported_filters = ['NIRSPEC-1', 'NIRSPEC-3', 'NIRSPEC-5', 'NIRSPEC-7', 'KL']
-        if (filter1 not in supported_filters) and (filter2 not in supported_filters):
-            msgs.warn(f'Filter {filter1} or {filter2} may not be supported!!')
+        if (self.filter1 not in supported_filters) and (self.filter2 not in supported_filters):
+            msgs.warn(f'Filter {self.filter1} or {self.filter2} may not be supported!!')
         
-        if filter2 == 'NIRSPEC-7':
+        if self.filter2 == 'NIRSPEC-7':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -895,7 +900,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
             par['calibrations']['slitedges']['overlap'] = False
 
-        if filter1 == 'KL' or filter2 == 'KL':
+        if self.filter1 == 'KL' or self.filter2 == 'KL':
             par['calibrations']['wavelengths']['n_final'] = 2
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 2
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -907,7 +912,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
             par['calibrations']['slitedges']['overlap'] = False
 
-        if filter2 == 'NIRSPEC-5':
+        if self.filter2 == 'NIRSPEC-5':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -918,7 +923,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
 
-        if filter2 == 'NIRSPEC-3':
+        if self.filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -928,7 +933,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             par['calibrations']['wavelengths']['echelle_pad'] = 0
             par['calibrations']['wavelengths']['stretch_func'] = 'quad'
 
-        if filter2 == 'NIRSPEC-1':
+        if self.filter2 == 'NIRSPEC-1':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['cc_thresh'] = 0.5
@@ -1029,7 +1034,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
 
 
-    def get_echelle_angle_files(self, lamps_list, filter1):
+    def get_echelle_angle_files(self):
         """ Pass back the files required
         to run the echelle method of wavecalib
 
@@ -1038,7 +1043,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         Returns:
             list: List of files
         """
-        band = filter1        
+        band = self.filter1        
+        lamps_list = np.copy(self.lamps_list)
 
         if 'Xe' in lamps_list[0]:
             if band == 'NIRSPEC-1':

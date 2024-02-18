@@ -1175,40 +1175,41 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                     wvcalib[str(slit)] = None
                     continue
                 # Fit
+                xnspecmin1 = (float(len(obs_spec_i))-1)
+                pypeitFit = fitting.robust_fit(dets[gd_det]/(float(len(obs_spec_i))-1), IDs[gd_det], lines_fit_ord[slit], 
+                                                function=par['func'], maxiter=gd_det.size - lines_fit_ord[slit] - 2,
+                            lower=2.0, upper=2.0, maxrej=1, sticky=True,
+                            minx=0.0, maxx=1.0, weights=np.ones(dets.size))
+                all_idsion = []
+                for ss, iwave in enumerate(IDs):
+                    mn = np.min(np.abs(iwave-line_lists['wave']))
+                    if mn/bdisp < par['match_toler']:
+                        imn = np.argmin(np.abs(iwave-line_lists['wave']))
+                        #print(imn, line_lists['ion'])
+                        all_idsion.append(line_lists['ion'][imn])
+                    else:
+                        all_idsion.append('UNKNWN')
+                all_idsion = np.array(all_idsion)
+
+                ions = all_idsion
+                # Final RMS
+                rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
+                rms_pix = rms_ang/bdisp
+
+                # Pack up fit
+                spec_vec = np.arange(nspec)
+                wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
+                cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
+                cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
+                cen_disp = cen_wave - cen_wave_min1
+
+                # Ions bit
+                ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
+                for kk,ion in enumerate(ions):
+                    ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
+                # DataContainer time
+
                 try:        
-                    xnspecmin1 = (float(len(obs_spec_i))-1)
-                    pypeitFit = fitting.robust_fit(dets[gd_det]/(float(len(obs_spec_i))-1), IDs[gd_det], lines_fit_ord[slit], 
-                                                   function=par['func'], maxiter=gd_det.size - lines_fit_ord[slit] - 2,
-                                lower=2.0, upper=2.0, maxrej=1, sticky=True,
-                                minx=0.0, maxx=1.0, weights=np.ones(dets.size))
-                    all_idsion = []
-                    for ss, iwave in enumerate(IDs):
-                        mn = np.min(np.abs(iwave-line_lists['wave']))
-                        if mn/bdisp < par['match_toler']:
-                            imn = np.argmin(np.abs(iwave-line_lists['wave']))
-                            #print(imn, line_lists['ion'])
-                            all_idsion.append(line_lists['ion'][imn])
-                        else:
-                            all_idsion.append('UNKNWN')
-                    all_idsion = np.array(all_idsion)
-
-                    ions = all_idsion
-                    # Final RMS
-                    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-                    rms_pix = rms_ang/bdisp
-
-                    # Pack up fit
-                    spec_vec = np.arange(nspec)
-                    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
-                    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
-                    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
-                    cen_disp = cen_wave - cen_wave_min1
-
-                    # Ions bit
-                    ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
-                    for kk,ion in enumerate(ions):
-                        ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
-                    # DataContainer time
                     # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
                     final_fit = wv_fitting.WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=dets[gd_det], wave_fit=IDs[gd_det],
                                         ion_bits=ion_bits, xnorm=(float(len(obs_spec_i))-1),
@@ -1282,7 +1283,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              percent_ceil = par['cc_percent_ceil'],
+                                                              percent_ceil = x_percentile,
                                                               cc_shift_range=par['cc_shift_range'],
                                                               cc_thresh=0.1, fwhm=fwhm, stretch_func=par['stretch_func'])
             # Deal with IDs
