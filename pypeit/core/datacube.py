@@ -1266,7 +1266,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
                                    spec_subpixel=1, spat_subpixel=1, slice_subpixel=1,
-                                   correct_dar=correct_dar)
+                                   skip_subpix_weights=True, correct_dar=correct_dar)
         # Store the flux and ivar spectra of the highest S/N object.
         # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
         flux_stack[:, ff] = flxcube[:, 0, 0]
@@ -1387,13 +1387,13 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
                                      _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     correct_dar=correct_dar)
+                                     skip_subpix_weights=True, correct_dar=correct_dar)
         else:
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
                                      spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                                     correct_dar=correct_dar)
+                                     skip_subpix_weights=True, correct_dar=correct_dar)
         all_wl_imgs[:, :, fr] = img[:, :, 0]
     # Return the constructed white light images
     return all_wl_imgs
@@ -1402,7 +1402,7 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                            all_wcs, tilts, slits, astrom_trans, all_dar,
                            ra_offset, dec_offset,
-                           spec_subpixel=5, spat_subpixel=5, slice_subpixel=5,
+                           spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
                            overwrite=False, outfile=None, whitelight_range=None, correct_dar=True, debug=False):
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
@@ -1468,6 +1468,14 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             values give more reliable results, but note that the time required
             goes as (``slice_subpixel``). The default value is 5, which divides
             each IFU slice into 5 subslices in the slice direction.
+        skip_subpix_weights (bool, optional):
+            If True, the computationally expensive step to calculate the
+            subpixellation weights will be skipped. If set the True, note that
+            the variance cubes returned will not be accurate. However, if you
+            are not interested in the variance cubes, this can save a lot of
+            time, and this is an example where you might consider setting this
+            variable to True. The flux datacube is unaffected by this variable.
+            The default is False.
         overwrite (bool, optional):
             If True, the output cube will be overwritten.
         outfile (str, optional):
@@ -1511,7 +1519,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
     subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                           all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                           spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                          correct_dar=correct_dar, debug=debug)
+                          skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar, debug=debug)
     # Extract the variables that we need
     if debug:
         flxcube, varcube, bpmcube, residcube = subpix

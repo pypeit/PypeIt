@@ -483,14 +483,17 @@ class CoAdd3D:
 
         # Determine what method is requested
         self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 1, 1, 1
+        self.skip_subpix_weights = True
         if self.method == "subpixel":
             self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = self.cubepar['spec_subpixel'], self.cubepar['spat_subpixel'], self.cubepar['slice_subpixel']
+            self.skip_subpix_weights = False
             msgs.info("Adopting the subpixel algorithm to generate the datacube, with subpixellation scales:" + msgs.newline() +
                       f"  Spectral: {self.spec_subpixel}" + msgs.newline() +
                       f"  Spatial: {self.spat_subpixel}" + msgs.newline() +
                       f"  Slices: {self.slice_subpixel}")
         elif self.method == "ngp":
             msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
+            self.skip_subpix_weights = True
         else:
             msgs.error(f"The following datacube method is not allowed: {self.method}")
 
@@ -1180,6 +1183,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
                                                         slice_subpixel=self.slice_subpixel,
+                                                        skip_subpix_weights=self.skip_subpix_weights,
                                                         correct_dar=self.correct_dar)
                     # Prepare the header
                     hdr = self.all_wcs[ff].to_header()
@@ -1388,6 +1392,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                     spec_subpixel=self.spec_subpixel,
                                                     spat_subpixel=self.spat_subpixel,
                                                     slice_subpixel=self.slice_subpixel,
+                                                    skip_subpix_weights=self.skip_subpix_weights,
                                                     correct_dar=self.correct_dar)
                 # Prepare the header
                 hdr = cube_wcs.to_header()
@@ -1414,6 +1419,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         outfile=outfile, spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
                                                         slice_subpixel=self.slice_subpixel,
+                                                        skip_subpix_weights=self.skip_subpix_weights,
                                                         correct_dar=self.correct_dar)
                     # Prepare the header
                     hdr = cube_wcs.to_header()
