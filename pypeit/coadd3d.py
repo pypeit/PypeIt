@@ -414,6 +414,7 @@ class CoAdd3D:
         self.method = self.cubepar['method']
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
+        self.correct_dar = self.cubepar['correct_dar']
         # Do some quick checks on the input options
         if skysub_frame is not None and len(skysub_frame) != self.numfiles:
             msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
@@ -1178,7 +1179,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng, outfile=outfile,
                                                         spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel)
+                                                        slice_subpixel=self.slice_subpixel,
+                                                        correct_dar=self.correct_dar)
                     # Prepare the header
                     hdr = self.all_wcs[ff].to_header()
                     if self.fluxcal:
@@ -1297,6 +1299,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 weight_method=self.cubepar['weight_method'],
                                                 whitelight_range=self.cubepar['whitelight_range'],
                                                 reference_image=self.cubepar['reference_image'],
+                                                correct_dar=self.correct_dar,
                                                 specname=self.specname)
 
     def run(self):
@@ -1384,7 +1387,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                     outfile=outfile, overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                     spec_subpixel=self.spec_subpixel,
                                                     spat_subpixel=self.spat_subpixel,
-                                                    slice_subpixel=self.slice_subpixel)
+                                                    slice_subpixel=self.slice_subpixel,
+                                                    correct_dar=self.correct_dar)
                 # Prepare the header
                 hdr = cube_wcs.to_header()
                 if self.fluxcal:
@@ -1409,7 +1413,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                         outfile=outfile, spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel)
+                                                        slice_subpixel=self.slice_subpixel,
+                                                        correct_dar=self.correct_dar)
                     # Prepare the header
                     hdr = cube_wcs.to_header()
                     if self.fluxcal:

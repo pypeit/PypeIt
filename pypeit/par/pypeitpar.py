@@ -1562,7 +1562,8 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None):
+                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
+                 correct_dar=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1761,6 +1762,10 @@ class CubePar(ParSet):
                               'this correction, it is best to use the spec2d file with the highest S/N sky spectrum. ' \
                               'You should choose the same frame for both the standards and science frames.'
 
+        defaults['correct_dar'] = True
+        dtypes['correct_dar'] = bool
+        descr['correct_dar'] = 'If True, the data will be corrected for differential atmospheric refraction (DAR).'
+
         defaults['skysub_frame'] = 'image'
         dtypes['skysub_frame'] = str
         descr['skysub_frame'] = 'Set the sky subtraction to be implemented. The default behaviour is to subtract ' \
@@ -1790,7 +1795,7 @@ class CubePar(ParSet):
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
