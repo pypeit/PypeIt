@@ -479,7 +479,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, slice_offset=None, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, slit_compute=None, slice_offset=None, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for SlicerIFU reductions.
 
@@ -515,6 +515,15 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
+        # Check the input
+        if slit_compute is None:
+            # Compute all of the slits
+            slit_compute = np.arange(self.nslits)
+        elif isinstance(slit_compute, int):
+            slit_compute = np.atleast_1d(slit_compute)
+        elif isinstance(slit_compute, list):
+            slit_compute = np.array(slit_compute)
+        # Prepare the print out
         substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
         msgs.info("Generating an RA/DEC image"+substring)
         # Check the input
@@ -529,6 +538,8 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
+            if slit_idx not in slit_compute:
+                continue
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if self.mask[slit_idx] != 0:
