@@ -237,7 +237,6 @@ class Calibrations:
         # Grab rows with relevant frames
         detname = self.spectrograph.get_det_name(self.det)
         rows = self.fitstbl.find_frames(frametype, calib_ID=self.calib_ID, index=True)
-
         if len(rows) == 0:
             # No raw files are available.  Attempt to find an existing and
             # relevant calibration frame based on the setup/configuration and
@@ -259,7 +258,6 @@ class Calibrations:
         calib_key = frameclass.construct_calib_key(setup, calib_id, detname)
         # Construct the expected calibration frame file name
         cal_file = Path(frameclass.construct_file_name(calib_key, calib_dir=self.calib_dir))
-
         return self.fitstbl.frame_paths(rows), cal_file, calib_key, setup, \
                     frameclass.ingest_calib_id(calib_id), detname
 
@@ -664,7 +662,6 @@ class Calibrations:
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
-
         pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
         raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
                 = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
@@ -672,7 +669,6 @@ class Calibrations:
         illum_frame = {'type': 'illumflat', 'class': flatfield.FlatImages}
         raw_illum_files, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
                 = self.find_calibrations(illum_frame['type'], illum_frame['class'])
-
         raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
 
         if len(raw_pixel_files) == 0 and pixel_cal_file is None \
@@ -715,9 +711,9 @@ class Calibrations:
         # Check if the image files are the same
         pix_is_illum = Counter(raw_illum_files) == Counter(raw_pixel_files)
         if len(raw_pixel_files) > 0:
+            #msgs.info(f'Listed illum flats are: {raw_illum_files}')
             # Reset the BPM
             self.get_bpm(frame=raw_pixel_files[0])
-            msgs.info('Creating pixel-flat calibration frame using files: ')
             for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,

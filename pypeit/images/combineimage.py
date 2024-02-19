@@ -195,6 +195,7 @@ class CombineImage:
             # Load raw image
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
+            msgs.info(f'flatimages = {flatimages}')
             pypeitImage = rawImage.process(self.par, scattlight=scattlight, bias=bias, bpm=bpm, dark=dark,
                                            flatimages=flatimages, slits=slits, mosaic=mosaic)
 

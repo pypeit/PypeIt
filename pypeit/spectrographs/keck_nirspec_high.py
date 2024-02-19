@@ -392,7 +392,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
 
         # Flats
         turn_off = dict(use_biasimage=False, use_overscan=False,
-                        use_darkimage=False, use_specillum=False, use_illumflat = False, use_pixelflat=False) #use_illumflat=True, 
+                        use_darkimage=False, use_specillum=False, use_illumflat = True, use_pixelflat=True) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
         '''
@@ -820,8 +820,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Should be we be illumflattening?
 
         # Flats
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False, use_pixelflat=False)
+        turn_off = dict(use_illumflat=True, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False, use_pixelflat=True)
         par.reset_all_processimages_par(**turn_off)
 
         #turn_off = dict(use_biasimage=False, use_overscan=False)

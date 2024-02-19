@@ -123,7 +123,7 @@ class SensFunc(scriptbase.ScriptBase):
 
 
         #Check if we want to compute a sensfile for every object in the directory
-        if Path(args.spec1dfile).resolve().is_dir:
+        if Path(args.spec1dfile).resolve().is_dir():
             msgs.info(f'Searching for files in directory: {args.spec1dfile}')
             files = sorted(Path(args.spec1dfile).resolve().glob('spec1d*.fits'))
         else:
