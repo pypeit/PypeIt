@@ -254,13 +254,26 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     # arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
     # DP: ANY OBJECTION to changing the above to the following? It seems working much better.
-    _, _, _, _, obj_skyspec_contsub = wvutils.arc_lines_from_spec(obj_skyspec.flux.value)
-    _, _, _, _, arx_skyspec_contsub = wvutils.arc_lines_from_spec(arx_skyspec.flux.value)
-    arx_sky_flux = wvutils.get_xcorr_arc(arx_skyspec_contsub)
-    obj_sky_flux = wvutils.get_xcorr_arc(obj_skyspec_contsub)
+    # obj_skyspec
+    _, obj_ampl, _, _, _, _, obj_sky_flux, _ = arc.detect_lines(obj_skyspec.flux.value, sigdetect=5.0)
+    if obj_ampl.size > 0:
+        percent_ceil = 50.
+        ceil_upper = np.percentile(obj_ampl[obj_ampl >= 0.0], percent_ceil) if np.any(obj_ampl >= 0.0) else 0.0
+        # Set a lower ceiling on negative fluctuations
+        ceil_lower = np.percentile(obj_ampl[obj_ampl < 0.0], percent_ceil) if np.any(obj_ampl < 0.0) else 0.0
+        obj_sky_flux = np.clip(obj_sky_flux, ceil_lower, ceil_upper)
 
-    # Consider sharpness filtering (e.g. LowRedux)
-    msgs.work("Consider taking median first [5 pixel]")
+    # arx_skyspec
+    _, arx_ampl, _, _, _, _, arx_sky_flux, _ = arc.detect_lines(arx_skyspec.flux.value, sigdetect=5.0)
+    if arx_ampl.size > 0:
+        percent_ceil = 50.
+        ceil_upper = np.percentile(arx_ampl[arx_ampl >= 0.0], percent_ceil) if np.any(arx_ampl >= 0.0) else 0.0
+        # Set a lower ceiling on negative fluctuations
+        ceil_lower = np.percentile(arx_ampl[arx_ampl < 0.0], percent_ceil) if np.any(arx_ampl < 0.0) else 0.0
+        arx_sky_flux = np.clip(arx_sky_flux, ceil_lower, ceil_upper)
+    #
+    # # Consider sharpness filtering (e.g. LowRedux)
+    # msgs.work("Consider taking median first [5 pixel]")
 
     #Cross correlation of spectra
     corr = np.correlate(arx_sky_flux, obj_sky_flux, "same")
