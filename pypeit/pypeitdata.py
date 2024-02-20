@@ -84,13 +84,8 @@ class PypeItDataPath:
             Path to the specific data directory.
     """
 
-    _data = resources.files('pypeit') / 'data'
-    """
-    Package-level data path.  This is defined without checking that it exists!
-    """
-
     def __init__(self, subdirs):
-        self.data = self.check_isdir(self._data)
+        self.data = self.check_isdir(cache.__PYPEIT_DATA__)
         self.path = self.check_isdir(self.data / subdirs)
 
     def glob(self, pattern):
@@ -302,67 +297,40 @@ class PypeItDataPaths:
 
     The top-level directory for all attributes is ``pypeit/data``.  All of these
     directories should, at minimum, include a README file that is
-    version-controlled and hosted by GitHub.
-
-    Attributes:
-        tests (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``tests/``
-        telgrid (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``telluric/atm_grids``
-        tel_model (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``telluric/models``
-        arclines (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``arc_lines``
-        reid_arxiv (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``arc_lines/reid_arxiv``
-        linelist (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``arc_lines/lists``
-        nist (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``arc_lines/NIST``
-        arc_plot (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``arc_lines/plots``
-        standards (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``standards``
-        extinction (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``extinction``
-        skisim (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``skisim``
-        filters (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``filters``
-        sensfunc (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``sensfuncs``
-        sky_spec (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``sky_spec``
-        static_calibs (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``static_calibs``
-        spectrographs (:class:`~pypeit.pypeitdata.PypeItDataPath`):
-            Path to ``spectrographs``
+    version-controlled and hosted by GitHub.  I.e., the code assumes these paths
+    exist, and maintaining a version-controlled README ensures that is true,
+    even if the directory is empty otherwise.
     """
+
+    defined_paths = {'tests':               # Attribute name
+                        {'path': 'tests',   # Subdirectory in pypeit/data
+                         'cache': True      # Contains data that is managed by the cache system
+                        },
+                     # Telluric
+                     'telgrid': {'path': 'telluric/atm_grids', 'cache': True},
+                     'tel_model': {'path': 'telluric/models', 'cache': True},
+                     # Wavelength Calibrations
+                     'arclines': {'path': 'arc_lines', 'cache': False },
+                     'reid_arxiv': {'path': 'arc_lines/reid_arxiv', 'cache': True},
+                     'linelist': {'path': 'arc_lines/lists', 'cache': False},
+                     'nist': {'path': 'arc_lines/NIST', 'cache': True},
+                     'arc_plot': {'path': 'arc_lines/plots', 'cache': False},
+                     # Flux Calibrations
+                     'standards': {'path': 'standards', 'cache': True},
+                     'extinction': {'path': 'extinction', 'cache': False},
+                     'skisim': {'path': 'skisim', 'cache': True},
+                     'filters': {'path': 'filters', 'cache': False},
+                     'sensfunc': {'path': 'sensfuncs', 'cache': True},
+                     # Other
+                     'sky_spec': {'path': 'sky_spec', 'cache': False},
+                     'static_calibs': {'path': 'static_calibs', 'cache': False},
+                     'spectrographs': {'path': 'spectrographs', 'cache': False}
+                    }
+    """
+    Dictionary providing the metadata for all the paths defined by the class.
+    """
+
     def __init__(self):
-        # Tests
-        self.tests = PypeItDataPath('tests')
-
-        # Telluric
-        self.telgrid  = PypeItDataPath('telluric/atm_grids')
-        self.tel_model = PypeItDataPath('telluric/models')
-
-        # Wavelength Calibrations
-        self.arclines = PypeItDataPath('arc_lines')
-        self.reid_arxiv = self.arclines / 'reid_arxiv'
-        self.linelist = self.arclines / 'lists'
-        self.nist = self.arclines / 'NIST'
-        self.arc_plot = self.arclines / 'plots'
-
-        # Flux Calibrations
-        self.standards = PypeItDataPath('standards')
-        self.extinction = PypeItDataPath('extinction')
-        self.skisim = PypeItDataPath('skisim')
-        self.filters = PypeItDataPath('filters')
-        self.sensfunc = PypeItDataPath('sensfuncs')
-
-        # Other
-        self.sky_spec = PypeItDataPath('sky_spec')
-        self.static_calibs = PypeItDataPath('static_calibs')
-        self.spectrographs = PypeItDataPath('spectrographs')
-
+        for key, a in PypeItDataPaths.defined_paths.items():
+            setattr(self, key, PypeItDataPath(a['path']))
 

@@ -6,11 +6,6 @@ Script to install telluric model grids into the user's pypeit installation.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit import data
-from pypeit import msgs
-from pypeit.spectrographs import available_spectrographs
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import __version__
 
 class CacheGithubData(scriptbase.ScriptBase):
 
@@ -29,6 +24,13 @@ class CacheGithubData(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
         import github
+
+        from pypeit import msgs
+        from pypeit import dataPaths
+        from pypeit import cache
+        from pypeit.spectrographs import available_spectrographs
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit import __version__
 
         # First, get the list of reid_arxiv files in GitHub for the present PypeIt version
         # Look in the current `develop` branch if the code is not a tagged release
@@ -67,13 +69,13 @@ class CacheGithubData(scriptbase.ScriptBase):
             # Loop through found files, using AstroPy's download_file() to cache them
             msgs.info(f"Downloading reid_arxiv files for {instrument}")
             for file in dload_arxiv:
-                data.fetch_remote_file(file.name, "arc_lines/reid_arxiv",
+                cache.fetch_remote_file(file.name, "arc_lines/reid_arxiv",
                                        force_update=args.force_update,
                                        full_url=file.download_url)
             if dload_sensfunc:
                 msgs.info(f"Downloading sensfunc files for {instrument}")
             for file in dload_sensfunc:
-                data.fetch_remote_file(file.name, "sensfuncs",
+                cache.fetch_remote_file(file.name, "sensfuncs",
                                         force_update=args.force_update,
                                         full_url=file.download_url)
 
@@ -84,7 +86,7 @@ class CacheGithubData(scriptbase.ScriptBase):
             )
             if telgrid:
                 msgs.info(f"Downloading telgrid file for {instrument}")
-                data.fetch_remote_file(telgrid, 'telluric/atm_grids', remote_host="s3_cloud",
+                cache.fetch_remote_file(telgrid, 'telluric/atm_grids', remote_host="s3_cloud",
                                     install_script=True, force_update=args.force_update)
 
         # Download the currently used skisim files
@@ -94,6 +96,6 @@ class CacheGithubData(scriptbase.ScriptBase):
                         if skisim in listing.name]
         msgs.info("Downloading sky transmission files")
         for file in dload_skisim:
-            data.fetch_remote_file(file.name, "skisim",
+            cache.fetch_remote_file(file.name, "skisim",
                                    force_update=args.force_update,
                                    full_url=file.download_url)

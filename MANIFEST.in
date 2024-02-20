@@ -13,6 +13,8 @@ prune paper
 global-exclude *.pyc *.o *.so *.DS_Store *.ipynb
 
 # Remove large data sets
+# NOTE: If you exclude more data from the pypeit/data directory, make sure to
+# update the defined_paths dictionary in pypeit.pypeitdata.PypeItDataPaths!
 recursive-exclude pypeit/data/arc_lines/reid_arxiv *.fits *.json *.pdf *.tar.gz
 recursive-exclude pypeit/data/arc_lines/NIST *.ascii
 recursive-exclude pypeit/data/sensfuncs *.fits

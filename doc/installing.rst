@@ -206,40 +206,57 @@ please `Submit an issue`_.
 Additional Data
 ===============
 
-Some data used by PypeIt are either not kept in the GitHub repository or distributed
-via `pip`_ because of their large size.  These include:
+To limit disk-space required for installation, some data used by PypeIt are
+either not kept in the GitHub repository or distributed via `pip`_ because of
+their large size. Files not kept within the GitHub repository include:
 
- - Wavelength calibration template (``reid-arxiv``) files for all instruments,
- - Canned sensitivity function (``sensfunc``) files for Mauna Kea,
- - Sky transmission data (``skisim``) files,
- - Atmospheric model grids used for telluric correction and flux calibration, and
- - Canned data-reduction products used by quick-look scripts.
+- Atmospheric model grids used for telluric correction and flux calibration, and
+- Canned data-reduction products used by quick-look scripts.
 
-To ease the downloading and storing of these files, PypeIt now uses the ``astropy``
-download/cache system to maintain copies of these files in a user-writeable location
-that is independent of the PypeIt installation.  For most users, this will be
-something like ``~/.pypeit/cache``, but is adjustable via ``astropy``'s `configuration
-system <https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
+Files that are in the GitHub repository (and therefore included in developer
+installations) but not included in the package distribution hosted by PyPI
+include are all in the `pypeit/data
+<https://github.com/pypeit/PypeIt/tree/release/pypeit/data>`__ directory.  The
+specific files that *are not* included in the distribution can be understood by
+looking at the `MANIFEST.in file
+<https://github.com/pypeit/PypeIt/blob/release/MANIFEST.in>`; look for files
+excluded within the following directories:
+
+- ``pypeit/data/arc_lines/reid_arxiv``: Wavelength calibration templates used
+  for all instruments.
+- ``pypeit/data/arc_lines/NIST``: Line lists pulled from NIST
+- ``pypeit/data/sensfuncs``: Canned/Reference sensitivity functions
+- ``pypeit/data/skisim``: Sky extinction/transmission curves
+- ``pypeit/data/standards``: Data for spectrophotometric standards
+- ``pypeit/data/tests``: Data used for testing the PypeIt code.
+
+To access these files as needed for your data reduction, PypeIt uses the
+``astropy`` download/cache system, which maintains copies of these files in a
+user-writeable location that is independent of the PypeIt installation.  For
+most users, this will be ``~/.pypeit/cache``, but the exact location can be set
+directly using ``astropy``'s `configuration system
+<https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
 default, PypeIt will download necessary files at runtime if they are not already
 cached.
 
 Because a fresh install of PypeIt does not contain all of the ancillary data that
 might be required for data reduction, users planning to run the pipeline without an
 internet connection will need to cache the necessary data files ahead of time.  To ease
-this process, a script ``pypeit_cache_github_data`` is included.  For example, to
+this process, we provide the ``pypeit_cache_github_data`` script.  For example, to
 download the needed files for the ``keck_deimos`` spectrograph, you would execute:
 
 .. code-block:: console
 
     $ pypeit_cache_github_data keck_deimos
 
-Once cached, the data will be accessed by PypeIt without requiring an internet
-connection.  This script will also download Atmospheric Model Grids specified in the
-instrument-wide configuration, but may not catch configuration-specific ``telgridfile``
+(Alternatively, you can get all of the cached files hosted on GitHub by
+performing a developer installation, if you prefer).  Once cached, the data will
+be accessed by PypeIt without requiring an internet connection.  This script
+will also download Atmospheric Model Grids specified in the instrument-wide
+configuration, but may not catch configuration-specific ``telgridfile``
 parameter specifications.  Before trying to run PypeIt offline, verify that any
 necessary Atmospheric Model Grids are installed; if not, install them using the
 instructions below.
-
 
 .. _install_atmosphere:
 

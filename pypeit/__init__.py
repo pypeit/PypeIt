@@ -29,18 +29,19 @@ __version__ = version
 __coverage__ = 0.55
 
 # Import and instantiate the logger
+# NOTE: This **MUST** be defined after __version__; i.e., pypmsgs imports pypeit
+# and uses pypeit.__version__.
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
 
 # Import and instantiate the data path parser
-# NOTE: This *MUST* come after msgs is defined above
+# NOTE: This *MUST* come after msgs and __version__ are defined above
 from pypeit import pypeitdata
 dataPaths = pypeitdata.PypeItDataPaths()
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
 from pypeit.core.qa import close_qa
-
 
 # Send all signals to messages to be dealt with (i.e. someone hits ctrl+c)
 def signal_handler(signalnum, handler):
@@ -52,7 +53,6 @@ def signal_handler(signalnum, handler):
         close_qa(msgs.pypeit_file, msgs.qa_path)
         msgs.close()
         sys.exit()
-
 
 signal.signal(signal.SIGINT, signal_handler)
 

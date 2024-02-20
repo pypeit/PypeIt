@@ -49,6 +49,9 @@ from pypeit import msgs
 from pypeit import __version__
 
 
+__PYPEIT_DATA__ = resources.files('pypeit') / 'data'
+
+
 # For development versions, try to get the branch name
 def git_branch():
     """
@@ -346,7 +349,7 @@ def _get_s3_hostname() -> str:
         github.GithubException,
         TimeoutError,
     ):
-        filepath = resources.files('pypeit') / 'data' / 's3_url.txt'
+        filepath = __PYPEIT_DATA__ / 's3_url.txt'
 
     # Open the file and return the URL
     with open(filepath, "r", encoding="utf-8") as fileobj:
