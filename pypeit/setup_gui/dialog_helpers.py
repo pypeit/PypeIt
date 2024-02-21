@@ -1,3 +1,10 @@
+"""
+Utilities for creating and displaying dialogs in Qt.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+
 # Allow runtime evaluation of type annotations, specifically to allow class methods to return their own class
 from __future__ import annotations
 
@@ -234,9 +241,10 @@ def prompt_to_save(parent : QWidget) -> DialogResponses:
         parent: The parent widget of the pop-up dialog
 
     Returns:
-        DialogResponses: `SAVE` if the user wants to save, `ACCEPT` if they want to continue 
-                         without saving, `CANCEL` if they want to cancel the current operation 
-                         and to not lose any data.
+        DialogResponses: 
+            `SAVE` if the user wants to save, `ACCEPT` if they want to continue 
+            without saving, `CANCEL` if they want to cancel the current operation 
+            and to not lose any data.
     """
     response = QMessageBox.warning(parent, parent.tr("PypeIt Setup"), parent.tr("There are unsaved changes to PypeIt setup files.\nDo you want to save then?"),
                                    QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save)

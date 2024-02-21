@@ -1,5 +1,6 @@
 """
-The controller portion of the PypeIt Setup GUI.
+The model portion of the PypeIt Setup GUI.  Responsible for holding the data of the Setup GUI, notifying the view of any changes
+to that data, and translating PypeIt datastructures to a form usable by Qt.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -16,9 +17,7 @@ import astropy.table
 import io
 import typing
 from pathlib import Path
-from functools import partial
-from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
-from qtpy.QtGui import QTextDocument, QTextCursor
+from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 import qtpy
 from configobj import ConfigObj
 
@@ -239,8 +238,9 @@ class PypeItMetadataModel(QAbstractTableModel):
             colname (str): The name of the column.
 
         Return:
-            int: The column number (0 based) of the named column. -1 if the column
-                 name is not in this model.
+            int: 
+                The column number (0 based) of the named column. -1 if the column
+                name is not in this model.
         """
         if colname in self.colnames:
             return self.colnames.index(colname)
@@ -254,8 +254,9 @@ class PypeItMetadataModel(QAbstractTableModel):
             index (str): The 0 based column number.
 
         Return:
-            str: The name of the column. If the passed in index is out of bounds,
-                 an IndexError value is raised.
+            str: 
+                The name of the column. If the passed in index is out of bounds,
+                an IndexError value is raised.
         """
 
         return self.colnames[index.column()]
@@ -379,8 +380,9 @@ class PypeItMetadataModel(QAbstractTableModel):
 
 
         Return:
-            flags (Qt.ItemFlag): The bitmask flags for the index. Currently only Qt.ItemFlag.ItemIsEditable
-                                 is supported.
+            flags (Qt.ItemFlag): 
+                The bitmask flags for the index. Currently only Qt.ItemFlag.ItemIsEditable
+                is supported.
         """
         base_flags = super().flags(index)
         if self.colnames[index.column()] in self.editable_columns:
@@ -615,8 +617,9 @@ class PypeItMetadataModel(QAbstractTableModel):
         """Returns a model for displaying the paths in this metadata.
         
         Return:
-            PypeItMetadataUniquePathsProxy: A proxy model that only contains the unique 'directory' 
-                                            entries of this metadata.
+            PypeItMetadataUniquePathsProxy: 
+                A proxy model that only contains the unique 'directory' 
+                entries of this metadata.
         """
         return PypeItMetadataUniquePathsProxy(self)
 
@@ -671,7 +674,9 @@ class PypeItMetadataModel(QAbstractTableModel):
         Args:
             index: The index of the row to check.
         
-        Return: True if the row is commented out, False otherwise.
+        Return:
+            bool:
+                True if the row is commented out, False otherwise.
         """
         return self.metadata is not None and self.metadata[index.row()]['filename'].lstrip().startswith("#")
 
@@ -756,6 +761,16 @@ class _UserConfigTreeNode:
             self.children = []
 
     def getConfigLines(self, level=0):
+        """Return the user's configuration lines starting at a given level.
+        
+        Args:
+            level (int,optional): The level to provide configuration lines for, with level 0 being the top level.
+            
+        Return: 
+            list[str]: 
+                The configuration lines, starting at the given level and descending down 
+                into all of the lower levels in the tree.
+        """
         indent = " " * (level-1)
         if len(self.children) == 0:
             return [f"{indent}{self.key} = {self.value}"]
@@ -865,8 +880,9 @@ class PypeItParamsProxy(QAbstractItemModel):
         
         
         Returns: 
-            str: A string if there's something to display at the given index and role, or
-                 None if there's nothing to display.
+            str: 
+                A string if there's something to display at the given index and role, or
+                None if there's nothing to display.
         """
         if role == Qt.DisplayRole:
             if index.column() == 0:
@@ -954,13 +970,13 @@ class PypeItFileModel(QObject):
     Args: 
         pypeit_setup (PypeItSetup): The PypeItSetup object this configuration is a part of.
         config_name (str):  The name of this configuration.
-        config_dict (dict): The metadata for this configurations, as returned by PypeItMetadata.unique_configurations.
+        config_dict (dict): The metadata for this configuration, as returned by PypeItMetadata.unique_configurations.
         state (ModelState): The state of the model.  "CHANGED" if it was built by running setup or "UNCHANGED" if it came from loading
                             an existing .pypeit file.
     """
 
     stateChanged = Signal(str, ModelState)
-    """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
+    """Signal(str): Signal sent when the state of the file model changes. The config name of the file is sent as the signal parameter."""
 
     def __init__(self, metadata_model, state, name_stem, config_dict=None, params_model=None):
         super().__init__()
@@ -971,7 +987,14 @@ class PypeItFileModel(QObject):
         self.save_location = None
 
     def setMetadataModel(self, name_stem, config_dict, metadata_model):
-
+        """Sets the metadata model containing the list of raw data files and associated metadata.
+        
+        Args:
+            name_stem (str):      The name_stem of the metadata which will be used in the name of the pypeit file. This is typially the
+                                  setup name (e.g. "A").
+            config_dict (dict):   The metadata for this configuration, as returned by PypeItMetadata.unique_configurations.
+            metadata_model (PypeItMetadataModel): The model object to set.            
+        """
         if self.metadata_model is not None:
             self.metadata_model.dataChanged.disconnect(self._update_state)
             self.metadata_model.modelReset.disconnect(self._update_state)
@@ -1015,7 +1038,7 @@ class PypeItFileModel(QObject):
 
     @property
     def filename(self):
-        """Return the name of the pypeit file.
+        """str: The full path name of the pypeit file.
         """
         # TODO figure out when to use default name, vs a set name, vs "New Name.pypeit" or whatever.        
         # If name is key in parent model, how do we change it???
@@ -1023,6 +1046,7 @@ class PypeItFileModel(QObject):
 
     @property
     def spec_name(self):
+        """str: The name of the spectrograph for this pypeit file."""
         return self._spectrograph.name
 
     def save(self):
@@ -1076,6 +1100,7 @@ class PypeItObsLogModel(QObject):
 
     @property
     def state(self):
+        """ModelState: The state of the obslog model. Either NEW or UNCHANGED."""
         if self.metadata_model.metadata is None:
             msgs.info("Obslog state is NEW")
             return ModelState.NEW
@@ -1236,6 +1261,7 @@ class PypeItSetupGUIModel(QObject):
 
     @property
     def clipboard(self):
+        """PypeItMetadataModel: The current metadata that has been copied or pasted within the Setup GUI."""
         return self._clipboard
     
     @clipboard.setter

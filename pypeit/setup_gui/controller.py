@@ -1,11 +1,11 @@
 """
-The controller portion of the PypeIt Setup GUI.
+The controller portion of the PypeIt Setup GUI. The classes in this module are responsible for
+acting on user input, running background tasks, and returning information to the user.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 import traceback
-import signal
 import sys
 import datetime
 import re
@@ -28,9 +28,9 @@ from pypeit.display import display
 from pypeit import io as pypeit_io
 
 
-# For using Qt Mutexes and "with"
 @contextmanager
 def lock_qt_mutex(mutex):
+    """Context manager to allow locking Qt :class:`QMutex` objects using 'with'."""
     mutex.lock()
     try:
         yield mutex
@@ -233,18 +233,18 @@ class OpenFileOperation(MetadataOperation):
         self._model.open_pypeit_file(self._file)
 
 class MetadataReadOnlyAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) that is read only
-    and therefore can be performed on the ObsLog.
+    """An action on a PypeItMetadataModel that is read only and therefore can be performed on the ObsLog.
+    These actions can be triggered by a button, menu, option or keyboard shortcut.
     
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
     def __init__(self, controller, menu_text, handler, shortcut=None):
@@ -259,18 +259,19 @@ class MetadataReadOnlyAction(QAction):
         self.setEnabled(self._controller._view is not None and len(self._controller._view.selectedRows()) > 0)
 
 class MetadataWriteAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) that can change
-    the file metadata and therefore can only be performed on a PypeItFileModel.
-    
+    """An action on a PypeItMetadataModel that can change the file metadata and therefore can only be 
+    performed on a PypeItFileModel.
+    These actions can be triggered by a button, menu, option or keyboard shortcut.
+
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
 
@@ -289,18 +290,17 @@ class MetadataWriteAction(QAction):
                         len(self._controller._view.selectedRows()) > 0)
 
 class MetadataPasteAction(QAction):
-    """An action (caused by the right click menu in the GUI, a button, or keyboard short cut) for pasting
-    metadata into a PypeItMetadataModel object.
+    """An action for pasting metadata into a PypeItMetadataModel object.
     
     Arguments:
         controller(PypeItMetadataController): 
             The controller for the PypeItMetadataModel/PypeItMetadataView MVC triplet.
         menu_text(str):
             The text name for the menu/button that triggers the action.
-        handler (Callable):
+        handler (:obj:`collections.abc.Callable`):
             The signal handler to enact the action. This receives the "triggered" event
             from the parent class.
-        shortcut (PySide2.QtGui.QKeySequence.StandardKey, Optional):
+        shortcut (QtGui.QKeySequence.StandardKey, Optional):
             The keyboard shortcut to initiate the action.
     """
 
@@ -328,7 +328,7 @@ class PypeItMetadataController(QObject):
     Part of a MVC triplet involving PypeItMetadataModel/PypeItMetadataController/PypeItMetadataView.
 
     Args:
-        model (PypeItMetatadataModel): 
+        model (:class:`PypeItMetatadataModel`):
             The model this controller acts with.
 
         is_pypeit_file (bool): 
@@ -358,7 +358,8 @@ class PypeItMetadataController(QObject):
     def getActions(self, parent):
         """Returns the actions that this controller supports.
         
-        Returns: (list of QAction): List of the actions that can be performed on the PypeItMetadataModel.
+        Returns: 
+            list of QAction: List of the actions that can be performed on the PypeItMetadataModel.
         """
         return self._action_list
             
@@ -445,7 +446,8 @@ class PypeItMetadataController(QObject):
     def copy_metadata_rows(self) -> bool:
         """Copy metadata rows into the clipboard.
         
-        Return: True if rows were copied, False if there were no rows to copy
+        Return: 
+            True if rows were copied, False if there were no rows to copy
         """
         if self._view is None:
             return False
@@ -461,8 +463,9 @@ class PypeItMetadataController(QObject):
     def cut_metadata_rows(self) -> bool:
         """Move metadata rows from the PypeItMetadataModel to the clipboard.
         
-        Return: True if rows were removed from the metadata and copied into the
-                clipboard. False if no rows were copied or removed.
+        Return: 
+            True if rows were removed from the metadata and copied into the
+            clipboard. False if no rows were copied or removed.
         """
         if self.copy_metadata_rows():
             return self.delete_metadata_rows()
@@ -503,8 +506,9 @@ class PypeItMetadataController(QObject):
     def delete_metadata_rows(self) -> bool:
         """Remove one or more selected rows from the PypeItMetadataModel.
         
-        Return: True if there were metadata rows deleted, False if there
-                weren't any rows to delete.
+        Return: 
+            True if there were metadata rows deleted, False if there
+            weren't any rows to delete.
         """
         if self._view is None:
             return False

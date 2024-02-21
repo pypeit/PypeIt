@@ -1,3 +1,9 @@
+"""
+The view portion of the PypeIt Setup GUI.  Responsible for displaying information to the user, and forwarding user input to the controller.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
@@ -14,7 +20,7 @@ from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, Persist
 from pypeit import msgs
 
 def debugSizeStuff(widget:QWidget, name="widget"):
-
+    """Helper method for logging sizxing information about a wdiget and its layout."""
     msgs.info(f"{name} (width/height): {widget.width()}/{widget.height()} geometry x/y/w/h: {widget.geometry().x()}/{widget.geometry().y()}/{widget.geometry().width()}/{widget.geometry().height()} min w/h {widget.minimumWidth()}/{widget.minimumHeight()} hint w/h {widget.sizeHint().width()}/{widget.sizeHint().height()} min hint w/h {widget.minimumSizeHint().width()}/{widget.minimumSizeHint().height()} cm tlbr: {widget.contentsMargins().top()}/{widget.contentsMargins().left()}/{widget.contentsMargins().bottom()}/{widget.contentsMargins().right()} frame w/h {widget.frameSize().width()}/{widget.frameSize().height()}")
     layout = widget.layout()
     if layout is None:
@@ -120,11 +126,20 @@ class PathEditor(QWidget):
         self.pathEntered.emit(new_path)
 
     def setHistory(self, history):
+        """Sets the past history of the PathEditor widget.
+        
+        Args:
+            history (QStringListModel): A string list model containing the history of the widget."""
         self._history = history
         self._path.setModel(history)
         self._path.setCurrentIndex(-1)
 
     def history(self):
+        """Returns the past history of the PathEditor widget.
+        
+        Returns:
+            QStringListModel: A stringh list model with the history of the widget.
+        """
         return self._history
     
     def browse(self):
@@ -179,11 +194,8 @@ class PypeItEnumListEditor(QWidget):
     closed = Signal(QWidget, bool)
     """
     Signal sent when the user closes the editor with the OK or CANCEL button.
-    Args:
-        editor (QWidget):
-            The editor that was closed.
-        accepted (bool):
-            True if a change was accepted, False if it was canceled.
+    The signal will provide the editor that was closed and a boolean that will
+    be True if the change was accepted or False if it was canceled.
     """
 
     def __init__(self, parent, allowed_values, index, num_lines):
@@ -330,13 +342,10 @@ class PypeItEnumListEditor(QWidget):
     def selectedValues(self):
         """Return what values of the enumeration have been selected.
         
-        Return: (list of str): A comma seperated list of the selected values.
+        Return (list of str): A comma seperated list of the selected values.
         """
         return ",".join(sorted(self._values))
-    
-    def paint(self, *args, **kwargs):
-        msgs.info(f"width: {self.width()}")
-        return super().paint(*args,**kwargs)
+
 
 class PypeItCustomEditorDelegate(QStyledItemDelegate):
     """Custom item delegate for rows in a PypeItMetadataView."""
@@ -381,7 +390,16 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         super().paint(painter,option, index)
 
     def createEditor(self, parent,  option, index):
-        
+        """
+        Creates an editor widget for an item in the metadata table. This will be a
+        PypeItEnumListEditor for the columns that use one, or the Qt default for other editable columns.
+        Overriden from QStyledItemDelegate.
+
+        Args:
+            parent (QWidget): The parent widget of the new editor.
+            option (QtWidgets.QStyleOptionViewItem): Additional options for the editor.
+            index (QModelIndex): The index of the table cell being edited.
+        """
         model = index.model().sourceModel()
         
         column_name = model.getColumnNameFromNum(index)
@@ -396,6 +414,12 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         return super().createEditor(parent, option, index)
     
     def setEditorData(self, editor, index):
+        """Sets the data being edited in the editor. Overriden from QStyledItemDelegate.
+
+        Args:
+            editor (QWidget):    The editor widget (created by createEditor)
+            index (QModelIndex): The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             msgs.info(f"Setting editor data {index.data(Qt.EditRole)}")
             editor.setSelectedValues(index.data(Qt.EditRole))
@@ -404,6 +428,13 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             super().setEditorData(editor, index)
 
     def setModelData(self,editor,model,index):
+        """Sets the edited data in the model post editing. Overriden from QStyledItemDelegate.
+        
+        Args:
+            editor (QWidget):           The editor widget (created by createEditor).
+            model (QAbstractItemModel): The model being edited.
+            index (QModelIndex):        The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             msgs.info(f"Setting choice model data: {editor.selectedValues()}")
             model.setData(index, editor.selectedValues())
@@ -412,6 +443,15 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             super().setModelData(editor,model,index)
 
     def updateEditorGeometry(self, editor, option, index):
+        """Sets the editor's position and size in the GUI. Overriden from QStyledItemDelegate.
+        
+        Args:
+            editor (QWidget):                        The editor widget (created by crateEditor). This widgets geometry
+                                                     is set by this method.
+            model (QAbstractItemModel):              The model being edited
+            option (QtWidgets.QStyleOptionViewItem): Options object containing the recommended rectangle for the editor.
+            index (QModelIndex):                     The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             # The upper left coordinate of the editor depends on how well it fits
             # vertically in it's parent
@@ -695,14 +735,17 @@ class TabManagerBaseTab(QWidget):
 
     @property
     def name(self):
+        """str: The name of the tab."""
         return self._name
 
     @property
     def state(self):
+        """ModelState: The state of the tab."""
         return self._state
 
     @property
     def closeable(self):
+        """bool: Whether the tab can be closed."""
         return self._closeable
 
 class PypeItFileView(TabManagerBaseTab):
@@ -786,10 +829,10 @@ class PypeItFileView(TabManagerBaseTab):
         self.model.stateChanged.connect(self.update_from_model)
 
 
-    """
-    Signal handler that updates view when the underlying model changes.
-    """
     def update_from_model(self):
+        """
+        Signal handler that updates view when the underlying model changes.
+        """
         # update the filename if it changed from saving
         self.filename_value.setText(self.model.filename)
 
@@ -907,6 +950,7 @@ class ObsLogView(TabManagerBaseTab):
         self.spectrograph.textActivated.connect(self.update_raw_data_paths_state)
 
     def _deletePaths(self, parent):
+        """Signal handler that removes raw data paths from the obslog"""
         msgs.info(f"Delete selection")
         selection = self._paths_viewer.selectedIndexes()
         rows = [index.row() for index in selection]
@@ -1002,9 +1046,9 @@ class SpectrographValidator(QValidator):
 class TabManagerWidget(QTabWidget):
     """
     Widget which manages tabs for the obslog and pypeit files.
-    It extends the QTabWidget functionality by allowing tabs by
-    adding widgets to add and remove tabs as well as specifying
-    the modification state with a "*" when a tab hasn't been saved.
+    It extends the QTabWidget functionality by allowing tabs
+    to be added or removed and by displaying the tab's name with a 
+    "*" when a tab hasn't been saved.
 
     Args:
         model (:class:`pypeit.setup_gui.model.SetupGUIStateModel`): Model object for a PypeIt Setup GUI.
@@ -1029,12 +1073,14 @@ class TabManagerWidget(QTabWidget):
         self.currentChanged.connect(self.checkIfNewTabCurrent)
 
     def checkNewTabClicked(self, index):
+        """Signal handler that detects a click on the "+" tab widget and sends that as a tabCreateRequest signal."""
         if index == self.count() - 1:
             # Create as new tab. The new tab model will send the signals needed
             # to create the view and add it
             self.tabCreateRequest.emit()
 
     def checkIfNewTabCurrent(self, index):
+        """Signal handler thast prevents the "+" tab, from being the current tab."""
         # Try to prevent the + tab from being visible
         if self.count() > 1:
             if self.widget(index).name == "+":
@@ -1042,8 +1088,15 @@ class TabManagerWidget(QTabWidget):
                 self.setCurrentIndex(0)
 
     def addNewTab(self, tab):
-        # Insert before the "+" tab. If this is the first tab being entered
-        # (ie the + tab), it is appended
+        """ Insert a new before the "+" tab. If this is the first tab being entered
+        (ie the + tab itself), it is appended
+        
+        Args:
+            tab (TabManagerBaseTab): The new tab widget to add.
+
+        Rerturns:
+            int: The index of the newly inserted tab.
+        """
         index = self.count()-1
         index=self.insertTab(index, tab, tab.name)
         msgs.info(f"Added {tab.name} at index {index}")
@@ -1056,6 +1109,11 @@ class TabManagerWidget(QTabWidget):
         return index
 
     def closeTab(self, tab_name):
+        """Close the tab with the given name.
+        
+        Args:
+            tab_name (str): The name of the tab to close.
+        """
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :
@@ -1068,6 +1126,14 @@ class TabManagerWidget(QTabWidget):
         del self._tabNames[index]
 
     def updateTabText(self, tab_name, tab_state):
+        """Update a tab's text when it state changes.
+        
+        Args:
+            tab_name (str): The name of the tab to update.
+            tab_state (ModelState): The model state of the data in the tab. If this is NEW or UNCHANGED,
+                                    the tab's text will be  "*" + tab_name. Otherwise it will be
+                                    tab_name.
+        """
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :
