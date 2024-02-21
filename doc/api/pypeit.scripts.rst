@@ -23,6 +23,7 @@ Submodules
    pypeit.scripts.coadd_datacube
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
+   pypeit.scripts.compile_wvarxiv
    pypeit.scripts.edge_inspector
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup

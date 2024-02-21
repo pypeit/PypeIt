@@ -460,6 +460,8 @@ Key                       Type                       Options                    
 ========================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``bad_orders_maxfrac``    float                      ..                                                                            0.25              For echelle spectrographs (i.e., ``echelle=True``), this is the maximum fraction of orders (per detector) with failed 1D fit, for PypeIt to attempt a refit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``cc_local_thresh``       float                      ..                                                                            0.7               Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  between an input spectrum and the shifted and stretched archive spectrum above which a line must be to be considered a good line for reidentification. The local cross-correlation is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then used to score the the reidentified lines to arrive at the final set of good reidentifications.                                                                                                                                                                                                                                                                                                                                 
+``cc_offset_minmax``      float                      ..                                                                            1.0               Fraction of the total spectral pixels used to determine the range of pixel shifts allowedwhen cross-correlating the input arc spectrum with the archive spectrum.Restricting this can be crucial if there are few reference lines and the cross correlation can get confused.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+``cc_percent_ceil``       float                      ..                                                                            50.0              Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``cc_shift_range``        tuple                      ..                                                                            ..                Range of pixel shifts allowed when cross-correlating the input arc spectrum with the archive spectrum.  If None, the range will be automatically determined.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``cc_thresh``             float, list, ndarray       ..                                                                            0.7               Threshold for the *global* cross-correlation coefficient between an input spectrum and member of the archive required to attempt reidentification.  Spectra from the archive with a lower cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``ech_norder_coeff``      int                        ..                                                                            4                 For echelle spectrographs, this is the order of the final 2d fit to the order dimension.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -467,7 +469,7 @@ Key                       Type                       Options                    
 ``ech_separate_2d``       bool                       ..                                                                            False             For echelle spectrographs, fit the 2D solutions on separate detectors separately                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``ech_sigrej``            int, float                 ..                                                                            2.0               For echelle spectrographs, this is the sigma-clipping rejection threshold in the 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``echelle``               bool                       ..                                                                            False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-``echelle_pad``           int                        ..                                                                            0                 Number of orders by which to pad the echellogram reference in the echelle method.Values > 0 allow for some error in the reddest order guess, but require sufficient reference orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``echelle_pad``           int                        ..                                                                            3                 Number of orders by which to pad the echellogram reference in the echelle method.Values > 0 allow for some error in the reddest order guess, but require sufficient reference orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``frac_rms_thresh``       float                      ..                                                                            1.5               For echelle spectrographs (i.e., ``echelle=True``), this is the fractional change in the RMS threshold used when a 1D fit is re-attempted for failed orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``func``                  str                        ..                                                                            ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``fwhm``                  int, float                 ..                                                                            4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in binned pixels of the input arc image                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
@@ -495,10 +497,9 @@ Key                       Type                       Options                    
 ``sigdetect``             int, float, list, ndarray  ..                                                                            5.0               Sigma threshold above fluctuations for arc-line detection.  Arcs are continuum subtracted and the fluctuations are computed after continuum subtraction.  This can be a single number or a vector (list or numpy array) that provides the detection threshold for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``sigrej_final``          float                      ..                                                                            3.0               Number of sigma for rejection for the final guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``sigrej_first``          float                      ..                                                                            2.0               Number of sigma for rejection for the first guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+``stretch_func``          str                        ..                                                                            ``linear``        Whether to use a linear (linear) or quadratic (quad) function to stretch the extracted arcs when identifyingemission lines with reidentify. For NIRSPEC, the quadratic mode tends to do better because the wavelength solutionis typically at least 2nd or 3rd order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``use_instr_flag``        bool                       ..                                                                            False             If True, restrict to lines matching the instrument.  WARNING: This is only implemented for shane_kast_red + HolyGrail.  Do not use it unless you really know what you are doing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``wvrng_arxiv``           list                       ..                                                                            ..                Cut the arxiv template down to this specified wavelength range [min,max]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-``xcorr_offset_minmax``   float                      ..                                                                            1.0               Fraction of an echelle order by which the reference is allowed to be shifted to match the data.Restricting this can be crucial if there are few reference lines and the cross correlation can get confused.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
-``xcorr_percent_ceil``    float                      ..                                                                            50.0              Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ========================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -3998,88 +3999,65 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               shot_noise = False
-              use_pixelflat = False
-              use_illumflat = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.8
       [[wavelengths]]
@@ -4110,7 +4088,6 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
   [reduce]
       [[findobj]]
           fof_link = 0.2
@@ -4139,88 +4116,65 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_overscan = False
               shot_noise = False
-              use_pixelflat = False
-              use_illumflat = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[arcframe]]
           exprng = 20, None,
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_overscan = False
-              use_pixelflat = False
-              use_illumflat = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
               noise_floor = 0.01
-              use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.8
       [[wavelengths]]
@@ -4250,7 +4204,6 @@ Alterations to the default parameters are:
           use_biasimage = False
           use_overscan = False
           noise_floor = 0.01
-          use_illumflat = False
   [reduce]
       [[findobj]]
           fof_link = 0.2
@@ -4260,7 +4213,7 @@ Alterations to the default parameters are:
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = TellPCA_9300_55100_R60000.fits
+          telgridfile = /Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits
 
 .. _instr_par-keck_nirspec_low:
 

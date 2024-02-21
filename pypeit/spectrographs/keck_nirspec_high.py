@@ -27,7 +27,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     ech_fixed_format = False
     #supported = False
 
-    comment = 'see :doc:`keck_nirspec_high`'
+    comment = 'see :ref:`nirspec_high_howto`'
 
 
 
@@ -717,7 +717,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     comment = 'High-dispersion grating, pre-upgrade'
     lamps_list = []
     filter = ''
-    comment = 'see :doc:`keck_nirspec_high_old`'
+    comment = 'see :ref:`nirspec_high_howto`'
 
     def get_detector_par(self, det, hdu=None):
         """

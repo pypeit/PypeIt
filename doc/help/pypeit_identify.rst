@@ -5,11 +5,10 @@
                            [--slits SLITS] [-m] [-n] [--det DET] [--rmstol RMSTOL]
                            [--fwhm FWHM] [--sigdetect SIGDETECT] [--pixtol PIXTOL]
                            [--linear] [--force_save] [--rescale_resid]
-                           [-v VERBOSITY]
-                           [--try_old]
+                           [-v VERBOSITY] [--try_old]
                            arc_file slits_file
     
-    Launch PypeIt identify_multi tool, display extracted Arc, and load linelist.
+    Launch PypeIt pypeit_identify tool, display extracted Arc, and load linelist.
     
     positional arguments:
       arc_file              PypeIt Arc file
@@ -25,7 +24,7 @@
       --wmax WMAX           Maximum wavelength range (default: 50000.0)
       --slits SLITS         Which slit to load for wavelength calibration. Format
                             should be [0,1,...] for multiple slits, 0 for only one
-                            slit. If created a new WaveCalib with the -n flag, this
+                            slit. If creating a new WaveCalib with the -n flag, this
                             is not necessary. (default: 0)
       -m, --multi           Are we making multiple trace solutions or just one?
                             (default: False)

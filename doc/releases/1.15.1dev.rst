@@ -15,6 +15,7 @@ Instrument-specific Updates
 ---------------------------
 
 - Added example of improved wavelength solution for GEMINI/GMOS
+- Introduces reduction pipeline for high-resolution modes of Keck/NIRSPEC
 
 Script Changes
 --------------
@@ -28,4 +29,8 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+.. need to end this doc with something in the last section, otherwise sphinx
+   complains
+
+- None yet
 
