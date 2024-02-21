@@ -17,6 +17,7 @@ from astropy import units
 from astropy.stats import sigma_clipped_stats
 from astropy.io import fits
 
+from pypeit.pypmsgs import PypeItBitMaskError
 from pypeit import msgs
 from pypeit import datamodel
 from pypeit import calibframe
@@ -39,7 +40,9 @@ class SlitTraceBitMask(BitMask):
     # It's not necessary, though.
 
     def __init__(self):
-        # Only ever append new bits (and don't remove old ones)
+        # !!!!!!!!!!
+        # IMPORTANT: Only ever *append* new bits, and don't remove old ones
+        # !!!!!!!!!!
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
             ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough to be a valid '
@@ -47,6 +50,7 @@ class SlitTraceBitMask(BitMask):
             ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
+            ('BADALIGNCALIB', 'Alignment analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
             ('BADREDUCE', 'Reduction failed for this slit'), # THIS IS DEPRECATED (we may remove in v1.13) BUT STAYS HERE TO ALLOW FOR BACKWARDS COMPATIBILITY
@@ -64,7 +68,7 @@ class SlitTraceBitMask(BitMask):
     def exclude_for_flexure(self):
         # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
-        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
+        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB', 'BADALIGNCALIB',
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
@@ -475,7 +479,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
-    def get_radec_image(self, wcs, alignSplines, tilts, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignSplines, tilts, slice_offset=None, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
         NOTE: This function is currently only used for SlicerIFU reductions.
 
@@ -488,6 +492,11 @@ class SlitTraceSet(calibframe.CalibFrame):
             transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`_
             Spectral tilts.
+        slice_offset : float, optional
+            Offset to apply to the slice positions. A value of 0.0 means that the
+            slice positions are the centre of the slits. A value of +/-0.5 means that
+            the slice positions are at the edges of the slits. If None, the slice_offset
+            is set to 0.0.
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -506,7 +515,13 @@ class SlitTraceSet(calibframe.CalibFrame):
             reference (usually the centre of the slit) and the edges of the
             slits. Shape is (nslits, 2).
         """
-        msgs.info("Generating an RA/DEC image")
+        substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
+        msgs.info("Generating an RA/DEC image"+substring)
+        # Check the input
+        if slice_offset is None:
+            slice_offset = 0.0
+        if slice_offset < -0.5 or slice_offset > 0.5:
+            msgs.error(f"Slice offset must be between -0.5 and 0.5. slice_offset={slice_offset}")
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
         decimg = np.zeros((self.nspec, self.nspat))
@@ -524,9 +539,8 @@ class SlitTraceSet(calibframe.CalibFrame):
             minmax[slit_idx, 0] = np.min(evalpos)
             minmax[slit_idx, 1] = np.max(evalpos)
             # Calculate the WCS from the pixel positions
-            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
-            world_ra, world_dec, _ \
-                    = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
+            slitID = np.ones(evalpos.size) * slit_idx + slice_offset - wcs.wcs.crpix[0]
+            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(self.nspec-1), 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
@@ -570,9 +584,8 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, 
-                 flexure=None,
-                 exclude_flag=None, use_spatial=True):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
+                 use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -616,8 +629,8 @@ class SlitTraceSet(calibframe.CalibFrame):
                 :attr:`right_init`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
-            exclude_flag (:obj:`str`, optional):
-                Bitmask flag to ignore when masking
+            exclude_flag (:obj:`str`, :obj:`list`, optional):
+                One or more bitmask flag names to ignore when masking
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
@@ -649,10 +662,11 @@ class SlitTraceSet(calibframe.CalibFrame):
         if slitidx is not None:
             slitidx = np.atleast_1d(slitidx).ravel()
         else:
-            bpm = self.mask.astype(bool)
-            if exclude_flag:
-                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
-            slitidx = np.where(np.invert(bpm))[0]
+            bpm = self.bitmask.flagged(self.mask, and_not=exclude_flag)
+#            bpm = self.mask.astype(bool)
+#            if exclude_flag:
+#                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
+            slitidx = np.where(np.logical_not(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -1463,7 +1477,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         """
         # Loop on all the FLATFIELD BPM keys
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
-            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag)
+            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag=flag)
             if np.any(bad_flats):
                 self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
 

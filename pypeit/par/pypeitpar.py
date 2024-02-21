@@ -686,7 +686,7 @@ class FlatFieldPar(ParSet):
         defaults['slit_illum_relative'] = False
         dtypes['slit_illum_relative'] = bool
         descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination ' \
-                                       'for a multi-slit setup.  If you set ``use_slitillum = ' \
+                                       'for a multi-slit setup.  If you set ``use_specillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
                                        'only used for SlicerIFU reductions.'
@@ -1022,7 +1022,7 @@ class ScatteredLightPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
+    def __init__(self, method=None, finecorr_method=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1043,7 +1043,7 @@ class ScatteredLightPar(ParSet):
         options['method'] = ScatteredLightPar.valid_scattlight_methods()
         dtypes['method'] = str
         descr['method'] = 'Method used to fit the overscan. ' \
-                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '. ' + \
                           '\'model\' will the scattered light model parameters derived from a ' \
                           'user-specified frame during their reduction (note, you will need to make sure ' \
                           'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
@@ -1052,15 +1052,21 @@ class ScatteredLightPar(ParSet):
                           '\'archive\' will use an archival model parameter solution for the scattered ' \
                           'light (note that this option is not currently available for all spectrographs).'
 
-        defaults['finecorr'] = True
-        dtypes['finecorr'] = bool
-        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
-                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+        defaults['finecorr_method'] = None
+        options['finecorr_method'] = ScatteredLightPar.valid_finecorr_scattlight_methods()
+        dtypes['finecorr_method'] = str
+        descr['finecorr_method'] = 'If None, a fine correction to the scattered light will not be performed. ' \
+                                   'Otherwise, the allowed methods include: ' \
+                                   '{0}'.format(', '.join(options['finecorr_method'])) + '. ' + \
+                                   '\'median\' will subtract a constant value from an entire CCD row, based on a ' \
+                                   'median of the pixels that are not on slits (see also, \'finecorr_pad\'). ' \
+                                   '\'poly\' will fit a polynomial to the scattered light in each row, based ' \
+                                   'on the pixels that are not on slits (see also, \'finecorr_pad\').'
 
-        defaults['finecorr_pad'] = 2
+        defaults['finecorr_pad'] = 4
         dtypes['finecorr_pad'] = int
-        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
-                                'fine correction to the scattered light.'
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for ' \
+                                'the fine correction to the scattered light.'
 
         defaults['finecorr_order'] = 2
         dtypes['finecorr_order'] = int
@@ -1089,7 +1095,7 @@ class ScatteredLightPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
+        parkeys = ['method', 'finecorr_method', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1104,7 +1110,10 @@ class ScatteredLightPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        if self.data['method'] is not None and self.data['method'] not in self.valid_scattlight_methods():
+            raise ValueError("If 'method' is not None it must be one of:\n"+", ".join(self.valid_scattlight_methods()))
+        if self.data['finecorr_method'] is not None and self.data['finecorr_method'] not in self.valid_finecorr_scattlight_methods():
+            raise ValueError("If 'finecorr_method' is not None it must be one of:\n"+", ".join(self.valid_finecorr_scattlight_methods()))
 
     @staticmethod
     def valid_scattlight_methods():
@@ -1112,6 +1121,13 @@ class ScatteredLightPar(ParSet):
         Return the valid scattered light methods.
         """
         return ['model', 'frame', 'archive']
+
+    @staticmethod
+    def valid_finecorr_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['median', 'poly']
 
 
 class Coadd1DPar(ParSet):
@@ -1549,7 +1565,7 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
+                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1673,7 +1689,7 @@ class CubePar(ParSet):
                                  'each detector pixel in the spectral direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spat_subpixel.'
+                                 'See also, spat_subpixel and slice_subpixel.'
 
         defaults['spat_subpixel'] = 5
         dtypes['spat_subpixel'] = int
@@ -1681,7 +1697,13 @@ class CubePar(ParSet):
                                  'each detector pixel in the spatial direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spec_subpixel.'
+                                 'See also, spec_subpixel and slice_subpixel.'
+
+        defaults['slice_subpixel'] = 5
+        dtypes['slice_subpixel'] = int
+        descr['slice_subpixel'] = 'When method=subpixel, slice_subpixel sets the subpixellation scale of ' \
+                                  'each IFU slice. The default option is to divide each slice into 5 sub-slices ' \
+                                  'during datacube creation. See also, spec_subpixel and spat_subpixel.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1769,7 +1791,7 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
                    'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
 
