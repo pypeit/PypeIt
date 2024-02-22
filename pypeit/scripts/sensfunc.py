@@ -18,9 +18,13 @@ class SensFunc(scriptbase.ScriptBase):
     def get_parser(cls, width=None):
         parser = super().get_parser(description='Compute a sensitivity function', width=width,
                                     formatter=scriptbase.SmartFormatter)
-        parser.add_argument("spec1dfile", type=str,
-                            help='spec1d file for the standard that will be used to compute '
-                                 'the sensitivity function')
+        parser.add_argument("spec1d", type=str,
+                            help='One spec1d file or a directory within which to search for all '
+                                 'spec1d_* files. The spec1d file(s) should contain standard '
+                                 'star observations that will be used to compute sensitivity '
+                                 'function(s).  If a directory is provided, the output files are '
+                                 '*always* follow the automatic naming convention (see --outfile) '
+                                 'and the --outfile argument is ignored!')
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
                             help="R|Override the default algorithm for computing the sensitivity "
                                  "function.  Note that it is not possible to set --algorithm and "
@@ -46,13 +50,17 @@ class SensFunc(scriptbase.ScriptBase):
                                  "F|        multi_spec_det = 3,7\n"
                                  "\n")
         parser.add_argument("-o", "--outfile", type=str,
-                            help='Output file for sensitivity function. If not specified, the '
-                                 'sensitivity function will be written out to a standard filename '
-                                 'in the current working directory, i.e. if the standard spec1d '
-                                 'file is named spec1d_b24-Feige66_KASTb_foo.fits the sensfunc '
-                                 'will be written to sens_b24-Feige66_KASTb_foo.fits. A QA file '
-                                 'will also be written as sens_spec1d_b24-Feige66_KASTb_foo_QA.pdf '
-                                 'and a file showing throughput plots to '
+                            help='Output file for sensitivity function. If the script is given a '
+                                 'directory with the spec1d files, this argument is IGNORED; '
+                                 'i.e., setting the output file name only works if you provide '
+                                 'one spec1d file to the script.  If --outfile is not specified, '
+                                 'the sensitivity function will be written out to a standard '
+                                 'filename in the current working directory.  E.g., if the '
+                                 'standard spec1d file is named spec1d_b24-Feige66_KASTb_foo.fits '
+                                 'the sensfunc will be written to '
+                                 'sens_b24-Feige66_KASTb_foo.fits. A QA file will also be written '
+                                 'as sens_spec1d_b24-Feige66_KASTb_foo_QA.pdf and a file showing '
+                                 'throughput plots to '
                                  'sens_spec1d_b24-Feige66_KASTb_foo_throughput.pdf. The same '
                                  'extensions for QA and throughput will be used if outfile is '
                                  'provided but with .fits trimmed off if it is in the filename.')
@@ -64,11 +72,10 @@ class SensFunc(scriptbase.ScriptBase):
                                  "simultaneously use a .sens file with the --sens_file option. If "
                                  "you are using a .sens file, set the flatfile there via e.g.:\n\n"
                                  "F|    [sensfunc]\n"
-                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
-                                 "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n\n"
+                                 "Where Flat_A_0_DET01.fits is the flat file in your "
+                                 "Calibrations directory\n")
 
-        parser.add_argument("--dir", default=False, action="store_true",
-                            help="is spec1dfile actually a directory?")
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -122,14 +129,21 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n")
 
 
-        #Check if we want to compute a sensfile for every object in the directory
-        if Path(args.spec1dfile).resolve().is_dir():
-            msgs.info(f'Searching for files in directory: {args.spec1dfile}')
-            files = sorted(Path(args.spec1dfile).resolve().glob('spec1d*.fits'))
-        else:
-            files = [Path(args.spec1dfile).resolve()]
+        # Check if we want to compute a sensfile for every object in the directory
+        _spec1d = Path(args.spec1d).absolute()
+        if not _spec1d.exists():
+            msgs.error(f'{_spec1d} does not exist!')
 
-        for file in files:
+        if _spec1d.is_dir():
+            msgs.info(f'Searching for files in directory: {_spec1d}')
+            files = sorted(_spec1d.glob('spec1d*.fits'))
+            ofiles = [f.name.replace('spec1d','sens') for f in files]
+        else:
+            files = [_spec1d]
+            ofiles = [_spec1d.name.replace('spec1d','sens') 
+                        if args.outfile is None else args.outfile]
+
+        for file, ofile in zip(files, ofiles):
             if not file.exists():
                 msgs.warn(f'{file} does not exist')
                 continue
@@ -148,57 +162,51 @@ class SensFunc(scriptbase.ScriptBase):
                     if key.upper() in hdul[0].header.keys():
                         primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
-                # If the .sens file was passed in read it and overwrite default parameters
+            # If the .sens file was passed in read it and overwrite default parameters
+            if args.sens_file is not None:
+                sensFile = inputfiles.SensFile.from_file(args.sens_file)
+                # Read sens file
+                par = pypeitpar.PypeItPar.from_cfg_lines(
+                            cfg_lines=spectrograph_config_par.to_config(),
+                            merge_with=(sensFile.cfg_lines,))
+            else:
+                par = spectrograph_config_par 
 
-                if args.sens_file is not None:
-                    sensFile = inputfiles.SensFile.from_file(args.sens_file)
-                    # Read sens file
-                    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
-                        merge_with=(sensFile.cfg_lines,))
-                else:
-                    par = spectrograph_config_par 
+            # If algorithm was provided override defaults. Note this does undo .sens
+            # file since they cannot both be passed
+            if args.algorithm is not None:
+                par['sensfunc']['algorithm'] = args.algorithm
 
+            # If flatfile was provided override defaults. Note this does undo .sens
+            # file since they cannot both be passed
+            if args.flatfile is not None:
+                par['sensfunc']['flatfile'] = args.flatfile
 
-                # If algorithm was provided override defaults. Note this does undo .sens
-                # file since they cannot both be passed
-                if args.algorithm is not None:
-                    par['sensfunc']['algorithm'] = args.algorithm
+            # If multi was set override defaults. Note this does undo .sens file
+            # since they cannot both be passed
+            if args.multi is not None:
+                # parse
+                multi_spec_det  = [int(item) for item in args.multi.split(',')]
+                par['sensfunc']['multi_spec_det'] = multi_spec_det
 
-                # If flatfile was provided override defaults. Note this does undo .sens
-                # file since they cannot both be passed
-                if args.flatfile is not None:
-                    par['sensfunc']['flatfile'] = args.flatfile
+            # TODO Add parsing of detectors here. If detectors passed from the
+            # command line, overwrite the parset values read in from the .sens file
 
-                # If multi was set override defaults. Note this does undo .sens file
-                # since they cannot both be passed
-                if args.multi is not None:
-                    # parse
-                    multi_spec_det  = [int(item) for item in args.multi.split(',')]
-                    par['sensfunc']['multi_spec_det'] = multi_spec_det
-
-                # TODO Add parsing of detectors here. If detectors passed from the
-                # command line, overwrite the parset values read in from the .sens file
-
-
-                # Parse the output filename
-                outfile = (os.path.basename(file)).replace('spec1d','sens') 
-                #\
-                #                if args.outfile is None else args.outfile
-                # Instantiate the relevant class for the requested algorithm
-                sensobj = sensfunc.SensFunc.get_instance(file, outfile, par['sensfunc'],
-                                                        debug=args.debug)
-                # Generate the sensfunc
-                sensobj.run()
-                msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
-                # Write it out to a file, including the new primary FITS header
-                sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
-                msgs.info('--------------------------------------------------------------------------------------')                    
-                msgs.info('--------------------------------------------------------------------------------------')                    
+            # Instantiate the relevant class for the requested algorithm
+            sensobj = sensfunc.SensFunc.get_instance(file, ofile, par['sensfunc'], debug=args.debug)
+            # Generate the sensfunc
+            sensobj.run()
+            msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
+            # Write it out to a file, including the new primary FITS header
+            sensobj.to_file(ofile, primary_hdr=primary_hdr, overwrite=True)
+            msgs.info('-'*50)
+            msgs.info('-'*50)
 
             # Write the par to disk
             #msgs.info(f'Writing the parameters to {args.par_outfile}')
             #par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
+            #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
 
 
