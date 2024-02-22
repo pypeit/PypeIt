@@ -198,10 +198,16 @@ the default values (5), you can optionally set (one or all of) the ``spec_subpix
 
 The total number of subpixels generated for each detector pixel on the spec2d frame is
 spec_subpixel x spat_subpixel x slice_subpixel. The default values (5) divide each spec2d pixel
-into 5x5x5=125 subpixels during datacube creation. ``spat_subpixel`` is the number of subpixels in the
-spatial direction (i.e. detector rows), ``spec_subpixel`` is the number of subpixels in the spectral
-direction (i.e. detector columns), and ``slice_subpixel`` is the number of times to divide each of the
-slices that comprise the slicer (i.e. in the slice direction).
+into 5x5x5=125 subpixels during datacube creation.
+``spec_subpixel`` is the number of subpixels in the spectral
+direction (i.e. predominantly detector columns),
+``spat_subpixel`` is the number of subpixels in the
+spatial direction (i.e. the long axis of each slice; predominantly along detector rows), and
+``slice_subpixel`` is the number of times to divide each of the
+slices (i.e. the short axis of each slice). Note that all three of these ``subpixel``
+definitions are perpendicular to each other in the datacube. Each of these parameters
+governs the number of subpixels in the corresponding dimensions of the datacube.
+
 As an alternative, you can convert the spec2d frames into a datacube
 with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
 than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
