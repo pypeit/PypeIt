@@ -236,8 +236,6 @@ class SpecObjs:
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
-        # TODO make the extraction that is desired OPT vs BOX an optional input variable.
-        #   This TODO is already so, right?
         for iorddet in range(norddet):
             wave[:, iorddet] = getattr(self, wave_key)[iorddet]
             flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]

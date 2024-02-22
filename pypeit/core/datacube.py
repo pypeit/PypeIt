@@ -97,9 +97,8 @@ def fitGaussian2D(image, norm=False):
     x = np.linspace(0, image.shape[0] - 1, image.shape[0])
     y = np.linspace(0, image.shape[1] - 1, image.shape[1])
     xx, yy = np.meshgrid(x, y, indexing='ij')
-    # Setup the fitting params
+    # Setup the fitting params - Estimate a starting point for the fit using a median filter
     med_filt_image = signal.medfilt2d(image, kernel_size=3)
-    # idx_max = [image.shape[0]/2, image.shape[1]/2]  # Just use the centre of the image as the best guess
     idx_max = np.unravel_index(np.argmax(med_filt_image), image.shape)
     initial_guess = (1, idx_max[0], idx_max[1], 2, 2, 0, 0)
     bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
@@ -191,9 +190,9 @@ def correct_grating_shift(wave_eval, wave_curr, spl_curr, wave_ref, spl_ref, ord
     return grat_corr
 
 
-def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
-                          subpixel=20, boxcar_width=None, optfwhm=None, whitelight_range=None,
-                          pypeline="SlicerIFU", fluxed=False):
+def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
+                         subpixel=20, boxcar_radius=None, optfwhm=None, whitelight_range=None,
+                         pypeline="SlicerIFU", fluxed=False):
     """
     Extract a spectrum of a standard star from a datacube
 
@@ -213,8 +212,8 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         Exposure time listed in the header of the datacube
     subpixel : int, optional
         Number of pixels to subpixelate spectrum when creating mask
-    boxcar_width : float, optional
-        Width of the boxcar (in arcseconds) to use for the extraction
+    boxcar_radius : float, optional
+        Radius of the circular boxcar (in arcseconds) to use for the extraction
     optfwhm : float, optional
         FWHM of the PSF in pixels that is used to generate a Gaussian profile
         for the optimal extraction.
@@ -247,7 +246,7 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         # Scale the flux and ivar cubes to be in units of erg/s/cm**2/Ang
         unitscale = arcsecSQ
     else:
-        # Scale the flux and ivar cubes to be in units of counts
+        # Scale the flux and ivar cubes to be in units of counts. pypeit_sensfunc expects counts as input
         deltawave = wcscube.wcs.cdelt[2]*wcscube.wcs.cunit[2].to(units.Angstrom)
         unitscale = exptime * deltawave * arcsecSQ
 
@@ -262,13 +261,13 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     msgs.info("Making white light image")
     wl_img = make_whitelight_fromcube(_flxcube, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
-    if boxcar_width is None:
+    if boxcar_radius is None:
         nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
         wid = nsig * max(popt[3], popt[4])
     else:
-        # Set the user-defined width
-        wid = boxcar_width/np.sqrt(arcsecSQ)
-    # Set the width of the extraction boxcar for the sky determination
+        # Set the user-defined radius
+        wid = boxcar_radius / np.sqrt(arcsecSQ)
+    # Set the radius of the extraction boxcar for the sky determination
     msgs.info("Using a boxcar width of {:0.2f} arcsec".format(wid*np.sqrt(arcsecSQ)))
     widsky = 2 * wid
 
@@ -299,8 +298,8 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     # Subtract the residual sky from the datacube
     skymask = np.logical_not(bpmcube) * smask
     skycube = _flxcube * skymask
-    skyspec = skycube.sum(0).sum(0)
-    nrmsky = skymask.sum(0).sum(0)
+    skyspec = skycube.sum(axis=(0,1))
+    nrmsky = skymask.sum(axis=(0,1))
     skyspec *= utils.inverse(nrmsky)
     _flxcube -= skyspec.reshape((1, 1, numwave))
     # Now subtract the residual sky from the white light image
@@ -314,12 +313,12 @@ def extract_standard_spec(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
     norm_flux /= np.sum(norm_flux)
     # Extract boxcar
     cntmask = np.logical_not(bpmcube) * mask  # Good pixels within the masked region around the standard star
-    flxscl = (norm_flux * cntmask).sum(0).sum(0)  # This accounts for the flux that is missing due to masked pixels
+    flxscl = (norm_flux * cntmask).sum(axis=(0,1))  # This accounts for the flux that is missing due to masked pixels
     scimask = _flxcube * cntmask
     varmask = _varcube * cntmask**2
     nrmcnt = utils.inverse(flxscl)
-    box_flux = scimask.sum(0).sum(0) * nrmcnt
-    box_var = varmask.sum(0).sum(0) * nrmcnt**2
+    box_flux = scimask.sum(axis=(0,1)) * nrmcnt
+    box_var = varmask.sum(axis=(0,1)) * nrmcnt**2
     box_gpm = flxscl > 1/3  # Good pixels are those where at least one-third of the standard star flux is measured
 
     # Store the BOXCAR extraction information

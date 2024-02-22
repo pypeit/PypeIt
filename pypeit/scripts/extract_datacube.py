@@ -25,6 +25,8 @@ class ExtractDataCube(scriptbase.ScriptBase):
                             help='Output spec1d filename')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                             help='Overwrite any existing files/directories')
+        parser.add_argument('-b', '--boxcar_radius', type=float, default=None,
+                            help='Radius of the circular boxcar (in arcseconds) to use for the extraction.')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename extract_datacube_YYYYMMDD-HHMM.log')
@@ -61,6 +63,9 @@ class ExtractDataCube(scriptbase.ScriptBase):
             parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                   merge_with=(ext3dfile.cfg_lines,))
 
+        # Set the boxcar radius
+        boxcar_radius = args.boxcar_radius
+
         # Set the output name
         outname = None if args.save is None else args.save
 
@@ -68,7 +73,7 @@ class ExtractDataCube(scriptbase.ScriptBase):
         tstart = time.time()
 
         # Extract the spectrum
-        extcube.extract_spec(parset['reduce'], outname=outname, overwrite=args.overwrite)
+        extcube.extract_spec(parset['reduce'], outname=outname, boxcar_radius=boxcar_radius, overwrite=args.overwrite)
 
         # Report the extraction time
         msgs.info(utils.get_time_string(time.time()-tstart))

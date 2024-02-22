@@ -132,20 +132,28 @@ There are several recommended steps of the coadd3d process that can be run separ
 #. Step 2 - Extract the 1D spectra from the datacube. This is done by running the following command,
     assuming that the output datacube from the previous step was called ``StandardStarName.fits``.
     The ``pypeit_extract_datacube`` script will produce an output file called
-    ``StandardStarName_spec1d.fits``:
+    ``spec1d_StandardStarName.fits``:
 
     .. code-block:: console
 
         pypeit_extract_datacube StandardStarName.fits -o
 
+    This script is only designed for point sources. Both a boxcar and an optimal extraction are calculated.
+    The boxcar extraction uses a circular aperture with a radius set by the ``boxcar_radius`` parameter.
+    The optimal extraction uses the white light image as the object profile. Also note that the extraction
+    if performed on the sky-subtracted datacube. Therefore, the ``spec1d`` file contains the 1D spectra
+    including a ``BOX_COUNTS_SKY`` and ``OPT_COUNTS_SKY`` columns. These columns do not contain the sky
+    counts, but rather the residual level of the sky aperture. This is useful for checking the quality of
+    the sky subtraction.
+
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called
-    ``StandardStarName_spec1d.fits``. The ``pypeit_sensfunc`` script will produce an output file called
-    ``StandardStarName_sens.fits``:
+    ``spec1d_StandardStarName.fits``. The ``pypeit_sensfunc`` script will produce an output file called
+    ``sens_StandardStarName.fits``:
 
     .. code-block:: console
 
-        pypeit_sensfunc StandardStarName_spec1d.fits -o StandardStarName_sens.fits
+        pypeit_sensfunc spec1d_StandardStarName.fits -o sens_StandardStarName.fits
 
     For further details, see :doc:`_sensitivity_function`.
 
@@ -190,7 +198,10 @@ the default values (5), you can optionally set (one or all of) the ``spec_subpix
 
 The total number of subpixels generated for each detector pixel on the spec2d frame is
 spec_subpixel x spat_subpixel x slice_subpixel. The default values (5) divide each spec2d pixel
-into 125 subpixels during datacube creation.
+into 5x5x5=125 subpixels during datacube creation. ``spat_subpixel`` is the number of subpixels in the
+spatial direction (i.e. detector rows), ``spec_subpixel`` is the number of subpixels in the spectral
+direction (i.e. detector columns), and ``slice_subpixel`` is the number of times to divide each of the
+slices that comprise the slicer (i.e. in the slice direction).
 As an alternative, you can convert the spec2d frames into a datacube
 with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
 than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
@@ -265,14 +276,17 @@ The grating correction is needed if any of the data are recorded
 with even a very slightly different setup (e.g. data taken on two
 different nights with the same *intended* wavelength coverage,
 but the grating angle of the two nights were slightly different).
-This is also needed if your standard star observations were taken
-with a slightly different setup. This correction requires that you
+You can avoid this correction if you generate a sensitivity function
+for each of the setups. However, if you have not done this, then
+the grating correction is needed. This correction requires that you
 have taken calibrations (i.e. flatfields) with the two different
-setups. By default, the grating correction will not be applied. If
-you want to apply the grating correction, you will need to specify
-the relative path+file of the Flat calibration file for each spec2d
-file. You will need to specify a ``grating_corr`` file for each
-science frame, in the ``spec2d`` block of the ``.coadd3d`` file:
+setups, and uses the relative sensitivity of the two flatfields to
+estimate the sensitivity correction. By default, the grating correction
+will not be applied. If you want to apply the grating correction, you
+will need to specify the relative path+file of the Flat calibration
+file for each spec2d file. You will need to specify a ``grating_corr``
+file for each science frame, in the ``spec2d`` block of the
+``.coadd3d`` file:
 
 .. code-block:: ini
 

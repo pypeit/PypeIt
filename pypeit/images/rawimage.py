@@ -681,8 +681,6 @@ class RawImage:
         flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
 
         # Calculate the inverse variance
-        # TODO :: I think the IVAR should technically be calculated before the flat-fielding.
-        #         This is because the flat-fielding is done in counts, and the IVAR is in counts^2.
         self.ivar = self.build_ivar()
 
         #   - Subtract continuum level
