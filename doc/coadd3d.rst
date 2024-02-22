@@ -236,6 +236,21 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
             sensfunc = my_sensfunc.fits
 
 
+Also, an important note for users that wish to combine multiple standard star exposures
+into a single datacube: PypeIt currently performs an extinction correction when
+generating the sensitivity function; this is perfectly fine for single exposures.
+However, if you are combining multiple standard star exposures into a single datacube,
+you should note that the extinction correction will be applied at the airmass of the
+first standard star exposure listed in the ``coadd3d`` file. This is because the
+extinction correction is currently not applied to each individual frame in the datacube.
+This control flow will be changed in a future release of PypeIt, but for now, to stay
+consistent with the current pipeline, the extinction correction is done in the sensitivity
+function algorithms, with the caveat that the standard star exposures are assumed to have
+similar airmasses. If you have standard star exposures with significantly different
+airmasses, then you should use just one of these exposures to generate the sensitivity
+function.
+
+
 .. _coadd3d_skysub:
 
 Sky Subtraction
