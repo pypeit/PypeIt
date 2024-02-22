@@ -22,19 +22,26 @@ supported in PypeIt.
 Taking Calibrations for KCWI
 ++++++++++++++++++++++++++++
 
-Arcs
-----
+Arcs and tilts
+--------------
 
 We recommend that you only use the FeAr lamp to wavelength
 calibrate your data. Note that some FeAr calibration frames
 were contaminated due to a leaking ThAr lamp for observations
 up to the end of 2019. If your data are affected, you will
 need to request a new arc calibration. If there is a small
-offset, this is compensated for by default using a spectral
-flexure correction to the sky emission lines.
+offset in the wavelength calibration, this is compensated for
+by default using a spectral flexure correction to the sky
+emission lines. We also recommend that you use the ThAr lamp
+to determine the tilt of the spectra. This is done by default.
+If a ThAr exposure is not available, you can use the FeAr lamp,
+or you can use the sky emission lines if you are using KCRM and
+cover red wavelengths.
 
-The archived wavelength calibration solution only contains
-the FeAr spectrum.
+NOTE: The archived wavelength calibration solution only contains
+the FeAr spectrum. If you want to use the ThAr spectrum for the
+wavelength calibration, you will need to manually calibrate the
+data using the :ref:`pypeit_identify` task.
 
 Pixel Flat
 ----------
@@ -105,6 +112,37 @@ Note, the effective read noise of the data is determined from the
 overscan regions. Also note that this pattern noise is different
 from the detector structure mentioned above for pixelflats. The
 pattern noise is additive, the detector structure is multiplicative.
+
+Scattered Light Removal
+-----------------------
+
+KCWI suffers from mild scattered light (at the level of ~1 percent),
+and this appears to be worse near regions of the detector where there
+is brighter illumination. We are currently working towards building a
+full model of the scattered light. For KCWI, the main contributor to
+the scattered light is referred to as the "narcissistic ghost" by
+Morrissey et al. (2018), ApJ, 864, 93. This scattered light is thought
+to be a reflection off the detector that travels back through the optical
+system. Some fraction gets sent back out to space, while the remainder
+comes back through the optical system and a fuzzy version of this is
+re-imaged onto the detector. The current KCWI scattered light model is
+designed to account for these effects. To generate a scattered light model,
+it's a good idea to use a frame that has a lot of counts (e.g. a flatfield
+frame, or a standard star). By default, the scattered light is
+subtracted from the science frame, the pixel flat, and the illumination
+flat. To turn off the scattered light subtraction, you can add the
+following lines to your :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [scienceframe]
+        [[process]]
+            subtract_scattlight = False
+    [calibrations]
+        [[pixelflatframe]]
+            [[[process]]]
+                subtract_scattlight = False
+
 
 Relative spectral illumination correction
 -----------------------------------------

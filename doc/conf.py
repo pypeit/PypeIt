@@ -91,7 +91,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PypeIt'
-copyright = u'2020, Prochaska, Hennawi, Cooke, and Associates'
+copyright = u'2023, Prochaska, Hennawi, Cooke, and Associates'
 author = u'Prochaska, Hennawi, Cooke, and Associates'
 
 # The version info for the project you're documenting, acts as replacement for

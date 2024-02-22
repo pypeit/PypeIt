@@ -39,9 +39,10 @@ class WaveFit(datamodel.DataContainer):
     spatial ID; see :func:`hduext_prefix_from_spatid`.
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
+                 'ech_order': dict(otype=(int,np.integer), descr='Echelle order number.'),
                  'pypeitfit': dict(otype=fitting.PypeItFit,
                                    descr='Fit to 1D wavelength solutions'),
                  'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
@@ -67,10 +68,37 @@ class WaveFit(datamodel.DataContainer):
 
     @staticmethod
     def hduext_prefix_from_spatid(spat_id):
-        """ Naming for HDU extensions"""
-        return 'SPAT_ID-{}_'.format(spat_id)
+        """
+        Use the slit spatial ID number to construct the prefix for an output
+        HDU.
 
-    def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
+        Args:
+            spat_id (:obj:`int`):
+                Slit/order spatial ID number
+
+        Returns:
+            :obj:`str`: The prefix to use for HDU extensions associated with
+            this data container.
+        """
+        return 'SPAT_ID-{}_'.format(spat_id)
+    
+    @staticmethod
+    def parse_spatid_from_hduext(ext):
+        """
+        Parse the slit spatial ID integer from a *full* HDU extension name.
+
+        Args:
+            ext (:obj:`str`):
+                Full extension name.
+
+        Returns:
+            :obj:`int`: The parsed slit spatial ID number.  Returns None if the
+            extension name does not start with ``'SPAT_ID-'``.
+        """
+        return int(ext.replace('SPAT_ID-', '').split('_')[0]) \
+                    if ext.startswith('SPAT_ID-') else None
+
+    def __init__(self, spat_id, ech_order=None, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None,
                  fwhm=None):
@@ -95,8 +123,7 @@ class WaveFit(datamodel.DataContainer):
         # Extension prefix (for being unique with slits)
         hdue_pref = self.hduext_prefix_from_spatid(self.spat_id)
         # Without PypeItFit
-        _d = super(WaveFit, self)._bundle(
-            ext=hdue_pref+'WAVEFIT', **kwargs)
+        _d = super()._bundle(ext=hdue_pref+'WAVEFIT', **kwargs)
         # Deal with PypeItFit
         if _d[0][hdue_pref+'WAVEFIT']['pypeitfit'] is not None:
             _d.append({hdue_pref+'PYPEITFIT': _d[0][hdue_pref + 'WAVEFIT'].pop('pypeitfit')})
@@ -128,31 +155,61 @@ class WaveFit(datamodel.DataContainer):
         return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @classmethod
-    def from_hdu(cls, hdu, **kwargs):
+    def from_hdu(cls, hdu, hdu_prefix=None, spat_id=None, **kwargs):
         """
-        Parse the data from the provided HDU.
+        Parse the data from one or more fits objects.
 
-        See the base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` for
-        the argument descriptions.
+        .. note::
 
+                ``spat_id`` and ``hdu_prefix`` are mutually exclusive, with
+                ``hdu_prefix`` taking precedence. If *both* are None, the code
+                attempts to read the spatial ID number from the HDU extension
+                name(s) to construct the appropriate prefix.  In the latter
+                case, only the first :class:`WaveFit` object will be read if the
+                HDU object contains many.
+                
         Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            hdu_prefix (:obj:`str`, optional):
+                Only parse HDUs with extension names matched to this prefix.  If
+                None, ``spat_id`` will be used to construct the prefix if it is
+                provided, otherwise all extensions are parsed.
+            spat_id (:obj:`int`, optional):
+                Spatial ID number for the relevant slit/order for this
+                wavelength fit.  If provided, this is used to construct the
+                ``hdu_prefix`` using
+                :func:`~pypeit.core.wavecal.wv_fitting.WaveFit.hduext_prefix_from_spatid`.
             kwargs:
                 Passed directly to the base-class
-                :class:`~pypeit.datamodel.DataContainer.from_hdu`.  Should not
-                include ``hdu_prefix`` because this is set directly by the
-                class, read from the SPAT_ID card in a relevant header.
+                :class:`~pypeit.datamodel.DataContainer.from_hdu`.
 
         Returns:
             :class:`WaveFit`: Object instantiated from data in the provided HDU.
         """
-        if 'hdu_prefix' in kwargs:
-            kwargs.pop('hdu_prefix')
-        # Set hdu_prefix
-        spat_id = hdu[1].header['SPAT_ID'] if isinstance(hdu, fits.HDUList)\
-                    else hdu.header['SPAT_ID']
-        hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
-        # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, **kwargs)
+        # Get the HDU prefix
+        if hdu_prefix is not None:
+            _hdu_prefix = hdu_prefix
+        elif spat_id is not None:
+            _hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
+        else:
+            # Try to get it from the provided HDU(s)
+            _hdu = hdu if isinstance(hdu, fits.HDUList) else [hdu]
+            _hdu_prefix = None
+            for h in _hdu:
+                _spat_id = cls.parse_spatid_from_hduext(h.name)
+                if _spat_id is None:
+                    continue
+                _hdu_prefix = cls.hduext_prefix_from_spatid(_spat_id)
+                break
+            # At this point, _hdu_prefix will either be None because it couldn't
+            # find parse the slit ID, or it will be the correct prefix.
+            # TODO: Try to read the data in either case (what is currently
+            # done), or fault because the _bundle function *always* includes a
+            # prefix?
+
+        # Construct and return the object
+        return super().from_hdu(hdu, hdu_prefix=_hdu_prefix, **kwargs)
 
     @property
     def ions(self):
@@ -254,7 +311,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
     return final_fit
 
 
-def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
+def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
                       match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
                       n_final=4, sigrej_final=3.0, input_only=False,
                       weights=None, plot_fil=None, verbose=False):
@@ -273,7 +330,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         wavelength IDs of the lines that will be fit (I think?)
     llist: dict
         Linelist dictionary
-    disp: float
+    dispersion: float
         dispersion
     match_toler: float, default = 3.0
         Matching tolerance when searching for new lines. This is the difference
@@ -303,7 +360,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     Returns
     -------
-    final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
+    final_fit: :class:`~pypeit.core.wavecal.wv_fitting.WaveFit`
         Fit result
     """
 
@@ -345,10 +402,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             msgs.warn("Bad fit!!")
             return None
 
-        rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-        rms_pix = rms_ang/disp
+        # RMS is computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+        rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+        rms_pixels = rms_angstrom/dispersion
         if verbose:
-            msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
+            msgs.info(f"n_order = {n_order}: RMS = {rms_pixels:g} pixels")
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
@@ -357,7 +415,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             twave = pypeitFit.eval(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
             for ss, iwave in enumerate(twave):
                 mn = np.min(np.abs(iwave-llist['wave']))
-                if mn/disp < match_toler:
+                if mn/dispersion < match_toler:
                     imn = np.argmin(np.abs(iwave-llist['wave']))
                     #if verbose:
                     #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
@@ -378,6 +436,9 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
+
+    # TODO: This rejection block is not actually used anywhere (i.e., no lines
+    #       are actually rejected in the fit)! Should it be? (TEB: 2023-11-03)
     irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -391,9 +452,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         yrej = []
 
     ions = all_idsion[ifit]
-    # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
-    rms_pix = rms_ang/disp
+    # Final RMS computed from `yfit`, which is the wavelengths of the lines.  Convert to pixels.
+    rms_angstrom = pypeitFit.calc_fit_rms(apply_mask=True)
+    rms_pixels = rms_angstrom/dispersion
+    msgs.info(f"RMS of the final wavelength fit: {rms_pixels:g} pixels")
 
     # Pack up fit
     spec_vec = np.arange(nspec)
@@ -413,7 +475,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                         ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
-                        shift=0., tcent=tcent, rms=rms_pix)
+                        shift=0., tcent=tcent, rms=rms_pixels)
 
     # QA
     if plot_fil is not None:

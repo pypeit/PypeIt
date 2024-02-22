@@ -234,18 +234,30 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
     version of PypeIt).
 
     Args:
-        arxiv_file (str):
+        arxiv_file (:obj:`str`):
           The base filename of the ``reid_arxiv`` file to be located
 
     Returns:
         tuple: The full path and whether the path is in the cache:
 
-           * reid_path (:obj:`pathlib.Path`): The full path to the ``reid_arxiv`` file
+           * reid_path (:obj:`~pathlib.Path`): The full path to the ``reid_arxiv`` file
            * arxiv_fmt (:obj:`str`): The extension of the ``reid_arxiv`` file (format)
     """
-    # Full path within the package data structure:
+    # First check that what is passed in works
+    if not isinstance(arxiv_file, (str, pathlib.Path)):
+        msgs.error(f"Incorrect or non-existent arxiv file specified: {arxiv_file}")
+    if isinstance(arxiv_file, pathlib.Path):
+        arxiv_file = str(arxiv_file)
+
+    # Check if the `arxiv_file` already comes with a full path
+    if (reid_path := pathlib.Path(arxiv_file)).name != arxiv_file:
+        # Check existence, return it with format
+        if not reid_path.is_file():
+            msgs.error(f"Incorrect or non-existent arxiv file specified: {reid_path}")
+        return reid_path, reid_path.suffix.replace('.','').lower()
+
+    # Else, full path within the package data structure:
     reid_path = Paths.reid_arxiv / arxiv_file
-    arxiv_fmt = arxiv_file.split(".")[-1].lower()
 
     # Check if the file does NOT exist in the package directory
     # NOTE: This should be the case for all but from-source installations
@@ -258,7 +270,7 @@ def get_reid_arxiv_filepath(arxiv_file: str) -> tuple[pathlib.Path, str]:
         reid_path = fetch_remote_file(arxiv_file, "arc_lines/reid_arxiv")
 
     # Return the path to the `reid_arxiv` file, and the file format
-    return reid_path, arxiv_fmt
+    return reid_path, arxiv_file.split('.')[-1].lower()
 
 
 def get_skisim_filepath(skisim_file: str) -> pathlib.Path:
@@ -801,3 +813,4 @@ def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
         (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
     return xspectrum1d.XSpectrum1D.from_file(str(Paths.sky_spec / sky_file))
+

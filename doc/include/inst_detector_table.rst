@@ -38,7 +38,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``keck_hires``                1    0         False     False     1         1.9                         2.8                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
 ...                           2    0         False     False     1         2.1                         3.1                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
 ...                           3    0         False     False     1         2.1                         3.1                     0.0       -1.0e+10  65535.0       0.7000     0.1350    
-``keck_kcrm``                 1    0         None      False     ``None``  ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.1457    
+``keck_kcrm``                 1    0         None      True      ``None``  ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.1457    
 ``keck_kcwi``                 1    0         None      False     ``None``  ``None``                    ``None``                1.0       -1.0e+10  65535.0       0.9500     0.1457    
 ``keck_lris_blue``            1    0         False     False     2         1.55, 1.56                  3.9, 4.2                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ...                           2    0         False     False     2         1.63, 1.7                   3.6, 3.6                0.0       -1.0e+10  65535.0       0.8600     0.1350    
@@ -63,6 +63,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``magellan_mage``             1    1         True      False     1         1.02                        2.9                     1.0       -1.0e+10  65535.0       0.9900     0.3000    
 ``mdm_modspec``               1    0         True      False     1         1.3                         7.9                     0.0       -1.0e+10  65535.0       0.9700     0.2800    
 ``mdm_osmos_mdm4k``           1    1         True      False     4         2.2, 2.2, 2.2, 2.2          5.0, 5.0, 5.0, 5.0      0.0       -1.0e+10  65535.0       0.8600     0.2730    
+``mdm_osmos_r4k``             1    1         True      False     4         2.2, 2.2, 2.2, 2.2          3.0, 3.0, 3.0, 3.0      0.0       -1.0e+10  65535.0       0.8600     0.2730    
 ``mmt_binospec``              1    0         False     False     4         1.085, 1.046, 1.042, 0.975  3.2, 3.2, 3.2, 3.2      3.6       -1.0e+10  65535.0       0.9500     0.2400    
 ...                           2    0         False     False     4         1.028, 1.115, 1.047, 1.045  3.6, 3.6, 3.6, 3.6      3.6       -1.0e+10  65535.0       0.9500     0.2400    
 ``mmt_bluechannel``           1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.3000    

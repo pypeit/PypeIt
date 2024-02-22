@@ -17,6 +17,13 @@ from pypeit import slittrace
 from pypeit.tests.tstutils import data_path
 
 
+def test_wavefit_hduprefix():
+    spat_id = 175
+    prefix = wv_fitting.WaveFit.hduext_prefix_from_spatid(spat_id)
+    _spat_id = wv_fitting.WaveFit.parse_spatid_from_hduext(prefix)
+    assert spat_id == _spat_id, 'Bad parse'
+
+
 def test_wavefit():
     "Fuss with the WaveFit DataContainer"
     out_file = Path(data_path('test_wavefit.fits')).resolve()

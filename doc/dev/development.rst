@@ -378,6 +378,12 @@ are as follows:
  * The docstrings for any changes to existing methods that were altered
    must have been modified so that they are up-to-date and accurate.
 
+ * The documentation must be successfully recompiled, either using the
+   ``update_docs`` scripts or but running ``make clean ; make html`` in the
+   ``doc/`` directory.  (We plan for this to be added to the dev-suite testing;
+   in the meantime, PR authors simply need to affirm that the documentation
+   builds successfully.)
+
  * Spurious commented code used for debugging or testing is fine, but
    please let us know if you want it to be kept by adding a relevant
    comment, something like ``# TODO: Keep this around for now``, at the
@@ -447,7 +453,11 @@ tagging process is as follows:
         # Push the new tag
         git push --tags
 
- * The tag is released for `pip`_ installation.
+   Similarly, a matching tag is executed for the dev-suite code (these tags only
+   exist for versions 1.15 and later).
+
+ * The tag of the ``pypeit`` code-base (not the dev-suite) is released for
+   `pip`_ installation.
 
     .. code-block:: bash
 

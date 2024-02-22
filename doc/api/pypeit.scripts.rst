@@ -15,6 +15,7 @@ Submodules
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
+   pypeit.scripts.chk_scattlight
    pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
    pypeit.scripts.coadd_1dspec
@@ -22,6 +23,7 @@ Submodules
    pypeit.scripts.coadd_datacube
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
+   pypeit.scripts.edge_inspector
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify
@@ -33,6 +35,7 @@ Submodules
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
    pypeit.scripts.parse_slits
+   pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
    pypeit.scripts.run_pypeit
@@ -40,6 +43,7 @@ Submodules
    pypeit.scripts.sensfunc
    pypeit.scripts.setup
    pypeit.scripts.setup_coadd2d
+   pypeit.scripts.setup_gui
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv

@@ -47,14 +47,14 @@ the spatial alignment.
 Trouble Shooting
 ================
 
-If your image appears to be in err, here are the things to consider:
+If your image appears to be in error, here are the things to consider:
 
  - Is one or more of your input alignment frames junk?
 
  - Check each of your input alignment frames. Some might be mislabeled.
 
  - If some alignments are apparently missing, you might want to check
-   that the slits are currently traced.
+   that the slits are correctly traced.
 
 Current Alignments Data Model
 =============================

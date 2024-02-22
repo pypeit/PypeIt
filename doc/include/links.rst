@@ -36,6 +36,7 @@
 .. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
 .. _scipy.optimize.leastsq: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.leastsq.html
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
+.. _scipy.optimize.linear_sum_assignment: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
 .. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 .. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
@@ -54,7 +55,10 @@
 .. _matplotlib: https://matplotlib.org/
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
+.. _matplotlib.image.AxesImage: https://matplotlib.org/stable/api/image_api.html#matplotlib.image.AxesImage
 .. _matplotlib.backend_bases.Event: https://matplotlib.org/stable/api/backend_bases_api.html#matplotlib.backend_bases.Event
+.. _matplotlib.widgets.Button.on_clicked: https://matplotlib.org/stable/api/widgets_api.html#matplotlib.widgets.Button.on_clicked
+.. _matplotlib.widgets.RangeSlider: https://matplotlib.org/stable/api/widgets_api.html#matplotlib.widgets.RangeSlider
 
 .. configobj
 .. _configobj: http://configobj.readthedocs.io/en/latest/

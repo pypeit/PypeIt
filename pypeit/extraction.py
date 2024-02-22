@@ -164,8 +164,9 @@ class Extract:
         self.initialize_slits(slits)
 
         # Internal bpm mask
-        self.extract_bpm = (self.slits.mask > 0) & (np.logical_not(self.slits.bitmask.flagged(
-                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
+        self.extract_bpm = self.slits.bitmask.flagged(
+                                self.slits.mask,
+                                and_not=self.slits.bitmask.exclude_for_reducing)
         self.extract_bpm_init = self.extract_bpm.copy()
 
         # These may be None (i.e. COADD2D)
@@ -520,7 +521,9 @@ class Extract:
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
                                                   excess_shft=self.par['flexure']['excessive_shift'],
-                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib)
+                                                  specobjs=sobjs, slit_specs=None, wv_calib=self.wv_calib,
+                                                  minwave=self.par['flexure']['minwave'],
+                                                  maxwave=self.par['flexure']['maxwave'])
             # Apply flexure to objects
             for islit in range(self.slits.nslits):
                 i_slitord = self.slits.slitord_id[islit]
@@ -877,7 +880,7 @@ class EchelleExtract(Extract):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-class IFUExtract(MultiSlitExtract):
+class SlicerIFUExtract(MultiSlitExtract):
     """
     Child of Extract for IFU reductions
 
@@ -885,5 +888,8 @@ class IFUExtract(MultiSlitExtract):
 
     """
     def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
-        # IFU doesn't extract, and there's no need for a super call here.
-        return
+        super().__init__(sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs)
+
+    #def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, **kwargs):
+    #    # IFU doesn't extract, and there's no need for a super call here.
+    #    return

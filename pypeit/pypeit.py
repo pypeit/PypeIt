@@ -161,7 +161,6 @@ class PypeIt:
         self.det = None
         self.tstart = None
         self.basename = None
-#        self.sciI = None
         self.obstime = None
 
     @property
@@ -283,12 +282,13 @@ class PypeIt:
             for self.det in detectors:
                 msgs.info(f'Working on detector {self.det}')
                 # Instantiate Calibrations class
+                user_slits = slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                                       self.par['rdx']['maskIDs'])
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
                     self.calibrations_path, qadir=self.qa_path, reuse_calibs=self.reuse_calibs,
-                    show=self.show,
-                    user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
-                                                         self.par['rdx']['maskIDs']))
+                    show=self.show, user_slits=user_slits,
+                    chk_version=self.par['rdx']['chk_version'])
                 # Do it
                 # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
@@ -695,13 +695,13 @@ class PypeIt:
 
         msgs.info(f'Building/loading calibrations for detector {det}')
         # Instantiate Calibrations class
+        user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                             self.par['rdx']['maskIDs'])
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
             self.calibrations_path, qadir=self.qa_path, 
-            reuse_calibs=self.reuse_calibs, show=self.show,
-            user_slits=slittrace.merge_user_slit(
-                self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
-            #slitspat_num=self.par['rdx']['slitspatnum'])
+            reuse_calibs=self.reuse_calibs, show=self.show, user_slits=user_slits,
+            chk_version=self.par['rdx']['chk_version'])
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
         caliBrate.run_the_steps()
@@ -760,6 +760,7 @@ class PypeIt:
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             dark=self.caliBrate.msdark,
+            scattlight=self.caliBrate.msscattlight,
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
@@ -771,6 +772,7 @@ class PypeIt:
                                                    bpm=self.caliBrate.msbpm,
                                                    bias=self.caliBrate.msbias,
                                                    dark=self.caliBrate.msdark,
+                                                   scattlight=self.caliBrate.msscattlight,
                                                    flatimages=self.caliBrate.flatimages,
                                                    slits=self.caliBrate.slits,
                                                    ignore_saturation=False)

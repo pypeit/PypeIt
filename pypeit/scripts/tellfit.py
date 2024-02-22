@@ -72,6 +72,10 @@ class TellFit(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename tellfit_YYYYMMDD-HHMM.log')
+        parser.add_argument('--chk_version', default=False, action='store_true',
+                            help='Ensure the datamodels are from the current PypeIt version. '
+                                 'By default (consistent with previous functionality) this is '
+                                 'not enforced and crashes may ensue ...')
         return parser
 
     @staticmethod
@@ -126,8 +130,8 @@ class TellFit(scriptbase.ScriptBase):
             if par['sensfunc']['IR']['telgridfile'] is not None:
                 par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
             else:
-                par['telluric']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
-                msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
+                par['telluric']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+                msgs.warn(f"No telluric file given. Using PCA method with {par['telluric']['telgridfile']}.")
 
         # Checks
         if par['telluric']['telgridfile'] is None:
@@ -163,7 +167,8 @@ class TellFit(scriptbase.ScriptBase):
                                            bal_wv_min_max=par['telluric']['bal_wv_min_max'],
                                            maxiter=par['telluric']['maxiter'],
                                            debug_init=args.debug, disp=args.debug,
-                                           debug=args.debug, show=args.plot)
+                                           debug=args.debug, show=args.plot,
+                                           chk_version=args.chk_version)
         elif par['telluric']['objmodel']=='star':
             TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'],
                                              modelfile, outfile,
@@ -182,7 +187,8 @@ class TellFit(scriptbase.ScriptBase):
                                              minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                              maxiter=par['telluric']['maxiter'],
                                              debug_init=args.debug, disp=args.debug,
-                                             debug=args.debug, show=args.plot)
+                                             debug=args.debug, show=args.plot,
+                                             chk_version=args.chk_version)
         elif par['telluric']['objmodel']=='poly':
             TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'],
                                              modelfile, outfile,
@@ -197,7 +203,8 @@ class TellFit(scriptbase.ScriptBase):
                                              only_orders=par['telluric']['only_orders'],
                                              maxiter=par['telluric']['maxiter'],
                                              debug_init=args.debug, disp=args.debug,
-                                             debug=args.debug, show=args.plot)
+                                             debug=args.debug, show=args.plot,
+                                             chk_version=args.chk_version)
         else:
             msgs.error("Object model is not supported yet. Must be 'qso', 'star', or 'poly'.")
 

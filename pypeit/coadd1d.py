@@ -16,6 +16,7 @@ from astropy import stats
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
+from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
 from pypeit import msgs
@@ -23,22 +24,23 @@ from pypeit.core import coadd, flux_calib
 from pypeit.history import History
 
 
+
 class CoAdd1D:
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                     debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                     setup_id=None, debug=False, show=False, chk_version=True):
         """
-        Superclass factory method which generates the subclass instance. See :class:`CoAdd1D` instantiation for
-        argument descriptions.
+        Superclass factory method which generates the subclass instance. See
+        :class:`CoAdd1D` instantiation for argument descriptions.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
-        return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
-            debug=debug, show=show)
+        return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+            setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
 
         Args:
@@ -64,6 +66,11 @@ class CoAdd1D:
                 Debug. Default = False
             show (bool, optional):
                 Debug. Default = True
+            chk_version (:obj:`bool`, optional):
+                When reading in existing files written by PypeIt, perform strict
+                version checking to ensure a valid file.  If False, the code
+                will try to keep going, but this may lead to faults and quiet
+                failures.  User beware!
         """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
@@ -82,6 +89,7 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
+        self.chk_version = chk_version
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
         self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
@@ -123,11 +131,11 @@ class CoAdd1D:
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
-        wave_gpm = self.wave_coadd > 1.0
         # Generate the spectrum container object
-        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
-                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
-                          mask=self.gpm_coadd[wave_gpm].astype(int),
+        onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
+                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
+                          sigma = np.sqrt(utils.inverse(self.ivar_coadd)),
+                          mask=self.gpm_coadd.astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
         # TODO This is a hack, not sure how to merge the headers at present
@@ -139,9 +147,9 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric  = telluric[wave_gpm]
+            onespec.telluric  = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model[wave_gpm]
+            onespec.obj_model = obj_model
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -156,14 +164,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
-
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
-        """
-        See :class:`CoAdd1D` instantiation for argument descriptions.
-        """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
-
 
     def load(self):
         """
@@ -188,7 +188,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
         """
         waves, fluxes, ivars, gpms, headers = [], [], [], [], []
         for iexp in range(self.nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp],
+                                                    chk_version=self.chk_version)
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
                 msgs.error(
@@ -197,7 +198,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 msgs.error("Error in spec1d file for exposure {:d}: "
                            "More than one object was identified with the OBJID={:s} in file={:s}".format(
                     iexp, self.objids[iexp], self.spec1dfiles[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
                 sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             waves.append(wave_iexp)
             fluxes.append(flux_iexp)
@@ -267,8 +268,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
-            # Evaluate the sn_weights.
-            rms_sn, weights = coadd.sn_weights(_fluxes, _ivars, _gpms, const_weights=True)
+            # Evaluate the rms_sn
+            rms_sn, _ = coadd.calc_snr(_fluxes, _ivars, _gpms)
             # some stats
             mean, med, sigma = stats.sigma_clipped_stats(rms_sn, sigma_lower=2., sigma_upper=2.)
             _sigrej = self.par['sigrej_exp'] if self.par['sigrej_exp'] is not None else 10.0
@@ -320,9 +321,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
-            sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
-            lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug=self.debug, show=self.show)
+            sn_min_polyscale=self.par['sn_min_polyscale'], weight_method = self.par['weight_method'],
+            maxiter_reject=self.par['maxiter_reject'], lower=self.par['lower'], upper=self.par['upper'],
+            maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'], debug=self.debug, show=self.show)
 
 
 
@@ -331,15 +332,14 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
-
-
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par,
+                         sensfuncfile=sensfuncfile, setup_id=setup_id, debug=debug, show=show,
+                         chk_version=chk_version)
 
         if sensfuncfile is None:
             msgs.error('sensfuncfile is a required argument for echelle coadding')
@@ -394,7 +394,6 @@ class EchelleCoAdd1D(CoAdd1D):
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
-                                     sn_smooth_npix=self.par['sn_smooth_npix'],
                                      wave_method=self.par['wave_method'],
                                      dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
                                      wave_grid_min=self.par['wave_grid_min'],
@@ -434,13 +433,20 @@ class EchelleCoAdd1D(CoAdd1D):
         """
         nexp = len(spec1dfiles)
         for iexp in range(nexp):
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.par['chk_version'])
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfiles[iexp], chk_version=self.chk_version)
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, trace_spec, trace_spat, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
-            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp, debug=self.debug)
+            # This np.atleast2d hack deals with the situation where we are wave_iexp is actually Multislit data, i.e. we are treating
+            # it like an echelle spectrograph with a single order. This usage case arises when we want to use the
+            # echelle coadding code to combine echelle and multislit data
+            if wave_iexp.ndim == 1:
+                wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = np.atleast_2d(wave_iexp).T, np.atleast_2d(flux_iexp).T, np.atleast_2d(ivar_iexp).T, np.atleast_2d(gpm_iexp).T
+            weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp,
+                                                                   debug=self.debug,
+                                                                   chk_version=self.chk_version)
             # Allocate arrays on first iteration
             # TODO :: We should refactor to use a list of numpy arrays, instead of a 2D numpy array.
             if iexp == 0:
@@ -457,6 +463,8 @@ class EchelleCoAdd1D(CoAdd1D):
             # Store the information
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+
+
         return waves, fluxes, ivars, gpms, weights_sens, header_out
 
 
@@ -509,3 +517,14 @@ class EchelleCoAdd1D(CoAdd1D):
         return waves, fluxes, ivars, gpms, weights_sens, headers
 
 
+class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
+    """
+    Child of MultiSlitCoAdd1d for SlicerIFU reductions.
+    """
+
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+        """
+        See :class:`CoAdd1D` instantiation for argument descriptions.
+        """
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
+                         setup_id=setup_id, debug = debug, show = show)
