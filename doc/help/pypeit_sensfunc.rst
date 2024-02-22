@@ -2,15 +2,20 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
-                           [-s SENS_FILE] [-f FLATFILE] [--dir] [--debug]
+                           [-s SENS_FILE] [-f FLATFILE] [--debug]
                            [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
-                           spec1dfile
+                           spec1d
     
     Compute a sensitivity function
     
     positional arguments:
-      spec1dfile            spec1d file for the standard that will be used to
-                            compute the sensitivity function
+      spec1d                One spec1d file or a directory within which to search
+                            for all spec1d_* files. The spec1d file(s) should
+                            contain standard star observations that will be used to
+                            compute sensitivity function(s). If a directory is
+                            provided, the output files *always* follow the automatic
+                            naming convention (see --outfile) and the --outfile
+                            argument is ignored!
     
     options:
       -h, --help            show this help message and exit
@@ -46,15 +51,18 @@
                                     multi_spec_det = 3,7
                              
       -o OUTFILE, --outfile OUTFILE
-                            Output file for sensitivity function. If not specified,
-                            the sensitivity function will be written out to a
-                            standard filename in the current working directory, i.e.
-                            if the standard spec1d file is named
-                            spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will be
-                            written to sens_b24-Feige66_KASTb_foo.fits. A QA file
-                            will also be written as
-                            sens_spec1d_b24-Feige66_KASTb_foo_QA.pdf and a file
-                            showing throughput plots to
+                            Output file for sensitivity function. If the script is
+                            given a directory with the spec1d files, this argument
+                            is IGNORED; i.e., setting the output file name only
+                            works if you provide one spec1d file to the script. If
+                            --outfile is not specified, the sensitivity function
+                            will be written out to a standard filename in the
+                            current working directory. E.g., if the standard spec1d
+                            file is named spec1d_b24-Feige66_KASTb_foo.fits the
+                            sensfunc will be written to
+                            sens_b24-Feige66_KASTb_foo.fits. A QA file will also be
+                            written as sens_spec1d_b24-Feige66_KASTb_foo_QA.pdf and
+                            a file showing throughput plots to
                             sens_spec1d_b24-Feige66_KASTb_foo_throughput.pdf. The
                             same extensions for QA and throughput will be used if
                             outfile is provided but with .fits trimmed off if it is
@@ -73,7 +81,6 @@
                              
                             Where Flat_A_0_DET01.fits is the flat file in your
                             Calibrations directory
-      --dir                 is spec1dfile actually a directory?
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
                             Name of output file to save the parameters used by the

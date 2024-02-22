@@ -22,7 +22,7 @@ class SensFunc(scriptbase.ScriptBase):
                             help='One spec1d file or a directory within which to search for all '
                                  'spec1d_* files. The spec1d file(s) should contain standard '
                                  'star observations that will be used to compute sensitivity '
-                                 'function(s).  If a directory is provided, the output files are '
+                                 'function(s).  If a directory is provided, the output files '
                                  '*always* follow the automatic naming convention (see --outfile) '
                                  'and the --outfile argument is ignored!')
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
