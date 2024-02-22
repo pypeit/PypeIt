@@ -19,9 +19,8 @@ Instrument-specific Updates
 Script Changes
 --------------
 
-- A new script allows spec1d files to be extracted from datacubes. This
-  script is called `pypeit_extract_datacube`, and can be used to extract
-  1D spectra from a datacube.
+- A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
+  sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
 - The `grating_corr` column is now used to select the correct grating
   correction file for each spec2d file when generating the datacube.

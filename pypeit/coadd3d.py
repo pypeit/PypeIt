@@ -89,7 +89,6 @@ class DataCube(datamodel.DataContainer):
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
     internals = ['head0',
-                 'headwcs',
                  'filename',
                  'spectrograph',
                  'spect_meta',
@@ -108,7 +107,6 @@ class DataCube(datamodel.DataContainer):
         self._ivar = None
         self._wcs = None
         self.head0 = None  # This contains the primary header of the spec2d used to make the datacube
-        self.headwcs = None  # This contains the WCS of the datacube
 
     def _bundle(self):
         """
@@ -198,12 +196,11 @@ class DataCube(datamodel.DataContainer):
             # Internals
             self.filename = ifile
             self.head0 = hdu[0].header
-            self.headwcs = hdu[1].header
             # Meta
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
             self._ivar = None
-            self._wcs = None
+            self.wcs = wcs.WCS(hdu[1].header)
         return self
 
     @property
@@ -221,51 +218,34 @@ class DataCube(datamodel.DataContainer):
             self._ivar = utils.inverse(self.sig**2)
         return self._ivar
 
-    @property
-    def wcs(self):
-        """
-        Utility function to provide the world coordinate system of the datacube
-
-        Returns
-        -------
-        self._wcs : `astropy.wcs.WCS`_
-            The WCS based on the stored header information. Note that self._wcs should
-            not be accessed directly, and you should only call self.wcs
-        """
-        if self._wcs is None:
-            if self.headwcs is None:
-                msgs.error('No WCS information stored in the DataCube')
-            else:
-                self._wcs = wcs.WCS(self.headwcs)
-        return self._wcs
-
-    def extract_spec(self, parset, outname=None, overwrite=False):
+    def extract_spec(self, parset, outname=None, boxcar_radius=None, overwrite=False):
         """
         Extract a spectrum from the datacube
 
         Parameters
         ----------
         parset : dict
-            A dictionary containing the 'Reduce' PypeItPar parameters.
+            A dictionary containing the :class:`~pypeit.par.pypeitpar.ReducePar` parameters.
         outname : str, optional
             Name of the output file
+        boxcar_radius : float, optional
+            Radius of the circular boxcar (in arcseconds) to use for the extraction
         overwrite : bool, optional
             Overwrite any existing files
         """
         # Extract the spectrum
-        # TODO :: should we set the boxcar_width argument to None so the automated algorithm is used by default? At the moment, the user needs to set the boxcar_width to None in the parset to use the automated algorithm
         fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
 
         # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
         # TODO :: Avoid transposing these large cubes
-        sobjs = datacube.extract_standard_spec(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
-                                               exptime=exptime, pypeline=self.spectrograph.pypeline,
-                                               fluxed=self.fluxed, boxcar_width=parset['extraction']['boxcar_radius'],
-                                               optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
+        sobjs = datacube.extract_point_source(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
+                                              exptime=exptime, pypeline=self.spectrograph.pypeline,
+                                              fluxed=self.fluxed, boxcar_radius=boxcar_radius,
+                                              optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
 
         # Save the extracted spectrum
-        spec1d_filename = self.filename.replace('.fits', '_spec1d.fits') if outname is None else outname
+        spec1d_filename = 'spec1d_' + self.filename if outname is None else outname
         sobjs.write_to_fits(self.head0, spec1d_filename, overwrite=overwrite)
 
 
@@ -424,7 +404,8 @@ class CoAdd3D:
                 If not None, this should be a list of relative scale correction options. It should be the
                 same length as spec2dfiles.
             grating_corr (:obj:`list`, optional):
-                If not None, this should be a list of relative grating tilt correction options. It should be the
+                If not None, this should be a list of `str`, where each element is the relative path to the
+                 Flat calibration file that was used to reduce each spec2d file. It should be the
                 same length as spec2dfiles.
             ra_offsets (:obj:`list`, optional):
                 If not None, this should be a list of relative RA offsets of each frame. It should be the
