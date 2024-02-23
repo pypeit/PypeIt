@@ -205,10 +205,24 @@ direction (i.e. predominantly detector columns),
 spatial direction (i.e. the long axis of each slice; predominantly along detector rows), and
 ``slice_subpixel`` is the number of times to divide each of the
 slices (i.e. the short axis of each slice). Note that all three of these ``subpixel``
-definitions are perpendicular to each other in the datacube. Each of these parameters
-governs the number of subpixels in the corresponding dimensions of the datacube.
+definitions are perpendicular to each other in the datacube.
 
-As an alternative, you can convert the spec2d frames into a datacube
+While the ``spec_subpixel`` and ``spat_subpixel`` options are somewhat intuitive (i.e. the code is
+dividing detector columns and rows into smaller subpixels), the ``slice_subpixel`` option may not be
+immediately obvious, so consider the following example. Imagine the long edge of the slice aligned
+East-West. The short edge of a single slice will span a Dec difference of 0.35 arcseconds in the case
+of the Keck/KCWI Small slicer. ``slice_subpixel`` is effectively dividing this slice width further.
+If ``slice_subpixel=7`` then this is creating seven subslices, each of width 0.05 arcseconds. The
+importance of this becomes really noticeable when combined with the differential atmospheric
+refraction (DAR) correction. Consider two wavelengths that have a relative DAR of 0.15 arcseconds.
+In this case, choosing a value of ``slice_subpixel=1`` would shift the relative spatial positions by
+0.35 arcseconds (i.e. the difference between adjacent slices) compared to the true difference of 0.15
+arcseconds. ``slice_subpixel`` divides the flux of the slice into evenly spaced rectangular bins, and
+places each of these into a voxel of the final datacube. In the case of a 0.15 arcsecond shift, this
+would mean that :math:`3/7` of the flux ends up in one output slice and the remaining :math:`4/7` of
+the flux ends up in the adjacent slice.
+
+As an alternative to the ``subpixel`` method, you can convert the spec2d frames into a datacube
 with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
 than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
 the same downsides as any histogram; the choice of bin sizes can change how the datacube appears.
