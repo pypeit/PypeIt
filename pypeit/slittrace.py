@@ -492,6 +492,11 @@ class SlitTraceSet(calibframe.CalibFrame):
             transform between detector pixel coordinates and WCS pixel coordinates.
         tilts : `numpy.ndarray`_
             Spectral tilts.
+        slit_compute : int, list, `numpy.ndarray`_, optional
+            The slit indices to compute the RA and DEC image for. If None, all slits
+            are computed. If an integer, the RA and DEC image for the slit with this
+            index is computed. If a list or `numpy.ndarray`_, the RA and DEC image
+            for the slits with these indices are computed.
         slice_offset : float, optional
             Offset to apply to the slice positions. A value of 0.0 means that the
             slice positions are the centre of the slits. A value of +/-0.5 means that
@@ -519,10 +524,11 @@ class SlitTraceSet(calibframe.CalibFrame):
         if slit_compute is None:
             # Compute all of the slits
             slit_compute = np.arange(self.nslits)
-        elif isinstance(slit_compute, int):
+        elif isinstance(slit_compute, (int, list)):
             slit_compute = np.atleast_1d(slit_compute)
-        elif isinstance(slit_compute, list):
-            slit_compute = np.array(slit_compute)
+        else:
+            msgs.error('Unrecognized type for slit_compute')
+
         # Prepare the print out
         substring = '' if slice_offset is None else f' with slice_offset={slice_offset:.3f}'
         msgs.info("Generating an RA/DEC image"+substring)

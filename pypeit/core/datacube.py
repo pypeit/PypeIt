@@ -1403,7 +1403,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
                            all_wcs, tilts, slits, astrom_trans, all_dar,
                            ra_offset, dec_offset,
                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
-                           overwrite=False, outfile=None, whitelight_range=None, correct_dar=True, debug=False):
+                           overwrite=False, outfile=None, whitelight_range=None, correct_dar=True):
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
@@ -1491,10 +1491,6 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         correct_dar (bool, optional):
             If True, the DAR correction will be applied to the datacube. If the
             DAR correction is not available, the datacube will not be corrected.
-        debug (bool, optional):
-            If True, a residuals cube will be output. If the datacube generation
-            is correct, the distribution of pixels in the residual cube with no
-            flux should have mean=0 and std=1.
 
     Returns:
         :obj:`tuple`: Four `numpy.ndarray`_ objects containing
@@ -1508,28 +1504,15 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         shape of the wavelength array is (nwave,).
     """
     # Check the inputs
-    if whitelight_range is not None or debug:
-        if outfile is None:
-            msgs.error("Must provide an outfile name if either whitelight_range or debug are set")
-
-    # Prepare the header, and add the unit of flux to the header
-    hdr = output_wcs.to_header()
+    if whitelight_range is not None and outfile is None:
+            msgs.error("Must provide an outfile name if whitelight_range is set")
 
     # Subpixellate
-    subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                          all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                          skip_subpix_weights=skip_subpix_weights, correct_dar=correct_dar, debug=debug)
-    # Extract the variables that we need
-    if debug:
-        flxcube, varcube, bpmcube, residcube = subpix
-        # Save a residuals cube
-        outfile_resid = outfile.replace(".fits", "_resid.fits")
-        msgs.info("Saving residuals datacube as: {0:s}".format(outfile_resid))
-        hdu = fits.PrimaryHDU(residcube.T, header=hdr)
-        hdu.writeto(outfile_resid, overwrite=overwrite)
-    else:
-        flxcube, varcube, bpmcube = subpix
+    flxcube, varcube, bpmcube = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
+                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                                             spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
+                                             slice_subpixel=slice_subpixel, skip_subpix_weights=skip_subpix_weights,
+                                             correct_dar=correct_dar)
 
     # Get wavelength of each pixel
     nspec = flxcube.shape[2]
@@ -1561,7 +1544,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                  all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
                  spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
-                 correct_dar=True, debug=False):
+                 correct_dar=True):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
     detector pixel into multiple subpixels and each IFU slice into multiple subslices.
@@ -1649,10 +1632,6 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         correct_dar (bool, optional):
             If True, the DAR correction will be applied to the datacube. The
             default is True.
-        debug (bool, optional):
-            If True, a residuals cube will be output. If the datacube generation
-            is correct, the distribution of pixels in the residual cube with no
-            flux should have mean=0 and std=1.
 
     Returns:
         :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
@@ -1667,11 +1646,8 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
 
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
-    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
-    binrng_arr = np.array(binrng)
+    binrng = np.array([[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]])
     flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
-    if debug:
-        residcube = np.zeros(outshape)
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
     spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
@@ -1727,7 +1703,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             spatpos = _astrom_trans[fr].transform(sl, wpix[1], wpix[0])
             ssrt = np.argsort(spatpos)
             # Initialize the voxel coordinates for each spec2D pixel
-            vox_coord = -1*np.ones((numpix, num_all_subpixels, 3))
+            vox_coord = np.full((numpix, num_all_subpixels, 3), -1, dtype=float)
             # Loop over the subslices
             for ss in range(slice_subpixel):
                 if slice_subpixel > 1:
@@ -1758,8 +1734,8 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 subpix_wght = 1.0
             else:
                 msgs.info("Preparing subpixel weights")
-                vox_index = np.floor(outshape * (vox_coord - binrng_arr[:,0].reshape((1, 1, 3))) /
-                                                (binrng_arr[:,1] - binrng_arr[:,0]).reshape((1, 1, 3))).astype(int)
+                vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
+                                                (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
                 # Convert to a unique index
                 vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
                 # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
@@ -1770,15 +1746,12 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             flxcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_sci[this_sl] * this_wght_subpix[this_sl], num_all_subpixels) * subpix_wght)
             varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_var[this_sl] * this_wght_subpix[this_sl]**2, num_all_subpixels) * subpix_wght**3)
             normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_wght_subpix[this_sl], num_all_subpixels) * subpix_wght)
-            if debug:
-                # NOTE :: The residual cube does not include the subpixel weights - so, the following line is probably incorrect
-                residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_sci[this_sl] * np.sqrt(utils.inverse(this_var[this_sl])), num_all_subpixels))
+
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     flxcube *= nc_inverse
     varcube *= nc_inverse**2
     bpmcube = (normcube == 0).astype(np.uint8)
-    if debug:
-        residcube *= nc_inverse
-        return flxcube, varcube, bpmcube, residcube
+
+    # Return the datacube, variance cube and bad pixel cube
     return flxcube, varcube, bpmcube
