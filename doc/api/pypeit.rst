@@ -27,6 +27,7 @@ Submodules
 
    pypeit.alignframe
    pypeit.archive
+   pypeit.astrometry
    pypeit.bitmask
    pypeit.calibframe
    pypeit.calibrations
