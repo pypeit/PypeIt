@@ -20,7 +20,7 @@ can run:
 .. note::
 
     If the hostname URL for the telluric atmospheric grids on S3 changes, the
-    only place that needs to change is the file ``s3_url.txt``.
+    only place that needs to change is the file ``pypeit/data/s3_url.txt``.
 
 .. include:: ../include/links.rst
 """
@@ -34,17 +34,16 @@ from IPython import embed
 
 import astropy.utils.data
 import github
-from linetools.spectra import xspectrum1d
 import requests
 
 try:
     from pygit2 import Repository
-except:
+except ImportError:
     Repository = None
 
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
-# pypeit!  Objects created or available in pypeit/__init__.py are the
-# exceptions, for now.
+# pypeit into this module!  Objects created or available in pypeit/__init__.py
+# are the exceptions, for now.
 from pypeit import msgs
 from pypeit import __version__
 
@@ -114,9 +113,10 @@ def fetch_remote_file(
         remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host)
 
     if remote_host == "s3_cloud" and not install_script:
-        # Display a warning that this may take a while, and the user
-        #   may wish to download using the `pypeit_install_telluric` script
-        # TODO: Is this only true for telluric files?
+
+        # Display a warning that this may take a while, and the user may wish to
+        # download using the `pypeit_install_telluric` script
+
         msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
                   f"independently from your reduction by using the{msgs.newline()}"
                   "`pypeit_install_telluric` script.")
@@ -315,18 +315,18 @@ def _get_s3_hostname() -> str:
     Get the current S3 hostname from the package file
 
     Since the S3 server hostname used to hold package data such as telluric
-    atmospheric grids may change periodically, we keep the current hostname
-    in a separate file (s3_url.txt), and pull the current version from the
-    PypeIt ``release`` branch whenever needed.
+    atmospheric grids may change periodically, we keep the current hostname in a
+    separate file (``pypeit/data/s3_url.txt``), and pull the current version
+    from the PypeIt ``release`` branch whenever needed.
 
     .. note::
 
         When/if the S3 URL changes, the ``release`` branch version of
-        ``s3_url.txt`` can be updated easily with a hotfix PR, and this routine
-        will pull it.
+        ``pypeit/data/s3_url.txt`` can be updated easily with a hotfix PR, and
+        this routine will pull it.
 
-    If GitHub cannot be reached, the routine uses the version of ``s3_url.txt``
-    included with the package distribution.
+    If GitHub cannot be reached, the routine uses the version of
+    ``pypeit/data/s3_url.txt`` included with the package distribution.
 
     Returns:
         str: The current hostname URL of the S3 server holding package data

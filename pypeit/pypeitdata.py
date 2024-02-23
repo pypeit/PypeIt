@@ -76,15 +76,25 @@ class PypeItDataPath:
         subdirs (:obj:`str`, `Path`_):
             The subdirectories within the main ``pypeit/data`` directory that
             contains the data.
+        remote_host (:obj:`str`, optional):
+            The remote host for the data.  By definition, all files in this data
+            path must have the *same* host.  Currently must be None,
+            ``'github'``, or ``'s3_cloud'``.  If None, all the files in this
+            path are expected to be local to *any* pypeit installation.
 
     Attributes:
+        host (:obj:`str`):
+            String representing the remote host
         data (`Path`_):
             Path to the top-level data directory on the user's system.
         path (`Path`_):
             Path to the specific data directory.
     """
 
-    def __init__(self, subdirs):
+    def __init__(self, subdirs, remote_host=None):
+        if remote_host not in [None, 's3_cloud', 'github']:
+            msgs.error(f'Remote host not recognized: {self.host}')
+        self.host = remote_host
         self.data = self.check_isdir(cache.__PYPEIT_DATA__)
         self.path = self.check_isdir(self.data / subdirs)
 
@@ -267,7 +277,7 @@ class PypeItDataPath:
                     'Checking cache or downloading the file now.')
 
         subdir = str(self.path.relative_to(self.data))
-        _cached_file = cache.fetch_remote_file(data_file, subdir)
+        _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host)
 
         # If we've made it this far, the file is being pulled from the cache.
         if to_pkg is None:
@@ -302,29 +312,34 @@ class PypeItDataPaths:
     even if the directory is empty otherwise.
     """
 
-    defined_paths = {'tests':               # Attribute name
-                        {'path': 'tests',   # Subdirectory in pypeit/data
-                         'cache': True      # Contains data that is managed by the cache system
+    defined_paths = {
+                     # Attribute name
+                     'tests':               
+                        # Subdirectory in pypeit/data
+                        {'path': 'tests',
+                        # String name for the remote host; None means the data
+                        # should be in *all* installations.
+                         'host': None
                         },
                      # Telluric
-                     'telgrid': {'path': 'telluric/atm_grids', 'cache': True},
-                     'tel_model': {'path': 'telluric/models', 'cache': True},
+                     'telgrid': {'path': 'telluric/atm_grids', 'host': 's3_cloud'},
+                     'tel_model': {'path': 'telluric/models', 'host': None},
                      # Wavelength Calibrations
-                     'arclines': {'path': 'arc_lines', 'cache': False },
-                     'reid_arxiv': {'path': 'arc_lines/reid_arxiv', 'cache': True},
-                     'linelist': {'path': 'arc_lines/lists', 'cache': False},
-                     'nist': {'path': 'arc_lines/NIST', 'cache': True},
-                     'arc_plot': {'path': 'arc_lines/plots', 'cache': False},
+                     'arclines': {'path': 'arc_lines', 'host': None},
+                     'reid_arxiv': {'path': 'arc_lines/reid_arxiv', 'host': 'github'},
+                     'linelist': {'path': 'arc_lines/lists', 'host': None},
+                     'nist': {'path': 'arc_lines/NIST', 'host': 'github'},
+                     'arc_plot': {'path': 'arc_lines/plots', 'host': None},
                      # Flux Calibrations
-                     'standards': {'path': 'standards', 'cache': True},
-                     'extinction': {'path': 'extinction', 'cache': False},
-                     'skisim': {'path': 'skisim', 'cache': True},
-                     'filters': {'path': 'filters', 'cache': False},
-                     'sensfunc': {'path': 'sensfuncs', 'cache': True},
+                     'standards': {'path': 'standards', 'host': 'github'},
+                     'extinction': {'path': 'extinction', 'host': None},
+                     'skisim': {'path': 'skisim', 'host': 'github'},
+                     'filters': {'path': 'filters', 'host': None},
+                     'sensfunc': {'path': 'sensfuncs', 'host': 'github'},
                      # Other
-                     'sky_spec': {'path': 'sky_spec', 'cache': False},
-                     'static_calibs': {'path': 'static_calibs', 'cache': False},
-                     'spectrographs': {'path': 'spectrographs', 'cache': False}
+                     'sky_spec': {'path': 'sky_spec', 'host': None},
+                     'static_calibs': {'path': 'static_calibs', 'host': None},
+                     'spectrographs': {'path': 'spectrographs', 'host': None}
                     }
     """
     Dictionary providing the metadata for all the paths defined by the class.
@@ -332,5 +347,5 @@ class PypeItDataPaths:
 
     def __init__(self):
         for key, a in PypeItDataPaths.defined_paths.items():
-            setattr(self, key, PypeItDataPath(a['path']))
+            setattr(self, key, PypeItDataPath(a['path'], remote_host=a['host']))
 
