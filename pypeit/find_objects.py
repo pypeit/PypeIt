@@ -505,11 +505,10 @@ class FindObjects:
         Args:
             skymask (`numpy.ndarray`_, optional):
                 A 2D image indicating sky regions (1=sky)
-            bkg_redux_sciimg (:obj:`dict`, optional):
-                Dictionary containing the science image and ivar
-                before background subtraction if self.bkg_redux is True,
-                otherwise None. It's used to generate a global sky
-                model without bkg subtraction.
+            bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+                PypeIt image of the science image before background subtraction
+                if self.bkg_redux is True, otherwise None.
+                It's used to generate a global sky  model without bkg subtraction.
             update_crmask (bool, optional):
                 Update the crmask in the science image
             show_fit (bool, optional):
@@ -567,7 +566,7 @@ class FindObjects:
                                           noise_floor=self.sciImg.noise_floor)
             skysub_ivar = utils.inverse(var)
         else:
-            skysub_ivar = self.sciImg.ivar if bkg_redux_sciimg is None else bkg_redux_sciimg['ivar']
+            skysub_ivar = self.sciImg.ivar if bkg_redux_sciimg is None else bkg_redux_sciimg.ivar
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -582,7 +581,7 @@ class FindObjects:
                 continue
 
             # Find sky
-            _image = self.sciImg.image if bkg_redux_sciimg is None else bkg_redux_sciimg['image']
+            _image = self.sciImg.image if bkg_redux_sciimg is None else bkg_redux_sciimg.image
             global_sky[thismask] = skysub.global_skysub(
                 _image, skysub_ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],

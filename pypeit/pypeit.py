@@ -736,11 +736,10 @@ class PypeIt:
             List of objects found
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
-        bkg_redux_sciimg : :obj:`dict`
-            Dictionary containing the science image and ivar
-            before background subtraction if self.bkg_redux is True,
-            otherwise None. It's used to generate a global sky
-            model without bkg subtraction.
+        bkg_redux_sciimg : :class:`~pypeit.images.pypeitimage.PypeItImage`
+            Science image before background subtraction
+            if self.bkg_redux is True, otherwise None.
+            It's used to generate a global sky model without bkg subtraction.
         objFind : :class:`~pypeit.find_objects.FindObjects`
             Object finding speobject
 
@@ -779,7 +778,7 @@ class PypeIt:
         # Background Image?
         if bg_frames is not None and len(bg_frames) > 0:
             # get no bkg subtracted sciImg
-            bkg_redux_sciimg = {'image': sciImg.image.copy(), 'ivar': sciImg.ivar.copy()}
+            bkg_redux_sciimg = sciImg
             # Build the background image
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
             bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
@@ -794,7 +793,7 @@ class PypeIt:
             # NOTE: If the spatial flexure exists for sciImg, the subtraction
             # function propagates that to the subtracted image, ignoring any
             # spatial flexure determined for the background image.
-            sciImg = sciImg.sub(bgimg)
+            sciImg = bkg_redux_sciimg.sub(bgimg)
 
         # Flexure
         spat_flexure = None
@@ -933,9 +932,10 @@ class PypeIt:
                 Detector number (1-indexed)
             sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Data container that holds a single image from a
-                single detector its related images (e.g. ivar, mask)
-            bkg_redux_sciimg (:obj:`dict`, optional):
-                Dictionary containing the science image and ivar
+                single detector and its related images (e.g. ivar, mask)
+            bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Data container that holds a single image from a
+                single detector and its related images (e.g. ivar, mask)
                 before background subtraction if self.bkg_redux is True,
                 otherwise None. It's used to generate a global sky
                 model without bkg subtraction.
