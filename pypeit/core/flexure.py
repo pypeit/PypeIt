@@ -127,7 +127,8 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
             Spectrum of the sky related to our object
         sky_file (:obj:`str`):
             Name of the archival sky file. If equal to 'model', instead,
-            a model sky spectrum will be generated using see :func:`~pypeit.wavemodel.nearIR_modelsky`.
+            a model sky spectrum will be generated using :func:`~pypeit.wavemodel.nearIR_modelsky`
+            and the spectral resolution of obj_skyspec.
         spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object/slit.
         mxshft (:obj:`int`, optional):
@@ -419,7 +420,8 @@ def spec_flex_shift_global(slit_specs, islit, sky_file, empty_flex_dict,
             Index of the slit where the sky spectrum related to our object is.
         sky_file (`str`):
             Name of the archival sky file. If equal to 'model', instead,
-            a model sky spectrum will be generated using see :func:`~pypeit.wavemodel.nearIR_modelsky`.
+            a model sky spectrum will be generated using :func:`~pypeit.wavemodel.nearIR_modelsky`
+            and the spectral resolution of each spectrum from slit_specs.
         empty_flex_dict (:obj:`dict`):
             Empty dictionary to be filled with flexure results.
         return_later_slits (:obj:`list`):
@@ -499,7 +501,8 @@ def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_
             Index of the slit where the sky spectrum related to our object is.
         sky_file (`str`):
             Name of the archival sky file. If equal to 'model', instead,
-            a model sky spectrum will be generated using see :func:`~pypeit.wavemodel.nearIR_modelsky`.
+            a model sky spectrum will be generated using :func:`~pypeit.wavemodel.nearIR_modelsky`
+            and the spectral resolution of each spectrum in specobjs.
         empty_flex_dict (:obj:`dict`):
             Empty dictionary to be filled with flexure results.
         return_later_slits (:obj:`list`):
@@ -626,7 +629,8 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             True = masked slit
         sky_file (:obj:`str`):
             Name of the archival sky file. If equal to 'model', instead,
-            a model sky spectrum will be generated using see :func:`~pypeit.wavemodel.nearIR_modelsky`.
+            a model sky spectrum will be generated using :func:`~pypeit.wavemodel.nearIR_modelsky`
+            and the spectral resolution of each spectrum that we want to correct for flexure.
         method (:obj:`str`, optional):
             Two methods are available:
                 - 'boxcar': Recommended for object extractions. This
@@ -848,9 +852,11 @@ def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
     Args:
         sky_file (:obj:`str`):
             Name of the archival sky file. If equal to 'model', instead,
-            a model sky spectrum will be generated using see :func:`~pypeit.wavemodel.nearIR_modelsky`.
+            a model sky spectrum will be generated using :func:`~pypeit.wavemodel.nearIR_modelsky`
+            and the spectral resolution of obj_skyspec. If obj_skyspec is None, then
+            sky_file cannot be 'model'.
         obj_skyspec (`linetools.spectra.xspectrum1d.XSpectrum1d`_, optional):
-            Sky spectrum associated with the science target.
+            Sky spectrum associated with the science target. This must be provided if sky_file is 'model'.
         spec_fwhm_pix (:obj:`float`, optional):
             Spectral FWHM (in pixels) of the sky spectrum related to our object.
 
@@ -874,10 +880,16 @@ def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
             if spec_fwhm_pix is None:
                 msgs.warn('Failed to measure the spectral FWHM using the boxcar extracted sky spectrum. '
                           'Choose one of the provided sky files.')
+        # get the spectral resolution of obj_skyspec
+        # obj_skyspec spectral dispersion (Angstrom/pixel)
         obj_disp = np.median(np.diff(obj_skyspec.wavelength.value))
+        # FWHM
         spec_fwhm = spec_fwhm_pix * obj_disp
+        # Compute the resolution at the midpoints of the spectrum in the spectral direction
         midpix = obj_skyspec.wavelength.value.size // 2
+        # R = lambda / dlambda
         res = obj_skyspec.wavelength.value[midpix] / spec_fwhm
+        # get model sky spectrum
         wave_sky, flux_sky = wavemodel.nearIR_modelsky(res,
                                                        (obj_skyspec.wavelength.value.min() / 10000.,
                                                         obj_skyspec.wavelength.value.max() / 10000.),
