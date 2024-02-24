@@ -24,8 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, nobkg_skyimg=None, fwhmimg=None,
-                    base_var=None, count_scale=None, noise_floor=None):
+                    spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
 
     r"""
     Perform optimal extraction `(Horne 1986)
@@ -85,11 +84,6 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         For each spectral pixel, if the majority of the object profile has been masked, i.e.,
         the sum of the normalized object profile across the spatial direction is less than `min_frac_use`,
         the optimal extraction will also be masked. The default value is 0.05.
-    nobkg_skyimg : `numpy.ndarray`_, optional
-        Floating-point image containing the modeled sky, but without the background subtraction.
-        If sciimg is an A-B image, then this is the sky image modeled from the A image, while `skyimg` is
-        the sky image modeled from the A-B image. This is None if the sciimg is not an A-B image.
-        Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     fwhmimg : `numpy.ndarray`_, None, optional:
         Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
@@ -146,7 +140,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     base_sub = None if base_var is None else base_var[:,mincol:maxcol]
     img_sub = imgminsky[:,mincol:maxcol]
-    sky_sub = skyimg[:,mincol:maxcol] if nobkg_skyimg is None else nobkg_skyimg[:,mincol:maxcol]
+    sky_sub = skyimg[:,mincol:maxcol]
     oprof_sub = oprof[:,mincol:maxcol]
     if fwhmimg is not None:
         fwhmimg_sub = fwhmimg[:,mincol:maxcol]
@@ -312,8 +306,7 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
         return flux_out, gpm_box, box_npix, ivar_out
 
 
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, nobkg_skyimg=None,
-                   fwhmimg=None, base_var=None,
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
                    count_scale=None, noise_floor=None):
     r"""
     Perform boxcar extraction for a single :class:`~pypeit.specobj.SpecObj`.
@@ -359,10 +352,6 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, nobkg_skyimg=None,
         Container that holds object, trace, and extraction
         information for the object in question. **This object is altered in place!**
         Note that this routine operates one object at a time.
-    nobkg_skyimg : `numpy.ndarray`_, optional
-        Floating-point image containing the modeled sky, but without the background subtraction.
-        If sciimg is an A-B image, then this is the sky image modeled from the A image, while `skyimg` is
-        the sky image modeled from the A-B image. This is None if the sciimg is not an A-B image.
     fwhmimg : `numpy.ndarray`_, None, optional:
         Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
@@ -419,8 +408,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, nobkg_skyimg=None,
     var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     nvar_box = None if var_no is None \
                 else moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    _skyimg = skyimg if nobkg_skyimg is None else nobkg_skyimg
-    sky_box = moment1d(_skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    sky_box = moment1d(skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     if base_var is None:
         base_box = None
     else:
