@@ -223,6 +223,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             all_spec2d[coadd.detname] = spec2dobj.Spec2DObj(sciimg=sci_dict[coadd.detname]['sciimg'],
                                                           ivarraw=sci_dict[coadd.detname]['sciivar'],
                                                           skymodel=sci_dict[coadd.detname]['skymodel'],
+                                                          bkg_redux_skymodel=None,
                                                           objmodel=sci_dict[coadd.detname]['objmodel'],
                                                           ivarmodel=sci_dict[coadd.detname]['ivarmodel'],
                                                           scaleimg=np.array([1.0], dtype=float),

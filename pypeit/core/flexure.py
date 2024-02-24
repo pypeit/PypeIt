@@ -185,27 +185,17 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
     else:
         smooth_fwhm_pix = None
 
-    #Determine region of wavelength overlap
+    # Determine region of wavelength overlap
     minwave = 0 if minwave is None else minwave
     maxwave = np.inf if maxwave is None else maxwave
     min_wave = max(np.amin(arx_skyspec.wavelength.value), np.amin(obj_skyspec.wavelength.value), minwave)
     max_wave = min(np.amax(arx_skyspec.wavelength.value), np.amax(obj_skyspec.wavelength.value), maxwave)
 
-    #Smooth higher resolution spectrum by smooth_sig (flux is conserved!)
-#    if np.median(obj_res) >= np.median(arx_res):
-#        msgs.warn("New Sky has higher resolution than Archive.  Not smoothing")
-        #obj_sky_newflux = ndimage.gaussian_filter(obj_sky.flux, smooth_sig)
-#    else:
-        #tmp = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-#        arx_skyspec = arx_skyspec.gauss_smooth(smooth_sig_pix*2*np.sqrt(2*np.log(2)))
-        #arx_sky.flux = ndimage.gaussian_filter(arx_sky.flux, smooth_sig)
-
     # Define wavelengths of overlapping spectra
     keep_idx = np.where((obj_skyspec.wavelength.value>=min_wave) &
                          (obj_skyspec.wavelength.value<=max_wave))[0]
-    #keep_wave = [i for i in obj_sky.wavelength.value if i>=min_wave if i<=max_wave]
 
-    #Rebin both spectra onto overlapped wavelength range
+    # Rebin both spectra onto overlapped wavelength range
     if len(keep_idx) <= 50:
         msgs.warn("Not enough overlap between sky spectra")
         return None
@@ -214,6 +204,9 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
     keep_wave = obj_skyspec.wavelength[keep_idx]
     arx_skyspec = arx_skyspec.rebin(keep_wave)
     obj_skyspec = obj_skyspec.rebin(keep_wave)
+
+    # Deal with bad pixels
+    msgs.work("Need to mask bad pixels")
     # Trim edges (rebinning is junk there)
     arx_skyspec.data['flux'][0,:2] = 0.
     arx_skyspec.data['flux'][0,-2:] = 0.
@@ -224,74 +217,59 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
     obj_skyspec.data['flux'][0,:] = np.maximum(obj_skyspec.data['flux'][0,:], 0.)
     arx_skyspec.data['flux'][0,:] = np.maximum(arx_skyspec.data['flux'][0,:], 0.)
 
+    # clip too large values (>90%) only in obj_skyspec (assuming arx_skyspec is being vetted before)
+    # this is used ony for the cross-correlation
+    obj_skyspec_flux = obj_skyspec.flux.value
+    _lower = np.percentile(obj_skyspec_flux[obj_skyspec_flux < 0.0], 90) if np.any(obj_skyspec_flux < 0.0) else 0.0
+    _upper = np.percentile(obj_skyspec_flux[obj_skyspec_flux >= 0.0], 90) if np.any(obj_skyspec_flux >= 0.0) else 0.0
+    obj_skyspec_flux = np.clip(obj_skyspec_flux, _lower, _upper)
+
     # Normalize spectra to unit average sky count
-    norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
+    norm = np.sum(obj_skyspec_flux)/obj_skyspec.npix
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
     if norm <= 0:
         msgs.warn("Bad normalization of object in flexure algorithm")
         msgs.warn("Will try the median")
-        norm = np.median(obj_skyspec.flux.value)
+        norm = np.median(obj_skyspec_flux)
         if norm <= 0:
             msgs.warn("Improper sky spectrum for flexure.  Is it too faint??")
             return None
     if norm2 <= 0:
         msgs.warn('Bad normalization of archive in flexure. You are probably using wavelengths '
-                   'well beyond the archive.')
+                  'well beyond the archive.')
         return None
-    obj_skyspec.flux = obj_skyspec.flux / norm
+    obj_skyspec_flux = obj_skyspec_flux / norm
     arx_skyspec.flux = arx_skyspec.flux / norm2
 
-    # Deal with bad pixels
-    msgs.work("Need to mask bad pixels")
-
-    # Deal with underlying continuum
-    # msgs.work("Consider taking median first [5 pixel]")
-    # everyn = obj_skyspec.npix // 20
-    # pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
-    #                                    nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
-    #                                    maxiter = 15, upper = 3.0, lower = 3.0)
-    # obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
-    #
-    # obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    # pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
-    #                                    nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
-    #                                    maxiter = 15, upper = 3.0, lower = 3.0)
-    # arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
-    # arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
-
-    # DP: ANY OBJECTION to changing the above to the following? It seems working much better.
+    # Subtract continuum and apply a ceiling to the spectra
+    percent_ceil = 50.
     # obj_skyspec
-    _, obj_ampl, _, _, _, _, obj_sky_flux, _ = arc.detect_lines(obj_skyspec.flux.value, sigdetect=5.0)
+    _, obj_ampl, _, _, _, _, obj_sky_flux, _ = arc.detect_lines(obj_skyspec_flux, sigdetect=5.0)
     if obj_ampl.size > 0:
-        percent_ceil = 50.
-        ceil_upper = np.percentile(obj_ampl[obj_ampl >= 0.0], percent_ceil) if np.any(obj_ampl >= 0.0) else 0.0
-        # Set a lower ceiling on negative fluctuations
-        ceil_lower = np.percentile(obj_ampl[obj_ampl < 0.0], percent_ceil) if np.any(obj_ampl < 0.0) else 0.0
-        obj_sky_flux = np.clip(obj_sky_flux, ceil_lower, ceil_upper)
+        obj_lower = np.percentile(obj_ampl[obj_ampl < 0.0], percent_ceil) if np.any(obj_ampl < 0.0) else 0.0
+        obj_upper = np.percentile(obj_ampl[obj_ampl >= 0.0], percent_ceil) if np.any(obj_ampl >= 0.0) else 0.0
+        obj_sky_flux = np.clip(obj_sky_flux, obj_lower, obj_upper)
 
     # arx_skyspec
     _, arx_ampl, _, _, _, _, arx_sky_flux, _ = arc.detect_lines(arx_skyspec.flux.value, sigdetect=5.0)
     if arx_ampl.size > 0:
-        percent_ceil = 50.
-        ceil_upper = np.percentile(arx_ampl[arx_ampl >= 0.0], percent_ceil) if np.any(arx_ampl >= 0.0) else 0.0
-        # Set a lower ceiling on negative fluctuations
-        ceil_lower = np.percentile(arx_ampl[arx_ampl < 0.0], percent_ceil) if np.any(arx_ampl < 0.0) else 0.0
-        arx_sky_flux = np.clip(arx_sky_flux, ceil_lower, ceil_upper)
+        arx_lower = np.percentile(arx_ampl[arx_ampl < 0.0], percent_ceil) if np.any(arx_ampl < 0.0) else 0.0
+        arx_upper = np.percentile(arx_ampl[arx_ampl >= 0.0], percent_ceil) if np.any(arx_ampl >= 0.0) else 0.0
+        arx_sky_flux = np.clip(arx_sky_flux, arx_lower, arx_upper)
     #
     # # Consider sharpness filtering (e.g. LowRedux)
     # msgs.work("Consider taking median first [5 pixel]")
 
-    #Cross correlation of spectra
+    # Cross correlation of spectra
     corr = np.correlate(arx_sky_flux, obj_sky_flux, "same")
 
-    #Create array around the max of the correlation function for fitting for subpixel max
+    # Create array around the max of the correlation function for fitting for subpixel max
     # Restrict to pixels within maxshift of zero lag
     lag0 = corr.size//2
-    #mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7)
 
-    #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
+    # Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(int)])):
         fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(int)],
                                 func='polynomial', order=np.atleast_1d(2))
@@ -333,6 +311,7 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
             else:
                 msgs.error(f"FlexurePar Keyword excessive_shift = \"{excess_shft}\" "
                            "not recognized.")
+        msgs.info(f"Flexure correction of {shift:.3f} pixels")
 
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
@@ -340,11 +319,6 @@ def spec_flex_shift(obj_skyspec, sky_file, spec_fwhm_pix=None, mxshft=20, excess
         fit.fit()
         msgs.warn('Flexure compensation failed for one of your objects')
         return None
-
-    #Calculate and apply shift in wavelength
-    # shift = float(max_fit)-lag0
-    msgs.info(f"Flexure correction of {shift:.3f} pixels")
-    #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
