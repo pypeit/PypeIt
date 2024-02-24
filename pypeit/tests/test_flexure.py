@@ -26,7 +26,7 @@ def test_flex_shift():
 
     # Call
     flex_dict = flexure.spec_flex_shift(obj_spec, arx_spec, arx_fwhm_pix, mxshft=60)
-    embed()
+
     assert np.abs(flex_dict['shift'] - 43.5) < 0.1
 
 
