@@ -132,20 +132,28 @@ There are several recommended steps of the coadd3d process that can be run separ
 #. Step 2 - Extract the 1D spectra from the datacube. This is done by running the following command,
     assuming that the output datacube from the previous step was called ``StandardStarName.fits``.
     The ``pypeit_extract_datacube`` script will produce an output file called
-    ``StandardStarName_spec1d.fits``:
+    ``spec1d_StandardStarName.fits``:
 
     .. code-block:: console
 
         pypeit_extract_datacube StandardStarName.fits -o
 
+    This script is only designed for point sources. Both a boxcar and an optimal extraction are calculated.
+    The boxcar extraction uses a circular aperture with a radius set by the ``boxcar_radius`` parameter.
+    The optimal extraction uses the white light image as the object profile. Also note that the extraction
+    if performed on the sky-subtracted datacube. Therefore, the ``spec1d`` file contains the 1D spectra
+    including a ``BOX_COUNTS_SKY`` and ``OPT_COUNTS_SKY`` columns. These columns do not contain the sky
+    counts, but rather the residual level of the sky aperture. This is useful for checking the quality of
+    the sky subtraction.
+
 #. Step 3 - Generate a sensitivity function from the 1D spectra. This is done by running the following
     command, assuming that the output 1D spectra from the previous step was called
-    ``StandardStarName_spec1d.fits``. The ``pypeit_sensfunc`` script will produce an output file called
-    ``StandardStarName_sens.fits``:
+    ``spec1d_StandardStarName.fits``. The ``pypeit_sensfunc`` script will produce an output file called
+    ``sens_StandardStarName.fits``:
 
     .. code-block:: console
 
-        pypeit_sensfunc StandardStarName_spec1d.fits -o StandardStarName_sens.fits
+        pypeit_sensfunc spec1d_StandardStarName.fits -o sens_StandardStarName.fits
 
     For further details, see :doc:`_sensitivity_function`.
 
@@ -190,8 +198,31 @@ the default values (5), you can optionally set (one or all of) the ``spec_subpix
 
 The total number of subpixels generated for each detector pixel on the spec2d frame is
 spec_subpixel x spat_subpixel x slice_subpixel. The default values (5) divide each spec2d pixel
-into 125 subpixels during datacube creation.
-As an alternative, you can convert the spec2d frames into a datacube
+into 5x5x5=125 subpixels during datacube creation.
+``spec_subpixel`` is the number of subpixels in the spectral
+direction (i.e. predominantly detector columns),
+``spat_subpixel`` is the number of subpixels in the
+spatial direction (i.e. the long axis of each slice; predominantly along detector rows), and
+``slice_subpixel`` is the number of times to divide each of the
+slices (i.e. the short axis of each slice). Note that all three of these ``subpixel``
+definitions are perpendicular to each other in the datacube.
+
+While the ``spec_subpixel`` and ``spat_subpixel`` options are somewhat intuitive (i.e. the code is
+dividing detector columns and rows into smaller subpixels), the ``slice_subpixel`` option may not be
+immediately obvious, so consider the following example. Imagine the long edge of the slice aligned
+East-West. The short edge of a single slice will span a Dec difference of 0.35 arcseconds in the case
+of the Keck/KCWI Small slicer. ``slice_subpixel`` is effectively dividing this slice width further.
+If ``slice_subpixel=7`` then this is creating seven subslices, each of width 0.05 arcseconds. The
+importance of this becomes really noticeable when combined with the differential atmospheric
+refraction (DAR) correction. Consider two wavelengths that have a relative DAR of 0.15 arcseconds.
+In this case, choosing a value of ``slice_subpixel=1`` would shift the relative spatial positions by
+0.35 arcseconds (i.e. the difference between adjacent slices) compared to the true difference of 0.15
+arcseconds. ``slice_subpixel`` divides the flux of the slice into evenly spaced rectangular bins, and
+places each of these into a voxel of the final datacube. In the case of a 0.15 arcsecond shift, this
+would mean that :math:`3/7` of the flux ends up in one output slice and the remaining :math:`4/7` of
+the flux ends up in the adjacent slice.
+
+As an alternative to the ``subpixel`` method, you can convert the spec2d frames into a datacube
 with the ``NGP`` method. This algorithm is effectively a 3D histogram. This approach is faster
 than ``subpixel``, flux is conserved, and voxels are not correlated. However, this option suffers
 the same downsides as any histogram; the choice of bin sizes can change how the datacube appears.
@@ -217,6 +248,21 @@ the name of the sensitivity function in your ``coadd3d`` file as follows:
     [reduce]
         [[cube]]
             sensfunc = my_sensfunc.fits
+
+
+Also, an important note for users that wish to combine multiple standard star exposures
+into a single datacube: PypeIt currently performs an extinction correction when
+generating the sensitivity function; this is perfectly fine for single exposures.
+However, if you are combining multiple standard star exposures into a single datacube,
+you should note that the extinction correction will be applied at the airmass of the
+first standard star exposure listed in the ``coadd3d`` file. This is because the
+extinction correction is currently not applied to each individual frame in the datacube.
+This control flow will be changed in a future release of PypeIt, but for now, to stay
+consistent with the current pipeline, the extinction correction is done in the sensitivity
+function algorithms, with the caveat that the standard star exposures are assumed to have
+similar airmasses. If you have standard star exposures with significantly different
+airmasses, then you should use just one of these exposures to generate the sensitivity
+function.
 
 
 .. _coadd3d_skysub:
@@ -265,14 +311,17 @@ The grating correction is needed if any of the data are recorded
 with even a very slightly different setup (e.g. data taken on two
 different nights with the same *intended* wavelength coverage,
 but the grating angle of the two nights were slightly different).
-This is also needed if your standard star observations were taken
-with a slightly different setup. This correction requires that you
+You can avoid this correction if you generate a sensitivity function
+for each of the setups. However, if you have not done this, then
+the grating correction is needed. This correction requires that you
 have taken calibrations (i.e. flatfields) with the two different
-setups. By default, the grating correction will not be applied. If
-you want to apply the grating correction, you will need to specify
-the relative path+file of the Flat calibration file for each spec2d
-file. You will need to specify a ``grating_corr`` file for each
-science frame, in the ``spec2d`` block of the ``.coadd3d`` file:
+setups, and uses the relative sensitivity of the two flatfields to
+estimate the sensitivity correction. By default, the grating correction
+will not be applied. If you want to apply the grating correction, you
+will need to specify the relative path+file of the Flat calibration
+file for each spec2d file. You will need to specify a ``grating_corr``
+file for each science frame, in the ``spec2d`` block of the
+``.coadd3d`` file:
 
 .. code-block:: ini
 

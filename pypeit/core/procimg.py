@@ -1410,14 +1410,13 @@ def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
     # Check the input
     if counts.shape != ampimage.shape:
         msgs.error('Counts and amplifier image have different shapes.')
-    if isinstance(nonlinearity_coeffs, list):
-        nonlinearity_coeffs = np.array(nonlinearity_coeffs)
+    _nonlinearity_coeffs = np.asarray(nonlinearity_coeffs)
     # Setup the output array
     corr_counts = counts.copy()
     unqamp = np.unique(ampimage)
     for uu in range(unqamp.size):
         thisamp = unqamp[uu]
         indx = (ampimage == thisamp)
-        corr_counts[indx] = counts[indx] * (1. + nonlinearity_coeffs[thisamp]*counts[indx])
+        corr_counts[indx] = counts[indx] * (1. + _nonlinearity_coeffs[thisamp]*counts[indx])
     # Apply the correction
     return corr_counts
