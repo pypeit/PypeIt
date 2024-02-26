@@ -599,7 +599,7 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+        offslitmask = self.slits.slit_img(pad=pad, flexure=None) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
