@@ -77,6 +77,10 @@ def test_search_cache():
     # Make sure a junk search returns an empty list (and not None or something else)
     assert cache.search_cache('junkymcjunkface.txt') == [], 'should not find junk file'
 
+    # Make sure the test file doesn't exist in the cache already
+    if len(cache.search_cache('totally_special')) > 0:
+        cache.delete_file_in_cache('totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
+
     # Place a file in the cache, and retrieve it
     cache.write_file_to_cache(
         dataPaths.linelist.get_file_path('ArI_lines.dat'),
@@ -91,6 +95,9 @@ def test_search_cache():
     # Delete it
     cache.delete_file_in_cache('totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
     assert cache.search_cache('totally_special') == [], 'Should not be able to find the file'
+
+
+test_search_cache()
 
 
 def test_waveio_load_reid_arxiv():

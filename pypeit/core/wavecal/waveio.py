@@ -190,6 +190,8 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
     if all:
         # Search both in the package directory and the PypeIt cache
         line_files = list(dataPaths.linelist.glob('*_lines.dat'))
+        # TODO: When searching the cache, the filenames returned are always
+        # `contents`, this will break how the lamp names are extracted below
         line_files.append(cache.search_cache('_lines.dat'))
         lamps = []
         for line_file in line_files:

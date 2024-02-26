@@ -180,24 +180,37 @@ def fetch_remote_file(
     return pathlib.Path(cache_fn).resolve()
 
 
-def search_cache(pattern_str: str) -> list[pathlib.Path]:
+def search_cache(pattern: str, path_only=True):
     """
-    Search the cache for items matching a pattern string
+    Search the cache for items matching a pattern string.
 
-    This function searches the PypeIt cache for files whose URL keys contain
-    the input ``pattern_str``, and returns the local filesystem path to those
-    files.
+    This function searches the PypeIt cache for files whose URL keys contain the
+    input ``pattern``, and returns the local filesystem path to those files.
 
     Args:
-        pattern_str (:obj:`str`):
-            The filename pattern to match
+        pattern (:obj:`str`):
+            The pattern to match within the file name of the source url.  This
+            can be None, meaning that the full contents of the cache is
+            returned.  However, note that setting ``pattern_str`` to None and
+            ``path_only=True`` may not be very useful given the abstraction of
+            the file names.
+        path_only (:obj:`bool`, optional):
+            Only return the path(s) to the files found in the cache.  If False,
+            a dictionary is returned where each key is the source url, and the
+            value is the local path.
 
     Returns:
-        :obj:`list`: The list of local paths for the objects whose normal
-        filenames match the ``pattern_str``.
+        :obj:`list`, :obj:`dict`: If ``path_only`` is True, this is a
+        :obj:`list` of local paths for the objects whose normal filenames match
+        the ``pattern``.  Otherwise, this is a dictionary with keys matching the
+        original source url, and the value set to the local path.
     """
-    # Retreive a dictionary of the cache contents
-    cache_dict = astropy.utils.data.cache_contents(pkgname="pypeit")
+    # Retrieve a dictionary of the cache contents
+    contents = astropy.utils.data.cache_contents(pkgname="pypeit")
+    contents = {k:pathlib.Path(v) for k, v in contents.items() if pattern is None or pattern in k}
+    return list(contents.values()) if path_only else contents
+    
+    
 
     # Return just the local filenames' Paths for items matching the `pattern_str`
     return [pathlib.Path(cache_dict[url]) for url in cache_dict if pattern_str in url]
@@ -251,6 +264,8 @@ def delete_file_in_cache(cachename: str, filetype: str, remote_host: str="github
         # Warn the user that the search pattern failed
         msgs.warn(f'Cache does not include {cachename}.  Ignoring deletion request.')
     if len(result) > 1:
+        embed()
+        exit()
         # More than one match!
         msgs.error(f'More than one item in the cache match the search pattern {cachename}.  Must '
                    'be more specific.')
