@@ -612,7 +612,9 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
         par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
+        # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_trim'] = 2  # Trim the slit edges
@@ -716,7 +718,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         raval = self.get_meta_value([hdr], 'ra')
