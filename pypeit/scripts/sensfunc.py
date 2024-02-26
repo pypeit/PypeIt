@@ -179,7 +179,8 @@ class SensFunc(scriptbase.ScriptBase):
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                 debug=args.debug)
+                                                 debug=args.debug,
+                                                 chk_version=par['rdx']['chk_version'])
         # Generate the sensfunc
         sensobj.run()
         # Write it out to a file, including the new primary FITS header

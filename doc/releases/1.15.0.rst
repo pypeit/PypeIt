@@ -1,12 +1,13 @@
 
-Version 1.14.1dev
-=================
+Version 1.15.0
+==============
 
 Installation Changes
 --------------------
-- PypeIt will no longer be available through ``conda-forge`` and
-  must be installed via ``pip`` from PyPI.  Users may still use
-  ``conda`` for management of PypeIt's virtual environment.
+
+- PypeIt will no longer be available through ``conda-forge`` and must be
+  installed via ``pip`` from PyPI.  Users may still use ``conda`` for management
+  of PypeIt's virtual environment.
 
 Dependency Changes
 ------------------
@@ -33,7 +34,6 @@ Functionality/Performance Improvements and Additions
 - Add a sensible error message to the pypeit Spectrum1D loaders in the event a
   user inadvertently tries to use Spectrum1D instead of SpectrumList for a
   ``spec1d`` file.
-- Add support for the R4K detector for MDM OSMOS
 - Enabled interpolation and extrapolation of missing echelle orders.  This is
   currently only used for Keck/HIRES, but the code is general.
 - Allow the specification of wavelength limits on the flexure cross-correlation
@@ -44,12 +44,15 @@ Functionality/Performance Improvements and Additions
   code, but the name ``'polynomial'`` is deprecated and will be removed in the
   future.
 - Introduced PCA method for telluric corrections
-- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
+- Added slicer subpixel sampling for DataCube generation
+- Added ``trace_rms_tol`` parameter for edge tracing, which helps guard against
+  poorly constrained traces for spectrally truncated slits/orders.
 
 Instrument-specific Updates
 ---------------------------
 
-- Updated archival sensivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
+- Add support for the R4K detector for MDM OSMOS
+- Updated archival sensitivity functions for DEIMOS 1200G, 800G, and 600ZD gratings.
 - Keck/KCWI and Keck/KCRM: Turned on polynomial correction for sky subtraction.
 - We now support the reduction of VLT/FORS2 data taken in MOS mode.
 - Fixed fluxing file format in the ``Keck-DEIMOS HOWTO`` documentation.
@@ -78,14 +81,20 @@ Script Changes
 - Column ``SpatID`` in the output of ``pypeit_chk_wavecalib`` changed to ``SpatOrderID`` and
   now show the echelle order number, if applicable, otherwise the slit number.
 - ``pypeit_chk_edges`` now load SlitTraceSet (if available) to be able to overlay the echelle order numbers.
+- Added a new GUI for creating and editing PypeIt input files: ``pypeit_setup_gui``
 - Added a -G option to ``pypeit_setup`` and ``pypeit_obslog`` that will start the new
-  Setup GUI. 
+  Setup GUI.
+- Improvements and bug fixes for how the mask is displayed by
+  ``pypeit_show_2dspec``, and added ``pypeit_print_bpm`` to allow for a quick
+  report on the flags associated with a given bit value.
 
 Datamodel Changes
 -----------------
 
 - A wavelength array is now stored for DataCube()
-- Wavecalib and Wavefit datacontainers now store information about echelle order number, if applicable.
+- WaveCalib and WaveFit datacontainers now store information about echelle order
+  number, if applicable.
+- Change to how SlitTraceSet datamodel stores and checks bit flag values.
 
 Under-the-hood Improvements
 ---------------------------
@@ -98,6 +107,8 @@ Under-the-hood Improvements
   ``pypeit/core/wavecal/autoid.py``, ``pypeit/wavecalib.py``.
 - Fixed some failure modes when matching measured order positions to expected
   positions for fixed-format echelle spectrographs.
+- More extensive propagation of turning off datamodel version checking (using
+  ``try_old`` and ``chk_version``) throughout the code.
 
 Bug Fixes
 ---------

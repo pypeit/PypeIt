@@ -31,6 +31,7 @@ from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
 from pypeit.scripts import parse_slits
+from pypeit.scripts import print_bpm
 from pypeit.scripts import qa_html
 from pypeit.scripts import ql
 #from pypeit.scripts import ql_multislit
@@ -46,6 +47,7 @@ from pypeit.scripts import skysub_regions
 from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
+from pypeit.scripts import compile_wvarxiv
 
 
 # Build the list of script classes

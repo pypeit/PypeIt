@@ -705,7 +705,6 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 no_overscan[data_slice][:,0::2] -= even[:,None]
             else:
                 msgs.error('Not ready for this approach, please contact the Developers')
-            
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
@@ -816,7 +815,9 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             sgnl = overscan[ii,:]
             LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=use_fr*(1-100/frame_orig.shape[1]), maximum_frequency=use_fr*(1+100/frame_orig.shape[1]), samples_per_peak=10)
             bst = np.argmax(power)
-            cc = np.polyfit(LSfreq[bst-2:bst+3],power[bst-2:bst+3],2)
+            imin = np.clip(bst-2,0,None)
+            imax = np.clip(bst+3,None,overscan.shape[1])
+            cc = np.polyfit(LSfreq[imin:imax],power[imin:imax],2)
             all_freq[ii] = -0.5*cc[1]/cc[0]
         cc = np.polyfit(all_rows, all_freq, 1)
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
@@ -832,7 +833,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Convert result to amplitude and phase
         amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
-        # STEP 2 - Using th emodel frequency, calculate how amplitude depends on pixel row (usually constant)
+        # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
         msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]

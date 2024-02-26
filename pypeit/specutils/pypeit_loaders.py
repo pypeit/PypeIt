@@ -150,7 +150,8 @@ def identify_pypeit_onespec(origin, *args, **kwargs):
              priority=10,
              dtype=SpectrumList,
              autogenerate_spectrumlist=False)
-def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwargs):
+def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, chk_version=True,
+                         **kwargs):
     """
     Load spectra from a PypeIt spec1d file into a SpectrumList.
 
@@ -172,6 +173,10 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
         raise an error (as would be done by the `specutils.SpectrumList`_ class).
         If False, wavelengths that are *not* monotonically increasing are masked
         in the construction of the returned `specutils.SpectrumList`_ object.
+    chk_version : :obj:`bool`, optional
+        When reading in existing files written by PypeIt, perform strict version
+        checking to ensure a valid file.  If False, the code will try to keep
+        going, but this may lead to faults and quiet failures.  User beware!
     kwargs : dict, optional
         **Ignored!**  Used to catch spurious arguments passed to the base class
         that are ignored by this function.
@@ -183,7 +188,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
     """
     # Try to load the file and ignoring any version mismatch
     try:
-        sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=False)
+        sobjs = specobjs.SpecObjs.from_fitsfile(filename, chk_version=chk_version)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
         msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
@@ -222,7 +227,7 @@ def pypeit_spec1d_loader(filename, extract=None, fluxed=True, strict=True, **kwa
              extensions=["fits"],
              priority=10,
              dtype=Spectrum1D)
-def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
+def pypeit_onespec_loader(filename, grid=False, strict=True, chk_version=True, **kwargs):
     """
     Load a spectrum from a PypeIt OneSpec file into a Spectrum1D object.
 
@@ -238,6 +243,10 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
         raise an error (as would be done by the `specutils.Spectrum1D`_ class).
         If False, wavelengths that are *not* monotonically increasing are masked
         in the construction of the returned `specutils.Spectrum1D`_ object.
+    chk_version : :obj:`bool`, optional
+        When reading in existing files written by PypeIt, perform strict version
+        checking to ensure a valid file.  If False, the code will try to keep
+        going, but this may lead to faults and quiet failures.  User beware!
     kwargs : dict, optional
         **Ignored!**  Used to catch spurious arguments passed to the base class
         that are ignored by this function.
@@ -249,7 +258,7 @@ def pypeit_onespec_loader(filename, grid=False, strict=True, **kwargs):
     """
     # Try to load the file and ignoring any version mismatch
     try:
-        spec = onespec.OneSpec.from_file(filename)
+        spec = onespec.OneSpec.from_file(filename, chk_version=chk_version)
     except PypeItError:
         file_pypeit_version = astropy.io.fits.getval(filename, 'VERSPYP', 'PRIMARY')
         msgs.error(f'Unable to ingest {filename.name} using pypeit.specobjs module from your version '
