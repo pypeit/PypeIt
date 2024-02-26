@@ -1415,7 +1415,7 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure)
+        left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1424,7 +1424,6 @@ class FlatField:
         this_slit = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True) & (self.waveimg!=0.0))
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
-                                                       initial=True,
                                                        slitid_img=slitimg,
                                                        flexure_shift=self.wavetilts.spat_flexure)
         # Generate the trimmed versions for fitting
@@ -1916,14 +1915,14 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
     # Setup the slits
-    slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, initial=True, flexure=flexure)
+    slitid_img = slits.slit_img(pad=0, flexure=flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, flexure=flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
-        onslit_init = (slitid_img_init == slit_spat)
+        onslit_init = (slitid_img == slit_spat)
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
@@ -1958,7 +1957,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             for ss in range(1, slits.spat_id.size):
                 # Calculate the region of overlap
                 onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
-                onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
+                onslit_b_init = (slitid_img == slits.spat_id[wvsrt[ss]])
                 onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
                 hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg_copy[onslit_b_olap])
                 cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
