@@ -15,6 +15,7 @@ Instrument-specific Updates
 ---------------------------
 
 - Added example of improved wavelength solution for GEMINI/GMOS
+- Added support for the (decommissioned) AAT/UHRF instrument
 
 Script Changes
 --------------
