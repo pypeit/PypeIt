@@ -11,6 +11,7 @@ import time
 
 from pypeit.scripts import setup
 from pypeit import pypeitsetup
+from pypeit.inputfiles import PypeItFile
 
 from IPython import embed
 
@@ -19,20 +20,45 @@ DEV_ROOT = pathlib.Path(os.getenv('PYPEIT_DEV')).resolve()
 
 #-----------------------------------------------------------------------------
 
+def obscure_path(paths):
+    """
+    Removes the local root path to "PypeIt-development-suite/" and replaces it
+    with "/path/to".
+    """
+    return [str(pathlib.Path('/path/to') / pathlib.Path(p).absolute().relative_to(DEV_ROOT.parent))
+                for p in paths]
+
+
 def make_example_kast_pypeit_file(version, date):
 
+    # Set the paths for the rst file, ...
     oroot = PYP_ROOT / 'doc' / 'include'
+    # ... with the data, and ...
     droot = DEV_ROOT / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
-    
+    # ... for the setup files.
+    sroot = oroot / 'shane_kast_blue_A'
+    if sroot.is_dir():
+        # Remove pre-existing directory
+        shutil.rmtree(sroot)
+
+    # Run setup 
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'shane_kast_blue', '-c', 'all',
                                     '-d', str(oroot),
                                     '--version_override', version, 
                                     '--date_override', date])
     setup.Setup.main(pargs)
 
+    # Read the PypeItFile
+    pypeit_file = sroot / 'shane_kast_blue_A.pypeit'
+    p = PypeItFile.from_file(pypeit_file)
+    # Abstract the directory so that it isn't system/developer dependent
+    p.file_paths = obscure_path(p.file_paths)
+    # Overwrite the file
+    p.write(pypeit_file, version_override=version, date_override=date)
+
     ofile = oroot / 'shane_kast_blue_A.pypeit.rst'
     with open(ofile, 'w') as f:
-        with open(oroot / 'shane_kast_blue_A' / 'shane_kast_blue_A.pypeit', 'r') as p:
+        with open(pypeit_file, 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -40,23 +66,35 @@ def make_example_kast_pypeit_file(version, date):
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(oroot / 'shane_kast_blue_A')
+    shutil.rmtree(sroot)
 
 
 def make_example_deimos_pypeit_file(version, date):
 
     oroot = PYP_ROOT / 'doc' / 'include'
     droot = DEV_ROOT / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
-    
+    sroot = oroot / 'keck_deimos_A'
+    if sroot.is_dir():
+        # Remove pre-existing directory
+        shutil.rmtree(sroot)
+
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_deimos', '-c', 'all',
                                     '-d', str(oroot),
                                     '--version_override', version, 
                                     '--date_override', date])
     setup.Setup.main(pargs)
 
+    # Read the PypeItFile
+    pypeit_file = sroot / 'keck_deimos_A.pypeit'
+    p = PypeItFile.from_file(pypeit_file)
+    # Abstract the directory so that it isn't system/developer dependent
+    p.file_paths = obscure_path(p.file_paths)
+    # Overwrite the file
+    p.write(pypeit_file, version_override=version, date_override=date)
+
     ofile = oroot / 'keck_deimos_A.pypeit.rst'
     with open(ofile, 'w') as f:
-        with open(oroot / 'keck_deimos_A' / 'keck_deimos_A.pypeit', 'r') as p:
+        with open(pypeit_file, 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -64,15 +102,17 @@ def make_example_deimos_pypeit_file(version, date):
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(oroot / 'keck_deimos_A')
+    shutil.rmtree(sroot)
 
 
 def make_example_gnirs_pypeit_files(version, date):
 
     oroot = PYP_ROOT / 'doc' / 'include'
-
-    # Create the default pypeit file
     droot = DEV_ROOT / 'RAW_DATA' / 'gemini_gnirs_echelle' / '32_SB_SXD'
+    sroot = oroot / 'gemini_gnirs_echelle_A'
+    if sroot.is_dir():
+        # Remove pre-existing directory
+        shutil.rmtree(sroot)
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs_echelle', '-b',
                                     '-c', 'A', '-d', str(oroot),
@@ -80,9 +120,17 @@ def make_example_gnirs_pypeit_files(version, date):
                                     '--date_override', date])
     setup.Setup.main(pargs)
 
+    # Read the PypeItFile
+    pypeit_file = sroot / 'gemini_gnirs_echelle_A.pypeit'
+    p = PypeItFile.from_file(pypeit_file)
+    # Abstract the directory so that it isn't system/developer dependent
+    p.file_paths = obscure_path(p.file_paths)
+    # Overwrite the file
+    p.write(pypeit_file, version_override=version, date_override=date)
+
     ofile = oroot / 'gemini_gnirs_echelle_A.pypeit.rst'
     with open(ofile, 'w') as f:
-        with open(oroot / 'gemini_gnirs_echelle_A' / 'gemini_gnirs_echelle_A.pypeit', 'r') as p:
+        with open(pypeit_file, 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -90,7 +138,7 @@ def make_example_gnirs_pypeit_files(version, date):
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(oroot / 'gemini_gnirs_echelle_A')
+    shutil.rmtree(sroot)
 
     # Copy over the one that is actually used by the dev-suite
     dev = DEV_ROOT / 'pypeit_files' / 'gemini_gnirs_echelle_32_sb_sxd.pypeit'
@@ -109,19 +157,29 @@ def make_example_gnirs_pypeit_files(version, date):
 def make_example_nires_pypeit_files(version, date):
 
     oroot = PYP_ROOT / 'doc' / 'include'
-
-    # Create the default pypeit file
     droot = DEV_ROOT / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
-    
+    sroot = oroot / 'keck_nires_A'
+    if sroot.is_dir():
+        # Remove pre-existing directory
+        shutil.rmtree(sroot)
+
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_nires', '-b', '-c', 'A',
                                     '-d', str(oroot),
                                     '--version_override', version, 
                                     '--date_override', date])
     setup.Setup.main(pargs)
 
+    # Read the PypeItFile
+    pypeit_file = sroot / 'keck_nires_A.pypeit'
+    p = PypeItFile.from_file(pypeit_file)
+    # Abstract the directory so that it isn't system/developer dependent
+    p.file_paths = obscure_path(p.file_paths)
+    # Overwrite the file
+    p.write(pypeit_file, version_override=version, date_override=date)
+
     ofile = oroot / 'keck_nires_A.pypeit.rst'
     with open(ofile, 'w') as f:
-        with open(oroot / 'keck_nires_A' / 'keck_nires_A.pypeit', 'r') as p:
+        with open(pypeit_file, 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -129,7 +187,7 @@ def make_example_nires_pypeit_files(version, date):
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(oroot / 'keck_nires_A')
+    shutil.rmtree(sroot)
 
     # Copy over the one that is actually used by the dev-suite
     dev = DEV_ROOT / 'pypeit_files' / 'keck_nires_abba_wstandard.pypeit'
