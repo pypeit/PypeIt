@@ -2,6 +2,7 @@
 
     $ pypeit_chk_scattlight -h
     usage: pypeit_chk_scattlight [-h] [--spec2d SPEC2D] [--det DET] [--mask MASK]
+                                 [--try_old]
                                  file slits
     
     Display the scattered light image in a Ginga viewer
@@ -20,5 +21,7 @@
                        for a detector, MSC01 for a mosaic). (default: 1)
       --mask MASK      If True, the detector pixels that are considered on the slit
                        will be masked to highlight the scattered light regions
+                       (default: False)
+      --try_old        Attempt to load old datamodel versions. A crash may ensue..
                        (default: False)
     

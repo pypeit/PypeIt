@@ -24,10 +24,13 @@ from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images.detector_container import DetectorContainer
+# NOTE: Mosaic cannot be found in this module explicitly, but it is used in
+# statements like: dmodcls = eval(hdu.header['DMODCLS'])
 from pypeit.images.mosaic import Mosaic
-from pypeit import slittrace
 from pypeit import utils
 
+
+# TODO: Make this a DataContainer
 class SpecObjs:
     """
     Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
@@ -572,7 +575,9 @@ class SpecObjs:
         _extinct_correct = (True if sens.algorithm == 'UVIS' else False) \
             if par['extinct_correct'] is None else par['extinct_correct']
 
-        if spectrograph.pypeline == 'MultiSlit':
+        # TODO enbaling this for now in case someone wants to treat the IFU as a slit spectrograph
+        #  (not recommnneded but useful for quick reductions where you don't want to construct cubes and don't care about DAR).
+        if spectrograph.pypeline in ['MultiSlit','SlicerIFU']:
             for ii, sci_obj in enumerate(self.specobjs):
                 if sens.wave.shape[1] == 1:
                     sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
@@ -1035,6 +1040,8 @@ def get_std_trace(detname, std_outfile, chk_version=True):
             std_trace = std_trace.flatten()
         elif 'Echelle' in pypeline:
             std_trace = std_trace.T
+        elif 'SlicerIFU' in pypeline:
+            std_trace = None
         else:
             msgs.error('Unrecognized pypeline')
     else:

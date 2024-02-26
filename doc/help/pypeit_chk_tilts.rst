@@ -17,5 +17,5 @@
                      Ginga). If not set, only the fitted, masked and rejected in the
                      fit tilts are shown. (default: False)
       --try_old      Attempt to load old datamodel versions. A crash may ensue..
-                     (default: True)
+                     (default: False)
     
