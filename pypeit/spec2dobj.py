@@ -63,7 +63,7 @@ class Spec2DObj(datamodel.DataContainer):
                                  descr='2D processed inverse variance image (float32)'),
                  'skymodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D sky model image (float32)'),
-                 'nobkg_skymodel': dict(otype=np.ndarray, atype=np.floating,
+                 'bkg_redux_skymodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D sky model image without the background subtraction (float32)'),
                  'objmodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D object model image (float32)'),
@@ -187,7 +187,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.head0 = hdu[0].header
         return self
 
-    def __init__(self, sciimg, ivarraw, skymodel, nobkg_skymodel, objmodel, ivarmodel,
+    def __init__(self, sciimg, ivarraw, skymodel, bkg_redux_skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
@@ -337,7 +337,7 @@ class Spec2DObj(datamodel.DataContainer):
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
             # Get em all
-            for imgname in ['sciimg','ivarraw','skymodel', 'nobkg_skymodel', 'objmodel','ivarmodel','waveimg','bpmmask']:
+            for imgname in ['sciimg','ivarraw','skymodel', 'bkg_redux_skymodel', 'objmodel','ivarmodel','waveimg','bpmmask']:
                 if self[imgname] is not None and spec2DObj[imgname] is not None:
                     self[imgname][inmask] = spec2DObj[imgname][inmask]
 

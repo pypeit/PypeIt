@@ -492,7 +492,7 @@ class FindObjects:
         """
         pass
 
-    def global_skysub(self, skymask=None, nobkg_sciimg=None,
+    def global_skysub(self, skymask=None, bkg_redux_sciimg=None,
                       update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, 
                       show_objs=False, objs_not_masked=False,
@@ -505,11 +505,10 @@ class FindObjects:
         Args:
             skymask (`numpy.ndarray`_, optional):
                 A 2D image indicating sky regions (1=sky)
-            nobkg_sciimg (:obj:`dict`, optional):
-                Dictionary containing the science image and ivar
-                before background subtraction if self.bkg_redux is True,
-                otherwise None. It's used to generate a global sky
-                model without bkg subtraction.
+            bkg_redux_sciimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+                PypeIt image of the science image before background subtraction
+                if self.bkg_redux is True, otherwise None.
+                It's used to generate a global sky  model without bkg subtraction.
             update_crmask (bool, optional):
                 Update the crmask in the science image
             show_fit (bool, optional):
@@ -567,7 +566,7 @@ class FindObjects:
                                           noise_floor=self.sciImg.noise_floor)
             skysub_ivar = utils.inverse(var)
         else:
-            skysub_ivar = self.sciImg.ivar if nobkg_sciimg is None else nobkg_sciimg['ivar']
+            skysub_ivar = self.sciImg.ivar if bkg_redux_sciimg is None else bkg_redux_sciimg.ivar
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -582,7 +581,7 @@ class FindObjects:
                 continue
 
             # Find sky
-            _image = self.sciImg.image if nobkg_sciimg is None else nobkg_sciimg['image']
+            _image = self.sciImg.image if bkg_redux_sciimg is None else bkg_redux_sciimg.image
             global_sky[thismask] = skysub.global_skysub(
                 _image, skysub_ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
@@ -989,7 +988,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         """
         super().initialize_slits(slits, initial=True)
 
-    def global_skysub(self, skymask=None, nobkg_sciimg=None, update_crmask=True,
+    def global_skysub(self, skymask=None, bkg_redux_sciimg=None, update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
                       reinit_bpm: bool = True):
         """
@@ -1007,7 +1006,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                 upstream and no sources were found in the slit/order
         """
 
-        global_sky_sep = super().global_skysub(skymask=skymask, nobkg_sciimg=nobkg_sciimg, update_crmask=update_crmask,
+        global_sky_sep = super().global_skysub(skymask=skymask, bkg_redux_sciimg=bkg_redux_sciimg, update_crmask=update_crmask,
                                                previous_sky=previous_sky, show_fit=show_fit, show=show,
                                                show_objs=show_objs,
                                                objs_not_masked=objs_not_masked, reinit_bpm=reinit_bpm)
@@ -1037,7 +1036,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                        spat_flexure=self.spat_flexure_shift)
 
         # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
-        if not self.par['reduce']['skysub']['joint_fit'] or nobkg_sciimg is not None:
+        if not self.par['reduce']['skysub']['joint_fit'] or bkg_redux_sciimg is not None:
             return global_sky_sep
 
         # If we reach this point in the code, a joint skysub has been requested.
