@@ -472,6 +472,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 1
 
         # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
         par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
         par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
