@@ -355,9 +355,10 @@ class Extract:
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
+                extract_sky = global_sky if bkg_redux_global_sky is None else bkg_redux_global_sky
                 # Do it
-                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
+                extract.extract_boxcar(self.sciImg.image-global_sky, self.sciImg.ivar, inmask, self.waveimg,
+                                       extract_sky, sobj, fwhmimg=self.fwhmimg, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
