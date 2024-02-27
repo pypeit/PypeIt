@@ -1013,7 +1013,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             msgs.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img_init = slits.slit_img(pad=0, flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
             slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
@@ -1039,7 +1039,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             bpmmask = spec2DObj.bpmmask
 
             # Mask the edges of the spectrum where the sky model is bad
-            sky_is_good = datacube.make_good_skymask(slitid_img_init, spec2DObj.tilts)
+            sky_is_good = datacube.make_good_skymask(slitid_img, spec2DObj.tilts)
 
             # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
@@ -1072,7 +1072,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.mnmx_wv is None:
                 self.mnmx_wv = np.zeros((len(self.spec2d), slits.nslits, 2))
             for slit_idx, slit_spat in enumerate(slits.spat_id):
-                onslit_init = (slitid_img_init == slit_spat)
+                onslit_init = (slitid_img == slit_spat)
                 self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
                 self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
@@ -1095,7 +1095,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Construct a good pixel mask
             # TODO: This should use the mask function to figure out which elements are masked.
-            onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
+            onslit_gpm = (slitid_img > 0) & (bpmmask.mask == 0) & sky_is_good
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
@@ -1196,7 +1196,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             wghts = self.weights[ff] * np.ones(sciImg.shape)
 
             # Get the slit image and then unset pixels in the slit image that are bad
-            slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
+            slitid_img_gpm = slitid_img * onslit_gpm.astype(int)
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
