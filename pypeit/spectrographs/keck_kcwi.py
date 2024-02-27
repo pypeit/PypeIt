@@ -291,7 +291,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
         par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
 
         # KCWI has non-uniform spectral resolution across the field-of-view
