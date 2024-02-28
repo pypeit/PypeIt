@@ -313,13 +313,13 @@ class PypeItDataPaths:
     """
 
     defined_paths = {
-                     # Attribute name
+                     # Class attribute name
                      'tests':               
                         # Subdirectory in pypeit/data
                         {'path': 'tests',
                         # String name for the remote host; None means the data
                         # should be in *all* installations.
-                         'host': None
+                         'host': 'github'
                         },
                      # Telluric
                      'telgrid': {'path': 'telluric/atm_grids', 'host': 's3_cloud'},
