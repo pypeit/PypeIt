@@ -12,6 +12,7 @@ import time
 from pypeit.scripts import setup
 from pypeit import pypeitsetup
 from pypeit.inputfiles import PypeItFile
+from pypeit.cache import git_most_recent_tag
 
 from IPython import embed
 
@@ -258,14 +259,15 @@ def make_meta_examples():
 
 if __name__ == '__main__':
     t = time.perf_counter()
+    tag, date = git_most_recent_tag()
     print('Making shane_kast_blue_A.pypeit.rst')
-    make_example_kast_pypeit_file('1.12.2', '2023-04-05T22:42:29.971')
+    make_example_kast_pypeit_file(tag, date)
     print('Making keck_deimos_A.pypeit.rst')
-    make_example_deimos_pypeit_file('1.12.2', '2023-04-05T22:42:29.971')
+    make_example_deimos_pypeit_file(tag, date)
     print('Making gemini_gnirs files')
-    make_example_gnirs_pypeit_files('1.12.2', '2023-04-05T22:42:29.971')
+    make_example_gnirs_pypeit_files(tag, date)
     print('Making keck_nires files')
-    make_example_nires_pypeit_files('1.12.2', '2023-04-05T22:42:29.971')
+    make_example_nires_pypeit_files(tag, date)
     print('Making keck_deimos.sorted.rst')
     make_example_sorted_file()
     print('Make meta examples')

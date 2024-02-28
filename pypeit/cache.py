@@ -29,6 +29,9 @@ from importlib import resources
 import pathlib
 import urllib.error
 from urllib.parse import urljoin
+from datetime import datetime
+
+import packaging
 
 from IPython import embed
 
@@ -63,6 +66,26 @@ def git_branch():
         return 'develop' if '.dev' in __version__ else __version__
     repo = Repository(resources.files('pypeit'))
     return repo.head.target if repo.head_is_detached else repo.head.shorthand
+
+
+def git_most_recent_tag():
+    """
+    Return the version number for the most recent tag
+
+    Returns:
+        :obj:`tuple`: The version number and a ISO format string with the date
+        of the last commit included in the tag.  If ``pygit2`` is not installed,
+        the returned version is the same as ``pypeit.__version__`` and the date
+        is None.
+    """
+    if Repository is None:
+        return __version__, None
+    repo = Repository(resources.files('pypeit'))
+    tags = [packaging.version.parse(ref.split('/')[-1]) \
+                for ref in repo.references if 'refs/tags' in ref]
+    latest_version = str(sorted(tags)[-1])
+    timestamp = repo.resolve_refish(f'refs/tags/{latest_version}')[0].author.time
+    return latest_version, datetime.fromtimestamp(timestamp).isoformat()
 
 
 # AstroPy download/cache infrastructure ======================================#

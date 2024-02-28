@@ -6,6 +6,7 @@ Script to install telluric model grids into the user's pypeit installation.
 """
 
 from pypeit.scripts import scriptbase
+from pypeit.spectrographs import available_spectrographs
 
 class CacheGithubData(scriptbase.ScriptBase):
 
@@ -28,7 +29,6 @@ class CacheGithubData(scriptbase.ScriptBase):
         from pypeit import msgs
         from pypeit import dataPaths
         from pypeit import cache
-        from pypeit.spectrographs import available_spectrographs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit import __version__
 
