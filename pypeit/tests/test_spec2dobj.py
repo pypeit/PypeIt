@@ -81,7 +81,7 @@ def test_spec2dobj_io(init_dict):
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Write
-    ofile = tstutils.data_path('tst_spec2d.fits')
+    ofile = tstutils.data_output_path('tst_spec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     spec2DObj.to_file(ofile)
@@ -134,11 +134,12 @@ def test_all2dobj_hdr(init_dict):
     allspec2D['meta']['find_negative'] = False
     allspec2D[spec2DObj.detname] = spec2DObj
     #
-    kast_file = tstutils.data_path('b1.fits.gz')
+    kast_file = tstutils.data_input_path('b1.fits.gz')
     header = fits.getheader(kast_file)
     spectrograph = load_spectrograph('shane_kast_blue')
     # Do it
-    hdr = allspec2D.build_primary_hdr(header, spectrograph, calib_dir=tstutils.data_path(''))
+    hdr = allspec2D.build_primary_hdr(header, spectrograph,
+                                      calib_dir=tstutils.data_output_path(''))
     # Test it
     assert hdr['SKYSUB'] == 'MODEL'
 
@@ -153,7 +154,7 @@ def test_all2dobj_write(init_dict):
     detname = spec2DObj.detname
     allspec2D[detname] = spec2DObj
     # Write
-    ofile = tstutils.data_path('tst_allspec2d.fits')
+    ofile = tstutils.data_output_path('tst_allspec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     allspec2D.write_to_fits(ofile)
@@ -184,7 +185,7 @@ def test_all2dobj_update_image(init_dict):
         allspec2D[d.name] = spec2dobj.Spec2DObj(detector=d, **init_dict)
 
     # Write
-    ofile = tstutils.data_path('tst_allspec2d.fits')
+    ofile = tstutils.data_output_path('tst_allspec2d.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     allspec2D.write_to_fits(ofile)

@@ -11,7 +11,6 @@ from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import data_path
 
 
 def test_eval_tuple():

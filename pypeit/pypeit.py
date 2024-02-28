@@ -237,7 +237,7 @@ class PypeIt:
         # isolate where the name of the standard-star spec1d file is defined.
         std_outfile = self.par['reduce']['findobj']['std_spec1d']
         if std_outfile is not None:
-            if not Path(std_outfile).resolve().exists():
+            if not Path(std_outfile).absolute().exists():
                 msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
             return std_outfile
 
@@ -877,7 +877,7 @@ class PypeIt:
             regfile = buildimage.SkyRegions.construct_file_name(calib_key,
                                                                 calib_dir=self.calibrations_path,
                                                                 basename=io.remove_suffix(scifile))
-            regfile = Path(regfile).resolve()
+            regfile = Path(regfile).absolute()
             if not regfile.exists():
                 msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
                            'frame using pypeit_skysub_regions, or change the user_regions to '

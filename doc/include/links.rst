@@ -13,6 +13,7 @@
 .. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
 .. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 .. _Path: https://docs.python.org/3/library/pathlib.html
+.. _Path.glob: https://docs.python.org/3.9/library/pathlib.html#pathlib.Path.glob
 .. _io.TextIOWrapper: https://docs.python.org/3/library/io.html#io.TextIOWrapper
 
 .. numpy
@@ -95,6 +96,8 @@
 .. _astropy.stats.sigma_clipped_stats: https://docs.astropy.org/en/stable/api/astropy.stats.sigma_clipped_stats.html
 .. _astropy.units.Unit: https://docs.astropy.org/en/stable/api/astropy.units.Unit.html
 .. _astropy.units.Quantity: https://docs.astropy.org/en/stable/api/astropy.units.Quantity.html
+.. _astropy.utils.data: https://docs.astropy.org/en/stable/utils/data.html
+.. _astropy.utils.data.download_file: https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html
 
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html

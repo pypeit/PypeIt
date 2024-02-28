@@ -176,7 +176,7 @@ class Spec2DObj(datamodel.DataContainer):
             self.calibs['DIR'] = hdr['CLBS_DIR']
             for key in hdr.keys():
                 if key.startswith('CLBS_') \
-                        and (Path(self.calibs['DIR']).resolve() / hdr[key]).exists():
+                        and (Path(self.calibs['DIR']).absolute() / hdr[key]).exists():
                     self.calibs['_'.join(key.split('_')[1:])] = hdr[key]
 
         if 'PROCSTEP' in hdr:
@@ -630,7 +630,7 @@ class AllSpec2DObj:
                 combination of this and ``update_det`` may also alter this
                 object based on the existing file.
         """
-        _outfile = Path(outfile).resolve()
+        _outfile = Path(outfile).absolute()
         if _outfile.exists():
             # Clobber?
             if not overwrite:

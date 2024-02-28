@@ -3,7 +3,7 @@ Odds and ends in support of tests
 """
 import glob
 import os
-import pathlib
+#import pathlib
 import pytest
 
 from IPython import embed
@@ -12,33 +12,12 @@ import numpy as np
 from astropy import time
 from astropy.table import Table
 import astropy.io.fits as fits
-from pypeit import data
 
-from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit import dataPaths
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile 
 
-# ----------------------------------------------------------------------
-# pytest @decorators setting the tests to perform
-
-# Tests require the PypeIt dev-suite
-#dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
-#                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
-#                                        reason='test requires dev suite')
-
-# Tests require the Cooked data
-cooked_required = pytest.mark.skipif(
-    os.getenv('PYPEIT_DEV') is None
-    or not (pathlib.Path(os.getenv('PYPEIT_DEV')) / 'Cooked').is_dir(),
-    reason='no dev-suite cooked directory'
-)
-
-# Tests require the Telluric file (Mauna Kea)
-par = Spectrograph.default_pypeit_par()
-tell_test_grid = data.get_telgrid_filepath('TellPCA_3000_26000_R25000.fits')
-telluric_required = pytest.mark.skipif(not tell_test_grid.is_file(),
-                                       reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
 try:
@@ -51,12 +30,19 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 # ----------------------------------------------------------------------
 
 
-def data_path(filename):
-    data_dir = pathlib.Path(__file__).parent.absolute().joinpath('files')
-    # TODO: This really should have the `.resolve()`, but it crashes the
-    #       Windows/python3.9 CI test (only that one).  When PypeIt advances
-    #       to python>=3.10, reinstate the last part of the following line:
-    return str(data_dir.joinpath(filename))#.resolve())
+# NOTE: Now that the test data files are kept remotely, we have to distinguish
+# between paths to files that are *written* (data_output_path) as part of the
+# tests and those that are *read* (data_input_path) as part of the tests.  I.e.,
+# files to be written should not exist on GitHub, so we should not attempt to
+# download them.
+def data_input_path(filename, to_pkg=None):
+    return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
+
+
+def data_output_path(filename):
+    if len(filename) == 0:
+        return str(dataPaths.tests.path)
+    return str(dataPaths.tests.path / filename)
 
 
 def get_kastb_detector():
@@ -68,6 +54,13 @@ def get_kastb_detector():
 
     """
     return load_spectrograph('shane_kast_blue').get_detector_par(1)
+
+
+def install_shane_kast_blue_raw_data():
+    # Download and move all the b*fits.gz files into the local package
+    # installation
+    files = [dataPaths.tests.get_file_path(f'b{i}.fits.gz', to_pkg='symlink') 
+                for i in [1, 11, 12, 13, 21, 22, 23, 24, 27]]
 
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
@@ -158,10 +151,18 @@ def make_shane_kast_blue_pypeitfile():
     # Bits needed to generate a PypeIt file
     confdict = {'rdx': {'spectrograph': 'shane_kast_blue'}}
 
+    raw_files = [
+        'b21.fits.gz',
+        'b22.fits.gz',
+        'b23.fits.gz',
+        'b24.fits.gz',
+        'b27.fits.gz'
+    ]
+
     data = Table()
-    data['filename'] = [os.path.basename(item) for item in glob.glob(data_path('b2*fits.gz'))]
+    data['filename'] = [os.path.basename(data_input_path(f, to_pkg='symlink')) for f in raw_files]
     data['frametype'] = ['science']*len(data)
-    file_paths = [data_path('')]
+    file_paths = [data_output_path('')]
     setup_dict = {'Setup A': ' '}
 
     # Return
