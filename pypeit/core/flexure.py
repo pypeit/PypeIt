@@ -214,8 +214,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     # clip too large values (>90%) only in obj_skyspec (assuming arx_skyspec is being vetted before)
     # this is used ony for the cross-correlation
     obj_skyspec_flux = obj_skyspec.flux.value
-    _lower = np.percentile(obj_skyspec_flux[obj_skyspec_flux < 0.0], 90) if np.any(obj_skyspec_flux < 0.0) else 0.0
-    _upper = np.percentile(obj_skyspec_flux[obj_skyspec_flux >= 0.0], 90) if np.any(obj_skyspec_flux >= 0.0) else 0.0
+    _lower, _upper = get_percentile_clipping(obj_skyspec_flux, percent=90.0)
     obj_skyspec_flux = np.clip(obj_skyspec_flux, _lower, _upper)
 
     # Normalize spectra to unit average sky count
@@ -240,15 +239,13 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     # obj_skyspec
     _, obj_ampl, _, _, _, _, obj_sky_flux, _ = arc.detect_lines(obj_skyspec_flux, sigdetect=5.0)
     if obj_ampl.size > 0:
-        obj_lower = np.percentile(obj_ampl[obj_ampl < 0.0], percent_ceil) if np.any(obj_ampl < 0.0) else 0.0
-        obj_upper = np.percentile(obj_ampl[obj_ampl >= 0.0], percent_ceil) if np.any(obj_ampl >= 0.0) else 0.0
+        obj_lower, obj_upper = get_percentile_clipping(obj_ampl, percent=percent_ceil)
         obj_sky_flux = np.clip(obj_sky_flux, obj_lower, obj_upper)
 
     # arx_skyspec
     _, arx_ampl, _, _, _, _, arx_sky_flux, _ = arc.detect_lines(arx_skyspec.flux.value, sigdetect=5.0)
     if arx_ampl.size > 0:
-        arx_lower = np.percentile(arx_ampl[arx_ampl < 0.0], percent_ceil) if np.any(arx_ampl < 0.0) else 0.0
-        arx_upper = np.percentile(arx_ampl[arx_ampl >= 0.0], percent_ceil) if np.any(arx_ampl >= 0.0) else 0.0
+        arx_lower, arx_upper = get_percentile_clipping(arx_ampl, percent=percent_ceil)
         arx_sky_flux = np.clip(arx_sky_flux, arx_lower, arx_upper)
     #
     # # Consider sharpness filtering (e.g. LowRedux)
@@ -317,6 +314,25 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, 
     return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
                 corr=corr[subpix_grid.astype(int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
                 corr_cen=lag0, smooth=smooth_fwhm_pix, method=method)
+
+
+def get_percentile_clipping(arr, percent=90.0):
+    """
+    Get the values for clipping based on a percentile
+
+    Args:
+        arr (`numpy.ndarray`_):
+            Array to clip.
+        percent (:obj:`float`):
+            Percentile to clip at. Default is 90.0
+
+    Returns:
+        :obj:`float`: Lower value for clipping
+        :obj:`float`: Upper value for clipping
+    """
+    lower = np.percentile(arr[arr < 0.0], percent) if np.any(arr < 0.0) else 0.0
+    upper = np.percentile(arr[arr >= 0.0], percent) if np.any(arr >= 0.0) else 0.0
+    return lower, upper
 
 
 def get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=None):
