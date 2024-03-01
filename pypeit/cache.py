@@ -28,9 +28,11 @@ from functools import reduce
 from importlib import resources
 import pathlib
 import urllib.error
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from IPython import embed
+
+import numpy as np
 
 import astropy.utils.data
 import github
@@ -44,6 +46,7 @@ except ImportError:
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit into this module!  Objects created or available in pypeit/__init__.py
 # are the exceptions, for now.
+from pypeit.pypmsgs import PypeItPathError
 from pypeit import msgs
 from pypeit import __version__
 
@@ -63,6 +66,54 @@ def git_branch():
         return 'develop' if '.dev' in __version__ else __version__
     repo = Repository(resources.files('pypeit'))
     return repo.head.target if repo.head_is_detached else repo.head.shorthand
+
+
+def github_contents(repo, branch, path, recursive=True):
+    """
+    (Recursively) Acquire a listing of the contents of a repository directory.
+
+    Args:
+        repo (`github.Repository`_):
+            Repository to search
+        branch (:obj:`str`):
+            Name of the branch or commit hash
+        path (:obj:`str`):
+            Path relative to the top-level directory of the repository to
+            search.
+        recursive (:obj:`bool`, optional):
+            Flag to search the directory recursively.  If False, subdirectory
+            names are included in the list of returned objects.  If True,
+            subdirectories are removed from the listing and replaced by their
+            contents; in this case the list of all objects should only include
+            repository files.
+
+    Returns:
+        :obj:`list`: A list of `github.ContentFile`_ objects with the repo
+        contents.
+    """
+    try:
+        # Collect the contents
+        contents = repo.get_contents(path, branch)
+    except github.GithubException as e:
+        raise PypeItPathError(f'{path} not found in the {branch} of the GitHub tree.') from e
+
+    # If not searching recursively, we're done
+    if not recursive:
+        return contents
+
+    # Check if any of the contents are directories 
+    is_dir = [c.type == 'dir' for c in contents]
+    # If not, we're done
+    if not any(is_dir):
+        return contents
+
+    # For each directory, append the directory contents recursively
+    is_dir = np.where(is_dir)[0]
+    for indx in is_dir:
+        contents.extend(github_contents(repo, branch, contents[indx].path))
+
+    # Remove the directories from the list
+    return [c for i,c in enumerate(contents) if i not in is_dir] 
 
 
 # AstroPy download/cache infrastructure ======================================#
@@ -191,7 +242,7 @@ def search_cache(pattern: str, path_only=True):
         pattern (:obj:`str`):
             The pattern to match within the file name of the source url.  This
             can be None, meaning that the full contents of the cache is
-            returned.  However, note that setting ``pattern_str`` to None and
+            returned.  However, note that setting ``pattern`` to None and
             ``path_only=True`` may not be very useful given the abstraction of
             the file names.
         path_only (:obj:`bool`, optional):
@@ -210,11 +261,6 @@ def search_cache(pattern: str, path_only=True):
     contents = {k:pathlib.Path(v) for k, v in contents.items() if pattern is None or pattern in k}
     return list(contents.values()) if path_only else contents
     
-    
-
-    # Return just the local filenames' Paths for items matching the `pattern_str`
-    return [pathlib.Path(cache_dict[url]) for url in cache_dict if pattern_str in url]
-
 
 def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_host: str="github"):
     """
@@ -239,7 +285,7 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
     # Build the `url_key` as if this file were in the remote location
     url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
 
-    # Use `import file_to_cache()` to place the `filename` into the cache
+    # Use `import_file_to_cache()` to place the `filename` into the cache
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
@@ -275,6 +321,50 @@ def delete_file_in_cache(cachename: str, filetype: str, remote_host: str="github
 
     # Use `import file_to_cache()` to place the `filename` into the cache
     astropy.utils.data.clear_download_cache(hashorurl=url_key, pkgname='pypeit')
+
+
+def parse_cache_url(url):
+    """
+    Parse a URL from the cache into its relevant components.
+
+    Args:
+        url (:obj:`str`):
+            URL of a file in the pypeit cache. A valid cache URL must include
+            either ``'github'`` or ``'s3.cloud'`` in its address.
+
+    Returns:
+        :obj:`tuple`: A tuple of four strings parsed from the URL.  If the URL
+        is not considered a valid cache URL, all elements of the tuple are None.
+        The parsed elements of the url are: (1) the host name, which will be
+        either ``'github'`` or ``'s3_cloud'``, (2) the branch name, which will
+        be None when the host is ``'s3_cloud'``, (3) the subdirectory of
+        ``pypeit/data/`` in which to find the file (e.g.,
+        ``arc_lines/reid_arxiv`` or ``sensfuncs``), and (4) the file name.
+    """
+    url_parts = urlparse(url)
+
+    # Get the host
+    if 'github' in url_parts.netloc:
+        host = 'github'
+    # NOTE: I'm assuming "s3.cloud" will always be in the url ...
+    elif 's3.cloud' in url_parts.netloc:
+        host = 's3_cloud'
+    else:
+        msgs.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
+        return None, None, None, None
+
+    if host == 'github':
+        # Get the branch name
+        github_root = pathlib.PurePosixPath('/pypeit/PypeIt')
+        p = pathlib.PurePosixPath(url_parts.path).relative_to(github_root)
+        branch = p.parts[0]
+        f_type = str(p.parent.relative_to(pathlib.PurePosixPath(f'{branch}/pypeit/data')))
+        return host, branch, f_type, p.name
+    
+    # If we make it here, the host *must* be s3_cloud
+    s3_root = pathlib.PurePosixPath('/pypeit')
+    p = pathlib.PurePosixPath(url_parts.path).relative_to(s3_root)
+    return host, None, str(p.parent), p.name
 
 
 def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):

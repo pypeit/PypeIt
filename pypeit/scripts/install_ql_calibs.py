@@ -5,6 +5,9 @@ Script to install quick-look calibration files into the user's pypeit installati
 .. include:: ../include/links.rst
 """
 
+# TODO: Do people actually use this script?  The directory on the Google drive
+# isn't actually called QL_CALIB, like we say in the documentation...
+
 from pypeit.scripts import scriptbase
 
 

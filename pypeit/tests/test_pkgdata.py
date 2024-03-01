@@ -10,6 +10,8 @@ from IPython import embed
 
 import pytest
 
+import github
+
 from linetools.spectra import xspectrum1d
 
 from pypeit.pypmsgs import PypeItPathError
@@ -46,6 +48,24 @@ def test_fetch_github_files():
     # Finally, test a `sensfunc` file
     cache.fetch_remote_file("keck_deimos_600ZD_sensfunc.fits", "sensfuncs",
                             force_update=True)
+    
+
+def test_github_contents():
+    # Access the repo
+    repo = github.Github().get_repo("pypeit/PypeIt")
+
+    # Get the relevant github branch
+    branch = cache.git_branch()
+
+    # Recursively get the contents of the test data directory
+    contents = cache.github_contents(repo, branch, 'pypeit/data/tests')
+    assert all([c.type != 'dir' for c in contents]), 'Recursion should not return any directories'
+
+    # Get the contents without recursion.  This assumes the 'tests' directory
+    # has sub-directories
+    contents = cache.github_contents(repo, branch, 'pypeit/data/tests', recursive=False)
+    assert any([c.type == 'dir' for c in contents]), \
+            'tests/ directory expected to have subdirectories'
 
 
 def test_filepath_routines():
@@ -97,7 +117,7 @@ def test_search_cache():
     assert cache.search_cache('totally_special') == [], 'Should not be able to find the file'
 
 
-test_search_cache()
+#test_search_cache()
 
 
 def test_waveio_load_reid_arxiv():
@@ -174,6 +194,9 @@ def test_cache_to_pkg():
     # Use the cache system to access it
     _test_file = dataPaths.tests.get_file_path(test_file_name)
 
+    embed()
+    exit()
+
     # Check that the file is in the cache
     assert len(cache.search_cache(test_file_name)) == 1, 'File not found in cache'
 
@@ -200,5 +223,7 @@ def test_cache_to_pkg():
     # ... and should no longer exist in the cache
     assert len(cache.search_cache(test_file_name)) == 0, \
             'File should have been removed from the cache'
+    
+test_cache_to_pkg()
 
 

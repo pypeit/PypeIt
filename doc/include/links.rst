@@ -118,6 +118,10 @@
 .. _Google-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
 .. _Numpy-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
 
+.. git/github
+.. _github.Repository: https://pygithub.readthedocs.io/en/latest/examples/Repository.html
+.. _github.ContentFile: https://pygithub.readthedocs.io/en/latest/github_objects/ContentFile.html
+
 .. misc packages
 .. _bumpversion: https://pypi.org/project/bumpversion/
 .. _rclone: https://rclone.org/
