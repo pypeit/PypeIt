@@ -289,38 +289,47 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
-def delete_file_in_cache(cachename: str, filetype: str, remote_host: str="github"):
+def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
     """
     Remove a previously downloaded file from the pypeit-specific
     `astropy.utils.data`_ cache.
 
-    Args:
-        cachename (str):
-            The name of the cached version of the file
-        filetype (str):
-            The subdirectory of ``pypeit/data/`` in which to find the file
-            (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
-        remote_host (:obj:`str`, optional):
-            The remote host scheme.  Currently only 'github' and 's3_cloud' are
-            supported.  Defaults to 'github'.
-    """
-    # First search for the cachename
-    result = search_cache(cachename)
-    if len(result) == 0:
-        # Warn the user that the search pattern failed
-        msgs.warn(f'Cache does not include {cachename}.  Ignoring deletion request.')
-    if len(result) > 1:
-        embed()
-        exit()
-        # More than one match!
-        msgs.error(f'More than one item in the cache match the search pattern {cachename}.  Must '
-                   'be more specific.')
-        
-    # Build the `url_key` as if this file were in the remote location
-    url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
+    To specify the file, the full URL can be provided or a name used in a cache
+    search.
 
-    # Use `import file_to_cache()` to place the `filename` into the cache
-    astropy.utils.data.clear_download_cache(hashorurl=url_key, pkgname='pypeit')
+    Args:
+        cache_url (:obj:`list`, :obj:`str`, optional):
+            One or more URLs in the cache to be deleted (if they exist in the
+            cache).  If ``allow_multiple`` is False, this must be a single
+            string.
+        pattern (:obj:`str`, optional):
+            A pattern to use when searching the cache for the relevant file(s).
+            If ``allow_mulitple`` is False, this must return a single file,
+            otherwise the function will issue a warning and nothing will be
+            deleted.
+        allow_multiple (:obj:`bool`, optional):
+            If the search pattern yields multiple results, remove them all.
+    """
+    if cache_url is None:
+        _url = search_cache(pattern, path_only=False)
+        if len(_url) == 0:
+            msgs.warn(f'Cache does not include a file matching the pattern {pattern}.')
+            return
+        _url = list(_url.keys())
+    elif not isinstance(cache_url, list):
+        _url = [cache_url]
+    else:
+        _url = cache_url
+
+    if len(_url) > 1 and not allow_multiple:
+        msgs.warn('Function found or was provided with multiple entries to be removed.  Either '
+                  'set allow_multiple=True, or try again with a single url or more specific '
+                  'pattern.  URLs passed/found are:\n' + '\n'.join(_url))
+        return
+
+    # Use `clear_download_cache` to remove the file
+    for u in _url:
+        astropy.utils.data.clear_download_cache(hashorurl=u, pkgname='pypeit')
 
 
 def parse_cache_url(url):

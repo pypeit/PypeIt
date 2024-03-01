@@ -96,6 +96,7 @@ class PypeItDataPath:
             msgs.error(f'Remote host not recognized: {self.host}')
         self.host = remote_host
         self.data = self.check_isdir(cache.__PYPEIT_DATA__)
+        self.subdirs = subdirs
         self.path = self.check_isdir(self.data / subdirs)
 
     def glob(self, pattern):
@@ -305,7 +306,7 @@ class PypeItDataPath:
             # Move the file
             shutil.move(_cached_file, _data_file)
             # ... and delete it from the cache
-            cache.delete_file_in_cache(data_file, subdir)
+            cache.remove_from_cache(pattern=data_file)
         # Return the symlinked or moved file
         return self._get_file_path_return(_data_file, return_format)
     

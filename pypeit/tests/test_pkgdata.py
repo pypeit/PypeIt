@@ -97,9 +97,11 @@ def test_search_cache():
     # Make sure a junk search returns an empty list (and not None or something else)
     assert cache.search_cache('junkymcjunkface.txt') == [], 'should not find junk file'
 
-    # Make sure the test file doesn't exist in the cache already
-    if len(cache.search_cache('totally_special')) > 0:
-        cache.delete_file_in_cache('totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
+    contents = cache.search_cache('totally_special_argon_lines.dat', path_only=False)
+    if len(contents) > 0:
+        # Remove all of the previous instances of this file.  It's possible to
+        # have multiple files in the cache from different branches.
+        cache.remove_from_cache(cache_url=list(contents.keys()), allow_multiple=True)
 
     # Place a file in the cache, and retrieve it
     cache.write_file_to_cache(
@@ -109,15 +111,16 @@ def test_search_cache():
     )
 
     # Check it can be found
-    cached_file = cache.search_cache('totally_special')[0]
+    contents = cache.search_cache('totally_special_argon_lines.dat', path_only=False)
+    assert len(contents) == 1, 'Problem adding file to cache!'
+    cache_url = list(contents.keys())[0]
+    cached_file = list(contents.values())[0]
     assert cached_file.is_file(), 'File not added to cache'
 
     # Delete it
-    cache.delete_file_in_cache('totally_special_argon_lines.dat', 'arc_lines/reid_arxiv')
-    assert cache.search_cache('totally_special') == [], 'Should not be able to find the file'
-
-
-#test_search_cache()
+    cache.remove_from_cache(cache_url=cache_url)
+    assert cache.search_cache('totally_special_argon_lines.dat') == [], \
+            'Should not be able to find the file'
 
 
 def test_waveio_load_reid_arxiv():
@@ -182,9 +185,9 @@ def test_cache_to_pkg():
     test_file = dataPaths.tests.path / test_file_name
 
     # Make sure the file is not currently in the cache
-    if len(cache.search_cache(test_file_name)) > 0:
-        subdir = str(dataPaths.tests.path.relative_to(dataPaths.tests.data))
-        cache.delete_file_in_cache(test_file_name, subdir)
+    contents = cache.search_cache(test_file_name, path_only=False)
+    if len(contents) > 0:
+        cache.remove_from_cache(cache_url=list(contents.keys()), allow_multiple=True)
 
     assert test_file.is_file(), 'File should exist on disk at the start of the test'
 
@@ -194,8 +197,16 @@ def test_cache_to_pkg():
     # Use the cache system to access it
     _test_file = dataPaths.tests.get_file_path(test_file_name)
 
-    embed()
-    exit()
+    # Search the cache for the file
+    contents = cache.search_cache(test_file_name, path_only=False)
+    assert len(contents) == 1, 'Should find 1 relevant file in the cache'
+
+    # Parse the url
+    host, branch, subdir, filename = cache.parse_cache_url(list(contents.keys())[0])
+    assert host == 'github', 'Host is wrong'
+    assert branch == cache.git_branch(), 'Branch is wrong'
+    assert subdir == dataPaths.tests.subdirs, 'Subdirectory is wrong'
+    assert filename == test_file_name, 'File name is wrong'
 
     # Check that the file is in the cache
     assert len(cache.search_cache(test_file_name)) == 1, 'File not found in cache'
@@ -224,6 +235,5 @@ def test_cache_to_pkg():
     assert len(cache.search_cache(test_file_name)) == 0, \
             'File should have been removed from the cache'
     
-test_cache_to_pkg()
 
 
