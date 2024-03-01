@@ -855,9 +855,8 @@ class CoAdd2D:
                                                   waveimg=pseudo_dict['waveimg'], bkg_redux=self.bkg_redux,
                                                   basename=basename, show=show)
 
-        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
+        skymodel_pseudo, _, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
-
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -870,8 +869,6 @@ class CoAdd2D:
         return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
-
-
 
     def snr_report(self, snr_bar, slitid=None):
         """
