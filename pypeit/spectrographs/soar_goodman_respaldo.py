@@ -42,10 +42,8 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=1, card='EXPTIME')
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
-        self.meta['dateobs'] = dict(ext=1, card='DATE-OBS') #Added
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
-        self.meta['mode'] = dict(ext=1, card='WAVMODE') #Added
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
@@ -95,7 +93,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'mode','decker', 'binning', 'dispangle'] #Added mode
+        return ['dispname', 'decker', 'binning', 'dispangle']
 
     def raw_header_cards(self):
         """
@@ -115,7 +113,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['GRATING', 'WAVMODE','SLIT', 'CCDSUM', 'GRT_ANG']
+        return ['GRATING', 'SLIT', 'CCDSUM', 'GRT_ANG']
 
 #    def pypeit_file_keys(self):
 #        """

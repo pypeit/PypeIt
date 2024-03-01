@@ -28,13 +28,13 @@ from pypeit.images import detector_container
 from pypeit import data
 
 
-class KeckLRISSpectrograph(spectrograph.Spectrograph):
+class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/LRIS specific code
+    Child to handle Goodman specific code for each camera
     """
     ndet = 2
-    telescope = telescopes.KeckTelescopePar()
-    url = 'https://www2.keck.hawaii.edu/inst/lris/'
+    telescope = telescopes.SOARTelescopePar()
+    url = 'https://noirlab.edu/science/programs/ctio/instruments/goodman-high-throughput-spectrograph'
 
     def check_spectrograph(self, filename):
         """
@@ -44,11 +44,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             filename (:obj:`str`): File to use when determining if the input spectrograph is the correct one.
 
         """
-        instrume = self.get_meta_value(filename, 'instrument')
+        instrume = self.get_meta_value(filename, 'INSTRUME')
 
-        if 'ghts_red' in self.name and instrume != 'LRIS':
+        if 'keck_lris_red' in self.name and instrume != 'LRIS':
             msgs.error('This is not the correct spectrograph. You may want to use keck_lris_blue instead.')
-        elif 'ghts_blue' in self.name and instrume == 'LRIS':
+        elif 'keck_lris_blue' in self.name and instrume == 'LRIS':
             msgs.error('This is not the correct spectrograph. You may want to use keck_lris_red instead.')
 
     @classmethod

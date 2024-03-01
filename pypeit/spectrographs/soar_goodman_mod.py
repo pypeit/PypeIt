@@ -37,17 +37,20 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=1, card='RA')
         self.meta['dec'] = dict(ext=1, card='DEC')
         self.meta['target'] = dict(ext=1, card='OBJECT')
-        self.meta['decker'] = dict(ext=1, card='SLIT')
+        self.meta['decker'] = dict(ext=1, card='SLIT') 
         self.meta['binning'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=1, card='EXPTIME')
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
+        self.meta['instrument'] = dict(ext=1, card='INSTRUME') #Added
+        self.meta['mode'] = dict(ext=1, card='WAVMODE') #Added
         self.meta['dateobs'] = dict(ext=1, card='DATE-OBS') #Added
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=1, card='GRATING')
-        self.meta['mode'] = dict(ext=1, card='WAVMODE') #Added
+        self.meta['dispname'] = dict(ext=1, card='GRATING') 
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
+        self.meta['filter1'] = dict(ext=1, card='FILTER')
+        self.meta['filter2'] = dict(ext=1, card='FILTER2')
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=1, card='LAMP_HGA')
         self.meta['lampstat02'] = dict(ext=1, card='LAMP_NE')
@@ -95,7 +98,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'mode','decker', 'binning', 'dispangle'] #Added mode
+        return ['dispname', 'decker', 'binning', 'dispangle']
 
     def raw_header_cards(self):
         """
@@ -115,7 +118,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['GRATING', 'WAVMODE','SLIT', 'CCDSUM', 'GRT_ANG']
+        return ['GRATING', 'SLIT', 'CCDSUM', 'GRT_ANG']
 
 #    def pypeit_file_keys(self):
 #        """
