@@ -164,13 +164,11 @@ def fetch_remote_file(
         remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host)
 
     if remote_host == "s3_cloud" and not install_script:
-
         # Display a warning that this may take a while, and the user may wish to
-        # download using the `pypeit_install_telluric` script
-
-        msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
-                  f"independently from your reduction by using the{msgs.newline()}"
-                  "`pypeit_install_telluric` script.")
+        # download use an install script
+        msgs.warn(f'Note: If this file takes a while to download, you may wish to used one of '
+                  'the install scripts (e.g., pypeit_install_telluric) to install the file '
+                  'independent of this processing script.')
 
     # Get the file from cache, if available, or download from the remote server
     try:
