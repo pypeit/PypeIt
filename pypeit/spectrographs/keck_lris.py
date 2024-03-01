@@ -46,9 +46,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         instrume = self.get_meta_value(filename, 'instrument')
 
-        if 'ghts_red' in self.name and instrume != 'LRIS':
+        if 'keck_lris_red' in self.name and instrume != 'LRIS':
             msgs.error('This is not the correct spectrograph. You may want to use keck_lris_blue instead.')
-        elif 'ghts_blue' in self.name and instrume == 'LRIS':
+        elif 'keck_lris_blue' in self.name and instrume == 'LRIS':
             msgs.error('This is not the correct spectrograph. You may want to use keck_lris_red instead.')
 
     @classmethod
