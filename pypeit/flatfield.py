@@ -1102,7 +1102,7 @@ class FlatField:
                 #  image for all slits. Fix this...
 
                 # Update the onslit mask
-                _slitid_img = self.slits.slit_img(pad=1, slitidx=slit_idx, initial=False)
+                _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False)
                 onslit_tweak = _slitid_img == slit_spat
                 # Note, we need to get the full image with the coordinates similar to spat_coo_init, otherwise, the
                 # tweaked locations are biased.
