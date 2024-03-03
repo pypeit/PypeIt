@@ -879,8 +879,11 @@ class FlexurePar(ParSet):
 
         defaults['spectrum'] = 'paranal_sky.fits'
         dtypes['spectrum'] = str
-        descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
-
+        descr['spectrum'] = ('Archive sky spectrum to be used for the flexure correction. '
+                             'See ``pypeit/data/sky_spec/`` for a list of available sky spectra. '
+                             'If ``model`` is used, a model sky spectrum will be generated '
+                             'using :func:`~pypeit.wavemodel.nearIR_modelsky` and the spectral'
+                             'resolution of the spectrum to be flexure corrected.')
         defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str

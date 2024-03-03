@@ -10,6 +10,12 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- When dealing with `bkg_redux` reduction (i.e., A-B), a sky model (called `bkg_redux_skymodel`)
+  is generated using the A frame, while the existing `skymodel` is generated using the A-B frame.
+  This allows to have an actual 1D extracted sky spectrum and to perform the flexure correction for
+  `bkg_redux` reduction.
+- Various improvements in the flexure correction and added the possibility to use a modeled archive
+  sky spectrum generated with `pypeit.wavemodel.nearIR_modelsky()` to perform the flexure correction.
 
 Instrument-specific Updates
 ---------------------------
@@ -27,6 +33,9 @@ Script Changes
 
 Datamodel Changes
 -----------------
+- `Spec2DObj` now has an additional image, called `bkg_redux_skymodel`, which is the "actual" sky model
+  in the case of `bkg_redux` reduction (i.e., dithered observations). This image is not generated if
+  `bkg_redux` is False. In any case, the `skymodel` is always generated.
 
 Under-the-hood Improvements
 ---------------------------
@@ -38,3 +47,4 @@ Bug Fixes
   produced error cubes that were not properly propagating the noise. The error cubes of the NGP
   algorithm were unaffected. The error cubes are now regularly inspected with vet tests to ensure
   the error cubes are reliable.
+

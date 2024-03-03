@@ -23,7 +23,7 @@ from pypeit.core import procimg
 from pypeit.core.moment import moment1d
 
 
-def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
+def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
 
     r"""
@@ -50,8 +50,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     Parameters
     ----------
-    sciimg : `numpy.ndarray`_
-        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    imgminsky : `numpy.ndarray`_
+        Floating-point science image minus skymodel (i.e., imgminsky = sciimg - skyimg)
+        with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
         The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
         (:math:`N_{\rm spat}`) is spatial.
     ivar : `numpy.ndarray`_
@@ -109,7 +110,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         added.
     """
     # Setup
-    imgminsky = sciimg - skyimg
+    # imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
 
@@ -306,7 +307,7 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
         return flux_out, gpm_box, box_npix, ivar_out
 
 
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
+def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
                    count_scale=None, noise_floor=None):
     r"""
     Perform boxcar extraction for a single :class:`~pypeit.specobj.SpecObj`.
@@ -330,8 +331,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
 
     Parameters
     ----------
-    sciimg : `numpy.ndarray`_
-        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    imgminsky : `numpy.ndarray`_
+        Floating-point science image minus skymodel (i.e., imgminsky = sciimg - skyimg)
+        with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
         The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
         (:math:`N_{\rm spat}`) is spatial.
     ivar : `numpy.ndarray`_
@@ -377,7 +379,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
         added.
     """
     # Setup
-    imgminsky = sciimg - skyimg
+    # imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
 

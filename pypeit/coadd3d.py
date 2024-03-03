@@ -496,6 +496,8 @@ class CoAdd3D:
             # Initialise the lists of ra_offsets and dec_offsets
             self.ra_offsets = [0.0]*self.numfiles
             self.dec_offsets = [0.0]*self.numfiles
+        if self.grating_corr is None:
+            self.grating_corr = [None] * self.numfiles
 
         # Check on Spectrograph input
         if spectrograph is None:

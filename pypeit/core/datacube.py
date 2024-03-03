@@ -6,7 +6,6 @@ Module containing routines used by 3D datacubes.
 
 import os
 
-import matplotlib.pyplot as plt
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
@@ -268,7 +267,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
         # Set the user-defined radius
         wid = boxcar_radius / np.sqrt(arcsecSQ)
     # Set the radius of the extraction boxcar for the sky determination
-    msgs.info("Using a boxcar width of {:0.2f} arcsec".format(wid*np.sqrt(arcsecSQ)))
+    msgs.info("Using a boxcar radius of {:0.2f} arcsec".format(wid*np.sqrt(arcsecSQ)))
     widsky = 2 * wid
 
     # Setup the coordinates of the mask
