@@ -6,7 +6,6 @@ Module containing routines used by 3D datacubes.
 
 import os
 
-import matplotlib.pyplot as plt
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
@@ -1043,7 +1042,7 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
                             all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                             ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                             sn_smooth_npix=None, weight_method='auto', reference_image=None, whitelight_range=None,
-                            specname="PYPSPEC"):
+                            correct_dar=True, specname="PYPSPEC"):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength. Note, this function
@@ -1142,6 +1141,8 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
 
     reference_image : `numpy.ndarray`_
         Reference image to use for the determination of the highest S/N spaxel in the image.
+    correct_dar : bool, optional
+        Correct for the differential atmospheric refraction.  Default is False.
     specname : str
         Name of the spectrograph
 
@@ -1169,21 +1170,22 @@ def compute_weights_frompix(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg, 
     # NOTE: hard-coding subpixel=1 in both directions for speed, and combining into a single image
     wl_full = generate_image_subpixel(image_wcs, voxedge, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtsImg,
                                       all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
-                                      spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True)
+                                      spec_subpixel=1, spat_subpixel=1, slice_subpixel=1, combine=True,
+                                      correct_dar=correct_dar)
 
     # Compute the weights
     return compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                            all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                            wl_full, dspat, dwv,
                            ra_min=ra_min, ra_max=ra_max, dec_min=dec_min, dec_max=dec_max, wave_min=wave_min,
-                           sn_smooth_npix=sn_smooth_npix, weight_method=weight_method)
+                           sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, correct_dar=correct_dar)
 
 
 def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                     all_wcs, all_tilts, all_slits, all_align, all_dar, ra_offsets, dec_offsets,
                     whitelight_img, dspat, dwv,
                     ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                    sn_smooth_npix=None, weight_method='auto'):
+                    sn_smooth_npix=None, weight_method='auto', correct_dar=True):
     r"""
     Calculate wavelength dependent optimal weights. The weighting is currently
     based on a relative :math:`(S/N)^2` at each wavelength
@@ -1231,6 +1233,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
         Number of pixels used for determining smoothly varying S/N ratio
         weights.  This is currently not required, since a relative weighting
         scheme with a polynomial fit is used to calculate the S/N weights.
+    correct_dar : bool, optional
+        Apply the DAR correction to the input data.  The default is True.
     weight_method : `str`, optional
         Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
         Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``, ``'relative'``, or
@@ -1320,7 +1324,8 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
                                    _slitidImg[ff], np.ones(_sciImg[ff].shape), _all_wcs[ff],
                                    _all_tilts[ff], _all_slits[ff], _all_align[ff], _all_dar[ff],
                                    _ra_offsets[ff], _dec_offsets[ff],
-                                   spec_subpixel=1, spat_subpixel=1, slice_subpixel=1)
+                                   spec_subpixel=1, spat_subpixel=1, slice_subpixel=1,
+                                   skip_subpix_weights=True, correct_dar=correct_dar)
         # Store the flux and ivar spectra of the highest S/N object.
         # TODO :: This is the flux per spectral pixel, and not per detector pixel.  Is this correct?
         flux_stack[:, ff] = flxcube[:, 0, 0]
@@ -1350,7 +1355,7 @@ def compute_weights(raImg, decImg, waveImg, sciImg, ivarImg, slitidImg,
 
 def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False):
+                            spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, combine=False, correct_dar=True):
     """
     Generate a white light image from the input pixels
 
@@ -1415,6 +1420,10 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         combine (:obj:`bool`, optional):
             If True, all of the input frames will be combined into a single
             output. Otherwise, individual images will be generated.
+        correct_dar (:obj:`bool`, optional):
+            If True, the DAR correction will be applied to the input images
+            before generating the white light images. If False, the DAR
+            correction will not be applied.
 
     Returns:
         `numpy.ndarray`_: The white light images for all frames. If combine=True,
@@ -1430,7 +1439,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         # Subpixellate
         img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
-                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
+                                 skip_subpix_weights=True, correct_dar=correct_dar)
         return img[:, :, 0]
     else:
         # Prepare the array of white light images to be stored
@@ -1444,7 +1454,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
+                                     skip_subpix_weights=True, correct_dar=correct_dar)
             all_wl_imgs[:, :, fr] = img[:, :, 0]
         # Return the constructed white light images
         return all_wl_imgs
@@ -1453,8 +1464,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                            all_wcs, tilts, slits, astrom_trans, all_dar,
                            ra_offset, dec_offset,
-                           spec_subpixel=5, spat_subpixel=5, slice_subpixel=5,
-                           overwrite=False, outfile=None, whitelight_range=None, debug=False):
+                           spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
+                           overwrite=False, outfile=None, whitelight_range=None, correct_dar=True):
     """
     Save a datacube using the subpixel algorithm. Refer to the subpixellate()
     docstring for further details about this algorithm
@@ -1519,6 +1530,14 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             values give more reliable results, but note that the time required
             goes as (``slice_subpixel``). The default value is 5, which divides
             each IFU slice into 5 subslices in the slice direction.
+        skip_subpix_weights (bool, optional):
+            If True, the computationally expensive step to calculate the
+            subpixellation weights will be skipped. If set the True, note that
+            the variance cubes returned will not be accurate. However, if you
+            are not interested in the variance cubes, this can save a lot of
+            time, and this is an example where you might consider setting this
+            variable to True. The flux datacube is unaffected by this variable.
+            The default is False.
         overwrite (bool, optional):
             If True, the output cube will be overwritten.
         outfile (str, optional):
@@ -1531,10 +1550,9 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             either element of the list is None, then the minimum/maximum
             wavelength range of that element will be set by the minimum/maximum
             wavelength of all_wave.
-        debug (bool, optional):
-            If True, a residuals cube will be output. If the datacube generation
-            is correct, the distribution of pixels in the residual cube with no
-            flux should have mean=0 and std=1.
+        correct_dar (bool, optional):
+            If True, the DAR correction will be applied to the datacube. If the
+            DAR correction is not available, the datacube will not be corrected.
 
     Returns:
         :obj:`tuple`: Four `numpy.ndarray`_ objects containing
@@ -1548,28 +1566,15 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         shape of the wavelength array is (nwave,).
     """
     # Check the inputs
-    if whitelight_range is not None or debug:
-        if outfile is None:
-            msgs.error("Must provide an outfile name if either whitelight_range or debug are set")
-
-    # Prepare the header, and add the unit of flux to the header
-    hdr = output_wcs.to_header()
+    if whitelight_range is not None and outfile is None:
+            msgs.error("Must provide an outfile name if whitelight_range is set")
 
     # Subpixellate
-    subpix = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
-                          all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                          spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
-                          debug=debug)
-    # Extract the variables that we need
-    if debug:
-        flxcube, varcube, bpmcube, residcube = subpix
-        # Save a residuals cube
-        outfile_resid = outfile.replace(".fits", "_resid.fits")
-        msgs.info("Saving residuals datacube as: {0:s}".format(outfile_resid))
-        hdu = fits.PrimaryHDU(residcube.T, header=hdr)
-        hdu.writeto(outfile_resid, overwrite=overwrite)
-    else:
-        flxcube, varcube, bpmcube = subpix
+    flxcube, varcube, bpmcube = subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
+                                             all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
+                                             spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel,
+                                             slice_subpixel=slice_subpixel, skip_subpix_weights=skip_subpix_weights,
+                                             correct_dar=correct_dar)
 
     # Get wavelength of each pixel
     nspec = flxcube.shape[2]
@@ -1600,7 +1605,8 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
 
 def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wghtImg,
                  all_wcs, tilts, slits, astrom_trans, all_dar, ra_offset, dec_offset,
-                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, debug=False):
+                 spec_subpixel=5, spat_subpixel=5, slice_subpixel=5, skip_subpix_weights=False,
+                 correct_dar=True):
     r"""
     Subpixellate the input data into a datacube. This algorithm splits each
     detector pixel into multiple subpixels and each IFU slice into multiple subslices.
@@ -1677,10 +1683,17 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             values give more reliable results, but note that the time required
             goes as (``slice_subpixel``). The default value is 5, which divides
             each IFU slice into 5 subslices in the slice direction.
-        debug (bool, optional):
-            If True, a residuals cube will be output. If the datacube generation
-            is correct, the distribution of pixels in the residual cube with no
-            flux should have mean=0 and std=1.
+        skip_subpix_weights (bool, optional):
+            If True, the computationally expensive step to calculate the
+            subpixellation weights will be skipped. If set the True, note that
+            the variance cubes returned will not be accurate. However, if you
+            are not interested in the variance cubes, this can save a lot of
+            time, and this is an example where you might consider setting this
+            variable to True. The flux datacube is unaffected by this variable.
+            The default is False.
+        correct_dar (bool, optional):
+            If True, the DAR correction will be applied to the datacube. The
+            default is True.
 
     Returns:
         :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
@@ -1695,17 +1708,15 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
 
     # Prepare the output arrays
     outshape = (bins[0].size-1, bins[1].size-1, bins[2].size-1)
-    binrng = [[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]]
+    binrng = np.array([[bins[0][0], bins[0][-1]], [bins[1][0], bins[1][-1]], [bins[2][0], bins[2][-1]]])
     flxcube, varcube, normcube = np.zeros(outshape), np.zeros(outshape), np.zeros(outshape)
-    if debug:
-        residcube = np.zeros(outshape)
     # Divide each pixel into subpixels
     spec_offs = np.arange(0.5/spec_subpixel, 1, 1/spec_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
     spat_offs = np.arange(0.5/spat_subpixel, 1, 1/spat_subpixel) - 0.5  # -0.5 is to offset from the centre of each pixel.
     slice_offs = np.arange(0.5/slice_subpixel, 1, 1/slice_subpixel) - 0.5  # -0.5 is to offset from the centre of each slice.
     spat_x, spec_y = np.meshgrid(spat_offs, spec_offs)
-    num_subpixels = spec_subpixel * spat_subpixel  # Number of subpixels per detector pixel
-    area = 1 / (num_subpixels * slice_subpixel)  # Area of each subpixel
+    num_subpixels = spec_subpixel * spat_subpixel  # Number of subpixels (spat & spec) per detector pixel
+    num_all_subpixels = num_subpixels * slice_subpixel  # Number of subpixels, including slice subpixels
     # Loop through all exposures
     for fr in range(numframes):
         onslit_gpm = _gpmImg[fr]
@@ -1718,45 +1729,54 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
         this_slits = _slits[fr]
         this_wcs = _all_wcs[fr]
         this_astrom_trans = _astrom_trans[fr]
-        this_wght_subpix = _wghtImg[fr][this_onslit_gpm] * area
+        this_wght_subpix = _wghtImg[fr][this_onslit_gpm]
         this_sci = _sciImg[fr][this_onslit_gpm]
         this_var = utils.inverse(_ivarImg[fr][this_onslit_gpm])
         this_wav = _waveImg[fr][this_onslit_gpm]
-        # Loop over the subslices
-        for ss in range(slice_subpixel):
-            if slice_subpixel > 1:
-                # Only print this if there are multiple subslices
-                msgs.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
-            # Generate an RA/Dec image for this subslice
-            raimg, decimg, minmax = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts, slice_offset=slice_offs[ss])
-            this_ra = raimg[this_onslit_gpm]
-            this_dec = decimg[this_onslit_gpm]
-            # Loop through all slits
-            for sl, spatid in enumerate(this_slits.spat_id):
-                if numframes == 1:
-                    msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits}")
-                else:
-                    msgs.info(f"Resampling slit {sl+1}/{this_slits.nslits} of frame {fr+1}/{numframes}")
-                this_sl = np.where(this_spatid == spatid)
-                wpix = (this_specpos[this_sl], this_spatpos[this_sl])
-                # Generate a spline between spectral pixel position and wavelength
-                yspl = this_tilts[wpix]*(this_slits.nspec - 1)
-                tiltpos = np.add.outer(yspl, spec_y).flatten()
-                wspl = this_wav[this_sl]
-                asrt = np.argsort(yspl)
-                wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
-                # Calculate the wavelength at each subpixel
-                this_wave_subpix = wave_spl(tiltpos)
-                # Calculate the DAR correction at each sub pixel
-                ra_corr, dec_corr = _all_dar[fr].correction(this_wave_subpix)  # This routine needs the wavelengths to be expressed in Angstroms
-                # Calculate spatial and spectral positions of the subpixels
-                spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
-                spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
-                # Transform this to spatial location
-                spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
-                spatpos = _astrom_trans[fr].transform(sl, wpix[1], wpix[0])
+        # Loop through all slits
+        for sl, spatid in enumerate(this_slits.spat_id):
+            if numframes == 1:
+                msgs.info(f"Resampling slit {sl + 1}/{this_slits.nslits}")
+            else:
+                msgs.info(f"Resampling slit {sl + 1}/{this_slits.nslits} of frame {fr + 1}/{numframes}")
+            # Find the pixels on this slit
+            this_sl = np.where(this_spatid == spatid)
+            wpix = (this_specpos[this_sl], this_spatpos[this_sl])
+            # Create an array to index each subpixel
+            numpix = wpix[0].size
+            # Generate a spline between spectral pixel position and wavelength
+            yspl = this_tilts[wpix] * (this_slits.nspec - 1)
+            tiltpos = np.add.outer(yspl, spec_y).flatten()
+            wspl = this_wav[this_sl]
+            asrt = np.argsort(yspl)
+            wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
+            # Calculate the wavelength at each subpixel
+            this_wave_subpix = wave_spl(tiltpos)
+            # Calculate the DAR correction at each sub pixel
+            ra_corr, dec_corr = 0.0, 0.0
+            if correct_dar:
+                # NOTE :: This routine needs the wavelengths to be expressed in Angstroms
+                ra_corr, dec_corr = _all_dar[fr].correction( this_wave_subpix)
+            # Calculate spatial and spectral positions of the subpixels
+            spat_xx = np.add.outer(wpix[1], spat_x.flatten()).flatten()
+            spec_yy = np.add.outer(wpix[0], spec_y.flatten()).flatten()
+            # Transform this to spatial location
+            spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
+            spatpos = _astrom_trans[fr].transform(sl, wpix[1], wpix[0])
+            ssrt = np.argsort(spatpos)
+            # Initialize the voxel coordinates for each spec2D pixel
+            vox_coord = np.full((numpix, num_all_subpixels, 3), -1, dtype=float)
+            # Loop over the subslices
+            for ss in range(slice_subpixel):
+                if slice_subpixel > 1:
+                    # Only print this if there are multiple subslices
+                    msgs.info(f"Resampling subslice {ss+1}/{slice_subpixel}")
+                # Generate an RA/Dec image for this subslice
+                raimg, decimg, minmax = this_slits.get_radec_image(this_wcs, this_astrom_trans, this_tilts,
+                                                                   slit_compute=sl, slice_offset=slice_offs[ss])
+                this_ra = raimg[this_onslit_gpm]
+                this_dec = decimg[this_onslit_gpm]
                 # Interpolate the RA/Dec over the subpixel spatial positions
-                ssrt = np.argsort(spatpos)
                 tmp_ra = this_ra[this_sl]
                 tmp_dec = this_dec[this_sl]
                 ra_spl = interp1d(spatpos[ssrt], tmp_ra[ssrt], kind='linear', bounds_error=False, fill_value='extrapolate')
@@ -1768,19 +1788,32 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
                 this_ra_int += ra_corr + _ra_offset[fr]
                 this_dec_int += dec_corr + _dec_offset[fr]
                 # Convert world coordinates to voxel coordinates, then histogram
-                vox_coord = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0)
-                # Use the "fast histogram" algorithm, that assumes regular bin spacing
-                flxcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_sci[this_sl] * this_wght_subpix[this_sl], num_subpixels))
-                varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_var[this_sl] * this_wght_subpix[this_sl]**2, num_subpixels))
-                normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_wght_subpix[this_sl], num_subpixels))
-                if debug:
-                    residcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_sci[this_sl] * np.sqrt(utils.inverse(this_var[this_sl])), num_subpixels))
+                sslo = ss * num_subpixels
+                sshi = (ss + 1) * num_subpixels
+                vox_coord[:,sslo:sshi,:] = output_wcs.wcs_world2pix(np.vstack((this_ra_int, this_dec_int, this_wave_subpix * 1.0E-10)).T, 0).reshape(numpix, num_subpixels, 3)
+            # Convert the voxel coordinates to a bin index
+            if num_all_subpixels == 1 or skip_subpix_weights:
+                subpix_wght = 1.0
+            else:
+                msgs.info("Preparing subpixel weights")
+                vox_index = np.floor(outshape * (vox_coord - binrng[:,0].reshape((1, 1, 3))) /
+                                                (binrng[:,1] - binrng[:,0]).reshape((1, 1, 3))).astype(int)
+                # Convert to a unique index
+                vox_index = np.dot(vox_index, np.array([1, outshape[0], outshape[0]*outshape[1]]))
+                # Calculate the number of repeated indices for each subpixel - this is the subpixel weights
+                subpix_wght = np.apply_along_axis(utils.occurrences, 1, vox_index).flatten()
+            # Reshape the voxel coordinates
+            vox_coord = vox_coord.reshape(numpix * num_all_subpixels, 3)
+            # Use the "fast histogram" algorithm, that assumes regular bin spacing
+            flxcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_sci[this_sl] * this_wght_subpix[this_sl], num_all_subpixels) * subpix_wght)
+            varcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_var[this_sl] * this_wght_subpix[this_sl]**2, num_all_subpixels) * subpix_wght**3)
+            normcube += histogramdd(vox_coord, bins=outshape, range=binrng, weights=np.repeat(this_wght_subpix[this_sl], num_all_subpixels) * subpix_wght)
+
     # Normalise the datacube and variance cube
     nc_inverse = utils.inverse(normcube)
     flxcube *= nc_inverse
     varcube *= nc_inverse**2
     bpmcube = (normcube == 0).astype(np.uint8)
-    if debug:
-        residcube *= nc_inverse
-        return flxcube, varcube, bpmcube, residcube
+
+    # Return the datacube, variance cube and bad pixel cube
     return flxcube, varcube, bpmcube

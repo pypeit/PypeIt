@@ -12,6 +12,7 @@ from pypeit import inputfiles
 from pypeit import utils
 from pypeit.scripts import scriptbase
 
+
 class CompileWVarxiv(scriptbase.ScriptBase):
     """
     A class for compiling a set of wxarxiv solutions from Identify into a single fits file.
@@ -22,14 +23,7 @@ class CompileWVarxiv(scriptbase.ScriptBase):
         grating (str): Instrument grating name (e.g., B600, R400, 600_10000).
         append (bool, optional): Append to an existing file for this instrument. Defaults to False.
 
-    Methods:
-        get_parser(width=None):
-            Returns an ArgumentParser object with the required command line arguments.
-        
-        main(args):
-            Main method for compiling the wxarxiv solutions into a single fits file.
-
-    Example usage:
+    Example:
         parser = WvarxivCompile.get_parser()
         args = parser.parse_args()
         WvarxivCompile.main(args)
