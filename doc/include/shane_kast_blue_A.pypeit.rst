@@ -16,7 +16,7 @@
     
     # Data block 
     data read
-     path /Volumes/GoogleDrive/.shortcut-targets-by-id/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+     path /Volumes/seshat/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
        filename |                 frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic | calib
      b1.fits.gz |                  arc,tilt | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55 |     0
     b14.fits.gz |                      bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55 |     0

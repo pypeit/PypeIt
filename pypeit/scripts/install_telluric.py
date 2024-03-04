@@ -15,13 +15,12 @@ class InstallTelluric(scriptbase.ScriptBase):
         parser = super().get_parser(description='Script to download/install PypeIt telluric files',
                                     width=width)
         parser.add_argument('files', type=str, nargs='+',
-                            help='Filename(s) of the TelFits files to be downloaded '
+                            help='Exact paths to TelFits files to be downloaded '
                                  'from the Cloud and installed in the PypeIt cache')
         parser.add_argument('--force_update', action='store_true',
                             help='Force download of latest version of the telluric grid')
         parser.add_argument('--local_file', action='store_true',
-                            help='This is a local file (downloaded or created) to be '
-                                 'installed in the cache')
+                            help='This is a local file to be installed in the cache')
         return parser
 
     @staticmethod

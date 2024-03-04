@@ -11,24 +11,25 @@ class CleanCache(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Script to download/cache PypeIt github data',
+        parser = super().get_parser(description='View/Remove fils in the PypeIt data cache',
                                     width=width)
         parser.add_argument('-p', '--pattern', type=str, nargs='+',
                             help='Remove any files matching the provided pattern.  If combined '
-                                 'with --branch, this selects only files downloaded from the '
-                                 'identified GitHub branch.  If the branch is not specified, '
+                                 'with --version, this selects only files downloaded from the '
+                                 'identified GitHub versoin.  If the version is not specified, '
                                  'any file matching the provided pattern(s) are removed.')
-        parser.add_argument('-b', '--branch', type=str, nargs='+',
+        parser.add_argument('-v', '--version', type=str, nargs='+',
                             help='Remove files associated one or more provided tags, branches, '
                                  'or commit references on GitHub.  These must be an exact match '
-                                 'to the relevant GitHub branch.  If combined with --pattern, '
-                                 'this selects the GitHub branch for the files found.  If no '
-                                 'files are specified, all files associated with the given branch '
-                                 'are removed.  Note this is only relevant for the files on '
-                                 'GitHub, not s3.  For files on s3, do not specify the branch.')
-        parser.add_argument('-r', '--remove_all', default=False, action='store_true',
+                                 'to the relevant GitHub reference.  If combined with --pattern, '
+                                 'this selects the GitHub reference for the files found.  If no '
+                                 'files are specified, all files associated with the given '
+                                 'reference are removed.  Note this is only relevant for the '
+                                 'files on GitHub, not s3.  For files on s3, do not specify the '
+                                 'version.')
+        parser.add_argument('--remove_all', default=False, action='store_true',
                             help='BEWARE: Removes all data from the pypeit cache.  Use of this '
-                                 'option ignores the --pattern and --branch options.')
+                                 'option ignores the --pattern and --version options.')
         parser.add_argument('-l', '--list', default=False, action='store_true',
                             help='Only list the contents of the cache.')
 
@@ -53,7 +54,7 @@ class CleanCache(scriptbase.ScriptBase):
                       f' {subdir:>20} {f:<30}')
             return
 
-        if args.pattern is None and args.branch is None and not args.remove_all:
+        if args.pattern is None and args.version is None and not args.remove_all:
             msgs.error('Arguments provided not sufficient to find files for deletion.')
 
         if args.remove_all:
@@ -76,10 +77,10 @@ class CleanCache(scriptbase.ScriptBase):
         # For now, we only need the urls.
         contents = list(contents.keys())
 
-        # If branches are set, down select to files on github *and* in the selected branches
-        if args.branch is not None:
-            branches = np.array([cache.parse_cache_url(c)[1] for c in contents])
-            contents = np.array(contents)[np.isin(branches, args.branch)].tolist()
+        # If versions are set, down select to files on github *and* in the selected versions
+        if args.version is not None:
+            versions = np.array([cache.parse_cache_url(c)[1] for c in contents])
+            contents = np.array(contents)[np.isin(versions, args.version)].tolist()
 
         if len(contents) == 0:
             msgs.warn('No files to remove.')
