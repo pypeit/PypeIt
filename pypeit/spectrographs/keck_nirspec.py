@@ -30,6 +30,45 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     comment = 'see :ref:`nirspec_high_howto`'
 
 
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = True,
+            spatflip        = False,
+            platescale      = 0.13,
+            darkcurr        = 0.8,
+            saturation      = 1.0e5,
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(3.01),
+            ronoise         = np.atleast_1d(11.56),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None, #np.atleast_1d('[:,:]')
+            )
+        
+
+
+        return detector_container.DetectorContainer(**detector_dict)
+
     @classmethod
     def configuration_keys(self):
         """
@@ -116,45 +155,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     lamps_list = []
     filter1 = ''
     filter2 = ''
-
-    def get_detector_par(self, det, hdu=None):
-        """
-        Return metadata for the selected detector.
-
-        Args:
-            det (:obj:`int`):
-                1-indexed detector number.  This is not used because NIRSPEC
-                only has one detector!
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.  If not
-                provided, frame-dependent parameters are set to a default.
-
-        Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
-            Object with the detector metadata.
-        """
-        detector_dict = dict(
-            det=1,
-            binning         ='1,1',  # No binning allowed
-            dataext         = 0,
-            specaxis        = 0,
-            specflip        = True,
-            spatflip        = False,
-            platescale      = 0.13,
-            darkcurr        = 0.8,
-            saturation      = 1.0e5,
-            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
-            numamplifiers   = 1,
-            mincounts       = -1e10,
-            gain            = np.atleast_1d(3.01),
-            ronoise         = np.atleast_1d(11.56),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = None, #np.atleast_1d('[:,:]')
-            )
-        
-
-
-        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1145,42 +1145,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_low'
     supported = True
     comment = 'Low-dispersion grating'
-
-    def get_detector_par(self, det, hdu=None):
-            """
-            Return metadata for the selected detector.
-
-            Args:
-                det (:obj:`int`):
-                    1-indexed detector number.  This is not used because NIRSPEC
-                    only has one detector!
-                hdu (`astropy.io.fits.HDUList`_, optional):
-                    The open fits file with the raw image of interest.  If not
-                    provided, frame-dependent parameters are set to a default.
-
-            Returns:
-                :class:`~pypeit.images.detector_container.DetectorContainer`:
-                Object with the detector metadata.
-            """
-            detector_dict = dict(
-                det=1,
-                binning         ='1,1',  # No binning allowed
-                dataext         = 0,
-                specaxis        = 0,
-                specflip        = False,
-                spatflip        = False,
-                platescale      = 0.193,
-                darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
-                saturation      = 100000.,
-                nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
-                numamplifiers   = 1,
-                mincounts       = -1e10,
-                gain            = np.atleast_1d(5.8),
-                ronoise         = np.atleast_1d(23.),
-                datasec         = np.atleast_1d('[:,:]'),
-                oscansec        = None, #np.atleast_1d('[:,:]')
-                )
-            return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
