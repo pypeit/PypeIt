@@ -210,10 +210,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         ))
 
         if hdu is not None:
+            amp = self.get_meta_value(self.get_headarr(hdu), 'amp')
+            if amp == 'DUAL:A+B':
+                msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B or AMPMODE == SINGLE:A.')
+            amp_folder = "ampA" if amp == 'SINGLE:A' else "ampB"
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise").glob("*"))
+            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise" / amp_folder).glob("*"))
             # Parse the dates recorded in the name of the files
             measure_dates = np.array([f.name.split('.')[2] for f in measure_files])
             # convert into datetime format
@@ -225,28 +229,43 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # get measurements
             tab_measure = Table.read(measure_files[close_idx], format='ascii')
             measured_det = tab_measure['col3']
+            measured_amptype = tab_measure['col4']
             measured_gain = tab_measure['col5']  # [e-/DN]
             measured_ronoise = tab_measure['col7']   # [e-]
-            msgs.info(f"We are using DEIMOS gain/RN values based on WMKO estimates on {measure_dates[close_idx]}.")
+            msgs.info(f"We are using DEIMOS gain/RN values for AMPMODE = {amp} "
+                      f"based on WMKO estimates on {measure_dates[close_idx]}.")
+            # find values for this amp and each detector
+            this_amp = measured_amptype == 'A' if amp == 'SINGLE:A' else measured_amptype == 'B'
+            det_1 = this_amp & (measured_det == 1)
+            det_2 = this_amp & (measured_det == 2)
+            det_3 = this_amp & (measured_det == 3)
+            det_4 = this_amp & (measured_det == 4)
+            # we don't have measurements for the red detectors when amp = 'SINGLE:A',
+            # therefore we use the values for the blue detectors
+            det_5 = this_amp & (measured_det == 5 if amp == 'SINGLE:B' else measured_det == 1)
+            det_6 = this_amp & (measured_det == 6 if amp == 'SINGLE:B' else measured_det == 2)
+            det_7 = this_amp & (measured_det == 7 if amp == 'SINGLE:B' else measured_det == 3)
+            det_8 = this_amp & (measured_det == 8 if amp == 'SINGLE:B' else measured_det == 4)
+
             # get gain
-            detector_dict1['gain'] = measured_gain[measured_det == 1]
-            detector_dict2['gain'] = measured_gain[measured_det == 2]
-            detector_dict3['gain'] = measured_gain[measured_det == 3]
-            detector_dict4['gain'] = measured_gain[measured_det == 4]
-            detector_dict5['gain'] = measured_gain[measured_det == 5]
-            detector_dict6['gain'] = measured_gain[measured_det == 6]
-            detector_dict7['gain'] = measured_gain[measured_det == 7]
-            detector_dict8['gain'] = measured_gain[measured_det == 8]
+            detector_dict1['gain'] = measured_gain[det_1].data
+            detector_dict2['gain'] = measured_gain[det_2].data
+            detector_dict3['gain'] = measured_gain[det_3].data
+            detector_dict4['gain'] = measured_gain[det_4].data
+            detector_dict5['gain'] = measured_gain[det_5].data
+            detector_dict6['gain'] = measured_gain[det_6].data
+            detector_dict7['gain'] = measured_gain[det_7].data
+            detector_dict8['gain'] = measured_gain[det_8].data
 
             # get ronoise
-            detector_dict1['ronoise'] = measured_ronoise[measured_det == 1]
-            detector_dict2['ronoise'] = measured_ronoise[measured_det == 2]
-            detector_dict3['ronoise'] = measured_ronoise[measured_det == 3]
-            detector_dict4['ronoise'] = measured_ronoise[measured_det == 4]
-            detector_dict5['ronoise'] = measured_ronoise[measured_det == 5]
-            detector_dict6['ronoise'] = measured_ronoise[measured_det == 6]
-            detector_dict7['ronoise'] = measured_ronoise[measured_det == 7]
-            detector_dict8['ronoise'] = measured_ronoise[measured_det == 8]
+            detector_dict1['ronoise'] = measured_ronoise[det_1].data
+            detector_dict2['ronoise'] = measured_ronoise[det_2].data
+            detector_dict3['ronoise'] = measured_ronoise[det_3].data
+            detector_dict4['ronoise'] = measured_ronoise[det_4].data
+            detector_dict5['ronoise'] = measured_ronoise[det_5].data
+            detector_dict6['ronoise'] = measured_ronoise[det_6].data
+            detector_dict7['ronoise'] = measured_ronoise[det_7].data
+            detector_dict8['ronoise'] = measured_ronoise[det_8].data
 
         detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
                      detector_dict5, detector_dict6, detector_dict7, detector_dict8]
@@ -325,9 +344,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
-        # When using LVM mask reduce only detectors 3,7
-        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
-            par['rdx']['detnum'] = [(3,7)]
+        # When using LVM mask or AMPMODE = SINGLE:A reduce only detectors 3,7
+        if ('LVMslit' in self.get_meta_value(headarr, 'decker') or
+                self.get_meta_value(headarr, 'amp') == 'SINGLE:A'):
+            # give an info message if AMPMODE = SINGLE:A
+            if self.get_meta_value(headarr, 'amp') == 'SINGLE:A':
+                msgs.info('Data taken with AMPMODE = SINGLE:A. Only detectors 3,7 will be reduced. To change this,'
+                          ' modify the detnum parameter in the pypeit file.')
+            par['rdx']['detnum'] = [(3, 7)]
 
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
@@ -542,7 +566,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             and their associated discrete set of valid values. If there are
             no restrictions on configuration values, None is returned.
         """
-        return {'amp': ['SINGLE:B'], 'mode':['Spectral']}
+        return {'amp': ['SINGLE:B', 'SINGLE:A'], 'mode':['Spectral']}
 
     def config_independent_frames(self):
         """
@@ -696,9 +720,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         .. warning::
 
             PypeIt currently *cannot* reduce images produced by
-            reading the DEIMOS CCDs with the A amplifier or those
+            reading the DEIMOS CCDs with the A+B amplifier or those
             taken in imaging mode. All image handling assumes DEIMOS
-            images have been read with the B amplifier in the
+            images have been read with the B or A amplifier in the
             "Spectral" observing mode. This method will fault if this
             is not true based on the header keywords MOSMODE and
             AMPMODE.
@@ -741,8 +765,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
         detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
 
-        if hdu[0].header['AMPMODE'] != 'SINGLE:B':
-            msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
+        # TODO check that that read noise and gain are the same for this amplifier mode??
+        if hdu[0].header['AMPMODE'] not in ['SINGLE:B', 'SINGLE:A']:
+            msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B or AMPMODE == SINGLE:A.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
             msgs.error('PypeIt can only reduce images with MOSMODE == Spectral.')
 

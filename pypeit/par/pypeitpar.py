@@ -697,7 +697,7 @@ class FlatFieldPar(ParSet):
         defaults['slit_illum_relative'] = False
         dtypes['slit_illum_relative'] = bool
         descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination ' \
-                                       'for a multi-slit setup.  If you set ``use_slitillum = ' \
+                                       'for a multi-slit setup.  If you set ``use_specillum = ' \
                                        'True`` for any of the frames that use the flatfield ' \
                                        'model, this *must* be set to True. Currently, this is ' \
                                        'only used for SlicerIFU reductions.'
@@ -866,8 +866,11 @@ class FlexurePar(ParSet):
 
         defaults['spectrum'] = 'paranal_sky.fits'
         dtypes['spectrum'] = str
-        descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
-
+        descr['spectrum'] = ('Archive sky spectrum to be used for the flexure correction. '
+                             'See ``pypeit/data/sky_spec/`` for a list of available sky spectra. '
+                             'If ``model`` is used, a model sky spectrum will be generated '
+                             'using :func:`~pypeit.wavemodel.nearIR_modelsky` and the spectral'
+                             'resolution of the spectrum to be flexure corrected.')
         defaults['excessive_shift'] = 'use_median'
         options['excessive_shift'] = FlexurePar.valid_excessive_shift_methods()
         dtypes['excessive_shift'] = str
@@ -1033,7 +1036,7 @@ class ScatteredLightPar(ParSet):
     see :ref:`parameters`.
     """
 
-    def __init__(self, method=None, finecorr=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
+    def __init__(self, method=None, finecorr_method=None, finecorr_pad=None, finecorr_order=None, finecorr_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1054,7 +1057,7 @@ class ScatteredLightPar(ParSet):
         options['method'] = ScatteredLightPar.valid_scattlight_methods()
         dtypes['method'] = str
         descr['method'] = 'Method used to fit the overscan. ' \
-                          'Options are: {0}'.format(', '.join(options['method'])) + '.' + \
+                          'Options are: {0}'.format(', '.join(options['method'])) + '. ' + \
                           '\'model\' will the scattered light model parameters derived from a ' \
                           'user-specified frame during their reduction (note, you will need to make sure ' \
                           'that you set appropriate scattlight frames in your .pypeit file for this option). ' \
@@ -1063,15 +1066,21 @@ class ScatteredLightPar(ParSet):
                           '\'archive\' will use an archival model parameter solution for the scattered ' \
                           'light (note that this option is not currently available for all spectrographs).'
 
-        defaults['finecorr'] = True
-        dtypes['finecorr'] = bool
-        descr['finecorr'] = 'If True, a fine correction to the scattered light will be performed. However, the ' \
-                            'fine correction will only be applied if the model/frame/archive correction is performed.'
+        defaults['finecorr_method'] = None
+        options['finecorr_method'] = ScatteredLightPar.valid_finecorr_scattlight_methods()
+        dtypes['finecorr_method'] = str
+        descr['finecorr_method'] = 'If None, a fine correction to the scattered light will not be performed. ' \
+                                   'Otherwise, the allowed methods include: ' \
+                                   '{0}'.format(', '.join(options['finecorr_method'])) + '. ' + \
+                                   '\'median\' will subtract a constant value from an entire CCD row, based on a ' \
+                                   'median of the pixels that are not on slits (see also, \'finecorr_pad\'). ' \
+                                   '\'poly\' will fit a polynomial to the scattered light in each row, based ' \
+                                   'on the pixels that are not on slits (see also, \'finecorr_pad\').'
 
-        defaults['finecorr_pad'] = 2
+        defaults['finecorr_pad'] = 4
         dtypes['finecorr_pad'] = int
-        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for the' \
-                                'fine correction to the scattered light.'
+        descr['finecorr_pad'] = 'Number of unbinned pixels to extend the slit edges by when masking the slits for ' \
+                                'the fine correction to the scattered light.'
 
         defaults['finecorr_order'] = 2
         dtypes['finecorr_order'] = int
@@ -1100,7 +1109,7 @@ class ScatteredLightPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['method', 'finecorr', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
+        parkeys = ['method', 'finecorr_method', 'finecorr_pad', 'finecorr_order', 'finecorr_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1115,7 +1124,10 @@ class ScatteredLightPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
+        if self.data['method'] is not None and self.data['method'] not in self.valid_scattlight_methods():
+            raise ValueError("If 'method' is not None it must be one of:\n"+", ".join(self.valid_scattlight_methods()))
+        if self.data['finecorr_method'] is not None and self.data['finecorr_method'] not in self.valid_finecorr_scattlight_methods():
+            raise ValueError("If 'finecorr_method' is not None it must be one of:\n"+", ".join(self.valid_finecorr_scattlight_methods()))
 
     @staticmethod
     def valid_scattlight_methods():
@@ -1123,6 +1135,13 @@ class ScatteredLightPar(ParSet):
         Return the valid scattered light methods.
         """
         return ['model', 'frame', 'archive']
+
+    @staticmethod
+    def valid_finecorr_scattlight_methods():
+        """
+        Return the valid scattered light methods.
+        """
+        return ['median', 'poly']
 
 
 class Coadd1DPar(ParSet):
@@ -1138,7 +1157,7 @@ class Coadd1DPar(ParSet):
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None,
                  weight_method=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbests=None, coaddfile=None,
-                 mag_type=None, filter=None, filter_mag=None, filter_mask=None, chk_version=None):
+                 mag_type=None, filter=None, filter_mag=None, filter_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1335,13 +1354,6 @@ class Coadd1DPar(ParSet):
         dtypes['coaddfile'] = str
         descr['coaddfile'] = 'Output filename'
 
-
-        # Version checking
-        defaults['chk_version'] = True
-        dtypes['chk_version'] = bool
-        descr['chk_version'] = 'If True enforce strict PypeIt version checking to ensure that spec1d*.fits files were created' \
-                               'with the current version of PypeIt'
-
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -1357,7 +1369,7 @@ class Coadd1DPar(ParSet):
                    'wave_method', 'dv', 'dwave', 'dloglam', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'weight_method', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbests', 'coaddfile', 'chk_version',
+                   'maxrej', 'sn_clip', 'nbests', 'coaddfile',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -1567,7 +1579,8 @@ class CubePar(ParSet):
                  standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
-                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None):
+                 skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
+                 correct_dar=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1691,7 +1704,7 @@ class CubePar(ParSet):
                                  'each detector pixel in the spectral direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spat_subpixel.'
+                                 'See also, spat_subpixel and slice_subpixel.'
 
         defaults['spat_subpixel'] = 5
         dtypes['spat_subpixel'] = int
@@ -1699,7 +1712,13 @@ class CubePar(ParSet):
                                  'each detector pixel in the spatial direction. The total number of subpixels ' \
                                  'in each pixel is given by spec_subpixel x spat_subpixel. The default option ' \
                                  'is to divide each spec2d pixel into 25 subpixels during datacube creation. ' \
-                                 'See also, spec_subpixel.'
+                                 'See also, spec_subpixel and slice_subpixel.'
+
+        defaults['slice_subpixel'] = 5
+        dtypes['slice_subpixel'] = int
+        descr['slice_subpixel'] = 'When method=subpixel, slice_subpixel sets the subpixellation scale of ' \
+                                  'each IFU slice. The default option is to divide each slice into 5 sub-slices ' \
+                                  'during datacube creation. See also, spec_subpixel and spat_subpixel.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1760,6 +1779,10 @@ class CubePar(ParSet):
                               'this correction, it is best to use the spec2d file with the highest S/N sky spectrum. ' \
                               'You should choose the same frame for both the standards and science frames.'
 
+        defaults['correct_dar'] = True
+        dtypes['correct_dar'] = bool
+        descr['correct_dar'] = 'If True, the data will be corrected for differential atmospheric refraction (DAR).'
+
         defaults['skysub_frame'] = 'image'
         dtypes['skysub_frame'] = str
         descr['skysub_frame'] = 'Set the sky subtraction to be implemented. The default behaviour is to subtract ' \
@@ -1787,9 +1810,9 @@ class CubePar(ParSet):
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
-                   'method', 'spec_subpixel', 'spat_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
+                   'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range']
+                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2630,7 +2653,7 @@ class ReduxPar(ParSet):
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
                  qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
-                 maskIDs=None, quicklook=None):
+                 maskIDs=None, quicklook=None, chk_version=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2710,6 +2733,17 @@ class ReduxPar(ParSet):
         descr['redux_path'] = 'Path to folder for performing reductions.  Default is the ' \
                               'current working directory.'
 
+        # Version checking
+        defaults['chk_version'] = True
+        dtypes['chk_version'] = bool
+        descr['chk_version'] = 'If True enforce strict PypeIt version checking to ensure that ' \
+                               'all files were created with the current version of PypeIt.  If ' \
+                               'set to False, the code will attempt to read out-of-date files ' \
+                               'and keep going.  Beware (!!) that this can lead to unforeseen ' \
+                               'bugs that either cause the code to crash or lead to erroneous ' \
+                               'results. I.e., you really need to know what you are doing if ' \
+                               'you set this to False!'
+
         # Instantiate the parameter set
         super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2725,7 +2759,7 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'quicklook', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs', 'chk_version']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3126,20 +3160,20 @@ class EdgeTracePar(ParSet):
     see :ref:`parameters`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None, exclude_regions=None,
-                 follow_span=None, det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
-                 max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
-                 fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
-                 auto_pca=None, left_right_pca=None, pca_min_edges=None, pca_n=None,
-                 pca_var_percent=None, pca_function=None, pca_order=None, pca_sigrej=None,
-                 pca_maxrej=None, pca_maxiter=None, smash_range=None, edge_detect_clip=None,
-                 trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
-                 fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
-                 sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 bound_detector=None, minimum_slit_dlength=None, dlength_range=None,
-                 minimum_slit_length=None, minimum_slit_length_sci=None,
-                 length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
-                 order_offset=None, add_missed_orders=None, order_width_poly=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None,
+                 exclude_regions=None, follow_span=None, det_min_spec_length=None,
+                 max_shift_abs=None, max_shift_adj=None, max_spat_error=None, match_tol=None,
+                 fit_function=None, fit_order=None, fit_maxdev=None, fit_maxiter=None,
+                 fit_niter=None, fit_min_spec_length=None, auto_pca=None, left_right_pca=None,
+                 pca_min_edges=None, pca_n=None, pca_var_percent=None, pca_function=None,
+                 pca_order=None, pca_sigrej=None, pca_maxrej=None, pca_maxiter=None,
+                 smash_range=None, edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
+                 trace_rms_tol=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
+                 niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
+                 sync_center=None, gap_offset=None, sync_to_edge=None, bound_detector=None,
+                 minimum_slit_dlength=None, dlength_range=None, minimum_slit_length=None,
+                 minimum_slit_length_sci=None, length_range=None, minimum_slit_gap=None, clip=None,
+                 order_match=None, order_offset=None, add_missed_orders=None, order_width_poly=None,
                  order_gap_poly=None, order_spat_range=None, overlap=None, use_maskdesign=None,
                  maskdesign_maxsep=None, maskdesign_step=None, maskdesign_sigrej=None, pad=None,
                  add_slits=None, add_predict=None, rm_slits=None, maskdesign_filename=None):
@@ -3339,6 +3373,13 @@ class EdgeTracePar(ParSet):
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
                                 'image *below* this threshold are masked in the refitting of ' \
                                 'the edge trace data.  If None, no masking applied.'
+        
+        dtypes['trace_rms_tol'] = [int, float]
+        descr['trace_rms_tol'] = 'After retracing edges using peaks detected in the rectified ' \
+                                 'and collapsed image, the RMS difference (in pixels) between ' \
+                                 'the original and refit traces are calculated.  This sets the ' \
+                                 'upper limit of the RMS for traces that will be removed.  If ' \
+                                 'None, no limit is set and all new traces are kept.'
 
         defaults['fwhm_uniform'] = 3.0
         dtypes['fwhm_uniform'] = [int, float]
@@ -3639,19 +3680,19 @@ class EdgeTracePar(ParSet):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions',
-                   'follow_span', 'det_min_spec_length',
-                   'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
-                   'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
-                   'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
-                   'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter',
-                   'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
-                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
-                   'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'bound_detector', 'minimum_slit_dlength', 'dlength_range',
-                   'minimum_slit_length', 'minimum_slit_length_sci', 'length_range',
-                   'minimum_slit_gap', 'clip', 'order_match', 'order_offset',  'add_missed_orders',
-                   'order_width_poly', 'order_gap_poly', 'order_spat_range', 'overlap',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'follow_span', 'det_min_spec_length', 'max_shift_abs', 'max_shift_adj',
+                   'max_spat_error', 'match_tol', 'fit_function', 'fit_order', 'fit_maxdev',
+                   'fit_maxiter', 'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
+                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
+                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
+                   'trace_median_frac', 'trace_thresh', 'trace_rms_tol', 'fwhm_uniform',
+                   'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge',
+                   'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge', 'bound_detector',
+                   'minimum_slit_dlength', 'dlength_range', 'minimum_slit_length',
+                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
+                   'order_match', 'order_offset',  'add_missed_orders', 'order_width_poly',
+                   'order_gap_poly', 'order_spat_range', 'overlap', 'use_maskdesign',
+                   'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -5179,7 +5220,9 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None, spec1d_outdir=None, refframe=None, chk_version=False):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None,
+                 exclude_slit_trace_bm=[], exclude_serendip=False, wv_rms_thresh=None, outdir=None,
+                 spec1d_outdir=None, refframe=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -5258,10 +5301,6 @@ class Collate1DPar(ParSet):
         descr['refframe'] = 'Perform reference frame correction prior to coadding. ' \
                          'Options are: {0}'.format(', '.join(options['refframe']))
 
-        defaults['chk_version'] = False
-        dtypes['chk_version'] = bool
-        descr['chk_version'] = "Whether to check the data model versions of spec1d files and sensfunc files."
-
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -5273,7 +5312,9 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir', 'wv_rms_thresh', 'refframe', 'chk_version']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using',
+                   'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'spec1d_outdir',
+                   'wv_rms_thresh', 'refframe']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

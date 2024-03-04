@@ -40,6 +40,7 @@ def init_dict():
     return dict(sciimg = sciimg,
                 ivarraw = 0.1 * np.ones_like(sciimg),
                 skymodel = 0.95 * np.ones_like(sciimg),
+                bkg_redux_skymodel=None,
                 objmodel = np.ones_like(sciimg),
                 ivarmodel = 0.05 * np.ones_like(sciimg),
                 scaleimg = np.ones_like(sciimg),

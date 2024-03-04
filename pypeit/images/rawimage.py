@@ -612,6 +612,7 @@ class RawImage:
             self.subtract_bias(bias)
 
         # TODO: Checking for count (well-depth) saturation should be done here.
+        # TODO :: Non-linearity correction should be done here.
 
         #   - Create the dark current image(s).  The dark-current image *always*
         #     includes the tabulated dark current and the call below ensures
@@ -833,7 +834,7 @@ class RawImage:
                 viewer, ch = display.show_image(self.image[0], chname='orig_image')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
-        # Apply the relative spectral illumination
+        # Retrieve the relative spectral illumination profile
         spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
 
         # Apply flat-field correction
@@ -1169,10 +1170,10 @@ class RawImage:
             this_modpar = msscattlight.scattlight_param.copy()
             this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
-            do_finecorr = self.par["scattlight"]["finecorr"]
+            do_finecorr = self.par["scattlight"]["finecorr_method"] is not None
             if self.par["scattlight"]["method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(this_modpar, _img)
+                scatt_img = scattlight.scattered_light_model_pad(this_modpar, _img)
                 if debug:
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
@@ -1201,7 +1202,7 @@ class RawImage:
                     plt.subplot(223)
                     plt.imshow(scatt_img*offslitmask, vmin=-2*vmax, vmax=2*vmax)
                     plt.subplot(224)
-                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-2*vmax, vmax=2*vmax)
+                    plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax/5, vmax=vmax/5)
                     # plt.imshow((_frame - scatt_img)*offslitmask, vmin=-vmax/5, vmax=vmax/5)
                     plt.show()
             elif self.par["scattlight"]["method"] == "archive":
@@ -1250,8 +1251,9 @@ class RawImage:
                                                                mask_regions=self.par['scattlight']['finecorr_mask'])
                 # Calculate the fine correction to the scattered light image, and add it to the full model
                 scatt_img += scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
+                                                        method=self.par['scattlight']['finecorr_method'],
                                                         polyord=self.par['scattlight']['finecorr_order'])
-            # Subtract the scattered light model from the image
+            # Subtract the total scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
