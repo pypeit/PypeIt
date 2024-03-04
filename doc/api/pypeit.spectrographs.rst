@@ -22,7 +22,6 @@ Submodules
    pypeit.spectrographs.keck_mosfire
    pypeit.spectrographs.keck_nires
    pypeit.spectrographs.keck_nirspec
-   pypeit.spectrographs.keck_nirspec_high
    pypeit.spectrographs.lbt_luci
    pypeit.spectrographs.lbt_mods
    pypeit.spectrographs.ldt_deveny
