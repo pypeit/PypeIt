@@ -208,13 +208,20 @@ Additional Data and the PypeIt Cache
 
 To limit disk-space required for installation, most of PypeIt's static data
 files are either not kept in the GitHub repository or distributed via `pip`_.
+PypeIt uses the generalized cache system `provided by Astropy
+<https://docs.astropy.org/en/stable/utils/data.html>`__ to interface with the
+remote data, which maintains copies of the data files in a user-writeable
+location that is independent of the PypeIt installation.  For most users, this
+will be ``~/.pypeit/cache``, but the exact location can be set directly using
+``astropy``'s `configuration system
+<https://docs.astropy.org/en/stable/config/index.html#astropy-config>`__.  By
+default, PypeIt will download necessary files at runtime if they are not already
+cached.  Regardless of their location, remote or local, PypeIt essentially
+organizes all data it uses into subdirectories of the ``pypeit/data`` directory
+in your package installation.  The following table gives the reference name,
+subdirectory, and remote host for data in this directory tree:
 
-Programmatically, PypeIt uses a single python object to interact 
-
-
-accesses the remote data via its cache system, using
-the generalized cache system `provided by Astropy
-<https://docs.astropy.org/en/stable/utils/data.html>`__.  Essentially
+.. include:: include/data_dir.rst
 
 
 PypeIt interacts with these data files via its cache system, which will access your local installation

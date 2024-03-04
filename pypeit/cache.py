@@ -65,7 +65,7 @@ def git_branch():
     if Repository is None:
         return 'develop' if '.dev' in __version__ else __version__
     repo = Repository(resources.files('pypeit'))
-    return repo.head.target if repo.head_is_detached else repo.head.shorthand
+    return str(repo.head.target) if repo.head_is_detached else str(repo.head.shorthand)
 
 
 def github_contents(repo, branch, path, recursive=True):
