@@ -203,12 +203,24 @@ please `Submit an issue`_.
 
 .. _data_installation:
 
-Additional Data
-===============
+Additional Data and the PypeIt Cache
+====================================
 
-To limit disk-space required for installation, some data used by PypeIt are
-either not kept in the GitHub repository or distributed via `pip`_ because of
-their large size. Files not kept within the GitHub repository include:
+To limit disk-space required for installation, most of PypeIt's static data
+files are either not kept in the GitHub repository or distributed via `pip`_.
+
+Programmatically, PypeIt uses a single python object to interact 
+
+
+accesses the remote data via its cache system, using
+the generalized cache system `provided by Astropy
+<https://docs.astropy.org/en/stable/utils/data.html>`__.  Essentially
+
+
+PypeIt interacts with these data files via its cache system, which will access your local installation
+
+
+Files not kept within the GitHub repository include:
 
 - Atmospheric model grids used for telluric correction and flux calibration, and
 - Canned data-reduction products used by quick-look scripts.

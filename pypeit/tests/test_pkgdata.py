@@ -167,17 +167,16 @@ def test_truediv():
 
 
 def test_get_file_path():
-    p = PypeItDataPath('tests')
-
     f = 'b1.fits.gz'
     # NOTE: Setting to_pkg symlink only needs to be done once for each unique file
-    data_file = p.get_file_path(f, to_pkg='symlink')
+    data_file = dataPaths.tests.get_file_path(f, to_pkg='symlink')
+    # Check that a Path is returned
     assert isinstance(data_file, Path), 'returned file should be a Path instance'
-
-    assert p.get_file_path(f, return_format=True)[1] == 'fits', 'Wrong file format'
-
-    assert p.get_file_path('bspline_model.npz', return_format=True, to_pkg='symlink')[1] == 'npz', \
-                'Wrong file format'
+    # Check that the format is correct
+    assert dataPaths.tests.get_file_path(f, return_format=True)[1] == 'fits', 'Wrong file format'
+    # Check a different format
+    assert dataPaths.tests.get_file_path('bspline_model.npz', return_format=True,
+                                         to_pkg='symlink')[1] == 'npz', 'Wrong file format'
 
 
 def test_cache_to_pkg():

@@ -148,7 +148,10 @@ class PypeItDataPath:
                 Raised if the requested contents *do not exist*.
         """
         if (self.path / p).is_dir():
-            return PypeItDataPath(str((self.path / p).relative_to(self.data)))
+            # Create a new PypeItData object; inherit the host from the parent
+            # directory
+            return PypeItDataPath(str((self.path / p).relative_to(self.data)),
+                                  remote_host=self.host)
         if (self.path / p).is_file(): 
             return self.path / p
         msgs.error(f'{str(self.path / p)} is not a valid PypeIt data path or is a file '
