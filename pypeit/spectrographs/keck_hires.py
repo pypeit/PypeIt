@@ -82,7 +82,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['rdx']['detnum'] = [(1,2,3)]
 
         # Adjustments to parameters for Keck HIRES
-        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
+        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
+                           use_illumflat=False)
         par.reset_all_processimages_par(**turn_off_on)
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
