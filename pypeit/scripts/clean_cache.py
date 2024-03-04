@@ -61,7 +61,7 @@ class CleanCache(scriptbase.ScriptBase):
             astropy.utils.data.clear_download_cache(pkgname='pypeit')
             return
         
-        # Get *all* of the contents of the cache and turn it into a numpy array.
+        # Get *all* of the contents of the cache
         if args.pattern is None:
             contents = cache.search_cache(None, path_only=False)
         else:
