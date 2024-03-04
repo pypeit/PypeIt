@@ -182,12 +182,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
-                 debug=False, show=False, save_multi=False):
+                 debug=False, show=False, save_multi=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
-                         setup_id=setup_id, debug=debug, show=show)
+                         setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
 
     def load(self):
@@ -548,9 +548,9 @@ class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
     Child of MultiSlitCoAdd1d for SlicerIFU reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+                         setup_id=setup_id, debug = debug, show = show, chk_version=chk_version)
