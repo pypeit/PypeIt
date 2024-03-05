@@ -10,8 +10,6 @@ from pypeit.core import flexure
 from pypeit import dataPaths
 from pypeit.core.wavecal import autoid
 
-from pypeit.tests.tstutils import data_input_path
-
 from IPython import embed
 
 

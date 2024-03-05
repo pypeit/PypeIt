@@ -219,7 +219,6 @@ class PypeItDataPath:
         _f = f.with_suffix('') if f.suffix == '.gz' else f
         return _f.suffix.replace('.','').lower()
 
-    # TODO: Should to_pkg default to 'symlink'?
     def get_file_path(self, data_file, force_update=False, to_pkg=None, return_format=False,
                       quiet=False):
         """
@@ -288,6 +287,9 @@ class PypeItDataPath:
             msgs.info(f'{data_file} does not exist in the expected package directory '
                       f'({self.path}).  Checking cache or downloading the file now.')
 
+        # Get the path to the cached file
+        # NOTE: fetch_remote_file will only return the name of the cached file
+        # if the file exists in the cache and force_update is False.
         subdir = str(self.path.relative_to(self.data))
         _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
                                                force_update=force_update)

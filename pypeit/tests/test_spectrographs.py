@@ -8,18 +8,19 @@ from IPython import embed
 
 import pytest
 
+from pypeit import dataPaths
 from pypeit.pypmsgs import PypeItError
 from pypeit import spectrographs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import pypeitsetup
 from pypeit.tests import tstutils
-from pypeit.tests.tstutils import data_input_path, data_output_path
+from pypeit.tests.tstutils import data_output_path
 
 
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = data_input_path('b1.fits.gz')
+    example_file = dataPaths.tests.get_file_path('b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     det=1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)

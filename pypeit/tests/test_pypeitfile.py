@@ -5,8 +5,9 @@ import pytest
 
 from astropy.table import Table
 
+from pypeit import dataPaths
 from pypeit.inputfiles import PypeItFile
-from pypeit.tests.tstutils import data_input_path, data_output_path
+from pypeit.tests.tstutils import data_output_path
 
 # Bits needed to generate a PypeIt file
 
@@ -44,12 +45,14 @@ def test_instantiate():
 
 def test_read_pypeit_file():
     # Read the PypeIt file (backwards compatability)
-    pypeItFile = PypeItFile.from_file(data_input_path('example_pypeit_file.pypeit'))
+    pypeItFile = PypeItFile.from_file(
+                    dataPaths.tests.get_file_path('example_pypeit_file.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_read_backwards_pypeit_file():
     # Read the PypeIt file (backwards compatability)
-    pypeItFile = PypeItFile.from_file(data_input_path('example_pypeit_file_backwards.pypeit'))
+    pypeItFile = PypeItFile.from_file(
+                    dataPaths.tests.get_file_path('example_pypeit_file_backwards.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_write_pypeit_file():

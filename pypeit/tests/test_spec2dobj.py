@@ -12,6 +12,7 @@ from IPython import embed
 from astropy.table import Table
 from astropy.io import fits
 
+from pypeit import dataPaths
 from pypeit import spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
@@ -135,7 +136,7 @@ def test_all2dobj_hdr(init_dict):
     allspec2D['meta']['find_negative'] = False
     allspec2D[spec2DObj.detname] = spec2DObj
     #
-    kast_file = tstutils.data_input_path('b1.fits.gz')
+    kast_file = dataPaths.tests.get_file_path('b1.fits.gz')
     header = fits.getheader(kast_file)
     spectrograph = load_spectrograph('shane_kast_blue')
     # Do it
