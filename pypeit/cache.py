@@ -28,7 +28,7 @@ from functools import reduce
 from importlib import resources
 import pathlib
 import urllib.error
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from datetime import datetime
 
 import packaging
