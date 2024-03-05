@@ -44,7 +44,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
-        self.meta['mode'] = dict(ext=1, card='WAVMODE') #Added
+        self.meta['mode'] = dict(ext=1, card='WAVMODE') 
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
@@ -94,7 +94,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'mode','decker', 'binning', 'dispangle'] #Added mode
+        return ['dispname', 'mode','decker', 'binning', 'dispangle']
 
     def raw_header_cards(self):
         """
