@@ -134,6 +134,9 @@ def git_most_recent_tag():
     repo = Repository(resources.files('pypeit'))
     tags = [packaging.version.parse(ref.split('/')[-1]) \
                 for ref in repo.references if 'refs/tags' in ref]
+    if len(tags) == 0:
+        msgs.warn('Unable to find any tags in pypeit repository.')
+        return __version__, None
     latest_version = str(sorted(tags)[-1])
     timestamp = repo.resolve_refish(f'refs/tags/{latest_version}')[0].author.time
     return latest_version, datetime.fromtimestamp(timestamp).isoformat()
