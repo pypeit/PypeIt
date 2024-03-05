@@ -96,6 +96,7 @@ class PypeItDataPath:
             msgs.error(f'Remote host not recognized: {self.host}')
         self.host = remote_host
         self.data = self.check_isdir(cache.__PYPEIT_DATA__)
+        self.subdirs = subdirs
         self.path = self.check_isdir(self.data / subdirs)
 
     def glob(self, pattern):
@@ -147,7 +148,10 @@ class PypeItDataPath:
                 Raised if the requested contents *do not exist*.
         """
         if (self.path / p).is_dir():
-            return PypeItDataPath(str((self.path / p).relative_to(self.data)))
+            # Create a new PypeItData object; inherit the host from the parent
+            # directory
+            return PypeItDataPath(str((self.path / p).relative_to(self.data)),
+                                  remote_host=self.host)
         if (self.path / p).is_file(): 
             return self.path / p
         msgs.error(f'{str(self.path / p)} is not a valid PypeIt data path or is a file '
@@ -215,8 +219,8 @@ class PypeItDataPath:
         _f = f.with_suffix('') if f.suffix == '.gz' else f
         return _f.suffix.replace('.','').lower()
 
-    # TODO: Should to_pkg default to 'symlink'?
-    def get_file_path(self, data_file, to_pkg=None, return_format=False):
+    def get_file_path(self, data_file, force_update=False, to_pkg=None, return_format=False,
+                      quiet=False):
         """
         Return the path to a file.
 
@@ -235,6 +239,10 @@ class PypeItDataPath:
         Args:
             data_file (:obj:`str`, `Path`_):
                 File name or path.  See above.
+            force_update (:obj:`bool`, optional):
+                If the file is in the cache, force
+                `astropy.utils.data.download_file`_ to update the cache by
+                downloading the latest version.
             to_pkg (:obj:`str`, optional):
                 If the file is in the cache, this argument affects how the
                 cached file is connected to the package installation.  If
@@ -250,6 +258,8 @@ class PypeItDataPath:
                 If True, the returned object is a :obj:`tuple` that includes the
                 file path and its format (e.g., ``'fits'``).  If False, only the
                 file path is returned.
+            quiet (:obj:`bool`, optional):
+                Suppress messages
 
         Returns:
             `Path`_, tuple: The file path and, if requested, the file format;
@@ -273,11 +283,16 @@ class PypeItDataPath:
 
         # If it does not, inform the user and download it into the cache.
         # NOTE: This should not be required for from-source (dev) installations.
-        msgs.info(f'{data_file} does not exist in the expected package directory ({self.path}).  '
-                    'Checking cache or downloading the file now.')
+        if not quiet:
+            msgs.info(f'{data_file} does not exist in the expected package directory '
+                      f'({self.path}).  Checking cache or downloading the file now.')
 
+        # Get the path to the cached file
+        # NOTE: fetch_remote_file will only return the name of the cached file
+        # if the file exists in the cache and force_update is False.
         subdir = str(self.path.relative_to(self.data))
-        _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host)
+        _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
+                                               force_update=force_update)
 
         # If we've made it this far, the file is being pulled from the cache.
         if to_pkg is None:
@@ -296,7 +311,7 @@ class PypeItDataPath:
             # Move the file
             shutil.move(_cached_file, _data_file)
             # ... and delete it from the cache
-            cache.delete_file_in_cache(data_file, subdir)
+            cache.remove_from_cache(pattern=data_file)
         # Return the symlinked or moved file
         return self._get_file_path_return(_data_file, return_format)
     
@@ -313,13 +328,13 @@ class PypeItDataPaths:
     """
 
     defined_paths = {
-                     # Attribute name
+                     # Class attribute name
                      'tests':               
                         # Subdirectory in pypeit/data
                         {'path': 'tests',
                         # String name for the remote host; None means the data
                         # should be in *all* installations.
-                         'host': None
+                         'host': 'github'
                         },
                      # Telluric
                      'telgrid': {'path': 'telluric/atm_grids', 'host': 's3_cloud'},
@@ -348,4 +363,54 @@ class PypeItDataPaths:
     def __init__(self):
         for key, a in PypeItDataPaths.defined_paths.items():
             setattr(self, key, PypeItDataPath(a['path'], remote_host=a['host']))
+
+
+    @classmethod
+    def github_paths(cls):
+        """
+        Return the subset paths hosted on GitHub.
+
+        Returns:
+            :obj:`dict`: A dictionary with the same format as
+            :attr:`defined_paths`, but only includes those paths hosted on
+            GitHub.
+        """
+        paths = {}
+        for name, meta in cls.defined_paths.items():
+            if meta['host'] != 'github':
+                continue
+            paths[name] = meta
+        return paths
+
+    @classmethod
+    def s3_paths(cls):
+        """
+        Return the subset paths hosted on aws s3.
+
+        Returns:
+            :obj:`dict`: A dictionary with the same format as
+            :attr:`defined_paths`, but only includes those paths hosted on
+            aws s3.
+        """
+        paths = {}
+        for name, meta in cls.defined_paths.items():
+            if meta['host'] != 's3_cloud':
+                continue
+            paths[name] = meta
+        return paths
+    
+    @classmethod
+    def remote_paths(cls):
+        """
+        Return the subset paths with data hosted remotely.
+
+        Returns:
+            :obj:`dict`: A dictionary with the same format as
+            :attr:`defined_paths`, but only includes those paths with data
+            hosted remotely.
+        """
+        paths = cls.github_paths()
+        paths.update(cls.s3_paths())
+        return paths
+
 

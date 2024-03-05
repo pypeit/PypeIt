@@ -35,6 +35,8 @@ import packaging
 
 from IPython import embed
 
+import numpy as np
+
 import astropy.utils.data
 import github
 import requests
@@ -47,6 +49,7 @@ except ImportError:
 # NOTE: To avoid circular imports, avoid (if possible) importing anything from
 # pypeit into this module!  Objects created or available in pypeit/__init__.py
 # are the exceptions, for now.
+from pypeit.pypmsgs import PypeItPathError
 from pypeit import msgs
 from pypeit import __version__
 
@@ -65,7 +68,55 @@ def git_branch():
     if Repository is None:
         return 'develop' if '.dev' in __version__ else __version__
     repo = Repository(resources.files('pypeit'))
-    return repo.head.target if repo.head_is_detached else repo.head.shorthand
+    return str(repo.head.target) if repo.head_is_detached else str(repo.head.shorthand)
+
+
+def github_contents(repo, branch, path, recursive=True):
+    """
+    (Recursively) Acquire a listing of the contents of a repository directory.
+
+    Args:
+        repo (`github.Repository`_):
+            Repository to search
+        branch (:obj:`str`):
+            Name of the branch or commit hash
+        path (:obj:`str`):
+            Path relative to the top-level directory of the repository to
+            search.
+        recursive (:obj:`bool`, optional):
+            Flag to search the directory recursively.  If False, subdirectory
+            names are included in the list of returned objects.  If True,
+            subdirectories are removed from the listing and replaced by their
+            contents; in this case the list of all objects should only include
+            repository files.
+
+    Returns:
+        :obj:`list`: A list of `github.ContentFile`_ objects with the repo
+        contents.
+    """
+    try:
+        # Collect the contents
+        contents = repo.get_contents(path, branch)
+    except github.GithubException as e:
+        raise PypeItPathError(f'{path} not found in the {branch} of the GitHub tree.') from e
+
+    # If not searching recursively, we're done
+    if not recursive:
+        return contents
+
+    # Check if any of the contents are directories 
+    is_dir = [c.type == 'dir' for c in contents]
+    # If not, we're done
+    if not any(is_dir):
+        return contents
+
+    # For each directory, append the directory contents recursively
+    is_dir = np.where(is_dir)[0]
+    for indx in is_dir:
+        contents.extend(github_contents(repo, branch, contents[indx].path))
+
+    # Remove the directories from the list
+    return [c for i,c in enumerate(contents) if i not in is_dir] 
 
 
 def git_most_recent_tag():
@@ -136,15 +187,14 @@ def fetch_remote_file(
         remote_url, sources = _build_remote_url(filename, filetype, remote_host=remote_host)
 
     if remote_host == "s3_cloud" and not install_script:
-
         # Display a warning that this may take a while, and the user may wish to
-        # download using the `pypeit_install_telluric` script
-
-        msgs.warn(f"You may wish to download {filename}{msgs.newline()}"
-                  f"independently from your reduction by using the{msgs.newline()}"
-                  "`pypeit_install_telluric` script.")
+        # download use an install script
+        msgs.warn(f'Note: If this file takes a while to download, you may wish to used one of '
+                  'the install scripts (e.g., pypeit_install_telluric) to install the file '
+                  'independent of this processing script.')
 
     # Get the file from cache, if available, or download from the remote server
+    # TODO: Make timeout a function argument?
     try:
         cache_fn = astropy.utils.data.download_file(
             remote_url,
@@ -214,7 +264,7 @@ def search_cache(pattern: str, path_only=True):
         pattern (:obj:`str`):
             The pattern to match within the file name of the source url.  This
             can be None, meaning that the full contents of the cache is
-            returned.  However, note that setting ``pattern_str`` to None and
+            returned.  However, note that setting ``pattern`` to None and
             ``path_only=True`` may not be very useful given the abstraction of
             the file names.
         path_only (:obj:`bool`, optional):
@@ -233,11 +283,6 @@ def search_cache(pattern: str, path_only=True):
     contents = {k:pathlib.Path(v) for k, v in contents.items() if pattern is None or pattern in k}
     return list(contents.values()) if path_only else contents
     
-    
-
-    # Return just the local filenames' Paths for items matching the `pattern_str`
-    return [pathlib.Path(cache_dict[url]) for url in cache_dict if pattern_str in url]
-
 
 def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_host: str="github"):
     """
@@ -262,42 +307,95 @@ def write_file_to_cache(filename: str, cachename: str, filetype: str, remote_hos
     # Build the `url_key` as if this file were in the remote location
     url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
 
-    # Use `import file_to_cache()` to place the `filename` into the cache
+    # Use `import_file_to_cache()` to place the `filename` into the cache
     astropy.utils.data.import_file_to_cache(url_key, filename, pkgname="pypeit")
 
 
-def delete_file_in_cache(cachename: str, filetype: str, remote_host: str="github"):
+def remove_from_cache(cache_url=None, pattern=None, allow_multiple=False):
     """
     Remove a previously downloaded file from the pypeit-specific
     `astropy.utils.data`_ cache.
 
-    Args:
-        cachename (str):
-            The name of the cached version of the file
-        filetype (str):
-            The subdirectory of ``pypeit/data/`` in which to find the file
-            (e.g., ``arc_lines/reid_arxiv`` or ``sensfuncs``)
-        remote_host (:obj:`str`, optional):
-            The remote host scheme.  Currently only 'github' and 's3_cloud' are
-            supported.  Defaults to 'github'.
-    """
-    # First search for the cachename
-    result = search_cache(cachename)
-    if len(result) == 0:
-        # Warn the user that the search pattern failed
-        msgs.warn(f'Cache does not include {cachename}.  Ignoring deletion request.')
-    if len(result) > 1:
-        embed()
-        exit()
-        # More than one match!
-        msgs.error(f'More than one item in the cache match the search pattern {cachename}.  Must '
-                   'be more specific.')
-        
-    # Build the `url_key` as if this file were in the remote location
-    url_key, _ = _build_remote_url(cachename, filetype, remote_host=remote_host)
+    To specify the file, the full URL can be provided or a name used in a cache
+    search.
 
-    # Use `import file_to_cache()` to place the `filename` into the cache
-    astropy.utils.data.clear_download_cache(hashorurl=url_key, pkgname='pypeit')
+    Args:
+        cache_url (:obj:`list`, :obj:`str`, optional):
+            One or more URLs in the cache to be deleted (if they exist in the
+            cache).  If ``allow_multiple`` is False, this must be a single
+            string.
+        pattern (:obj:`str`, optional):
+            A pattern to use when searching the cache for the relevant file(s).
+            If ``allow_mulitple`` is False, this must return a single file,
+            otherwise the function will issue a warning and nothing will be
+            deleted.
+        allow_multiple (:obj:`bool`, optional):
+            If the search pattern yields multiple results, remove them all.
+    """
+    if cache_url is None:
+        _url = search_cache(pattern, path_only=False)
+        if len(_url) == 0:
+            msgs.warn(f'Cache does not include a file matching the pattern {pattern}.')
+            return
+        _url = list(_url.keys())
+    elif not isinstance(cache_url, list):
+        _url = [cache_url]
+    else:
+        _url = cache_url
+
+    if len(_url) > 1 and not allow_multiple:
+        msgs.warn('Function found or was provided with multiple entries to be removed.  Either '
+                  'set allow_multiple=True, or try again with a single url or more specific '
+                  'pattern.  URLs passed/found are:\n' + '\n'.join(_url))
+        return
+
+    # Use `clear_download_cache` to remove the file
+    for u in _url:
+        astropy.utils.data.clear_download_cache(hashorurl=u, pkgname='pypeit')
+
+
+def parse_cache_url(url):
+    """
+    Parse a URL from the cache into its relevant components.
+
+    Args:
+        url (:obj:`str`):
+            URL of a file in the pypeit cache. A valid cache URL must include
+            either ``'github'`` or ``'s3.cloud'`` in its address.
+
+    Returns:
+        :obj:`tuple`: A tuple of four strings parsed from the URL.  If the URL
+        is not considered a valid cache URL, all elements of the tuple are None.
+        The parsed elements of the url are: (1) the host name, which will be
+        either ``'github'`` or ``'s3_cloud'``, (2) the branch name, which will
+        be None when the host is ``'s3_cloud'``, (3) the subdirectory of
+        ``pypeit/data/`` in which to find the file (e.g.,
+        ``arc_lines/reid_arxiv`` or ``sensfuncs``), and (4) the file name.
+    """
+    url_parts = urlparse(url)
+
+    # Get the host
+    if 'github' in url_parts.netloc:
+        host = 'github'
+    # NOTE: I'm assuming "s3.cloud" will always be in the url ...
+    elif 's3.cloud' in url_parts.netloc:
+        host = 's3_cloud'
+    else:
+        msgs.warn(f'URL not recognized as a pypeit cache url:\n\t{url}')
+        return None, None, None, None
+
+    if host == 'github':
+        # Get the branch name
+        github_root = pathlib.PurePosixPath('/pypeit/PypeIt')
+        p = pathlib.PurePosixPath(url_parts.path).relative_to(github_root)
+        branch = p.parts[0]
+        f_type = str(p.parent.relative_to(pathlib.PurePosixPath(f'{branch}/pypeit/data')))
+        return host, branch, f_type, p.name
+    
+    # If we make it here, the host *must* be s3_cloud
+    s3_root = pathlib.PurePosixPath('/pypeit')
+    p = pathlib.PurePosixPath(url_parts.path).relative_to(s3_root)
+    return host, None, str(p.parent), p.name
 
 
 def _build_remote_url(f_name: str, f_type: str, remote_host: str=None):

@@ -4,11 +4,9 @@ Module to run tests on the ArchiveDir/ArchiveMetadata script.
 
 import pytest
 import os
-from functools import partial
 
 from pypeit import dataPaths
 from pypeit.archive import ArchiveMetadata, ArchiveDir
-from pypeit.tests.tstutils import data_input_path, data_output_path
 
 
 class mock_file_info:
@@ -144,11 +142,8 @@ def test_archive_dir(tmp_path):
     assert dest_file2.exists()
 
     # Verify ipac metadata files are correct
-    good_file1 = data_input_path('ipac/by_id_meta.dat')
-    good_file2 = data_input_path('ipac/by_object_meta.dat')
+    good_file1 = dataPaths.tests.get_file_path('ipac/by_id_meta.dat')
+    good_file2 = dataPaths.tests.get_file_path('ipac/by_object_meta.dat')
 
     assert cmp_files(good_file1, metadata_file1) is True
     assert cmp_files(good_file2, metadata_file2) is True
-
-
-

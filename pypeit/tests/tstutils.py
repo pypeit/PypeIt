@@ -1,9 +1,7 @@
 """
 Odds and ends in support of tests
 """
-import glob
 import os
-#import pathlib
 import pytest
 
 from IPython import embed
@@ -35,8 +33,8 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 # tests and those that are *read* (data_input_path) as part of the tests.  I.e.,
 # files to be written should not exist on GitHub, so we should not attempt to
 # download them.
-def data_input_path(filename, to_pkg=None):
-    return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
+# def data_input_path(filename, to_pkg=None):
+#    return str(dataPaths.tests.get_file_path(filename, to_pkg=to_pkg))
 
 
 def data_output_path(filename):
@@ -160,7 +158,8 @@ def make_shane_kast_blue_pypeitfile():
     ]
 
     data = Table()
-    data['filename'] = [os.path.basename(data_input_path(f, to_pkg='symlink')) for f in raw_files]
+    data['filename'] = [os.path.basename(dataPaths.tests.get_file_path(f, to_pkg='symlink'))
+                            for f in raw_files]
     data['frametype'] = ['science']*len(data)
     file_paths = [data_output_path('')]
     setup_dict = {'Setup A': ' '}

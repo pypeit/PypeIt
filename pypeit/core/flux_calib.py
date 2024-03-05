@@ -183,7 +183,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
 
             # Generate a dict
             _idx = int(idx)
-            # TODO: Is there every a case where the name of the file is
+            # TODO: Is there ever a case where the name of the file is
             # required?  If so, we should change to_pkg so that it is always
             # either 'symlink' or 'move'.  I.e., if the file is only in the
             # cache, the file name will always be "contents".
