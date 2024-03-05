@@ -204,6 +204,8 @@ more than 5 deg (geographic coordinates) from one of the listed observatories, t
 code will crash unless you specify a particular extinction file to use or install
 a custom extinction file in the PypeIt cache.
 
+.. _extinct-file:
+
 Specifying an extinction file to use
 ++++++++++++++++++++++++++++++++++++
 

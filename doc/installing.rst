@@ -229,7 +229,7 @@ please `Submit an issue`_.
 Additional Data and the PypeIt Cache
 ====================================
 
-To limit disk-space required for installation, most of PypeIt's static data
+To limit the disk-space required for installation, most of PypeIt's static data
 files are either not kept in the GitHub repository or distributed via `pip`_.
 PypeIt uses the generalized cache system `provided by Astropy
 <https://docs.astropy.org/en/stable/utils/data.html>`__ to interface with the
@@ -250,7 +250,8 @@ name, subdirectory, and remote host for data in this directory tree:
 
 Although most cached files are hosted on GitHub, a few particularly large files
 are hosted on Amazon S3 cloud storage.  Note that a host of ``...`` means that
-all files should be distributed with your package installation.
+all files should be distributed with your package installation for these
+directories.
 
 As stated above, PypeIt will download remote files and store them in your cache
 as they're needed to reduce your data.  I.e., you should mostly be able to
@@ -286,13 +287,13 @@ cache and starting fresh!**
 specific to the version of the code used to install it.  When you install local
 files, keep two things in mind:
  
- - The current cache system *does not* keep track of the original on-disk
+#. The current cache system *does not* keep track of the original on-disk
    location of these files.  When you install these local files into the cache,
    the original file will remain (as long as you don't move/delete it yourself),
    and they will not be removed by ``pypeit_clean_cache``.
-
- - However, as far as the cache is concerned, these files are specific to a
-   given PypeIt version.  This means *you'll need to re-install them* when you
+ 
+#. However, as far as the cache is concerned, these files are specific to a
+   given PypeIt version.  This means **you'll need to re-install them** when you
    upgrade PypeIt; otherwise, PypeIt will not recognize their existence in the
    cache.  We discuss upgrading :ref:`above<upgrade>`.
    
@@ -325,16 +326,23 @@ spectrograph.  (Unlike previous versions) This script does *not* download any
 files hosted in ``s3_cloud`` (see the table :ref:`above<data_dir>`); instead,
 use the scripts below.
 
+.. note::
+
+    Beware of rate limits imposed by GitHub.  If you run into this, try setting
+    up an access token and export it as the ``GITHUB_TOKEN`` environmental
+    variable; see
+    `here <https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api>`__.
+
 .. _install_atmosphere:
 
 Atmospheric Model Grids
 -----------------------
 
-Calculation of the sensitivity functions for IR instruments and general fitting
-of telluric absorption uses a grid of model atmosphere spectra.  These model
-grids range in size from 3.5-7.7 GB.  Recent updates allow for the use of a PCA
-decomposition of these templates to provided smaller (few MB) reference files
-and faster performance; however, both methods are still functional.
+Calculation of the sensitivity functions and general fitting of telluric
+absorption uses a grid of model atmosphere spectra.  Files with these
+pre-computed model grids are large (few GB).  Recent updates allow for the use
+of a PCA decomposition of these models to provided smaller (few MB) reference
+files and faster performance; however, both methods are still functional.
 
 For the larger, atmospheric-grid files, note that we provide model spectra for
 atmospheric conditions specific to an observatory; however, a model grid is not
@@ -371,6 +379,29 @@ code will instruct you to download the file separately from the `PypeIt
 dev-suite Google Drive`_.  Users may select any of the files in the Google Drive
 for their telluric correction, download them separately, then install them using
 the ``--local`` option to ``pypeit_install_telluric``.
+
+User-provided atmospheric extinction files and wavelength-calibration line lists
+--------------------------------------------------------------------------------
+
+As needed to improve their data reduction, users can "install" their own
+atmospheric extinction files and/or wavelength-calibration line lists.  PypeIt
+manages these *local* files within its cache system.  To install such files, use
+the ``pypeit_install_extinctfile`` or ``pypeit_install_linelist`` script,
+respectively; see :ref:`install_scripts`, :ref:`extinct-file`, and
+:ref:`user_linelists`.
+
+If you find specific files are generally useful/important to your data
+reduction, we encourage you to submit a GitHub pull-request so that these files
+can be included in the PypeIt repository.
+
+.. important::
+
+    Because PypeIt uses the cache system to manage the local files, it will
+    associate each file with the version of the code used to install it in the
+    cache.  Every time you upgrade your pypeit version, you should delete the
+    local files from the cache (this will not remove the local file itself) and
+    re-install them using the upgraded version of PypeIt.  See :ref:`view-cache`
+    and :ref:`upgrade`.
 
 Quick-Look Calibration Files
 ----------------------------

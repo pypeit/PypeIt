@@ -4,7 +4,7 @@
     usage: pypeit_clean_cache [-h] [-p PATTERN [PATTERN ...]]
                               [-v VERSION [VERSION ...]] [--remove_all] [-l]
     
-    Script to download/cache PypeIt github data
+    View/Remove fils in the PypeIt data cache
     
     options:
       -h, --help            show this help message and exit
