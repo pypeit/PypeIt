@@ -42,7 +42,6 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=1, card='EXPTIME')
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
-        self.meta['dateobs'] = dict(ext=1, card='DATE-OBS') #Added
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
         self.meta['mode'] = dict(ext=1, card='WAVMODE') #Added
