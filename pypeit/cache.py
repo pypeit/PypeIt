@@ -171,6 +171,7 @@ def fetch_remote_file(
                   'independent of this processing script.')
 
     # Get the file from cache, if available, or download from the remote server
+    # TODO: Make timeout a function argument?
     try:
         cache_fn = astropy.utils.data.download_file(
             remote_url,
