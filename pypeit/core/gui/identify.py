@@ -768,7 +768,8 @@ class Identify:
                 # Instead of a generic name, save the wvarxiv with a unique identifier
                 date_str = datetime.now().strftime("%Y%m%dT%H%M")
                 wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
+                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name,
+                                       to_cache=True)
 
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
