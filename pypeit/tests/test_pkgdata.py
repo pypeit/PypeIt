@@ -105,7 +105,7 @@ def test_search_cache():
 
     # Place a file in the cache, and retrieve it
     cache.write_file_to_cache(
-        dataPaths.linelist.get_file_path('ArI_lines.dat'),
+        str(dataPaths.linelist.get_file_path('ArI_lines.dat')),
         'totally_special_argon_lines.dat',
         'arc_lines/reid_arxiv'
     )

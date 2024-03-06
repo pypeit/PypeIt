@@ -38,4 +38,4 @@ class InstallExtinctfile(scriptbase.ScriptBase):
                 continue
             # Copy the user-created file to the cache
             msgs.info(f'Installing {f}')
-            cache.write_file_to_cache(f, f.name, 'extinction')
+            cache.write_file_to_cache(str(f), f.name, 'extinction')
