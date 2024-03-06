@@ -23,7 +23,6 @@ class InstallExtinctfile(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
-        import os
         import numpy as np
         from pypeit import msgs
 
@@ -39,4 +38,4 @@ class InstallExtinctfile(scriptbase.ScriptBase):
                 continue
             # Copy the user-created file to the cache
             msgs.info(f'Installing {f}')
-            cache.write_file_to_cache(f, os.path.basename(f), 'extinction')
+            cache.write_file_to_cache(f, f.name, 'extinction')

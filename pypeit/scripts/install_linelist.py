@@ -22,7 +22,6 @@ class InstallLinelist(scriptbase.ScriptBase):
 
     @staticmethod
     def main(args):
-        import os
         import numpy as np
         from pypeit import msgs
 
@@ -38,4 +37,4 @@ class InstallLinelist(scriptbase.ScriptBase):
                 continue
             # Copy the user-created file to the cache
             msgs.info(f'Installing {f}')
-            cache.write_file_to_cache(f, os.path.basename(f), 'arc_lines/lists')
+            cache.write_file_to_cache(f, f.name, 'arc_lines/lists')
