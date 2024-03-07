@@ -14,6 +14,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 
+
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code
@@ -23,16 +24,42 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     camera = 'NIRSPEC'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
+        return pypeit_keys
+
+
+class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
+    """
+    Child to handle NIRSPEC high-dispersion specific code
+    """
+    name = 'keck_nirspec_high'
+    supported = True
+    comment = 'High-dispersion grating, post upgrade (~Dec 2018)'
     pypeline = 'Echelle'
     ech_fixed_format = False
-    #supported = False
-
     comment = 'see :ref:`nirspec_high_howto`'
-
+    lamps_list = []
+    filter1 = ''
+    filter2 = ''
 
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
+        see https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
+        and https://www2.keck.hawaii.edu/inst/nirspec/images/spec_highres.png
 
         Args:
             det (:obj:`int`):
@@ -46,6 +73,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+
         detector_dict = dict(
             det=1,
             binning         ='1,1',  # No binning allowed
@@ -54,7 +82,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.13,
-            darkcurr        = 0.8,
+            darkcurr        = 0.8,  # this is e-/s/pixel
             saturation      = 1.0e5,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -64,10 +92,27 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None, #np.atleast_1d('[:,:]')
             )
-        
-
 
         return detector_container.DetectorContainer(**detector_dict)
+
+    def order_platescale(self, order_vec, binning=None):
+        """
+        Return the platescale for each echelle order.
+
+        Note that NIRES has no binning.
+
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning. **This
+                is always ignored.**
+
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
+        """
+        return np.full(order_vec.size, 0.13)
 
     @classmethod
     def configuration_keys(self):
@@ -105,56 +150,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             be propagated in output files.
         """
         return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
-
-    def pypeit_file_keys(self):
-        """
-        Define the list of keys to be output into a standard PypeIt file.
-
-        Returns:
-            :obj:`list`: The list of keywords in the relevant
-            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :ref:`pypeit_file`.
-        """
-        pypeit_keys = super().pypeit_file_keys()
-        # TODO: Why are these added here? See
-        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
-        return pypeit_keys
-
-
-
-    def order_platescale(self, order_vec, binning=None):
-        """
-        Return the platescale for each echelle order.
-
-        Note that NIRES has no binning.
-
-        Args:
-            order_vec (`numpy.ndarray`_):
-                The vector providing the order numbers.
-            binning (:obj:`str`, optional):
-                The string defining the spectral and spatial binning. **This
-                is always ignored.**
-
-        Returns:
-            `numpy.ndarray`_: An array with the platescale for each order
-            provided by ``order``.
-        """
-        return np.full(order_vec.size, 0.13)
-
-
-
-
-class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
-    """
-    Child to handle NIRSPEC high-dispersion specific code
-    """
-    name = 'keck_nirspec_high'
-    supported = True
-    comment = 'High-dispersion grating'
-    lamps_list = []
-    filter1 = ''
-    filter2 = ''
 
     @classmethod
     def default_pypeit_par(cls):
@@ -255,7 +250,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_9300_55100_R60000.fits'
 
         return par
-    
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -323,7 +317,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             if self.get_meta_value(headarr, 'xdangle') == 36.72:
                 par['calibrations']['slitedges']['rm_slits'] = '1:1100:1925'
 
-
         if self.filter2 == 'NIRSPEC-3':
             par['calibrations']['wavelengths']['n_final'] = 3
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
@@ -360,8 +353,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Return
         return par
 
-
-
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -396,8 +387,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
         self.meta['lampstat06'] = dict(ext=0, card = 'HALOGEN')
-
-
 
     def get_echelle_angle_files(self):
         """ Pass back the files required
@@ -489,7 +478,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-        
 
     def lamps(self, fitstbl, status):
         """
@@ -528,10 +516,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         if status == 'dome':
             return fitstbl['lampstat06'] == 'On'
 
-
         raise ValueError('No implementation for status = {0}'.format(status))
-
-
 
 
 class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
@@ -540,7 +525,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     """
     name = 'keck_nirspec_high_old'
     supported = True
-    comment = 'High-dispersion grating, pre-upgrade'
+    comment = 'High-dispersion grating, pre-upgrade (~Dec 2018)'
     lamps_list = []
     filter = ''
     comment = 'see :ref:`nirspec_high_howto`'
@@ -548,6 +533,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
+        see https://web.archive.org/web/20161107225756/https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
+        and https://web.archive.org/web/20161102133624/https://www2.keck.hawaii.edu//inst/nirspec/nirspec-spec-highres.pdf
 
         Args:
             det (:obj:`int`):
@@ -568,8 +555,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.27,
-            darkcurr        = 0.8,
+            platescale      = 0.193,
+            darkcurr        = 0.8,  # this is e-/s/pixel
             saturation      = 1.0e6,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -579,12 +566,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = None, #np.atleast_1d('[:,:]')
             )
-        
-
 
         return detector_container.DetectorContainer(**detector_dict)
-
-
 
     @classmethod
     def default_pypeit_par(cls):
@@ -681,7 +664,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
         return par
-
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -782,7 +764,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         # Return
         return par
 
-
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -820,8 +801,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
         self.meta['lampstat06'] = dict(ext=0, card = 'FLAT')
 
-
-
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -858,8 +837,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         """
         return ['SCIFILT1', 'SCIFILT2', 'ECHLPOS', 'DISPPOS', 'SLITNAME']
 
-
-
     def get_echelle_angle_files(self):
         """ Pass back the files required
         to run the echelle method of wavecalib
@@ -894,9 +871,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
                 angle_fits_file = 'keck_nirspec_j_preupgrade_OH_angle_fits.fits'
                 composite_arc_file = 'keck_nirspec_j_preupgrade_composite_OH.fits'
 
-    
         return [angle_fits_file, composite_arc_file]
-
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -979,8 +954,6 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-
-
     def order_platescale(self, order_vec, binning=None):
         """
         Return the platescale for each echelle order.
@@ -998,8 +971,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return np.full(order_vec.size, 0.27)
-
+        return np.full(order_vec.size, 0.193)
 
     def get_rawimage(self, raw_file, det):
         """
@@ -1137,94 +1109,131 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), np.array(oscansec_img)
 
 
-
 class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     """
     Child to handle NIRSPEC low-dispersion specific code
     """
     name = 'keck_nirspec_low'
     supported = True
-    comment = 'Low-dispersion grating'
+    comment = 'Low-dispersion grating, post-upgrade (~Dec 2018)'
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+        see https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
+        and https://www2.keck.hawaii.edu/inst/nirspec/images/spec_lowres.png
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.098,
+            darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
+            saturation      = 100000.,
+            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(3.01),
+            ronoise         = np.atleast_1d(11.56),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None, #np.atleast_1d('[:,:]')
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
-            """
-            Return the default parameters to use for this instrument.
-            
-            Returns:
-                :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-                all of PypeIt methods.
-            """
-            par = super().default_pypeit_par()
+        """
+        Return the default parameters to use for this instrument.
 
-            # Wavelengths
-            # 1D wavelength solution
-            par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.06 #0.20  # Might be grating dependent..
-            par['calibrations']['wavelengths']['sigdetect']=5.0
-            par['calibrations']['wavelengths']['fwhm']= 3.5
-            par['calibrations']['wavelengths']['n_final']= 4
-            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-            #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
-            # Reidentification parameters
-            #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-            par['calibrations']['slitedges']['edge_thresh'] = 200.
-            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of PypeIt methods.
+        """
+        par = super().default_pypeit_par()
 
-            # Flats
-            par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
+        # Wavelengths
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.06 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['sigdetect']=5.0
+        par['calibrations']['wavelengths']['fwhm']= 3.5
+        par['calibrations']['wavelengths']['n_final']= 4
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        # Reidentification parameters
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
+        par['calibrations']['slitedges']['edge_thresh'] = 200.
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-            # Extraction
-            par['reduce']['skysub']['bspline_spacing'] = 0.8
-            par['reduce']['extraction']['sn_gauss'] = 4.0
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
 
-            # Flexure
-            par['flexure']['spec_method'] = 'skip'
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
-            par['scienceframe']['process']['sigclip'] = 20.0
-            par['scienceframe']['process']['satpix'] ='nothing'
+        # Flexure
+        par['flexure']['spec_method'] = 'skip'
 
-            # Should be we be illumflattening?
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
 
-            # Flats
-            turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                            use_darkimage=False)
-            par.reset_all_processimages_par(**turn_off)
+        # Should be we be illumflattening?
 
-            #turn_off = dict(use_biasimage=False, use_overscan=False)
-            #par.reset_all_processimages_par(**turn_off)
+        # Flats
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
+        #turn_off = dict(use_biasimage=False, use_overscan=False)
+        #par.reset_all_processimages_par(**turn_off)
 
 
-            # The settings below enable NIRSPEC dark subtraction from the
-            # traceframe and pixelflatframe, but enforce that this bias won't be
-            # subtracted from other images. It is a hack for now, because
-            # eventually we want to perform this operation with the dark frame
-            # class, and we want to attach individual sets of darks to specific
-            # images.
-            #par['calibrations']['biasframe']['useframe'] = 'bias'
-            #par['calibrations']['traceframe']['process']['bias'] = 'force'
-            #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-            #par['calibrations']['arcframe']['process']['bias'] = 'skip'
-            #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-            #par['calibrations']['standardframe']['process']['bias'] = 'skip'
-            #par['scienceframe']['process']['bias'] = 'skip'
+        # The settings below enable NIRSPEC dark subtraction from the
+        # traceframe and pixelflatframe, but enforce that this bias won't be
+        # subtracted from other images. It is a hack for now, because
+        # eventually we want to perform this operation with the dark frame
+        # class, and we want to attach individual sets of darks to specific
+        # images.
+        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        #par['calibrations']['traceframe']['process']['bias'] = 'force'
+        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        #par['scienceframe']['process']['bias'] = 'skip'
 
-            # Set the default exposure time ranges for the frame typing
-            par['calibrations']['standardframe']['exprng'] = [None, 20]
-            par['calibrations']['arcframe']['exprng'] = [20, None]
-            par['calibrations']['darkframe']['exprng'] = [20, None]
-            par['scienceframe']['exprng'] = [20, None]
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['scienceframe']['exprng'] = [20, None]
 
-            # Sensitivity function parameters
-            par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['polyorder'] = 8
-            par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
-            par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
-            
-            # Telluric parameters
-            par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
-            
-            return par
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
+        par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
+
+        # Telluric parameters
+        par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
+
+        return par
 
     def init_meta(self):
         """
@@ -1424,3 +1433,53 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         bpm_img[:, 1000:] = 1.
 
         return bpm_img
+
+
+class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
+    """
+    Child to handle NIRSPEC low-dispersion pre-upgrade specific code
+    """
+    name = 'keck_nirspec_low_old'
+    supported = False
+    comment = 'Low-dispersion grating, pre-upgrade (~Dec 2018)'
+
+    # TODO: this is not tested, but added here for completeness
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+        see https://web.archive.org/web/20161107225756/https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
+        and https://web.archive.org/web/20161102133622/https://www2.keck.hawaii.edu//inst/nirspec/nirspec-spec-lowres.pdf
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detector_dict = dict(
+            det=1,
+            binning='1,1',  # No binning allowed
+            dataext=0,
+            specaxis=0,
+            specflip=False,
+            spatflip=False,
+            platescale=0.193,
+            darkcurr=0.8,  # this is e-/s/pixel
+            saturation=1.0e6,
+            nonlinear=0.9,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers=1,
+            mincounts=-1e10,
+            gain=np.atleast_1d(5.8),
+            ronoise=np.atleast_1d(23.0),
+            datasec=np.atleast_1d('[:,:]'),
+            oscansec=None,  # np.atleast_1d('[:,:]')
+        )
+
+        return detector_container.DetectorContainer(**detector_dict)
