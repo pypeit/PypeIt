@@ -3084,9 +3084,9 @@ class WavelengthSolutionPar(ParSet):
         
         defaults['echelle_pad'] = 3
         dtypes['echelle_pad'] = int
-        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle method. ' \ 
-                               'Values > 0 allow for some error in the reddest order guess, but require ' \ 
-                               'sufficient reference orders.'
+        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle '  \
+                                'method. Values > 0 allow for some error in the reddest order guess, '  \
+                                'but require sufficient reference orders.'
         
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
