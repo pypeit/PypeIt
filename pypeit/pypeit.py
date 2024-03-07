@@ -255,7 +255,7 @@ class PypeIt:
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self, no_wave = False):
+    def calib_all(self):
         """
         Process all calibration frames.
 
@@ -292,8 +292,7 @@ class PypeIt:
                 # Do it
                 # These need to be separate to accommodate COADD2D
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                if no_wave:  # Introduced for keck_nirspec_high
-                    self.caliBrate.steps = ['bias', 'dark', 'bpm', 'slits', 'arc', 'flats'] 
+
                 self.caliBrate.run_the_steps()
                 if not self.caliBrate.success:
                     msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
@@ -810,8 +809,8 @@ class PypeIt:
             else:
                 msgs.info(f'Using auto-computed flexure')
                 spat_flexure = sciImg.spat_flexure
-        # Build the initial sky mask
         msgs.info(f'Flexure being used is: {spat_flexure}')
+        # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
 
