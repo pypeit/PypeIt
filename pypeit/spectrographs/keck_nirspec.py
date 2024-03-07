@@ -1145,6 +1145,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_low'
     supported = True
     comment = 'Low-dispersion grating'
+    pypeline = 'MultiSlit'
 
     @classmethod
     def default_pypeit_par(cls):
