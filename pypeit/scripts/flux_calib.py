@@ -98,9 +98,6 @@ class FluxCalib(scriptbase.ScriptBase):
         # Chck the sizes of the inputs
         nspec = len(fluxFile.filenames)
 
-        # Default to checking version of spec1d and sensfunc files
-        #chk_version = True
-
         # Archived solution?
         if len(fluxFile.sensfiles) > 0: 
             sensfiles = fluxFile.sensfiles
@@ -108,10 +105,6 @@ class FluxCalib(scriptbase.ScriptBase):
             # No sensfile specified, but an archived sensfunc can be used.
             sf_archive = SensFileArchive.get_instance(spectrograph.name)
             sensfiles = nspec*[sf_archive.get_archived_sensfile(fluxFile.filenames[0])]
-
-            # Archived sensfuncs can be a few versions behind, so we don't check
-            # their versions
-            #chk_version = False
         else:
             msgs.error('Invalid format for .flux file.' + msgs.newline() +
                        'You must specify a single sensfile on the first line of the flux block,' + msgs.newline() +
@@ -120,7 +113,8 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'], chk_version=chk_version)
+        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'],
+                                     chk_version=chk_version)
         msgs.info('Flux calibration complete')
         return 0
 
