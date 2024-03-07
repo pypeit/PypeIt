@@ -374,8 +374,10 @@ def shift_and_stretch(spec, shift, stretch):
     nspec = spec.shape[0]
     # Can do the stretch and shift in one operation
 
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind='quadratic',
+                                           bounds_error=False, fill_value=0.0))(np.arange(nspec))
     return spec_out
+
 
 def shift_and_stretch2(spec, shift, stretch, stretch2):
 
@@ -410,7 +412,7 @@ def shift_and_stretch2(spec, shift, stretch, stretch2):
     # Can do the stretch and shift in one operation
 
     return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
-                                           spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0)(np.arange(nspec))
+                                           spec, kind='quadratic', bounds_error=False, fill_value=0.0)(np.arange(nspec))
 
 
 def zerolag_shift_stretch(theta, y1, y2):
@@ -449,6 +451,7 @@ def zerolag_shift_stretch(theta, y1, y2):
         raise PypeItError()
     corr_norm = corr_zero / corr_denom
     return -corr_norm
+
 
 def zerolag_shift_stretch2(theta, y1, y2):
 
@@ -648,8 +651,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
-                        fwhm = 4.0, max_lag_frac = 1.0, lag_range = None, debug=False, toler=1e-5, seed = None, stretch_func = 'quad'):
+                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
+                        fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
+                        stretch_func='quad'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -779,18 +783,18 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
-    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, lag_range=lag_range,
-                                    sigdetect = sigdetect, fwhm=fwhm, max_lag_frac = max_lag_frac, debug = debug)
+    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range,
+                                    sigdetect=sigdetect, fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug)
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
     #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
 
+    if lag_range is None:
+        lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
     # TODO Can we make the differential evolution run faster?
     if stretch_func == 'quad':
         try:
-            if lag_range is None:
-                lag_range = (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1])
             bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])
             result = scipy.optimize.differential_evolution(zerolag_shift_stretch2, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
@@ -803,8 +807,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         stretch2_de = result.x[2]
     if stretch_func == 'linear':
         try:
-            if lag_range is None:
-                lag_range = (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1])
             bounds = [lag_range, stretch_mnmx]
             x0_guess = np.array([shift_cc, 1.0])
             result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
@@ -842,9 +844,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         y2_trans = shift_and_stretch2(y2, shift_out, stretch_out, stretch2_out)
         plt.figure(figsize=(14, 6))
         plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-        plt.plot(x1,y2/y2.max(), color = 'grey', drawstyle='steps', label = 'inspec2, reference original')
+        plt.plot(x1,y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original')
         print('REFERENCE MAX', np.max(y2))
-        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
+        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label='inspec2, reference shift & stretch')
         plt.title('shift= {:5.3f}'.format(shift_out) +
                   ',  stretch = {:7.5f}'.format(stretch_out) + 
                                     ',  stretch2 = {:7.5f}'.format(stretch2_out) + ', corr = {:5.3f}'.format(corr_out))
@@ -856,7 +858,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         result_out = -1
 
     return result_out, shift_out, stretch_out, stretch2_out, corr_out, shift_cc, corr_cc
-
 
 
 def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
@@ -922,8 +923,7 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
                    order=None, lines_pix_arr=None, lines_wav_arr=None,
-                   lines_fit_ord=None,
-                   overwrite=True, cache=False):
+                   lines_fit_ord=None, overwrite=True, cache=False):
     """
     Write the template spectrum into a binary FITS table
 
