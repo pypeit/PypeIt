@@ -530,7 +530,7 @@ class BuildWaveCalib:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
         except:
             self.nonlinear_counts = 1e10
-        
+
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
@@ -693,7 +693,7 @@ class BuildWaveCalib:
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'], 
                                              x_percentile=self.par['cc_percent_ceil'])
-            
+
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
@@ -711,7 +711,7 @@ class BuildWaveCalib:
                     self.meta_dict['dispname'],
                     angle_fits_file,
                     composite_arc_file,
-                    pad = self.par['echelle_pad'], 
+                    pad=self.par['echelle_pad'],
                     cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
             # Padding should be a spectrograph-specific, or calibration-mode-specific quantity.
             # Default was 3 from HIRES. Set to 0 for NIRSPEC testing.

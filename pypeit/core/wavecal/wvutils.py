@@ -597,7 +597,10 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         to False
     lag_range : tuple, default = None
         A tuple of the form (lag_min, lag_max) which sets the range of lags to
-        search over. If None, the full range of lags will be searched.
+        search over. If None, max_lag_frac will be used to set the range of lags.
+    max_lag_frac : float, default = 1.0
+        Fraction of the total spectral pixels used to determine the range of lags
+        to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
     debug: boolean, default = False
         Produce debugging plot
 
