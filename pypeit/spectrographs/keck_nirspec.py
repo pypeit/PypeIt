@@ -526,6 +526,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_high_old'
     supported = True
     comment = 'High-dispersion grating, pre-upgrade (~Dec 2018)'
+    pypeline = 'Echelle'
+    ech_fixed_format = False
     lamps_list = []
     filter = ''
     comment = 'see :ref:`nirspec_high_howto`'
@@ -1116,6 +1118,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     name = 'keck_nirspec_low'
     supported = True
     comment = 'Low-dispersion grating, post-upgrade (~Dec 2018)'
+    pypeline = 'MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1442,6 +1445,7 @@ class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
     name = 'keck_nirspec_low_old'
     supported = False
     comment = 'Low-dispersion grating, pre-upgrade (~Dec 2018)'
+    pypeline = 'MultiSlit'
 
     # TODO: this is not tested, but added here for completeness
 
