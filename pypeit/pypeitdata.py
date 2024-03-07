@@ -85,6 +85,8 @@ class PypeItDataPath:
     Attributes:
         host (:obj:`str`):
             String representing the remote host
+        subdirs (:obj:`str`):
+            The subdirectory path within the ``pypeit/data`` directory.
         data (`Path`_):
             Path to the top-level data directory on the user's system.
         path (`Path`_):
@@ -95,9 +97,9 @@ class PypeItDataPath:
         if remote_host not in [None, 's3_cloud', 'github']:
             msgs.error(f'Remote host not recognized: {self.host}')
         self.host = remote_host
-        self.data = self.check_isdir(cache.__PYPEIT_DATA__)
         self.subdirs = subdirs
-        self.path = self.check_isdir(self.data / subdirs)
+        self.data = self.check_isdir(cache.__PYPEIT_DATA__)
+        self.path = self.check_isdir(self.data / self.subdirs)
 
     def glob(self, pattern):
         """
@@ -223,6 +225,10 @@ class PypeItDataPath:
                       quiet=False):
         """
         Return the path to a file.
+
+        The file must either exist locally or be downloadable from the
+        :attr:`host`.  To *define* a path to a file that does not meet these
+        criteria, use ``self.path / data_file``.
 
         If ``data_file`` is a valid path to a file or is a file within
         :attr:`path`, the full path is returned.  Otherwise, it is assumed that

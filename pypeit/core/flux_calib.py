@@ -181,37 +181,29 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
                 # Found one so return
                 return True
 
-            # Generate a dict
+            # There are no actual files for the blackbody spectra.  These are
+            # generated on the fly.  So instead of using the `get_file_path`
+            # function, which will always try to find the file locally or
+            # download it, we directly access the relevant data path and *do
+            # not* check that the file exists.
             _idx = int(idx)
-            # TODO: Is there ever a case where the name of the file is
-            # required?  If so, we should change to_pkg so that it is always
-            # either 'symlink' or 'move'.  I.e., if the file is only in the
-            # cache, the file name will always be "contents".
-            std_dict = dict(cal_file=stds_path.get_file_path(star_tbl[_idx]['File'], to_pkg=to_pkg),
-                            name=star_tbl[_idx]['Name'],
-#                            std_ra=star_tbl[_idx]['RA_2000'],
-#                            std_dec=star_tbl[_idx]['DEC_2000'])
+            if sset == 'blackbody':
+                cal_file = stds_path.path / star_tbl[_idx]['File'] 
+                msgs.info("Blackbody standard star template will be generated")
+            else:
+                cal_file = stds_path.get_file_path(star_tbl[_idx]['File'], to_pkg=to_pkg)
+                msgs.info(f'Loading standard star file: {cal_file}')
+
+            # Generate a dict
+            std_dict = dict(cal_file=cal_file, name=star_tbl[_idx]['Name'],
                             # Force the coordinates to be decimal degrees
                             std_ra=star_coords.ra[_idx].value,
                             std_dec=star_coords.dec[_idx].value)
 
-            if sset == "blackbody":
-                msgs.info("Blackbody standard star template will be generated")
-                fil = None
-            else:
-                # TODO: Does this need to be globbed? Why isn't the file
-                # name exact?  ANSWER: The glob is to catch both .fits and .fits.gz
-                fil = list(std_dict['cal_file'].parent.glob(f"{std_dict['cal_file'].name}*"))
-                if len(fil) == 0:
-                    # TODO: Error or warn?
-                    msgs.error(f"No standard star file: {std_dict['cal_file']}")
-                fil = fil[0]
-                msgs.info(f"Loading standard star file: {fil}")
-
             # TODO: Put this stuff in a method, like `read_standard`
             if sset == 'xshooter':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(fil, format='ascii')
+                std_spec = table.Table.read(cal_file, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
@@ -220,16 +212,18 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
                 std_dict['wave'] = wave.airtovac(std_dict['wave'])
             elif sset == 'calspec':
                 std_dict['std_source'] = sset
-                std_spec = io.fits_open(fil)[1].data
+                std_spec = io.fits_open(cal_file)[1].data
                 std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
                 std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
                                    * units.erg / units.s / units.cm ** 2 / units.AA
             elif sset == 'esofil':
-                fil_basename = fil.name  # Note: `fil` is a pathlib.Path object
-                if not fil_basename.startswith('f'):
-                    msgs.error("The ESO reference standard filename must start with the string `f`;  make sure it is the case. Also make sure that the flux units in the file are in 10**(-16) erg/s/cm2/AA.")
+                # NOTE: `cal_file` is a pathlib.Path object
+                if not cal_file.name.startswith('f'):
+                    msgs.error('The ESO reference standard filename must start with the string '
+                               '`f`;  make sure it is the case. Also make sure that the flux '
+                               'units in the file are in 10**(-16) erg/s/cm2/AA.')
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(fil, format='ascii')
+                std_spec = table.Table.read(cal_file, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
@@ -240,7 +234,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(fil, format='ascii')
+                std_spec = table.Table.read(cal_file, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
@@ -250,7 +244,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
                 std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'ing':
-                std_spec = table.Table.read(fil, format='ascii')
+                std_spec = table.Table.read(cal_file, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
@@ -266,7 +260,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
                 std_dict['wave'] = waves * units.AA
                 std_dict['flux'] = flam * units.erg / units.s / units.cm ** 2 / units.AA
             else:
-                msgs.error('Do not know how to parse {0} file.'.format(sset))
+                msgs.error(f'Do not know how to parse {sset} file.')
             msgs.info("Fluxes are flambda, normalized to 1e-17")
             return std_dict
 
@@ -279,8 +273,6 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False, to_pkg=None
             # above?
             _idx = int(idx)
             closest.update(dict(name=star_tbl[_idx]['Name'],
-#                                ra=star_tbl[int(idx)]['RA_2000'],
-#                                dec=star_tbl[int(idx)]['DEC_2000']))
                                 # Force the coordinates to be decimal degrees
                                 std_ra=star_coords.ra[_idx].value,
                                 std_dec=star_coords.dec[_idx].value))
