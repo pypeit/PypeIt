@@ -557,7 +557,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-                do_xcorr_arc=True, lag_range=None, max_lag_frac = 1.0,  debug=False):
+                do_xcorr_arc=True, lag_range=None, max_lag_frac=1.0,  debug=False):
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the

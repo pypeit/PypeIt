@@ -220,7 +220,7 @@ class ProcessImagesPar(ParSet):
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
-                 spat_flexure_correct=None, spat_flexure_maxlag = None):
+                 spat_flexure_correct=None, spat_flexure_maxlag=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -351,7 +351,7 @@ class ProcessImagesPar(ParSet):
 
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
-        descr['spat_flexure_maxlag'] = 'Maximum of possible flexure offsets, in pixels'
+        descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
 
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
@@ -445,8 +445,8 @@ class ProcessImagesPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
                    'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
-                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
-                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
+                   'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
@@ -2790,7 +2790,7 @@ class WavelengthSolutionPar(ParSet):
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_separate_2d=None, redo_slits=None, qa_log=None, 
-                 cc_percent_ceil = None, echelle_pad = None, cc_offset_minmax = None, no_2dfit = False, stretch_func=None):
+                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, no_2dfit=False, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2976,8 +2976,8 @@ class WavelengthSolutionPar(ParSet):
         defaults['cc_shift_range'] = None
         dtypes['cc_shift_range'] = tuple
         descr['cc_shift_range'] = 'Range of pixel shifts allowed when cross-correlating the ' \
-                                  'input arc spectrum with the archive spectrum.  If None, the ' \
-                                  'range will be automatically determined.'
+                                  'input arc spectrum with the archive spectrum.  If None, ' \
+                                  '``cc_offset_minmax`` will be used to determine this range.'
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, np.ndarray]
@@ -3078,25 +3078,30 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['cc_percent_ceil'] = 50.0
         dtypes['cc_percent_ceil'] = float
-        descr['cc_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, to prevent large lines from dominating'\
-                          '100, all lines are allowed at their maximum heights. May produce spurious peaks in xcorr'
+        descr['cc_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, '  \
+                                   'to prevent large lines from dominating. If 100, all lines are allowed at their '  \
+                                   'maximum heights. May produce spurious peaks in xcorr'
         
         defaults['echelle_pad'] = 3
         dtypes['echelle_pad'] = int
-        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle method.'\
-                          'Values > 0 allow for some error in the reddest order guess, but require sufficient reference orders.'
+        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle method. ' \ 
+                               'Values > 0 allow for some error in the reddest order guess, but require ' \ 
+                               'sufficient reference orders.'
         
         defaults['cc_offset_minmax'] = 1.0
         dtypes['cc_offset_minmax'] = float
-        descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of pixel shifts allowed' \
-                            'when cross-correlating the input arc spectrum with the archive spectrum.'\
-                          'Restricting this can be crucial if there are few reference lines and the cross correlation can get confused.'
+        descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
+                                     'pixel shifts allowed when cross-correlating the input arc spectrum with '  \
+                                     'the archive spectrum. Restricting this can be crucial if there are few '  \
+                                     'reference lines and the cross correlation can get confused. '  \
+                                     'This parameter is only used if ``cc_shift_range`` is None.'
         
         defaults['stretch_func'] = 'linear'
         dtypes['stretch_func'] = str
-        descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch the extracted arcs when identifying' \
-                                'emission lines with reidentify. For NIRSPEC, the quadratic mode tends to do better because the wavelength solution' \
-                                'is typically at least 2nd or 3rd order.'
+        descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch '  \
+                                 'the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, ' \
+                                 'the quadratic mode tends to do better because the wavelength solution ' \
+                                 'is typically at least 2nd or 3rd order.'
                 
         
 
