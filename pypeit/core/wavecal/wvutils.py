@@ -921,8 +921,8 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-                   order=None, lines_pix_arr = None, lines_wav_arr = None,
-                   lines_fit_ord = None, 
+                   order=None, lines_pix_arr=None, lines_wav_arr=None,
+                   lines_fit_ord=None,
                    overwrite=True, cache=False):
     """
     Write the template spectrum into a binary FITS table

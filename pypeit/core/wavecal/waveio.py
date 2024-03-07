@@ -50,7 +50,8 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray,int]:
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray, int, np.ndarray, np.ndarray,
+                                                                    np.ndarray, np.ndarray]:
     """
     Load a full template file from disk
 
@@ -65,12 +66,20 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
 
     Returns
     -------
-    wave : ndarray
+    wave : np.ndarray
         Wavelength vector
-    flux : ndarray
+    flux : np.ndarray
         Flux vector
     binning : int
         binning of the template arc spectrum
+    order : np.ndarray, optional
+        Echelle orders of the saved wavelength solution, if applicable
+    line_pix : np.ndarray, optional
+        Pixel values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_wav : np.ndarray, optional
+        Wavelength values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_fit_ord : np.ndarray, optional
+        Polynomial order of the saved wavelength solution, if applicable
 
     """
     calibfile, fmt = data.get_reid_arxiv_filepath(arxiv_file)
@@ -83,26 +92,13 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
     
-    #for echelle spectrographs
-    try:
-        tbl_order = tbl['order'].data
-    except:
-        tbl_order = None
+    # for echelle spectrographs
+    tbl_order = tbl['order'].data if 'order' in tbl.keys() else None
 
-    #for solutions with saved line IDs and pixels
-    try:
-        tbl_line_pix = tbl['lines_pix'].data
-    except:
-        tbl_line_pix = None
-    try:
-        tbl_line_wav = tbl['lines_wav'].data
-    except:
-        tbl_line_wav = None
-    try:
-        tbl_line_fit_ord = tbl['lines_fit_ord'].data
-    except:
-        tbl_line_fit_ord = None
-
+    # for solutions with saved line IDs and pixels
+    tbl_line_pix = tbl['lines_pix'].data if 'lines_pix' in tbl.keys() else None
+    tbl_line_wav = tbl['lines_wav'].data if 'lines_wav' in tbl.keys() else None
+    tbl_line_fit_ord = tbl['lines_fit_ord'].data if 'lines_fit_ord' in tbl.keys() else None
 
     # Cut down?
     if wvrng is not None:

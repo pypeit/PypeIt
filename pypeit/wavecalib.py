@@ -692,8 +692,8 @@ class BuildWaveCalib:
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'], 
-                                             x_percentile=self.par['cc_percent_ceil'])#,
-                                             #debug=True, debug_reid=True, debug_xcorr=True)
+                                             x_percentile=self.par['cc_percent_ceil'])
+            
             # Grab arxiv for redo later?
             if self.par['echelle']: 
                 # Hold for later usage
