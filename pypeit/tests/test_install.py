@@ -1,19 +1,24 @@
 
+from pathlib import Path
+import shutil
 from IPython import embed
+
+from astropy.config import set_temp_cache
 
 from pypeit import dataPaths
 from pypeit import scripts
 from pypeit import cache
 
 
-def test_install_telluric():
+def run_install_telluric():
     scripts.install_telluric.InstallTelluric.main(
         scripts.install_telluric.InstallTelluric.parse_args(
             ['TellPCA_3000_26000_R25000.fits', '--force_update']
         )
     )
 
-def test_install_extinctfile():
+
+def run_install_extinctfile():
 
     test_file_name = 'cache_test.txt'
     test_file = dataPaths.tests.path / test_file_name
@@ -46,7 +51,7 @@ def test_install_extinctfile():
     cache.remove_from_cache(cache_url=cache_url)
 
 
-def test_install_linelist():
+def run_install_linelist():
 
     test_file_name = 'cache_test.txt'
     test_file = dataPaths.tests.path / test_file_name
@@ -77,4 +82,48 @@ def test_install_linelist():
 
     # Delete it from the cache
     cache.remove_from_cache(cache_url=cache_url)
+
+
+# TODO: There's got to be a more concise way to do this...
+def test_install_telluric():
+
+    root = 'cache_test'    
+    tmp_cache_dir = Path(f'{root}').absolute()
+    if tmp_cache_dir.is_dir():
+        shutil.rmtree(tmp_cache_dir)
+    tmp_cache_dir.mkdir(parents=True)
+
+    with set_temp_cache(root):
+        run_install_telluric()
+
+    shutil.rmtree(tmp_cache_dir)
+
+
+def test_install_extinctfile():
+
+    root = 'cache_test'    
+    tmp_cache_dir = Path(f'{root}').absolute()
+    if tmp_cache_dir.is_dir():
+        shutil.rmtree(tmp_cache_dir)
+    tmp_cache_dir.mkdir(parents=True)
+
+    with set_temp_cache(root):
+        run_install_extinctfile()
+
+    shutil.rmtree(tmp_cache_dir)
+
+
+def test_install_linelist():
+
+    root = 'cache_test'    
+    tmp_cache_dir = Path(f'{root}').absolute()
+    if tmp_cache_dir.is_dir():
+        shutil.rmtree(tmp_cache_dir)
+    tmp_cache_dir.mkdir(parents=True)
+
+    with set_temp_cache(root):
+        run_install_linelist()
+
+    shutil.rmtree(tmp_cache_dir)
+
 
