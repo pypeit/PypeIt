@@ -1101,9 +1101,11 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         lines_wav = template_dict['lines_wav'] 
         lines_fit_ord = template_dict['lines_fit_ord']
 
-    srt = np.argsort(temp_wv_og.ravel())
-    temp_wv = temp_wv_og.ravel()[srt]
-    temp_spec = temp_spec_og.ravel()[srt]
+    # srt = np.argsort(temp_wv_og.ravel())
+    # temp_wv = temp_wv_og.ravel()[srt]
+    # temp_spec = temp_spec_og.ravel()[srt]
+    temp_wv = temp_wv_og
+    temp_spec = temp_spec_og
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
