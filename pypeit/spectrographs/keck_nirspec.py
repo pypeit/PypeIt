@@ -1302,21 +1302,6 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         """
         return ['SLITNAME', 'DISPERS']
 
-    def pypeit_file_keys(self):
-        """
-        Define the list of keys to be output into a standard PypeIt file.
-
-        Returns:
-            :obj:`list`: The list of keywords in the relevant
-            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :ref:`pypeit_file`.
-        """
-        pypeit_keys = super().pypeit_file_keys()
-        # TODO: Why are these added here? See
-        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['comb_id', 'bkg_id']
-        return pypeit_keys
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
