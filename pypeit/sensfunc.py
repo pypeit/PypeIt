@@ -817,7 +817,8 @@ class SensFunc(datamodel.DataContainer):
         fig.savefig(self.fstdfile)
 
         #save the model that was used
-        model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value)
+        model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
+                                                       bounds_error=False, fill_value='extrapolate')
         model_flux_sav = np.zeros(np.shape(self.sens['SENS_FLUXED_STD_FLAM']))
         for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
