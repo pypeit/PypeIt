@@ -1867,7 +1867,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
 # TODO :: This could possibly be moved to core.flat
 def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
+                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5, debug=False):
     """
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
@@ -1900,6 +1900,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Spatial flexure
     maxiter : :obj:`int`
         Maximum number of iterations to perform
+    debug : :obj:`bool`
+        Show the results of the relative spectral illumination correction
 
     Returns
     -------
@@ -2009,7 +2011,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         modelimg_copy /= relscl_model
         if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
-    debug = False
     if debug:
         embed()
         ricp = rawimg.copy()
