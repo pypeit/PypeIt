@@ -93,7 +93,7 @@ class DataCube(datamodel.DataContainer):
                  'spectrograph',
                  'spect_meta',
                  '_ivar',  # This is set internally, and should be accessed with self.ivar
-                 '_wcs'  # This is set internally, and should be accessed with self.wcs
+                 '_wcs'
                 ]
 
     def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
@@ -200,7 +200,7 @@ class DataCube(datamodel.DataContainer):
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
             self._ivar = None
-            self.wcs = wcs.WCS(hdu[1].header)
+            self._wcs = wcs.WCS(hdu[1].header)
         return self
 
     @property
@@ -239,7 +239,7 @@ class DataCube(datamodel.DataContainer):
         # Datacube's are counts/second, so set the exposure time to 1
         exptime = 1.0
         # TODO :: Avoid transposing these large cubes
-        sobjs = datacube.extract_point_source(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self.wcs,
+        sobjs = datacube.extract_point_source(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs,
                                               exptime=exptime, pypeline=self.spectrograph.pypeline,
                                               fluxed=self.fluxed, boxcar_radius=boxcar_radius,
                                               optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
