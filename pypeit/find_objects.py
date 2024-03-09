@@ -1188,8 +1188,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         box_rad = self.par['reduce']['extraction']['boxcar_radius']
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
-        # Load archival sky spectrum for absolute correction
-        sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
+        # # Load archival sky spectrum for absolute correction
+        # sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
         # Get spectral FWHM (in Angstrom) if available
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
@@ -1199,7 +1199,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                global_sky, box_rad, self.slits, trace_spat[:, sl_ref],
                                                self.pypeline, self.det)
         # Calculate the flexure
-        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_spectrum, sky_fwhm_pix, spec_fwhm_pix=ref_fwhm_pix,
+        flex_dict_ref = flexure.spec_flex_shift(ref_skyspec, sky_file=self.par['flexure']['spectrum'], spec_fwhm_pix=ref_fwhm_pix,
                                             mxshft=self.par['flexure']['spec_maxshift'],
                                             excess_shft=self.par['flexure']['excessive_shift'],
                                             method="slitcen",
@@ -1218,7 +1218,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
                                                     global_sky, box_rad, self.slits, trace_spat[:, slit_idx],
                                                     self.pypeline, self.det)
             # Calculate the flexure
-            flex_dict = flexure.spec_flex_shift(this_skyspec, ref_skyspec, ref_fwhm_pix * 1.01,
+            flex_dict = flexure.spec_flex_shift(this_skyspec, arx_skyspec=ref_skyspec, arx_fwhm_pix=ref_fwhm_pix * 1.01,
                                                 spec_fwhm_pix=ref_fwhm_pix,
                                                 mxshft=self.par['flexure']['spec_maxshift'],
                                                 excess_shft=self.par['flexure']['excessive_shift'],
