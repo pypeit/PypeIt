@@ -374,8 +374,19 @@ def shift_and_stretch(spec, shift, stretch):
     nspec = spec.shape[0]
     # Can do the stretch and shift in one operation
 
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind='quadratic',
-                                           bounds_error=False, fill_value=0.0))(np.arange(nspec))
+    # spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind='quadratic',
+    #                                        bounds_error=False, fill_value=0.0))(np.arange(nspec))
+    # DP: reverted the above to its original form, as the above was giving different results and consequently a crash
+    # pad the spectrum on both sizes. NOTE that shift_and_stretch2() is not changed.
+    x1 = np.arange(nspec)/float(nspec-1)
+    nspec_stretch = int(nspec*stretch)
+    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
+    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
+    # Now create a shifted version
+    ind_shift = np.arange(nspec_stretch) - shift
+    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
+    # Now interpolate onto the original grid
+    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
     return spec_out
 
 
@@ -627,11 +638,11 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         lagmin = lag_range[0]  
         lagmax = lag_range[1]  
     else:  
-        lagmin = -int(nspec*max_lag_frac) + 1  
-        lagmax = int(nspec*max_lag_frac)  
+        lagmin = int((-nspec + 1) * max_lag_frac)
+        lagmax = int((nspec - 1) * max_lag_frac)
 
-    lags = np.linspace(lagmin, lagmax, 2*nspec-1)  
-    corr = scipy.signal.correlate(y1, y2, mode='full')  
+    lags = np.linspace(lagmin, lagmax, 2*nspec-1)
+    corr = scipy.signal.correlate(y1, y2, mode='full')
 
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
