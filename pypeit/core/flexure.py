@@ -177,13 +177,26 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
 
     msgs.warn("If we use Paranal, cut down on wavelength early on")
 
-    if sky_file is None and (arx_skyspec is None or arx_fwhm_pix is None):
-        msgs.error("sky_file or arx_skyspec and arx_fwhm_pix must be provided")
+    if sky_file is None and arx_skyspec is None:
+        msgs.error("sky_file or arx_skyspec must be provided")
+    elif sky_file is not None and arx_skyspec is not None:
+        msgs.warn("sky_file and arx_skyspec both provided. Using arx_skyspec.")
+        sky_file = None
 
-    if arx_skyspec is None or arx_fwhm_pix is None:
-        # Load Archival sky spectrum
+    # Arxiv sky spectrum
+    if arx_skyspec is None:
+        # Load arxiv sky spectrum
+        msgs.info("Loading the arxiv sky spectrum and computing its spectral FWHM")
         arx_skyspec, arx_fwhm_pix = get_archive_spectrum(sky_file, obj_skyspec=obj_skyspec, spec_fwhm_pix=spec_fwhm_pix)
+    elif arx_fwhm_pix is None:
+        # get arxiv sky spectrum resolution (FWHM in pixels)
+        msgs.info("Computing the spectral FWHM for the provided arxiv sky spectrum")
+        arx_fwhm_pix = autoid.measure_fwhm(arx_skyspec.flux.value, sigdetect=4., fwhm=4.)
+        if arx_fwhm_pix is None:
+            msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
+                       'Not enough sky lines detected. Provide a value using arx_fwhm_pix')
 
+    # smooth to the same resolution as the object sky spectrum? Yes, if not using a model sky
     if sky_file is not None and (sky_file != 'model'):
         # get gaussian sigma (pixels) for smoothing
         smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=spec_fwhm_pix)
