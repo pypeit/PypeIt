@@ -10,9 +10,14 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Allow the selection of a secondary filter option  for all spectrographs
+that need it; see new ``filter2`` parameter.
 
 Instrument-specific Updates
 ---------------------------
+- Improvements for SOAR/Goodman
+    - Added ``WAVMODE`` header keyword to ``configuration keys`` and
+     ``raw header cards``.
 
 Script Changes
 --------------
