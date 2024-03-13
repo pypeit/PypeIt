@@ -1188,9 +1188,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         box_rad = self.par['reduce']['extraction']['boxcar_radius']
         trace_spat = 0.5 * (self.slits_left + self.slits_right)
-        # # Load archival sky spectrum for absolute correction
-        # sky_spectrum, sky_fwhm_pix = flexure.get_archive_spectrum(self.par['flexure']['spectrum'])
-        # Get spectral FWHM (in Angstrom) if available
         iwv = np.where(self.wv_calib.spat_ids == self.slits.spat_id[sl_ref])[0][0]
         ref_fwhm_pix = self.wv_calib.wv_fits[iwv].fwhm
         # Extract a spectrum of the sky

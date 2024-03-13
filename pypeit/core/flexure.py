@@ -177,6 +177,7 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
 
     msgs.warn("If we use Paranal, cut down on wavelength early on")
 
+    # Check input mode
     if sky_file is None and arx_skyspec is None:
         msgs.error("sky_file or arx_skyspec must be provided")
     elif sky_file is not None and arx_skyspec is not None:
@@ -184,7 +185,7 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
         sky_file = None
 
     # Arxiv sky spectrum
-    if arx_skyspec is None:
+    if sky_file is not None:
         # Load arxiv sky spectrum
         msgs.info("Loading the arxiv sky spectrum and computing its spectral FWHM")
         arx_skyspec, arx_fwhm_pix = get_archive_spectrum(sky_file, obj_skyspec=obj_skyspec, spec_fwhm_pix=spec_fwhm_pix)
@@ -196,8 +197,10 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
             msgs.error('Failed to measure the spectral FWHM of the archived sky spectrum. '
                        'Not enough sky lines detected. Provide a value using arx_fwhm_pix')
 
+    # initialize smooth_fwhm_pix
+    smooth_fwhm_pix = None
     # smooth to the same resolution as the object sky spectrum? Yes, if not using a model sky
-    if sky_file is not None and (sky_file != 'model'):
+    if sky_file != 'model':
         # get gaussian sigma (pixels) for smoothing
         smooth_fwhm_pix = get_fwhm_gauss_smooth(arx_skyspec, obj_skyspec, arx_fwhm_pix, spec_fwhm_pix=spec_fwhm_pix)
 
@@ -208,8 +211,6 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
 
         if smooth_fwhm_pix > 0:
             arx_skyspec = arx_skyspec.gauss_smooth(smooth_fwhm_pix)
-    else:
-        smooth_fwhm_pix = None
 
     # Determine region of wavelength overlap
     minwave = 0 if minwave is None else minwave
