@@ -175,7 +175,8 @@ def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=N
 
     # TODO None of these routines should have dependencies on XSpectrum1d!
 
-    msgs.warn("If we use Paranal, cut down on wavelength early on")
+    # commenting this msgs out for now. If no objections, we should remove it
+    # msgs.warn("If we use Paranal, cut down on wavelength early on")
 
     # Check input mode
     if sky_file is None and arx_skyspec is None:
