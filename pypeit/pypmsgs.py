@@ -407,7 +407,7 @@ class Messages:
                 Verbosity level between 0 [none] and 2 [all]
         """
         # Create a UT timestamp (to the minute) for the log filename
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M")
         # Create a logfile only if verbosity == 2
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs

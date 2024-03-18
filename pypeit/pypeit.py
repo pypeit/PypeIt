@@ -111,7 +111,7 @@ class PypeIt:
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
-            '.pypeit', f"_UTC_{datetime.datetime.utcnow().date()}.par")
+            '.pypeit', f"_UTC_{datetime.datetime.now(datetime.UTC).date()}.par")
         self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------

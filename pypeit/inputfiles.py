@@ -520,7 +520,7 @@ class InputFile:
                 documentation purposes only!**
         """
         _version = __version__ if version_override is None else version_override
-        _date = datetime.utcnow().isoformat(timespec='milliseconds') \
+        _date = datetime.now(datetime.UTC).isoformat(timespec='milliseconds') \
                     if date_override is None else date_override
 
         # Here we go

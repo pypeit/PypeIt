@@ -593,7 +593,7 @@ class SetupGUIController(QObject):
         if args.logfile is not None:
             logpath = Path(args.logfile)
             if logpath.exists():
-                timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+                timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d-%H%M%S")
                 old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
                 logpath.rename(old_log)
                 
