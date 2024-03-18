@@ -32,6 +32,8 @@ import sklearn
 import pypeit
 import time
 
+# TODO: Reminder that our aim is to eventually deprecate use of xspectrum1d in
+# favor of specutils.Spectrum1D (or whatever it is in specutils>2.0).
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
