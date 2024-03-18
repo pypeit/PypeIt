@@ -64,7 +64,9 @@ from pypeit import cache
 
 # NOTE: A better approach may be to subclass from Path.  I briefly tried that,
 # but quickly realized it was going to be more complicated than I'd hoped.  This
-# is a clean and sufficient solution for now.
+# is a clean and sufficient solution for now.  As of python 3.12, the
+# pathlib.Path class supports subclassing.  Return to this as soon as we require
+# python>=3.12.
 class PypeItDataPath:
     """
     Convenience class that enables a general interface between a pypeit data

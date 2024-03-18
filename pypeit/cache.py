@@ -121,13 +121,14 @@ def github_contents(repo, branch, path, recursive=True):
 
 def git_most_recent_tag():
     """
-    Return the version number for the most recent tag
+    Return the version number for the most recent tag and the date of its last
+    commit.
 
     Returns:
         :obj:`tuple`: The version number and a ISO format string with the date
-        of the last commit included in the tag.  If ``pygit2`` is not installed,
-        the returned version is the same as ``pypeit.__version__`` and the date
-        is None.
+        of the last commit included in the tag.  If ``pygit2`` is not installed
+        or no tags are found, the returned version is the same as
+        ``pypeit.__version__`` and the date is None.
     """
     if Repository is None:
         return __version__, None

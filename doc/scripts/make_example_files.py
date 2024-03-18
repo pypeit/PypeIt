@@ -9,6 +9,7 @@ import shutil
 import sys
 import time
 
+from pypeit import dataPaths
 from pypeit.scripts import setup
 from pypeit import pypeitsetup
 from pypeit.inputfiles import PypeItFile
@@ -28,6 +29,23 @@ def obscure_path(paths):
     """
     return [str(pathlib.Path('/path/to') / pathlib.Path(p).absolute().relative_to(DEV_ROOT.parent))
                 for p in paths]
+
+
+def verbatim_to_rst(inp, out):
+    with open(out, 'w') as f:
+        with open(inp, 'r') as p:
+            lines = p.readlines()
+        f.write('.. code-block:: console\n')
+        f.write('\n')
+        for l in lines:
+            f.write('    '+l)
+        f.write('\n\n')
+
+
+def extinction_files():
+    inp = dataPaths.extinction.get_file_path('extinction_curves.txt')
+    ofile = PYP_ROOT / 'doc' / 'include' / f'{inp.name}.rst'
+    verbatim_to_rst(inp, ofile)
 
 
 def make_example_kast_pypeit_file(version, date):
@@ -58,14 +76,7 @@ def make_example_kast_pypeit_file(version, date):
     p.write(pypeit_file, version_override=version, date_override=date)
 
     ofile = oroot / 'shane_kast_blue_A.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(pypeit_file, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(pypeit_file, ofile)
 
     shutil.rmtree(sroot)
 
@@ -94,14 +105,7 @@ def make_example_deimos_pypeit_file(version, date):
     p.write(pypeit_file, version_override=version, date_override=date)
 
     ofile = oroot / 'keck_deimos_A.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(pypeit_file, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(pypeit_file, ofile)
 
     shutil.rmtree(sroot)
 
@@ -130,14 +134,7 @@ def make_example_gnirs_pypeit_files(version, date):
     p.write(pypeit_file, version_override=version, date_override=date)
 
     ofile = oroot / 'gemini_gnirs_echelle_A.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(pypeit_file, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(pypeit_file, ofile)
 
     shutil.rmtree(sroot)
 
@@ -145,14 +142,7 @@ def make_example_gnirs_pypeit_files(version, date):
     dev = DEV_ROOT / 'pypeit_files' / 'gemini_gnirs_echelle_32_sb_sxd.pypeit'
 
     ofile = oroot / 'gemini_gnirs_echelle_A_corrected.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(dev, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(dev, ofile)
 
 
 def make_example_nires_pypeit_files(version, date):
@@ -179,14 +169,7 @@ def make_example_nires_pypeit_files(version, date):
     p.write(pypeit_file, version_override=version, date_override=date)
 
     ofile = oroot / 'keck_nires_A.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(pypeit_file, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(pypeit_file, ofile)
 
     shutil.rmtree(sroot)
 
@@ -194,14 +177,7 @@ def make_example_nires_pypeit_files(version, date):
     dev = DEV_ROOT / 'pypeit_files' / 'keck_nires_abba_wstandard.pypeit'
 
     ofile = oroot / 'keck_nires_A_corrected.pypeit.rst'
-    with open(ofile, 'w') as f:
-        with open(dev, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(dev, ofile)
 
 
 def make_example_sorted_file():
@@ -219,14 +195,7 @@ def make_example_sorted_file():
 
     oroot = PYP_ROOT / 'doc' / 'include'
     ofile = oroot / 'keck_deimos.sorted.rst'
-    with open(ofile, 'w') as f:
-        with open(sorted_file, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(sorted_file, ofile)
 
     os.remove(sorted_file)
 
@@ -244,14 +213,7 @@ def make_meta_examples():
         spec.meta_key_map()
     sys.stdout = stdout
 
-    with open(ofile, 'w') as f:
-        with open(otmp, 'r') as p:
-            lines = p.readlines()
-        f.write('.. code-block:: console\n')
-        f.write('\n')
-        for l in lines:
-            f.write('    '+l)
-        f.write('\n\n')
+    verbatim_to_rst(otmp, ofile)
 
     if otmp.exists():
         otmp.unlink()
@@ -272,6 +234,8 @@ if __name__ == '__main__':
     make_example_sorted_file()
     print('Make meta examples')
     make_meta_examples()
+    print('Make extinction file')
+    extinction_files()
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 

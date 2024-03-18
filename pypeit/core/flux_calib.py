@@ -470,8 +470,7 @@ def load_extinction_data(longitude, latitude, extinctfilepar,
         # Observation coordinates
         obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
         # Read list
-        # TODO: We should give this file a different name!
-        extinct_summ = dataPaths.extinction.get_file_path('README')
+        extinct_summ = dataPaths.extinction.get_file_path('extinction_curves.txt')
         extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
         # Coords
         ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',

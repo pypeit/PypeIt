@@ -267,16 +267,16 @@ Viewing/Removing Files in the Cache
 -----------------------------------
 
 The ``pypeit_clean_cache`` script allows you to view and/or delete files in the
-cache.  To 
+cache.  To list the cache contents, use the ``-l`` option:
 
 .. code-block:: console
 
     % pypeit_clean_cache -l
            HOST               BRANCH               SUBDIR FILE
-         github                 dirs                tests gemini_gnirs_32_1_spat_fit.npz
-         github                 dirs            sensfuncs keck_deimos_600ZD_sensfunc.fits
+         github               1.15.1                tests gemini_gnirs_32_1_spat_fit.npz
+         github               1.15.1            sensfuncs keck_deimos_600ZD_sensfunc.fits
        s3_cloud                  ...   telluric/atm_grids TellPCA_3000_26000_R10000.fits
-         github                 dirs                tests solution_arrays.npz
+         github               1.15.1                tests solution_arrays.npz
 
 Note that the files hosted on GitHub will be specific to a branch or version of
 PypeIt.  **Every time you upgrade pypeit, we recommend deleting your existing
