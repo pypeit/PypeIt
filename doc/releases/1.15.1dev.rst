@@ -8,7 +8,7 @@ Installation Changes
 Dependency Changes
 ------------------
 
-- PypeIt now only supports python versions 3.10 or later
+- PypeIt now only supports python versions 3.10 or later, and numpy version 1.23 and later
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
