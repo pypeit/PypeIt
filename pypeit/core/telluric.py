@@ -719,7 +719,7 @@ def unpack_orders(sobjs, ret_flam=False):
 
 # TODO: This function needs to be revisited.  Better yet, it would useful to
 # brainstorm about whether or not it's worth revisiting the spec1d datamodel.
-def general_spec_reader(specfile, ret_flam=False, chk_version=True):
+def general_spec_reader(specfile, ret_flam=False, chk_version=True, ret_stacks = False):
     """
     Read a spec1d file or a coadd spectrum file.
 
@@ -759,6 +759,11 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=True):
         counts_gpm = spec.mask.astype(bool)
         spect_dict = spec.spect_meta
         head = spec.head0
+        #order_stacks = spec.order_stacks
+        wave_stack = spec.wave_stack
+        counts_stack = spec.flux_stack
+        counts_ivar_stack = spec.ivar_stack
+        counts_gpm_stack = spec.mask_stack
     else:
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=chk_version)
         # TODO: What bug?  Is it fixed now?  How can we test if it's fixed?
@@ -789,6 +794,9 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=True):
     meta_spec = dict(bonus=bonus)
     meta_spec['core'] = spect_dict
 
+    if ret_stacks:
+        msgs.info('Outputting order stacks')
+        return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 
 def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spectrograph=None, telluric=None,
@@ -1479,7 +1487,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       teltype=teltype, tell_npca=tell_npca,
                       ech_orders=ech_orders, pix_shift_bounds=pix_shift_bounds,
                       resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
-                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
+                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol, 
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
                       sensfunc=True, debug=debug)
     TelObj.run(only_orders=only_orders)
@@ -2407,6 +2415,8 @@ class Telluric(datamodel.DataContainer):
 
         # 2) Reshape all spectra to be (nspec, norders)
         if log10_blaze_function is not None:
+            #msgs.info(f'log10_blaze_function = {log10_blaze_function}')
+
             self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
                 self.nspec_in, self.norders = utils.spec_atleast_2d(
                 wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)

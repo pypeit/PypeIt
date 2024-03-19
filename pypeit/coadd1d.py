@@ -29,7 +29,7 @@ class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                     setup_id=None, debug=False, show=False, chk_version=True):
+                     setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
         """
         Superclass factory method which generates the subclass instance. See
         :class:`CoAdd1D` instantiation for argument descriptions.
@@ -37,10 +37,10 @@ class CoAdd1D:
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
-            setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
+            setup_id=setup_id, debug=debug, show=show, save_multi=save_multi, chk_version=chk_version)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                 setup_id=None, debug=False, show=False, chk_version=True):
+                 setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
         """
 
         Args:
@@ -62,6 +62,8 @@ class CoAdd1D:
                 different echelle setups is performed.  If None, it will be
                 assumed that all the input files, objids, and sensfuncfiles
                 correspond to the same setup.
+            save_multi (bool, optional)
+                Save order stacks from coadds, in addition to 1d coadded spectra? Default = False
             debug (bool, optional)
                 Debug. Default = False
             show (bool, optional):
@@ -89,6 +91,7 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
+        self.save_multi = save_multi
         self.chk_version = chk_version
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
@@ -100,7 +103,13 @@ class CoAdd1D:
         """
 
         # Coadd the data
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        if self.save_multi:
+            msgs.info('saving order stacks, too')
+            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
+        else:
+            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+            self.order_stacks = None
+
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -149,7 +158,14 @@ class CoAdd1D:
         if telluric is not None:
             onespec.telluric  = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model
+            onespec.obj_model = obj_model[wave_gpm]
+        if self.order_stacks is not None:
+            onespec.wave_stack = self.order_stacks[0,:,:]
+            onespec.flux_stack = self.order_stacks[1,:,:]
+            onespec.ivar_stack = self.order_stacks[2,:,:]
+            onespec.mask_stack = self.order_stacks[3,:,:].astype(int)
+        #elif order_stacks is None:
+            #onespec.order_stacks = None
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -164,6 +180,15 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
+
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
+                 debug=False, show=False, save_multi=False, chk_version=True):
+        """
+        See :class:`CoAdd1D` instantiation for argument descriptions.
+        """
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
+
 
     def load(self):
         """
@@ -333,12 +358,12 @@ class EchelleCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                 setup_id=None, debug=False, show=False, chk_version=True):
+                 setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par,
-                         sensfuncfile=sensfuncfile, setup_id=setup_id, debug=debug, show=show,
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show, save_multi=save_multi,
                          chk_version=chk_version)
 
         if sensfuncfile is None:
@@ -390,7 +415,7 @@ class EchelleCoAdd1D(CoAdd1D):
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
-        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
+        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks, \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
@@ -400,7 +425,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      wave_grid_max=self.par['wave_grid_max'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
                                      ref_percentile=self.par['ref_percentile'],
-                                     maxiter_scale=self.par['maxiter_scale'],
+                                     maxiter_scale=self.par['maxiter_scale'], 
                                      sigrej_scale=self.par['sigrej_scale'],
                                      scale_method=self.par['scale_method'],
                                      sn_min_medscale=self.par['sn_min_medscale'],
@@ -409,7 +434,8 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-
+        if self.save_multi:
+            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, np.array(order_stacks)[:,0,:,:]
 
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
 
@@ -522,9 +548,9 @@ class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
     Child of MultiSlitCoAdd1d for SlicerIFU reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+                         setup_id=setup_id, debug = debug, show = show, chk_version=chk_version)

@@ -42,7 +42,7 @@ from pypeit import wavemodel
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
+def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -74,21 +74,20 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
     thresh =  med_sci + 5.0*stddev_sci
     corr_sci = np.fmin(_sciimg.flatten(), thresh)
-
     lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom
     # TODO -- Generate a QA plot
+
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
             = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
                                cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
-        msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
-#        if debug:
-#            embed(header='68 of flexure')
+        msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
+        
         return 0.
-
+    
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
@@ -96,7 +95,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
 
     if debug:
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr', linewidth=1.0)
+        plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr')
         plt.plot(lag_max[0], xcorr_max[0], 'g+', markersize=6.0, label='peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(xcorr_max[0]))
         plt.legend()
@@ -107,6 +106,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
 
     #slitmask_shift = pixels.tslits2mask(tslits_shift)
     #slitmask_shift = slits.slit_img(flexure=lag_max[0])
+
     if debug:
         # Now translate the slits in the tslits_dict
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])

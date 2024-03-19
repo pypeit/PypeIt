@@ -2576,7 +2576,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm, \
             hand_extract_boxcar = [hand_extract_dict[key] for key in [
                 'spec', 'spat', 'detname', 'fwhm', 'boxcar_rad']]
-
+        msgs.info(f'Checking if the hand apertures at {hand_extract_spec} are in the slit')
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))
