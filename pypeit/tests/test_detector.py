@@ -67,11 +67,20 @@ def test_io():
 
 
 def test_copy():
+    
+    # Double check that none of the DataContainer customization doesn't break
+    # doing a deepcopy of a detector
+
+    import copy
     detector = detector_container.DetectorContainer(**def_det)
-    detcopy = detector.copy()
+    detcopy = copy.deepcopy(detector)
 
     # Check that a couple of relevant attributes have different memory locations
     assert detector is not detcopy, 'Should not point to the same reference'
     assert detector.gain is not detcopy.gain, \
         'numpy array attributes should not point to the same reference'
-    
+
+    # make sure the copy is actually a copy
+    assert detector.det == detcopy.det, 'Detector number should be the same.'
+    assert np.array_equal(detector.gain,detcopy.gain), 'Detector gain should be the same'
+

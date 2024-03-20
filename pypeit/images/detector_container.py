@@ -228,14 +228,3 @@ class DetectorContainer(datamodel.DataContainer):
             gain = 1.
         return self.saturation * self.nonlinear * gain
     
-    def copy(self):
-        """
-        Return a (deep) copy of the object.
-        """
-        return DetectorContainer(self.dataext, self.specaxis, self.specflip, self.spatflip, self.platescale,
-                                 self.saturation, self.mincounts, self.nonlinear,
-                                 self.numamplifiers, self.gain.copy(), self.ronoise.copy(),
-                                 self.det, self.binning, xgap=self.xgap, ygap=self.ygap,
-                                 ysize=self.ysize, darkcurr=self.darkcurr,
-                                 datasec=None if self.datasec is None else self.datasec.copy(),
-                                 oscansec=None if self.oscansec is None else self.oscansec.copy())

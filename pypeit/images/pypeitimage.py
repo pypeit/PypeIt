@@ -8,6 +8,7 @@ import inspect
 from IPython import embed
 
 import numpy as np
+import copy
 
 from astropy.io import fits
 
@@ -783,7 +784,7 @@ class PypeItImage(datamodel.DataContainer):
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below
-        _detector = None if self.detector is None else self.detector.copy()
+        _detector = copy.deepcopy(self.detector)
 
         # Create the new image.
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
