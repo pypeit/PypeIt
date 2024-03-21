@@ -950,7 +950,8 @@ def get_sky_spectrum(sciimg, ivar, waveimg, thismask, global_sky, box_radius, sl
     Returns:
         (`linetools.spectra.xspectrum1d.XSpectrum1D`_): Sky spectrum
     """
-    spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det))
+    spec = specobj.SpecObj(PYPELINE=pypeline, SLITID=-1, DET=str(det),
+                           ECH_ORDER=0) # Required to instantiate Echelle but not used
     spec.trace_spec = np.arange(slits.nspec)
     spec.TRACE_SPAT = trace_spat
     spec.BOX_RADIUS = box_radius
