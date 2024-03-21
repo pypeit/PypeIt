@@ -66,7 +66,7 @@ def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
                              normalize=True, subtract_conti=True, overwrite=overwrite, shift_wave=False)
 
 # ##############################
-def shane_kastr_1200_5000(overwrite=False):  # 300/7500
+def shane_kastr_1200_5000(overwrite=False):  # 1200/5000
     """ Warning:  This is *not* the full detector """
 
     binspec = 1
