@@ -22,9 +22,12 @@ Instrument-specific Updates
 
 - Added example of improved wavelength solution for GEMINI/GMOS
 - Expanded the template for `shane_kast_red` and the 1200/5000 grating
+- Fixed and improved the wavelength template `magellan_fire_long`
 
 Script Changes
 --------------
+- When interactively fitting a single peak with the `pypeit_identify` script
+  (i.e. using the `i` command), line centroids can now be both updated and added interactively.
 
 Datamodel Changes
 -----------------
