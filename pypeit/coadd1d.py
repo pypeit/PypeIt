@@ -103,12 +103,8 @@ class CoAdd1D:
         """
 
         # Coadd the data
-        if self.save_multi:
-            msgs.info('saving order stacks, too')
-            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
-        else:
-            self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
-            self.order_stacks = None
+        # if there are multiple orders/slits, the stacks will be extracted from the coadd1d object, otherwise it'll be None
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
 
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
@@ -164,8 +160,6 @@ class CoAdd1D:
             onespec.flux_stack = self.order_stacks[1,:,:]
             onespec.ivar_stack = self.order_stacks[2,:,:]
             onespec.mask_stack = self.order_stacks[3,:,:].astype(int)
-        #elif order_stacks is None:
-            #onespec.order_stacks = None
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -415,7 +409,7 @@ class EchelleCoAdd1D(CoAdd1D):
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
-        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks, \
+        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
@@ -435,9 +429,11 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
         if self.save_multi:
-            return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, np.array(order_stacks)[:,0,:,:]
+            order_stacks_output = np.array(order_stacks)[:,0,:,:]
+        else:
+            order_stacks_output = None
 
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks_output
 
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):

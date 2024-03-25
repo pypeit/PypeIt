@@ -18,7 +18,7 @@
 
   # Data block 
   data read
-  path /Users/asc/Library/CloudStorage/OneDrive-CaliforniaInstituteofTechnology/Documents/Caltech/KVSP2023/PypeItDev/tutorial
+  path /path/to/the/raw/data
               filename |                 frametype |                 ra |                  dec |       target |     dispname |   decker | binning |          mjd | airmass | exptime | filter1 |   filter2 | echangle | xdangle | comb_id | bkg_id | calib
   nspec220511_0010.fits |                  arc,tilt |                0.0 |                  0.0 |   DOME FLATS | Spectroscopy | 0.144x12 |     1,1 | 59710.032976 |   10.06 | 1.47528 |    Thin | NIRSPEC-3 |     63.0 |   34.08 |      -1 |     -1 |     0
   nspec220511_0007.fits | pixelflat,illumflat,trace |                0.0 |                  0.0 |   DOME FLATS | Spectroscopy | 0.144x12 |     1,1 | 59710.032209 |    9.69 | 1.47528 |    Thin | NIRSPEC-3 |     63.0 |   34.08 |      -1 |     -1 |     0

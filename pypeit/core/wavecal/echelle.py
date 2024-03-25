@@ -216,7 +216,7 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Number of orders to pad the coverage by on the blue and red side.
     debug : bool, optional
         Passed to xcorr_shift
-    cc_percent_ceil: float
+    cc_percent_ceil: float, optional
         The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
 
     Returns

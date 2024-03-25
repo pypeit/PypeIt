@@ -487,12 +487,14 @@ Making a New Wavelength Solution
 If the :ref:`run-pypeit` script fails to produce a WaveCalib file, or the user prefers to produce their own wavelength solution 
 without using any of the automated method, they can also do this with :ref:`pypeit_identify`. 
 
-The user should begin by running :ref:`run-pypeit` with the ``--no_wave`` flag, to produce the necessary inputs to :ref:`pypeit_identify`. 
-The command would then be:
+The user should begin by running :ref:`run-pypeit` in calibration mode with the ``reference = 'pixel' `` parameter, to produce the necessary inputs to :ref:`pypeit_identify`. 
+The necessary addition to the :ref:`pypeit_file` would be:
 
 .. code-block:: bash
 
-    run_pypeit keck_nirspec_high_A.pypeit -c --no_wave
+    [calibrations]
+        [[wavelengths]]
+            reference = 'pixel'
 
 
 The user can then launch the :ref:`pypeit_identify` gui using the following call

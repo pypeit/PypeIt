@@ -439,10 +439,9 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             std_dict = dict(cal_file='continuum', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
             std_dict['std_source'] = 'continuum'
-            std_dict['wave'] = np.arange(2000,50000,1.0)*units.AA#vega_data['col1'] * units.AA
+            std_dict['wave'] = np.arange(2000,50000,1.0)*units.AA
 
-            # vega is V=0.03
-            std_dict['flux'] = np.ones(np.shape(std_dict['wave']))*units.erg/units.s/units.cm**2/units.AA#vega_data['col2'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
+            std_dict['flux'] = np.ones(np.shape(std_dict['wave']))*units.erg/units.s/units.cm**2/units.AA
                                #units.erg / units.s / units.cm ** 2 / units.AA
         ## using Kurucz stellar model
         else:

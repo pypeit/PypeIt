@@ -28,7 +28,7 @@ class Identify(scriptbase.ScriptBase):
                             "Format should be [0,1,...] for multiple slits, 0 for only one slit. "
                             "If creating a new WaveCalib with the -n flag, this is not necessary.")
         parser.add_argument('-m', '--multi', default=False, action = 'store_true',
-                            help="Are we making multiple trace solutions or just one?")
+                            help="Set this flag to create wavelength solutions for muliple slits?")
         parser.add_argument('-n', '--new_sol', default=False, action = 'store_true',
                             help="Do you want to do the entire wavelength solution from scratch?")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
@@ -153,13 +153,7 @@ class Identify(scriptbase.ScriptBase):
                 if args.slits == 'all':
                     slits_inds = np.arange(slits.nslits)
                 else:
-                    slit_list = list(args.slits)
-                    ii = 0
-                    slits_inds = []
-                    while 2*ii+1 < len(slit_list):
-                        slits_inds.append(int(slit_list[2*ii+1]))
-                        ii += 1
-                    slits_inds = np.array(slits_inds)
+                    slits_inds = np.array(list(slits.strip('[]').split(",")), dtype=int)
             fits_dicts = []
             specdata = []
             wv_fits_arr = []
@@ -234,14 +228,14 @@ class Identify(scriptbase.ScriptBase):
                     if custom_wav_q == 'y':
                         while True:
                             try:
-                                min_wav_str = input('Minimum Wavelength = ')
+                                min_wav_str = input('Please enter the desired minimum wavelength: ')
                                 min_wav = float(min_wav_str)
                             except ValueError:
                                 print("Sorry, try that again...")
                                 #better try again... Return to the start of the loop
                                 continue
                             try:
-                                max_wav_str = input('Maximum Wavelength = ')
+                                max_wav_str = input('Please enter the desired maximum wavelength: ')
                                 max_wav = float(max_wav_str)
 
                             except ValueError:
@@ -249,7 +243,7 @@ class Identify(scriptbase.ScriptBase):
                                 #better try again... Return to the start of the loop
                                 continue
                             else:
-                                #age was successfully parsed!
+                                #wavelengths were successfully parsed!
                                 #we're ready to exit the loop.
                                 break
                         nspec = np.shape(arccen)[0]

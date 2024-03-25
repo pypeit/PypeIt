@@ -72,13 +72,13 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         Flux vector
     binning : int
         binning of the template arc spectrum
-    order : np.ndarray, optional
+    order : np.ndarray
         Echelle orders of the saved wavelength solution, if applicable
-    line_pix : np.ndarray, optional
+    line_pix : np.ndarray
         Pixel values of identified arc line centroids in the saved wavelength solution, if applicable
-    line_wav : np.ndarray, optional
+    line_wav : np.ndarray
         Wavelength values of identified arc line centroids in the saved wavelength solution, if applicable
-    line_fit_ord : np.ndarray, optional
+    line_fit_ord : np.ndarray
         Polynomial order of the saved wavelength solution, if applicable
 
     """

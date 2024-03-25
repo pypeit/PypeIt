@@ -216,10 +216,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
                         use_darkimage=False, use_specillum=False, use_illumflat = False, use_pixelflat=False) #use_illumflat=True, 
         par.reset_all_processimages_par(**turn_off)
 
-        '''
-        turn_off = dict(use_biasimage=False, use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-        '''
         # Specify if cleaning cosmic ray hits/bad pixels
 
         # The settings below enable NIRSPEC dark subtraction from the
@@ -245,8 +241,6 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
-        par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_9300_55100_R60000.fits'
 
         return par
@@ -664,7 +658,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
-        par['sensfunc']['IR']['telgridfile'] = '/Users/asc/OneDriveDocs/Caltech/KVSP2023/PypeItDev/testTelluricRemoval/TellPCA_9300_55100_R60000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_9300_55100_R60000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -960,7 +954,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
         """
         Return the platescale for each echelle order.
 
-        Note that NIRES has no binning.
+        Note that NIRSPEC has no binning.
 
         Args:
             order_vec (`numpy.ndarray`_):

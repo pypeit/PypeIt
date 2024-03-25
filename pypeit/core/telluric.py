@@ -795,7 +795,7 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=True, ret_stacks =
     meta_spec['core'] = spect_dict
 
     if ret_stacks:
-        msgs.info('Outputting order stacks')
+        msgs.info('Returning order stacks')
         return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 
@@ -2415,7 +2415,6 @@ class Telluric(datamodel.DataContainer):
 
         # 2) Reshape all spectra to be (nspec, norders)
         if log10_blaze_function is not None:
-            #msgs.info(f'log10_blaze_function = {log10_blaze_function}')
 
             self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
                 self.nspec_in, self.norders = utils.spec_atleast_2d(

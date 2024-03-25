@@ -866,16 +866,16 @@ class Identify:
                     if '"echelle": true' in wvcalib.strpar:
                         while True:
                             try:
-                                print('    ')
+                                print('')
                                 order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
                                 order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
                                 if len(order_vec) != len(wvcalib.wv_fits):
-                                    print(f'The number of orders in this list, {order_vec} ')
-                                    print(f'does not match the number of traces: {len(wvcalib.wv_fits)}')
-                                    print('Please try again...')
+                                    msgs.warn(f'The number of orders in this list, {order_vec} '+msgs.newline()+
+                                    f'does not match the number of traces: {len(wvcalib.wv_fits)}' + msgs.newline() +
+                                    'Please try again...')
                                     continue
                             except ValueError:
-                                print("Sorry, syntax may be invalid...")
+                                msgs.warn("Sorry, syntax may be invalid...")
                                 #better try again... Return to the start of the loop
                                 continue
                             else:
@@ -889,7 +889,7 @@ class Identify:
                         make_arxiv = 'n'
                         msgs.warn('Skipping arxiv save because there are not enough orders for full template')
                         msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
-#                        msgs.info(f'There are ')
+
                     while make_arxiv != 'y' and make_arxiv != 'n': 
                         print('          ')
                         make_arxiv = input("Save this as a multi-trace arxiv? ([y]/n): ")
@@ -923,11 +923,12 @@ class Identify:
                                             lines_fit_ord = lines_fit_ord)
                     
                     # Allow user to overwrite the existing WVCalib file
-                    print('          ')
-                    print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
-                    print('NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ ')
-                    print(' and re-run run_pypeit. ')
-                    print('        ')
+                    print('')
+                    msgs.warn('Overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
+                    'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ '+msgs.newline()+
+                    ' and re-run run_pypeit. ')
+                    print('')
+                    
                     ow_wvcalib = ''
                     while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
                         ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
@@ -954,7 +955,6 @@ class Identify:
                             for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
                                 for f in cal_root.glob(f'{cal}*'):  
                                     f.unlink() 
-                            #os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
                     # Write the WVCalib file
                     outfname = "wvcalib.fits"
                     if wvcalib is not None:
