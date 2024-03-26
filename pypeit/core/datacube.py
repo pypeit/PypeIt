@@ -597,13 +597,16 @@ def get_whitelight_range(wavemin, wavemax, wl_range):
     return wlrng
 
 
-def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
+def make_whitelight_fromcube(cube, bpmcube, wave=None, wavemin=None, wavemax=None):
     """
     Generate a white light image using an input cube.
 
     Args:
         cube (`numpy.ndarray`_):
             3D datacube (the final element contains the wavelength dimension)
+        bpmcube (`numpy.ndarray`_):
+            3D bad pixel mask cube (the final element contains the wavelength dimension).
+            A value of 1 indicates a bad pixel.
         wave (`numpy.ndarray`_, optional):
             1D wavelength array. Only required if wavemin or wavemax are not
             None.
@@ -620,7 +623,6 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
         A whitelight image of the input cube (of type `numpy.ndarray`_).
     """
     # Make a wavelength cut, if requested
-    cutcube = cube.copy()
     if wavemin is not None or wavemax is not None:
         # Make some checks on the input
         if wave is None:
@@ -636,10 +638,15 @@ def make_whitelight_fromcube(cube, wave=None, wavemin=None, wavemax=None):
         ww = np.where((wave >= wavemin) & (wave <= wavemax))[0]
         wmin, wmax = ww[0], ww[-1]+1
         cutcube = cube[:, :, wmin:wmax]
+        # Cut the bad pixel mask and convert it to a good pixel mask
+        cutgpmcube = np.logical_not(bpmcube[:, :, wmin:wmax])
+    else:
+        cutcube = cube.copy()
+        cutgpmcube = np.logical_not(bpmcube)
     # Now sum along the wavelength axis
-    nrmval = np.sum(cutcube != 0.0, axis=2)
-    nrmval[nrmval == 0.0] = 1.0
-    wl_img = np.sum(cutcube, axis=2) / nrmval
+    nrmval = np.sum(cutgpmcube, axis=2)
+    nrmval[nrmval == 0] = 1.0
+    wl_img = np.sum(cutcube*cutgpmcube, axis=2) / nrmval
     return wl_img
 
 
@@ -1593,7 +1600,7 @@ def generate_cube_subpixel(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             whitelight_range[0], whitelight_range[1]))
         # Get the output filename for the white light image
         out_whitelight = get_output_whitelight_filename(outfile)
-        whitelight_img = make_whitelight_fromcube(flxcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
+        whitelight_img = make_whitelight_fromcube(flxcube, bpmcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=whitelight_wcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
@@ -1697,8 +1704,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
     Returns:
         :obj:`tuple`: Three or four `numpy.ndarray`_ objects containing (1) the
         datacube generated from the subpixellated inputs, (2) the corresponding
-        variance cube, (3) the corresponding bad pixel mask cube, and (4) the
-        residual cube.  The latter is only returned if debug is True.
+        variance cube, and (3) the corresponding bad pixel mask cube.
     """
     # Check the inputs for combinations of lists or not
     _sciImg, _ivarImg, _waveImg, _gpmImg, _wghtImg, _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset = \
