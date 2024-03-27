@@ -13,6 +13,14 @@ import warnings
 from collections.abc import Sequence
 import configobj
 
+# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
+# to no longer support it.
+try:
+    __UTC__ = datetime.UTC
+except AttributeError as e:
+    from datetime import timezone
+    __UTC__ = timezone.utc
+
 from astropy.table import Table, column
 from astropy.io import ascii
 
@@ -520,7 +528,7 @@ class InputFile:
                 documentation purposes only!**
         """
         _version = __version__ if version_override is None else version_override
-        _date = datetime.utcnow().isoformat(timespec='milliseconds') \
+        _date = datetime.now(__UTC__).isoformat(timespec='milliseconds') \
                     if date_override is None else date_override
 
         # Here we go
