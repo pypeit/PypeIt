@@ -394,9 +394,10 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
         par['calibrations']['wavelengths']['sigdetect']=3
         par['calibrations']['wavelengths']['fwhm'] = 10
-        par['calibrations']['wavelengths']['n_first']=2
-        par['calibrations']['wavelengths']['n_final']=4
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
+        par['calibrations']['wavelengths']['n_first']=3
+        par['calibrations']['wavelengths']['n_final']=6
+        par['calibrations']['wavelengths']['nsnippet'] = 4
+        par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'

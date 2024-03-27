@@ -1161,7 +1161,9 @@ class Identify:
             self._lineids = np.append(self._lineids, 0)[arsrt]
             self._lineflg = np.append(self._lineflg, 0)[arsrt]  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         else:
-            self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            # self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            print("New detection is <{0:d} pixels of a detection - replacing closest detection".format(mindist))
+            self._detns[np.argmin(np.abs(self._detns - new_detn))] = new_detn
         # Reset the fit regions
         self._fitregions = np.zeros_like(self._fitregions)
         return
