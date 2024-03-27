@@ -1399,7 +1399,7 @@ def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
     r"""
     Apply a nonlinearity correction to the provided counts.
 
-    The nonlinearity correction is applied to the provided counts using the
+    The nonlinearity correction is applied to the provided ``counts`` using the
     hard-coded parameters in the provided ``nonlinearity_coeffs``.  The
     correction is applied to the provided ``counts`` using the following
     equation:

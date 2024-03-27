@@ -310,7 +310,6 @@ class RawImage:
         Apply a non-linear correction to the image.
 
         This is a simple wrapper for :func:`~pypeit.core.procimg.nonlinear_counts`.
-
         """
         step = inspect.stack()[0][3]
         if self.steps[step]:
