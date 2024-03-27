@@ -26,6 +26,7 @@ Instrument-specific Updates
 ---------------------------
 
 - Added example of improved wavelength solution for GEMINI/GMOS
+- Expanded the template for `shane_kast_red` and the 1200/5000 grating
 
 Script Changes
 --------------

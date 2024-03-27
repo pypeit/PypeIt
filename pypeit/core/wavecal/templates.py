@@ -62,7 +62,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False, binning=None, micron=False):
+                   shift_wave=False, binning=None, micron=False,
+                   reid_files:bool=False):
     """
     Generate a full_template for a given instrument
 
@@ -83,6 +84,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Name of output directory
         lowredux (bool, optional):
             If true, in_files are from LowRedux
+        reid_files (bool, optional):
+            If True, in_files are reid_arxiv files
         wvspec (ndarray, optional):
             Manually input the wavelength values
         ifiles (list, optional):
@@ -134,6 +137,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                 wv_vac, spec = xidl_arcspec(in_file, slit)
             elif ascii_tbl:
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
+            elif reid_files:
+                wv_vac, spec = read_reid(in_file)
             else:
                 wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
             if micron:
@@ -455,6 +460,11 @@ def xidl_arcspec(xidl_file, slit):
     # Return
     return wv_vac.value, spec
 
+def read_reid(reid_file:str):
+    # Read
+    tbl = Table.read(reid_file)
+    # Return
+    return tbl['wave'].data, tbl['flux'].data
 
 def xidl_esihires(xidl_file, specbin=1, order_vec=None,
                   log10=True):
