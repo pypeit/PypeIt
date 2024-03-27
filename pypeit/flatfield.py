@@ -1163,7 +1163,7 @@ class FlatField:
                 spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]
                 specspat_illum = np.fmax(spec_model, 1.0) * spat_model
                 norm_spatspec = rawflat / specspat_illum
-                self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
+                spat_illum_fine = self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)[onslit_tweak]
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1404,6 +1404,11 @@ class FlatField:
             A positive number trims the slit edges, a negative number pads the slit edges.
         doqa : :obj:`bool`, optional:
             Save the QA?
+
+        Returns
+        -------
+        illumflat_finecorr: `numpy.ndarray`_
+            An image (same shape as normed) containing the fine correction to the spatial illumination profile
         """
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
@@ -1467,7 +1472,7 @@ class FlatField:
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
             spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
-        return
+        return illumflat_finecorr
 
     def extract_structure(self, rawflat_orig, slit_trim=3):
         """
@@ -1576,7 +1581,8 @@ class FlatField:
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
                                       flexure=self.wavetilts.spat_flexure,
-                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'])
+                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'],
+                                      debug=debug)
 
     def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
         """
@@ -2025,12 +2031,24 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             scale_ref = histScl * norm
             plt.subplot(211)
             plt.plot(wave_ref, this_spec)
+            plt.xlim([3600, 4500])
             plt.subplot(212)
             plt.plot(wave_ref, scale_ref)
+        plt.xlim([3600, 4500])
         plt.subplot(211)
         plt.plot(wave_ref, spec_ref, 'k--')
+        plt.xlim([3600, 4500])
         plt.show()
-
+        # Plot the relative scales of each slit
+        scales_med, scales_avg = np.zeros(slits.spat_id.size), np.zeros(slits.spat_id.size)
+        for ss in range(slits.spat_id.size):
+            onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now & (waveimg>3628) & (waveimg<4510)
+            scales_med[ss] = np.median(ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
+            scales_avg[ss] = np.mean(ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
+        plt.plot(slits.spat_id, scales_med, 'bo-', label='Median')
+        plt.plot(slits.spat_id, scales_avg, 'ro-', label='Mean')
+        plt.legend()
+        plt.show()
     return scaleImg
 
 
