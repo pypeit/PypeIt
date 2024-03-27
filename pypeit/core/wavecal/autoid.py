@@ -582,6 +582,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
             wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect, lag_range=cc_shift_range,
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
+#                                        stretch_mnmx=(0.99,1.01),
                                         debug=debug_xcorr)
         msgs.info(f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, cc = {ccorr_vec[iarxiv]:5.3f}')
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum

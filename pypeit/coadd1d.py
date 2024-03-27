@@ -262,9 +262,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             # update good exposures index
             goodindx_exp = goodindx_exp[np.logical_not(masked_exps)]
 
-        # check if there is still more than 1 exposure left
-        if len(_fluxes) < 2:
-            msgs.error('At least 2 unmasked exposures are required for coadding.')
+        # check if there is still at least 1 exposure left
+        if len(_fluxes) < 1:
+            msgs.error('At least 1 unmasked exposures are required for coadding.')
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
