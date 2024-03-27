@@ -11,6 +11,14 @@ from abc import ABCMeta
 from collections import Counter
 import yaml
 
+# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
+# to no longer support it.
+try:
+    __UTC__ = datetime.UTC
+except AttributeError as e:
+    from datetime import timezone
+    __UTC__ = timezone.utc
+
 from IPython import embed
 
 import numpy as np
@@ -1334,7 +1342,7 @@ class Calibrations:
         with open(_ofile, 'w') as ff:
             ff.write('# Auto-generated calibration association file using PypeIt version: '
                      f' {__version__}\n')
-            ff.write(f'# UTC {datetime.utcnow().isoformat(timespec="milliseconds")}\n')
+            ff.write(f'# UTC {datetime.now(__UTC__).isoformat(timespec="milliseconds")}\n')
             if det is None:
                 ff.write(f'# NOTE: {detname} is a placeholder for the reduced detectors/mosaics\n')
             ff.write(yaml.dump(utils.yamlify(asn)))
