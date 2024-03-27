@@ -95,7 +95,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             pypeitFile = None
             par = None
             spec_name = None
-            sci_dirs = [Path(sc).resolve() for sc in args.science_dir]
+            sci_dirs = [Path(sc).absolute() for sc in args.science_dir]
         else:
             # Read the pypeit file
             pypeitFile = inputfiles.PypeItFile.from_file(args.pypeit_file)
@@ -110,9 +110,9 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
             # based on the parameter value, then try to base it on the parent
             # directory of the provided pypeit file.  The latter is critical to the
             # vet_test in the dev-suite.
-            sci_dirs = [Path(par['rdx']['redux_path']).resolve() / par['rdx']['scidir']]
+            sci_dirs = [Path(par['rdx']['redux_path']).absolute() / par['rdx']['scidir']]
             if not sci_dirs[0].exists():
-                sci_dirs = [Path(args.pypeit_file).resolve().parent / par['rdx']['scidir']]
+                sci_dirs = [Path(args.pypeit_file).absolute().parent / par['rdx']['scidir']]
 
         sci_dirs_exist = [sc.exists() for sc in sci_dirs]
         if not np.all(sci_dirs_exist):

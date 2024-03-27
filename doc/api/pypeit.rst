@@ -9,7 +9,6 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
-   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.move_median
@@ -28,6 +27,7 @@ Submodules
    pypeit.alignframe
    pypeit.archive
    pypeit.bitmask
+   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
@@ -46,6 +46,7 @@ Submodules
    pypeit.metadata
    pypeit.onespec
    pypeit.pypeit
+   pypeit.pypeitdata
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling

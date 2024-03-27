@@ -9,7 +9,15 @@ from pathlib import Path
 import time
 import os
 import copy
-import datetime
+from datetime import datetime
+
+# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
+# to no longer support it.
+try:
+    __UTC__ = datetime.UTC
+except AttributeError as e:
+    from datetime import timezone
+    __UTC__ = timezone.utc
 
 from IPython import embed
 
@@ -111,7 +119,7 @@ class PypeIt:
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
-            '.pypeit', f"_UTC_{datetime.datetime.utcnow().date()}.par")
+            '.pypeit', f"_UTC_{datetime.now(__UTC__).date()}.par")
         self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------
@@ -237,7 +245,7 @@ class PypeIt:
         # isolate where the name of the standard-star spec1d file is defined.
         std_outfile = self.par['reduce']['findobj']['std_spec1d']
         if std_outfile is not None:
-            if not Path(std_outfile).resolve().exists():
+            if not Path(std_outfile).absolute().exists():
                 msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
             return std_outfile
 
@@ -890,7 +898,7 @@ class PypeIt:
             regfile = buildimage.SkyRegions.construct_file_name(calib_key,
                                                                 calib_dir=self.calibrations_path,
                                                                 basename=io.remove_suffix(scifile))
-            regfile = Path(regfile).resolve()
+            regfile = Path(regfile).absolute()
             if not regfile.exists():
                 msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
                            'frame using pypeit_skysub_regions, or change the user_regions to '

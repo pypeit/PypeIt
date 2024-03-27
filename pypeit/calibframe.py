@@ -109,7 +109,7 @@ class CalibFrame(datamodel.DataContainer):
                 relevant instrument; see
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
         """
-        self.calib_dir = Path(odir).resolve()
+        self.calib_dir = Path(odir).absolute()
         # TODO: Keep this, or throw an error if the directory doesn't exist instead?
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
@@ -152,7 +152,7 @@ class CalibFrame(datamodel.DataContainer):
                 Passed directly to
                 :func:`~pypeit.datamodel.DataContainer.to_file`.
         """
-        _file_path = self.get_path() if file_path is None else Path(file_path).resolve()
+        _file_path = self.get_path() if file_path is None else Path(file_path).absolute()
         super().to_file(_file_path, overwrite=overwrite, **kwargs)
 
     @classmethod
@@ -222,7 +222,7 @@ class CalibFrame(datamodel.DataContainer):
             the processed calibration frame.
         """
         if from_filename:
-            path = Path(inp).resolve()
+            path = Path(inp).absolute()
             return '_'.join(path.name.split('.')[0].split('_')[1:]), str(path.parent)
 
         if isinstance(inp, str):
@@ -435,7 +435,7 @@ class CalibFrame(datamodel.DataContainer):
             msgs.error('CODING ERROR: calib_key cannot be None when constructing the '
                        f'{cls.__name__} file name.')
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
-        return filename if calib_dir is None else Path(calib_dir).resolve() / filename
+        return filename if calib_dir is None else Path(calib_dir).absolute() / filename
 
     def get_path(self):
         """
@@ -495,7 +495,7 @@ class CalibFrame(datamodel.DataContainer):
             directory, None is returned.
         """
         # Check the path exists
-        _calib_dir = Path(calib_dir).resolve()
+        _calib_dir = Path(calib_dir).absolute()
         if not _calib_dir.exists():
             return None
 

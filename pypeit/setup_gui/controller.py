@@ -7,12 +7,21 @@ The controller portion of the PypeIt Setup GUI.
 import traceback
 import signal
 import sys
-import datetime
+from datetime import datetime
 import re
 import io
 from pathlib import Path
 from functools import partial
 from contextlib import contextmanager
+
+# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
+# to no longer support it.
+try:
+    __UTC__ = datetime.UTC
+except AttributeError as e:
+    from datetime import timezone
+    __UTC__ = timezone.utc
+
 from qtpy.QtCore import QCoreApplication, Signal, QMutex
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
@@ -593,7 +602,7 @@ class SetupGUIController(QObject):
         if args.logfile is not None:
             logpath = Path(args.logfile)
             if logpath.exists():
-                timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+                timestamp = datetime.now(__UTC__).strftime("%Y%m%d-%H%M%S")
                 old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
                 logpath.rename(old_log)
                 

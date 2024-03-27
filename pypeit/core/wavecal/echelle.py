@@ -12,9 +12,9 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
+from pypeit import dataPaths
 from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
-from pypeit import data
 
 
 def predict_ech_order_coverage(angle_fits_params, xd_angle_coeffs, 
@@ -136,14 +136,14 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
     """
 
     # Read in the echelle angle fits
-    angle_fits_file, _ = data.get_reid_arxiv_filepath(angle_fits_file)
+    angle_fits_file = dataPaths.reid_arxiv.get_file_path(angle_fits_file)
     hdu = fits.open(angle_fits_file)
     angle_fits_params = Table(hdu[1].data)[0]
     ech_angle_coeffs = hdu[2].data
     xd_angle_coeffs = hdu[3].data
 
     # Read in the composite arc spectrum
-    composite_arc_file, _ = data.get_reid_arxiv_filepath(composite_arc_file)
+    composite_arc_file = dataPaths.reid_arxiv.get_file_path(composite_arc_file)
     hdu = fits.open(composite_arc_file)
     composite_arc_params = Table(hdu[1].data)[0]
     wave_composite = hdu[2].data

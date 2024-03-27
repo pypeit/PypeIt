@@ -6,8 +6,9 @@
     Script to install user-created extinction file
     
     positional arguments:
-      files       Filename(s) of the extinction file(s) to be installed in the
-                  PypeIt cache
+      files       One or more files with extinction curve data to be installed in
+                  the PypeIt cache. May include wildcards for multiple files with
+                  the same root.
     
     options:
       -h, --help  show this help message and exit

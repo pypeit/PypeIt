@@ -103,8 +103,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         spec2d_files = coadd2dFile.filenames
 
         # Get the paths
-        coadd_scidir, qa_path = map(lambda x : Path(x).resolve(),
-                                    coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
+        coadd_scidir, qa_path = map(lambda x : Path(x).absolute(),
+                coadd2d.CoAdd2D.output_paths(spec2d_files, par, coadd_dir=par['rdx']['redux_path']))
 
         # Get the output basename
         head2d = fits.getheader(spec2d_files[0])

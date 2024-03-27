@@ -305,7 +305,8 @@ class RawImage:
         return utils.inverse(var)
 
     def estimate_readnoise(self):
-        """ Estimate the readnoise (in electrons) based on the overscan regions of
+        r"""
+        Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if

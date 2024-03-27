@@ -3,7 +3,6 @@ Module for Shane/Kast specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
 
 from IPython import embed
 
@@ -16,8 +15,6 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit import data
-
 
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):

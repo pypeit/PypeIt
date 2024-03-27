@@ -95,7 +95,7 @@ class SpecObjs:
                 slf.calibs['DIR'] = slf.header['CLBS_DIR']
                 for key in slf.header.keys():
                     if key.startswith('CLBS_') \
-                            and (Path(slf.calibs['DIR']).resolve() / slf.header[key]).exists():
+                            and (Path(slf.calibs['DIR']).absolute() / slf.header[key]).exists():
                         slf.calibs['_'.join(key.split('_')[1:])] = slf.header[key]
 
             detector_hdus = {}

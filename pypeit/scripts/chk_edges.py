@@ -48,7 +48,7 @@ class ChkEdges(scriptbase.ScriptBase):
         slit_filename = args.slits_file
         if slit_filename is not None:
             # File provided by user
-            slit_filename = Path(args.slits_file).resolve()
+            slit_filename = Path(args.slits_file).absolute()
             if not slit_filename.exists():
                 # But doesn't exist
                 msgs.warn(f'{slit_filename} does not exist!')

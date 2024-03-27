@@ -18,6 +18,7 @@ Submodules
    pypeit.scripts.chk_scattlight
    pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
+   pypeit.scripts.clean_cache
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec
    pypeit.scripts.coadd_datacube

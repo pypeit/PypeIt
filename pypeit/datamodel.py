@@ -1539,7 +1539,7 @@ class DataContainer:
             FileNotFoundError:
                 Raised if the specified file does not exist.
         """
-        _ifile = Path(ifile).resolve()
+        _ifile = Path(ifile).absolute()
         if not _ifile.exists():
             raise FileNotFoundError(f'{_ifile} does not exist!')
 

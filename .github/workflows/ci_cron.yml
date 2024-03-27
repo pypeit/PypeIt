@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.9', '3.10', '3.11']
+        python: ['3.10', '3.11', '3.12']
         toxenv: [test-alldeps, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository

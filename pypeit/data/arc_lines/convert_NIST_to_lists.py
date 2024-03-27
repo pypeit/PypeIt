@@ -9,7 +9,7 @@ from IPython import embed
 
 import astropy.table
 
-from pypeit import data
+from pypeit import dataPaths
 
 
 def parser(options=None):
@@ -69,7 +69,7 @@ def load_line_list(line):
     line_list : Table
 
     """
-    line_file = data.Paths.nist / f'{line}_vacuum.ascii'
+    line_file = dataPaths.nist.get_file_path(f'{line}_vacuum.ascii')
 
     # Check the NIST lines file exists
     if not line_file.is_file():
@@ -167,7 +167,7 @@ def main(args=None):
         return linelist
 
     # Write the table to disk
-    outfile = data.get_linelist_filepath(f'{line}_lines.dat')
+    outfile = dataPaths.linelist.get_file_path(f'{line}_lines.dat')
     write_line_list(linelist, outfile)
     return
 

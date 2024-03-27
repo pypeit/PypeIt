@@ -64,4 +64,4 @@ class ArxivSolution(scriptbase.ScriptBase):
         wave = wv_calib['wv_fits'][args.slit]['wave_soln'].flatten()
         spec = wv_calib['wv_fits'][args.slit]['spec'].flatten()
         outname = args.file.replace(".fits", "_arXiv.fits")
-        wvutils.write_template(wave, spec, args.binning, './', outname, cache=True)
+        wvutils.write_template(wave, spec, args.binning, './', outname, to_cache=True)
