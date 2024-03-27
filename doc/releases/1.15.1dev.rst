@@ -28,6 +28,12 @@ Instrument-specific Updates
 Script Changes
 --------------
 
+- A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
+  sources to be extracted from datacubes.
+- The sensitivity function is now generated outside of datacube generation.
+- The `grating_corr` column is now used to select the correct grating
+  correction file for each spec2d file when generating the datacube.
+
 Datamodel Changes
 -----------------
 - `Spec2DObj` now has an additional image, called `bkg_redux_skymodel`, which is the "actual" sky model

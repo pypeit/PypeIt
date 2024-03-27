@@ -624,7 +624,6 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
-        par['reduce']['cube']['grating_corr'] = False
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
 
         # Sky subtraction parameters

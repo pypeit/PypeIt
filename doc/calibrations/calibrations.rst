@@ -127,6 +127,7 @@ The primary calibration procedures are, in the order they're performed:
    flexure
    wave_calib
    Slit Alignment (IFU only) <alignment>
+   non-linear correction <nonlinear>
    flat_fielding
    scattlight
 

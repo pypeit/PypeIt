@@ -926,6 +926,15 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
         # par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
 
+        # Correct for non-linear behaviour in the detector response
+        nonlin_array = [-1.4E-7, -1.4E-7, -1.2E-7, -1.8E-7]  # AMPID=0,1,2,3 respectively
+        par['calibrations']['arcframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['tiltframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['pixelflatframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['illumflatframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['standardframe']['process']['correct_nonlinear'] = nonlin_array
+        par['scienceframe']['process']['correct_nonlinear'] = nonlin_array
+
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
 

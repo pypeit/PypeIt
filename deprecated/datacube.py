@@ -443,3 +443,71 @@ def make_whitelight_frompixels(all_ra, all_dec, all_wave, all_sci, all_wghts, al
             whitelight_ivar[:, :, ff] = ivar_img.copy()
     return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
+
+def make_sensfunc(ss_file, senspar, blaze_wave=None, blaze_spline=None, grating_corr=False):
+    """
+    Generate the sensitivity function from a standard star DataCube.
+
+    Args:
+        ss_file (:obj:`str`):
+            The relative path and filename of the standard star datacube. It
+            should be fits format, and for full functionality, should ideally of
+            the form :class:`~pypeit.coadd3d.DataCube`.
+        senspar (:class:`~pypeit.par.pypeitpar.SensFuncPar`):
+            The parameters required for the sensitivity function computation.
+        blaze_wave (`numpy.ndarray`_, optional):
+            Wavelength array used to construct blaze_spline
+        blaze_spline (`scipy.interpolate.interp1d`_, optional):
+            Spline representation of the reference blaze function (based on the illumflat).
+        grating_corr (:obj:`bool`, optional):
+            If a grating correction should be performed, set this variable to True.
+
+    Returns:
+        `numpy.ndarray`_: A mask of the good sky pixels (True = good)
+    """
+    # TODO :: This routine has not been updated to the new spec1d plan of passing in a sensfunc object
+    #      :: Probably, this routine should be removed and the functionality moved to the sensfunc object
+    msgs.error("coding error - make_sensfunc is not currently supported.  Please contact the developers")
+    # Check if the standard star datacube exists
+    if not os.path.exists(ss_file):
+        msgs.error("Standard cube does not exist:" + msgs.newline() + ss_file)
+    msgs.info(f"Loading standard star cube: {ss_file:s}")
+    # Load the standard star cube and retrieve its RA + DEC
+    stdcube = fits.open(ss_file)
+    star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
+
+    # Extract a spectrum of the standard star
+    wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+
+    # Extract the information about the blaze
+    if grating_corr:
+        blaze_wave_curr, blaze_spec_curr = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+        blaze_spline_curr = interp1d(blaze_wave_curr, blaze_spec_curr,
+                                     kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Perform a grating correction
+        grat_corr = correct_grating_shift(wave, blaze_wave_curr, blaze_spline_curr, blaze_wave, blaze_spline)
+        # Apply the grating correction to the standard star spectrum
+        Nlam_star /= grat_corr
+        Nlam_ivar_star *= grat_corr ** 2
+
+    # Read in some information above the standard star
+    std_dict = flux_calib.get_standard_spectrum(star_type=senspar['star_type'],
+                                                star_mag=senspar['star_mag'],
+                                                ra=star_ra, dec=star_dec)
+    # Calculate the sensitivity curve
+    # TODO :: This needs to be addressed... unify flux calibration into the main PypeIt routines.
+    msgs.warn("Datacubes are currently flux-calibrated using the UVIS algorithm... this will be deprecated soon")
+    zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = \
+        flux_calib.fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                                 mask_hydrogen_lines=senspar['mask_hydrogen_lines'],
+                                 mask_helium_lines=senspar['mask_helium_lines'],
+                                 hydrogen_mask_wid=senspar['hydrogen_mask_wid'],
+                                 nresln=senspar['UVIS']['nresln'],
+                                 resolution=senspar['UVIS']['resolution'],
+                                 trans_thresh=senspar['UVIS']['trans_thresh'],
+                                 polyorder=senspar['polyorder'],
+                                 polycorrect=senspar['UVIS']['polycorrect'],
+                                 polyfunc=senspar['UVIS']['polyfunc'])
+    wgd = np.where(zeropoint_fit_gpm)
+    sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - flux_calib.ZP_UNIT_CONST)) / np.square(wave[wgd])
+    return interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
