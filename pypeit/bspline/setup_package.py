@@ -2,7 +2,7 @@ import os
 import sys
 import tempfile, subprocess, shutil
 
-from distutils.extension import Extension
+from setuptools import Extension
 
 # the most reliable way to check for openmp support in the C compiler is to try to build
 # some test code with the -fopenmp flag. openmp provides a big performance boost, but some
