@@ -24,6 +24,7 @@ Instrument-specific Updates
 
 - Added example of improved wavelength solution for GEMINI/GMOS
 - Introduces reduction pipeline for high-resolution modes of Keck/NIRSPEC
+- Expanded the template for `shane_kast_red` and the 1200/5000 grating
 
 Script Changes
 --------------
@@ -44,4 +45,8 @@ Bug Fixes
   produced error cubes that were not properly propagating the noise. The error cubes of the NGP
   algorithm were unaffected. The error cubes are now regularly inspected with vet tests to ensure
   the error cubes are reliable.
-
+- Fix a bug (introduced in a recent PR) that was generating an error if less than 2 spec1d
+  files were used with `pypeit_coadd_1dspec`. Now the script can be run with only one
+  file (as it was before).
+- Allow `spec_flex_shift()` to take as input either the name of an archive sky spectrum or
+  directly a sky spectrum. This fixes a bug in the flexure correction for SlicerIFU.
