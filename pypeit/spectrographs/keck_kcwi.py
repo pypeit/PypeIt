@@ -309,7 +309,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
         par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 10  # Sufficiently small value so less structure in relative weights
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
@@ -948,7 +948,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['scattlight_pad'] = 6  # This is the unbinned number of pixels to pad
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
-        par['scienceframe']['process']['subtract_scattlight'] = True
+        par['scienceframe']['process']['subtract_scattlight'] = False
         par['scienceframe']['process']['scattlight']['finecorr_method'] = 'median'
         par['scienceframe']['process']['scattlight']['finecorr_pad'] = 4  # This is the unbinned number of pixels to pad
         par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
