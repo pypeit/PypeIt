@@ -28,9 +28,9 @@ class Identify(scriptbase.ScriptBase):
                             "Format should be [0,1,...] for multiple slits, 0 for only one slit. "
                             "If creating a new WaveCalib with the -n flag, this is not necessary.")
         parser.add_argument('-m', '--multi', default=False, action = 'store_true',
-                            help="Set this flag to create wavelength solutions for muliple slits?")
+                            help="Set this flag to create wavelength solutions for muliple slits")
         parser.add_argument('-n', '--new_sol', default=False, action = 'store_true',
-                            help="Do you want to do the entire wavelength solution from scratch?")
+                            help="Set this flag to construct a new WaveCalib file, rather than using the exising one")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")

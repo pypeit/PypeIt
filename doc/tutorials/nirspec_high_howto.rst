@@ -10,7 +10,7 @@ Keck/NIRSPEC High Resolution HOWTO
 Overview
 ========
 
-This tutorial is written to serve as both and guide and documentation for reducing 
+This tutorial is written to serve as both a guide and documentation for reducing 
 Keck/NIRSPEC high resolution spectra using PypeIt. We will begin with a reduction of the sample
 J Band dataset and include recommendations for reducing other sample datasets (Y, H, and K bands).
 

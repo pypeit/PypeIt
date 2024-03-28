@@ -112,7 +112,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return np.full(order_vec.size, 0.13)
+        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.13)
 
     @classmethod
     def configuration_keys(self):
@@ -967,7 +967,7 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return np.full(order_vec.size, 0.193)
+        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.193)
 
     def get_rawimage(self, raw_file, det):
         """
@@ -1055,8 +1055,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             # here than writing another get_rawimage function in the
             # spectrograph file.
             # TODO: This feels dangerous, but not sure what to do about it...
-            if raw_img[i].ndim != 2:
-                raw_img[i] = np.squeeze(raw_img[i])
+            #if raw_img[i].ndim != 2:
+            #    raw_img[i] = np.squeeze(raw_img[i])
             if raw_img[i].ndim != 2:
                 msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
                            f"of {raw_file}.")
