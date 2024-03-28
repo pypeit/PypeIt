@@ -17,11 +17,76 @@ from pypeit.spectrographs import spectrograph
 
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/NIRSPEC specific code
+    Parent to handle the new Keck/NIRSPEC detector (i.e. post late 2018) specific code
     """
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
+    comment = 'High-dispersion grating, post upgrade (~Dec 2018)'
+    url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
+    header_name = 'NIRSPEC'
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
+        return pypeit_keys
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Processed bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        # Edges of the detector are junk
+        msgs.info("Custom bad pixel mask for NIRSPEC")
+        bpm_img[:, :20] = 1.
+        bpm_img[:, 1000:] = 1.
+
+        return bpm_img
+
+
+class KeckNIRSPECSpectrographOld(spectrograph.Spectrograph):
+    """
+    Parent to handle the old Keck/NIRSPEC detector (i.e. pre late 2018) specific code
+    """
+    ndet = 1
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'NIRSPEC'
+    comment = 'High-dispersion grating, PRE upgrade (~Dec 2018)'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
@@ -82,7 +147,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.13,
-            darkcurr        = 0.8,  # this is e-/s/pixel
+            darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
             saturation      = 1.0e5,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -99,7 +164,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         """
         Return the platescale for each echelle order.
 
-        Note that NIRES has no binning.
+        Note that NIRSPEC has no binning.
 
         Args:
             order_vec (`numpy.ndarray`_):
@@ -452,7 +517,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
         #define science filters so we know the band we're working in for the wavelength calss
-        if ftype in ['science']:
+        if ftype in ['science', 'standard']:
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') 
         if ftype in 'dark':
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') 
@@ -513,7 +578,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
 
-class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
+class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     Child to handle NIRSPEC high-dispersion pre-upgrade specific code
     """
@@ -1142,7 +1207,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
             platescale      = 0.098,
             darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
             saturation      = 100000.,
-            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
             gain            = np.atleast_1d(3.01),
@@ -1379,45 +1444,8 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
 
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Processed bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
-        bpm_img[:, :20] = 1.
-        bpm_img[:, 1000:] = 1.
-
-        return bpm_img
-
-
-class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
+class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     Child to handle NIRSPEC low-dispersion pre-upgrade specific code
     """
@@ -1454,7 +1482,7 @@ class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.193,
-            darkcurr=0.8,  # this is e-/s/pixel
+            darkcurr=2880.0,  # this is e-/pixel/hour... == 0.8 e-/s/pixel
             saturation=1.0e6,
             nonlinear=0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers=1,
