@@ -317,12 +317,11 @@ class Identify(scriptbase.ScriptBase):
                                     arc_spectra=np.atleast_2d(arcfitter.specdata).T,
                                     spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                                     PYP_SPEC=msarc.PYP_SPEC, lamps=','.join(lamps))
+                waveCalib.copy_calib_internals(msarc)
             else:
                 waveCalib = None
 
-            waveCalib.copy_calib_internals(msarc)
-
-        # Ask the user if they wish to store the result in PypeIt calibrations
+            # Ask the user if they wish to store the result in PypeIt calibrations
             arcfitter.store_solution(final_fit, slits.binspec,
                                     wvcalib=waveCalib,
                                     rmstol=args.rmstol,
