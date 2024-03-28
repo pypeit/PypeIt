@@ -2789,8 +2789,8 @@ class WavelengthSolutionPar(ParSet):
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slits=None, qa_log=None, 
-                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, no_2dfit=False, stretch_func=None):
+                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, qa_log=None,
+                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2840,10 +2840,16 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
                            'wavelength fit will be performed as a function of spectral pixel ' \
                            'and order number to improve the wavelength solution'
-        defaults['no_2dfit'] = False
-        dtypes['no_2dfit'] = bool
-        descr['no_2dfit'] = 'Even if this is an echelle spectrograph, the 2-d fit will not be generated. ' \
-                            'Use this to allow using an arxiv solution exactly as it was saved with pypeit_identify'
+        defaults['ech_2dfit'] = True
+        dtypes['ech_2dfit'] = bool
+        descr['ech_2dfit'] = 'By default, a 2D fit to the echelle orders will be performed. If set to False, then even if ' \
+                             'this is an echelle spectrograph, the 2-d fit will not be generated. ' \
+                             'Set this to False if you wish to use the arxiv solution exactly as it ' \
+                             'was saved with pypeit_identify.'
+
+        defaults['ech_separate_2d'] = False
+        dtypes['ech_separate_2d'] = bool
+        descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
@@ -2872,10 +2878,6 @@ class WavelengthSolutionPar(ParSet):
         descr['frac_rms_thresh'] = 'For echelle spectrographs (i.e., ``echelle=True``), ' \
                                    'this is the fractional change in the RMS threshold used ' \
                                    'when a 1D fit is re-attempted for failed orders.' \
-
-        defaults['ech_separate_2d'] = False
-        dtypes['ech_separate_2d'] = bool
-        descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
 
         # TODO: These needs to be tidied up so we can check for valid
         # lamps. Right now I'm not checking.
@@ -3120,14 +3122,14 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
+        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
                    'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
                    'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'no_2dfit', 'stretch_func']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -803,10 +803,10 @@ class Identify:
         return wvarxiv_name
 
     def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
-                       force_save=False, wvcalib=None, multi = False, 
-                       fits_dicts = None, specdata = None, slits = None, 
-                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None, 
-                       custom_wav = None, custom_wav_ind = None):
+                       force_save=False, wvcalib=None, multi=False,
+                       fits_dicts=None, specdata=None, slits=None,
+                       lines_pix_arr=None, lines_wav_arr=None, lines_fit_ord=None,
+                       custom_wav=None, custom_wav_ind=None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -817,25 +817,21 @@ class Identify:
             Dict of wavelength calibration solutions (see self.get_results())
         binspec : int
             Spectral binning
-        rmstol : float
+        rmstol : float, optional
             RMS tolerance allowed for the wavelength solution to be stored in the archive
-
-        Optional Parameters
-        -------------------
-
-        force_save : bool
+        force_save : bool, optional
             Force save
-        multi : bool
+        multi : bool, optional
             Is the template multiple traces?
-        fits_dict : list
+        fits_dict : list, optional
             List of dictionaries containing the _fitdict of previous calls, if multi-trace data
-        specdata : array
+        specdata : array, optional
             Numpy array containing the flux information from all the traces
-        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
+        wvcalib : :class:`pypeit.wavecalib.WaveCalib`, optional
             Wavelength solution
-        lines_pix_arr : array
+        lines_pix_arr : array, optional
             Numpy array containing the pixel locations of all ID'd lines
-        lines_wav_arr : array
+        lines_wav_arr : array, optional
             Numpy array containing wavelengths of all the ID'd lines
 
         Returns
