@@ -8,6 +8,8 @@ Installation Changes
 Dependency Changes
 ------------------
 
+- PypeIt now only supports python versions 3.10 or later, and numpy version 1.23 and later
+
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 - When dealing with `bkg_redux` reduction (i.e., A-B), a sky model (called `bkg_redux_skymodel`)
@@ -42,4 +44,8 @@ Bug Fixes
   produced error cubes that were not properly propagating the noise. The error cubes of the NGP
   algorithm were unaffected. The error cubes are now regularly inspected with vet tests to ensure
   the error cubes are reliable.
-
+- Fix a bug (introduced in a recent PR) that was generating an error if less than 2 spec1d
+  files were used with `pypeit_coadd_1dspec`. Now the script can be run with only one
+  file (as it was before).
+- Allow `spec_flex_shift()` to take as input either the name of an archive sky spectrum or
+  directly a sky spectrum. This fixes a bug in the flexure correction for SlicerIFU.
