@@ -395,16 +395,26 @@ class EchelleCoAdd1D(CoAdd1D):
 
         Returns
         -------
-        wave_grid_mid : something
-            describe
-        wave_coadd : something
-            describe
-        flux_coadd : something
-            describe
-        ivar_coadd : something
-            describe
-        gpm_coadd : something
-            describe
+        wave_grid_mid : `numpy.ndarray`_
+            Wavelength grid (in Angstrom) evaluated at the bin centers,
+            uniformly-spaced either in lambda or log10-lambda/velocity. See
+            core.wavecal.wvutils.py for more.  shape=(ngrid,)
+        wave_coadd : `numpy.ndarray`_
+            Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the
+            wavelengths of each spectrum that contriuted to a bin in the input
+            wave_grid wavelength grid. It thus has ngrid elements, whereas
+            wave_grid has ngrid+1 elements to specify the ngrid total number
+            of bins. Note that wave_giant_stack is NOT simply the wave_grid
+            bin centers, since it computes the weighted average;
+        flux_coadd : `numpy.ndarray`_
+            Final stacked spectrum on wave_stack wavelength grid.  shape=(ngrid,)
+        ivar_coadd : `numpy.ndarray`_
+            Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to
+            weighting and masking. shape=(ngrid,)
+        gpm_coadd : `numpy.ndarray`_
+            Mask for stacked spectrum on wave_stack wavelength grid. True=Good. shape=(ngrid,)
+        order_stacks_output : `numpy.ndarray`_, None
+            Stacked orders.  None if not echelle data.  shape=(norders, ngrid)
         """
 
         # Load the data
@@ -434,7 +444,6 @@ class EchelleCoAdd1D(CoAdd1D):
             order_stacks_output = None
 
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks_output
-
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
         """
