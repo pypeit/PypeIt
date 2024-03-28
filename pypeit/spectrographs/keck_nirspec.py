@@ -41,43 +41,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         pypeit_keys += ['comb_id', 'bkg_id', 'shift']
         return pypeit_keys
 
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Processed bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for NIRSPEC")
-        bpm_img[:, :20] = 1.
-        bpm_img[:, 1000:] = 1.
-
-        return bpm_img
-
 
 class KeckNIRSPECSpectrographOld(spectrograph.Spectrograph):
     """
@@ -1443,6 +1406,43 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
             return fitstbl['lampstat06'].data.astype(int) == 1
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Processed bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        # Edges of the detector are junk
+        msgs.info("Custom bad pixel mask for NIRSPEC")
+        bpm_img[:, :20] = 1.
+        bpm_img[:, 1000:] = 1.
+
+        return bpm_img
 
 
 class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
