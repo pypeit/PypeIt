@@ -3102,9 +3102,9 @@ class WavelengthSolutionPar(ParSet):
         dtypes['stretch_func'] = str
         options['stretch_func'] = WavelengthSolutionPar.valid_stretch_func_methods()
         descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch '  \
-                                 'the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, ' \
-                                 'the quadratic mode tends to do better because the wavelength solution ' \
-                                 'is typically at least 2nd or 3rd order.'
+                                'the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, ' \
+                                'the quadratic mode tends to do better because the wavelength solution ' \
+                                'is typically at least 2nd or 3rd order.'
                 
         
 
@@ -3178,8 +3178,8 @@ class WavelengthSolutionPar(ParSet):
 
     @staticmethod  
     def valid_stretch_func_methods():  
-        """ Return the valid options for the stretch_func methods. """  
-
+        """ Return the valid options for the stretch_func methods.
+        """
         return ['linear', 'quad']  
 
     def validate(self):
