@@ -130,8 +130,8 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='APPRA')
-        self.meta['dec'] = dict(ext=0, card='APPDEC')
+        self.meta['ra'] = dict(ext=0, card='MEANRA')
+        self.meta['dec'] = dict(ext=0, card='MEANDEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         # dispname is arm specific (blue/red)
         self.meta['decker'] = dict(ext=0, card='WINDOW')
@@ -248,10 +248,10 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'UHRF_X8':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'aat_uhrf_UFC27405.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        else:
-            msgs.error("Wavelength setup not supported!")
+        msgs.info("Assuming CN")
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'aat_uhrf_UFC27405.fits'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        # else:
+        #     msgs.error("Wavelength setup not supported!")
         # Return
         return par
