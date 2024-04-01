@@ -22,7 +22,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
-    comment = 'High-dispersion grating, post upgrade (~Dec 2018)'
+    comment = 'POST upgrade (~Dec 2018)'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
@@ -49,7 +49,7 @@ class KeckNIRSPECSpectrographOld(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
-    comment = 'High-dispersion grating, PRE upgrade (~Dec 2018)'
+    comment = 'PRE upgrade (~Dec 2018)'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
@@ -75,10 +75,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     """
     name = 'keck_nirspec_high'
     supported = True
-    comment = 'High-dispersion grating, post upgrade (~Dec 2018)'
+    comment = 'POST upgrade (~Dec 2018), High-dispersion grating, see :ref:`nirspec_high_howto`'
     pypeline = 'Echelle'
     ech_fixed_format = False
-    comment = 'see :ref:`nirspec_high_howto`'
     lamps_list = []
     filter1 = ''
     filter2 = ''
@@ -140,7 +139,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.13)
+        pscale = self.get_detector_par(1).platescale
+        return np.full(order_vec.size, pscale)
 
     @classmethod
     def configuration_keys(self):
@@ -547,12 +547,11 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     name = 'keck_nirspec_high_old'
     supported = True
-    comment = 'High-dispersion grating, pre-upgrade (~Dec 2018)'
+    comment = 'PRE-upgrade (~Dec 2018),High-dispersion grating, see :ref:`nirspec_high_howto`'
     pypeline = 'Echelle'
     ech_fixed_format = False
     lamps_list = []
     filter = ''
-    comment = 'see :ref:`nirspec_high_howto`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -995,7 +994,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.193)
+        pscale = self.get_detector_par(1).platescale
+        return np.full(order_vec.size, pscale)
 
     def get_rawimage(self, raw_file, det):
         """
@@ -1139,7 +1139,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     """
     name = 'keck_nirspec_low'
     supported = True
-    comment = 'Low-dispersion grating, post-upgrade (~Dec 2018)'
+    comment = 'POST-upgrade (~Dec 2018), Low-dispersion grating'
     pypeline = 'MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
@@ -1451,7 +1451,7 @@ class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     name = 'keck_nirspec_low_old'
     supported = False
-    comment = 'Low-dispersion grating, pre-upgrade (~Dec 2018)'
+    comment = 'PRE-upgrade (~Dec 2018), Low-dispersion grating'
     pypeline = 'MultiSlit'
 
     # TODO: this is not tested, but added here for completeness
