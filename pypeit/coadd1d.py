@@ -332,8 +332,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
         self.waves, self.fluxes, self.ivars, self.gpms, self.headers = self.load()
         # check if there are bad exposures and remove them
         self.gpm_exp, _waves, _fluxes, _ivars, _gpms = self.check_exposures()
-        # Perform and return the coadd
-        return coadd.multi_combspec(_waves, _fluxes, _ivars, _gpms,
+        # Perform the coadd
+        wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd = \
+            coadd.multi_combspec(_waves, _fluxes, _ivars, _gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
             wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
@@ -343,6 +344,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             sn_min_polyscale=self.par['sn_min_polyscale'], weight_method = self.par['weight_method'],
             maxiter_reject=self.par['maxiter_reject'], lower=self.par['lower'], upper=self.par['upper'],
             maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'], debug=self.debug, show=self.show)
+
+        # return
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, None
 
 
 
