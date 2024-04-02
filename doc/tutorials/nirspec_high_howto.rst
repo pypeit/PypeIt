@@ -532,7 +532,7 @@ of the :ref:`pypeit_file`:
 .. tip::
     When you create an wavelength template, with the intention of using the ``full_template`` method,
     and want to use the exact wavelength solution you computed, you may not want to allow the 2d fit,
-    since it could change the solutions you have created. This can be avoided by adding the ``no_2dfit = True``
+    since it could change the solutions you have created. This can be avoided by adding the ``ech_2dfit = False``
     keyword in the wavelength calibration parameter block.
 
 

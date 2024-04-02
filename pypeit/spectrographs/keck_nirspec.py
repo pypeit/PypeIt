@@ -17,11 +17,39 @@ from pypeit.spectrographs import spectrograph
 
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/NIRSPEC specific code
+    Parent to handle the new Keck/NIRSPEC detector (i.e. post late 2018) specific code
     """
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
+    comment = 'POST upgrade (~Dec 2018)'
+    url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
+    header_name = 'NIRSPEC'
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['comb_id', 'bkg_id', 'shift']
+        return pypeit_keys
+
+
+class KeckNIRSPECSpectrographOld(spectrograph.Spectrograph):
+    """
+    Parent to handle the old Keck/NIRSPEC detector (i.e. pre late 2018) specific code
+    """
+    ndet = 1
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'NIRSPEC'
+    comment = 'PRE upgrade (~Dec 2018)'
     url = 'https://www2.keck.hawaii.edu/inst/nirspec/'
     header_name = 'NIRSPEC'
 
@@ -47,10 +75,9 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
     """
     name = 'keck_nirspec_high'
     supported = True
-    comment = 'High-dispersion grating, post upgrade (~Dec 2018)'
+    comment = 'POST upgrade (~Dec 2018), High-dispersion grating, see :ref:`nirspec_high_howto`'
     pypeline = 'Echelle'
     ech_fixed_format = False
-    comment = 'see :ref:`nirspec_high_howto`'
     lamps_list = []
     filter1 = ''
     filter2 = ''
@@ -82,7 +109,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.13,
-            darkcurr        = 0.8,  # this is e-/s/pixel
+            darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
             saturation      = 1.0e5,
             nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
@@ -99,7 +126,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         """
         Return the platescale for each echelle order.
 
-        Note that NIRES has no binning.
+        Note that NIRSPEC has no binning.
 
         Args:
             order_vec (`numpy.ndarray`_):
@@ -112,7 +139,8 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.13)
+        pscale = self.get_detector_par(1).platescale
+        return np.full(order_vec.size, pscale)
 
     @classmethod
     def configuration_keys(self):
@@ -452,7 +480,7 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         hatch = np.copy(fitstbl['hatch'].data)#.data.astype(int)
         #define science filters so we know the band we're working in for the wavelength calss
-        if ftype in ['science']:
+        if ftype in ['science', 'standard']:
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'Out') 
         if ftype in 'dark':
             return good_exp & self.lamps(fitstbl, 'off') & (hatch == 'In') 
@@ -513,18 +541,17 @@ class KeckNIRSPECHighSpectrograph(KeckNIRSPECSpectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
 
-class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
+class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     Child to handle NIRSPEC high-dispersion pre-upgrade specific code
     """
     name = 'keck_nirspec_high_old'
     supported = True
-    comment = 'High-dispersion grating, pre-upgrade (~Dec 2018)'
+    comment = 'PRE-upgrade (~Dec 2018),High-dispersion grating, see :ref:`nirspec_high_howto`'
     pypeline = 'Echelle'
     ech_fixed_format = False
     lamps_list = []
     filter = ''
-    comment = 'see :ref:`nirspec_high_howto`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -967,7 +994,8 @@ class KeckNIRSPECHighSpectrographOld(KeckNIRSPECSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        return self.get_detector_par('platescale') #np.full(order_vec.size, 0.193)
+        pscale = self.get_detector_par(1).platescale
+        return np.full(order_vec.size, pscale)
 
     def get_rawimage(self, raw_file, det):
         """
@@ -1111,7 +1139,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     """
     name = 'keck_nirspec_low'
     supported = True
-    comment = 'Low-dispersion grating, post-upgrade (~Dec 2018)'
+    comment = 'POST-upgrade (~Dec 2018), Low-dispersion grating'
     pypeline = 'MultiSlit'
 
     def get_detector_par(self, det, hdu=None):
@@ -1142,7 +1170,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
             platescale      = 0.098,
             darkcurr        = 2520.0,  # e-/pixel/hour  (=0.7 e-/pixel/s)
             saturation      = 100000.,
-            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            nonlinear       = 0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
             gain            = np.atleast_1d(3.01),
@@ -1417,13 +1445,13 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         return bpm_img
 
 
-class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
+class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
     """
     Child to handle NIRSPEC low-dispersion pre-upgrade specific code
     """
     name = 'keck_nirspec_low_old'
     supported = False
-    comment = 'Low-dispersion grating, pre-upgrade (~Dec 2018)'
+    comment = 'PRE-upgrade (~Dec 2018), Low-dispersion grating'
     pypeline = 'MultiSlit'
 
     # TODO: this is not tested, but added here for completeness
@@ -1454,7 +1482,7 @@ class KeckNIRSPECLowSpectrographOld(KeckNIRSPECLowSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.193,
-            darkcurr=0.8,  # this is e-/s/pixel
+            darkcurr=2880.0,  # this is e-/pixel/hour... == 0.8 e-/s/pixel
             saturation=1.0e6,
             nonlinear=0.9,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers=1,

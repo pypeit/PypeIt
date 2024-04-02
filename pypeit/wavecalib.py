@@ -350,7 +350,7 @@ class WaveCalib(calibframe.CalibFrame):
             thismask = (slitmask == slit_spat)
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
-            if self.par['echelle'] and not self.par['no_2dfit']:
+            if self.par['echelle'] and self.par['ech_2dfit']:
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
                     ordr_det = slits.det_of_slit(
@@ -1131,7 +1131,7 @@ class BuildWaveCalib:
             prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
-        if self.par['echelle'] and not self.par['no_2dfit']:
+        if self.par['echelle'] and self.par['ech_2dfit']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # get used FWHM
