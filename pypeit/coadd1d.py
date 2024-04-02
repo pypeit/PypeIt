@@ -139,7 +139,7 @@ class CoAdd1D:
         # Generate the spectrum container object
         onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
-                          sigma = np.sqrt(utils.inverse(self.ivar_coadd)),
+                          sigma=np.sqrt(utils.inverse(self.ivar_coadd)),
                           mask=self.gpm_coadd.astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
@@ -152,9 +152,9 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric  = telluric
+            onespec.telluric = telluric
         if obj_model is not None:
-            onespec.obj_model = obj_model[wave_gpm]
+            onespec.obj_model = obj_model
         if self.order_stacks is not None:
             onespec.wave_stack = self.order_stacks[0,:,:]
             onespec.flux_stack = self.order_stacks[1,:,:]
