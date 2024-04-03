@@ -2421,7 +2421,10 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
         smash_mask = np.logical_not(gpm_smash) | peak_bpm
     flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
         flux_smash, mask=smash_mask, sigma_lower=3.0, sigma_upper=3.0)
-    flux_smash_recen = flux_smash - flux_smash_med
+    # TODO XXX This needs to be adjusted for each target
+    # flux_smash_recen = flux_smash - flux_smash_med
+    # flux_smash_recen = flux_smash - np.mean(flux_smash[105:115])
+    flux_smash_recen = flux_smash - np.mean(flux_smash[100:120])  # Good for HD152270
 
     # Return if none found and no hand extraction
     if not np.any(gpm_smash): 

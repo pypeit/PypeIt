@@ -418,6 +418,7 @@ class BuildWaveTilts:
 
         # TODO -- This should be order not slit!
         tracethresh = self._parse_param(self.par, 'tracethresh', slit_idx)
+        tracethresh = 4.0
         lines_spec, lines_spat, good \
                 = tracewave.tilts_find_lines(arcspec, slit_cen, tracethresh=tracethresh,
                                              sig_neigh=self.par['sig_neigh'],

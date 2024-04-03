@@ -118,6 +118,7 @@ class PypeItMetaData:
                                                   usrdata=usrdata))
 
         # Merge with user data, if present
+        usrdata = None
         if usrdata is not None:
             self.merge(usrdata)
 
@@ -357,6 +358,7 @@ class PypeItMetaData:
                 # Rest
                 # Allow for str RA, DEC (backwards compatability)
                 if key in ['ra', 'dec'] and not radec_done:
+                    embed()
                     ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
                                                 usrdata['dec'][~nones].data)
                     usrdata['ra'][~nones] = ras.astype(dtype)

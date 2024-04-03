@@ -477,6 +477,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
     # Do we need this dev_mad < maxdev step?
     use_tilt = (mad_rej) & (bad_frac < max_badpix_frac) & good_line & (dev_mad < maxdev)
+    use_tilt = np.ones(nlines, dtype=bool)
     nuse = np.sum(use_tilt)
 
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse, nlines))

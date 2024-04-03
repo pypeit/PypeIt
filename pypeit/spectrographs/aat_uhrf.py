@@ -97,15 +97,16 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters - this instrument has no sky lines, but we still use the sky subtraction
         # routine to subtract scattered light.
-        par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 3.0
-        par['reduce']['skysub']['user_regions'] = ':10,75:'  # This is about right for most setups tested so far
+        #par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 1.0
+        # par['reduce']['skysub']['user_regions'] = ':10,75:'  # This is about right for most setups tested so far
         par['scienceframe']['process']['sigclip'] = 10.0
+        par['scienceframe']['process']['grow'] = 0.5   # The binning is quite large, so we don't want to grow the mask too much
 
         # Set some parameters for the calibrations
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['n_final'] = 3
-        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
         # Set the default exposure time ranges for the frame typing
@@ -255,3 +256,39 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         #     msgs.error("Wavelength setup not supported!")
         # Return
         return par
+
+    # def bpm(self, filename, det, shape=None, msbias=None):
+    #     """
+    #     Generate a default bad-pixel mask.
+    #
+    #     Args:
+    #         filename (:obj:`str`):
+    #             An example file to use to get the image shape.  Can be None.
+    #         det (:obj:`int`, :obj:`tuple`):
+    #             1-indexed detector(s) to read.  An image mosaic is selected
+    #             using a :obj:`tuple` with the detectors in the mosaic, which
+    #             must be one of the allowed mosaics returned by
+    #             :func:`allowed_mosaics`.
+    #         shape (:obj:`tuple`, optional):
+    #             Processed image shape.  If ``filename`` is None, this *must* be
+    #             provided; otherwise, this is ignored.
+    #         msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+    #             Processed bias frame.  If provided, it is used by
+    #             :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
+    #             to identify bad pixels.
+    #
+    #     Returns:
+    #         `numpy.ndarray`_: An integer array with a masked value set to 1 and
+    #         an unmasked value set to 0.
+    #     """
+    #     # Validate the entered (list of) detector(s)
+    #     nimg, _det = self.validate_det(det)
+    #     # If using a mosaic, the shape of *all* processed images must be
+    #     # identical.  Therefore, we only need to generate the empty BPM for one
+    #     # of the detectors, like so:
+    #     bpm_img = self.empty_bpm(filename, _det[0], shape=shape)
+    #
+    #     bpm_img[:,42] = 1
+    #
+    #     msgs.info(f'Generating a BPM using bias for det={_det} for {self.name}')
+    #     return bpm_img

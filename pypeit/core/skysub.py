@@ -720,7 +720,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         msgs.error('Base variance array does not match science image array shape.')
 
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
-
     # TODO -- This should be using the SlitTraceSet method
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
@@ -766,6 +765,30 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         ingpm = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
     inmask = ingpm & thismask
     outmask = np.copy(inmask)  # True is good
+
+    # TODO XXX Need to edit this for every object
+    import astropy
+    flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
+        sciimg-skyimage, mask=np.logical_not(inmask), sigma_lower=3.0, sigma_upper=3.0, axis=0, stdfunc='mad_std')
+    # skyimage += np.mean(flux_smash_mean[20:60])  # This works well for ZetaOph and HD152236 (1993)
+    # skyimage += np.mean(flux_smash_mean[105:115])  # This works well for HD169454
+    xfit = np.arange(nspat)
+    ww = np.where(((10.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))
+    model = np.polyval(np.polyfit(xfit[ww], flux_smash_med[ww], 3), xfit)
+    plt.plot(flux_smash_mean)
+    plt.plot(model, 'r-')
+    plt.show()
+    skyimage += model[None,:]
+    # skyimage += np.mean(flux_smash_mean[100:120])  # This works well for HD152270
+    # embed()
+    # outmask = (sciimg - skyimage - avg[None, :]) < 5 * sig
+    # img_minsky_filt[~outmask] = np.repeat(avg[None, :], img_minsky.shape[0], axis=0)[~outmask]
+    # embed()
+    # plt.subplot(121)
+    # plt.imshow(sciimg-skyimage, vmin=0, vmax=20)
+    # plt.subplot(122)
+    # plt.imshow(sciimg-skyimage - flux_smash_mean[None, :], vmin=0, vmax=20)
+    # plt.show()
 
     # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
@@ -819,7 +842,28 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         for iiter in range(1, niter + 1):
             msgs.info('--------------------------REDUCING: Iteration # ' + '{:2d}'.format(iiter) + ' of ' +
                       '{:2d}'.format(niter) + '---------------------------------------------------')
+            # flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
+            #     sciimg - skyimage, mask=np.logical_not(inmask), sigma_lower=3.0, sigma_upper=3.0, axis=0)
+            # skyimage += np.mean(flux_smash_mean[20:60])  # This works well for ZetaOph and HD152236 (1993)
+            # skyimage += np.mean(flux_smash_mean[105:115])  # This works well for HD169454
+            # xfit = np.arange(nspat)
+            # ww = np.where(((10.0 < xfit) & (xfit < 20)) | ((95 < xfit) & (xfit < 120)))
+            # skyimage += np.polyval(np.polyfit(xfit[ww], flux_smash_mean[ww], 1), xfit)[None, :]
             img_minsky = sciimg - skyimage
+            # img_minsky_filt = scipy.ndimage.median_filter(img_minsky, size=(15,3), mode='constant', cval=0.0)
+            img_minsky_filt = img_minsky.copy()
+            avg, med, sig = astropy.stats.sigma_clipped_stats(sciimg-skyimage, axis=0, sigma=10, stdfunc='mad_std')
+            tmpmask = (sciimg - skyimage - med[None,:]) > 5 * sig
+            img_minsky_filt[tmpmask] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[tmpmask]
+            plt.subplot(131)
+            plt.imshow(img_minsky, vmin=0, vmax=3*np.median(img_minsky))
+            plt.subplot(132)
+            plt.imshow(img_minsky_filt, vmin=0, vmax=3*np.median(img_minsky))
+            plt.subplot(133)
+            plt.plot(avg, 'b-')
+            plt.plot(med, 'r-')
+            plt.show()
+            # embed()
             for ii in range(objwork):
                 iobj = group[ii]
                 if iiter == 1:
@@ -865,10 +909,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     # TODO This is "sticky" masking. Do we want it to be?
                     profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
-                        wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                        wave, sign*flux, fluxivar, inmask=outmask[ipix],
                         thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         show_profile=show_profile)
-
+                    # plt.imshow(outmask, origin='lower', interpolation='nearest', aspect='auto')
+                    # plt.show()
                     # TODO :: RJC HAS ADDED THIS CODE TO DEAL WITH AAT UHRF DATA.
                     #      :: THIS IS USED TO GENERATE A BETTER PROFILE FOR EXTENDED OBJECTS
                     if True:
@@ -876,28 +921,81 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         # Make a KDE profile
                         from sklearn.neighbors import KernelDensity
                         import time
-                        spatimrect = (spat_img-sobjs[iobj].TRACE_SPAT[:,None])[ipix]
-                        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(spatimrect.reshape(-1, 1),
-                                                                                sample_weight=np.clip(sign * (img_minsky * outmask)[ipix].flatten(), 0, None))
-                        atime = time.time()
-                        spat_score = np.linspace(np.min(spatimrect), np.max(spatimrect), sciimg.shape[1])
-                        log_dens = kde.score_samples(spat_score.reshape(-1, 1))
-                        msgs.info(f"total time for KDE = {time.time() - atime}")
-                        # Linearly interpolate the profile onto the pixel grid
-                        profile_model = np.exp(np.interp(spatimrect.flatten(), spat_score, log_dens)).reshape(spatimrect.shape)
+                        # TODO XXX This may need to be changed for every object
+                        # profsplit=16  # ZetaOph and HD152236
+                        # profsplit = 1  # HD169454
+                        profsplit = 4  # HD152270
+                        # embed()
+                        spatimrect = (spat_img-trace_new[:,None])[ipix]
+                        # Split the spectral direction into profsplit sections
+                        segm = spatimrect.shape[0]//profsplit
+                        for pp in range(profsplit):
+                            print(pp+1, profsplit)
+                            lmin, lmax = pp*segm, (pp+1)*segm
+                            cut_spatimrect = spatimrect[lmin:lmax]
+
+                            # cut_img_minsky = img_minsky[ipix][lmin:lmax]
+                            cut_img_minsky = img_minsky_filt[ipix][lmin:lmax]
+                            # plt.subplot(121)
+                            # plt.imshow(cut_img_minsky, vmin=0, vmax=2 * np.median(cut_img_minsky))
+                            # plt.subplot(122)
+                            # cut_img_minsky[outmask[ipix][lmin:lmax] == 0] = img_minsky_filt[ipix][lmin:lmax][outmask[ipix][lmin:lmax] == 0]
+                            # plt.imshow(cut_img_minsky, vmin=0, vmax=2 * np.median(cut_img_minsky))
+                            # plt.show()
+                            # embed()
+                            # assert False
+                            # TODO XXX This may need to be changed for every object
+                            bandwidth = 1.0  # ZetaOph and HD152236
+                            # bandwidth = 2.5  # HD169454
+                            kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(cut_spatimrect.reshape(-1, 1),
+                                                                                    sample_weight=np.clip(sign * cut_img_minsky.flatten(), 0, None))
+                            spat_score = np.linspace(np.min(cut_spatimrect), np.max(cut_spatimrect), sciimg.shape[1])
+                            log_dens = kde.score_samples(spat_score.reshape(-1, 1))
+                            # Linearly interpolate the profile onto the pixel grid
+                            if pp == 0:
+                                profile_model = np.exp(np.interp(cut_spatimrect.flatten(), spat_score, log_dens)).reshape(cut_spatimrect.shape)
+                            else:
+                                profile_model = np.append(profile_model, np.exp(np.interp(cut_spatimrect.flatten(), spat_score, log_dens)).reshape(cut_spatimrect.shape), axis=0)
                         # Subtract off the background
-                        profile_model -= np.median(profile_model[:,80:], axis=1)[:, None]
+                        # TODO XXX Need to edit this for every object
+                        # profile_model -= np.median(profile_model[:, :50], axis=1)[:, None]  # ZetaOph and HD152236
+                        # profile_model -= np.median(profile_model[:, 105:], axis=1)[:, None]  # ZetaOph and HD152236
+                        # profile_model -= np.median(profile_model[:, 100:120], axis=1)[:, None]  # HD152270
+                        xfit = np.arange(profile_model.shape[1])
+                        ww = np.where(((4.0 < xfit) & (xfit < 14)) | ((89 < xfit) & (xfit < 114)))
+                        plt.plot(xfit, np.median(profile_model,axis=0))
+                        modprof = np.polyval(np.polyfit(xfit[ww], np.median(profile_model,axis=0)[ww], 2), xfit)
+                        plt.plot(xfit, modprof, 'r-')
+                        plt.show()
+                        profile_model -= modprof[None, :]
                         profile_model = np.clip(profile_model, 0, None)
-                        norm = np.trapz(profile_model, x=spatimrect[0,:], axis=1)[:, None]
+                        norm = np.trapz(profile_model, x=spatimrect[0, :], axis=1)[:, None]
                         profile_model /= norm
                         # Now plot it up to see how it looks
                         obj_profiles[ipix[0], ipix[1], ii] = profile_model
+                        if False:
+                            kde = KernelDensity(kernel='gaussian', bandwidth=0.3).fit(spatimrect.reshape(-1, 1),
+                                                                                    sample_weight=np.clip(sign * (img_minsky * outmask)[ipix].flatten(), 0, None))
+                            atime = time.time()
+                            spat_score = np.linspace(np.min(spatimrect), np.max(spatimrect), sciimg.shape[1])
+                            log_dens = kde.score_samples(spat_score.reshape(-1, 1))
+                            msgs.info(f"total time for KDE = {time.time() - atime}")
+                            # Linearly interpolate the profile onto the pixel grid
+                            profile_model = np.exp(np.interp(spatimrect.flatten(), spat_score, log_dens)).reshape(spatimrect.shape)
+                            # Subtract off the background
+                            # TODO XXX Need to edit this for every object
+                            profile_model -= np.median(profile_model[:,:50], axis=1)[:, None]
+                            profile_model = np.clip(profile_model, 0, None)
+                            norm = np.trapz(profile_model, x=spatimrect[0,:], axis=1)[:, None]
+                            profile_model /= norm
+                            # Now plot it up to see how it looks
+                            obj_profiles[ipix[0], ipix[1], ii] = profile_model
                         gpm_sigclip = outmask# & objmask
                         npix_smash = np.sum(gpm_sigclip, axis=0)
                         flux_sum_smash = np.sum((obj_profiles[:,:,ii] * gpm_sigclip), axis=0)
                         yplt = flux_sum_smash / (npix_smash + (npix_smash == 0.0))
                         plt.plot(yplt/np.max(yplt), 'r-', drawstyle='steps-mid')
-                        flux_sum_smash = np.sum(((sciimg-skyimage) * gpm_sigclip), axis=0)
+                        flux_sum_smash = np.sum(((img_minsky_filt) * gpm_sigclip), axis=0)
                         yplt = flux_sum_smash / (npix_smash + (npix_smash == 0.0))
                         plt.plot(np.arange(yplt.size), yplt/np.max(yplt), 'k-', drawstyle='steps-mid')
                         plt.show()
@@ -937,6 +1035,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         obj_profiles_flat[isub, :], spatial_img=spatial_img.flat[isub],
                         fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
+
                 if (not sky_bmodel.any()) & (iterbsp <= 3):
                     msgs.warn('***************************************')
                     msgs.warn('WARNING: bspline sky-subtraction failed')
@@ -944,7 +1043,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     msgs.warn(
                         'Old bsp = {:5.2f}'.format(bsp_now) + '; New bsp = {:5.2f}'.format(1.2 ** (iterbsp) * bsp))
                     msgs.warn('***************************************')
-
             if sky_bmodel.any():
                 skyimage.flat[isub] = sky_bmodel
                 objimage.flat[isub] = obj_bmodel
@@ -970,7 +1068,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     chi2_good = chi2[igood]
                     chi2_srt = np.sort(chi2_good)
                     sigind = np.fmin(int(np.rint(gauss_prob * float(ngd))), ngd - 1)
-                    chi2_sigrej = chi2_srt[sigind]
+                    # TODO XXX This may need to be updated for every object
+                    factor = 1.0  # All stars
+                    chi2_sigrej = factor*chi2_srt[sigind]
                     sigrej_eff = np.fmax(np.sqrt(chi2_sigrej), sigrej)
                     #  Maximum sigrej is sigrej_ceil (unless this is a standard)
                     #sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
