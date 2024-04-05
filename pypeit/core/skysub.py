@@ -8,6 +8,7 @@ import numpy as np
 import scipy.ndimage
 import scipy.special
 from scipy.interpolate import RegularGridInterpolator
+from scipy.signal import savgol_filter
 
 import matplotlib.pyplot as plt
 
@@ -44,7 +45,7 @@ def skysub_npoly(thismask):
         npoly = 2
     else:
         npoly = 1
-
+    npoly=1
     return npoly
 
 
@@ -770,11 +771,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     import astropy
     flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
         sciimg-skyimage, mask=np.logical_not(inmask), sigma_lower=3.0, sigma_upper=3.0, axis=0, stdfunc='mad_std')
-    # skyimage += np.mean(flux_smash_mean[20:60])  # This works well for ZetaOph and HD152236 (1993)
-    # skyimage += np.mean(flux_smash_mean[105:115])  # This works well for HD169454
     xfit = np.arange(nspat)
-    ww = np.where(((10.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))
+    # ww = np.where(((10.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))  # This works well for HD152270
+    # ww = np.where(((25.0<xfit) & (xfit<50) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for HD152236 (1993)
+    # ww = np.where(((5.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))  # This works well for HD152236 (1994)
+    ww = np.where(((10.0<xfit) & (xfit<45) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for Zeta Oph
     model = np.polyval(np.polyfit(xfit[ww], flux_smash_med[ww], 3), xfit)
+    # model = np.mean(flux_smash_mean[105:115])*np.ones_like(flux_smash_mean)  # This works well for HD169454
     plt.plot(flux_smash_mean)
     plt.plot(model, 'r-')
     plt.show()
@@ -850,11 +853,17 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             # ww = np.where(((10.0 < xfit) & (xfit < 20)) | ((95 < xfit) & (xfit < 120)))
             # skyimage += np.polyval(np.polyfit(xfit[ww], flux_smash_mean[ww], 1), xfit)[None, :]
             img_minsky = sciimg - skyimage
-            # img_minsky_filt = scipy.ndimage.median_filter(img_minsky, size=(15,3), mode='constant', cval=0.0)
             img_minsky_filt = img_minsky.copy()
             avg, med, sig = astropy.stats.sigma_clipped_stats(sciimg-skyimage, axis=0, sigma=10, stdfunc='mad_std')
             tmpmask = (sciimg - skyimage - med[None,:]) > 5 * sig
             img_minsky_filt[tmpmask] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[tmpmask]
+            if True:
+                img_minsky_filt[np.roll(tmpmask,1,axis=0)] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[np.roll(tmpmask,1,axis=0)]
+                img_minsky_filt[np.roll(tmpmask,-1,axis=0)] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[np.roll(tmpmask,-1,axis=0)]
+                img_minsky_filt[np.roll(tmpmask,1,axis=1)] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[np.roll(tmpmask,1,axis=1)]
+                img_minsky_filt[np.roll(tmpmask,-1,axis=1)] = np.repeat(med[None,:], img_minsky.shape[0], axis=0)[np.roll(tmpmask,-1,axis=1)]
+            img_minsky_filt_medfilt = scipy.ndimage.median_filter(img_minsky_filt, size=(5,3), mode='constant', cval=0.0)
+            img_minsky_filt[:,42] = img_minsky_filt_medfilt[:,42]
             plt.subplot(131)
             plt.imshow(img_minsky, vmin=0, vmax=3*np.median(img_minsky))
             plt.subplot(132)
@@ -922,9 +931,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         from sklearn.neighbors import KernelDensity
                         import time
                         # TODO XXX This may need to be changed for every object
-                        # profsplit=16  # ZetaOph and HD152236
-                        # profsplit = 1  # HD169454
-                        profsplit = 4  # HD152270
+                        profsplit=16  # ZetaOph and HD152236 (1993)
+                        # profsplit = 4  # HD169454
+                        # profsplit = 4  # HD152270 and HD152236 (1994)
                         # embed()
                         spatimrect = (spat_img-trace_new[:,None])[ipix]
                         # Split the spectral direction into profsplit sections
@@ -945,8 +954,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                             # embed()
                             # assert False
                             # TODO XXX This may need to be changed for every object
-                            bandwidth = 1.0  # ZetaOph and HD152236
-                            # bandwidth = 2.5  # HD169454
+                            bandwidth = 1.0  # ZetaOph and HD152236 and HD152270
+                            # bandwidth = 2.0  # HD169454
                             kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(cut_spatimrect.reshape(-1, 1),
                                                                                     sample_weight=np.clip(sign * cut_img_minsky.flatten(), 0, None))
                             spat_score = np.linspace(np.min(cut_spatimrect), np.max(cut_spatimrect), sciimg.shape[1])
@@ -962,9 +971,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         # profile_model -= np.median(profile_model[:, 105:], axis=1)[:, None]  # ZetaOph and HD152236
                         # profile_model -= np.median(profile_model[:, 100:120], axis=1)[:, None]  # HD152270
                         xfit = np.arange(profile_model.shape[1])
-                        ww = np.where(((4.0 < xfit) & (xfit < 14)) | ((89 < xfit) & (xfit < 114)))
+                        ord, ww = 2, np.where(((10.0 < xfit) & (xfit < 40)) | ((125 < xfit) & (xfit < 155)))  # This works well for ZetaOph
+                        # ord, ww = 2, np.where(((20.0 < xfit) & (xfit < 45) & (xfit != 42)) | ((125 < xfit) & (xfit < 155)))  # This works well for HD152236 (1993)
+                        # ord, ww = 2, np.where(((4.0 < xfit) & (xfit < 14)) | ((89 < xfit) & (xfit < 114)))  # HD152270 and HD152236 (1994)
+                        # ord, ww = 0, np.where((xfit>100.0)&(xfit<110.0))  # HD169454
                         plt.plot(xfit, np.median(profile_model,axis=0))
-                        modprof = np.polyval(np.polyfit(xfit[ww], np.median(profile_model,axis=0)[ww], 2), xfit)
+                        modprof = np.polyval(np.polyfit(xfit[ww], np.median(profile_model,axis=0)[ww], ord), xfit)
                         plt.plot(xfit, modprof, 'r-')
                         plt.show()
                         profile_model -= modprof[None, :]
@@ -1045,6 +1057,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     msgs.warn('***************************************')
             if sky_bmodel.any():
                 skyimage.flat[isub] = sky_bmodel
+                # for ii in range(20): skyimage = savgol_filter(skyimage, 5, 2, axis=0)
                 objimage.flat[isub] = obj_bmodel
                 img_minsky.flat[isub] = sciimg.flat[isub] - sky_bmodel
                 igood1 = skymask.flat[isub]
@@ -1108,6 +1121,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
+            for ii in range(20): skyimage = savgol_filter(skyimage, 5, 2, axis=0)
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
                                     waveimg, skyimage, thismask, this_profile, sobjs[iobj],
                                     fwhmimg=fwhmimg, base_var=base_var, count_scale=count_scale,
