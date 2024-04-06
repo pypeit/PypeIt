@@ -62,3 +62,5 @@ Bug Fixes
   file (as it was before).
 - Allow `spec_flex_shift()` to take as input either the name of an archive sky spectrum or
   directly a sky spectrum. This fixes a bug in the flexure correction for SlicerIFU.
+- The `--show` option of the `pypeit_coadd_1dspec` script was not properly displaying the
+  x-axis of the plot. Both the top and bottom panels now scale together.
