@@ -867,8 +867,8 @@ def main(flg):
 
     # LBT LUCI K-band high-resolution grating
     if flg & (2**35):
-        iroot = 'lbt_luci_wavecalib_A_3_DET01.fits'
-        iout = 'lbt_luci_k.fits'
+        iroot = 'lbt_luci1_wavecalib_A_3_DET01.fits'
+        iout = 'lbt_luci1_k.fits'
         # Load
         old_file = data.Paths.reid_arxiv / iroot
         par = io.fits_open(old_file)
