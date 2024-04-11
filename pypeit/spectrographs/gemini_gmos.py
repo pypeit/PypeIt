@@ -9,6 +9,7 @@ import os
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
 from astropy import units
+from astropy import time
 from astropy.wcs import wcs
 from astropy.io import fits
 
@@ -89,6 +90,14 @@ class GeminiGMOSMosaicLookUp:
                                                   (4096, 0): {'shift': (2109., -0.73),
                                                               'rotation': 0.}
                                                   },
+        'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1': {'default_shape': (2048, 4224),
+                                                   (0, 0): {'shift': (-2112.5, -1.1),
+                                                            'rotation': 0.},
+                                                   (2048, 0): {},
+                                                   (4096, 0): {
+                                                      'shift': (2110.8, 1.05),
+                                                      'rotation': 0.}
+                                                   },
     }
 
 
@@ -116,7 +125,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
         self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
 
-        self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
@@ -145,7 +154,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             # binning in the raw frames
             ccdsum = headarr[1].get('CCDSUM')
             if ccdsum is not None:
-                binspatial, binspec = parse.parse_binning(ccdsum)
+                binspec, binspatial = parse.parse_binning(ccdsum)
                 binning = parse.binning2string(binspec, binspatial)
             else:
                 # binning in the spec2d file
@@ -153,6 +162,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             if binning is None:
                 msgs.error('Binning not found')
             return binning
+        elif meta_key == 'mjd':
+            obsepoch = headarr[0].get('OBSEPOCH')
+            if obsepoch is not None:
+                return time.Time(obsepoch, format='jyear').mjd
+            else:
+                return None
 
     def config_independent_frames(self):
         """
@@ -511,7 +526,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         for i, d in enumerate([det-1 for det in mosaic]):
             msc_sft[i] = shift[d]
             msc_rot[i] = rotation[d]
-            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+            # binning is here in the PypeIt convention of (binspec, binspat), but the mosaic tranformations
+            # occur in the raw data frame, which has spatial in y and spectral in x
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
                       np.array(msc_tfm), msc_order)
@@ -738,7 +755,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
-    detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
+    detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'  # this is changed in get_detector_par if t_obs >= t_upgrade
 
     def hdu_read_order(self):
         """
@@ -784,8 +801,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.86]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.19]*4),  # Slow Readout,	Low Gain
             )
         # Detector 2
         detector_dict2 = dict(
@@ -801,8 +818,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.89]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([4.13]*4),  # Slow Readout,	Low Gain
             )
         # Detector 3
         detector_dict3 = dict(
@@ -818,9 +835,33 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             nonlinear       = 0.95,
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([1.83]*4),
-            ronoise         = np.atleast_1d([3.98]*4),
+            gain            = np.atleast_1d([1.74]*4),  # Slow Readout,	Low Gain
+            ronoise         = np.atleast_1d([3.75]*4),  # Slow Readout,	Low Gain
             )
+
+        # account for the CCD upgrade happened on 2023-12-14
+        if hdu is not None:
+            # date upgrade
+            t_upgrade = time.Time("2023-12-14", format='isot')
+            obs_date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd')
+
+            if obs_date >= t_upgrade:
+                # These values are taken from
+                # https://github.com/GeminiDRSoftware/DRAGONS/blob/v3.2.0/gemini_instruments/gmos/lookup.py
+                # For each detector, we use the values averaged over the 4 amps for Slow Readout+Low Gain
+                detector_dict1['gain'] = np.atleast_1d([2.00]*4)
+                detector_dict2['gain'] = np.atleast_1d([1.78]*4)
+                detector_dict3['gain'] = np.atleast_1d([1.69]*4)
+                detector_dict1['ronoise'] = np.atleast_1d([4.19]*4)
+                detector_dict2['ronoise'] = np.atleast_1d([3.82]*4)
+                detector_dict3['ronoise'] = np.atleast_1d([3.50]*4)
+                # TODO: we may need to update the saturation values
+
+                # Update the detector ID
+                self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
+                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
+                          f'{t_upgrade.iso.split(" ")[0]}')
+
         detectors = [detector_dict1, detector_dict2, detector_dict3]
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
@@ -884,7 +925,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # TODO: We're opening the file too many times...
         hdrs = self.get_headarr(filename)
         binning = self.get_meta_value(hdrs, 'binning')
-        obs_epoch = self.get_meta_value(hdrs, 'mjd')
+        obs_epoch = time.Time(self.get_meta_value(hdrs, 'mjd'), format='mjd').jyear
         bin_spec, bin_spat= parse.parse_binning(binning)
 
         # Add the detector-specific, hard-coded bad columns
@@ -906,7 +947,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             _bpm_img[i,badr,:] = 1
             # Bad amp as of January 28, 2022
             # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
-            if obs_epoch > 2022.07:
+            if (obs_epoch > 2022.07) & (obs_epoch < time.Time("2023-12-14", format='isot').jyear):
                 badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
@@ -945,10 +986,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['method'] = 'reidentify'
 
         # The bad amp needs a larger follow_span for slit edge tracing
-        obs_epoch = self.get_meta_value(scifile, 'mjd')
+        obs_epoch = time.Time(self.get_meta_value(scifile, 'mjd'), format='mjd').jyear
         binning = self.get_meta_value(scifile, 'binning')
         bin_spec, bin_spat= parse.parse_binning(binning)
-        if obs_epoch > 2022.07:
+        if (obs_epoch > 2022.07) & (obs_epoch < time.Time("2023-12-14", format='isot').jyear):
             par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
