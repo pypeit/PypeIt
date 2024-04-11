@@ -790,6 +790,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frequency = np.mean(frq)
 
     # Perform the overscan subtraction for each amplifier
+    full_model = np.zeros_like(frame_orig)  # Store the model pattern for all amplifiers in this array
     for aa, amp in enumerate(amps):
         # Get the frequency to use for this amplifier
         if isinstance(frequency, list):
@@ -800,9 +801,9 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             use_fr = frequency
 
         # Extract overscan
-        overscan, os_slice = rect_slice_with_mask(frame_orig, tmp_oscan, amp)
+        overscan, os_slice = rect_slice_with_mask(frame_orig.copy(), tmp_oscan, amp)
         # Extract overscan+data
-        oscandata, osd_slice = rect_slice_with_mask(frame_orig, tmp_oscan+tmp_data, amp)
+        oscandata, osd_slice = rect_slice_with_mask(frame_orig.copy(), tmp_oscan+tmp_data, amp)
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
@@ -831,7 +832,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         tmpamp = np.fft.rfft(overscan, axis=1)
         idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(tmpamp), axis=1))
         # Convert result to amplitude and phase
-        amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
+        ampls = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
         # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
@@ -854,7 +855,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             try:
                 # Now fit it
                 popt, pcov = scipy.optimize.curve_fit(
-                    cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                    cosfunc, cent[wgd], hist[wgd], p0=[ampls[ii], 0.0],
                     bounds=([0, -np.inf],[np.inf, np.inf])
                 )
             except ValueError:
@@ -897,21 +898,15 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
 
         # Estimate the improvement of the effective read noise
-        tmp = outframe.copy()
-        tmp[osd_slice] -= model_pattern
-        mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
-        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5)[-1]
-        new_ron = astropy.stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        full_model[osd_slice] = model_pattern
+        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5, stdfunc='mad_std')[-1]
+        new_ron = astropy.stats.sigma_clipped_stats(overscan-full_model[os_slice], sigma=5, stdfunc='mad_std')[-1]
         msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
-
-        # Subtract the model pattern from the full datasec
-        outframe[osd_slice] -= model_pattern
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
-        outframe = outframe.T
-    # Return the result
-    return outframe
+        return (outframe - full_model).T
+    return outframe - full_model
 
 
 def pattern_frequency(frame, axis=1):
