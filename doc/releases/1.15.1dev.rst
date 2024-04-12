@@ -58,3 +58,5 @@ Bug Fixes
   directly a sky spectrum. This fixes a bug in the flexure correction for SlicerIFU.
 - The `--show` option of the `pypeit_coadd_1dspec` script was not properly displaying the
   x-axis of the plot. Both the top and bottom panels now scale together.
+- Fix a bug in `pypeit_sensfunc` that was causing the script to crash because `par['fluxcalib']`
+  was not being passed to `sensfunc.SensFunc.get_instance()`.
