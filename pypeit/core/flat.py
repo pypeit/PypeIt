@@ -530,8 +530,8 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
                 ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
     # Calculate the tweak for the left edge
-    new_left = np.copy(left) + left_shift * slitwidth
-    new_right = np.copy(right) + right_shift * slitwidth
+    new_left = left + left_shift * slitwidth
+    new_right = right + right_shift * slitwidth
 
     # Calculate the value of the threshold at the new slit edges
     left_thresh = np.interp(left_shift, spat_coo, norm_flat)
