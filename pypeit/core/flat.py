@@ -12,7 +12,6 @@ import numpy as np
 import scipy.interpolate
 import scipy.ndimage
 import matplotlib.pyplot as plt
-from astropy import convolution
 
 from IPython import embed
 
@@ -517,9 +516,11 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
     # Calculate the gradient of the normalized flat profile
     grad_norm_flat = np.gradient(norm_flat)
     # Smooth with a Gaussian kernel
+    # The standard deviation of the kernel is set to be one detector pixel. Since the norm_flat array is oversampled,
+    # we need to set the kernel width (sig_res) to be the oversampling factor.
     sig_res = norm_flat.size / slitwidth
-    gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-    grad_norm_flat_smooth = convolution.convolve(grad_norm_flat, gauss_kernel, boundary='extend')
+    # The scipy.ndimage module is faster than the astropy convolution module
+    grad_norm_flat_smooth = scipy.ndimage.gaussian_filter1d(grad_norm_flat, sig_res, mode='nearest')
 
     # Find the location of the minimum/maximum gradient - this is the amount of shift required
     left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
@@ -527,7 +528,7 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
     msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
               ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
     msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
-                ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
+              ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
     # Calculate the tweak for the left edge
     new_left = left + left_shift * slitwidth
