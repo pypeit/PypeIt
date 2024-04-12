@@ -972,22 +972,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
 
-    def initialize_slits(self, slits, initial=False):
-        """
-        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes that
-        we'll use here in :class:`FindObjects`. Identical to the parent but the
-        slits are not trimmed.
-
-        Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                SlitTraceSet object containing the slit boundaries that will be
-                initialized.
-            initial (:obj:`bool`, optional):
-                Use the initial definition of the slits. If False,
-                tweaked slits are used.
-        """
-        super().initialize_slits(slits)
-
     def global_skysub(self, skymask=None, bkg_redux_sciimg=None, update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
                       reinit_bpm: bool = True):
