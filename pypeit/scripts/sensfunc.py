@@ -143,7 +143,7 @@ class SensFunc(scriptbase.ScriptBase):
             par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
                 merge_with=(sensFile.cfg_lines,))
         else:
-            par = spectrograph_config_par 
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config())
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -180,7 +180,7 @@ class SensFunc(scriptbase.ScriptBase):
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                 debug=args.debug,
+                                                 par_fluxcalib=par['fluxcalib'], debug=args.debug,
                                                  chk_version=par['rdx']['chk_version'])
         # Generate the sensfunc
         sensobj.run()
