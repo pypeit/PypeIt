@@ -1043,6 +1043,9 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
                 # Assign the amplifier
                 pix_img[datasec] = aa+1
+                # Chop off some of the overscan
+                if section == 'BSEC':
+                    pix_img[:, 1129:1170] = 0
 
             # Finish
             if section == 'DSEC':
