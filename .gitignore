@@ -35,6 +35,7 @@ QA/
 *.7z
 *.dmg
 *.gz
+!pypeit/data/standards/*/*.gz
 *.iso
 *.jar
 *.rar
