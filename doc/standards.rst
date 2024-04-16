@@ -20,7 +20,10 @@ the STScI `CALSPEC calibration database
 <https://www.stsci.edu/hst/instrumentation/reference-data-for-calibration-and-tools/astronomical-catalogs/calspec>`__
 
 The standard stars below are selected from the CALSPEC database to be
-observational spectra (not models) and with V<15 mag.
+observational spectra (not models) and with V<15 mag. Although, note that most of the
+spectra have fluxes concatenated with a low resolution model for the extrapolation to 32 microns.
+Thus, the FITS headers of any spectra should be checked to be sure that the resolution of
+wavelength region of interest is sufficient for the science goals.
 The full list of CALSPEC standards is available in ``pypeit/data/standards/calspec/README``.
 
 
@@ -30,9 +33,9 @@ The full list of CALSPEC standards is available in ``pypeit/data/standards/calsp
 ESO standards
 =============
 
-We now include a few ESO standard star files.
+We now include a few ESO standard star files, listed below.
 
-.. TODO: Include the listing here?
+.. include:: include/esofil_table.rst
 
 
 
