@@ -1,5 +1,5 @@
 """
-Dynamically build table listing available spectrographs.
+Dynamically build table listing available standard stars.
 """
 
 from importlib import resources
