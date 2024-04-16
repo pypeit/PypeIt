@@ -282,6 +282,11 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
         elif wave_method == 'iref': # Use the iref index wavelength array
             wave_tmp = waves[iref]
             wave_grid = wave_tmp[wave_tmp > 1.0]
+            if spec_samp_fact != 1:
+                indx = np.arange(len(wave_grid))
+                indx_new = np.linspace(0,len(wave_grid)-1,int(len(wave_grid)/spec_samp_fact))
+                wave_grid_new = np.interp(indx_new,indx,wave_grid)
+                wave_grid = wave_grid_new
 
         else:
             msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
