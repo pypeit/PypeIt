@@ -1581,7 +1581,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     # plot how may exposures you used at each pixel
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
-    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60], sharex=num_plot)
     num_plot.plot(wave[wave_gpm],nused[wave_gpm],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])

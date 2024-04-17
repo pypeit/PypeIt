@@ -2,7 +2,8 @@
 Module to run tests on SlitTraceSet
 """
 import os
-import pytest
+
+from IPython import embed
 
 import numpy as np
 
@@ -64,3 +65,13 @@ def test_io():
 
     os.remove(data_path('tmp_detector.fits'))
 
+
+def test_copy():
+    detector = detector_container.DetectorContainer(**def_det)
+    detcopy = detector.copy()
+
+    # Check that a couple of relevant attributes have different memory locations
+    assert detector is not detcopy, 'Should not point to the same reference'
+    assert detector.gain is not detcopy.gain, \
+        'numpy array attributes should not point to the same reference'
+    
