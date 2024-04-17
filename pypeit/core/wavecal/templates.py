@@ -877,8 +877,8 @@ def main(flg):
         orders = spectrograph.orders
 
         # Do it
-        all_flux = par[2].data['spec']
-        all_wave = par[2].data['wave_soln']
+        all_flux = par[2].data['spec'][0]
+        all_wave = par[2].data['wave_soln'][0]
         # Write
         tbl = Table()
         tbl['wave'] = all_wave.T
@@ -951,7 +951,7 @@ if __name__ == '__main__':
     #flg += 2**34
 
     # LBT LUCI K-band
-    #flg += 2**35
+    flg += 2**35
 
     main(flg)
 
