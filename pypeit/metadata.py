@@ -926,11 +926,10 @@ class PypeItMetaData:
                     uniq_meta = np.unique(self.table[mkey][in_cfg].data)
                     # Warn the user that the matching meta values are not
                     # unique for this configuration.
-
                     if uniq_meta.size != 1:
                         msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
                                   + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                                  + '{0} values.'.format(mkey) + f'Resulting values: {uniq_meta}')
+                                  + '{0} values.' .format(mkey))
                     # Find the frames of this type that match any of the
                     # meta data values
                     indx &= np.isin(self.table[mkey], uniq_meta)
