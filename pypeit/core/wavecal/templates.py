@@ -951,7 +951,7 @@ if __name__ == '__main__':
     #flg += 2**34
 
     # LBT LUCI K-band
-    flg += 2**35
+    #flg += 2**35
 
     main(flg)
 
