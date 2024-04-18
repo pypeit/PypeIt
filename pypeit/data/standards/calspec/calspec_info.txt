@@ -1,9 +1,11 @@
+# Updated April 17th 2024
 # Semi-complete list of the calspec standards from:
 #  -https://archive.stsci.edu/hlsps/reference-atlases/cdbs/current_calspec/
 #  - https://archive.stsci.edu/hlsps/reference-atlases/cdbs/calspec/
 # List cut at V magnitude < 15.
 # All are observational spectra (not models), but note that most of the
-#spectra have fluxes concatenated with a low resolution model for the extrapolation to 32 microns.
+# spectra have fluxes concatenated with a low resolution model for the extrapolation to 32 microns.
+
 
                File                    Name      RA_2000      DEC_2000                 Simbad_Names               Wave_range(Ang) Dwave_range(ang)
 ---------------------------------- ----------- ------------ ------------ ---------------------------------------- --------------- ----------------

@@ -23,6 +23,8 @@ Functionality/Performance Improvements and Additions
 - Various improvements in the flexure correction and added the possibility to use a modeled archive
   sky spectrum generated with `pypeit.wavemodel.nearIR_modelsky()` to perform the flexure correction.
 
+- Updated the list of available CALSPEC standard star with the latest version from the CALSPEC website.
+
 Instrument-specific Updates
 ---------------------------
 - Improvements for SOAR/Goodman

@@ -17,7 +17,9 @@ calspec standards
 
 The following table is an semi-complete list of the standard stars we are using from
 the STScI `CALSPEC calibration database
-<https://www.stsci.edu/hst/instrumentation/reference-data-for-calibration-and-tools/astronomical-catalogs/calspec>`__
+<https://www.stsci.edu/hst/instrumentation/reference-data-for-calibration-and-tools/astronomical-catalogs/calspec>`__.
+`Please reference the review paper by Bohlin, Gordon, & Tremblay (2014) or Bohlin, Hubeny, & Rauch (2020)
+for research that makes use of this database. The most recent reference is Bohlin & Lockwood (2022, ISR STIS-07 or ACS 2022-05).`
 
 The standard stars below are selected from the CALSPEC database to be
 observational spectra (not models) and with V<15 mag. Although, note that most of the

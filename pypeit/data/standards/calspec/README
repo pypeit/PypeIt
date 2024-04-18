@@ -1,3 +1,7 @@
+The text below is taken from the CALSPEC website
+(https://www.stsci.edu/hst/instrumentation/reference-data-for-calibration-and-tools/astronomical-catalogs/calspec)
+on April 17th 2024.
+
 CALSPEC contains the composite stellar spectra that are flux standards on the HST system.
 All files are in machine independent binary FITS table format. Information about the pedigree
 of a given spectrum is in the header of the FITS file, which can be read with the IRAF hedit task,
