@@ -107,8 +107,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     should not be instantiated.
     """
     ndet = 3
-    detid = None
     url = 'http://www.gemini.edu/instrumentation/gmos'
+
+    def __init__(self):
+        super().__init__()
+        self.detid = None
 
     def init_meta(self):
         """
@@ -167,7 +170,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             if obsepoch is not None:
                 return time.Time(obsepoch, format='jyear').mjd
             else:
-                return None
+                msgs.warn('OBSEPOCH header keyword not found. Using today as the date.')
+                return time.Time.now().mjd
 
     def config_independent_frames(self):
         """
@@ -755,7 +759,6 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
-    detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'  # this is changed in get_detector_par if t_obs >= t_upgrade
 
     def hdu_read_order(self):
         """
@@ -838,6 +841,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             gain            = np.atleast_1d([1.74]*4),  # Slow Readout,	Low Gain
             ronoise         = np.atleast_1d([3.75]*4),  # Slow Readout,	Low Gain
             )
+
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
 
         # account for the CCD upgrade happened on 2023-12-14
         if hdu is not None:
@@ -947,7 +953,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             _bpm_img[i,badr,:] = 1
             # Bad amp as of January 28, 2022
             # https://gemini.edu/sciops/instruments/gmos/GMOS-S_badamp5_ops_3.pdf
-            if (obs_epoch > 2022.07) & (obs_epoch < time.Time("2023-12-14", format='isot').jyear):
+            if 2022.07 < obs_epoch < time.Time("2023-12-14", format='isot').jyear:
                 badr = (768*2)//bin_spec
                 _bpm_img[i,badr:,:] = 1
         if 3 in _det:
@@ -989,11 +995,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         obs_epoch = time.Time(self.get_meta_value(scifile, 'mjd'), format='mjd').jyear
         binning = self.get_meta_value(scifile, 'binning')
         bin_spec, bin_spat= parse.parse_binning(binning)
-        if (obs_epoch > 2022.07) & (obs_epoch < time.Time("2023-12-14", format='isot').jyear):
+        if 2022.07 < obs_epoch < time.Time("2023-12-14", format='isot').jyear:
             par['calibrations']['slitedges']['follow_span'] = 290*bin_spec
         #
         return par
-
 
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
@@ -1013,7 +1018,6 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     name = 'gemini_gmos_north_ham'
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); Used since Feb 2017; see :doc:`gemini_gmos`'
-    detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
 
     def hdu_read_order(self):
         """
@@ -1097,6 +1101,10 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             ronoise         = np.atleast_1d([4.14]*4),
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
+
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        self.detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
+
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
@@ -1243,8 +1251,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     name = 'gemini_gmos_north_e2v'
     supported = True
     comment = 'E2V detector; see :doc:`gemini_gmos`'
-    # TODO: Check this is correct
-    detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
 
     def hdu_read_order(self):
         """
@@ -1328,6 +1334,11 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             ronoise         = np.atleast_1d([3.32]*2),
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
+
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        # TODO: Check this is correct
+        self.detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
+
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
