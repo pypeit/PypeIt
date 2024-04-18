@@ -842,9 +842,6 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             ronoise         = np.atleast_1d([3.75]*4),  # Slow Readout,	Low Gain
             )
 
-        # Detector ID (it is used to identify the correct mosaic geometry)
-        self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
-
         # account for the CCD upgrade happened on 2023-12-14
         if hdu is not None:
             # date upgrade
@@ -863,14 +860,54 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 detector_dict3['ronoise'] = np.atleast_1d([3.50]*4)
                 # TODO: we may need to update the saturation values
 
-                # Update the detector ID
-                self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
-                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
-                          f'{t_upgrade.iso.split(" ")[0]}')
-
         detectors = [detector_dict1, detector_dict2, detector_dict3]
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
+        # Detector ID (it is used to identify the correct mosaic geometry)
+        if hdu is not None:
+            # account for the CCD upgrade happened on 2023-12-14
+            # date upgrade
+            t_upgrade = time.Time("2023-12-14", format='isot')
+            obs_date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd')
+
+            if obs_date >= t_upgrade:
+                self.detid = 'BI11-41-4k-2,BI13-19-4k-3,BI12-34-4k-1'
+                msgs.info(f'Using the detector parameters for GMOS-S Hamamatsu after the upgrade on '
+                          f'{t_upgrade.iso.split(" ")[0]}')
+            else:
+                self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
+
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1102,11 +1139,42 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
 
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
         # Detector ID (it is used to identify the correct mosaic geometry)
         self.detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
 
-        # Return
-        return detector_container.DetectorContainer(**detectors[det-1])
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -1335,12 +1403,43 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             )
         detectors = [detector_dict1, detector_dict2, detector_dict3]
 
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
+
+    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the PypeIt shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+            msc_order (:obj:`int`, optional):
+                Order of the interpolation used to construct the mosaic.
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters."""
+
+        # get self.detid
         # Detector ID (it is used to identify the correct mosaic geometry)
         # TODO: Check this is correct
         self.detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
 
-        # Return
-        return detector_container.DetectorContainer(**detectors[det-1])
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
