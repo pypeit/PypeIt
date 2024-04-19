@@ -22,6 +22,7 @@ from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import flux_calib
 from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
@@ -80,7 +81,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
@@ -324,20 +325,34 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # good exposures
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng) & (fitstbl['decker'] != 'GOH_LRIS')
+        # no images
         no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
+
+        # Check frame type
         if ftype == 'science':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'standard':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([flux_calib.find_standard_file(ra, dec, check=True)
+                                for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img & std
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
+        if ftype == 'slitless_pixflat':
+            # these are sky flats, like science but without the slitmask
+            return (good_exp & self.lamps(fitstbl, 'off') &
+                    (fitstbl['hatch'] == 'open') & no_img & (fitstbl['decker'] == 'direct'))
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Allow for dome or internal
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
+            # attempt at identifying sky flats (not robust, but better than nothing)
+            sky_flat = np.array(['sky' in flat.lower() for flat in fitstbl['target']]) & (fitstbl['decker'] != 'direct')
             # Flats and trace frames are typed together
-            return good_exp & (good_dome + good_internal) & no_img
+            return good_exp & (good_dome + good_internal + sky_flat) & no_img
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -852,6 +867,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
         par['calibrations']['traceframe']['exprng'] = [None, 300]
         par['calibrations']['illumflatframe']['exprng'] = [None, 300]
+
+        par['calibrations']['standardframe']['exprng'] = [1, 901]
 
         return par
 

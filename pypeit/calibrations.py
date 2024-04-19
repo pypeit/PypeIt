@@ -1190,6 +1190,7 @@ class Calibrations:
                               'pixelflat': [flatfield.FlatImages],
                               'illumflat': [flatfield.FlatImages],
                               'lampoffflats': [flatfield.FlatImages],
+                              'slitless_pixflat': [flatfield.FlatImages],
                               'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
                               'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
                              }

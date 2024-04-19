@@ -4394,7 +4394,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 lampoffflatsframe=None, slitless_pixflatframe=None, scattlightframe=None, skyframe=None, standardframe=None,
                  scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -4479,6 +4479,14 @@ class CalibrationsPar(ParSet):
                                                                               use_specillum=False))
         dtypes['lampoffflatsframe'] = [ ParSet, dict ]
         descr['lampoffflatsframe'] = 'The frames and combination rules for the lamp off flats'
+
+        defaults['slitless_pixflatframe'] = FrameGroupPar(frametype='slitless_pixflat',
+                                                          process=ProcessImagesPar(satpix='nothing',
+                                                                                   use_pixelflat=False,
+                                                                                   use_illumflat=False,
+                                                                                   use_specillum=False))
+        dtypes['slitless_pixflatframe'] = [ ParSet, dict ]
+        descr['slitless_pixflatframe'] = 'The frames and combination rules for the slitless pixel flat'
 
         defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
@@ -4571,7 +4579,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
+                             'illumflatframe', 'lampoffflatsframe', 'slitless_pixflatframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
                              'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
@@ -4597,6 +4605,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('illumflat', cfg[pk]) if pk in k else None
         pk = 'lampoffflatsframe'
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
+        pk = 'slitless_pixflatframe'
+        kwargs[pk] = FrameGroupPar.from_dict('slitless_pixflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'scattlightframe'
