@@ -285,7 +285,7 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             if spec_samp_fact != 1: # adjust sampling via internal interpolation
                 nwave = len(wave_grid)
                 indx = np.arange(nwave)
-                edge_offset = int(spec_samp_fact/2) # attempt to keep wavelengths interior to limits?
+                edge_offset = int(spec_samp_fact/2) # keep wavelength bins interior to limits when undersampling
                 indx_new = np.linspace(0+edge_offset,nwave-1-edge_offset,int(nwave/spec_samp_fact))
                 wave_tmp = np.interp(indx_new,indx,wave_grid)
                 wave_grid = wave_tmp
