@@ -490,7 +490,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         return "_".join(lampstat)
 
 
-    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu, idx=0):
         """
         Calculate the pattern frequency using the overscan region that covers
         the overscan and data sections. Using a larger range allows the
@@ -558,7 +558,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
                     cmin = (np.max(pixalt[0]) + cmax)//2
                 frame = raw_img[cmin:cmax, rmin:rmax].astype(float)
             # Calculate the pattern frequency
-            freq = procimg.pattern_frequency(frame)
+            freq = procimg.pattern_frequency(frame, iidx=idx)
             patt_freqs.append(freq)
             msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
 

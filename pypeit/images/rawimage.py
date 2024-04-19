@@ -1142,14 +1142,20 @@ class RawImage:
             if not np.any(self.oscansec_img[i] > 0):
                 msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
-            patt_freqs = self.spectrograph.calc_pattern_freq(self.image[i], self.datasec_img[i],
-                                                             self.oscansec_img[i], self.hdu)
-            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
-            if len(patt_freqs) == 0:
-                patt_freqs = None
-            # Subtract the pattern and overwrite the current image
-            _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
-                                                  self.oscansec_img[i], frequency=patt_freqs)
+            this_img = self.image[i]
+            niter = 4
+            # Iterate to remove the pattern noise
+            for j in range(niter):
+                # Calculate the pattern frequency
+                patt_freqs = self.spectrograph.calc_pattern_freq(this_img, self.datasec_img[i],
+                                                                 self.oscansec_img[i], self.hdu, idx=j)
+                # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+                if len(patt_freqs) == 0:
+                    patt_freqs = None
+                # Subtract the pattern and overwrite the current image
+                this_img = procimg.subtract_pattern(this_img, self.datasec_img[i],
+                                                    self.oscansec_img[i], frequency=patt_freqs)
+            _ps_img[i] = this_img
         self.image = np.array(_ps_img)
         self.steps[step] = True
 

@@ -909,7 +909,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     return outframe - full_model
 
 
-def pattern_frequency(frame, axis=1):
+def pattern_frequency(frame, iidx=0, axis=1):
     """
     Using the supplied 2D array, calculate the pattern frequency
     along the specified axis.
@@ -936,7 +936,16 @@ def pattern_frequency(frame, axis=1):
 
     # Compute the Fourier transform to obtain an estimate of the dominant frequency component
     amp = np.fft.rfft(arr, axis=1)
-    idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
+    pksspec = np.median(np.abs(amp), axis=0)
+    med = np.median(np.abs(amp))
+    mad = 1.4826*np.median(np.abs(np.abs(amp)-med))
+    pks = scipy.signal.find_peaks(pksspec, threshold=med+3*mad)[0]
+    pks_amp = pksspec[pks]
+    pks_idx = np.argsort(pks_amp)[::-1]
+    if iidx >= len(pks):
+        msgs.warn("Requested peak index is out of bounds. Using the last peak.")
+        iidx = len(pks)-1
+    idx = (np.arange(arr.shape[0]), pks[pks_idx[iidx]]*np.ones(arr.shape[0], dtype=int))
 
     # Construct the variables of the sinusoidal waveform
     frqs = idx[1]
