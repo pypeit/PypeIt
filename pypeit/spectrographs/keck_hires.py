@@ -252,7 +252,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # TODO JFH Is this correct or should it be flipped?
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
