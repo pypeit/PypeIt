@@ -24,7 +24,8 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
+                    spec, min_frac_use=0.05, fwhmimg=None, flatimg=None,
+                    base_var=None, count_scale=None, noise_floor=None):
 
     r"""
     Perform optimal extraction `(Horne 1986)
@@ -42,6 +43,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
       - spec.OPT_COUNTS_NIVAR  -->  Optimally extracted noise variance (sky + read noise) only
       - spec.OPT_MASK  -->   Mask for optimally extracted flux
       - spec.OPT_FWHM  -->   Spectral FWHM (in A) for optimally extracted flux
+      - spec.OPT_BLAZE  -->   Normalized blaze function for the optimally extracted flux
       - spec.OPT_COUNTS_SKY  -->  Optimally extracted sky
       - spec.OPT_COUNTS_SIG_DET  -->  Square root of optimally extracted read noise squared
       - spec.OPT_FRAC_USE  -->  Fraction of pixels in the object profile subimage used for this extraction
@@ -88,6 +90,10 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     fwhmimg : `numpy.ndarray`_, None, optional:
         Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    flatimg : `numpy.ndarray`_, None, optional:
+        Floating-point image containing the unnormalized flat-field image. This image
+        is used to extract the blaze function. Must have the same shape as ``sciimg``,
+        :math:`(N_{\rm spec}, N_{\rm spat})`.
     base_var : `numpy.ndarray`_, optional
         Floating-point "base-level" variance image set by the detector properties and
         the image processing steps. See :func:`~pypeit.core.procimg.base_variance`.
@@ -145,6 +151,8 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     oprof_sub = oprof[:,mincol:maxcol]
     if fwhmimg is not None:
         fwhmimg_sub = fwhmimg[:,mincol:maxcol]
+    if flatimg is not None:
+        flatimg_sub = flatimg[:,mincol:maxcol]
     # enforce normalization and positivity of object profiles
     norm = np.nansum(oprof_sub,axis = 1)
     norm_oprof = np.outer(norm, np.ones(nsub))
@@ -190,6 +198,9 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     fwhm_opt = None
     if fwhmimg is not None:
         fwhm_opt = np.nansum(mask_sub*ivar_sub*fwhmimg_sub*oprof_sub, axis=1) * utils.inverse(tot_weight)
+    blaze_opt = None
+    if flatimg is not None:
+        blaze_opt = np.nansum(mask_sub*ivar_sub*flatimg_sub*oprof_sub, axis=1) * utils.inverse(tot_weight)
     # Interpolate wavelengths over masked pixels
     badwvs = (mivar_num <= 0) | np.invert(np.isfinite(wave_opt)) | (wave_opt <= 0.0)
     if badwvs.any():
@@ -221,6 +232,9 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     # Calculate the Angstroms/pixel and Spectral FWHM
     if fwhm_opt is not None:
         fwhm_opt *= np.gradient(wave_opt)  # Convert pixel FWHM to Angstroms
+    # Normalize the blaze function
+    if blaze_opt is not None:
+        blaze_opt /= np.nanmax(blaze_opt)
     # Fill in the optimally extraction tags
     spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
     spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
@@ -229,6 +243,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
     spec.OPT_FWHM = fwhm_opt  # Spectral FWHM (in Angstroms) for the optimally extracted spectrum
+    spec.OPT_BLAZE = blaze_opt  # Normalized blaze function for the optimally extracted spectrum
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
@@ -307,7 +322,7 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
         return flux_out, gpm_box, box_npix, ivar_out
 
 
-def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
+def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, flatimg=None, base_var=None,
                    count_scale=None, noise_floor=None):
     r"""
     Perform boxcar extraction for a single :class:`~pypeit.specobj.SpecObj`.
@@ -325,6 +340,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, b
       - spec.BOX_COUNTS_NIVAR -->  Box car extracted noise variance
       - spec.BOX_MASK -->  Box car extracted mask
       - spec.BOX_FWHM -->  Box car extracted spectral FWHM
+      - spec.BOX_BLAZE -->  Box car extracted blaze function (normalized)
       - spec.BOX_COUNTS_SKY -->  Box car extracted sky
       - spec.BOX_COUNTS_SIG_DET -->  Box car extracted read noise
       - spec.BOX_NPIX  -->  Number of pixels used in boxcar sum
@@ -354,9 +370,12 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, b
         Container that holds object, trace, and extraction
         information for the object in question. **This object is altered in place!**
         Note that this routine operates one object at a time.
-    fwhmimg : `numpy.ndarray`_, None, optional:
+    fwhmimg : `numpy.ndarray`_, None, optional
         Floating-point image containing the modeled spectral FWHM (in pixels) at every pixel location.
         Must have the same shape as ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
+    flatimg : `numpy.ndarray`_, None, optional
+        Floating-point image containing the normalized flat-field. Must have the same shape as
+        ``sciimg``, :math:`(N_{\rm spec}, N_{\rm spat})`.
     base_var : `numpy.ndarray`_, optional
         Floating-point "base-level" variance image set by the detector properties and
         the image processing steps. See :func:`~pypeit.core.procimg.base_variance`.
@@ -406,6 +425,9 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, b
     fwhm_box = None
     if fwhmimg is not None:
         fwhm_box = moment1d(fwhmimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    blaze_box = None
+    if flatimg is not None:
+        blaze_box = moment1d(flatimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     varimg = 1.0/(ivar + (ivar == 0.0))
     var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     nvar_box = None if var_no is None \
@@ -438,6 +460,9 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, b
     if fwhm_box is not None:
         ang_per_pix = np.gradient(wave_box)
         fwhm_box *= ang_per_pix / (pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
+    # Normalize the blaze function
+    if blaze_box is not None:
+        blaze_box /= np.nanmax(blaze_box[mask_box])
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
@@ -446,6 +471,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, b
     spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box*np.logical_not(bad_box)
     spec.BOX_MASK = mask_box*np.logical_not(bad_box)
     spec.BOX_FWHM = fwhm_box  # Spectral FWHM (in Angstroms) for the boxcar extracted spectrum
+    spec.BOX_BLAZE = blaze_box  # Normalized blaze function
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_SIG_DET = base_box
     # TODO - Confirm this should be float, not int
