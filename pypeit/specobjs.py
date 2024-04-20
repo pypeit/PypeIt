@@ -767,6 +767,9 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+                # Also store the datetime in ISOT format
+                if key.upper() == 'MJD':
+                    header['DATETIME'] = (Time(subheader[key][0], format='mjd').isot, "Date and time of the observation in ISOT format")
         # Add calibration associations to Header
         if self.calibs is not None:
             for key, val in self.calibs.items():
