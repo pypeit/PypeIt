@@ -39,6 +39,7 @@ from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
+from pypeit.core import flux_calib
 from pypeit.par import pypeitpar
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -1595,6 +1596,48 @@ class Spectrograph:
                 not been properly defined.
         """
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.name))
+
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+        Check the assigned frame types for consistency.
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame
+            fitstbl (`PypeItMetaData`_):
+                Table with the metadata for the frames to check.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        # TODO add tests!!!!
+        # For frames that are assigned both science and standard types, choose the one that is most likely
+        # find frames that are assigned both science and standard star types
+        indx = fitstbl.type_bitmask.flagged(type_bits, flag='standard') & \
+               fitstbl.type_bitmask.flagged(type_bits, flag='science')
+        if np.any(indx):
+            msgs.warn('Some frames are assigned both science and standard types. Choosing the most likely type.')
+            if 'ra' not in fitstbl.keys() or 'dec' not in fitstbl.keys():
+                msgs.warn('Sky coordinates are not available. Stsndard stars cannot be identified.')
+                return type_bits
+            # check if any coordinates are None
+            none_coords = indx & ((fitstbl['ra'] == 'None') | (fitstbl['dec'] == 'None'))
+            if np.any(none_coords):
+                msgs.warn('The following frames have None coordinates. '
+                          'They could be a twilight flat frame that was missed by the automatic identification')
+                [msgs.prindent(f) for f in fitstbl['filename'][none_coords]]
+                # turn off the standard star flag for these frames
+                type_bits[none_coords] = fitstbl.type_bitmask.turn_off(type_bits[none_coords], flag='standard')
+
+            # If the frame is within 20 arcmin of a listed standard star, then it is probably a standard star
+            # Find the nearest standard star to each frame that is assigned both science and standard types
+            foundstd = indx & np.logical_not(none_coords) &  \
+                       np.array([flux_calib.find_standard_file(ra, dec, check=True) for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+
+            # turn off the science flag for frames that are found to be standard stars
+            type_bits[foundstd] = fitstbl.type_bitmask.turn_off(type_bits[foundstd], flag='science')
+
+        return type_bits
 
     def idname(self, ftype):
         """

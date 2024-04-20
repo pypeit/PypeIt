@@ -293,7 +293,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs']}
+        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs'],
+                'slitless_pixflat': ['amp', 'binning', 'dateobs', 'dispname', 'dichroic']}
 
     def pypeit_file_keys(self):
         """
@@ -361,6 +362,44 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+        Check the assigned frame types for consistency.
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame
+            fitstbl (`PypeItMetaData`_):
+                Table with the metadata for the frames to check.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned in the same configuration, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for c in self.config_independent_frames()['slitless_pixflat']:
+                    match_config_values.append(np.any([frame[c] == slitless[c] for slitless in fitstbl[slitless_idx]]))
+                pixflat_match[f] = np.all(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        # TODO add tests!!
+        return type_bits
   
     def lamps(self, fitstbl, status):
         """
