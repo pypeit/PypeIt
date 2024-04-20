@@ -23,6 +23,9 @@ that need it; see new ``filter2`` parameter.
 - Various improvements in the flexure correction and added the possibility to use a modeled archive
   sky spectrum generated with `pypeit.wavemodel.nearIR_modelsky()` to perform the flexure correction.
 
+- Added support for spec1d files to be combined with the UVES_popler software. For more details about
+  the UVES_popler software, see https://github.com/MTMurphy77/UVES_popler.
+
 Instrument-specific Updates
 ---------------------------
 - Improvements for SOAR/Goodman
