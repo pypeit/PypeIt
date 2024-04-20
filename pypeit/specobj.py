@@ -87,6 +87,8 @@ class SpecObj(datamodel.DataContainer):
                  'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Optimally extracted noise variance, sky+read '
                                                 'noise only (counts^2)'),
+                 'OPT_BLAZE': dict(otype=np.ndarray, atype=float,
+                                   descr='Optimally extracted and normalized blaze profile'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
                  'OPT_FWHM': dict(otype=np.ndarray, atype=float,
@@ -120,6 +122,8 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
+                 'BOX_BLAZE': dict(otype=np.ndarray, atype=float,
+                                   descr='Boxcar extracted and normalized blaze profile'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_FWHM': dict(otype=np.ndarray, atype=float,
