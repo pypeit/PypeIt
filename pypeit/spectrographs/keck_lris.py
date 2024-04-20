@@ -391,9 +391,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         for f, frame in enumerate(fitstbl):
             if pixelflat_idx[f]:
                 match_config_values = []
-                for c in self.config_independent_frames()['slitless_pixflat']:
-                    match_config_values.append(np.any([frame[c] == slitless[c] for slitless in fitstbl[slitless_idx]]))
-                pixflat_match[f] = np.all(match_config_values)
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
 
         # remove pixelflat from the type_bits
         type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
