@@ -1019,7 +1019,7 @@ class PypeIt:
             self.exTract = extraction.Extract.get_instance(
                 sciImg, slits, sobjs_obj, self.spectrograph,
                 self.par, self.objtype, global_sky=final_global_sky, bkg_redux_global_sky=bkg_redux_global_sky,
-                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimg=self.caliBrate.flatimg,
+                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimg=self.caliBrate.flatimages.pixelflat_model,
                 bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
                 std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction
