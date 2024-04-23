@@ -1618,7 +1618,7 @@ class Spectrograph:
         if np.any(indx):
             msgs.warn('Some frames are assigned both science and standard types. Choosing the most likely type.')
             if 'ra' not in fitstbl.keys() or 'dec' not in fitstbl.keys():
-                msgs.warn('Sky coordinates are not available. Stsndard stars cannot be identified.')
+                msgs.warn('Sky coordinates are not available. Standard stars cannot be identified.')
                 return type_bits
             # check if any coordinates are None
             none_coords = indx & ((fitstbl['ra'] == 'None') | (fitstbl['dec'] == 'None'))
