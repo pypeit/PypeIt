@@ -34,7 +34,7 @@ def test_find_standard():
     std_dict = flux_calib.find_standard_file(coord.ra.value, coord.dec.value, to_pkg='symlink')
     # Test
     assert std_dict['name'] == 'G191B2B'
-    assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stisnic_002.fits.gz'
+    assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stiswfcnic_004.fits.gz'
     assert std_dict['std_source'] == 'calspec'
     # Fail to find
     # near G191b2b

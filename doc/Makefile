@@ -71,6 +71,7 @@ apirst:
 	python ./scripts/build_spectbl_rst.py
 	python ./scripts/make_example_files.py
 	python ./scripts/write_script_help.py
+	python ./scripts/build_standardstbl_rst.py
 
 html:
 	make apirst
