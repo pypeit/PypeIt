@@ -84,9 +84,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
-        par['calibrations']['traceframe']['exprng'] = [None, 60]
-        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['pixelflatframe']['exprng'] = [0, 60]
+        par['calibrations']['traceframe']['exprng'] = [0, 60]
+        par['calibrations']['illumflatframe']['exprng'] = [0, 60]
+        par['calibrations']['slitless_pixflatframe']['exprng'] = [0, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
 
         # Flexure
