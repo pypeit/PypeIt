@@ -9,6 +9,7 @@ Dependency Changes
 ------------------
 
 - PypeIt now only supports python versions >=3.10, numpy>=1.23, and ginga>=5.0.1
+- sphinx-rtd-theme updated to 2.0, along with relevant dependencies
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
