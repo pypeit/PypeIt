@@ -1445,52 +1445,57 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         return bpm_img
 
 
-class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
-    """
-    Child to handle NIRSPEC low-dispersion pre-upgrade specific code
-    """
-    name = 'keck_nirspec_low_old'
-    supported = False
-    comment = 'PRE-upgrade (~Dec 2018), Low-dispersion grating'
-    pypeline = 'MultiSlit'
-
-    # TODO: this is not tested, but added here for completeness
-
-    def get_detector_par(self, det, hdu=None):
-        """
-        Return metadata for the selected detector.
-        see https://web.archive.org/web/20161107225756/https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
-        and https://web.archive.org/web/20161102133622/https://www2.keck.hawaii.edu//inst/nirspec/nirspec-spec-lowres.pdf
-
-        Args:
-            det (:obj:`int`):
-                1-indexed detector number.  This is not used because NIRSPEC
-                only has one detector!
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.  If not
-                provided, frame-dependent parameters are set to a default.
-
-        Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
-            Object with the detector metadata.
-        """
-        detector_dict = dict(
-            det=1,
-            binning='1,1',  # No binning allowed
-            dataext=0,
-            specaxis=0,
-            specflip=False,
-            spatflip=False,
-            platescale=0.193,
-            darkcurr=2880.0,  # this is e-/pixel/hour... == 0.8 e-/s/pixel
-            saturation=1.0e6,
-            nonlinear=0.9,  # docs say linear to 90,000 but our flats are usually higher
-            numamplifiers=1,
-            mincounts=-1e10,
-            gain=np.atleast_1d(5.8),
-            ronoise=np.atleast_1d(23.0),
-            datasec=np.atleast_1d('[:,:]'),
-            oscansec=None,  # np.atleast_1d('[:,:]')
-        )
-
-        return detector_container.DetectorContainer(**detector_dict)
+# NOTE: Including this unfinished class causes the docs to fault because the
+# necessary meta data (using the init_meta method) is not defined.  I (KBW) am
+# commenting this out until this spectrograph class is ready to be fully
+# implemented.
+#
+#class KeckNIRSPECLowSpectrographOld(KeckNIRSPECSpectrographOld):
+#    """
+#    Child to handle NIRSPEC low-dispersion pre-upgrade specific code
+#    """
+#    name = 'keck_nirspec_low_old'
+#    supported = False
+#    comment = 'PRE-upgrade (~Dec 2018), Low-dispersion grating'
+#    pypeline = 'MultiSlit'
+#
+#    # TODO: this is not tested, but added here for completeness
+#
+#    def get_detector_par(self, det, hdu=None):
+#        """
+#        Return metadata for the selected detector.
+#        see https://web.archive.org/web/20161107225756/https://www2.keck.hawaii.edu/inst/nirspec/Specifications.html
+#        and https://web.archive.org/web/20161102133622/https://www2.keck.hawaii.edu//inst/nirspec/nirspec-spec-lowres.pdf
+#
+#        Args:
+#            det (:obj:`int`):
+#                1-indexed detector number.  This is not used because NIRSPEC
+#                only has one detector!
+#            hdu (`astropy.io.fits.HDUList`_, optional):
+#                The open fits file with the raw image of interest.  If not
+#                provided, frame-dependent parameters are set to a default.
+#
+#        Returns:
+#            :class:`~pypeit.images.detector_container.DetectorContainer`:
+#            Object with the detector metadata.
+#        """
+#        detector_dict = dict(
+#            det=1,
+#            binning='1,1',  # No binning allowed
+#            dataext=0,
+#            specaxis=0,
+#            specflip=False,
+#            spatflip=False,
+#            platescale=0.193,
+#            darkcurr=2880.0,  # this is e-/pixel/hour... == 0.8 e-/s/pixel
+#            saturation=1.0e6,
+#            nonlinear=0.9,  # docs say linear to 90,000 but our flats are usually higher
+#            numamplifiers=1,
+#            mincounts=-1e10,
+#            gain=np.atleast_1d(5.8),
+#            ronoise=np.atleast_1d(23.0),
+#            datasec=np.atleast_1d('[:,:]'),
+#            oscansec=None,  # np.atleast_1d('[:,:]')
+#        )
+#
+#        return detector_container.DetectorContainer(**detector_dict)
