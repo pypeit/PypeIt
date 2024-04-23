@@ -1619,9 +1619,12 @@ class Spectrograph:
             msgs.warn('Some frames are assigned both science and standard types. Choosing the most likely type.')
             if 'ra' not in fitstbl.keys() or 'dec' not in fitstbl.keys():
                 msgs.warn('Sky coordinates are not available. Standard stars cannot be identified.')
+                # turn off the standard flag for all frames
+                type_bits[indx] = fitstbl.type_bitmask.turn_off(type_bits[indx], flag='standard')
                 return type_bits
             # check if any coordinates are None
-            none_coords = indx & ((fitstbl['ra'] == 'None') | (fitstbl['dec'] == 'None'))
+            none_coords = indx & ((fitstbl['ra'] == 'None') | (fitstbl['dec'] == 'None') |
+                                  np.isnan(fitstbl['ra']) | np.isnan(fitstbl['dec']))
             if np.any(none_coords):
                 msgs.warn('The following frames have None coordinates. '
                           'They could be a twilight flat frame that was missed by the automatic identification')
@@ -1631,11 +1634,25 @@ class Spectrograph:
 
             # If the frame is within 20 arcmin of a listed standard star, then it is probably a standard star
             # Find the nearest standard star to each frame that is assigned both science and standard types
-            foundstd = indx & np.logical_not(none_coords) &  \
-                       np.array([flux_calib.find_standard_file(ra, dec, check=True) for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            # deal with possible None coordinates
+            is_std = np.array([], dtype=bool)
+            for ra, dec in zip(fitstbl['ra'], fitstbl['dec']):
+                if ra == 'None' or dec == 'None' or np.isnan(ra) or np.isnan(dec):
+                    is_std = np.append(is_std, False)
+                else:
+                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, check=True))
 
-            # turn off the science flag for frames that are found to be standard stars
-            type_bits[foundstd] = fitstbl.type_bitmask.turn_off(type_bits[foundstd], flag='science')
+            foundstd = indx & is_std
+            # turn off the science flag for frames that are found to be standard stars and
+            # turn off the standard flag for frames that are not
+            if np.any(foundstd):
+                type_bits[foundstd] = fitstbl.type_bitmask.turn_off(type_bits[foundstd], flag='science')
+                type_bits[np.logical_not(foundstd)] = \
+                    fitstbl.type_bitmask.turn_off(type_bits[np.logical_not(foundstd)], flag='standard')
+            else:
+                # if no standard stars are found, turn off the standard flag for all frames
+                type_bits[indx] = fitstbl.type_bitmask.turn_off(type_bits[indx], flag='standard')
+
 
         return type_bits
 
