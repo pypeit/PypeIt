@@ -400,7 +400,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # remove pixelflat from the type_bits
         type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
 
-        # TODO add tests!!
         return type_bits
   
     def lamps(self, fitstbl, status):

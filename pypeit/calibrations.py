@@ -673,9 +673,18 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
-        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+        # intialize the slitless_pixflat flag
+        is_slitless_pixflat = False
+        if len(self.fitstbl.find_frame_files('slitless_pixflat', calib_ID=self.calib_ID)) > 0:
+            msgs.info('Slitless pixelflat frames found.  Will use them to generate the pixelflat.')
+            is_slitless_pixflat = True
+            pixel_frame = {'type': 'slitless_pixflat', 'class': flatfield.FlatImages}
+            raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
                 = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+        else:
+            pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+            raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+                    = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
 
         illum_frame = {'type': 'illumflat', 'class': flatfield.FlatImages}
         raw_illum_files, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
@@ -722,7 +731,10 @@ class Calibrations:
         lampoff_flat = None
         # Check if the image files are the same
         pix_is_illum = Counter(raw_illum_files) == Counter(raw_pixel_files)
-        if len(raw_pixel_files) > 0:
+
+        # PIXEL FLAT
+        # slit flats
+        if len(raw_pixel_files) > 0 and not is_slitless_pixflat:
             # Reset the BPM
             self.get_bpm(frame=raw_pixel_files[0])
             msgs.info('Creating pixel-flat calibration frame using files: ')
@@ -750,8 +762,8 @@ class Calibrations:
 
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, qa_path=self.qa_path,
+                                                 self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+                                                 wv_calib=self.wv_calib, qa_path=self.qa_path,
                                                  calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
@@ -759,6 +771,48 @@ class Calibrations:
             # sensitivity corrections to the illumflat
             self.flatimages = pixelflatImages
 
+        # slitless flats
+        elif len(raw_pixel_files) > 0 and is_slitless_pixflat:
+            # Reset the BPM
+            self.get_bpm(frame=raw_pixel_files[0])
+            msgs.info('Creating slitless pixel-flat calibration frame using files: ')
+            for f in raw_pixel_files:
+                msgs.prindent(f'{Path(f).name}')
+            # trace image
+            traceimg = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                      self.par['traceframe'],
+                                                      raw_pixel_files[0], dark=self.msdark,
+                                                      bias=self.msbias, bpm=self.msbpm,
+                                                      scattlight=self.msscattlight)
+            # slit edges
+            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'])
+            edges._reinit_trace_data()
+            edges.bound_detector()
+            slits = edges.get_slits()
+
+            # flat image
+            slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                        self.par['slitless_pixflatframe'],
+                                                        raw_pixel_files, dark=self.msdark,
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        scattlight=self.msscattlight) #, scale_to_mean=True)
+
+            # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
+
+            # Initialise the pixel flat
+            pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
+                                                 self.par['flatfield'], slits, wavetilts=None,
+                                                 wv_calib=None, slitless=True,
+                                                 qa_path=self.qa_path, calib_key=calib_key)
+            # Generate
+            pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
+            # remove spat_id from this slitless pixelflatImages
+            pixelflatImages.spat_id = None
+            # Set flatimages in case we want to apply the pixel-to-pixel
+            # sensitivity corrections to the illumflat
+            self.flatimages = pixelflatImages
+
+        # ILLUMINATION FLAT
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(raw_illum_files) > 0:
             # Reset the BPM
@@ -787,8 +841,8 @@ class Calibrations:
 
             # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, spat_illum_only=True,
+                                                 self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+                                                 wv_calib=self.wv_calib, spat_illum_only=True,
                                                  qa_path=self.qa_path, calib_key=calib_key)
             # Generate
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
@@ -1452,8 +1506,13 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
                         if ftype == 'pixelflat' \
                                 and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
+                        # Allow for no pixelflat but slitless_pixflat needs to exist
+                        elif ftype == 'pixelflat' \
+                                and len(fitstbl.find_frames('slitless_pixflat', calib_ID=calib_ID, index=True)) > 0:
+                            continue
                         # Otherwise fail
-                        msg = f'No frames of type={ftype} provide for the *{key}* processing ' \
+                        add_msg = ' or slitless_pixflat' if ftype == 'pixelflat' else ''
+                        msg = f'No frames of type={ftype}{add_msg} provided for the *{key}* processing ' \
                               'step. Add them to your PypeIt file!'
                         pass_calib = False
                         if raise_error:

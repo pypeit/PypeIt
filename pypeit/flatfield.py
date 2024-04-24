@@ -483,10 +483,14 @@ class FlatField:
             corrections.  If None, the default parameters are used.
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             The current slit traces.
-        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`):
-            The current wavelength tilt traces; see
-        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`):
-            Wavelength calibration object
+        wavetilts (:class:`~pypeit.wavetilts.WaveTilts`, optional):
+            The current fit to the wavelength tilts. I can be None,
+            for example, if slitless is True.
+        wv_calib (:class:`~pypeit.wavecalib.WaveCalib`, optional):
+            Wavelength calibration object. It can be None, for example, if
+            slitless is True.
+        slitless (bool, optional):
+            True if the input rawflatimg is a slitless flat. Default is False.
         spat_illum_only (bool, optional):
             Only perform the spatial illumination calculation, and ignore
             the 2D bspline fit. This should only be set to true if you
@@ -510,8 +514,8 @@ class FlatField:
             Image of the relative spectral illumination for a multislit spectrograph
 
     """
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib,
-                 spat_illum_only=False, qa_path=None, calib_key=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts=None, wv_calib=None,
+                 slitless=False, spat_illum_only=False, qa_path=None, calib_key=None):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -528,7 +532,8 @@ class FlatField:
         self.wv_calib = wv_calib
 
         # Worth a check
-        self.wavetilts.is_synced(self.slits)
+        if self.wavetilts is not None:
+            self.wavetilts.is_synced(self.slits)
 
         # Attributes unique to this Object
         self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
@@ -540,6 +545,10 @@ class FlatField:
         self.spat_illum_only = spat_illum_only
         self.spec_illum = None      # Relative spectral illumination image
         self.waveimg = None
+        self.slitless = slitless    # is this a slitless flat?
+
+        # get waveimg here if available
+        self.build_waveimg()   # this set self.waveimg
 
         # Completed steps
         self.steps = []
@@ -578,13 +587,20 @@ class FlatField:
             :class:`FlatImages`: Container with the results of the flat-field
             analysis.
         """
+
+        # check if self.wavetilts is available. It can be None if the flat is slitless, but it's needed otherwise
+        if self.wavetilts is None and not self.slitless:
+            msgs.warn("Wavelength tilts are not available.  Cannot generate this flat image.")
+            return None
+
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
         if not self.flatpar['fit_2d_det_response']:
             # This spectrograph does not have a structure correction
             # implemented. Ignore detector structure.
             self.fit(spat_illum_only=self.spat_illum_only, doqa=doqa, debug=debug)
-        else:  # Iterate on the pixelflat if required by the spectrograph
+        elif self.waveimg is not None:
+            # Iterate on the pixelflat if required by the spectrograph
             # User has requested a structure correction.
             # Note: This will only be performed if it is coded for each individual spectrograph.
             # Make a copy of the original flat
@@ -671,11 +687,14 @@ class FlatField:
         Generate an image of the wavelength of each pixel.
         """
         msgs.info("Generating wavelength image")
-        flex = self.wavetilts.spat_flexure
-        slitmask = self.slits.slit_img(initial=True, flexure=flex)
-        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
-        # Save to class attribute for inclusion in the Flat calibration frame
-        self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
+        if self.wavetilts is None or self.wv_calib is None:
+            msgs.warn("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
+        else:
+            flex = self.wavetilts.spat_flexure
+            slitmask = self.slits.slit_img(initial=True, flexure=flex)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+            # Save to class attribute for inclusion in the Flat calibration frame
+            self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
 
     def show(self, wcs_match=True):
         """
@@ -814,9 +833,6 @@ class FlatField:
         # Iteratively construct the illumination profile by rejecting outliers
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
-
-        # Build wavelength image -- not always used, but for convenience done here
-        if self.waveimg is None: self.build_waveimg()
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -961,10 +977,13 @@ class FlatField:
             # TODO: Put this stuff in a self.spectral_fit method?
 
             # Create the tilts image for this slit
-            # TODO -- JFH Confirm the sign of this shift is correct!
-            _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
-            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                        self.wavetilts['func2d'], spat_shift=-1*_flexure)
+            if self.slitless:
+                tilts = np.outer(np.arange(rawflat.shape[0]) / rawflat.shape[0], np.ones(rawflat.shape[1]))
+            else:
+                # TODO -- JFH Confirm the sign of this shift is correct!
+                _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
+                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
+                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -1288,11 +1307,11 @@ class FlatField:
             #  go bad?
 
             # Minimum wavelength?
-            if self.flatpar['pixelflat_min_wave'] is not None:
+            if self.flatpar['pixelflat_min_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] < self.flatpar['pixelflat_min_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
             # Maximum wavelength?
-            if self.flatpar['pixelflat_max_wave'] is not None:
+            if self.flatpar['pixelflat_max_wave'] is not None and self.waveimg is not None:
                 bad_wv = self.waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave']
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
 
@@ -1402,6 +1421,10 @@ class FlatField:
         doqa : :obj:`bool`, optional:
             Save the QA?
         """
+        # check id self.waveimg is available
+        if self.waveimg is None:
+            msgs.warn("Cannot perform the fine correction to the spatial illumination without the wavelength image.")
+            return
         # TODO :: Include fit_order in the parset??
         fit_order = np.array([3, 6])
         slit_txt = self.slits.slitord_txt
@@ -1413,7 +1436,7 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure)
+        left, right, msk = self.slits.select_edges(initial=True, flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1424,7 +1447,7 @@ class FlatField:
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        initial=True,
                                                        slitid_img=slitimg,
-                                                       flexure_shift=self.wavetilts.spat_flexure)
+                                                       flexure_shift=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         # Generate the trimmed versions for fitting
         this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
         this_wave_trim = self.waveimg[this_slit_trim]
@@ -1489,6 +1512,11 @@ class FlatField:
             divided by the spectral and spatial illumination profile fits).
         """
         msgs.info("Extracting flatfield structure")
+
+        # check if the waveimg is available
+        if self.waveimg is None:
+            msgs.error("Cannot perform the extraction of the flatfield structure without the wavelength image.")
+
         # Build the mask and make a temporary instance of FlatImages
         bpmflats = self.build_mask()
         # Initialise bad splines (for when the fit goes wrong)
@@ -1512,7 +1540,7 @@ class FlatField:
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
-                                             flexure=self.wavetilts.spat_flexure,
+                                             flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
         # Trim the edges by a few pixels to avoid edge effects
         onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False) != -1)
@@ -1558,8 +1586,10 @@ class FlatField:
             An image containing the appropriate scaling
         """
         msgs.info("Deriving spectral illumination profile")
-        # Generate a wavelength image
-        if self.waveimg is None: self.build_waveimg()
+        # check if the waveimg is available
+        if self.waveimg is None:
+            msgs.warn("Cannot perform the spectral illumination without the wavelength image.")
+            return None
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
@@ -1573,7 +1603,7 @@ class FlatField:
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=self.wavetilts.spat_flexure,
+                                      flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'])
 
 

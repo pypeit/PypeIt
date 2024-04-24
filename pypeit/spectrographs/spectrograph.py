@@ -1610,7 +1610,6 @@ class Spectrograph:
             `numpy.ndarray`_: The updated frame types.
 
         """
-        # TODO add tests!!!!
         # For frames that are assigned both science and standard types, choose the one that is most likely
         # find frames that are assigned both science and standard star types
         indx = fitstbl.type_bitmask.flagged(type_bits, flag='standard') & \
