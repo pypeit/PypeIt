@@ -780,9 +780,8 @@ class Calibrations:
                 msgs.prindent(f'{Path(f).name}')
             # trace image
             traceimg = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                      self.par['traceframe'],
-                                                      raw_pixel_files[0], dark=self.msdark,
-                                                      bias=self.msbias, bpm=self.msbpm,
+                                                      self.par['traceframe'], [raw_pixel_files[0]],
+                                                      dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
                                                       scattlight=self.msscattlight)
             # slit edges
             edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'])
@@ -792,10 +791,10 @@ class Calibrations:
 
             # flat image
             slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                        self.par['slitless_pixflatframe'],
-                                                        raw_pixel_files, dark=self.msdark,
-                                                        bias=self.msbias, bpm=self.msbpm,
-                                                        scattlight=self.msscattlight) #, scale_to_mean=True)
+                                                                 self.par['slitless_pixflatframe'],
+                                                                 raw_pixel_files, dark=self.msdark,
+                                                                 bias=self.msbias, bpm=self.msbpm,
+                                                                 scattlight=self.msscattlight, scale_to_mean=True)
 
             # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
 

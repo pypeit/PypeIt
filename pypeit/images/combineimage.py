@@ -63,7 +63,8 @@ class CombineImage:
             msgs.error('CombineImage requires a list of files to instantiate')
 
     def run(self, bias=None, scattlight=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean', mosaic=False):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean', mosaic=False,
+            scale_to_mean=False):
         r"""
         Process and combine all images.
 
@@ -178,6 +179,9 @@ class CombineImage:
                 If multiple detectors are being processes, mosaic them into a
                 single image.  See
                 :func:`~pypeit.images.rawimage.RawImage.process`.
+            scale_to_mean (:obj:`bool`, optional):
+                If True, scale the images to their mean before combining.  This
+                is useful when combining images with different exposure times.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
@@ -263,6 +267,26 @@ class CombineImage:
             comb_texp = np.mean(exptime)
         else:
             comb_texp = exptime[0]
+
+        # scale the images to their mean, if requested, before combining
+        if scale_to_mean:
+            msgs.info("Scaling images to their mean before combining")
+            # calculate the mean of the images
+            [mean_img], _, _, _ = combine.weighted_combine(np.ones(self.nfiles, dtype=float)/self.nfiles,
+                                                                     [img_stack],
+                                                                     [rn2img_stack], # var_list is added because it is required by the function but not used
+                                                                     gpm_stack, sigma_clip=sigma_clip,
+                                                                     sigma_clip_stack=img_stack,
+                                                                     sigrej=sigrej, maxiters=maxiters)
+            mscale = utils.inverse(mean_img)
+            # scale the images
+            img_stack *= mscale
+            # scale the variances
+            rn2img_stack *= mscale**2
+            basev_stack *= mscale**2
+            # scale the scales
+            scl_stack *= mscale
+            #TODO: Update docs
 
         # Coadd them
         if combine_method == 'mean':

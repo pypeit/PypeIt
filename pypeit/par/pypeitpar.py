@@ -4484,7 +4484,8 @@ class CalibrationsPar(ParSet):
                                                           process=ProcessImagesPar(satpix='nothing',
                                                                                    use_pixelflat=False,
                                                                                    use_illumflat=False,
-                                                                                   use_specillum=False))
+                                                                                   use_specillum=False,
+                                                                                   combine='median'))
         dtypes['slitless_pixflatframe'] = [ ParSet, dict ]
         descr['slitless_pixflatframe'] = 'The frames and combination rules for the slitless pixel flat'
 
