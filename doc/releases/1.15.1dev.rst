@@ -23,6 +23,9 @@ that need it; see new ``filter2`` parameter.
 - Various improvements in the flexure correction and added the possibility to use a modeled archive
   sky spectrum generated with `pypeit.wavemodel.nearIR_modelsky()` to perform the flexure correction.
 
+- Added the functionality to use slitless flats to create pixelflats. Note: new frametype
+  `slitless_pixflat` is added to the PypeIt frametype list.
+
 Instrument-specific Updates
 ---------------------------
 - Improvements for SOAR/Goodman
@@ -31,6 +34,7 @@ Instrument-specific Updates
 
 - Added example of improved wavelength solution for GEMINI/GMOS
 - Expanded the template for `shane_kast_red` and the 1200/5000 grating
+- Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 
 Script Changes
 --------------

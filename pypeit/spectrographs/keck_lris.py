@@ -155,8 +155,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['ra'] = dict(card=None, compound=True)
+        self.meta['dec'] = dict(card=None, compound=True)
         self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
@@ -176,6 +176,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Extras for pypeit file
         self.meta['dateobs'] = dict(card=None, compound=True)
         self.meta['amp'] = dict(ext=0, card='NUMAMPS')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
 
         # Lamps
         # similar approach to DEIMOS
@@ -195,7 +196,20 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'binning':
+        # LRIS sometime misses RA and/or Dec in the header. When this happens, set them to 0
+        if meta_key == 'ra':
+            if headarr[0].get('RA') is None:
+                msgs.warn('Keyword RA not found in header. Setting to 0')
+                return '00:00:00.00'
+            else:
+                return headarr[0]['RA']
+        elif meta_key == 'dec':
+            if headarr[0].get('DEC') is None:
+                msgs.warn('Keyword DEC not found in header. Setting to 0')
+                return '+00:00:00.0'
+            else:
+                return headarr[0]['DEC']
+        elif meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
@@ -352,7 +366,21 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # attempt at identifying sky flats (not robust, but better than nothing)
-            sky_flat = np.array(['sky' in flat.lower() for flat in fitstbl['target']]) & (fitstbl['decker'] != 'direct')
+            is_sky = np.zeros(len(fitstbl), dtype=bool)
+            # look for specific words in the target or object header keywords
+            words_to_search = ['sky', 'blank', 'twilight', 'twiflat', 'twi flat']
+            for i, row in enumerate(fitstbl):
+                in_target = False
+                if row['target'] is not None:
+                    if np.any([w in row['target'].lower() for w in words_to_search]):
+                        in_target = True
+                is_object = False
+                if row['object'] is not None:
+                    if np.any([w in row['object'].lower() for w in words_to_search]):
+                        is_object = True
+                is_sky[i] = in_target or is_object
+            # put together the sky flats requirement
+            sky_flat = is_sky & (fitstbl['decker'] != 'direct')
             # Flats and trace frames are typed together
             return good_exp & (good_dome + good_internal + sky_flat) & no_img
         if ftype in ['pinhole', 'dark']:

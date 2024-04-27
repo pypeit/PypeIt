@@ -778,31 +778,37 @@ class Calibrations:
             msgs.info('Creating slitless pixel-flat calibration frame using files: ')
             for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
-            # trace image
-            traceimg = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                      self.par['traceframe'], [raw_pixel_files[0]],
-                                                      dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
-                                                      scattlight=self.msscattlight)
-            # slit edges
-            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'])
-            edges._reinit_trace_data()
-            edges.bound_detector()
-            slits = edges.get_slits()
-
+            # # trace image
+            # traceimg = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+            #                                           self.par['traceframe'], [raw_pixel_files[0]],
+            #                                           dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
+            #                                           scattlight=self.msscattlight)
+            # # slit edges
+            # edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'], auto=True)
+            # # edges._reinit_trace_data()
+            # # edges.bound_detector()
+            # slits = edges.get_slits()
+            #
             # flat image
             slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                  self.par['slitless_pixflatframe'],
                                                                  raw_pixel_files, dark=self.msdark,
                                                                  bias=self.msbias, bpm=self.msbpm,
                                                                  scattlight=self.msscattlight, scale_to_mean=True)
+            #
+            # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
+            #
+            # # Initialise the pixel flat
+            # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
+            #                                      self.par['flatfield'], slits, wavetilts=None,
+            #                                      wv_calib=None, slitless=True,
+            #                                      qa_path=self.qa_path, calib_key=calib_key)
 
-            # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
-
-            # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], slits, wavetilts=None,
-                                                 wv_calib=None, slitless=True,
-                                                 qa_path=self.qa_path, calib_key=calib_key)
+                                                 self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+                                                 wv_calib=self.wv_calib, qa_path=self.qa_path,
+                                                 calib_key=calib_key)
+
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
             # remove spat_id from this slitless pixelflatImages
