@@ -209,6 +209,7 @@ class ProcessImagesPar(ParSet):
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
                  mask_cr=None, clip=None,
+                 scale_to_mean=None,
                  #cr_sigrej=None, 
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
@@ -360,6 +361,10 @@ class ProcessImagesPar(ParSet):
         dtypes['clip'] = bool
         descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=mean'
 
+        defaults['scale_to_mean'] = False
+        dtypes['scale_to_mean'] = bool
+        descr['scale_to_mean'] = 'If True, scale the input images to have the same mean before combining.'
+
         defaults['comb_sigrej'] = None
         dtypes['comb_sigrej'] = float
         descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
@@ -443,7 +448,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
                    'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
                    'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
-                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine', 'scale_to_mean',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',

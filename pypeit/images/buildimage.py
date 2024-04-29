@@ -158,7 +158,7 @@ All of these **must** subclass from
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
-                        mosaic=None, calib_dir=None, setup=None, calib_id=None, scale_to_mean=False):
+                        mosaic=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results.
 
@@ -228,10 +228,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             The string listing the set of calibration groups associated with
             this dataset.  Required for elements of :attr:`frame_image_classes`,
             ignored otherwise.
-        scale_to_mean (:obj:`bool`, optional):
-            If True, scale the input images to have the same mean value before
-            combining.  This is useful for combining images that have different
-            exposure times.
 
     Returns:
         :class:`~pypeit.images.pypeitimage.PypeItImage`,
@@ -258,7 +254,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
                                    sigrej=frame_par['process']['comb_sigrej'],
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
                                    slits=slits, combine_method=frame_par['process']['combine'],
-                                   mosaic=mosaic, scale_to_mean=scale_to_mean)
+                                   mosaic=mosaic, scale_to_mean=frame_par['process']['scale_to_mean'])
 
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \

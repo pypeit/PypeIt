@@ -794,7 +794,7 @@ class Calibrations:
                                                                  self.par['slitless_pixflatframe'],
                                                                  raw_pixel_files, dark=self.msdark,
                                                                  bias=self.msbias, bpm=self.msbpm,
-                                                                 scattlight=self.msscattlight, scale_to_mean=True)
+                                                                 scattlight=self.msscattlight)
             #
             # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
             #

@@ -90,6 +90,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitless_pixflatframe']['exprng'] = [0, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
 
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
+
+        # Turn off flat illumination fine correction (it's more often bad than good)
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
+
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'

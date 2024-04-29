@@ -270,7 +270,7 @@ class CombineImage:
 
         # scale the images to their mean, if requested, before combining
         if scale_to_mean:
-            msgs.info("Scaling images to their mean before combining")
+            msgs.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
             [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nfiles, dtype=float)/self.nfiles,
                                                                   [img_stack],
