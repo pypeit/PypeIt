@@ -957,6 +957,26 @@ def rebinND(img, shape):
     return img_out
 
 
+def occurrences(inarr):
+    """ Calculate the sub-pixellation weights.
+
+    This function calculates the number of occurrences of each unique value in the input array.
+    For example, if the input array is [1, 1, 2, 2, 2, 3], the output array would be [2, 2, 3, 3, 3, 1].
+
+    Parameters
+    ----------
+    inarr : ndarray
+        Input array. Must be 1D.
+
+    Returns
+    -------
+    ndarray
+        Array of sub-pixellation weights, same shape as input array.
+    """
+    _, idx, cnt = np.unique(inarr, return_inverse=True, return_counts=True)
+    return cnt[idx]
+
+
 def pyplot_rcparams():
     """
     params for pretty matplotlib plots

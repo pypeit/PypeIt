@@ -56,7 +56,7 @@ clean:
 	rm -rf $(LOCALFILES)
 
 apirst:
-	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py ../pypeit/compiler_version*
+	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/version.py ../pypeit/compiler_version*
 	wget -O ./include/dev_suite_readme.rst https://raw.githubusercontent.com/pypeit/PypeIt-development-suite/main/README.rst
 	python ./scripts/build_datacontainer_datamodels.py
 	python ./scripts/build_dependency_rst.py
@@ -70,6 +70,7 @@ apirst:
 	python ./scripts/build_bitmask_rst.py
 	python ./scripts/build_spectbl_rst.py
 	python ./scripts/make_example_files.py
+	python ./scripts/build_standardstbl_rst.py
 
 html:
 	make apirst
