@@ -442,8 +442,6 @@ class BuildWaveTilts:
         self.steps.append(inspect.stack()[0][3])
         return (None, None) if lines_spec is None else (lines_spec[good], lines_spat[good])
 
-
-
     def fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit_idx,
                   show_QA=False, doqa=True):
         """
@@ -467,6 +465,9 @@ class BuildWaveTilts:
             legendre polynomial fit.  Shape is (spat_order + 1, spec_order+1).
         """
         # Index
+        # embed()
+        thismask[:, :75] = False
+        thismask[:, 125:] = False
         self.all_fit_dict[slit_idx], self.all_trace_dict[slit_idx] \
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
@@ -507,6 +508,8 @@ class BuildWaveTilts:
             to fit the filts.
 
         """
+        thismask[:, :75] = False
+        thismask[:, 125:] = False
         trace_dict = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen,
                                            inmask=self.gpm, fwhm=self.wavepar['fwhm'],
                                            spat_order=self.par['spat_order'],

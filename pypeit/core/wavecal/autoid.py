@@ -526,8 +526,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
 
     use_spec = spec
     # Continuum subtract the arc spectrum
+    from scipy.ndimage import gaussian_filter1d
+    spec_smth = gaussian_filter1d(spec, fwhm/(3.0*np.sqrt(2.0*np.log(2.0))))
     tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
-        spec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
+        spec_smth, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm, debug=debug_peaks)
     # If the detections were not passed in measure them
     if detections is None:
         detections = tcent[icut]
@@ -540,8 +542,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     spec_arxiv_cont_sub = np.zeros_like(spec_arxiv)
     det_arxiv1 = {}
     for iarxiv in range(narxiv):
+        speca_smth = gaussian_filter1d(spec_arxiv[:, iarxiv], fwhm / (3.0 * np.sqrt(2.0 * np.log(2.0))))
         tcent_arxiv, ecent_arxiv, cut_tcent_arxiv, icut_arxiv, spec_cont_sub_now = wvutils.arc_lines_from_spec(
-            spec_arxiv[:, iarxiv], sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm,
+            speca_smth, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts, fwhm=fwhm,
             debug=debug_peaks)
         spec_arxiv_cont_sub[:, iarxiv] = spec_cont_sub_now
         det_arxiv1[str(iarxiv)] = tcent_arxiv[icut_arxiv]
@@ -1212,6 +1215,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         # Collate and proceed
         dets = np.concatenate(sv_det)
         IDs = np.concatenate(sv_IDs)
+        # IDs[0] = -1
         gd_det = np.where(IDs > 0.)[0]
         if len(gd_det) < 4:
             msgs.warn("Not enough useful IDs")

@@ -773,9 +773,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         sciimg-skyimage, mask=np.logical_not(inmask), sigma_lower=3.0, sigma_upper=3.0, axis=0, stdfunc='mad_std')
     xfit = np.arange(nspat)
     # ww = np.where(((10.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))  # This works well for HD152270
-    # ww = np.where(((25.0<xfit) & (xfit<50) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for HD152236 (1993)
+    ww = np.where(((25.0<xfit) & (xfit<50) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for HD152236 (1993)
     # ww = np.where(((5.0<xfit) & (xfit<20)) | ((95<xfit) & (xfit<120)))  # This works well for HD152236 (1994)
-    ww = np.where(((10.0<xfit) & (xfit<45) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for Zeta Oph
+    # ww = np.where(((10.0<xfit) & (xfit<45) & (xfit!=42)) | ((130<xfit) & (xfit<160)))  # This works well for Zeta Oph
     model = np.polyval(np.polyfit(xfit[ww], flux_smash_med[ww], 3), xfit)
     # model = np.mean(flux_smash_mean[105:115])*np.ones_like(flux_smash_mean)  # This works well for HD169454
     plt.plot(flux_smash_mean)
@@ -971,8 +971,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                         # profile_model -= np.median(profile_model[:, 105:], axis=1)[:, None]  # ZetaOph and HD152236
                         # profile_model -= np.median(profile_model[:, 100:120], axis=1)[:, None]  # HD152270
                         xfit = np.arange(profile_model.shape[1])
-                        ord, ww = 2, np.where(((10.0 < xfit) & (xfit < 40)) | ((125 < xfit) & (xfit < 155)))  # This works well for ZetaOph
-                        # ord, ww = 2, np.where(((20.0 < xfit) & (xfit < 45) & (xfit != 42)) | ((125 < xfit) & (xfit < 155)))  # This works well for HD152236 (1993)
+                        # ord, ww = 2, np.where(((10.0 < xfit) & (xfit < 40)) | ((125 < xfit) & (xfit < 155)))  # This works well for ZetaOph
+                        ord, ww = 2, np.where(((20.0 < xfit) & (xfit < 45) & (xfit != 42)) | ((125 < xfit) & (xfit < 155)))  # This works well for HD152236 (1993)
                         # ord, ww = 2, np.where(((4.0 < xfit) & (xfit < 14)) | ((89 < xfit) & (xfit < 114)))  # HD152270 and HD152236 (1994)
                         # ord, ww = 0, np.where((xfit>100.0)&(xfit<110.0))  # HD169454
                         plt.plot(xfit, np.median(profile_model,axis=0))
