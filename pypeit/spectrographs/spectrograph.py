@@ -740,9 +740,8 @@ class Spectrograph:
                 # TODO: Instead check if 'rtol' exists and is not None?
                 if isinstance(configs[cfg_id[0]][key], (float, np.floating)) \
                         and isinstance(configs[_cfg_id][key], (float, np.floating)):
-                    # NOTE: No float-valued metadata can be 0!
-                    matched += [np.abs(configs[cfg_id[0]][key]-configs[_cfg_id][key])
-                                    / configs[cfg_id[0]][key] < self.meta[key]['rtol']]
+                    
+                    matched += [np.isclose(configs[_cfg_id][key], configs[cfg_id[0]][key], rtol=self.meta[key].get('rtol',0.0), atol=self.meta[key].get('atol',0.0), equal_nan=True)]
                 else:
                     matched += [np.all(configs[cfg_id[0]][key] == configs[_cfg_id][key])]
             if not np.all(matched):
