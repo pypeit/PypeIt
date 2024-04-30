@@ -1644,7 +1644,7 @@ class FlatField:
             return flat.tweak_slit_edges_threshold(left, right, spat_coo, norm_flat,
                                                    thresh=thresh, maxfrac=maxfrac, debug=debug)
         elif method == "gradient":
-            return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat)
+            return flat.tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=maxfrac, debug=debug)
         else:
             msgs.error("Method for tweaking slit edges not recognized: {0}".format(method))
 

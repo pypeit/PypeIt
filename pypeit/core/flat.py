@@ -469,7 +469,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
-def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, debug=False):
     r""" Adjust slit edges based on the gradient of the normalized
     flat-field illumination profile.
 
@@ -489,6 +489,12 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
         norm_flat (`numpy.ndarray`_)
             Normalized flat data that provide the slit illumination
             profile. Shape is :math:`(N_{\rm flat},)`.
+        maxfrac (:obj:`float`, optional):
+            The maximum fraction of the slit width that the slit edge
+            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+            this means the maximum change in the slit width (either
+            narrowing or broadening) is 20% (i.e., 10% for either
+            edge).
         debug (:obj:`bool`, optional):
             If True, the function will output plots to test if the
             fitting is working correctly.
@@ -525,10 +531,24 @@ def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, debug=False):
     # Find the location of the minimum/maximum gradient - this is the amount of shift required
     left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
     right_shift = spat_coo[np.argmin(grad_norm_flat_smooth)]-1.0
-    msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
-              ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
-    msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
-              ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
+
+    # Check if the shift is within the allowed range
+    if np.abs(left_shift) > maxfrac:
+        msgs.warn('Left slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*left_shift, 100*maxfrac) + msgs.newline() +
+                  'The left edge will not be tweaked.')
+        left_shift = 0.0
+    else:
+        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
+                  ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
+    if np.abs(right_shift) > maxfrac:
+        msgs.warn('Right slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*right_shift, 100*maxfrac) + msgs.newline() +
+                  'The right edge will not be tweaked.')
+        right_shift = 0.0
+    else:
+        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
+                  ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
     # Calculate the tweak for the left edge
     new_left = left + left_shift * slitwidth
