@@ -8,12 +8,13 @@ Installation Changes
 Dependency Changes
 ------------------
 
-- PypeIt now only supports python versions 3.10 or later, and numpy version 1.23 and later
+- PypeIt now only supports python versions >=3.10, numpy>=1.23, and ginga>=5.0.1
+- sphinx-rtd-theme updated to 2.0, along with relevant dependencies
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 - Allow the selection of a secondary filter option  for all spectrographs
-that need it; see new ``filter2`` parameter.
+  that need it; see new ``filter2`` parameter.
 
 - When dealing with `bkg_redux` reduction (i.e., A-B), a sky model (called `bkg_redux_skymodel`)
   is generated using the A frame, while the existing `skymodel` is generated using the A-B frame.
@@ -23,6 +24,8 @@ that need it; see new ``filter2`` parameter.
 - Various improvements in the flexure correction and added the possibility to use a modeled archive
   sky spectrum generated with `pypeit.wavemodel.nearIR_modelsky()` to perform the flexure correction.
 
+- Updated the list of available CALSPEC standard star with the latest version from the CALSPEC website.
+
 - Added the functionality to use slitless flats to create pixelflats. Note: new frametype
   `slitless_pixflat` is added to the PypeIt frametype list.
 
@@ -30,14 +33,18 @@ Instrument-specific Updates
 ---------------------------
 - Improvements for SOAR/Goodman
     - Added ``WAVMODE`` header keyword to ``configuration keys`` and
-     ``raw header cards``.
+      ``raw header cards``.
 
 - Added example of improved wavelength solution for GEMINI/GMOS
 - Expanded the template for `shane_kast_red` and the 1200/5000 grating
+- Fixed and improved the wavelength template `magellan_fire_long`
+- Updated Gemini/GMOS-S with the new detector parameters for the Hamamatsu CCDs replaced on 2023-12-14
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 
 Script Changes
 --------------
+- When interactively fitting a single peak with the `pypeit_identify` script
+  (i.e. using the `i` command), line centroids can now be both updated and added interactively.
 
 Datamodel Changes
 -----------------
