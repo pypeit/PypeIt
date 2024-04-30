@@ -5140,12 +5140,15 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[wavelengths]]
           method = full_template
-          lamps = ArI, ArII, ThAr, NeI,
+          lamps = Ar_IR_MOSFIRE, Ne_IR_MOSFIRE,
           sigdetect = 3
           fwhm = 10
           reid_arxiv = magellan_fire_long.fits
           rms_thresh_frac_fwhm = 0.05
           match_toler = 5.0
+          n_first = 3
+          n_final = 6
+          nsnippet = 4
       [[slitedges]]
           trace_thresh = 10.0
           sync_predict = nearest
