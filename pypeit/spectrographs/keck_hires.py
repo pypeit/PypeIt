@@ -367,14 +367,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
-        if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object')
-        if ftype == 'standard':
+        if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
+        if ftype == 'slitless_pixflat':
+            return good_exp & (fitstbl['idname'] == 'slitlessFlat')
         if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat')
@@ -384,7 +384,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
 
     def get_rawimage(self, raw_file, det, spectrim=20):
         """

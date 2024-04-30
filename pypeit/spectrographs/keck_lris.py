@@ -372,7 +372,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # attempt at identifying sky flats (not robust, but better than nothing)
-            is_sky = np.zeros(len(fitstbl), dtype=bool)
+            # they are basically science frames, so we look for "sky" words in the header
+            is_sky = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
             # look for specific words in the target or object header keywords
             words_to_search = ['sky', 'blank', 'twilight', 'twiflat', 'twi flat']
             for i, row in enumerate(fitstbl):
@@ -380,11 +381,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 if row['target'] is not None:
                     if np.any([w in row['target'].lower() for w in words_to_search]):
                         in_target = True
-                is_object = False
+                in_object = False
                 if row['object'] is not None:
                     if np.any([w in row['object'].lower() for w in words_to_search]):
-                        is_object = True
-                is_sky[i] = in_target or is_object
+                        in_object = True
+                is_sky[i] = in_target or in_object
             # put together the sky flats requirement
             sky_flat = is_sky & (fitstbl['decker'] != 'direct')
             # Flats and trace frames are typed together

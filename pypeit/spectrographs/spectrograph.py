@@ -1652,7 +1652,6 @@ class Spectrograph:
                 # if no standard stars are found, turn off the standard flag for all frames
                 type_bits[indx] = fitstbl.type_bitmask.turn_off(type_bits[indx], flag='standard')
 
-
         return type_bits
 
     def idname(self, ftype):
