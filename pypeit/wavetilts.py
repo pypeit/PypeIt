@@ -466,8 +466,18 @@ class BuildWaveTilts:
         """
         # Index
         # embed()
-        thismask[:, :75] = False
-        thismask[:, 125:] = False
+        # Good for ZetaOph and HD152236 (1993)
+        # thismask[:, :75] = False
+        # thismask[:, 125:] = False
+        # Good for HD152236 (1994)
+        # thismask[:, :15] = False
+        # thismask[:, 85:] = False
+        # Good for HD169454
+        # thismask[:, :3] = False
+        # thismask[:, 100:] = False
+        # Good for HD152270
+        thismask[:, :20] = False
+        thismask[:, 90:] = False
         self.all_fit_dict[slit_idx], self.all_trace_dict[slit_idx] \
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
@@ -508,8 +518,18 @@ class BuildWaveTilts:
             to fit the filts.
 
         """
-        thismask[:, :75] = False
-        thismask[:, 125:] = False
+        # Good for ZetaOph and HD152236 (1993)
+        # thismask[:, :75] = False
+        # thismask[:, 125:] = False
+        # Good for HD152236 (1994)
+        # thismask[:, :15] = False
+        # thismask[:, 85:] = False
+        # Good for HD169454
+        # thismask[:, :3] = False
+        # thismask[:, 100:] = False
+        # Good for HD152270
+        thismask[:, :20] = False
+        thismask[:, 90:] = False
         trace_dict = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen,
                                            inmask=self.gpm, fwhm=self.wavepar['fwhm'],
                                            spat_order=self.par['spat_order'],

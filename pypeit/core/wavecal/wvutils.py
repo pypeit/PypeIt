@@ -337,7 +337,10 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
     all_nsig = nsig[w]
 
     # Cut on significance
-    cut_sig = (all_nsig > sigdetect)# & ((all_tcent > 125)|(all_tcent < 123))
+    cut_sig = (all_nsig > sigdetect)
+    # cut_sig = (all_nsig > sigdetect) & ((all_tcent > 125)|(all_tcent < 123))
+    # cut_sig = (all_nsig > sigdetect) & ((all_tcent > 250)|(all_tcent < 200))
+    # cut_sig = (all_nsig > sigdetect) & ((all_tcent > 470)|(all_tcent < 440))
     cut_tcent = all_tcent[cut_sig]
     icut = np.where(cut_sig)[0]
 

@@ -91,6 +91,8 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Mask for optimally extracted flux. True=good'),
                  'OPT_FWHM': dict(otype=np.ndarray, atype=float,
                                   descr='Spectral FWHM (in Angstroms) at every pixel of the optimally extracted flux.'),
+                 'OPT_ARC': dict(otype=np.ndarray, atype=float,
+                                  descr='Arc spectrum at every pixel of the optimally extracted flux.'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,

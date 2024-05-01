@@ -2424,8 +2424,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     # TODO XXX This needs to be adjusted for each target
     # flux_smash_recen = flux_smash - flux_smash_med
     # flux_smash_recen = flux_smash - np.mean(flux_smash[105:115])  # Good for HD169454
-    # flux_smash_recen = flux_smash - np.mean(flux_smash[100:120])  # Good for HD152270 and HD152236 (1994)
-    flux_smash_recen = flux_smash - np.mean(flux_smash[130:160])  # Good for HD152236 (1993)
+    flux_smash_recen = flux_smash - np.mean(flux_smash[100:120])  # Good for HD152270 and HD152236 (1994)
+    # flux_smash_recen = flux_smash - np.mean(flux_smash[130:160])  # Good for HD152236 (1993)
     # flux_smash_recen = flux_smash - np.mean(np.append(flux_smash[10:45], flux_smash[130:160]))  # Good for ZetaOph
 
     # Return if none found and no hand extraction

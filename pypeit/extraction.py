@@ -63,7 +63,7 @@ class Extract:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
-                     waveTilts=None, tilts=None, wv_calib=None, waveimg=None, bkg_redux=False,
+                     waveTilts=None, tilts=None, arcim=None, wv_calib=None, waveimg=None, bkg_redux=False,
                      return_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Extract subclass appropriate for the provided
@@ -124,11 +124,11 @@ class Extract:
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
             sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=global_sky, waveTilts=waveTilts, tilts=tilts,
-            wv_calib=wv_calib, waveimg=waveimg, bkg_redux=bkg_redux, return_negative=return_negative,
+            wv_calib=wv_calib, waveimg=waveimg, arcim=arcim, bkg_redux=bkg_redux, return_negative=return_negative,
             std_redux=std_redux, show=show, basename=basename)
 
     def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
-                 waveTilts=None, tilts=None, wv_calib=None, waveimg=None,
+                 waveTilts=None, tilts=None, wv_calib=None, waveimg=None, arcim=None,
                  bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
 
@@ -140,6 +140,7 @@ class Extract:
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
+        self.arcim=arcim
         self.global_sky = global_sky if global_sky is not None else np.zeros_like(sciImg.image)
 
         self.basename = basename
@@ -755,7 +756,7 @@ class MultiSlitExtract(Extract):
                                               thismask, self.slits_left[:,slit_idx],
                                               self.slits_right[:, slit_idx],
                                               self.sobjs[thisobj], ingpm=ingpm,
-                                              fwhmimg=self.fwhmimg, spat_pix=spat_pix,
+                                              fwhmimg=self.fwhmimg, arcim=self.arcim.image, spat_pix=spat_pix,
                                               model_full_slit=model_full_slit,
                                               sigrej=sigrej, model_noise=model_noise,
                                               std=self.std_redux, bsp=bsp,

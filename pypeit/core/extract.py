@@ -24,7 +24,7 @@ from pypeit.core.moment import moment1d
 
 
 def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
-                    spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
+                    spec, min_frac_use=0.05, arcim=None, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
 
     r"""
     Perform optimal extraction `(Horne 1986)
@@ -144,6 +144,8 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     oprof_sub = oprof[:,mincol:maxcol]
     if fwhmimg is not None:
         fwhmimg_sub = fwhmimg[:,mincol:maxcol]
+    if arcim is not None:
+        arcimg_sub = arcim[:,mincol:maxcol]
     # enforce normalization and positivity of object profiles
     norm = np.nansum(oprof_sub,axis = 1)
     norm_oprof = np.outer(norm, np.ones(nsub))
@@ -189,6 +191,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     fwhm_opt = None
     if fwhmimg is not None:
         fwhm_opt = np.nansum(mask_sub*ivar_sub*fwhmimg_sub*oprof_sub, axis=1) * utils.inverse(tot_weight)
+    arc_opt = None
+    if arcim is not None:
+        arc_opt = np.nansum(mask_sub*ivar_sub*arcimg_sub*oprof_sub, axis=1) * utils.inverse(tot_weight)
     # Interpolate wavelengths over masked pixels
     badwvs = (mivar_num <= 0) | np.invert(np.isfinite(wave_opt)) | (wave_opt <= 0.0)
     if badwvs.any():
@@ -227,6 +232,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(spec.OPT_COUNTS_IVAR))
     spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
+    spec.OPT_ARC = arc_opt  # Arc spectrum for the optimally extracted spectrum
     spec.OPT_FWHM = fwhm_opt  # Spectral FWHM (in Angstroms) for the optimally extracted spectrum
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
