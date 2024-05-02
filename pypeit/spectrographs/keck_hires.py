@@ -99,6 +99,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [1, 600]
         par['scienceframe']['exprng'] = [601, None]
 
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
+
         # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -275,22 +278,28 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 return 'off'
 
         elif meta_key == 'idname':
-            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+            xcovopen = headarr[0].get('XCOVOPEN')
+            collcoveropen = (headarr[0].get('XDISPERS') == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and headarr[0].get('BCCVOPEN'))
+
+            if xcovopen and collcoveropen and \
+                    not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
                     not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
                     return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
-            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
-                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
-                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
+            elif xcovopen and collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                return 'Line'
+            elif collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                    not headarr[0].get('HATOPEN'):
+                if not xcovopen:
                     return 'slitlessFlat'
                 else:
-                    return 'Line'
-            elif headarr[0].get('AUTOSHUT') and \
-                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
-                    and not headarr[0].get('HATOPEN'):
-                return 'IntFlat'
+                    return 'IntFlat'
 
         else:
             msgs.error("Not ready for this compound meta")
@@ -309,7 +318,26 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'filter1', 'echangle', 'xdangle', 'binning']
+        return ['dispname', 'decker', 'filter1', 'echangle', 'xdangle', 'binning']
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['dispname', 'binning'], 'dark': ['dispname', 'binning'],
+                'slitless_pixflat': ['dispname', 'binning']}
 
     def raw_header_cards(self):
         """
@@ -341,9 +369,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
-
-
-
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -384,6 +409,44 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+        Check the assigned frame types for consistency.
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame
+            fitstbl (`PypeItMetaData`_):
+                Table with the metadata for the frames to check.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned in the same configuration, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        return type_bits
 
     def get_rawimage(self, raw_file, det, spectrim=20):
         """
