@@ -2036,20 +2036,20 @@ def convert_lowredux_pixelflat(infil, outfil):
     #
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
-    prihdu.header['FRAMETYP'] = 'pixelflat'
+    prihdu.header['CALIBTYP'] = ('Flat', 'PypeIt: Calibration frame type')
 
     # Detector 1
     img1 = data[:,:data.shape[1]//2]
     hdu = fits.ImageHDU(img1)
-    hdu.name = 'DET1'
-    prihdu.header['EXT0001'] = 'DET1-pixelflat'
+    hdu.name = 'DET01-PIXELFLAT_NORM'
+    prihdu.header['EXT0001'] = hdu.name
     hdus.append(hdu)
 
     # Detector 2
     img2 = data[:,data.shape[1]//2:]
     hdu = fits.ImageHDU(img2)
-    hdu.name = 'DET2'
-    prihdu.header['EXT0002'] = 'DET2-pixelflat'
+    hdu.name = 'DET02-PIXELFLAT_NORM'
+    prihdu.header['EXT0002'] = hdu.name
     hdus.append(hdu)
 
     # Finish

@@ -10,6 +10,8 @@ import numpy as np
 
 from scipy import interpolate, ndimage
 
+from astropy.io import fits
+
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
@@ -22,12 +24,14 @@ from pypeit import bspline
 
 from pypeit import datamodel
 from pypeit import calibframe
+from pypeit import io
 from pypeit.display import display
 from pypeit.core import qa
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit.core import fitting
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 
 
@@ -532,7 +536,7 @@ class FlatField:
         self.wv_calib = wv_calib
 
         # Worth a check
-        if self.wavetilts is not None:
+        if self.wavetilts is not None and not slitless:
             self.wavetilts.is_synced(self.slits)
 
         # Attributes unique to this Object
@@ -978,7 +982,10 @@ class FlatField:
 
             # Create the tilts image for this slit
             if self.slitless:
-                tilts = np.outer(np.arange(rawflat.shape[0]) / rawflat.shape[0], np.ones(rawflat.shape[1]))
+                # tilts = np.outer(np.arange(rawflat.shape[0]) / rawflat.shape[0], np.ones(rawflat.shape[1]))
+                _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
+                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,0],
+                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
@@ -2038,6 +2045,80 @@ def merge(init_cls, merge_cls):
                     else getattr(merge_cls, key)
     # Construct the merged class
     return FlatImages(**dd)
+
+
+def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_file):
+    """
+    Write the pixel-to-pixel flat-field images to a FITS file.
+    The FITS file will have an extension for each detector (never a mosaic).
+    Another method read this file and transform it to a mosaic if needed.
+
+    Args:
+        pixflat_norm_list (:obj:`list`):
+            List of 2D `numpy.ndarray`_ arrays containing the pixel-to-pixel flat-field images.
+        detname_list (:obj:`list`):
+            List of detector names.
+        spec_name (:obj:`str`):
+            Name of the spectrograph.
+        pixelflat_file (:obj:`pathlib.Path`):
+            Path to the output file to be written.
+
+    """
+
+    msgs.info(f'A slitless Pixel Flat will be saved to {pixelflat_file} {msgs.newline()}'
+              f'and automatically used in this run. If you want to use this file in future runs, {msgs.newline()}'
+              f'Add the following block to your PypeIt Reduction File:{msgs.newline()}'
+              f" [calibrations]{msgs.newline()}"
+              f"   [[flatfield]]{msgs.newline()}"
+              f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}")
+
+    msgs.info("Please consider sharing your Pixel Flat with the PypeIt Developers.")
+
+    # Check that the number of detectors matches the number of pixelflat_norm arrays
+    if len(pixflat_norm_list) != len(detname_list):
+        msgs.error("The number of detectors does not match the number of pixelflat_norm arrays. "
+                   "The pixelflat file cannot be written.")
+
+    # Check if the file already exists
+    old_hdus = []
+    old_detnames = []
+    old_hdr = None
+    if pixelflat_file.exists():
+        msgs.warn("The pixelflat file already exists. It will be overwritten/updated.")
+        old_hdus = fits.open(pixelflat_file)
+        old_detnames = [h.name.split('-')[0] for h in old_hdus]  # this has also 'PRIMARY'
+        old_hdr = old_hdus[0].header
+
+    # load spectrograph
+    spec = load_spectrograph(spec_name)
+
+    # Create the new HDUList
+    _hdr = io.initialize_header(hdr=old_hdr)
+    prihdu = fits.PrimaryHDU(header=_hdr)
+    prihdu.header['CALIBTYP'] = (FlatImages.calib_type, 'PypeIt: Calibration frame type')
+    new_hdus = [prihdu]
+
+    extnum = 1
+    for d in spec.select_detectors():
+        detname = spec.get_det_name(d)
+        extname = f'{detname}-PIXELFLAT_NORM'
+        if detname in detname_list:
+            det_idx = detname_list.index(detname)
+            pixflat_norm = pixflat_norm_list[det_idx]
+            hdu = fits.ImageHDU(data=pixflat_norm, name=extname)
+            prihdu.header[f'EXT{extnum:04d}'] = hdu.name
+            new_hdus.append(hdu)
+        elif detname in old_detnames:
+            old_det_idx = old_detnames.index(detname)
+            hdu = old_hdus[old_det_idx]
+            prihdu.header[f'EXT{extnum:04d}'] = hdu.name
+            new_hdus.append(hdu)
+        extnum += 1
+
+    # Write the new HDUList
+    new_hdulist = fits.HDUList(new_hdus)
+    new_hdulist.writeto(pixelflat_file, overwrite=True)
+    msgs.info(f'Pixelflat file wrote to: {str(pixelflat_file)}')
 
 
 
