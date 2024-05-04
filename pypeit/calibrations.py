@@ -42,6 +42,7 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
 from pypeit import utils
+from pypeit import data
 
 
 class Calibrations:
@@ -173,7 +174,7 @@ class Calibrations:
 
         # pixel flat file
         self.pixel_flat_file = None if self.par['flatfield']['pixelflat_file'] is None else \
-            Path(self.par['flatfield']['pixelflat_file']).resolve()
+            data.Paths.static_calibs / self.spectrograph.name / self.par['flatfield']['pixelflat_file']
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).resolve()
@@ -726,7 +727,7 @@ class Calibrations:
                 binning = self.fitstbl[slitless_rows[0]]['binning'].replace(',', 'x')
                 # file name
                 fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
-                pixelflat_file = Path(fname).resolve()
+                pixelflat_file = data.Paths.static_calibs / self.spectrograph.name / fname
 
                 # Save the result
                 flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list,
@@ -736,7 +737,7 @@ class Calibrations:
                 self.pixel_flat_file = pixelflat_file
                 # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
                 # so that it can be used for the other files in the same run
-                self.par['flatfield']['pixelflat_file'] = str(pixelflat_file)
+                self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
 
     def get_flats(self):
         """

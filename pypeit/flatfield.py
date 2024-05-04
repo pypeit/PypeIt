@@ -2065,14 +2065,14 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
 
     """
 
-    msgs.info(f'A slitless Pixel Flat will be saved to {pixelflat_file} {msgs.newline()}'
-              f'and automatically used in this run. If you want to use this file in future runs, {msgs.newline()}'
+    msgs.info(f'A slitless Pixel Flat will be saved to {msgs.newline()}'
+              f'    {pixelflat_file} {msgs.newline()}'
+              f'and it will be automatically used in this run. If you want to use this file in future runs, {msgs.newline()}'
               f'Add the following block to your PypeIt Reduction File:{msgs.newline()}'
               f" [calibrations]{msgs.newline()}"
               f"   [[flatfield]]{msgs.newline()}"
-              f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}")
-
-    msgs.info("Please consider sharing your Pixel Flat with the PypeIt Developers.")
+              f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"
+              f"Please consider sharing your Pixel Flat with the PypeIt Developers.")
 
     # Check that the number of detectors matches the number of pixelflat_norm arrays
     if len(pixflat_norm_list) != len(detname_list):
@@ -2117,6 +2117,9 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
 
     # Write the new HDUList
     new_hdulist = fits.HDUList(new_hdus)
+    # Check if the directory exists
+    if not pixelflat_file.parent.is_dir():
+        pixelflat_file.parent.mkdir(parents=True)
     new_hdulist.writeto(pixelflat_file, overwrite=True)
     msgs.info(f'Pixelflat file wrote to: {str(pixelflat_file)}')
 
