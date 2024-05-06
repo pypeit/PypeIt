@@ -64,6 +64,8 @@ def write_linelist_table(output_root):
 
 def write_reid_arxiv_table(output_root):
 
+    # TODO: Pull wavelength range (and resolution?) from files
+
     reid_dir = resources.files('pypeit') / 'data'/ 'arc_lines' / 'reid_arxiv'
 
     # Find all the files
