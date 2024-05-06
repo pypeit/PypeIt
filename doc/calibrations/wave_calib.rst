@@ -66,25 +66,7 @@ the `NIST database <https://physics.nist.gov/PhysRefData/ASD/lines_form.html>`_,
 `"arc_lines" directory <https://github.com/pypeit/PypeIt/tree/release/pypeit/data/arc_lines/lists>`_
 of the repository. Here are the available lamps:
 
-.. TODO: THIS TABLE IS OUT OF DATE.  WE NEED A WAY OF AUTOMATICALLY GENERATING
-.. THIS TABLE
-
-======  ==========  ================
-Lamp    Range (Å)   Last updated
-======  ==========  ================
-ArI     3100-11000  7 October 2018
-CdI     3000-6500   28 February 2022
-CuI     4200-6100   4 October 2018
-FeI     3000-10000  26 April 2020
-HeI     3800-6000   21 December 2016
-HgI     2900-12000  28 February 2022
-KrI     4000-10000  3 May 2018
-NeI     5000-12000  3 May 2018
-XeI     4000-12000  3 May 2018
-ZnI     3000-5000   6 Sep 2023
-ThAr    3000-11000  9 January 2018
-FeAr    3000-9000   6 Sep 2023
-======  ==========  ================
+.. include:: ../include/linelist_table.rst
 
 In the case of the ThAr list, all of the lines are taken from the NIST database,
 and they are labeled with a 'MURPHY' flag if the line also appears in the list
@@ -554,26 +536,7 @@ latter must be constructed by a developer, using
 summarizes the existing ones (all of which are in the
 ``data/arc_lines/reid_arxiv`` folder):
 
-.. TODO: THIS IS WAY OUT OF DATE.  WE NEED AN AUTOMATED WAY OF GENERATING THIS TABLE
-
-===============  =========================  =============================
-Instrument       Setup                      Name
-===============  =========================  =============================
-keck_deimos      600ZD grating, all lamps   keck_deimos_600ZD.fits
-keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
-keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
-keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits
-keck_deimos      900ZD grating, all lamps   keck_deimos_900ZD.fits
-keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
-keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
-keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
-keck_lris_blue   B1200 grism, all lamps     keck_lris_blue_1200_d460.fits
-keck_lris_red    R400 grating, all lamps    keck_lris_red_400.fits
-keck_lris_red    R1200/9000 , all lamps     keck_lris_red_1200_9000.fits
-shane_kast_blue  452_3306 grism, all lamps  shane_kast_blue_452.fits
-shane_kast_blue  600_4310 grism, all lamps  shane_kast_blue_600.fits
-shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
-===============  =========================  =============================
+.. include:: ../include/reid_arxiv_table.rst
 
 .. TODO: WE SHOULD CONSIDER ADDING SOME OF THESE NOTEBOOKS DIRECTLY TO THE DOCS USING
 .. NBSPHINX: https://nbsphinx.readthedocs.io/

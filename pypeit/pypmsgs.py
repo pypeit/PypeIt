@@ -5,7 +5,7 @@ Module for terminal and file logging.
     Why not use pythons native logging package?
 
 """
-from datetime import datetime
+import datetime
 import sys
 import os
 import getpass
@@ -413,7 +413,7 @@ class Messages:
                 Verbosity level between 0 [none] and 2 [all]
         """
         # Create a UT timestamp (to the minute) for the log filename
-        timestamp = datetime.now(__UTC__).strftime("%Y%m%d-%H%M")
+        timestamp = datetime.datetime.now(__UTC__).strftime("%Y%m%d-%H%M")
         # Create a logfile only if verbosity == 2
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs

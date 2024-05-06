@@ -9,7 +9,7 @@ from pathlib import Path
 import time
 import os
 import copy
-from datetime import datetime
+import datetime
 
 # TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
 # to no longer support it.
@@ -119,7 +119,7 @@ class PypeIt:
         # Write the full parameter set here
         # --------------------------------------------------------------
         par_file = pypeit_file.replace(
-            '.pypeit', f"_UTC_{datetime.now(__UTC__).date()}.par")
+            '.pypeit', f"_UTC_{datetime.datetime.now(__UTC__).date()}.par")
         self.par.to_config(par_file, include_descr=False)
 
         # --------------------------------------------------------------

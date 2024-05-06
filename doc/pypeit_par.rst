@@ -2795,6 +2795,7 @@ Alterations to the default parameters are:
       detnum = (1, 2, 3),
   [calibrations]
       [[biasframe]]
+          exprng = None, 0.001,
           [[[process]]]
               overscan_method = median
               combine = median
@@ -2822,6 +2823,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
+          exprng = None, 60,
           [[[process]]]
               overscan_method = median
               satpix = nothing
@@ -2829,11 +2831,10 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
+          exprng = 999999, None,
           [[[process]]]
               overscan_method = median
               use_biasimage = False
-              use_pixelflat = False
-              use_illumflat = False
       [[alignframe]]
           [[[process]]]
               overscan_method = median
@@ -2842,12 +2843,14 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
+          exprng = None, 60,
           [[[process]]]
               overscan_method = median
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
+          exprng = None, 60,
           [[[process]]]
               overscan_method = median
               satpix = nothing
@@ -2874,18 +2877,16 @@ Alterations to the default parameters are:
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
       [[standardframe]]
+          exprng = 1, 600,
           [[[process]]]
               overscan_method = median
               mask_cr = True
               use_biasimage = False
               noise_floor = 0.01
-              use_pixelflat = False
-              use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.9
+          slit_illum_finecorr = False
       [[wavelengths]]
           method = echelle
           echelle = True
@@ -2916,13 +2917,12 @@ Alterations to the default parameters are:
           tracethresh = 15
           spec_order = 5
   [scienceframe]
+      exprng = 601, None,
       [[process]]
           overscan_method = median
           mask_cr = True
           use_biasimage = False
           noise_floor = 0.01
-          use_pixelflat = False
-          use_illumflat = False
   [reduce]
       [[findobj]]
           find_trim_edge = 3, 3,
