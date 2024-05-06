@@ -867,8 +867,33 @@ def main(flg):
 
     # LBT LUCI K-band high-resolution grating
     if flg & (2**35):
-        iroot = 'lbt_luci1_wavecalib_A_3_DET01.fits'
+        iroot = 'lbt_luci1_k_wavecalib_A_3_DET01.fits'
         iout = 'lbt_luci1_k.fits'
+        # Load
+        old_file = data.Paths.reid_arxiv / iroot
+        par = io.fits_open(old_file)
+        pyp_spec = par[1].header['PYP_SPEC']
+        spectrograph  = load_spectrograph(pyp_spec)
+        orders = spectrograph.orders
+
+        # Do it
+        all_flux = par[2].data['spec'][0]
+        all_wave = par[2].data['wave_soln'][0]
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        #tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = data.Paths.reid_arxiv / iout
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+    # LBT LUCI H-band high-resolution grating
+    if flg & (2**36):
+        iroot = 'lbt_luci2_h_WaveCalib_A_1_DET01.fits'
+        iout = 'lbt_luci2_h.fits'
         # Load
         old_file = data.Paths.reid_arxiv / iroot
         par = io.fits_open(old_file)
@@ -952,6 +977,9 @@ if __name__ == '__main__':
 
     # LBT LUCI K-band
     #flg += 2**35
+
+    # LBT LUCI H-band
+    flg += 2**36
 
     main(flg)
 
