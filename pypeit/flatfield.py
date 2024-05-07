@@ -2066,13 +2066,13 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
     """
 
     msgs.info(f'A slitless Pixel Flat will be saved to {msgs.newline()}'
-              f'    {pixelflat_file} {msgs.newline()}'
-              f'and it will be automatically used in this run. If you want to use this file in future runs, {msgs.newline()}'
-              f'Add the following block to your PypeIt Reduction File:{msgs.newline()}'
+              f'{pixelflat_file} {msgs.newline()}'
+              f'It will be automatically used in this run. If you want to use this file in future runs, '
+              f'add the following to your PypeIt Reduction File:{msgs.newline()}'
               f" [calibrations]{msgs.newline()}"
               f"   [[flatfield]]{msgs.newline()}"
               f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"
-              f"Please consider sharing your Pixel Flat with the PypeIt Developers.")
+              f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}")
 
     # Check that the number of detectors matches the number of pixelflat_norm arrays
     if len(pixflat_norm_list) != len(detname_list):

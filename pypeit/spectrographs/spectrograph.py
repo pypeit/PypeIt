@@ -33,6 +33,7 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
+from astropy import units
 
 from pypeit import msgs
 from pypeit import io
@@ -1631,7 +1632,7 @@ class Spectrograph:
                 # turn off the standard star flag for these frames
                 type_bits[none_coords] = fitstbl.type_bitmask.turn_off(type_bits[none_coords], flag='standard')
 
-            # If the frame is within 20 arcmin of a listed standard star, then it is probably a standard star
+            # If the frame is within 10 arcmin of a listed standard star, then it is probably a standard star
             # Find the nearest standard star to each frame that is assigned both science and standard types
             # deal with possible None coordinates
             is_std = np.array([], dtype=bool)
@@ -1639,7 +1640,7 @@ class Spectrograph:
                 if ra == 'None' or dec == 'None' or np.isnan(ra) or np.isnan(dec):
                     is_std = np.append(is_std, False)
                 else:
-                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, check=True))
+                    is_std = np.append(is_std, flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True))
 
             foundstd = indx & is_std
             # turn off the science flag for frames that are found to be standard stars and

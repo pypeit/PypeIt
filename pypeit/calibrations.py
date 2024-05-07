@@ -653,91 +653,116 @@ class Calibrations:
     def make_slitless_pixflat(self):
         """
         Generate and save to disc a slitless pixel flat-field calibration image.
+        The pixel flat file will have one extension per detector, even in the case of a mosaic.
         This is a sub-step of `get_flats()`.
 
         Note: self.pixel_flat_file is updated in this method.
+        Note: self.par['flatfield']['pixelflat_file'] is updated in this method.
 
         """
 
+        # First thing first, check if the user has provided slitless_pixflat frames
         slitless_rows = self.fitstbl.find_frames('slitless_pixflat', calib_ID=self.calib_ID, index=True)
-        raw_slitless_files = self.fitstbl.frame_paths(slitless_rows)
-
-        # Check if a user-provided slitless pixelflat already exists
-        if len(raw_slitless_files) > 0 and self.pixel_flat_file is not None:
-            msgs.info(f'slitless_pixflat frames found, but user-defined file will be used: {self.pixel_flat_file.name}')
+        if len(slitless_rows) == 0:
             return
 
+        # get the raw slitless_pixflat frames
+        raw_slitless_files = self.fitstbl.frame_paths(slitless_rows)
+        # get the detectors (and split them if it is a mosaic)
+        _detectors = np.array(self.det) if isinstance(self.det, tuple) else np.array([self.det])
+
+        # Check if a user-provided slitless pixelflat already exists for the current detectors
+        if self.pixel_flat_file is not None:
+            # get detector names
+            detnames = np.array([self.spectrograph.get_det_name(_det) for _det in _detectors])
+            # open the file
+            with io.fits_open(self.pixel_flat_file) as hdu:
+                # list of available detectors in the pixel flat file
+                file_detnames = [h.name.split('-')[0] for h in hdu]
+                # check if the current detnames are in the list
+                in_file = np.array([d in file_detnames for d in detnames])
+                # if all detectors are in the file, return
+                if np.all(in_file):
+                    msgs.info(f'Both slitless_pixflat frames and user-defined file found. '
+                              f'The user-defined file will be used: {self.pixel_flat_file.name}')
+                    return
+                else:
+                    # get the detectors that are not in the file
+                    _detectors = _detectors[np.logical_not(in_file)]
+                    detnames = detnames[np.logical_not(in_file)]
+                    msgs.info(f'Both slitless_pixflat frames and user-defined file found, but the '
+                              f'following detectors are not in the file: {detnames}. Using the '
+                              f'slitless_pixflat frames to generate the missing detectors.')
+
+        # make the slitless pixel flat
         pixflat_norm_list = []
         detname_list = []
-        if len(raw_slitless_files) > 0:
-            # loop over the detectors (this is done to create a slitless pixelflat file that has one det per extension)
-            _detectors = list(self.det) if isinstance(self.det, tuple) else [self.det]
-            for _det in _detectors:
-                # Reset the BPM
-                self.msbpm = self.spectrograph.bpm(raw_slitless_files[0], _det,
-                                                   msbias=self.msbias if self.par['bpm_usebias'] else None)
-                self.get_bpm(frame=raw_slitless_files[0])
-                msgs.info('Creating slitless pixel-flat calibration frame using files: ')
-                for f in raw_slitless_files:
-                    msgs.prindent(f'{Path(f).name}')
-                # trace image
-                traceimg = buildimage.buildimage_fromlist(self.spectrograph, _det,
-                                                          self.par['traceframe'], [raw_slitless_files[0]],
-                                                          dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
-                                                          scattlight=self.msscattlight)
-                # slit edges
-                self.par['slitedges']['sync_predict'] = 'nearest'
-                edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'], auto=True)
-                slits = edges.get_slits()
-                #
-                # flat image
-                slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, _det,
-                                                                     self.par['slitless_pixflatframe'],
-                                                                     raw_slitless_files, dark=self.msdark,
-                                                                     bias=self.msbias, bpm=self.msbpm,
-                                                                     scattlight=self.msscattlight)
-                #
-                # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
-                #
-                # Initialise the pixel flat
-                pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-                                                     self.par['flatfield'], slits, wavetilts=self.wavetilts,
-                                                     wv_calib=None, slitless=True, qa_path=self.qa_path)
+        for _det in _detectors:
+            # Reset the BPM
+            self.msbpm = self.spectrograph.bpm(raw_slitless_files[0], _det,
+                                               msbias=self.msbias if self.par['bpm_usebias'] else None)
+            self.get_bpm(frame=raw_slitless_files[0])
+            msgs.info('Creating slitless pixel-flat calibration frame using files: ')
+            for f in raw_slitless_files:
+                msgs.prindent(f'{Path(f).name}')
+            # trace image
+            traceimg = buildimage.buildimage_fromlist(self.spectrograph, _det,
+                                                      self.par['traceframe'], [raw_slitless_files[0]],
+                                                      dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
+                                                      scattlight=self.msscattlight)
+            # slit edges
+            self.par['slitedges']['sync_predict'] = 'nearest'
+            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'], auto=True)
+            slits = edges.get_slits()
+            #
+            # flat image
+            slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, _det,
+                                                                 self.par['slitless_pixflatframe'],
+                                                                 raw_slitless_files, dark=self.msdark,
+                                                                 bias=self.msbias, bpm=self.msbpm,
+                                                                 scattlight=self.msscattlight)
+            #
+            # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
+            #
+            # Initialise the pixel flat
+            pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
+                                                 self.par['flatfield'], slits, wavetilts=self.wavetilts,
+                                                 wv_calib=None, slitless=True, qa_path=self.qa_path)
 
-                # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-                #                                      self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
-                #                                      wv_calib=self.wv_calib, qa_path=self.qa_path,
-                #                                      calib_key=calib_key)
+            # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
+            #                                      self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+            #                                      wv_calib=self.wv_calib, qa_path=self.qa_path,
+            #                                      calib_key=calib_key)
 
-                # Generate
-                pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
-                pixflat_norm_list.append(pixelflatImages.pixelflat_norm)
-                detname_list.append(self.spectrograph.get_det_name(_det))
+            # Generate
+            pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
+            pixflat_norm_list.append(pixelflatImages.pixelflat_norm)
+            detname_list.append(self.spectrograph.get_det_name(_det))
 
-            if len(detname_list) > 0:
-                # generate the slitless pixel flat file name
-                spec_name = self.fitstbl.spectrograph.name
-                date = self.fitstbl.construct_obstime(slitless_rows[0]).iso.split(' ')[0].replace('-', '') if \
-                    self.fitstbl[slitless_rows][0]['mjd'] is not None else '000000'
-                # setup info to add to the filename
-                dispname = '' if 'dispname' not in self.spectrograph.configuration_keys() else \
-                    f"_{self.fitstbl[slitless_rows[0]]['dispname'].replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace(':', '_').replace('+', '_')}"
-                dichroic = '' if 'dichroic' not in self.spectrograph.configuration_keys() else \
-                    f"_d{self.fitstbl[slitless_rows[0]]['dichroic']}"
-                binning = self.fitstbl[slitless_rows[0]]['binning'].replace(',', 'x')
-                # file name
-                fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
-                pixelflat_file = data.Paths.static_calibs / self.spectrograph.name / fname
+        if len(detname_list) > 0:
+            # generate the slitless pixel flat file name
+            spec_name = self.fitstbl.spectrograph.name
+            date = self.fitstbl.construct_obstime(slitless_rows[0]).iso.split(' ')[0].replace('-', '') if \
+                self.fitstbl[slitless_rows][0]['mjd'] is not None else '000000'
+            # setup info to add to the filename
+            dispname = '' if 'dispname' not in self.spectrograph.configuration_keys() else \
+                f"_{self.fitstbl[slitless_rows[0]]['dispname'].replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace(':', '_').replace('+', '_')}"
+            dichroic = '' if 'dichroic' not in self.spectrograph.configuration_keys() else \
+                f"_d{self.fitstbl[slitless_rows[0]]['dichroic']}"
+            binning = self.fitstbl[slitless_rows[0]]['binning'].replace(',', 'x')
+            # file name
+            fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
+            pixelflat_file = data.Paths.static_calibs / self.spectrograph.name / fname
 
-                # Save the result
-                flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list,
-                                                self.spectrograph.name, pixelflat_file)
+            # Save the result
+            flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list,
+                                            self.spectrograph.name, pixelflat_file)
 
-                # update the self.pixel_flat_file to the new file
-                self.pixel_flat_file = pixelflat_file
-                # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
-                # so that it can be used for the other files in the same run
-                self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
+            # update the self.pixel_flat_file to the new file
+            self.pixel_flat_file = pixelflat_file
+            # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
+            # so that it can be used for the other files in the same run
+            self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
 
     def get_flats(self):
         """
@@ -814,10 +839,7 @@ class Calibrations:
             # Load user defined files
             if self.pixel_flat_file is not None:
                 # Load
-                msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name}')
-                with io.fits_open(self.pixel_flat_file) as hdu:
-                    nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
-                    self.flatimages = flatfield.merge(self.flatimages, nrm_image)
+                self.flatimages = load_pixflat(self.pixel_flat_file, self.flatimages, detname)
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -928,10 +950,7 @@ class Calibrations:
         # Should we allow that?
         if self.pixel_flat_file is not None:
             # Load
-            msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name}')
-            with io.fits_open(self.pixel_flat_file) as hdu:
-                self.flatimages = flatfield.merge(self.flatimages,
-                                                  flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+            self.flatimages = load_pixflat(self.pixel_flat_file, self.flatimages, detname)
 
         return self.flatimages
 
@@ -1497,6 +1516,42 @@ class IFUCalibrations(Calibrations):
         # Order matters!
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
                 'scattlight', 'flats']
+
+
+def load_pixflat(pixel_flat_file, flatimages, detname):
+    """
+    Load a pixel flat from a file and add it to the flatimages object.
+    Args:
+        pixel_flat_file (:obj:`str`, `Path`_):
+            The path to the pixel flat file.
+        flatimages (:class:`~pypeit.flatfield.FlatImages`):
+            The FlatImages object to which the pixel flat will be added.
+        detname (:obj:`str`):
+            The name of the detector for which the pixel flat is being loaded.
+
+    Returns:
+        :class:`~pypeit.flatfield.FlatImages`: The FlatImages object with the pixel flat added.
+
+    """
+
+    pixel_flat_file = Path(pixel_flat_file).resolve()
+
+    with io.fits_open(pixel_flat_file) as hdu:
+        # list of available detectors in the pixel flat file
+        file_detnames = [h.name.split('-')[0] for h in hdu]
+        # check if the current detector is in the list
+        if detname in file_detnames:
+            # get the index of the current detector
+            idx = file_detnames.index(detname)
+            # get the pixel flat image
+            msgs.info(f'Using pixelflat file: {pixel_flat_file.name}')
+            nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
+        else:
+            msgs.warn(f'Detector {detname} not found in the pixel flat file: '
+                      f'{pixel_flat_file.name}. No pixel flat will be applied to this detector.')
+            nrm_image = None
+        flatimages = flatfield.merge(flatimages, nrm_image)
+    return flatimages
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):

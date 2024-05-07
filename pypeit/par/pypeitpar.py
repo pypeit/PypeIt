@@ -66,6 +66,7 @@ from IPython import embed
 from collections import OrderedDict
 
 import numpy as np
+import glob
 
 from configobj import ConfigObj
 
@@ -73,6 +74,7 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit import msgs
+from pypeit import data
 
 
 def tuple_force(par):
@@ -808,9 +810,13 @@ class FlatFieldPar(ParSet):
             return
 
         # Check the frame exists
-        if not os.path.isfile(self.data['pixelflat_file']):
-            raise ValueError('Provided frame file name does not exist: {0}'.format(
-                                self.data['pixelflat_file']))
+        # only the file name is provided, so we need to check if the file exists
+        # in the right place (data/static_calibs/<spectrograph_name>/)
+        file = data.Paths.static_calibs / '*' / self.data['pixelflat_file']
+        find_it = glob.glob(str(file))
+        if len(find_it) == 0:
+            raise ValueError(f'Provided pixelflat file: {self.data["pixelflat_file"]} '
+                             f'not found in {str(data.Paths.static_calibs)}/<spectrograph_name>/')
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
