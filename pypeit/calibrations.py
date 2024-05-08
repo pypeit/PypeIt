@@ -711,8 +711,9 @@ class Calibrations:
                                                       dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
                                                       scattlight=self.msscattlight)
             # slit edges
-            self.par['slitedges']['sync_predict'] = 'nearest'
-            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, self.par['slitedges'], auto=True)
+            edges_par = self.par['slitedges']
+            edges_par['sync_predict'] = 'nearest'
+            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, edges_par, auto=True)
             slits = edges.get_slits()
             #
             # flat image
@@ -731,8 +732,7 @@ class Calibrations:
 
             # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
             #                                      self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
-            #                                      wv_calib=self.wv_calib, qa_path=self.qa_path,
-            #                                      calib_key=calib_key)
+            #                                      wv_calib=self.wv_calib)
 
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
