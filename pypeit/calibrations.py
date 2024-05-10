@@ -693,19 +693,23 @@ class Calibrations:
                               f'slitless_pixflat frames to generate the missing detectors.')
 
         # make the slitless pixel flat
-        msgs.info('Creating slitless pixel-flat calibration frame using files: ')
-        raw_slitless_files = self.fitstbl.frame_paths(slitless_rows)
-        for f in raw_slitless_files:
-            msgs.prindent(f'{Path(f).name}')
-
         pixflat_norm_list = []
         detname_list = []
         for _det in _detectors:
-            # this is spectrograph dependent. If the method does not exist in the specific
-            # spectrograph class, nothing will happen
+            # Parse the raw slitless pixelflat frames. Note that this is spectrograph dependent.
+            # If the method does not exist in the specific spectrograph class, nothing will happen
             this_raw_idx = self.spectrograph.parse_raw_files(self.fitstbl[slitless_rows], det=_det,
                                                              ftype='slitless_pixflat')
+            if len(this_raw_idx) == 0:
+                msgs.warn(f'No raw slitless_pixflat frames found for {self.spectrograph.get_det_name(_det)}. '
+                          f'Continuing...')
+                continue
             this_raw_files = self.fitstbl.frame_paths(slitless_rows[this_raw_idx])
+            msgs.info(f'Creating slitless pixel-flat calibration frame '
+                      f'for {self.spectrograph.get_det_name(_det)} using files: ')
+            for f in this_raw_files:
+                msgs.prindent(f'{Path(f).name}')
+
             # Reset the BPM
             msbpm = self.spectrograph.bpm(this_raw_files[0], _det, msbias=self.msbias if self.par['bpm_usebias'] else None)
 
@@ -716,6 +720,7 @@ class Calibrations:
             # slit edges
             edges_par = self.par['slitedges']
             edges_par['sync_predict'] = 'nearest'
+            edges_par['add_missed_orders'] = False
             edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, edges_par, auto=True)
             slits = edges.get_slits()
             #

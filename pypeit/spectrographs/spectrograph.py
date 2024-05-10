@@ -631,7 +631,7 @@ class Spectrograph:
 
     def parse_raw_files(self, fitstbl, det=1, ftype=None):
 
-        return raw_files
+        return np.arange(len(fitstbl))
 
     def get_lamps(self, fitstbl):
         """

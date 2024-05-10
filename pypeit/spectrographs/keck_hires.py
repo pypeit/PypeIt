@@ -452,16 +452,39 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         if ftype == 'slitless_pixflat':
             # Check for the required info
-            embed()
             if len(fitstbl) == 0:
                 msgs.warn('Fitstbl provided is emtpy. No parsing done.')
                 # return empty array
                 return np.array([], dtype=int)
-            if det is None:
+            elif det is None:
                 msgs.warn('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
                 # return index array of length of fitstbl
                 return np.arange(len(fitstbl))
 
+            # how many unique xdangle values are there?
+            # If they are 3, then we have a different slitless flat file per detector
+            xdangles = np.unique(np.int32(fitstbl['xdangle'].value))
+            if len(xdangles) == 3:
+                sort_xdagles = np.argsort(xdangles)
+                # example of xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
+                # select the corresponding files for the requested detector
+                if det == 1:
+                    # blue detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[2]])[0]
+                elif det == 2:
+                    # green detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[1]])[0]
+                elif det == 3:
+                    # red detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[0]])[0]
+            else:
+                msgs.warn('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
+                          'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
+                          'All frames will be used.')
+                return np.arange(len(fitstbl))
+
+        else:
+            return super().parse_raw_files(fitstbl, det=det, ftype=ftype)
 
     def get_rawimage(self, raw_file, det, spectrim=20):
         """
