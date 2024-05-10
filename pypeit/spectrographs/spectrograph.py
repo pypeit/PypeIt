@@ -629,6 +629,9 @@ class Spectrograph:
         dets = self.allowed_mosaics if mosaic else range(1,self.ndet+1)
         return np.array([self.get_det_name(det) for det in dets])
 
+    def parse_raw_files(self, fitstbl, det=1, ftype=None):
+
+        return raw_files
 
     def get_lamps(self, fitstbl):
         """

@@ -448,6 +448,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         return type_bits
 
+    def parse_raw_files(self, fitstbl, det=1, ftype=None):
+
+        if ftype == 'slitless_pixflat':
+            # Check for the required info
+            embed()
+            if len(fitstbl) == 0:
+                msgs.warn('Fitstbl provided is emtpy. No parsing done.')
+                # return empty array
+                return np.array([], dtype=int)
+            if det is None:
+                msgs.warn('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
+                # return index array of length of fitstbl
+                return np.arange(len(fitstbl))
+
+
     def get_rawimage(self, raw_file, det, spectrim=20):
         """
         Read raw images and generate a few other bits and pieces

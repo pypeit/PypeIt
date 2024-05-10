@@ -666,9 +666,7 @@ class Calibrations:
         if len(slitless_rows) == 0:
             return
 
-        # get the raw slitless_pixflat frames
-        raw_slitless_files = self.fitstbl.frame_paths(slitless_rows)
-        # get the detectors (and split them if it is a mosaic)
+        # get the detectors (and split them into single detectors if it is a mosaic)
         _detectors = np.array(self.det) if isinstance(self.det, tuple) else np.array([self.det])
 
         # Check if a user-provided slitless pixelflat already exists for the current detectors
@@ -695,21 +693,26 @@ class Calibrations:
                               f'slitless_pixflat frames to generate the missing detectors.')
 
         # make the slitless pixel flat
+        msgs.info('Creating slitless pixel-flat calibration frame using files: ')
+        raw_slitless_files = self.fitstbl.frame_paths(slitless_rows)
+        for f in raw_slitless_files:
+            msgs.prindent(f'{Path(f).name}')
+
         pixflat_norm_list = []
         detname_list = []
         for _det in _detectors:
+            # this is spectrograph dependent. If the method does not exist in the specific
+            # spectrograph class, nothing will happen
+            this_raw_idx = self.spectrograph.parse_raw_files(self.fitstbl[slitless_rows], det=_det,
+                                                             ftype='slitless_pixflat')
+            this_raw_files = self.fitstbl.frame_paths(slitless_rows[this_raw_idx])
             # Reset the BPM
-            self.msbpm = self.spectrograph.bpm(raw_slitless_files[0], _det,
-                                               msbias=self.msbias if self.par['bpm_usebias'] else None)
-            self.get_bpm(frame=raw_slitless_files[0])
-            msgs.info('Creating slitless pixel-flat calibration frame using files: ')
-            for f in raw_slitless_files:
-                msgs.prindent(f'{Path(f).name}')
+            msbpm = self.spectrograph.bpm(this_raw_files[0], _det, msbias=self.msbias if self.par['bpm_usebias'] else None)
+
             # trace image
             traceimg = buildimage.buildimage_fromlist(self.spectrograph, _det,
-                                                      self.par['traceframe'], [raw_slitless_files[0]],
-                                                      dark=self.msdark, bias=self.msbias, bpm=self.msbpm,
-                                                      scattlight=self.msscattlight)
+                                                      self.par['traceframe'], [this_raw_files[0]],
+                                                      dark=self.msdark, bias=self.msbias, bpm=msbpm)
             # slit edges
             edges_par = self.par['slitedges']
             edges_par['sync_predict'] = 'nearest'
@@ -719,9 +722,8 @@ class Calibrations:
             # flat image
             slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, _det,
                                                                  self.par['slitless_pixflatframe'],
-                                                                 raw_slitless_files, dark=self.msdark,
-                                                                 bias=self.msbias, bpm=self.msbpm,
-                                                                 scattlight=self.msscattlight)
+                                                                 this_raw_files, dark=self.msdark,
+                                                                 bias=self.msbias, bpm=msbpm)
             #
             # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
             #
