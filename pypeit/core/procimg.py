@@ -697,6 +697,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         elif method.lower() == 'odd_even':
             ossub = np.zeros_like(osfit)
             # Odd/even
+            # Different behavior depending on overscan geometry
             if compress_axis == 1:
                 odd = np.median(overscan[:,1::2], axis=compress_axis)
                 even = np.median(overscan[:,0::2], axis=compress_axis)
@@ -704,7 +705,26 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 no_overscan[data_slice][:,1::2] -= odd[:,None]
                 no_overscan[data_slice][:,0::2] -= even[:,None]
             else:
-                msgs.error('Not ready for this approach, please contact the Developers')
+                odd = np.median(overscan[1::2,:], axis=compress_axis)
+                even = np.median(overscan[0::2,:], axis=compress_axis)
+                # Get odd/even for the datasec too
+                odd_data = np.median(no_overscan[data_slice][1::2,:], axis=compress_axis)
+                even_data = np.median(no_overscan[data_slice][0::2,:], axis=compress_axis)
+                # Check whether the overscan odd/even offset has same sign as data
+                aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
+                if aligned:
+                    # if so, then subtract overscan
+                    no_overscan[data_slice][1::2,:] = (no_overscan[data_slice][1::2,:].T-odd[:,None]).T
+                    no_overscan[data_slice][0::2,:] = (no_overscan[data_slice][0::2,:].T-even[:,None]).T
+                else:
+                    # otherwise there has been an index mismatch somewhere -- swap odd/even rows
+                    tmp = np.copy(odd)
+                    odd = even
+                    even = tmp
+                    # then subtract overscan
+                    no_overscan[data_slice][1::2,:] = (no_overscan[data_slice][1::2,:].T-odd[:,None]).T
+                    no_overscan[data_slice][0::2,:] = (no_overscan[data_slice][0::2,:].T-even[:,None]).T
+
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
