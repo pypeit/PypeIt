@@ -838,7 +838,8 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
 
             for ii in range(numamps):
                 # Assign the gain for this amplifier
-                gainarr[ii] = hdu[0].header["CCDGAIN"]# * gainmul
+                # gainarr[ii] = hdu[0].header["CCDGAIN"]# * gainmul
+                gainarr[ii] = hdu[0].header["GAIN{0:01d}".format(ii+1)]# * gainmul
 
         detector = dict(det             = det,
                         binning         = binning,
