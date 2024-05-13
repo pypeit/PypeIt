@@ -341,6 +341,10 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -662,6 +666,10 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
