@@ -529,9 +529,6 @@ class FlatField:
         self.qa_path = qa_path
         # FieldFlattening parameters
         self.flatpar = flatpar
-        # change a parameter for the case of slitless
-        if slitless:
-            self.flatpar['tweak_slits'] = False
 
         # Input data
         self.slits = slits

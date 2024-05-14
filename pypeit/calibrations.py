@@ -718,10 +718,18 @@ class Calibrations:
                                                       self.par['traceframe'], [this_raw_files[0]],
                                                       dark=self.msdark, bias=self.msbias, bpm=msbpm)
             # slit edges
+            # we need to change some parameters for the slit edge tracing
             edges_par = self.par['slitedges']
+            # this is used for longslit (i.e., no pca)
             edges_par['sync_predict'] = 'nearest'
-            edges_par['add_missed_orders'] = False
-            edges = edgetrace.EdgeTraceSet(traceimg, self.spectrograph, edges_par, auto=True)
+            # we set a large minimum slit length to avoid spurious slits
+            edges_par['minimum_slit_length'] = traceimg.image.shape[1] * 0.6
+            # if no slits are found the bound_detector parameter add 2 traces at the detector edges
+            edges_par['bound_detector'] = True
+            spectrograph = self.spectrograph
+            # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
+            spectrograph.pypeline = 'MultiSlit'
+            edges = edgetrace.EdgeTraceSet(traceimg, spectrograph, edges_par, auto=True)
             slits = edges.get_slits()
             #
             # flat image
@@ -729,10 +737,12 @@ class Calibrations:
                                                                  self.par['slitless_pixflatframe'],
                                                                  this_raw_files, dark=self.msdark,
                                                                  bias=self.msbias, bpm=msbpm)
-            #
+            # embed()
             # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
             #
             # Initialise the pixel flat
+            flatpar = self.par['flatfield']
+            flatpar['tweak_slits'] = False
             pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], slits, wavetilts=self.wavetilts,
                                                  wv_calib=None, slitless=True, qa_path=self.qa_path)
