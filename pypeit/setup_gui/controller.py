@@ -7,6 +7,7 @@ acting on user input, running background tasks, and returning information to the
 """
 import traceback
 import sys
+import threading
 from datetime import datetime
 import re
 import io
@@ -162,10 +163,10 @@ class MetadataOperation(QObject):
         Perform setup required before running the operation. This involves watching the log
         for files being added to the metadata.
         """
-        building_metadata_re = re.compile("Building metadata for (\d+) ")
+        building_metadata_re = re.compile(r"Building metadata for (\d+) ")
         self._model.log_buffer.watch("building_metadata", building_metadata_re, self._buildingMetadata)
         
-        added_metadata_re = re.compile("Adding metadata for (.*)$")
+        added_metadata_re = re.compile(r"Adding metadata for (.*)$")
         self._model.log_buffer.watch("added_metadata", added_metadata_re, self._addedMetadata)
         self._model.closeAllFiles()
         return True
@@ -337,7 +338,7 @@ class PypeItMetadataController(QObject):
     Part of a MVC triplet involving PypeItMetadataModel/PypeItMetadataController/PypeItMetadataView.
 
     Args:
-        model (:class:`PypeItMetatadataModel`):
+        model (:obj:`pypeit.setup_gui.model.PypeItMetatadataModel`):
             The model this controller acts with.
 
         is_pypeit_file (bool): 
@@ -666,7 +667,7 @@ class SetupGUIController(QObject):
         # QT runs it's event loop in C, so the python signal handling mechanism
         # is never called, or it's only called after you give focus to the
         # window. To make Ctrl+C handling work immediately in a way that still 
-        # calls the PypeIt CTRL+C handler, we set a timer to run every 500s in the
+        # calls the PypeIt CTRL+C handler, we set a timer to run every 500ms in the
         # python interpreter, which will allow the python signal handling
         # code to it.
             

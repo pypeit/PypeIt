@@ -103,7 +103,7 @@ class Setup(scriptbase.ScriptBase):
                 if isinstance(args.root,list):
                     root_args = args.root
                 else:
-                    # If the root argument is a single string, convert it to a lsit.
+                    # If the root argument is a single string, convert it to a list.
                     # This can happen when the default for --root is used
                     root_args = [args.root]
                 setup_gui_argv += ["-r"] + root_args

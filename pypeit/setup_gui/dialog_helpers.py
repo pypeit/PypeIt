@@ -242,8 +242,8 @@ def prompt_to_save(parent : QWidget) -> DialogResponses:
 
     Returns:
         DialogResponses: 
-            `SAVE` if the user wants to save, `ACCEPT` if they want to continue 
-            without saving, `CANCEL` if they want to cancel the current operation 
+            ``SAVE`` if the user wants to save, ``ACCEPT`` if they want to continue 
+            without saving, ``CANCEL`` if they want to cancel the current operation 
             and to not lose any data.
     """
     response = QMessageBox.warning(parent, parent.tr("PypeIt Setup"), parent.tr("There are unsaved changes to PypeIt setup files.\nDo you want to save then?"),

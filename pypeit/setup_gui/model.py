@@ -1312,23 +1312,9 @@ class PypeItSetupGUIModel(QObject):
 
 
         if pf.data is not None:
-            """
             # If the data block is fully setup, it won't have all of the metadata fields originally created by
             # PypeItSetup, so re-create it
 
-            # We have to include commented out files in the filename list
-            filenames = pf.path_and_files('filename', exclude_commented_out=False)
-            self._pypeit_setup = PypeItSetup(filenames,
-                                             usrdata=pf.data,
-                                             setups=[pf.setup_name],
-                                             cfg_lines=pf.cfg_lines,
-                                             pypeit_file=pypeit_file)
-
-            # Setup our proxy models and notify the view widgets
-            self._pypeit_setup.build_fitstbl()        
-            self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
-            self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
-            """
             filenames = pf.filenames
             directories = [str(Path(f).parent) for f in filenames ]
 
