@@ -266,7 +266,7 @@ class Identify(scriptbase.ScriptBase):
             # TODO: Make the following more elegant:
             # fill lines with dummy values to make this work
             # Ask the user if they wish to store the result in PypeIt calibrations
-            arcfitter.store_solution_multi(final_fit, slits.binspec,
+            arcfitter.store_solution(final_fit, slits.binspec,
                                     wvcalib=wv_calib,
                                     rmstol=args.rmstol,
                                     force_save=args.force_save, 

@@ -206,8 +206,8 @@ class SensFunc(scriptbase.ScriptBase):
             msgs.info('-'*50)
 
             # Write the par to disk
-            #msgs.info(f'Writing the parameters to {args.par_outfile}')
-            #par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
+            msgs.info(f'Writing the parameters to {args.par_outfile}')
+            par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
             #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
