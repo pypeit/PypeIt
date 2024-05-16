@@ -695,35 +695,33 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 _var[data_slice] = osvar
             continue
         elif method.lower() == 'odd_even':
-            ossub = np.zeros_like(osfit)
             # Odd/even
             # Different behavior depending on overscan geometry
-            if compress_axis == 1:
-                odd = np.median(overscan[:,1::2], axis=compress_axis)
-                even = np.median(overscan[:,0::2], axis=compress_axis)
-                # Do it
-                no_overscan[data_slice][:,1::2] -= odd[:,None]
-                no_overscan[data_slice][:,0::2] -= even[:,None]
-            else:
-                odd = np.median(overscan[1::2,:], axis=compress_axis)
-                even = np.median(overscan[0::2,:], axis=compress_axis)
-                # Get odd/even for the datasec too
-                odd_data = np.median(no_overscan[data_slice][1::2,:], axis=compress_axis)
-                even_data = np.median(no_overscan[data_slice][0::2,:], axis=compress_axis)
-                # Check whether the overscan odd/even offset has same sign as data
-                aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
-                if aligned:
-                    # if so, then subtract overscan
-                    no_overscan[data_slice][1::2,:] = (no_overscan[data_slice][1::2,:].T-odd[:,None]).T
-                    no_overscan[data_slice][0::2,:] = (no_overscan[data_slice][0::2,:].T-even[:,None]).T
-                else:
-                    # otherwise there has been an index mismatch somewhere -- swap odd/even rows
-                    tmp = np.copy(odd)
-                    odd = even
-                    even = tmp
-                    # then subtract overscan
-                    no_overscan[data_slice][1::2,:] = (no_overscan[data_slice][1::2,:].T-odd[:,None]).T
-                    no_overscan[data_slice][0::2,:] = (no_overscan[data_slice][0::2,:].T-even[:,None]).T
+            _overscan = overscan if compress_axis == 1 else overscan.T
+            _no_overscan = no_overscan[data_slice] if compress_axis == 1 \\
+                               else no_overscan[data_slice].T
+            # Compute median overscan of odd and even pixel stripes in overscan
+            odd = np.median(_overscan[:,1::2], axis=1)
+            even = np.median(_overscan[:,0::2], axis=1)
+            # Do the same for the data
+            odd_data = np.median(_no_overscan[:,1::2], axis=1)
+            even_data = np.median(_no_overscan[:,0::2], axis=1)
+            # Check for odd/even row alignment between overscan and data
+            # Could be possibly be improved by removing average odd/even slopes in data
+            aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
+            if not aligned:
+                odd, even = even, odd
+            ossub = np.zeros_like(osfit)
+            ossub[1::2] = odd
+            ossub[0::2] = even
+            if var is not None:
+                _osvar = osvar if compress_axis == 1 else osvar.T
+                odd_var = np.sum(osvar[:,1::2],axis=1)/osvar[:,1::2].size**2
+                even_var = np.sum(osvar[:,0::2],axis=1)/osvar[:,0::2].size**2
+                if not aligned:
+                    odd_var, even_var = even_var, odd_var
+                osvar[0::2] = np.pi/2 * even_var
+                osvar[1::2] = np.pi/2 * odd_var
 
 
         # Subtract along the appropriate axis
