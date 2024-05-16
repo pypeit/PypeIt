@@ -698,7 +698,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             # Odd/even
             # Different behavior depending on overscan geometry
             _overscan = overscan if compress_axis == 1 else overscan.T
-            _no_overscan = no_overscan[data_slice] if compress_axis == 1 \\
+            _no_overscan = no_overscan[data_slice] if compress_axis == 1 \
                                else no_overscan[data_slice].T
             # Compute median overscan of odd and even pixel stripes in overscan
             odd = np.median(_overscan[:,1::2], axis=1)
