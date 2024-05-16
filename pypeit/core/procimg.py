@@ -720,8 +720,9 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 even_var = np.sum(osvar[:,0::2],axis=1)/osvar[:,0::2].size**2
                 if not aligned:
                     odd_var, even_var = even_var, odd_var
-                osvar[0::2] = np.pi/2 * even_var
                 osvar[1::2] = np.pi/2 * odd_var
+                osvar[0::2] = np.pi/2 * even_var
+            continue
 
 
         # Subtract along the appropriate axis
