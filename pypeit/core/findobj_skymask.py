@@ -531,7 +531,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     uni_frac = gfrac[uni_ind]
 
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
+    isort_frac = uni_frac.argsort(kind='stable')
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
 
@@ -800,7 +800,7 @@ def ech_cutobj_on_snr(
 
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0), kind='stable')[::-1]
     for iobj in isort_SNR_max:
         hand_ap_flag = hand_flag[iobj]
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (
@@ -812,7 +812,7 @@ def ech_cutobj_on_snr(
             sobjs_keep = sobjs_align[ikeep].copy()
             sobjs_keep.ECH_OBJID = iobj_keep
             sobjs_keep.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID, kind='stable')])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
@@ -1714,7 +1714,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
     uni_frac = gfrac[uni_ind]
 
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
+    isort_frac = uni_frac.argsort(kind='stable')
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
 
@@ -1879,7 +1879,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
 
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0), kind='stable')[::-1]
     for iobj in isort_SNR_max:
         hand_ap_flag = int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr)
@@ -1893,7 +1893,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
 #            for spec in sobjs_keep:
 #                spec.ECH_OBJID = iobj_keep
 #                #spec.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX, kind='stable')])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
@@ -2701,7 +2701,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     # Sort objects according to their spatial location
     nobj = len(sobjs)
     spat_pixpos = sobjs.SPAT_PIXPOS
-    sobjs = sobjs[spat_pixpos.argsort()]
+    sobjs = sobjs[spat_pixpos.argsort(kind='stable')]
     # Assign integer objids
     sobjs.OBJID = np.arange(nobj) + 1
 
