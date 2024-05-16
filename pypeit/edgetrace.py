@@ -4563,7 +4563,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Append the missing indices and re-sort all
             ind_b = np.append(ind_b, needind_b)
             sortind_b = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
-                                                         self.slitmask.slitid[ind_b], strict=True))
+                                                         self.slitmask.slitid[ind_b], strict=True), kind='stable')
             ind_b = ind_b[sortind_b]
             for i in range(bot_edge_pred[needind_b].size):
                 # check if the trace that will be added is off detector
@@ -4596,7 +4596,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Append the missing indices and re-sort all
             ind_t = np.append(ind_t, needind_t)
             sortind_t = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
-                                                         self.slitmask.slitid[ind_t], strict=True))
+                                                         self.slitmask.slitid[ind_t], strict=True), kind='stable')
             ind_t = ind_t[sortind_t]
             for i in range(top_edge_pred[needind_t].size):
                 # check if the trace that will be added is off detector

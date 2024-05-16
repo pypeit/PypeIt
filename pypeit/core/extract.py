@@ -645,7 +645,7 @@ def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None,
             closest = (dist[close]).argmin()
             model_samp[i] = (model[close])[closest]
         if nclose > 3:
-            s = yclose.argsort()
+            s = yclose.argsort(kind='stable')
             y50[i] = yclose[s[int(np.rint((nclose - 1)*0.5))]]
             y80[i] = yclose[s[int(np.rint((nclose - 1)*0.8))]]
             y20[i] = yclose[s[int(np.rint((nclose - 1)*0.2))]]
@@ -657,7 +657,7 @@ def qa_fit_profile(x_tot, y_tot, model_tot, l_limit = None,
     else:
         ax.plot(plot_mid, y50, marker='o', color='lime', markersize=2, fillstyle = 'full', linestyle='None')
 
-    isort = x.argsort()
+    isort = x.argsort(kind='stable')
     ax.plot(x[isort], model[isort], color='red', linewidth=1.0)
 
 
@@ -906,7 +906,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
-    isrt = np.argsort(wave[indsp])
+    isrt = np.argsort(wave[indsp], kind='stable')
     s2_1_interp = scipy.interpolate.interp1d(wave[indsp][isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 0.0)
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
@@ -953,7 +953,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         # Create the normalized object image
         if np.any(totmask):
             igd = (wave >= wave_min) & (wave <= wave_max)
-            isrt1 = np.argsort(wave[igd])
+            isrt1 = np.argsort(wave[igd], kind='stable')
             #plt.plot(wave[igd][isrt1], spline_flux1[igd][isrt1])
             #plt.show()
             spline_img_interp = scipy.interpolate.interp1d(wave[igd][isrt1],spline_flux1[igd][isrt1],assume_sorted=False,
@@ -1019,7 +1019,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         inside, = np.where(IN_PIX.flatten())
 
 
-    si = inside[np.argsort(sigma_x.flat[inside])]
+    si = inside[np.argsort(sigma_x.flat[inside], kind='stable')]
     sr = si[::-1]
 
     bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
@@ -1076,7 +1076,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         return (profile_model, trace_in, fwhmfit, med_sn2)
 
     sigma_iter = 3
-    isort = (xtemp.flat[si[inside]]).argsort()
+    isort = (xtemp.flat[si[inside]]).argsort(kind='stable')
     inside = si[inside[isort]]
     pb = np.ones(inside.size)
 
@@ -1153,7 +1153,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
 
         # Update the profile B-spline fit for the next iteration
         if iiter < sigma_iter-1:
-            ss = sigma_x.flat[inside].argsort()
+            ss = sigma_x.flat[inside].argsort(kind='stable')
             pb = (np.outer(area, np.ones(nspat,dtype=float))).flat[inside]
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
@@ -1177,7 +1177,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
         xnew = trace_in
 
     fwhmfit = sigma*2.3548
-    ss=sigma_x.flatten().argsort()
+    ss=sigma_x.flatten().argsort(kind='stable')
     inside, = np.where((sigma_x.flat[ss] >= min_sigma) &
                        (sigma_x.flat[ss] <= max_sigma) &
                        mask[ss] &
@@ -1196,7 +1196,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave,
     sigma_x_igood = sigma_x.flat[igood]
     yfit_out, _  = bset.value(sigma_x_igood)
     full_bsp[igood] = yfit_out
-    isrt2 = sigma_x_igood.argsort()
+    isrt2 = sigma_x_igood.argsort(kind='stable')
     (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2])
 
 

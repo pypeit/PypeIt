@@ -646,7 +646,7 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
         end -= 1
 
     # Set the full range and multiply it by the provided factor
-    srt = np.ma.argsort(_a)
+    srt = np.ma.argsort(_a, kind='stable')
     Da = (_a[srt[end]] - _a[srt[start]]) * fac
 
     # Set the midpoint
@@ -887,7 +887,7 @@ def index_of_x_eq_y(x, y, strict=False):
     """
     if y.ndim != 1 or y.ndim != 1:
         raise ValueError('Arrays must be 1D.')
-    srt = np.argsort(x)
+    srt = np.argsort(x, kind='stable')
     indx = np.searchsorted(x[srt], y)
     x2y = np.take(srt, indx, mode='clip')
     if strict and not np.array_equal(x[x2y], y):

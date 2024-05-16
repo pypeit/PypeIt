@@ -1090,11 +1090,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             dwav_ext = dwaveimg[onslit_gpm]
 
             # For now, work in sorted wavelengths
-            wvsrt = np.argsort(wave_ext)
+            wvsrt = np.argsort(wave_ext, kind='stable')
             wave_sort = wave_ext[wvsrt]
             dwav_sort = dwav_ext[wvsrt]
             # Here's an array to get back to the original ordering
-            resrt = np.argsort(wvsrt)
+            resrt = np.argsort(wvsrt, kind='stable')
 
             # Compute the DAR correction
             cosdec = np.cos(self.ifu_dec[ff] * np.pi / 180.0)

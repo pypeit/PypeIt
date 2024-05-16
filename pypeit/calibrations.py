@@ -720,6 +720,8 @@ class Calibrations:
             # slit edges
             # we need to change some parameters for the slit edge tracing
             edges_par = self.par['slitedges']
+            # lower the threshold for edge detection
+            edges_par['edge_thresh'] = 50.
             # this is used for longslit (i.e., no pca)
             edges_par['sync_predict'] = 'nearest'
             # we set a large minimum slit length to avoid spurious slits
@@ -731,6 +733,8 @@ class Calibrations:
             spectrograph.pypeline = 'MultiSlit'
             edges = edgetrace.EdgeTraceSet(traceimg, spectrograph, edges_par, auto=True)
             slits = edges.get_slits()
+            if self.show:
+                edges.show(title='Slitless flat edge tracing')
             #
             # flat image
             slitless_pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, _det,
@@ -742,9 +746,11 @@ class Calibrations:
             #
             # Initialise the pixel flat
             flatpar = self.par['flatfield']
-            flatpar['tweak_slits'] = False
+            # tweak the slits always for slitless pixelflat
+            flatpar['tweak_slits'] = True
+            flatpar['tweak_slits_maxfrac'] = 0.3
             pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], slits, wavetilts=self.wavetilts,
+                                                 self.par['flatfield'], slits, wavetilts=None,
                                                  wv_calib=None, slitless=True, qa_path=self.qa_path)
 
             # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,

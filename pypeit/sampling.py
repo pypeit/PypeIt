@@ -509,7 +509,7 @@ class Resample:
 
         # Combine the input coordinates and the output borders
         combinedX = numpy.append(self.outborders, self.x)
-        srt = numpy.argsort(combinedX)
+        srt = numpy.argsort(combinedX, kind='stable')
         combinedX = combinedX[srt]
 
         # Get the indices where the data should be reduced

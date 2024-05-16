@@ -2245,7 +2245,7 @@ class HolyGrail:
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
                 cntr += 1
-        srt = np.argsort(wvc_gd_jfh)
+        srt = np.argsort(wvc_gd_jfh, kind='stable')
         sort_idx = idx_gd[srt]
         sort_wvc = wvc_gd[srt]
         sort_dsp = dsp_gd[srt]

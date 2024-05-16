@@ -2795,6 +2795,6 @@ class Telluric(datamodel.DataContainer):
                 tell_med[iord] = np.mean(np.exp(-np.sinh(tell_model_mean)))
 
         # Perform fits in order of telluric strength
-        return tell_med.argsort()
+        return tell_med.argsort(kind='stable')
 
 
