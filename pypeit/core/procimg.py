@@ -711,17 +711,20 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
             if not aligned:
                 odd, even = even, odd
-            ossub = np.zeros_like(osfit)
-            ossub[1::2] = odd
-            ossub[0::2] = even
+            # Now subtract
+            _no_overscan[:,1::2] -= odd[:,None]
+            _no_overscan[:,0::2] -= even[:,None]
+            no_overscan[data_slice] = _no_overscan if compress_axis == 1 else _no_overscan.T
             if var is not None:
-                _osvar = osvar if compress_axis == 1 else osvar.T
-                odd_var = np.sum(osvar[:,1::2],axis=1)/osvar[:,1::2].size**2
-                even_var = np.sum(osvar[:,0::2],axis=1)/osvar[:,0::2].size**2
+                _osvar = var[os_slice] if compress_axis == 1 else var[os_slice].T
+                odd_var = np.sum(_osvar[:,1::2],axis=1)/_osvar[:,1::2].size**2
+                even_var = np.sum(_osvar[:,0::2],axis=1)/_osvar[:,0::2].size**2
                 if not aligned:
                     odd_var, even_var = even_var, odd_var
-                osvar[1::2] = np.pi/2 * odd_var
-                osvar[0::2] = np.pi/2 * even_var
+                _osvar[:,1::2] = np.pi/2 * odd_var[:,None]
+                _osvar[:,0::2] = np.pi/2 * even_var[:,None]
+                osvar = _osvar if compress_axis == 1 else _osvar.T
+            continue
 
 
         # Subtract along the appropriate axis
