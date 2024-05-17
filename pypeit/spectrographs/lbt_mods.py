@@ -41,8 +41,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
         
-        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='odd_even')
-        par.reset_all_processimages_par(**turn_on)
+        par.reset_all_processimages_par(use_biasimage=False, use_overscan=True, overscan_method='odd_even')
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
