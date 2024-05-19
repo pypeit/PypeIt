@@ -723,7 +723,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                     odd_var, even_var = even_var, odd_var
                 _osvar[:,1::2] = np.pi/2 * odd_var[:,None]
                 _osvar[:,0::2] = np.pi/2 * even_var[:,None]
-                osvar = _osvar if compress_axis == 1 else _osvar.T
+                _var[data_slice] = _osvar if compress_axis == 1 else _osvar.T
             continue
 
 
