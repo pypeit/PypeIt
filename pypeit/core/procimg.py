@@ -706,10 +706,11 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             # Do the same for the data
             odd_data = np.median(_no_overscan[:,1::2], axis=1)
             even_data = np.median(_no_overscan[:,0::2], axis=1)
-            # Check for odd/even row alignment between overscan and data
+            # Check for odd/even row alignment between overscan and data,
+            # which can be instrument/data reader-dependent when compress_axis is 0.
             # Could be possibly be improved by removing average odd/even slopes in data
             aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
-            if not aligned:
+            if not aligned and compress_axis == 0:
                 odd, even = even, odd
             # Now subtract
             _no_overscan[:,1::2] -= odd[:,None]
@@ -719,7 +720,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 _osvar = var[os_slice] if compress_axis == 1 else var[os_slice].T
                 odd_var = np.sum(_osvar[:,1::2],axis=1)/_osvar[:,1::2].size**2
                 even_var = np.sum(_osvar[:,0::2],axis=1)/_osvar[:,0::2].size**2
-                if not aligned:
+                if not aligned and compress_axis == 0:
                     odd_var, even_var = even_var, odd_var
                 _osvar[:,1::2] = np.pi/2 * odd_var[:,None]
                 _osvar[:,0::2] = np.pi/2 * even_var[:,None]
