@@ -741,21 +741,15 @@ class Calibrations:
                                                                  self.par['slitless_pixflatframe'],
                                                                  this_raw_files, dark=self.msdark,
                                                                  bias=self.msbias, bpm=msbpm)
-            # embed()
-            # # TODO: lampoff flat subtraction is not performed for slitless pixelflat. Should we?
-            #
+            
             # Initialise the pixel flat
             flatpar = self.par['flatfield']
             # tweak the slits always for slitless pixelflat
-            flatpar['tweak_slits'] = True
-            flatpar['tweak_slits_maxfrac'] = 0.3
+            flatpar['tweak_slits'] = False
+            # flatpar['tweak_slits_maxfrac'] = 0.3
             pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], slits, wavetilts=None,
                                                  wv_calib=None, slitless=True, qa_path=self.qa_path)
-
-            # pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-            #                                      self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
-            #                                      wv_calib=self.wv_calib)
 
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
