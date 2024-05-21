@@ -5301,7 +5301,7 @@ class Collate1DPar(ParSet):
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(np.array(k)[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
