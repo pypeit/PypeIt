@@ -695,16 +695,38 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 _var[data_slice] = osvar
             continue
         elif method.lower() == 'odd_even':
-            ossub = np.zeros_like(osfit)
             # Odd/even
-            if compress_axis == 1:
-                odd = np.median(overscan[:,1::2], axis=compress_axis)
-                even = np.median(overscan[:,0::2], axis=compress_axis)
-                # Do it
-                no_overscan[data_slice][:,1::2] -= odd[:,None]
-                no_overscan[data_slice][:,0::2] -= even[:,None]
-            else:
-                msgs.error('Not ready for this approach, please contact the Developers')
+            # Different behavior depending on overscan geometry
+            _overscan = overscan if compress_axis == 1 else overscan.T
+            _no_overscan = no_overscan[data_slice] if compress_axis == 1 \
+                               else no_overscan[data_slice].T
+            # Compute median overscan of odd and even pixel stripes in overscan
+            odd = np.median(_overscan[:,1::2], axis=1)
+            even = np.median(_overscan[:,0::2], axis=1)
+            # Do the same for the data
+            odd_data = np.median(_no_overscan[:,1::2], axis=1)
+            even_data = np.median(_no_overscan[:,0::2], axis=1)
+            # Check for odd/even row alignment between overscan and data,
+            # which can be instrument/data reader-dependent when compress_axis is 0.
+            # Could be possibly be improved by removing average odd/even slopes in data
+            aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
+            if not aligned and compress_axis == 0:
+                odd, even = even, odd
+            # Now subtract
+            _no_overscan[:,1::2] -= odd[:,None]
+            _no_overscan[:,0::2] -= even[:,None]
+            no_overscan[data_slice] = _no_overscan if compress_axis == 1 else _no_overscan.T
+            if var is not None:
+                _osvar = var[os_slice] if compress_axis == 1 else var[os_slice].T
+                odd_var = np.sum(_osvar[:,1::2],axis=1)/_osvar[:,1::2].size**2
+                even_var = np.sum(_osvar[:,0::2],axis=1)/_osvar[:,0::2].size**2
+                if not aligned and compress_axis == 0:
+                    odd_var, even_var = even_var, odd_var
+                _osvar[:,1::2] = np.pi/2 * odd_var[:,None]
+                _osvar[:,0::2] = np.pi/2 * even_var[:,None]
+                _var[data_slice] = _osvar if compress_axis == 1 else _osvar.T
+            continue
+
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
