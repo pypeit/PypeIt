@@ -336,9 +336,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             par['flexure']['spec_method'] = 'skip'
             #par['reduce']['skysub']['bspline_spacing'] = 0.6
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
-            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
+        try:
+            if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
+                par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        except:
+            # if the above fails, we are probably in pypeit_sensfunc
+            msgs.info('Decker not detected; if you are running pypeit_sensfunc, do not panic!')
 
         return par
 
