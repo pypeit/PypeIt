@@ -852,14 +852,11 @@ class FlatField:
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.rawflatimg.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.rawflatimg.detector.detectors])
+        else:
             nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
-        except:
-            nonlinear_counts = 1e10
-        # Other setup
-#        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
-#        nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits

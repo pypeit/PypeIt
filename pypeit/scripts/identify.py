@@ -97,12 +97,14 @@ class Identify(scriptbase.ScriptBase):
                                  msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
-        # Launch the identify window
-        # TODO -- REMOVE THIS HACK
-        try:
+        # Get the non-linear count level
+        if msarc.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in msarc.detector.detectors])
+        else:
             nonlinear_counts = msarc.detector.nonlinear_counts()
-        except AttributeError:
-            nonlinear_counts = None
+
+        # Launch the identify window
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=nonlinear_counts,
