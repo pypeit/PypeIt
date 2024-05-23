@@ -53,14 +53,14 @@ class Mosaic(datamodel.DataContainer):
                  'tform': dict(otype=np.ndarray, atype=float,
                                descr='The full transformation matrix for each detector used to '
                                      'construct the mosaic.'),
-                 'msc_order': dict(otype=int, descr='Order of the interpolation used to construct the mosaic.')}
+                 'm_order': dict(otype=int, descr='Order of the interpolation used to construct the mosaic.')}
 
     name_prefix = 'MSC'
     """
     Prefix for the name of the mosaic.
     """
 
-    def __init__(self, id, detectors, shape, shift, rot, tform, msc_order):
+    def __init__(self, id, detectors, shape, shift, rot, tform, m_order):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -107,8 +107,8 @@ class Mosaic(datamodel.DataContainer):
             tbl['rot'] = self.rot
         if self.tform is not None:
             tbl['tform'] = self.tform
-        if self.msc_order is not None:
-            tbl.meta['msc_order'] = self.msc_order
+        if self.m_order is not None:
+            tbl.meta['m_order'] = self.m_order
         if self.id is not None:
             tbl.meta['id'] = self.id
         if self.shape is not None:
@@ -213,5 +213,5 @@ class Mosaic(datamodel.DataContainer):
         """
         Return a (deep) copy of the object.
         """
-        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]), shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(), tform=self.tform.copy(), msc_order=self.msc_order)
+        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]), shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(), tform=self.tform.copy(), m_order=self.m_order)
 

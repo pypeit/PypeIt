@@ -781,6 +781,42 @@ class Calibrations:
             # so that it can be used for the other files in the same run
             self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
 
+    def load_pixflat(self, pixel_flat_file, flatimages, detname):
+        """
+        Load a pixel flat from a file and add it to the flatimages object.
+        Args:
+            pixel_flat_file (:obj:`str`, `Path`_):
+                The path to the pixel flat file.
+            flatimages (:class:`~pypeit.flatfield.FlatImages`):
+                The FlatImages object to which the pixel flat will be added.
+            detname (:obj:`str`):
+                The name of the detector for which the pixel flat is being loaded.
+
+        Returns:
+            :class:`~pypeit.flatfield.FlatImages`: The FlatImages object with the pixel flat added.
+
+        """
+
+        pixel_flat_file = Path(pixel_flat_file).resolve()
+
+        with io.fits_open(pixel_flat_file) as hdu:
+            # list of available detectors in the pixel flat file
+            file_detnames = [h.name.split('-')[0] for h in hdu]
+            embed()
+            # check if the current detector is in the list
+            if detname in file_detnames:
+                # get the index of the current detector
+                idx = file_detnames.index(detname)
+                # get the pixel flat image
+                msgs.info(f'Using pixelflat file: {pixel_flat_file.name}')
+                nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
+            else:
+                msgs.warn(f'Detector {detname} not found in the pixel flat file: '
+                          f'{pixel_flat_file.name}. No pixel flat will be applied to this detector.')
+                nrm_image = None
+            flatimages = flatfield.merge(flatimages, nrm_image)
+        return flatimages
+
     def get_flats(self):
         """
         Load or generate the flat-field calibration images.
@@ -856,7 +892,7 @@ class Calibrations:
             # Load user defined files
             if self.pixel_flat_file is not None:
                 # Load
-                self.flatimages = load_pixflat(self.pixel_flat_file, self.flatimages, detname)
+                self.flatimages = self.load_pixflat(self.pixel_flat_file, self.flatimages, detname)
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -967,7 +1003,7 @@ class Calibrations:
         # Should we allow that?
         if self.pixel_flat_file is not None:
             # Load
-            self.flatimages = load_pixflat(self.pixel_flat_file, self.flatimages, detname)
+            self.flatimages = self.load_pixflat(self.pixel_flat_file, self.flatimages, detname)
 
         return self.flatimages
 
@@ -1533,42 +1569,6 @@ class IFUCalibrations(Calibrations):
         # Order matters!
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align',
                 'scattlight', 'flats']
-
-
-def load_pixflat(pixel_flat_file, flatimages, detname):
-    """
-    Load a pixel flat from a file and add it to the flatimages object.
-    Args:
-        pixel_flat_file (:obj:`str`, `Path`_):
-            The path to the pixel flat file.
-        flatimages (:class:`~pypeit.flatfield.FlatImages`):
-            The FlatImages object to which the pixel flat will be added.
-        detname (:obj:`str`):
-            The name of the detector for which the pixel flat is being loaded.
-
-    Returns:
-        :class:`~pypeit.flatfield.FlatImages`: The FlatImages object with the pixel flat added.
-
-    """
-
-    pixel_flat_file = Path(pixel_flat_file).resolve()
-
-    with io.fits_open(pixel_flat_file) as hdu:
-        # list of available detectors in the pixel flat file
-        file_detnames = [h.name.split('-')[0] for h in hdu]
-        # check if the current detector is in the list
-        if detname in file_detnames:
-            # get the index of the current detector
-            idx = file_detnames.index(detname)
-            # get the pixel flat image
-            msgs.info(f'Using pixelflat file: {pixel_flat_file.name}')
-            nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
-        else:
-            msgs.warn(f'Detector {detname} not found in the pixel flat file: '
-                      f'{pixel_flat_file.name}. No pixel flat will be applied to this detector.')
-            nrm_image = None
-        flatimages = flatfield.merge(flatimages, nrm_image)
-    return flatimages
 
 
 def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
