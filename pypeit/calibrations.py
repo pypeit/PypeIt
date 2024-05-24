@@ -38,6 +38,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
+from pypeit.core.mosaic import build_image_mosaic
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
@@ -781,41 +782,68 @@ class Calibrations:
             # so that it can be used for the other files in the same run
             self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
 
-    def load_pixflat(self, pixel_flat_file, flatimages, detname):
+    def load_pixflat(self):
         """
-        Load a pixel flat from a file and add it to the flatimages object.
-        Args:
-            pixel_flat_file (:obj:`str`, `Path`_):
-                The path to the pixel flat file.
-            flatimages (:class:`~pypeit.flatfield.FlatImages`):
-                The FlatImages object to which the pixel flat will be added.
-            detname (:obj:`str`):
-                The name of the detector for which the pixel flat is being loaded.
+        Load a pixel flat from a file and add it to the self.flatimages object.
+        The pixel flat file has one detector per extension, even in the case of a mosaic.
+        Therefore, if this is a mosaic reduction, this script will construct a pixel flat
+        mosaic. self.msarc need to be defined, since the mosaic parameters are pulled from it.
+        This is a sub-step of `get_flats()`.
 
-        Returns:
-            :class:`~pypeit.flatfield.FlatImages`: The FlatImages object with the pixel flat added.
+        NOTE: self.flatimages is updated in this method.
 
         """
 
-        pixel_flat_file = Path(pixel_flat_file).resolve()
+        # If this is a mosaic, we need to construct the pixel flat mosaic
+        if isinstance(self.det, tuple):
+            # We need to grab mosaic info from another existing calibration frame.
+            # The only available is msarc, so we require msarc to be defined
+            if not self._chk_objs(['msarc']):
+                msgs.error('Must have the mosaiced Arc defined to load the pixel flat!')
 
-        with io.fits_open(pixel_flat_file) as hdu:
-            # list of available detectors in the pixel flat file
-            file_detnames = [h.name.split('-')[0] for h in hdu]
-            embed()
-            # check if the current detector is in the list
-            if detname in file_detnames:
-                # get the index of the current detector
-                idx = file_detnames.index(detname)
-                # get the pixel flat image
-                msgs.info(f'Using pixelflat file: {pixel_flat_file.name}')
-                nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
-            else:
-                msgs.warn(f'Detector {detname} not found in the pixel flat file: '
-                          f'{pixel_flat_file.name}. No pixel flat will be applied to this detector.')
-                nrm_image = None
-            flatimages = flatfield.merge(flatimages, nrm_image)
-        return flatimages
+            if self.msarc.detector.tform is None or self.msarc.detector.m_order is None or self.msarc.detector.shape is None:
+                msgs.error('Mosaic parameters are not defined in the Arc frame. Cannot load the pixel flat!')
+
+            # read the file
+            with io.fits_open(self.pixel_flat_file) as hdu:
+                # list of available detectors in the pixel flat file
+                file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
+                # check if all detectors required for the mosaic are in the list
+                if not np.all(np.in1d(list(self.det), file_dets)):
+                    msgs.warn(f'Not all detectors in the mosaic are in the pixel flat file: {self.pixel_flat_file.name}. '
+                              'Cannot load the pixel flat!')
+
+                # get the pixel flat images of only the detectors in the mosaic
+                pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in self.det])
+                # construct the pixel flat mosaic
+                pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, self.msarc.detector.tform,
+                                                        order=self.msarc.detector.m_order)
+                msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name} '
+                          f'for {self.spectrograph.get_det_name(self.det)}.')
+                nrm_image = flatfield.FlatImages(pixelflat_norm=pixflat_msc)
+
+        # If this is not a mosaic, we can simply read the pixel flat for the current detector
+        else:
+            # current detector name
+            detname = self.spectrograph.get_det_name(self.det)
+            # read the file
+            with io.fits_open(self.pixel_flat_file) as hdu:
+                # list of available detectors in the pixel flat file
+                file_detnames = [h.name.split('-')[0] for h in hdu] # this list has also the 'PRIMARY' extension
+                # check if the current detector is in the list
+                if detname in file_detnames:
+                    # get the index of the current detector
+                    idx = file_detnames.index(detname)
+                    # get the pixel flat image
+                    msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name} for {detname}.')
+                    nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
+                else:
+                    msgs.warn(f'{detname} not found in the pixel flat file: '
+                              f'{self.pixel_flat_file.name}. No pixel flat will be applied to this detector.')
+                    nrm_image = None
+
+        self.flatimages = flatfield.merge(self.flatimages, nrm_image)
+        embed()
 
     def get_flats(self):
         """
@@ -892,7 +920,7 @@ class Calibrations:
             # Load user defined files
             if self.pixel_flat_file is not None:
                 # Load
-                self.flatimages = self.load_pixflat(self.pixel_flat_file, self.flatimages, detname)
+                self.load_pixflat()
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -1003,7 +1031,7 @@ class Calibrations:
         # Should we allow that?
         if self.pixel_flat_file is not None:
             # Load
-            self.flatimages = self.load_pixflat(self.pixel_flat_file, self.flatimages, detname)
+            self.load_pixflat()
 
         return self.flatimages
 
