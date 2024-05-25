@@ -742,7 +742,9 @@ class Calibrations:
                                                                  self.par['slitless_pixflatframe'],
                                                                  this_raw_files, dark=self.msdark,
                                                                  bias=self.msbias, bpm=msbpm)
-            
+
+            # increase saturation threshold (some hires slitless flats are very bright)
+            slitless_pixel_flat.detector.saturation *= 1.5
             # Initialise the pixel flat
             flatpar = self.par['flatfield']
             # tweak the slits always for slitless pixelflat
