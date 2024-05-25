@@ -797,12 +797,19 @@ class Calibrations:
         # If this is a mosaic, we need to construct the pixel flat mosaic
         if isinstance(self.det, tuple):
             # We need to grab mosaic info from another existing calibration frame.
-            # The only available is msarc, so we require msarc to be defined
-            if not self._chk_objs(['msarc']):
-                msgs.error('Must have the mosaiced Arc defined to load the pixel flat!')
+            # We use EdgeTraceSet image to get `tform` and `m_order`. Check if EdgeTraceSet file exists.
+            edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(self.flatimages.calib_key,
+                                                                         calib_dir=self.calib_dir)).resolve()
+            if not edges_file.exists():
+                msgs.error('Edges file not found in the Calibrations folder. '
+                           'It is needed to grab the mosaic parameters to load and mosaic the input pixel flat!')
 
-            if self.msarc.detector.tform is None or self.msarc.detector.m_order is None or self.msarc.detector.shape is None:
-                msgs.error('Mosaic parameters are not defined in the Arc frame. Cannot load the pixel flat!')
+            # Load detector info from EdgeTraceSet file
+            det_info = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=self.chk_version).traceimg.detector
+            # check that the mosaic parameters are defined
+            if not np.all(np.in1d(['tform', 'm_order'], list(det_info.keys()))) or  \
+                    det_info.tform is None or det_info.m_order is None:
+                msgs.error('Mosaic parameters are not defined in the Edges frame. Cannot load the pixel flat!')
 
             # read the file
             with io.fits_open(self.pixel_flat_file) as hdu:
@@ -810,14 +817,13 @@ class Calibrations:
                 file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
                 # check if all detectors required for the mosaic are in the list
                 if not np.all(np.in1d(list(self.det), file_dets)):
-                    msgs.warn(f'Not all detectors in the mosaic are in the pixel flat file: {self.pixel_flat_file.name}. '
-                              'Cannot load the pixel flat!')
+                    msgs.error(f'Not all detectors in the mosaic are in the pixel flat file: '
+                               f'{self.pixel_flat_file.name}. Cannot load the pixel flat!')
 
                 # get the pixel flat images of only the detectors in the mosaic
                 pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in self.det])
                 # construct the pixel flat mosaic
-                pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, self.msarc.detector.tform,
-                                                        order=self.msarc.detector.m_order)
+                pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, det_info.tform, order=det_info.m_order)
                 msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name} '
                           f'for {self.spectrograph.get_det_name(self.det)}.')
                 nrm_image = flatfield.FlatImages(pixelflat_norm=pixflat_msc)
@@ -838,12 +844,11 @@ class Calibrations:
                     msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name} for {detname}.')
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[idx].data)
                 else:
-                    msgs.warn(f'{detname} not found in the pixel flat file: '
-                              f'{self.pixel_flat_file.name}. No pixel flat will be applied to this detector.')
+                    msgs.error(f'{detname} not found in the pixel flat file: '
+                               f'{self.pixel_flat_file.name}. Cannot load the pixel flat!')
                     nrm_image = None
 
         self.flatimages = flatfield.merge(self.flatimages, nrm_image)
-        embed()
 
     def get_flats(self):
         """
