@@ -899,11 +899,21 @@ class Calibrations:
         # get lamp off flat frames
         raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
 
+        # Check if we have any calibration frames to work with
         if len(raw_pixel_files) == 0 and pixel_cal_file is None \
                 and len(raw_illum_files) == 0 and illum_cal_file is None:
-            msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found and '
-                      'unable to identify a relevant processed calibration frame.  Continuing...')
-            self.flatimages = None
+            # if no calibration frames are found, check if the user has provided a pixel flat file
+            if self.pixel_flat_file is not None:
+                msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found but a '
+                          'user-defined pixel flat file was provided. Using that file.')
+                self.flatimages = flatfield.FlatImages(PYP_SPEC=self.spectrograph.name, spat_id=self.slits.spat_id)
+                self.flatimages.calib_key = flatfield.FlatImages.construct_calib_key(self.fitstbl['setup'][self.frame],
+                                                                                     self.calib_ID, detname)
+                self.load_pixflat()
+            else:
+                msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found and '
+                          'unable to identify a relevant processed calibration frame.  Continuing...')
+                self.flatimages = None
             return self.flatimages
 
         # If a processed calibration frame exists and we want to reuse it, do
