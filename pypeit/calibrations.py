@@ -712,7 +712,8 @@ class Calibrations:
                 msgs.prindent(f'{Path(f).name}')
 
             # Reset the BPM
-            msbpm = self.spectrograph.bpm(this_raw_files[0], _det, msbias=self.msbias if self.par['bpm_usebias'] else None)
+            msbpm = self.spectrograph.bpm(this_raw_files[0], _det,
+                                          msbias=self.msbias if self.par['bpm_usebias'] else None)
 
             # trace image
             traceimg = buildimage.buildimage_fromlist(self.spectrograph, _det,
@@ -720,16 +721,17 @@ class Calibrations:
                                                       dark=self.msdark, bias=self.msbias, bpm=msbpm)
             # slit edges
             # we need to change some parameters for the slit edge tracing
-            edges_par = self.par['slitedges']
+            edges_par = deepcopy(self.par['slitedges'])
             # lower the threshold for edge detection
             edges_par['edge_thresh'] = 50.
             # this is used for longslit (i.e., no pca)
             edges_par['sync_predict'] = 'nearest'
-            # we set a large minimum slit length to avoid spurious slits
-            edges_par['minimum_slit_length'] = traceimg.image.shape[1] * 0.6
+            # remove spurious edges by setting a large minimum slit gap (20% of the detector size
+            platescale = parse.parse_binning(traceimg.detector.binning)[1] * traceimg.detector['platescale']
+            edges_par['minimum_slit_gap'] = 0.2*traceimg.image.shape[1]*platescale
             # if no slits are found the bound_detector parameter add 2 traces at the detector edges
             edges_par['bound_detector'] = True
-            spectrograph = self.spectrograph
+            spectrograph = deepcopy(self.spectrograph)
             # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
             spectrograph.pypeline = 'MultiSlit'
             edges = edgetrace.EdgeTraceSet(traceimg, spectrograph, edges_par, auto=True)
@@ -746,12 +748,11 @@ class Calibrations:
             # increase saturation threshold (some hires slitless flats are very bright)
             slitless_pixel_flat.detector.saturation *= 1.5
             # Initialise the pixel flat
-            flatpar = self.par['flatfield']
-            # tweak the slits always for slitless pixelflat
+            flatpar = deepcopy(self.par['flatfield'])
+            # do not tweak the slits
             flatpar['tweak_slits'] = False
-            # flatpar['tweak_slits_maxfrac'] = 0.3
             pixelFlatField = flatfield.FlatField(slitless_pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], slits, wavetilts=None,
+                                                 flatpar, slits, wavetilts=None,
                                                  wv_calib=None, slitless=True, qa_path=self.qa_path)
 
             # Generate
@@ -762,8 +763,8 @@ class Calibrations:
         if len(detname_list) > 0:
             # generate the slitless pixel flat file name
             spec_name = self.fitstbl.spectrograph.name
-            date = self.fitstbl.construct_obstime(slitless_rows[0]).iso.split(' ')[0].replace('-', '') if \
-                self.fitstbl[slitless_rows][0]['mjd'] is not None else '000000'
+            date = self.fitstbl.construct_obstime(slitless_rows[0]).isot.replace('-', '').replace(':', '') if \
+                self.fitstbl[slitless_rows][0]['mjd'] is not None else '00000000T000000.000'
             # setup info to add to the filename
             dispname = '' if 'dispname' not in self.spectrograph.configuration_keys() else \
                 f"_{self.fitstbl[slitless_rows[0]]['dispname'].replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace(':', '_').replace('+', '_')}"

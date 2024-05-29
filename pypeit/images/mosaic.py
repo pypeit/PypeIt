@@ -30,7 +30,7 @@ class Mosaic(datamodel.DataContainer):
     """
 
     # Set the version of this class
-    version = '1.0.0'
+    version = '1.0.1'
 
     # WARNING: `binning` and `platescale` have the same names as datamodel
     # components in pypeit.images.detector_container.DetectorContainer.  This is
