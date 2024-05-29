@@ -82,8 +82,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['rdx']['detnum'] = [(1,2,3)]
 
         # Adjustments to parameters for Keck HIRES
-        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
-                           use_illumflat=False)
+        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
         par.reset_all_processimages_par(**turn_off_on)
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
@@ -276,22 +275,28 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 return 'off'
 
         elif meta_key == 'idname':
-            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+            xcovopen = headarr[0].get('XCOVOPEN')
+            collcoveropen = (headarr[0].get('XDISPERS') == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and headarr[0].get('BCCVOPEN'))
+
+            if xcovopen and collcoveropen and \
+                    not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
                     not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
                     return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
-            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
-                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
-                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
+            elif xcovopen and collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                return 'Line'
+            elif collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                    not headarr[0].get('HATOPEN'):
+                if not xcovopen:
                     return 'slitlessFlat'
                 else:
-                    return 'Line'
-            elif headarr[0].get('AUTOSHUT') and \
-                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
-                    and not headarr[0].get('HATOPEN'):
-                return 'IntFlat'
+                    return 'IntFlat'
 
         else:
             msgs.error("Not ready for this compound meta")
@@ -368,9 +373,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
-        if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object')
-        if ftype == 'standard':
+        if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
