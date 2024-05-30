@@ -731,6 +731,8 @@ class Calibrations:
             edges_par['minimum_slit_gap'] = 0.2*traceimg.image.shape[1]*platescale
             # if no slits are found the bound_detector parameter add 2 traces at the detector edges
             edges_par['bound_detector'] = True
+            # set the buffer to 0
+            edges_par['det_buffer'] = 0
             spectrograph = deepcopy(self.spectrograph)
             # need to treat this as a MultiSlit spectrograph (no echelle parameters used)
             spectrograph.pypeline = 'MultiSlit'
@@ -772,7 +774,7 @@ class Calibrations:
                 f"_d{self.fitstbl[slitless_rows[0]]['dichroic']}"
             binning = self.fitstbl[slitless_rows[0]]['binning'].replace(',', 'x')
             # file name
-            fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
+            fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits.gz'
             pixelflat_file = data.Paths.static_calibs / self.spectrograph.name / fname
 
             # Save the result

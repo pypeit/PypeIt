@@ -2023,15 +2023,15 @@ def lris_read_amp(inp, ext):
     return data, predata, postdata, x1, y1
 
 
-def convert_lowredux_pixelflat(infil, outfil):
+def convert_lowredux_pixelflat(infil, outfil, specflip=False, separate_extensions=False):
     """ Convert LowRedux pixelflat to PYPIT format
     Returns
     -------
 
     """
     # Read
-    hdu = io.fits_open(infil)
-    data = hdu[0].data
+    hdu0 = io.fits_open(infil)
+    data = hdu0[0].data
 
     #
     prihdu = fits.PrimaryHDU()
@@ -2039,14 +2039,24 @@ def convert_lowredux_pixelflat(infil, outfil):
     prihdu.header['CALIBTYP'] = ('Flat', 'PypeIt: Calibration frame type')
 
     # Detector 1
-    img1 = data[:,:data.shape[1]//2]
+    if separate_extensions:
+        img1 = hdu0['DET1'].data
+    else:
+        img1 = data[:, :data.shape[1] // 2]
+    if specflip:
+        img1 = np.flip(img1, axis=0)
     hdu = fits.ImageHDU(img1)
     hdu.name = 'DET01-PIXELFLAT_NORM'
     prihdu.header['EXT0001'] = hdu.name
     hdus.append(hdu)
 
     # Detector 2
-    img2 = data[:,data.shape[1]//2:]
+    if separate_extensions:
+        img2 = hdu0['DET2'].data
+    else:
+        img2 = data[:, data.shape[1] // 2:]
+    if specflip:
+        img2 = np.flip(img2, axis=0)
     hdu = fits.ImageHDU(img2)
     hdu.name = 'DET02-PIXELFLAT_NORM'
     prihdu.header['EXT0002'] = hdu.name
@@ -2054,7 +2064,7 @@ def convert_lowredux_pixelflat(infil, outfil):
 
     # Finish
     hdulist = fits.HDUList(hdus)
-    hdulist.writeto(outfil, clobber=True)
+    hdulist.writeto(outfil, overwrite=True)
     print('Wrote {:s}'.format(outfil))
 
 

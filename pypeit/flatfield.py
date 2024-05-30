@@ -2059,7 +2059,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
 
     """
 
-    msgs.info(f'A slitless Pixel Flat will be saved to {msgs.newline()}'
+    msgs.info(f'A slitless Pixel Flat for detectors {detname_list} will be saved to {msgs.newline()}'
               f'{pixelflat_file} {msgs.newline()}'
               f'It will be automatically used in this run. If you want to use this file in future runs, '
               f'add the following to your PypeIt Reduction File:{msgs.newline()}'
@@ -2096,12 +2096,14 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
     for d in spec.select_detectors():
         detname = spec.get_det_name(d)
         extname = f'{detname}-PIXELFLAT_NORM'
+        # update or add the detectors that we want to save
         if detname in detname_list:
             det_idx = detname_list.index(detname)
             pixflat_norm = pixflat_norm_list[det_idx]
             hdu = fits.ImageHDU(data=pixflat_norm, name=extname)
             prihdu.header[f'EXT{extnum:04d}'] = hdu.name
             new_hdus.append(hdu)
+        # keep the old detectors that were not updated
         elif detname in old_detnames:
             old_det_idx = old_detnames.index(detname)
             hdu = old_hdus[old_det_idx]
