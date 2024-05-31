@@ -34,11 +34,17 @@ class ShowPixFlat(scriptbase.ScriptBase):
 
         # check if the file exists
         file = data.Paths.static_calibs / args.spectrograph / args.file
+        _file = file
         if not file.is_file():
-            msgs.error(f"File {file} not found")
+            # check if it is cached
+            cached = data.search_cache(args.file)
+            if len(cached) != 0:
+                _file = cached[0]
+            else:
+                msgs.error(f"File {file} not found")
 
         # Load the image
-        with io.fits_open(file) as hdu:
+        with io.fits_open(_file) as hdu:
             # get all the available detectors in the file
             file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
             # if detectors are provided, check if they are in the file
