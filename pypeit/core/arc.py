@@ -997,7 +997,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], 
+                                                        sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
+                                                        stdfunc = np.nanstd)
         thresh = med + sigdetect*stddev
         if stddev == 0.0:
             msgs.warn('stddev = 0.0, so resetting to 1.0')

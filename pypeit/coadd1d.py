@@ -63,7 +63,8 @@ class CoAdd1D:
                 assumed that all the input files, objids, and sensfuncfiles
                 correspond to the same setup.
             save_multi (bool, optional)
-                Save order stacks from coadds, in addition to 1d coadded spectra? Default = False
+                Toggle saving order stacks from coadds, in addition to 1d coadded spectra. This
+                 is only for Echelle reductions. Default = False
             debug (bool, optional)
                 Debug. Default = False
             show (bool, optional):
@@ -176,7 +177,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
-                 debug=False, show=False, save_multi=False, chk_version=True):
+                 debug=False, show=False, save_multi=False, chk_version=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
@@ -557,7 +558,7 @@ class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
     Child of MultiSlitCoAdd1d for SlicerIFU reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False, chk_version=True):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False, chk_version=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """

@@ -460,8 +460,18 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         Full width at half maximum for the arc lines
 
     stretch_func: str, default = 'linear', optional
-        Toggle between 'quad' (quadratic stretch function) or 'linear' (linear stretch only)
+        Choose whether the function stretching the wavelength reference to match the observed arc
+        lamp spectrum should be 'quad' (quadratic stretch function) or 'linear' (linear stretch only)
 
+    percent_ceil (float, optional, default=50.0):
+        Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
+        will be performed.
+
+    max_lag_frac : float, default = 1.0
+        Fraction of the total spectral pixels used to determine the range of lags
+        to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
+
+        
     Returns
     -------
     (detections, spec_cont_sub, patt_dict)
@@ -601,8 +611,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
         det_arxiv_ss = this_det_arxiv**2*stretch2_vec[iarxiv] + this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
-        spec_arxiv_ss = wvutils.shift_and_stretch2(use_spec_arxiv[:, iarxiv], shift_vec[iarxiv],
-                                                   stretch_vec[iarxiv], stretch2_vec[iarxiv])
+        spec_arxiv_ss = wvutils.shift_and_stretch(use_spec_arxiv[:, iarxiv], shift_vec[iarxiv],
+                                                   stretch_vec[iarxiv], stretch2_vec[iarxiv], stretch_func=stretch_func)
 
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
@@ -2468,7 +2478,7 @@ class HolyGrail:
                     plt.plot(xrng, self._spec[:, gs], color='black', drawstyle='steps-mid', linestyle=':',
                              label='good slit arc', linewidth=0.5)
                     plt.plot(gsdet, tampl_gs, 'k+', markersize=8.0, label='good slit lines')
-                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
+                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr], 0.0*stretch_vec[cntr], stretch_func = 'linear')
                     #tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
                     for iline in range(gsdet_ss.size):
                         plt.plot([gsdet[iline],gsdet_ss[iline]],[tampl_gs[iline], tampl_gs[iline]], color='cornflowerblue', linewidth = 1.0)

@@ -1117,14 +1117,6 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         mask_ref = ivar_ref > 0.0
 
 
-    # Interpolate the reference spectrum onto the wavelengths of the spectrum that will be rescaled
-    if debug:
-        msgs.info(f'The properties of the spectral interpolation are as follows:')
-        msgs.info(f'    wave = {wave}')
-        msgs.info(f'    wave_ref = {wave_ref}')
-        msgs.info(f'    flux_ref = {flux_ref}')
-        msgs.info(f'    ivar_ref = {ivar_ref}')
-        msgs.info(f'    mask_ref = {mask_ref}')
     flux_ref_int, ivar_ref_int, mask_ref_int, _ = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
 
     # estimates the SNR of each spectrum and the stacked mean SNR

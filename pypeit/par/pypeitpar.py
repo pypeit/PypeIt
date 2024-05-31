@@ -3180,7 +3180,7 @@ class WavelengthSolutionPar(ParSet):
     def valid_stretch_func_methods():  
         """ Return the valid options for the stretch_func methods.
         """
-        return ['linear', 'quad']  
+        return ['linear', 'quadratic']  
 
     def validate(self):
         pass

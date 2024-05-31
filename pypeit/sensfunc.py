@@ -95,8 +95,6 @@ class SensFunc(datamodel.DataContainer):
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
                                     descr='Spectrograph throughput measurements'),
-                 #'spat_fwhm_std': dict(otype=np.ndarray, atype=float,
-                 #                   descr='Measured spatial fwhm of the standard source'),
                  'algorithm': dict(otype=str, descr='Algorithm used for the sensitivity calculation.')}
 #                                    ,
 #                 'wave_splice': dict(otype=np.ndarray, atype=float,
@@ -131,7 +129,6 @@ class SensFunc(datamodel.DataContainer):
                  'splice_multi_det',
                  'meta_spec',
                  'std_dict',
-                 'spat_fwhm_std',
                  'chk_version'
                 ]
 
@@ -193,9 +190,7 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
                          description='The good pixel mask for the fluxed standard star spectrum '),
             table.Column(name='SENS_STD_MODEL_FLAM', dtype=float, length=norders, shape=(nspec_in,),
-                         description='The F_lambda for the standard model spectrum'),
-            table.Column(name='SENS_STD_SPAT_FWHM', dtype=float, length=norders, shape=(nspec_in,),
-                         description='The spatial fwhm for the standard model spectrum, to account for slit losses')])
+                         description='The F_lambda for the standard model spectrum')])
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -255,11 +250,6 @@ class SensFunc(datamodel.DataContainer):
 
         if self.sobjs_std is None:
             msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
-
-        #save the standard fwhm
-        # TODO: This may also need to be fixed!  See kludge in flux_std()
-        self.spat_fwhm_std = self.sobjs_std.SPAT_FWHM
-        msgs.info(f'Saving standard fwhm as: {self.spat_fwhm_std}')
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
@@ -491,17 +481,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
 
-        # TODO: This is a kludge.  The test_wmko_flux_std.py unit test in the
-        # dev-suite was failing because
-        #
-        # In [7]: self.sobjs_std.SPAT_FWHM
-        # Out[7]: array([None, None], dtype=object)
-        #
-        # This kludge fixes the test, but there's likely a deeper issue that
-        # needs to be addressed.
-        if self.sobjs_std.SPAT_FWHM.shape == self.sens['SENS_STD_SPAT_FWHM'].shape:
-            self.sens['SENS_STD_SPAT_FWHM'] = self.sobjs_std.SPAT_FWHM
-        self.spat_fwhm_std = self.sens['SENS_STD_SPAT_FWHM']
 
     def eval_zeropoint(self, wave, iorddet):
         """
@@ -819,13 +798,10 @@ class SensFunc(datamodel.DataContainer):
         #save the model that was used
         model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
                                                        bounds_error=False, fill_value='extrapolate')
-        model_flux_sav = np.zeros(np.shape(self.sens['SENS_FLUXED_STD_FLAM']))
+        model_flux_sav = np.zeros_like(self.sens['SENS_FLUXED_STD_FLAM'])
         for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             model_flux_sav[iorddet][wave_gpm] = model_interp_func(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm])
-        self.sens['SENS_STD_MODEL_FLAM'] = model_flux_sav
-        # TODO: This may also need to be fixed!  See kludge in flux_std()
-        self.sens['SENS_STD_SPAT_FWHM'] = self.spat_fwhm_std
 
 
 

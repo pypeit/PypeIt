@@ -345,7 +345,8 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
     return all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
 
 
-def shift_and_stretch(spec, shift, stretch):
+
+def shift_and_stretch(spec, shift, stretch, stretch2, stretch_func='quadratic'):
 
     """
     Utility function to shift and stretch a spectrum. This operation is
@@ -361,53 +362,12 @@ def shift_and_stretch(spec, shift, stretch):
         shift to be applied
     stretch: float
         stretch to be applied
+    stretch2: (:obj:`float`, optional):
+        second order stretch to be applied. Default = 0.0
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
 
-    Returns
-    -------
-    spec_out: ndarray
-        shifted and stretch spectrum. Regions where there is no information are set to zero.
-
-    """
-
-    # Positive value of shift means features shift to larger pixel values
-
-    nspec = spec.shape[0]
-    # Can do the stretch and shift in one operation
-
-    # spec_out = (scipy.interpolate.interp1d(np.arange(nspec)*stretch + shift, spec, kind='quadratic',
-    #                                        bounds_error=False, fill_value=0.0))(np.arange(nspec))
-    # DP: reverted the above to its original form, as the above was giving different results and consequently a crash
-    # pad the spectrum on both sizes. NOTE that shift_and_stretch2() is not changed.
-    x1 = np.arange(nspec)/float(nspec-1)
-    nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # Now create a shifted version
-    ind_shift = np.arange(nspec_stretch) - shift
-    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # Now interpolate onto the original grid
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-    return spec_out
-
-
-def shift_and_stretch2(spec, shift, stretch, stretch2):
-
-    """
-    Utility function to shift and stretch a spectrum. This operation is
-    being implemented in many steps and could be significantly
-    optimized. But it works for now. Note that the stretch is applied
-    *first* and then the shift is applied in stretch coordinates.
-
-    Parameters
-    ----------
-    spec : ndarray
-        spectrum to be shited and stretch
-    shift: float
-        shift to be applied
-    stretch: float
-        stretch to be applied
-    stretch2: float
-        second order stretch to be applied
+    
 
     Returns
     -------
@@ -421,50 +381,13 @@ def shift_and_stretch2(spec, shift, stretch, stretch2):
     nspec = spec.shape[0]
     
     # Can do the stretch and shift in one operation
+    if stretch_func == 'linear': stretch2 = 0.0
 
     return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
-                                           spec, kind='quadratic', bounds_error=False, fill_value=0.0)(np.arange(nspec))
+                                           spec, kind=stretch_func, bounds_error=False, fill_value=0.0)(np.arange(nspec))
 
 
-def zerolag_shift_stretch(theta, y1, y2):
-
-    """
-    Utility function which is run by the differential evolution
-    optimizer in scipy. This is the fucntion we optimize.  It is the
-    zero lag cross-correlation coefficient of spectrum with a shift and
-    stretch applied.
-
-    Parameters
-    ----------
-    theta : float `numpy.ndarray`_
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1 : float `numpy.ndarray`_, shape = (nspec,)
-        First spectrum which acts as the refrence
-    y2 : float `numpy.ndarray`_, shape = (nspec,)
-        Second spectrum which will be transformed by a shift and stretch to match y1
-
-    Returns
-    -------
-    corr_norm : float
-        Negative of the zero lag cross-correlation coefficient (since we
-        are miniziming with scipy.optimize). scipy.optimize will thus
-        determine the shift,stretch that maximize the cross-correlation.
-
-    """
-
-    shift, stretch = theta
-    y2_corr = shift_and_stretch(y2, shift, stretch)
-    # Zero lag correlation
-    corr_zero = np.sum(y1*y2_corr)
-    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
-    if corr_denom == 0.0:
-        msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
-        raise PypeItError()
-    corr_norm = corr_zero / corr_denom
-    return -corr_norm
-
-
-def zerolag_shift_stretch2(theta, y1, y2):
+def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
 
     """
     Utility function which is run by the differential evolution
@@ -475,11 +398,13 @@ def zerolag_shift_stretch2(theta, y1, y2):
     Parameters
     ----------
     theta : float `numpy.ndarray`_
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = second order stretch
+        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = stretch2
     y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
     y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
 
     Returns
     -------
@@ -491,14 +416,16 @@ def zerolag_shift_stretch2(theta, y1, y2):
     """
 
     shift, stretch, stretch2 = theta
-    y2_corr = shift_and_stretch2(y2, shift, stretch, stretch2)
+    y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func= stretch_func)
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
     if corr_denom == 0.0:
-        msgs.error('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
+        msgs.warn('The shifted and stretched spectrum is zero everywhere. Cross-correlation cannot be performed. There is likely a bug somewhere')
         raise PypeItError()
-    return -corr_zero / corr_denom
+    corr_norm = corr_zero / corr_denom
+    return -corr_norm
+
 
 
 def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_raw_arc=False, fwhm = 4.0, debug=False):
@@ -667,7 +594,7 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
                         fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
-                        stretch_func='quad'):
+                        stretch_func='quadratic'):
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -731,7 +658,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         because the linear approximation used to transform the arc
         starts to break down.
     max_lag_frac: float, default = 1.0
-        Maximum rangeo of lags over which to compute the cross correlation, 
+        Maximum range of lags over which to compute the cross correlation, 
         expressed as a fraction of the length of the vectors being cross-correlated.
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
@@ -740,8 +667,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         Tolerance for differential evolution optimizaiton.
     debug = False
         Show plots to the screen useful for debugging.
-    stretch_func : stre, default = 'quad'
-        Use quadratic ('quad') or linear ('linear') stretch.
+    stretch_func : str, optional, default = 'quadratic'
+        Use quadratic ('quadratic') or linear ('linear') stretch.
 
     Returns
     -------
@@ -766,7 +693,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     stretch2: float
         the optimal second order stretch which was determined.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh,  then this
-        will be just be 1.0
+        will be just be 1.0. This is 0.0 if the stretch_func = linear
     cross_corr: float
         the value of the cross-correlation coefficient at the optimal
         shift and stretch. This is a number between zero and unity,
@@ -807,30 +734,22 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     if lag_range is None:
         lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
     # TODO Can we make the differential evolution run faster?
-    if stretch_func == 'quad':
-        try:
+    try:
+        if stretch_func == 'quadratic':
             bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])
-            result = scipy.optimize.differential_evolution(zerolag_shift_stretch2, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-        except PypeItError:
-            msgs.warn("Differential evolution failed.")
-            return 0, None, None, None, None, None, None
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
-        stretch2_de = result.x[2]
-    if stretch_func == 'linear':
-        try:
-            bounds = [lag_range, stretch_mnmx]
-            x0_guess = np.array([shift_cc, 1.0])
-            result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-        except PypeItError:
-            msgs.warn("Differential evolution failed.")
-            return 0, None, None, None, None, None, None
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
-        stretch2_de = 0.0
+        if stretch_func == 'linear':
+            bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
+            x0_guess = np.array([shift_cc, 1.0, 0.0])        
+        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+    except PypeItError:
+        msgs.warn("Differential evolution failed.")
+        return 0, None, None, None, None, None, None
+    corr_de = -result.fun
+    shift_de = result.x[0]
+    stretch_de = result.x[1]
+    stretch2_de = result.x[2]
+
 
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
@@ -855,7 +774,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     if debug:
         x1 = np.arange(nspec)
-        y2_trans = shift_and_stretch2(y2, shift_out, stretch_out, stretch2_out)
+        y2_trans = shift_and_stretch(y2, shift_out, stretch_out, stretch2_out, stretch_func='quadratic')
         plt.figure(figsize=(14, 6))
         plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
         plt.plot(x1,y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original')

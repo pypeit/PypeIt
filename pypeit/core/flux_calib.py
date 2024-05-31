@@ -433,7 +433,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             # vega is V=0.03
             std_dict['flux'] = vega_data['Flux'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
-        elif 'NONE' in star_type:
+        elif 'NONE' == star_type:
             msgs.info('Setting Standard to Continuum')
             ## Vega model from TSPECTOOL
             std_dict = dict(cal_file='continuum', name=star_type, Vmag=star_mag,
@@ -749,7 +749,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None, 
-                         extrap_sens=False, sens_fwhm=None, dat_fwhm=None):
+                         extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
@@ -781,12 +781,6 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
                 Used for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
-        sens_fwhm (`numpy.ndarray`_, optional):
-            Use the fwhm from the sensitivity function to estimate the slit loss. 
-            Only used to print as reference.
-        dat_fwhm (`numpy.ndarray`_, optional):
-            Use the fwhm from the data to estimate the slit loss. 
-            Only used to print as refernce.
 
     Returns
     -------
@@ -843,8 +837,6 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     else:
         senstot = sensfunc_obs.copy()
 
-    if np.any(sens_fwhm) and np.any(dat_fwhm):
-        msgs.info(f'Sens Std fwhm = {sens_fwhm}, but dat_fwhm = {dat_fwhm}')
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom
