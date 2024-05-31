@@ -672,26 +672,34 @@ class Calibrations:
 
         # Check if a user-provided slitless pixelflat already exists for the current detectors
         if self.pixel_flat_file is not None:
-            # get detector names
-            detnames = np.array([self.spectrograph.get_det_name(_det) for _det in _detectors])
-            # open the file
-            with io.fits_open(self.pixel_flat_file) as hdu:
-                # list of available detectors in the pixel flat file
-                file_detnames = [h.name.split('-')[0] for h in hdu]
-                # check if the current detnames are in the list
-                in_file = np.array([d in file_detnames for d in detnames])
-                # if all detectors are in the file, return
-                if np.all(in_file):
-                    msgs.info(f'Both slitless_pixflat frames and user-defined file found. '
-                              f'The user-defined file will be used: {self.pixel_flat_file.name}')
-                    return
-                else:
-                    # get the detectors that are not in the file
-                    _detectors = _detectors[np.logical_not(in_file)]
-                    detnames = detnames[np.logical_not(in_file)]
-                    msgs.info(f'Both slitless_pixflat frames and user-defined file found, but the '
-                              f'following detectors are not in the file: {detnames}. Using the '
-                              f'slitless_pixflat frames to generate the missing detectors.')
+            _pixel_flat_file = self.pixel_flat_file
+            # check if it was cached
+            if not self.pixel_flat_file.exists():
+                cached = data.search_cache(self.pixel_flat_file.name)
+                if len(cached) != 0:
+                    _pixel_flat_file = cached[0]
+
+            if _pixel_flat_file.exists():
+                # get detector names
+                detnames = np.array([self.spectrograph.get_det_name(_det) for _det in _detectors])
+                # open the file
+                with io.fits_open(_pixel_flat_file) as hdu:
+                    # list of available detectors in the pixel flat file
+                    file_detnames = [h.name.split('-')[0] for h in hdu]
+                    # check if the current detnames are in the list
+                    in_file = np.array([d in file_detnames for d in detnames])
+                    # if all detectors are in the file, return
+                    if np.all(in_file):
+                        msgs.info(f'Both slitless_pixflat frames and user-defined file found. '
+                                  f'The user-defined file will be used: {self.pixel_flat_file.name}')
+                        return
+                    else:
+                        # get the detectors that are not in the file
+                        _detectors = _detectors[np.logical_not(in_file)]
+                        detnames = detnames[np.logical_not(in_file)]
+                        msgs.info(f'Both slitless_pixflat frames and user-defined file found, but the '
+                                  f'following detectors are not in the file: {detnames}. Using the '
+                                  f'slitless_pixflat frames to generate the missing detectors.')
 
         # make the slitless pixel flat
         pixflat_norm_list = []
@@ -765,8 +773,8 @@ class Calibrations:
         if len(detname_list) > 0:
             # generate the slitless pixel flat file name
             spec_name = self.fitstbl.spectrograph.name
-            date = self.fitstbl.construct_obstime(slitless_rows[0]).isot.replace('-', '').replace(':', '') if \
-                self.fitstbl[slitless_rows][0]['mjd'] is not None else '00000000T000000.000'
+            date = self.fitstbl.construct_obstime(slitless_rows[0]).iso.split(' ')[0].replace('-', '') if \
+                self.fitstbl[slitless_rows][0]['mjd'] is not None else '00000000'
             # setup info to add to the filename
             dispname = '' if 'dispname' not in self.spectrograph.configuration_keys() else \
                 f"_{self.fitstbl[slitless_rows[0]]['dispname'].replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace(':', '_').replace('+', '_')}"
@@ -775,17 +783,18 @@ class Calibrations:
             binning = self.fitstbl[slitless_rows[0]]['binning'].replace(',', 'x')
             # file name
             fname = f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits.gz'
-            pixelflat_file = data.Paths.static_calibs / self.spectrograph.name / fname
 
             # Save the result
-            flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list,
-                                            self.spectrograph.name, pixelflat_file)
+            flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list, self.spectrograph.name,
+                                            self.calib_dir.parent, fname, cache=True)
 
+            # file is saved in the working directory, but it is also cached in the data/static_calibs folder
+            # therefore we update self.pixel_flat_file with the new file located in the cache
             # update the self.pixel_flat_file to the new file
-            self.pixel_flat_file = pixelflat_file
+            self.pixel_flat_file = data.Paths.static_calibs / self.spectrograph.name / fname
             # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
             # so that it can be used for the other files in the same run
-            self.par['flatfield']['pixelflat_file'] = pixelflat_file.name
+            self.par['flatfield']['pixelflat_file'] = self.pixel_flat_file.name
 
     def load_pixflat(self):
         """
@@ -798,6 +807,18 @@ class Calibrations:
         NOTE: self.flatimages is updated in this method.
 
         """
+        # Check if the pixel flat file exists
+        if self.pixel_flat_file is None:
+            msgs.error('No pixel flat file defined. Cannot load the pixel flat!')
+
+        _pixel_flat_file = self.pixel_flat_file
+        if not self.pixel_flat_file.exists():
+            # check if the file has been cached in the data/static_calibs folder
+            cached = data.search_cache(self.pixel_flat_file.name)
+            if len(cached) == 0:
+                msgs.error(f'Pixel flat file: {self.pixel_flat_file.name} not found. Cannot load the pixel flat!')
+            else:
+                _pixel_flat_file = cached[0]
 
         # If this is a mosaic, we need to construct the pixel flat mosaic
         if isinstance(self.det, tuple):
@@ -810,14 +831,15 @@ class Calibrations:
                            'It is needed to grab the mosaic parameters to load and mosaic the input pixel flat!')
 
             # Load detector info from EdgeTraceSet file
-            det_info = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=self.chk_version).traceimg.detector
+            traceimg = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=self.chk_version).traceimg
+            det_info = traceimg.detector
             # check that the mosaic parameters are defined
             if not np.all(np.in1d(['tform', 'm_order'], list(det_info.keys()))) or  \
                     det_info.tform is None or det_info.m_order is None:
                 msgs.error('Mosaic parameters are not defined in the Edges frame. Cannot load the pixel flat!')
 
             # read the file
-            with io.fits_open(self.pixel_flat_file) as hdu:
+            with io.fits_open(_pixel_flat_file) as hdu:
                 # list of available detectors in the pixel flat file
                 file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
                 # check if all detectors required for the mosaic are in the list
@@ -829,6 +851,10 @@ class Calibrations:
                 pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in self.det])
                 # construct the pixel flat mosaic
                 pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, det_info.tform, order=det_info.m_order)
+                # check that the mosaic has the correct shape
+                if pixflat_msc.shape != traceimg.image.shape:
+                    msgs.error('The constructed pixel flat mosaic does not have the correct shape. '
+                               'Cannot load this pixel flat as a mosaic!')
                 msgs.info(f'Using pixelflat file: {self.pixel_flat_file.name} '
                           f'for {self.spectrograph.get_det_name(self.det)}.')
                 nrm_image = flatfield.FlatImages(pixelflat_norm=pixflat_msc)
@@ -838,7 +864,7 @@ class Calibrations:
             # current detector name
             detname = self.spectrograph.get_det_name(self.det)
             # read the file
-            with io.fits_open(self.pixel_flat_file) as hdu:
+            with io.fits_open(_pixel_flat_file) as hdu:
                 # list of available detectors in the pixel flat file
                 file_detnames = [h.name.split('-')[0] for h in hdu] # this list has also the 'PRIMARY' extension
                 # check if the current detector is in the list

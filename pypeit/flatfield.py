@@ -33,6 +33,7 @@ from pypeit.core import basis
 from pypeit.core import fitting
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
+from pypeit import data
 
 
 class FlatImages(calibframe.CalibFrame):
@@ -2041,7 +2042,7 @@ def merge(init_cls, merge_cls):
     return FlatImages(**dd)
 
 
-def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_file):
+def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pixelflat_name, cache=True):
     """
     Write the pixel-to-pixel flat-field images to a FITS file.
     The FITS file will have an extension for each detector (never a mosaic).
@@ -2054,24 +2055,33 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
             List of detector names.
         spec_name (:obj:`str`):
             Name of the spectrograph.
-        pixelflat_file (:obj:`pathlib.Path`):
+        outdir (:obj:`pathlib.Path`):
+            Path to the output directory.
+        pixelflat_name (:obj:`str`):
             Path to the output file to be written.
+        cache (:obj:`bool`, optional):
+            If True, the file will be written to the cache directory pypeit/data/static_calibs.
 
     """
 
-    msgs.info(f'A slitless Pixel Flat for detectors {detname_list} will be saved to {msgs.newline()}'
-              f'{pixelflat_file} {msgs.newline()}'
-              f'It will be automatically used in this run. If you want to use this file in future runs, '
-              f'add the following to your PypeIt Reduction File:{msgs.newline()}'
-              f" [calibrations]{msgs.newline()}"
-              f"   [[flatfield]]{msgs.newline()}"
-              f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"
-              f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}")
+    msgs.info("Writing the pixel-to-pixel flat-field images to a FITS file.")
+    #
+    # msgs.info(f'A slitless Pixel Flat for detectors {detname_list} will be saved to {msgs.newline()}'
+    #           f'{pixelflat_file} {msgs.newline()}'
+    #           f'It will be automatically used in this run. If you want to use this file in future runs, '
+    #           f'add the following to your PypeIt Reduction File:{msgs.newline()}'
+    #           f" [calibrations]{msgs.newline()}"
+    #           f"   [[flatfield]]{msgs.newline()}"
+    #           f"     pixelflat_file = {pixelflat_file.name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"
+    #           f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}")
 
     # Check that the number of detectors matches the number of pixelflat_norm arrays
     if len(pixflat_norm_list) != len(detname_list):
         msgs.error("The number of detectors does not match the number of pixelflat_norm arrays. "
                    "The pixelflat file cannot be written.")
+
+    pixelflat_file = outdir / pixelflat_name
+    pixelflat_file_cache = data.Paths.static_calibs / spec_name / pixelflat_name
 
     # Check if the file already exists
     old_hdus = []
@@ -2117,7 +2127,30 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, pixelflat_
     if not pixelflat_file.parent.is_dir():
         pixelflat_file.parent.mkdir(parents=True)
     new_hdulist.writeto(pixelflat_file, overwrite=True)
-    msgs.info(f'Pixelflat file wrote to: {str(pixelflat_file)}')
+    msgs.info(f'A slitless Pixel Flat file for detectors {detname_list} has been saved to {msgs.newline()}'
+              f'{pixelflat_file}')
+
+    # common msg
+    add_msgs = f"add the following to your PypeIt Reduction File:{msgs.newline()}"  \
+               f" [calibrations]{msgs.newline()}"  \
+               f"   [[flatfield]]{msgs.newline()}"  \
+               f"     pixelflat_file = {pixelflat_name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"  \
+               f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}"  \
+
+    data_path = data.Paths.static_calibs / spec_name
+    if cache:
+        # Check if the directory exists
+        if not data_path.is_dir():
+            data_path.mkdir(parents=True)
+
+        data.write_file_to_cache(pixelflat_file, pixelflat_name, f"static_calibs/{spec_name}")
+        msgs.info(f"The slitless Pixel Flat file has also been saved to the PypeIt cache directory {msgs.newline()}"
+                  f"{data_path} {msgs.newline()}"
+                  f"It will be automatically used in this run. "
+                  f"If you want to use this file in future runs, {add_msgs}")
+    else:
+        msgs.info(f"To use this file, move it to the PypeIt data directory {msgs.newline()}"
+                  f"{data_path} {msgs.newline()} and {add_msgs}")
 
 
 
