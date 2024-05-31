@@ -653,8 +653,11 @@ class Calibrations:
 
     def make_slitless_pixflat(self):
         """
-        Generate and save to disc a slitless pixel flat-field calibration image.
+        Generate and save to disc a slitless pixel flat-field calibration images.
         The pixel flat file will have one extension per detector, even in the case of a mosaic.
+        Contrary to the regular calibration flow, the slitless pixel flat is created for all detectors
+        of the current spectrograph at once, and not only the one for the current detector.
+        Since the slitless pixel flat images are saved to disc, this approach helps with the I/O
         This is a sub-step of `get_flats()`.
 
         Note: self.pixel_flat_file is updated in this method.
@@ -667,8 +670,8 @@ class Calibrations:
         if len(slitless_rows) == 0:
             return
 
-        # get the detectors (and split them into single detectors if it is a mosaic)
-        _detectors = np.array(self.det) if isinstance(self.det, tuple) else np.array([self.det])
+        # all detectors of this spectrograph
+        _detectors = np.array(self.spectrograph.select_detectors())
 
         # Check if a user-provided slitless pixelflat already exists for the current detectors
         if self.pixel_flat_file is not None:

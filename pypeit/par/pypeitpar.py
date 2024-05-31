@@ -815,8 +815,11 @@ class FlatFieldPar(ParSet):
         file = data.Paths.static_calibs / '*' / self.data['pixelflat_file']
         find_it = glob.glob(str(file))
         if len(find_it) == 0:
-            raise ValueError(f'Provided pixelflat file: {self.data["pixelflat_file"]} '
-                             f'not found in {str(data.Paths.static_calibs)}/<spectrograph_name>/')
+            # check if it is cached
+            cached = data.search_cache(self.data['pixelflat_file'])
+            if len(cached) == 0:
+                raise ValueError(f'Provided pixelflat file: {self.data["pixelflat_file"]} '
+                                 f'not found in {str(data.Paths.static_calibs)}/<spectrograph_name>/ not in the cache')
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
