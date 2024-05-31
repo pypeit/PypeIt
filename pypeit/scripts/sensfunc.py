@@ -170,7 +170,7 @@ class SensFunc(scriptbase.ScriptBase):
                             cfg_lines=spectrograph_config_par.to_config(),
                             merge_with=(sensFile.cfg_lines,))
             else:
-                par = spectrograph_config_par 
+                par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config())
 
             # If algorithm was provided override defaults. Note this does undo .sens
             # file since they cannot both be passed
@@ -193,7 +193,10 @@ class SensFunc(scriptbase.ScriptBase):
             # command line, overwrite the parset values read in from the .sens file
 
             # Instantiate the relevant class for the requested algorithm
-            sensobj = sensfunc.SensFunc.get_instance(file, ofile, par['sensfunc'], debug=args.debug)
+            sensobj = sensfunc.SensFunc.get_instance(file, ofile, par['sensfunc'],
+                                                     par_fluxcalib=par['fluxcalib'],
+                                                     debug=args.debug,
+                                                     chk_version=par['rdx']['chk_version'])
             # Generate the sensfunc
             sensobj.run()
             msgs.info(f'Saved std FWHM as: {sensobj.spat_fwhm_std}')
@@ -203,8 +206,8 @@ class SensFunc(scriptbase.ScriptBase):
             msgs.info('-'*50)
 
             # Write the par to disk
-            #msgs.info(f'Writing the parameters to {args.par_outfile}')
-            #par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
+            msgs.info(f'Writing the parameters to {args.par_outfile}')
+            par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
             #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 

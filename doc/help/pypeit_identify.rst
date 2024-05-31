@@ -26,10 +26,10 @@
                             should be [0,1,...] for multiple slits, 0 for only one
                             slit. If creating a new WaveCalib with the -n flag, this
                             is not necessary. (default: 0)
-      -m, --multi           Are we making multiple trace solutions or just one?
-                            (default: False)
-      -n, --new_sol         Do you want to do the entire wavelength solution from
-                            scratch? (default: False)
+      -m, --multi           Set this flag to create wavelength solutions for muliple
+                            slits (default: False)
+      -n, --new_sol         Set this flag to construct a new WaveCalib file, rather
+                            than using the exising one (default: False)
       --det DET             Detector index (default: 1)
       --rmstol RMSTOL       RMS tolerance (default: 0.1)
       --fwhm FWHM           FWHM for line finding (default: 4.0)

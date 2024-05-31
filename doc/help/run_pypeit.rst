@@ -1,11 +1,10 @@
 .. code-block:: console
 
     $ run_pypeit -h
-    usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [--no_wave] [-s] [-o]
-                      [-c]
+    usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.15.1.dev62+g88b471fa0[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.15.1.dev151+g015ee23ce.d20240423[0m
     ##  
     ##  Available spectrographs include:
     ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,
@@ -38,8 +37,6 @@
       -m, --do_not_reuse_calibs
                             Do not load previously generated calibrations, even ones
                             made during the run.
-      --no_wave             Stop calibration steps before doing wavelength
-                            calibration or tilts.
       -s, --show            Show reduction steps via plots (which will block further
                             execution until clicked on) and outputs to ginga.
                             Requires remote control ginga session via "ginga

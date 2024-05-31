@@ -1118,11 +1118,13 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
 
 
     # Interpolate the reference spectrum onto the wavelengths of the spectrum that will be rescaled
-    msgs.info(f'wave = {wave}')
-    msgs.info(f'wave_ref = {wave_ref}')
-    msgs.info(f'flux_ref = {flux_ref}')
-    msgs.info(f'ivar_ref = {ivar_ref}')
-    msgs.info(f'mask_ref = {mask_ref}')
+    if debug:
+        msgs.info(f'The properties of the spectral interpolation are as follows:')
+        msgs.info(f'    wave = {wave}')
+        msgs.info(f'    wave_ref = {wave_ref}')
+        msgs.info(f'    flux_ref = {flux_ref}')
+        msgs.info(f'    ivar_ref = {ivar_ref}')
+        msgs.info(f'    mask_ref = {mask_ref}')
     flux_ref_int, ivar_ref_int, mask_ref_int, _ = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
 
     # estimates the SNR of each spectrum and the stacked mean SNR
@@ -1587,7 +1589,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     # plot how may exposures you used at each pixel
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
-    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60], sharex=num_plot)
     num_plot.plot(wave[wave_gpm],nused[wave_gpm],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])

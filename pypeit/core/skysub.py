@@ -1231,7 +1231,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         array is not positive, modulo the provided ``adderr``.  This is one of
         the components needed to construct the model variance; see
         ``model_noise``.
-    no_local_sky : bool, default = False
+    no_local_sky : bool, default = False, optional
         If True, do not perform local sky subtraction. This is useful for
         A-B extraction where the sky has already been subtracted.
 

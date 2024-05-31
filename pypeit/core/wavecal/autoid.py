@@ -459,8 +459,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     fwhm: float, default = 4.0
         Full width at half maximum for the arc lines
 
-    stretch_func: str, default = 'quad'
-        Toggle between 'quad' (quadtratic stretch function) or 'linear' (linear stretch only)
+    stretch_func: str, default = 'linear', optional
+        Toggle between 'quad' (quadratic stretch function) or 'linear' (linear stretch only)
 
     Returns
     -------
@@ -1101,9 +1101,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         lines_wav = template_dict['lines_wav'] 
         lines_fit_ord = template_dict['lines_fit_ord']
 
-    # srt = np.argsort(temp_wv_og.ravel())
-    # temp_wv = temp_wv_og.ravel()[srt]
-    # temp_spec = temp_spec_og.ravel()[srt]
     temp_wv = temp_wv_og
     temp_spec = temp_spec_og
 

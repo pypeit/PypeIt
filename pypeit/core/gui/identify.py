@@ -715,98 +715,10 @@ class Identify:
         return wvcalib
 
     def store_solution(self, final_fit, binspec, rmstol=0.15,
-                       force_save=False, wvcalib=None):
-        """Check if the user wants to store this solution in the reid arxiv
-
-        Parameters
-        ----------
-
-        final_fit : dict
-            Dict of wavelength calibration solutions (see self.get_results())
-        binspec : int
-            Spectral binning
-        rmstol : float
-            RMS tolerance allowed for the wavelength solution to be stored in the archive
-        force_save : bool
-            Force save
-        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
-            Wavelength solution
-
-        Returns
-        -------
-
-        wvarxiv_name : :obj:`str` or :obj:`None`
-            The name of the wvarxiv file if saved, else None
-        """
-        # For return
-        wvarxiv_name = None
-
-        # Line IDs
-        ans = ''
-        if not force_save:
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store the line IDs? (y/n): ")
-        else:
-            ans = 'y'
-        if ans == 'y':
-            self.save_IDs()
-        # Solution
-        if 'rms' not in final_fit.keys():
-            msgs.warn("No wavelength solution available")
-            return
-        elif final_fit['rms'] < rmstol:
-            ans = ''
-            if not force_save:
-                while ans != 'y' and ans != 'n':
-                    ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
-            else:
-                ans = 'y'
-            if ans == 'y':
-                # Arxiv solution
-                wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
-                                                            (self.specdata.size - 1))
-
-                # Instead of a generic name, save the wvarxiv with a unique identifier
-                date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
-
-                # Write the WVCalib file
-                outfname = "wvcalib.fits"
-                if wvcalib is not None:
-                    wvcalib.to_file(outfname, overwrite=True)
-                    msgs.info("A WaveCalib container was written to wvcalib.fits")
-
-                # Print some helpful information
-                print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
-                print("You will need the following information:")
-                print("  (1) spectral binning = {0:d}".format(binspec))
-                print("  (2) slit spat_id = {0:s}".format(self._spatid))
-                print("  (3) the {0:s} file".format(outfname))
-                print("\nPlease consider sending your solution to the PypeIt team!\n")
-        else:
-            print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
-            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
-            if ans != 'y':
-                # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
-                ans = ''
-                if not force_save:
-                    while ans != 'y' and ans != 'n':
-                        ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
-                else:
-                    ans = 'y'
-                if ans == 'y':
-                    self.save_IDs()
-
-        # For the cases that need the wvarxiv name, return it
-        return wvarxiv_name
-
-    def store_solution_multi(self, final_fit, binspec, rmstol=0.15,
-                       force_save=False, wvcalib=None, multi = False, 
-                       fits_dicts = None, specdata = None, slits = None, 
-                       lines_pix_arr = None, lines_wav_arr = None, lines_fit_ord = None, 
-                       custom_wav = None, custom_wav_ind = None):
+                       force_save=False, wvcalib=None, multi=False,
+                       fits_dicts=None, specdata=None, slits=None,
+                       lines_pix_arr=None, lines_wav_arr=None, lines_fit_ord=None,
+                       custom_wav=None, custom_wav_ind=None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
 
@@ -817,25 +729,21 @@ class Identify:
             Dict of wavelength calibration solutions (see self.get_results())
         binspec : int
             Spectral binning
-        rmstol : float
+        rmstol : float, optional
             RMS tolerance allowed for the wavelength solution to be stored in the archive
-
-        Optional Parameters
-        -------------------
-
-        force_save : bool
+        force_save : bool, optional
             Force save
-        multi : bool
-            Is the template multiple traces?
-        fits_dict : list
+        multi : bool, optional
+            Flag if the template has multiple slits/traces.
+        fits_dict : list, optional
             List of dictionaries containing the _fitdict of previous calls, if multi-trace data
-        specdata : array
+        specdata : array, optional
             Numpy array containing the flux information from all the traces
-        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
+        wvcalib : :class:`pypeit.wavecalib.WaveCalib`, optional
             Wavelength solution
-        lines_pix_arr : array
+        lines_pix_arr : array, optional
             Numpy array containing the pixel locations of all ID'd lines
-        lines_wav_arr : array
+        lines_wav_arr : array, optional
             Numpy array containing wavelengths of all the ID'd lines
 
         Returns
@@ -861,39 +769,42 @@ class Identify:
                 ans = 'y'
             if ans == 'y':
                 # Arxiv solution
-                if multi:
-                    # prompt the user to give the orders that were used here
-                    if '"echelle": true' in wvcalib.strpar:
-                        while True:
-                            try:
-                                print('    ')
-                                order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
-                                order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
-                                if len(order_vec) != len(wvcalib.wv_fits):
-                                    print(f'The number of orders in this list, {order_vec} ')
-                                    print(f'does not match the number of traces: {len(wvcalib.wv_fits)}')
-                                    print('Please try again...')
-                                    continue
-                            except ValueError:
-                                print("Sorry, syntax may be invalid...")
-                                #better try again... Return to the start of the loop
+                # prompt the user to give the orders that were used here
+                if '"echelle": true' in wvcalib.strpar:
+                    while True:
+                        try:
+                            print('')
+                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                            if len(order_vec) != len(wvcalib.wv_fits):
+                                msgs.warn(f'The number of orders in this list, {order_vec} '+msgs.newline()+
+                                f'does not match the number of traces: {len(wvcalib.wv_fits)}' + msgs.newline() +
+                                'Please try again...')
                                 continue
-                            else:
-                                #orders were successfully parsed!
-                                #we're ready to exit the loop.
-                                break
-                    else: 
-                        order_vec = None
-                    make_arxiv = ''
-                    if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
-                        make_arxiv = 'n'
-                        msgs.warn('Skipping arxiv save because there are not enough orders for full template')
-                        msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
-#                        msgs.info(f'There are ')
-                    while make_arxiv != 'y' and make_arxiv != 'n': 
-                        print('          ')
-                        make_arxiv = input("Save this as a multi-trace arxiv? ([y]/n): ")
-                    if make_arxiv != 'n':
+                        except ValueError:
+                            msgs.warn("Sorry, syntax may be invalid...")
+                            #better try again... Return to the start of the loop
+                            continue
+                        else:
+                            #orders were successfully parsed!
+                            #we're ready to exit the loop.
+                            break
+                else: 
+                    order_vec = None
+                make_arxiv = ''
+                if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
+                    make_arxiv = 'n'
+                    msgs.warn('Skipping arxiv save because there are not enough orders for full template')
+                    msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
+
+                while make_arxiv != 'y' and make_arxiv != 'n': 
+                    print('          ')
+                    if multi: 
+                        make_arxiv = input("Save the wavelength solution as a multi-trace arxiv? (y/n): ")
+                    else:
+                        make_arxiv = input("Save the wavelength solution as an arxiv? (y/n): ")
+                if make_arxiv != 'n':
+                    if multi:
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
                         for iord in range(norder):
@@ -903,36 +814,42 @@ class Identify:
                                                                         (specdata[iord,:].size - 1))
                             elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
                                 wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
-
-                        # Instead of a generic name, save the wvarxiv with a unique identifier
-                        date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                        wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                        
-                        name_check = input(f'Do you want to use the default arxiv name? ({wvarxiv_name}) [y]/n: ')
-                        if name_check == 'n':
-                            wvarxiv_name_new = ''
-                            while len(wvarxiv_name_new) < 2:
-                                wvarxiv_name_new = input('Please enter the desired filename: ')
-                            if '.fits' not in wvarxiv_name_new:
-                                wvarxiv_name_new += '.fits'
-                            wvarxiv_name = wvarxiv_name_new
-                        order_vec = np.flip(order_vec, axis = 0)
-                        wvutils.write_template(wavelengths, specdata, binspec, './', 
-                                            wvarxiv_name, cache=True, order = order_vec, 
-                                            lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr, 
-                                            lines_fit_ord = lines_fit_ord)
+                    else:
+                        wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
+                                                                    (self.specdata.size - 1))
+                        order_vec = None; lines_fit_ord = None; lines_pix_arr = None; lines_wav_arr = None
+                    # Instead of a generic name, save the wvarxiv with a unique identifier
+                    date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                    wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
                     
-                    # Allow user to overwrite the existing WVCalib file
-                    print('          ')
-                    print('Overwrite existing Calibrations/WaveCalib*.fits file? ')
-                    print('NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ ')
-                    print(' and re-run run_pypeit. ')
-                    print('        ')
-                    ow_wvcalib = ''
-                    while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
-                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
-                    if ow_wvcalib == 'y':
-                        wvcalib.to_file()
+                    name_check = input(f'Do you want to use the default arxiv name? ({wvarxiv_name}) [y]/n: ')
+                    if name_check == 'n':
+                        wvarxiv_name_new = ''
+                        while len(wvarxiv_name_new) < 2:
+                            wvarxiv_name_new = input('Please enter the desired filename: ')
+                        if '.fits' not in wvarxiv_name_new:
+                            wvarxiv_name_new += '.fits'
+                        wvarxiv_name = wvarxiv_name_new
+                    order_vec = np.flip(order_vec, axis = 0)
+                    wvutils.write_template(wavelengths, specdata, binspec, './', 
+                                        wvarxiv_name, cache=True, order = order_vec, 
+                                        lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr, 
+                                        lines_fit_ord = lines_fit_ord)
+                    
+                
+                # Allow user to overwrite the existing WVCalib file
+                print('')
+                msgs.warn('Overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
+                'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ '+msgs.newline()+
+                ' and re-run run_pypeit. ')
+                print('')
+                
+                ow_wvcalib = ''
+                while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
+                    ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
+                if ow_wvcalib == 'y':
+                    wvcalib.to_file()
+                    if multi:
                         slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
                         for islit in slit_list: 
                             if islit < len(slit_list) - 1:
@@ -946,62 +863,29 @@ class Identify:
                             slits.ech_order = order_vec
                             slits.to_file()
                             print('               ')
-                        print('         ')
-                        clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
-                                            ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
-                        if clean_calib == 'y':
-                            cal_root = Path('Calibrations').resolve()  
-                            for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
-                                for f in cal_root.glob(f'{cal}*'):  
-                                    f.unlink() 
-                            #os.system('rm -rf Calibrations/Tilt* Calibrations/Flat* Calibrations/Edge*')
-                    # Write the WVCalib file
-                    outfname = "wvcalib.fits"
-                    if wvcalib is not None:
-                        wvcalib.to_file(outfname, overwrite=True)
-                        msgs.info("A WaveCalib container was written to wvcalib.fits")
+                    print('         ')
+                    clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
+                                        ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
+                    if clean_calib == 'y':
+                        cal_root = Path('Calibrations').resolve()  
+                        for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
+                            for f in cal_root.glob(f'{cal}*'):  
+                                f.unlink() 
+                # Write the WVCalib file
+                outfname = "wvcalib.fits"
+                if wvcalib is not None:
+                    wvcalib.to_file(outfname, overwrite=True)
+                    msgs.info("A WaveCalib container was written to wvcalib.fits")
 
-                    # Print some helpful information
-                    print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                    print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
-                    print("You will need the following information:")
-                    print("  (1) spectral binning = {0:d}".format(binspec))
-                    print("  (2) slit spat_id = {0:s}".format(self._spatid))
-                    print("  (3) the {0:s} file".format(outfname))
-                    print("\nPlease consider sending your solution to the PypeIt team!\n")
+                # Print some helpful information
+                print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
+                print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
+                print("You will need the following information:")
+                print("  (1) spectral binning = {0:d}".format(binspec))
+                print("  (2) slit spat_id = {0:s}".format(self._spatid))
+                print("  (3) the {0:s} file".format(outfname))
+                print("\nPlease consider sending your solution to the PypeIt team!\n")
 
-                else:
-                    wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
-                                                                (self.specdata.size - 1))
-
-                    # Instead of a generic name, save the wvarxiv with a unique identifier
-                    date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                    wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                    wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
-
-                    # Write the WVCalib file
-                    outfname = f"wvcalib_{self.specname}_{date_str}.fits"
-                    if wvcalib is not None:
-                        name_check = input(f'Do you want to use the default wvcalib file name? ({outfname}) [y]/n: ')
-                        if name_check == 'n':
-                            outfname_new = ''
-                            while len(outfname_new) < 2:
-                                outfname_new = input('Please enter the desired filename: ')
-                            if '.fits' not in outfname_new:
-                                outfname_new += '.fits'
-                            wvarxiv_name = outfname_new
-                        
-                        wvcalib.to_file(outfname, overwrite=True)
-                        msgs.info("A WaveCalib container was written to wvcalib.fits")
-
-                    # Print some helpful information
-                    print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
-                    print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
-                    print("You will need the following information:")
-                    print("  (1) spectral binning = {0:d}".format(binspec))
-                    print("  (2) slit spat_id = {0:s}".format(self._spatid))
-                    print("  (3) the {0:s} file".format(outfname))
-                    print("\nPlease consider sending your solution to the PypeIt team!\n")
         else:
             print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
@@ -1380,7 +1264,9 @@ class Identify:
             self._lineids = np.append(self._lineids, 0)[arsrt]
             self._lineflg = np.append(self._lineflg, 0)[arsrt]  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         else:
-            self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            # self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            print("New detection is <{0:d} pixels of a detection - replacing closest detection".format(mindist))
+            self._detns[np.argmin(np.abs(self._detns - new_detn))] = new_detn
         # Reset the fit regions
         self._fitregions = np.zeros_like(self._fitregions)
         return

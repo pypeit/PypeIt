@@ -22,7 +22,7 @@ def test_flex_shift():
     arx_file = data.Paths.sky_spec / 'sky_LRISb_600.fits'
 
     # Call
-    flex_dict = flexure.spec_flex_shift(obj_spec, arx_file, mxshft=60)
+    flex_dict = flexure.spec_flex_shift(obj_spec, sky_file=arx_file, mxshft=60)
 
     assert np.abs(flex_dict['shift'] - 43.5) < 0.1
 
