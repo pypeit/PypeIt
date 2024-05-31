@@ -102,11 +102,14 @@ class Identify(scriptbase.ScriptBase):
         wv_calib = WaveCalib.from_file(solnname, chk_version=chk_version) \
                         if os.path.exists(solnname) and args.solution else None
         
+        # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
+        # set to any flagged pixel in Arc.
+        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
+                                msbpm=msarc.select_flag())
+
         # If we are dealing with a multi-trace solution
         if args.multi:
 
-            wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
-                                    msbpm=msarc.select_flag())
             # Obtain a list of good slits
             ok_mask_idx = np.where(np.logical_not(wavecal.wvc_bpm))[0]
 
@@ -263,31 +266,9 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
 
-            # TODO: Make the following more elegant:
-            # fill lines with dummy values to make this work
-            # Ask the user if they wish to store the result in PypeIt calibrations
-            arcfitter.store_solution(final_fit, slits.binspec,
-                                    wvcalib=wv_calib,
-                                    rmstol=args.rmstol,
-                                    force_save=args.force_save, 
-                                    multi = True, fits_dicts = fits_dicts,
-                                    specdata = np.array(specdata),
-                                    slits = slits, 
-                                    lines_pix_arr = lines_pix_arr,
-                                    lines_wav_arr = lines_wav_arr,
-                                    lines_fit_ord = np.array(lines_fit_ord), 
-                                    custom_wav = np.array(custom_wav), 
-                                    custom_wav_ind = np.array(custom_wav_ind) )
-            
-
         # If we just want the normal one-trace output
         else:
-            # Load the calibration frame (if it exists and is desired).  Bad-pixel mask
-            # set to any flagged pixel in Arc.
-            wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, det=args.det,
-                                    msbpm=msarc.select_flag())
             arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
-
             # Launch the identify window
             # TODO -- REMOVE THIS HACK
             try:
@@ -321,8 +302,29 @@ class Identify(scriptbase.ScriptBase):
             else:
                 waveCalib = None
 
-            # Ask the user if they wish to store the result in PypeIt calibrations
-            arcfitter.store_solution(final_fit, slits.binspec,
-                                    wvcalib=waveCalib,
-                                    rmstol=args.rmstol,
-                                    force_save=args.force_save)
+            fits_dicts = None
+            specdata = None
+            slits = None 
+            lines_pix_arr = None
+            lines_wav_arr = None
+            lines_fit_ord = None 
+            custom_wav = None 
+            custom_wav_ind = None 
+        # TODO: Make the following more elegant:
+        # fill lines with dummy values to make this work
+        # Ask the user if they wish to store the result in PypeIt calibrations
+        arcfitter.store_solution(final_fit, slits.binspec,
+                                wvcalib=wv_calib,
+                                rmstol=args.rmstol,
+                                force_save=args.force_save, 
+                                multi = args.multi, fits_dicts = fits_dicts,
+                                specdata = np.array(specdata),
+                                slits = slits, 
+                                lines_pix_arr = lines_pix_arr,
+                                lines_wav_arr = lines_wav_arr,
+                                lines_fit_ord = np.array(lines_fit_ord), 
+                                custom_wav = np.array(custom_wav), 
+                                custom_wav_ind = np.array(custom_wav_ind) )
+            
+
+
