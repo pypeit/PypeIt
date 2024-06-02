@@ -268,8 +268,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
                                    sigrej=frame_par['process']['comb_sigrej'],
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
                                    combine_method=frame_par['process']['combine'])
-    combineImage.files = file_list
-
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \
             if frame_par['frametype'] in frame_image_classes.keys() else None

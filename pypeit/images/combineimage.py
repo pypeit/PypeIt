@@ -165,11 +165,12 @@ class CombineImage:
         if self.nimgs > 1 and combine_method not in ['mean', 'median']:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"mean" or "median".')
-
+        file_list = []
         # Loop on the files
         for kk, rawImage in enumerate(self.rawImages):
             if self.nimgs == 1:
                 # Only 1 file, so we're done
+                rawImage.files = [rawImage.filename]
                 return rawImage
             elif kk == 0:
                 # Allocate arrays to collect data for each frame
@@ -207,6 +208,7 @@ class CombineImage:
                 rawImage.update_mask('SATURATION', action='turn_off')
             # Get a simple boolean good-pixel mask for all the unmasked pixels
             gpm_stack[kk] = rawImage.select_flag(invert=True)
+            file_list.append(rawImage.filename)
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -293,7 +295,7 @@ class CombineImage:
 
         # Internals
         # TODO: Do we need these?
-        #comb.files = self.files
+        comb.files = file_list
         comb.rawheadlist = rawImage.rawheadlist
         comb.process_steps = rawImage.process_steps
 

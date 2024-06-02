@@ -127,7 +127,8 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace')}
+                                            'and SlitTrace'), 
+                 'filename': dict(otype=str, descr='Filename for the image'),}
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -162,8 +163,8 @@ class PypeItImage(datamodel.DataContainer):
 
     def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None, units=None, exptime=None, noise_floor=None, shot_noise=None,
-                 bpm=None, crmask=None, usermask=None, clean_mask=False):
+                 filename=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None, 
+                 shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
             msgs.error('Must provide an image when instantiating PypeItImage.')
