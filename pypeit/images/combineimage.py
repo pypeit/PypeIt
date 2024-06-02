@@ -27,6 +27,8 @@ class CombineImage:
         rawImages (:obj:`list`):
             Either a single :class:`~pypeit.images.rawimage.RawImage` object or a list of one or more 
             of these objects to be combined into a an image.
+       spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph used to take the data.            
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
 
@@ -42,11 +44,13 @@ class CombineImage:
             to be combined.             
 
     """
-    def __init__(self, rawImages, par):
+    def __init__(self, rawImages, spectrograph, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
-        self.par = par  # This musts be named this way as it is frequently a child
         self.rawImages = list(rawImages) if hasattr(rawImages, '__len__') else [rawImages]
+        self.spectrograph = spectrograph
+        self.par = par  # This musts be named this way as it is frequently a child
+
         # NOTE: nimgs is a property method.  Defining rawImages above must come
         # before this check!
         if self.nimgs == 0:
@@ -181,7 +185,7 @@ class CombineImage:
             # Save the lamp status
             # TODO: As far as I can tell, this is the *only* place rawheadlist
             # is used.  Is there a way we can get this from fitstbl instead?
-            lampstat[kk] = rawImage.spectrograph.get_lamps_status(rawImage.rawheadlist)
+            lampstat[kk] = self.spectrograph.get_lamps_status(rawImage.rawheadlist)
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
             # Processed image
@@ -282,14 +286,14 @@ class CombineImage:
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=rawImage.detector,
-                                       PYP_SPEC=rawImage.spectrograph.name,
+                                       PYP_SPEC=self.spectrograph.name,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],
                                        shot_noise=self.par['shot_noise'])
 
         # Internals
         # TODO: Do we need these?
-        comb.files = self.files
+        #comb.files = self.files
         comb.rawheadlist = rawImage.rawheadlist
         comb.process_steps = rawImage.process_steps
 
