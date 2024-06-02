@@ -196,6 +196,8 @@ class CombineImage:
             gpm_stack[kk] = rawImage.select_flag(invert=True)
             file_list.append(rawImage.filename)
 
+        # TODO JFH: This should not be here, but rather should be done in the Calibrations class. Putting in calibration specific
+        # lamp checking in an image combining class is not ideal. 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
             msgs.warn("The following files contain different lamp status")
@@ -286,7 +288,7 @@ class CombineImage:
         comb.process_steps = rawImage.process_steps
 
         # Build the base level mask
-        comb.build_mask(saturation='default', mincounts='default')
+        comb.build_mask(saturation='default' if not ignore_saturation else None, mincounts='default')
 
         # Flag all pixels with no contributions from any of the stacked images.
         comb.update_mask('STCKMASK', indx=np.logical_not(gpm))
