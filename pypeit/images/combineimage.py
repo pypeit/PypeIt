@@ -56,7 +56,8 @@ class CombineImage:
         if self.nimgs == 0:
             msgs.error('CombineImage requires a list of files to instantiate')
 
-    def run(self, ignore_saturation=False, sigma_clip=True, sigrej=None, maxiters=5, combine_method='mean'):
+
+    def run(self, ignore_saturation=False, maxiters=5):
         r"""
         Process and combine all images.
 
@@ -68,7 +69,7 @@ class CombineImage:
         file and returns the result.
         
         If there are multiple files, all the files are processed and the
-        processed images are combined based on the ``combine_method``, where the
+        processed images are combined based on the ``par['combine']``, where the
         options are:
 
             - 'mean': If ``sigma_clip`` is True, this is a sigma-clipped mean;
@@ -131,39 +132,24 @@ class CombineImage:
                 before stacking.  This avoids having such values set to 0, which
                 for certain images (e.g. flat calibrations) can have unintended
                 consequences.
-            sigma_clip (:obj:`bool`, optional):
-                When ``combine_method='mean'``, perform a sigma-clip the data;
-                see :func:`~pypeit.core.combine.weighted_combine`.
-            sigrej (:obj:`float`, optional):
-                When ``combine_method='mean'``, this sets the sigma-rejection
-                thresholds used when sigma-clipping the image combination.
-                Ignored if ``sigma_clip`` is False.  If None and ``sigma_clip``
-                is True, the thresholds are determined automatically based on
-                the number of images provided; see
-                :func:`~pypeit.core.combine.weighted_combine``.
             maxiters (:obj:`int`, optional):
-                When ``combine_method='mean'``) and sigma-clipping
+                When ``par['combine']='mean'``) and sigma-clipping
                 (``sigma_clip`` is True), this sets the maximum number of
                 rejection iterations.  If None, rejection iterations continue
                 until no more data are rejected; see
                 :func:`~pypeit.core.combine.weighted_combine``.
-            combine_method (:obj:`str`, optional):
-                Method used to combine images.  Must be ``'mean'`` or
-                ``'median'``; see above.
-            mosaic (:obj:`bool`, optional):
-                If multiple detectors are being processes, mosaic them into a
-                single image.  See
-                :func:`~pypeit.images.rawimage.RawImage.process`.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
             all the processed images.
         """
+        
+        
         # Check the input (i.e., bomb out *before* it does any processing)
         if self.nimgs == 0:
             msgs.error('Object contains no files to process!')
-        if self.nimgs > 1 and combine_method not in ['mean', 'median']:
-            msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
+        if self.nimgs > 1 and self.par['combine'] not in ['mean', 'median']:
+            msgs.error(f'Unknown image combination method, {self.par['combine']}.  Must be '
                        '"mean" or "median".')
         file_list = []
         # Loop on the files
@@ -236,21 +222,21 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # Coadd them
-        if combine_method == 'mean':
+        if self.par['combine'] == 'mean':
             weights = np.ones(self.nimgs, dtype=float)/self.nimgs
             img_list_out, var_list_out, gpm, nframes \
                     = combine.weighted_combine(weights,
                                                [img_stack, scl_stack],  # images to stack
                                                [rn2img_stack, basev_stack], # variances to stack
-                                               gpm_stack, sigma_clip=sigma_clip,
+                                               gpm_stack, sigma_clip=self.par['clip'],
                                                sigma_clip_stack=img_stack,  # clipping based on img
-                                               sigrej=sigrej, maxiters=maxiters)
+                                               sigrej=self.par['comb_sigrej'], maxiters=maxiters)
             comb_img, comb_scl = img_list_out
             comb_rn2, comb_basev = var_list_out
             # Divide by the number of images that contributed to each pixel
             comb_scl[gpm] /= nframes[gpm]
 
-        elif combine_method == 'median':
+        elif self.par['combine'] == 'median':
             bpm_stack = np.logical_not(gpm_stack)
             nframes = np.sum(gpm_stack, axis=0)
             gpm = nframes > 0

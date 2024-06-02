@@ -264,10 +264,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, spectrograph, frame_par['process'])
-    pypeitImage = combineImage.run(sigma_clip=frame_par['process']['clip'],
-                                   sigrej=frame_par['process']['comb_sigrej'],
-                                   maxiters=maxiters, ignore_saturation=ignore_saturation,
-                                   combine_method=frame_par['process']['combine'])
+    pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \
             if frame_par['frametype'] in frame_image_classes.keys() else None
