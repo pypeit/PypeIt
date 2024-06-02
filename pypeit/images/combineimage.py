@@ -16,28 +16,19 @@ from pypeit.core import procimg
 from pypeit.par import pypeitpar
 from pypeit import utils
 from pypeit.images import pypeitimage
-from pypeit.images import rawimage
 from pypeit.images import imagebitmask
 
 class CombineImage:
     """
-    Process and combine detector images.
-
-    All core processing steps for each image are handled by
-    :class:`~pypeit.images.rawimage.RawImage`.  This class can be used to
-    process both single images, lists of images, and detector mosaics.
+    Process and combine detector images. 
 
     Args:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
-        det (:obj:`int`, :obj:`tuple`):
-            The 1-indexed detector number(s) to process.  If a tuple, it must
-            include detectors viable as a mosaic for the provided spectrograph;
-            see :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+            Parameters that dictate the processing of the images.
+        rawImages (:obj:`list`):
+            Either a single :class:`~pypeit.images.rawimage.RawImage` object or a list of one or more 
+            of these objects to be combined into a an image.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
-        files (:obj:`str`, array-like):
-            A set of one or more images to process and combine.
 
     Attributes:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -46,24 +37,22 @@ class CombineImage:
             The 1-indexed detector number(s) to process.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
-        files (:obj:`list`):
-            A set of one or more images to process and combine.
+        rawImages (:obj:`list`):
+            A list of one or more :class:`~pypeit.images.rawimage.RawImage` objects 
+            to be combined.             
 
     """
-    def __init__(self, spectrograph, det, par, files):
-        self.spectrograph = spectrograph
-        self.det = det
+    def __init__(self, rawImages, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
-        self.files = list(files) if hasattr(files, '__len__') else [files]
-        # NOTE: nfiles is a property method.  Defining files above must come
+        self.rawImages = list(rawImages) if hasattr(rawImages, '__len__') else [rawImages]
+        # NOTE: nimgs is a property method.  Defining rawImages above must come
         # before this check!
-        if self.nfiles == 0:
+        if self.nimgs == 0:
             msgs.error('CombineImage requires a list of files to instantiate')
 
-    def run(self, bias=None, scattlight=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean', mosaic=False):
+    def run(self, ignore_saturation=False, sigma_clip=True, sigrej=None, maxiters=5, combine_method='mean'):
         r"""
         Process and combine all images.
 
@@ -133,14 +122,6 @@ class CombineImage:
             in images of the same shape.
 
         Args:
-            bias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
-                Bias image for bias subtraction; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
-            scattlight (:class:`~pypeit.scattlight.ScatteredLight`, optional):
-                Scattered light model to be used to determine scattered light.
-            flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
-                Flat-field images for flat fielding; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
             ignore_saturation (:obj:`bool`, optional):
                 If True, turn off the saturation flag in the individual images
                 before stacking.  This avoids having such values set to 0, which
@@ -149,9 +130,6 @@ class CombineImage:
             sigma_clip (:obj:`bool`, optional):
                 When ``combine_method='mean'``, perform a sigma-clip the data;
                 see :func:`~pypeit.core.combine.weighted_combine`.
-            bpm (`numpy.ndarray`_, optional):
-                Bad pixel mask; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
             sigrej (:obj:`float`, optional):
                 When ``combine_method='mean'``, this sets the sigma-rejection
                 thresholds used when sigma-clipping the image combination.
@@ -165,12 +143,6 @@ class CombineImage:
                 rejection iterations.  If None, rejection iterations continue
                 until no more data are rejected; see
                 :func:`~pypeit.core.combine.weighted_combine``.
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-                Slit edge trace locations; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
-            dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
-                Dark-current image; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
             combine_method (:obj:`str`, optional):
                 Method used to combine images.  Must be ``'mean'`` or
                 ``'median'``; see above.
@@ -184,60 +156,53 @@ class CombineImage:
             all the processed images.
         """
         # Check the input (i.e., bomb out *before* it does any processing)
-        if self.nfiles == 0:
+        if self.nimgs == 0:
             msgs.error('Object contains no files to process!')
-        if self.nfiles > 1 and combine_method not in ['mean', 'median']:
+        if self.nimgs > 1 and combine_method not in ['mean', 'median']:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"mean" or "median".')
 
         # Loop on the files
-        for kk, ifile in enumerate(self.files):
-            # Load raw image
-            rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
-            # Process
-            pypeitImage = rawImage.process(self.par, scattlight=scattlight, bias=bias, bpm=bpm, dark=dark,
-                                           flatimages=flatimages, slits=slits, mosaic=mosaic)
-
-            if self.nfiles == 1:
+        for kk, rawImage in enumerate(self.rawImages):
+            if self.nimgs == 1:
                 # Only 1 file, so we're done
-                pypeitImage.files = self.files
-                return pypeitImage
+                return rawImage
             elif kk == 0:
                 # Allocate arrays to collect data for each frame
-                shape = (self.nfiles,) + pypeitImage.shape
+                shape = (self.nimgs,) + rawImage.shape
                 img_stack = np.zeros(shape, dtype=float)
                 scl_stack = np.ones(shape, dtype=float)
                 rn2img_stack = np.zeros(shape, dtype=float)
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
-                lampstat = [None]*self.nfiles
-                exptime = np.zeros(self.nfiles, dtype=float)
+                lampstat = [None]*self.nimgs
+                exptime = np.zeros(self.nimgs, dtype=float)
 
             # Save the lamp status
             # TODO: As far as I can tell, this is the *only* place rawheadlist
             # is used.  Is there a way we can get this from fitstbl instead?
-            lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
+            lampstat[kk] = rawImage.spectrograph.get_lamps_status(rawImage.rawheadlist)
             # Save the exposure time to check if it's consistent for all images.
-            exptime[kk] = pypeitImage.exptime
+            exptime[kk] = rawImage.exptime
             # Processed image
-            img_stack[kk] = pypeitImage.image
+            img_stack[kk] = rawImage.image
             # Get the count scaling
-            if pypeitImage.img_scale is not None:
-                scl_stack[kk] = pypeitImage.img_scale
+            if rawImage.img_scale is not None:
+                scl_stack[kk] = rawImage.img_scale
             # Read noise squared image
-            if pypeitImage.rn2img is not None:
-                rn2img_stack[kk] = pypeitImage.rn2img * scl_stack[kk]**2
+            if rawImage.rn2img is not None:
+                rn2img_stack[kk] = rawImage.rn2img * scl_stack[kk]**2
             # Processing variance image
-            if pypeitImage.base_var is not None:
-                basev_stack[kk] = pypeitImage.base_var * scl_stack[kk]**2
+            if rawImage.base_var is not None:
+                basev_stack[kk] = rawImage.base_var * scl_stack[kk]**2
             # Final mask for this image
             # TODO: This seems kludgy to me. Why not just pass ignore_saturation
             # to process_one and ignore the saturation when the mask is actually
             # built, rather than untoggling the bit here?
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                pypeitImage.update_mask('SATURATION', action='turn_off')
+                rawImage.update_mask('SATURATION', action='turn_off')
             # Get a simple boolean good-pixel mask for all the unmasked pixels
-            gpm_stack[kk] = pypeitImage.select_flag(invert=True)
+            gpm_stack[kk] = rawImage.select_flag(invert=True)
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -266,7 +231,7 @@ class CombineImage:
 
         # Coadd them
         if combine_method == 'mean':
-            weights = np.ones(self.nfiles, dtype=float)/self.nfiles
+            weights = np.ones(self.nimgs, dtype=float)/self.nimgs
             img_list_out, var_list_out, gpm, nframes \
                     = combine.weighted_combine(weights,
                                                [img_stack, scl_stack],  # images to stack
@@ -310,14 +275,14 @@ class CombineImage:
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nframes,
-                                       amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
+                                       amp_img=rawImage.amp_img, det_img=rawImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
                                        # NOTE: This *must* be a boolean.
                                        bpm=np.logical_not(gpm), 
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
-                                       detector=pypeitImage.detector,
-                                       PYP_SPEC=self.spectrograph.name,
+                                       detector=rawImage.detector,
+                                       PYP_SPEC=rawImage.spectrograph.name,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],
                                        shot_noise=self.par['shot_noise'])
@@ -325,8 +290,8 @@ class CombineImage:
         # Internals
         # TODO: Do we need these?
         comb.files = self.files
-        comb.rawheadlist = pypeitImage.rawheadlist
-        comb.process_steps = pypeitImage.process_steps
+        comb.rawheadlist = rawImage.rawheadlist
+        comb.process_steps = rawImage.process_steps
 
         # Build the base level mask
         comb.build_mask(saturation='default', mincounts='default')
@@ -338,10 +303,10 @@ class CombineImage:
         return comb
 
     @property
-    def nfiles(self):
+    def nimgs(self):
         """
         The number of files in :attr:`files`.
         """
-        return len(self.files) if isinstance(self.files, (np.ndarray, list)) else 0
+        return len(self.rawImages) if isinstance(self.rawImages, (np.ndarray, list)) else 0
 
 
