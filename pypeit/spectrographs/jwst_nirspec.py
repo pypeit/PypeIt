@@ -255,6 +255,22 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2)]
 
+
+
+    def get_lamps_status(self, headarr):
+        """
+        Return a string containing the information on the lamp status.
+
+        Args:
+            headarr (:obj:`list`):
+                A list of 1 or more `astropy.io.fits.Header`_ objects.
+
+        Returns:
+            :obj:`str`: A string that uniquely represents the lamp status.
+        """
+        # TODO: JFH This is a hack to deal with the usage of this method in combineimage, which is not where it should be. 
+        return None
+    
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces

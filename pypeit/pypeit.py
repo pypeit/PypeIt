@@ -789,6 +789,9 @@ class PypeIt:
             bkg_redux_sciimg = sciImg
             # Build the background image
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
+            # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
+            # processing parameters for the background frames.  This would allow the user to specify different
+            # parameters for the background frames than for the science frames.  
             bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
                                                    bpm=self.caliBrate.msbpm,
                                                    bias=self.caliBrate.msbias,
