@@ -378,7 +378,7 @@ Once the .coadd1d file is ready, run the :ref:`pypeit_coadd_1dspec` script with:
 
 .. code-block:: bash
 
-    pypeit_coadd_1dspec keck_nirspec_high.coadd1d -m
+    pypeit_coadd_1dspec keck_nirspec_high.coadd1d 
 
 The script will scale all of the exposures to the same median, and apply a
 polynomial scaling to account for any small differences between their continuum
@@ -386,10 +386,9 @@ shapes, then will coadd all of the exposures. The default output is a FITS file
 wherein the orders are all stitched together and the flux and wavelength arrays
 are flattened into just 1d vectors. This may not be desirable due to the
 difficulty in properly handling the very low SNR overlap regions of certain
-bands, particularly J band. The ``-m`` flag should be used to save the flux
-scaled and coadded order arrays in addition to the flattened 1d vectors. This
-way, the user can determine how they might want to handle any overlapping
-regions. 
+bands, particularly J band. The flux scaled and coadded order arrays are saved by 
+default, in addition to the flattened 1d vectors. This way, the user can determine 
+how they might want to handle any overlapping regions of the spectrum.  
 
 .. note::
 

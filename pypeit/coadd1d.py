@@ -16,6 +16,7 @@ from astropy import stats
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
+from pypeit.orderstack import OrderStack
 from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
@@ -29,7 +30,7 @@ class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                     setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
+                     setup_id=None, debug=False, show=False, chk_version=True):
         """
         Superclass factory method which generates the subclass instance. See
         :class:`CoAdd1D` instantiation for argument descriptions.
@@ -37,10 +38,10 @@ class CoAdd1D:
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
-            setup_id=setup_id, debug=debug, show=show, save_multi=save_multi, chk_version=chk_version)
+            setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                 setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
 
         Args:
@@ -62,9 +63,6 @@ class CoAdd1D:
                 different echelle setups is performed.  If None, it will be
                 assumed that all the input files, objids, and sensfuncfiles
                 correspond to the same setup.
-            save_multi (bool, optional)
-                Toggle saving order stacks from coadds, in addition to 1d coadded spectra. This
-                 is only for Echelle reductions. Default = False
             debug (bool, optional)
                 Debug. Default = False
             show (bool, optional):
@@ -92,7 +90,6 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
-        self.save_multi = save_multi
         self.chk_version = chk_version
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
@@ -156,11 +153,32 @@ class CoAdd1D:
             onespec.telluric = telluric
         if obj_model is not None:
             onespec.obj_model = obj_model
-        if self.order_stacks is not None:
-            onespec.wave_stack = self.order_stacks[0,:,:]
-            onespec.flux_stack = self.order_stacks[1,:,:]
-            onespec.ivar_stack = self.order_stacks[2,:,:]
-            onespec.mask_stack = self.order_stacks[3,:,:].astype(int)
+
+        #save the order stacks from the echelle reduction
+        if self.order_stacks is not None and (fits.getheader(self.spec1dfiles[0])['PYPELINE'] == 'Echelle'):
+            for setup_num, setup_val in enumerate(self.unique_setups):
+                if len(self.unique_setups) > 1:
+                    wave_stack = np.array(self.order_stacks[0][setup_num])
+                    flux_stack = np.array(self.order_stacks[1][setup_num])
+                    ivar_stack = np.array(self.order_stacks[2][setup_num])
+                    mask_stack = np.array(self.order_stacks[3][setup_num]).astype(int)
+                    sigma_stack = np.sqrt(utils.inverse(ivar_stack))
+                else:
+                    wave_stack = np.array(self.order_stacks[0])
+                    flux_stack = np.array(self.order_stacks[1])
+                    ivar_stack = np.array(self.order_stacks[2])
+                    mask_stack = np.array(self.order_stacks[3]).astype(int)
+                    sigma_stack = np.sqrt(utils.inverse(ivar_stack))
+                orderstack = OrderStack(wave_stack, 
+                                        flux_stack, 
+                                        ivar_stack=ivar_stack, 
+                                        mask_stack=mask_stack, 
+                                        sigma_stack=sigma_stack,
+                                        PYP_SPEC=self.spectrograph.name, 
+                                        ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
+                                        setup_name = setup_val)
+                orderstack.head0 = self.headers[setup_num]
+                orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -177,7 +195,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
-                 debug=False, show=False, save_multi=False, chk_version=False):
+                 debug=False, show=False, chk_version=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
@@ -357,12 +375,12 @@ class EchelleCoAdd1D(CoAdd1D):
     """
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
-                 setup_id=None, debug=False, show=False, save_multi=False, chk_version=True):
+                 setup_id=None, debug=False, show=False, chk_version=True):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
-                         setup_id=setup_id, debug=debug, show=show, save_multi=save_multi,
+                         setup_id=setup_id, debug=debug, show=show,
                          chk_version=chk_version)
 
         if sensfuncfile is None:
@@ -443,12 +461,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-        if self.save_multi:
-            order_stacks_output = np.array(order_stacks)[:,0,:,:]
-        else:
-            order_stacks_output = None
-
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks_output
+        
+        
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
         """
