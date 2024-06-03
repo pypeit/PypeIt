@@ -69,7 +69,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
         utils.pyplot_rcparams()
         plt.figure(figsize=(7,5))
         msgs.info("Plot identified lines")
-        cm = plt.cm.get_cmap('RdYlBu_r')
+        cm = plt.get_cmap('RdYlBu_r')
         sc = plt.scatter(all_orders, all_pix,c=all_wv/10000., cmap=cm)
         cbar = plt.colorbar(sc)
         cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,

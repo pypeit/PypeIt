@@ -1,3 +1,9 @@
+"""Classes for displaying text content to a Qt window.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+
 from pathlib import Path
 import io
 from typing import Optional,Union
