@@ -1,5 +1,6 @@
 """
-The controller portion of the PypeIt Setup GUI.
+The model portion of the PypeIt Setup GUI.  Responsible for holding the data of the Setup GUI, notifying the view of any changes
+to that data, and translating PypeIt datastructures to a form usable by Qt.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -7,7 +8,7 @@ The controller portion of the PypeIt Setup GUI.
 
 import os
 from collections import deque
-import re
+import copy
 import traceback
 import enum
 import glob
@@ -16,13 +17,12 @@ import astropy.table
 import io
 import typing
 from pathlib import Path
-from functools import partial
-from qtpy.QtCore import QAbstractTableModel, QAbstractProxyModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
-from qtpy.QtGui import QTextDocument, QTextCursor
+from qtpy.QtCore import QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QModelIndex, Qt, Signal, QObject, QThread, QStringListModel
 import qtpy
 from configobj import ConfigObj
 
 from pypeit import msgs, spectrographs
+from pypeit.spectrographs import available_spectrographs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.metadata import PypeItMetaData
 from pypeit.inputfiles import PypeItFile
@@ -149,10 +149,6 @@ class LogBuffer(io.TextIOBase):
         """Return a true status indicating we're ready to receive data"""
         return True
 
-def available_spectrographs():
-    """Return a list of the supported spectrographs"""
-    return spectrographs.available_spectrographs
-
 class PypeItMetadataUniquePathsProxy(QAbstractListModel):
     """A Proxy model filtering the content of a PypeItMetadataModel object to only show the
     unique paths within it to Qt views.
@@ -203,10 +199,7 @@ class PypeItMetadataUniquePathsProxy(QAbstractListModel):
         Return: 
             list of str: The list of paths, or an empty list of the model is empty.
         """
-        if self.metadata is not None:
-            return list(self.metadata['directory'][self._unique_index])
-        else:
-            return []
+        return [] if self.metadata is None else list(self.metadata['directory'][self._unique_index])
 
 class PypeItMetadataModel(QAbstractTableModel):
     """
@@ -245,8 +238,9 @@ class PypeItMetadataModel(QAbstractTableModel):
             colname (str): The name of the column.
 
         Return:
-            int: The column number (0 based) of the named column. -1 if the column
-                 name is not in this model.
+            int: 
+                The column number (0 based) of the named column. -1 if the column
+                name is not in this model.
         """
         if colname in self.colnames:
             return self.colnames.index(colname)
@@ -260,8 +254,9 @@ class PypeItMetadataModel(QAbstractTableModel):
             index (str): The 0 based column number.
 
         Return:
-            str: The name of the column. If the passed in index is out of bounds,
-                 an IndexError value is raised.
+            str: 
+                The name of the column. If the passed in index is out of bounds,
+                an IndexError value is raised.
         """
 
         return self.colnames[index.column()]
@@ -359,23 +354,21 @@ class PypeItMetadataModel(QAbstractTableModel):
         if role==Qt.EditRole and self.metadata is not None:
             colname = self.colnames[index.column()]
             if colname in self.editable_columns:
+                max_length = self.getStringColumnSize(colname)
+                if max_length is not None:
+                    # This is a string type, does the new data fit
+                    value = str(value)
+                    if len(value) > max_length:
+                        # We need to increase the string size to make the new value fit
+                        self.resizeStringColumn(colname, len(value))
+                
                 try:
-                    max_length = self.getStringColumnSize(colname)
-                    if max_length is not None:
-                        # This is a string type, does the new data fit
-                        new_value = str(value)
-                        if len(new_value) > max_length:
-                            # We need to increase the string size to make the new value fit
-                            self.resizeStringColumn(colname, len(new_value))
-                        self.metadata[colname][index.row()] = new_value
-                    else:
-                        # Not a string data type
-                        self.metadata[colname][index.row()] = value
-
-                    self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
-                    return True
+                    self.metadata[colname][index.row()] = value
                 except ValueError as e:
                     msgs.warn(f"Failed to set {colname} row {index.row()} to '{value}'. ValueError: {e}")
+
+                self.dataChanged.emit(index,index,[Qt.DisplayRole, Qt.EditRole])
+                return True
 
         return False
 
@@ -387,8 +380,9 @@ class PypeItMetadataModel(QAbstractTableModel):
 
 
         Return:
-            flags (Qt.ItemFlag): The bitmask flags for the index. Currently only Qt.ItemFlag.ItemIsEditable
-                                 is supported.
+            flags (Qt.ItemFlag): 
+                The bitmask flags for the index. Currently only Qt.ItemFlag.ItemIsEditable
+                is supported.
         """
         base_flags = super().flags(index)
         if self.colnames[index.column()] in self.editable_columns:
@@ -443,11 +437,9 @@ class PypeItMetadataModel(QAbstractTableModel):
         Return:
         A list of column names, in order to display.
         """
-        if self.metadata is not None:
-            default_columns = self.metadata.set_pypeit_cols(write_bkg_pairs=True)
-            return default_columns
-        else:
+        if self.metadata is None:
             return ['filename', 'frametype', 'ra', 'dec', 'target', 'dispname', 'decker', 'binning', 'mjd', 'airmass', 'exptime']
+        return self.metadata.set_pypeit_cols(write_bkg_pairs=True)
 
     def getStringColumnSize(self, colname: str) -> typing.Union[int,None]:
         """
@@ -484,12 +476,12 @@ class PypeItMetadataModel(QAbstractTableModel):
         Reset the proxy assuming the metadata object has completely changed
         """
         # Tell views a model reset is happening
-        super().beginResetModel()
+        self.beginResetModel()
 
         # Reset column names
         self.colnames = self.getDefaultColumns()
 
-        super().endResetModel()
+        self.endResetModel()
 
     def setMetadata(self, metadata):
         """Sets the PypeItMetaData object being wrapped.
@@ -509,30 +501,17 @@ class PypeItMetadataModel(QAbstractTableModel):
         """
         if self.metadata is None:
             return None
-        else:
-            # Remove the row, making sure views are notified
-            # We do this in reverse sorted order so that indices don't change before deletes
-            for row in sorted(rows,reverse=True):
-                # We could try to group these rows into ranges, but
-                # it doesn't seem worth it
-                self.beginRemoveRows(QModelIndex(), row, row)
-                msgs.info(f"Removing metadata row {row}")
-                self.metadata.remove_rows([row])
-                self.endRemoveRows()
 
-        
-    def addMetadataRow(self, metadata_row):
-        """Add a new row to the metadata.
-        
-        Args:
-            metadata_row (array-like): A row of data to add.
-        """
-        new_index = len(self.metadata)
+        # Remove the row, making sure views are notified
+        # We do this in reverse sorted order so that indices don't change before deletes
+        for row in sorted(rows,reverse=True):
+            # We could try to group these rows into ranges, but
+            # it doesn't seem worth it
+            self.beginRemoveRows(QModelIndex(), row, row)
+            msgs.info(f"Removing metadata row {row}")
+            self.metadata.remove_rows([row])
+            self.endRemoveRows()
 
-        # Add the row
-        self.beginInsertRows(QModelIndex(), new_index, new_index)
-        self.metadata.add_row(metadata_row)
-        self.endInsertRows()
 
     def pasteFrom(self, other_metadata_model):
         if self.metadata is None:
@@ -638,8 +617,9 @@ class PypeItMetadataModel(QAbstractTableModel):
         """Returns a model for displaying the paths in this metadata.
         
         Return:
-            PypeItMetadataUniquePathsProxy: A proxy model that only contains the unique 'directory' 
-                                            entries of this metadata.
+            PypeItMetadataUniquePathsProxy: 
+                A proxy model that only contains the unique 'directory' 
+                entries of this metadata.
         """
         return PypeItMetadataUniquePathsProxy(self)
 
@@ -694,12 +674,11 @@ class PypeItMetadataModel(QAbstractTableModel):
         Args:
             index: The index of the row to check.
         
-        Return: True if the row is commented out, False otherwise.
+        Return:
+            bool:
+                True if the row is commented out, False otherwise.
         """
-        if self.metadata is not None:
-            if self.metadata[index.row()]['filename'].lstrip().startswith("#"):
-                return True
-        return False
+        return self.metadata is not None and self.metadata[index.row()]['filename'].lstrip().startswith("#")
 
 class _UserConfigTreeNode:
     """
@@ -782,6 +761,16 @@ class _UserConfigTreeNode:
             self.children = []
 
     def getConfigLines(self, level=0):
+        """Return the user's configuration lines starting at a given level.
+        
+        Args:
+            level (int,optional): The level to provide configuration lines for, with level 0 being the top level.
+            
+        Return: 
+            list[str]: 
+                The configuration lines, starting at the given level and descending down 
+                into all of the lower levels in the tree.
+        """
         indent = " " * (level-1)
         if len(self.children) == 0:
             return [f"{indent}{self.key} = {self.value}"]
@@ -820,7 +809,7 @@ class PypeItParamsProxy(QAbstractItemModel):
         self._userConfigTree = _UserConfigTreeNode(ConfigObj(cfg_lines))
 
     def getConfigLines(self):
-        return self._userConfigTree.getConfigLines()
+        return self.cfg_lines
 
     def rowCount(self, parent=QModelIndex()):
         """
@@ -891,8 +880,9 @@ class PypeItParamsProxy(QAbstractItemModel):
         
         
         Returns: 
-            str: A string if there's something to display at the given index and role, or
-                 None if there's nothing to display.
+            str: 
+                A string if there's something to display at the given index and role, or
+                None if there's nothing to display.
         """
         if role == Qt.DisplayRole:
             if index.column() == 0:
@@ -980,13 +970,13 @@ class PypeItFileModel(QObject):
     Args: 
         pypeit_setup (PypeItSetup): The PypeItSetup object this configuration is a part of.
         config_name (str):  The name of this configuration.
-        config_dict (dict): The metadata for this configurations, as returned by PypeItMetadata.unique_configurations.
+        config_dict (dict): The metadata for this configuration, as returned by PypeItMetadata.unique_configurations.
         state (ModelState): The state of the model.  "CHANGED" if it was built by running setup or "UNCHANGED" if it came from loading
                             an existing .pypeit file.
     """
 
     stateChanged = Signal(str, ModelState)
-    """Signal(str): Signal sent when the state of the file model changes. The config nasme of the file is sent as the signal parameter."""
+    """Signal(str): Signal sent when the state of the file model changes. The config name of the file is sent as the signal parameter."""
 
     def __init__(self, metadata_model, state, name_stem, config_dict=None, params_model=None):
         super().__init__()
@@ -997,7 +987,14 @@ class PypeItFileModel(QObject):
         self.save_location = None
 
     def setMetadataModel(self, name_stem, config_dict, metadata_model):
-
+        """Sets the metadata model containing the list of raw data files and associated metadata.
+        
+        Args:
+            name_stem (str):      The name_stem of the metadata which will be used in the name of the pypeit file. This is typially the
+                                  setup name (e.g. "A").
+            config_dict (dict):   The metadata for this configuration, as returned by PypeItMetadata.unique_configurations.
+            metadata_model (PypeItMetadataModel): The model object to set.            
+        """
         if self.metadata_model is not None:
             self.metadata_model.dataChanged.disconnect(self._update_state)
             self.metadata_model.modelReset.disconnect(self._update_state)
@@ -1041,7 +1038,7 @@ class PypeItFileModel(QObject):
 
     @property
     def filename(self):
-        """Return the name of the pypeit file.
+        """str: The full path name of the pypeit file.
         """
         # TODO figure out when to use default name, vs a set name, vs "New Name.pypeit" or whatever.        
         # If name is key in parent model, how do we change it???
@@ -1049,6 +1046,7 @@ class PypeItFileModel(QObject):
 
     @property
     def spec_name(self):
+        """str: The name of the spectrograph for this pypeit file."""
         return self._spectrograph.name
 
     def save(self):
@@ -1069,7 +1067,7 @@ class PypeItFileModel(QObject):
                 config_to_save = list(configs.keys())[0]
                 setup_dict = {f'Setup {self.name_stem}':configs[config_to_save]}
     
-            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False)    
+            pf = PypeItFile(self.params_model.getConfigLines(),self.metadata_model.getPathsModel().getPaths(), metadata_table, setup_dict,vet=False,preserve_comments=True)    
 
             msgs.info(f"Saving filename: {self.filename}")
             if self.save_location is not None:
@@ -1102,6 +1100,7 @@ class PypeItObsLogModel(QObject):
 
     @property
     def state(self):
+        """ModelState: The state of the obslog model. Either NEW or UNCHANGED."""
         if self.metadata_model.metadata is None:
             msgs.info("Obslog state is NEW")
             return ModelState.NEW
@@ -1161,7 +1160,7 @@ class PypeItObsLogModel(QObject):
         Scans all of the raw data directories for raw data files.
 
         Returns:
-            int: The number of raw data files found.
+            list[str]: The raw data files found.
         """
         allowed_extensions = self._spectrograph.allowed_extensions
         if allowed_extensions is None or len(allowed_extensions) == 0:
@@ -1262,6 +1261,7 @@ class PypeItSetupGUIModel(QObject):
 
     @property
     def clipboard(self):
+        """PypeItMetadataModel: The current metadata that has been copied or pasted within the Setup GUI."""
         return self._clipboard
     
     @clipboard.setter
@@ -1307,28 +1307,14 @@ class PypeItSetupGUIModel(QObject):
         else:
             raise ValueError(f"PypeIt input file {pypeit_file} is missing a configuration section with a spectrograph specified.")
 
-        if spec_name not in available_spectrographs():
+        if spec_name not in available_spectrographs:
             raise ValueError(f"PypeIt input file {pypeit_file} contains an unknown spectrograph name: '{spec_name}'")
 
 
         if pf.data is not None:
-            """
             # If the data block is fully setup, it won't have all of the metadata fields originally created by
             # PypeItSetup, so re-create it
 
-            # We have to include commented out files in the filename list
-            filenames = pf.path_and_files('filename', exclude_commented_out=False)
-            self._pypeit_setup = PypeItSetup(filenames,
-                                             usrdata=pf.data,
-                                             setups=[pf.setup_name],
-                                             cfg_lines=pf.cfg_lines,
-                                             pypeit_file=pypeit_file)
-
-            # Setup our proxy models and notify the view widgets
-            self._pypeit_setup.build_fitstbl()        
-            self._pypeit_setup.fitstbl.set_configurations(fill=pf.setup_name)
-            self._pypeit_setup.fitstbl.get_frame_types(user=dict(zip(pf.data['filename'], pf.data['frametype'])))
-            """
             filenames = pf.filenames
             directories = [str(Path(f).parent) for f in filenames ]
 
