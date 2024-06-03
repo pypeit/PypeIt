@@ -169,23 +169,27 @@ class SensFunc(scriptbase.ScriptBase):
         # TODO Add parsing of detectors here. If detectors passed from the
         # command line, overwrite the parset values read in from the .sens file
 
-        # Instantiate the relevant class for the requested algorithm
-        sensobj = sensfunc.SensFunc.get_instance(file, ofile, par['sensfunc'],
-                                                    par_fluxcalib=par['fluxcalib'],
-                                                    debug=args.debug,
-                                                    chk_version=par['rdx']['chk_version'])
-        # Generate the sensfunc
-        sensobj.run()
-        # Write it out to a file, including the new primary FITS header
-        sensobj.to_file(ofile, primary_hdr=primary_hdr, overwrite=True)
-        msgs.info('-'*50)
-        msgs.info('-'*50)
-
         # Write the par to disk
         msgs.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
-        #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
+        # TODO JFH I would like to be able to run only
+        # par['sensfunc'].to_config('sensfunc.par') but this crashes.
+        # TODO: KBW - You can do that if you override the
+        # pypeit.par.parset.ParSet.to_config method in the
+        # pypeit.par.pypeitpar.SensFuncPar class.
 
+        # Parse the output filename
+        outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
+                        if args.outfile is None else args.outfile
+        # Instantiate the relevant class for the requested algorithm
+        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
+                                                 par_fluxcalib=par['fluxcalib'], debug=args.debug,
+                                                 chk_version=par['rdx']['chk_version'])
+        # Generate the sensfunc
+        sensobj.run()
+        # Write it out to a file, including the new primary FITS header
+        sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 
+        #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.      
 
