@@ -41,7 +41,7 @@ def print_slits(slits):
         this_flags = []
         if slits.mask[slit_idx] != 0:
             for key in bitmask.keys():
-                if bitmask.flagged(slits.mask[slit_idx], key):
+                if bitmask.flagged(slits.mask[slit_idx], flag=key):
                     this_flags += [key]
             allflags[slit_idx] = ', '.join(this_flags)
 

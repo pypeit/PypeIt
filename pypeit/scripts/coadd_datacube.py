@@ -13,7 +13,7 @@ from pypeit import utils
 from pypeit.coadd3d import CoAdd3D
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
-
+from IPython import embed
 
 class CoAddDataCube(scriptbase.ScriptBase):
 

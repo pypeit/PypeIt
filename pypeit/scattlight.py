@@ -105,7 +105,7 @@ class ScatteredLight(calibframe.CalibFrame):
             msgs.warn("No scattered light parameters are available")
             return np.zeros_like(image)
         # Return the model of the scattered light
-        return scattlight.scattered_light_model(self.scattlight_param, image)
+        return scattlight.scattered_light_model_pad(self.scattlight_param, image)
 
     def show(self, image=None, slits=None, mask=False, wcs_match=True):
         """ Display the master scattered light frame, the model, and data-model.

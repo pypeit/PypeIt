@@ -104,7 +104,7 @@ class DetectorContainer(datamodel.DataContainer):
                                         'where the valid data sections can be obtained, one '
                                         'per amplifier. If defined explicitly should be in '
                                         'FITS format (e.g., [1:2048,10:4096]).'),
-                 'det': dict(otype=int,
+                 'det': dict(otype=(int, np.integer),
                              descr='PypeIt designation for detector number (1-based).'),
                  'binning': dict(otype=str,
                                  descr='Binning in PypeIt orientation (not the original)')}
@@ -227,6 +227,15 @@ class DetectorContainer(datamodel.DataContainer):
         else:
             gain = 1.
         return self.saturation * self.nonlinear * gain
-
-
-
+    
+    def copy(self):
+        """
+        Return a (deep) copy of the object.
+        """
+        return DetectorContainer(self.dataext, self.specaxis, self.specflip, self.spatflip, self.platescale,
+                                 self.saturation, self.mincounts, self.nonlinear,
+                                 self.numamplifiers, self.gain.copy(), self.ronoise.copy(),
+                                 self.det, self.binning, xgap=self.xgap, ygap=self.ygap,
+                                 ysize=self.ysize, darkcurr=self.darkcurr,
+                                 datasec=None if self.datasec is None else self.datasec.copy(),
+                                 oscansec=None if self.oscansec is None else self.oscansec.copy())
