@@ -121,9 +121,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            try:
+            if 'DECKER' in headarr[0]:
                 return headarr[0]['DECKER']
-            except KeyError:
+            else:
                 mode = headarr[0]['HIERARCH ESO INS MODE']
                 if mode in ['LSS', 'MOS']:
                     try:  # Science
@@ -339,8 +339,9 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             par['flexure']['spec_method'] = 'skip'
             #par['reduce']['skysub']['bspline_spacing'] = 0.6
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
-                par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        decker = self.get_meta_value(scifile, 'decker')
+        if 'lSlit' in decker or 'LSS' in decker:
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         return par
 
