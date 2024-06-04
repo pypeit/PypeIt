@@ -121,20 +121,23 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            mode = headarr[0]['HIERARCH ESO INS MODE']
-            if mode in ['LSS', 'MOS']:
-                try:  # Science
-                    return headarr[0]['HIERARCH ESO INS SLIT NAME']
-                except KeyError:  # Standard!
-                    try:
-                        return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                    except KeyError:
-                        return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
-            elif mode == 'IMG':
-                # This is for the bias frames
-                return None
-            else:
-                msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
+            try:
+                return headarr[0]['DECKER']
+            except KeyError:
+                mode = headarr[0]['HIERARCH ESO INS MODE']
+                if mode in ['LSS', 'MOS']:
+                    try:  # Science
+                        return headarr[0]['HIERARCH ESO INS SLIT NAME']
+                    except KeyError:  # Standard!
+                        try:
+                            return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                        except KeyError:
+                            return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+                elif mode == 'IMG':
+                    # This is for the bias frames
+                    return None
+                else:
+                    msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -336,12 +339,8 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             par['flexure']['spec_method'] = 'skip'
             #par['reduce']['skysub']['bspline_spacing'] = 0.6
 
-        try:
-            if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
+        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
                 par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        except:
-            # if the above fails, we are probably in pypeit_sensfunc
-            msgs.info('Decker not detected; if you are running pypeit_sensfunc, do not panic!')
 
         return par
 
