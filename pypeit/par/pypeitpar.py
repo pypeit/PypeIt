@@ -3227,7 +3227,8 @@ class EdgeTracePar(ParSet):
         dtypes['trim_spec'] = list
         descr['trim_spec'] = 'User-defined truncation of all slits in the spectral direction.' \
                              'Should be two integers, e.g. 100,150 trims 100 pixels from the ' \
-                             'short and long wavelength ends of the spectral axis of the detector. '
+                             'short wavelength end and 150 pixels from the long wavelength '
+                             'end of the spectral axis of the detector.'
         
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
