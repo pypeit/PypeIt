@@ -2687,6 +2687,12 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # For the first iteration use the scale_method input as an argument (default=None, which will allow
     # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
     # we are then applying tiny corrections and median scaling is much faster
+    # ASC: This has been updated from:
+    # scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
+    # to implement 2 median scaling prior to attempting other methods (particularly solve poly ratio). 
+    # This may be helpful to correcting offsets between adjacent orders in multi-setup echelle observations. 
+    # It was initially implemented with NIRSPEC in mind, but was not very effective in that case. We have tested
+    # it against the X-Shooter dev suite example and found it does not harm the reduction, and may prove helpful in future. 
     scale_method_iter = ['median']*(2) + [scale_method]  + ['median']*(niter_order_scale - 3)
     # Iteratively scale and stack the entire set of spectra arcoss all setups, orders, and exposures
     for iteration in range(niter_order_scale):
