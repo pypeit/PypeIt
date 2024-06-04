@@ -149,7 +149,7 @@ class CombineImage:
         if self.nimgs == 0:
             msgs.error('Object contains no files to process!')
         if self.nimgs > 1 and self.par['combine'] not in ['mean', 'median']:
-            msgs.error(f'Unknown image combination method, {self.par['combine']}.  Must be '
+            msgs.error(f'Unknown image combination method, {self.par["combine"]}.  Must be '
                        '"mean" or "median".')
         file_list = []
         # Loop on the files
