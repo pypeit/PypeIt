@@ -352,8 +352,39 @@ basics
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 You might find it helpful to specify the wavelength range of the
-linelist and the lamps to use using the ``pypeit_identify``
-command-line options.
+linelist and the lamps to use the ``pypeit_identify``
+command-line options.  The full list of identify operations is
+copied below:
+
+   .. code-block:: console
+
+      cursor : Select lines (LMB click)
+               Select regions (LMB drag = add, RMB drag = remove)
+               Navigate (LMB drag = pan, RMB drag = zoom)
+      left   : Advance the line list slider to the left by one
+      right  : Advance the line list slider to the right by one
+      p      : Toggle pan/zoom with the cursor
+      q      : Close Identify window and continue PypeIt reduction
+      a      : Automatically identify lines using current solution
+      c      : Clear automatically identified lines
+      d      : Delete all line identifications (start from scratch)
+      f      : Fit the wavelength solution
+      g      : Toggle ghost solution (show predicted line positions when wavele
+ngth is on the x-axis)
+      h      : Reset ghost parameters
+      i      : Include an undetected line to the detected line list
+               First select fitting pixels (LMB drag = add, RMB drag = remove)
+               Then press 'i' to perform a fit.         NOTE: ghost solution mu
+st be turned off to select fit regions.
+      l      : Load saved line IDs from file (waveids.ascii in local directory)
+      m      : Select a line
+      r      : Refit a line
+      s      : Save current line IDs to a file
+      w      : Toggle wavelength/pixels on the x-axis of the main panel
+      y      : Toggle the y-axis scale between logarithmic and linear
+      z      : Delete a single line identification
+      +/-    : Raise/Lower the order of the fitting polynomial
+
 
 Here is a standard sequence of moves once the GUI pops up:
 
