@@ -761,11 +761,6 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=False, ret_order_s
         counts_gpm = spec.mask.astype(bool)
         spect_dict = spec.spect_meta
         head = spec.head0
-        #order_stacks = spec.order_stacks
-        wave_stack = spec.wave_stack
-        counts_stack = spec.flux_stack
-        counts_ivar_stack = spec.ivar_stack
-        counts_gpm_stack = spec.mask_stack
     else:
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=chk_version)
         # TODO: What bug?  Is it fixed now?  How can we test if it's fixed?
@@ -795,10 +790,11 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=False, ret_order_s
     # Build this
     meta_spec = dict(bonus=bonus)
     meta_spec['core'] = spect_dict
-
-    if ret_order_stacks:
-        msgs.info('Returning order stacks')
-        return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
+    # ASC: Reimplement the ability to return the OrderStack components at some point. 
+    #if ret_order_stacks:
+    #    msgs.info('Returning order stacks')
+    #    return wave_stack, None, counts_stack, counts_ivar_stack, counts_gpm_stack, meta_spec, head
+    
     return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 
 def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spectrograph=None, telluric=None,
