@@ -108,7 +108,7 @@ class Identify:
         # Initialise the spectrum properties
         self.spec = spec
         self.specres = specres   # Residual information
-        self.specdata = spec.get_ydata()
+        self.specdata = spec.get_ydata()  # This only saves the specdata as a vector for a single slit wavelength solution
         self.specx = np.arange(self.specdata.size)
         self.plotx = self.specx.copy()
         self.specname = specname
