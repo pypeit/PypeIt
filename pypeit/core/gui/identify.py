@@ -792,11 +792,14 @@ class Identify:
                 else: 
                     order_vec = None
                 make_arxiv = ''
-                if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
+                if specdata is not None:
+                    if np.shape(specdata)[0] != len(wvcalib.wv_fits): 
+                        make_arxiv = 'n'
+                        msgs.warn('Skipping arxiv save because there are not enough orders for full template')
+                        msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
+                else:
+                    msgs.warn('Skipping arxiv save because arc line spectra are not defined by pypeit/scripts/identify.py')
                     make_arxiv = 'n'
-                    msgs.warn('Skipping arxiv save because there are not enough orders for full template')
-                    msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
-
                 while make_arxiv != 'y' and make_arxiv != 'n': 
                     print('          ')
                     if multi: 
@@ -808,7 +811,11 @@ class Identify:
                         norder = np.shape(specdata)[0]
                         wavelengths = np.copy(specdata)
                         for iord in range(norder):
-                            fitdict = fits_dicts[iord]
+                            if fits_dicts is not None: 
+                                fitdict = fits_dicts[iord]
+                            else: 
+                                msgs.warn('skipping saving fits because fits_dicts is not defined by pypeit/scripts/identify.py')
+                                fitdict = None
                             if fitdict is not None and fitdict['full_fit'] is not None:
                                 wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
                                                                         (specdata[iord,:].size - 1))
