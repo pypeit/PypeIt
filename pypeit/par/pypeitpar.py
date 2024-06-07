@@ -3195,7 +3195,7 @@ class EdgeTracePar(ParSet):
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, sobel_enhance=None,
-                 exclude_regions=None, follow_span=None, det_min_spec_length=None,
+                 exclude_regions=None, follow_span=None, det_min_spec_length=None, trim_spec=None,
                  max_shift_abs=None, max_shift_adj=None, max_spat_error=None, match_tol=None,
                  fit_function=None, fit_order=None, fit_maxdev=None, fit_maxiter=None,
                  fit_niter=None, fit_min_spec_length=None, auto_pca=None, left_right_pca=None,
@@ -3270,7 +3270,14 @@ class EdgeTracePar(ParSet):
                                        'measurements of the detector data (as opposed to what ' \
                                        'should be included in any modeling approach; see ' \
                                        'fit_min_spec_length).'
-
+                                       
+        defaults['trim_spec'] = None
+        dtypes['trim_spec'] = list
+        descr['trim_spec'] = 'User-defined truncation of all slits in the spectral direction.' \
+                             'Should be two integers, e.g. 100,150 trims 100 pixels from the ' \
+                             'short wavelength end and 150 pixels from the long wavelength ' \
+                             'end of the spectral axis of the detector.'
+        
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
         descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
@@ -3716,13 +3723,13 @@ class EdgeTracePar(ParSet):
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'sobel_enhance', 'exclude_regions',
                    'follow_span', 'det_min_spec_length', 'max_shift_abs', 'max_shift_adj',
                    'max_spat_error', 'match_tol', 'fit_function', 'fit_order', 'fit_maxdev',
-                   'fit_maxiter', 'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
-                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
-                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
-                   'trace_median_frac', 'trace_thresh', 'trace_rms_tol', 'fwhm_uniform',
-                   'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge',
-                   'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge', 'bound_detector',
-                   'minimum_slit_dlength', 'dlength_range', 'minimum_slit_length',
+                   'fit_maxiter', 'fit_niter', 'fit_min_spec_length', 'trim_spec', 'auto_pca',
+                   'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function',
+                   'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range',
+                   'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'trace_rms_tol',
+                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer',
+                   'max_nudge', 'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge',
+                   'bound_detector', 'minimum_slit_dlength', 'dlength_range', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
                    'order_match', 'order_offset',  'add_missed_orders', 'order_width_poly',
                    'order_gap_poly', 'order_spat_range', 'overlap', 'use_maskdesign',
@@ -5275,8 +5282,8 @@ class Collate1DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Threshold for grouping by object
-        defaults['tolerance'] = '1.0'
-        dtypes['tolerance'] = [str, float]
+        defaults['tolerance'] = 1.0
+        dtypes['tolerance'] = [str, float, int]
         descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
                              "objects are within this distance from each other, they " \
                              "are considered the same object. If match_using is 'ra/dec' (the default) " \
@@ -5314,7 +5321,7 @@ class Collate1DPar(ParSet):
 
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
-        dtypes['exclude_slit_trace_bm'] = [list, str]
+        dtypes['exclude_slit_trace_bm'] = [list,str]
         descr['exclude_slit_trace_bm'] = "A list of slit trace bitmask bits that should be excluded."
 
         # What slit flags to exclude
@@ -5356,7 +5363,7 @@ class Collate1DPar(ParSet):
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(np.array(k)[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
