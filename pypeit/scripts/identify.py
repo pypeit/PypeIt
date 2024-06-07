@@ -198,7 +198,7 @@ class Identify(scriptbase.ScriptBase):
 
                 # If testing, return now
                 if args.test:
-                    return arcfitter
+                    return arcfitter, msarc
                 final_fit = arcfitter.get_results()
                 fits_dicts.append(arcfitter._fitdict)
                 specdata.append(arccen[:,slit_val])
@@ -287,7 +287,7 @@ class Identify(scriptbase.ScriptBase):
 
             # If testing, return now
             if args.test:
-                return arcfitter
+                return arcfitter, msarc
             final_fit = arcfitter.get_results()
 
             # Build here to avoid circular import
@@ -319,11 +319,11 @@ class Identify(scriptbase.ScriptBase):
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
                                 specdata = np.array(specdata),
-                                slits = slits, 
+                                slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,
-                                lines_fit_ord = np.array(lines_fit_ord), 
-                                custom_wav = np.array(custom_wav), 
+                                lines_fit_ord = np.array(lines_fit_ord),
+                                custom_wav = np.array(custom_wav),
                                 custom_wav_ind = np.array(custom_wav_ind) )
             
 
