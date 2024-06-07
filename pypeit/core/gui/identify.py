@@ -844,17 +844,7 @@ class Identify:
                                         lines_fit_ord = lines_fit_ord)
                     
                 
-                # Allow user to overwrite the existing WVCalib file
-                print('')
-                msgs.warn('Overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
-                'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ '+msgs.newline()+
-                ' and re-run run_pypeit. ')
-                print('')
-                
-                ow_wvcalib = ''
-                while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
-                    ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
-                if ow_wvcalib == 'y':
+                if force_save:
                     wvcalib.to_file()
                     if multi:
                         slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
@@ -871,18 +861,52 @@ class Identify:
                             slits.to_file()
                             print('               ')
                     print('         ')
-                    clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
-                                        ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
-                    if clean_calib == 'y':
-                        cal_root = Path('Calibrations').resolve()  
-                        for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
-                            for f in cal_root.glob(f'{cal}*'):  
-                                f.unlink() 
-                # Write the WVCalib file
-                outfname = "wvcalib.fits"
-                if wvcalib is not None:
-                    wvcalib.to_file(outfname, overwrite=True)
-                    msgs.info("A WaveCalib container was written to wvcalib.fits")
+                    # Write the WVCalib file
+                    outfname = "wvcalib.fits"
+                    if wvcalib is not None:
+                        wvcalib.to_file(outfname, overwrite=True)
+                        msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                else:
+                    # Allow user to overwrite the existing WVCalib file
+                    print('')
+                    msgs.warn('Overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
+                    'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibration/ '+msgs.newline()+
+                    ' and re-run run_pypeit. ')
+                    print('')
+                    
+                    ow_wvcalib = ''
+                    while ow_wvcalib != 'y' and ow_wvcalib != 'n': 
+                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
+                    if ow_wvcalib == 'y':
+                        wvcalib.to_file()
+                        if multi:
+                            slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
+                            for islit in slit_list: 
+                                if islit < len(slit_list) - 1:
+                                    slit_list_str += str(islit) + ','
+                                else: slit_list_str += str(islit)
+                            
+                            if slits:
+                                print('               ')
+                                msgs.info('Unflagging Slits from WaveCalib: ')
+                                slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                                slits.ech_order = order_vec
+                                slits.to_file()
+                                print('               ')
+                        print('         ')
+                        clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
+                                            ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
+                        if clean_calib == 'y':
+                            cal_root = Path('Calibrations').resolve()  
+                            for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:  
+                                for f in cal_root.glob(f'{cal}*'):  
+                                    f.unlink() 
+                    # Write the WVCalib file
+                    outfname = "wvcalib.fits"
+                    if wvcalib is not None:
+                        wvcalib.to_file(outfname, overwrite=True)
+                        msgs.info("A WaveCalib container was written to wvcalib.fits")
 
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
