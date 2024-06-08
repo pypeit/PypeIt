@@ -3098,7 +3098,7 @@ class WavelengthSolutionPar(ParSet):
                                      'reference lines and the cross correlation can get confused. '  \
                                      'This parameter is only used if ``cc_shift_range`` is None.'
         
-        defaults['stretch_func'] = 'linear'
+        defaults['stretch_func'] = 'quadratic'
         dtypes['stretch_func'] = str
         options['stretch_func'] = WavelengthSolutionPar.valid_stretch_func_methods()
         descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch '  \
