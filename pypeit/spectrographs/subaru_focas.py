@@ -35,7 +35,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of PypeIt methods.
@@ -62,7 +62,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 4
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']  
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         #par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
@@ -75,7 +75,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 5
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        #par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
 
         # Frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
@@ -288,8 +289,16 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(scifile, 'dispname') == 'SCFCGRMB01':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMB01.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-        else:
-            msgs.error(f'Not ready for this grism {self.get_meta_value(scifile, "dispname")}')
+        # ---- NOTE: from Debora ----
+        # The pypeit_sensfunc script uses the config_specific_par() method
+        # with a reduced spec1d file to pull out some info, although the method
+        # is meant for raw frames. In this case, the spec1d file does not have
+        # the dispname meta value in the header and PypeIt tries to run those
+        # 2 lines of code (just a message to the terminal) and crashes.
+        # So, removing them should fix the problem.
+        # ----------------------------
+        # else:
+        #     msgs.error(f'Not ready for this grism {self.get_meta_value(scifile, "dispname")}')
 
         return par
 
