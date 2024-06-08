@@ -1,5 +1,5 @@
 
-Version 1.0.1
+Version 1.0.2
 
 ==============  ==============================  =========  ========================================================================================================================================================================================================
 HDU Name        HDU Type                        Data Type  Description                                                                                                                                                                                             
@@ -41,23 +41,25 @@ Column             Data Type  Description
 
 SENS table
 
-=============================  =========  ======================================================================
-Column                         Data Type  Description                                                           
-=============================  =========  ======================================================================
-``SENS_WAVE``                  float64    Wavelength vector                                                     
-``SENS_COUNTS_PER_ANG``        float64    Flux in counts per angstrom                                           
-``SENS_LOG10_BLAZE_FUNCTION``  float64    Log10 of the blaze function for each slit/order                       
-``SENS_ZEROPOINT``             float64    Measured sensitivity zero-point data                                  
-``SENS_ZEROPOINT_GPM``         bool       Good-pixel mask for the measured zero points                          
-``SENS_ZEROPOINT_FIT``         float64    Best-fit smooth model to the zero points                              
-``SENS_ZEROPOINT_FIT_GPM``     bool       Good-pixel mask for the model zero points                             
-``SENS_COEFF``                 float64    Coefficients of smooth model fit to zero points                       
-``ECH_ORDERS``                 int64      Echelle order for this specrum (echelle data only)                    
-``POLYORDER_VEC``              int64      Polynomial order for each slit/echelle (if applicable)                
-``WAVE_MIN``                   float64    Minimum wavelength included in the fit                                
-``WAVE_MAX``                   float64    Maximum wavelength included in the fit                                
-``SENS_FLUXED_STD_WAVE``       float64    The wavelength array for the fluxed standard star spectrum            
-``SENS_FLUXED_STD_FLAM``       float64    The F_lambda for the fluxed standard star spectrum                    
-``SENS_FLUXED_STD_FLAM_IVAR``  float64    The inverse variance of F_lambda for the fluxed standard star spectrum
-``SENS_FLUXED_STD_MASK``       bool       The good pixel mask for the fluxed standard star spectrum             
-=============================  =========  ======================================================================
+=============================  =========  ============================================================================
+Column                         Data Type  Description                                                                 
+=============================  =========  ============================================================================
+``SENS_WAVE``                  float64    Wavelength vector                                                           
+``SENS_COUNTS_PER_ANG``        float64    Flux in counts per angstrom                                                 
+``SENS_LOG10_BLAZE_FUNCTION``  float64    Log10 of the blaze function for each slit/order                             
+``SENS_ZEROPOINT``             float64    Measured sensitivity zero-point data                                        
+``SENS_ZEROPOINT_GPM``         bool       Good-pixel mask for the measured zero points                                
+``SENS_ZEROPOINT_FIT``         float64    Best-fit smooth model to the zero points                                    
+``SENS_ZEROPOINT_FIT_GPM``     bool       Good-pixel mask for the model zero points                                   
+``SENS_COEFF``                 float64    Coefficients of smooth model fit to zero points                             
+``ECH_ORDERS``                 int64      Echelle order for this specrum (echelle data only)                          
+``POLYORDER_VEC``              int64      Polynomial order for each slit/echelle (if applicable)                      
+``WAVE_MIN``                   float64    Minimum wavelength included in the fit                                      
+``WAVE_MAX``                   float64    Maximum wavelength included in the fit                                      
+``SENS_FLUXED_STD_WAVE``       float64    The wavelength array for the fluxed standard star spectrum                  
+``SENS_FLUXED_STD_FLAM``       float64    The F_lambda for the fluxed standard star spectrum                          
+``SENS_FLUXED_STD_FLAM_IVAR``  float64    The inverse variance of F_lambda for the fluxed standard star spectrum      
+``SENS_FLUXED_STD_MASK``       bool       The good pixel mask for the fluxed standard star spectrum                   
+``SENS_STD_MODEL_FLAM``        float64    The F_lambda for the standard model spectrum                                
+``SENS_STD_SPAT_FWHM``         float64    The spatial fwhm for the standard model spectrum, to account for slit losses
+=============================  =========  ============================================================================
