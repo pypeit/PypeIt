@@ -201,7 +201,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['polyorder'] = 5
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         # Coadding. I'm not sure what this should be for PRISM mode?
         par['coadd1d']['wave_method'] = 'log10'
@@ -394,9 +394,10 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
         par['calibrations']['wavelengths']['sigdetect']=3
         par['calibrations']['wavelengths']['fwhm'] = 10
-        par['calibrations']['wavelengths']['n_first']=2
-        par['calibrations']['wavelengths']['n_final']=4
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
+        par['calibrations']['wavelengths']['n_first']=3
+        par['calibrations']['wavelengths']['n_final']=6
+        par['calibrations']['wavelengths']['nsnippet'] = 4
+        par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
@@ -418,7 +419,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

@@ -420,13 +420,14 @@ class CoAdd2D:
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
         # bpm for the first frame
-        reduce_bpm = (slits0.mask > 0) & (np.invert(slits0.bitmask.flagged(slits0.mask,
-                                                                           flag=slits0.bitmask.exclude_for_reducing)))
+
+        reduce_bpm = slits0.bitmask.flagged(slits0.mask,
+                                            and_not=slits0.bitmask.exclude_for_reducing)
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm |= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                              flag=slits.bitmask.exclude_for_reducing)))
+            reduce_bpm |= slits.bitmask.flagged(slits.mask,
+                                                and_not=slits.bitmask.exclude_for_reducing)
         # these are the good slit index according to the bpm mask
         good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
@@ -465,7 +466,7 @@ class CoAdd2D:
         # these are the good slit index excluding the slits that are selected by the user
         return np.delete(good_slitindx, exclude_slitindx)
 
-    def optimal_weights(self, slitorderid, objid, const_weights=False):
+    def optimal_weights(self, slitorderid, objid, weight_method='auto'):
         """
         Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
         object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
@@ -474,23 +475,54 @@ class CoAdd2D:
         Parameters
         ----------
         slitorderid : :obj:`int`
-           The slit or order id that has the brightest object whose
-           S/N will be used to determine the weight for each frame.
+            The slit or order id that has the brightest object whose
+            S/N will be used to determine the weight for each frame.
         objid : `numpy.ndarray`_
-           Array of object indices with shape = (nexp,) of the
-           brightest object whose S/N will be used to determine the
-           weight for each frame.
-        const_weights : :obj:`bool`
-           Use constant weights for coadding the exposures.
-           Default=False
+            Array of object indices with shape = (nexp,) of the
+            brightest object whose S/N will be used to determine the
+            weight for each frame.
+        weight_method : `str`, optional
+            Weight method to be used in :func:`~pypeit.coadd.sn_weights`.
+            Options are ``'auto'``, ``'constant'``, ``'relative'``, or
+            ``'ivar'``. The default is ``'auto'``.  Behavior is as follows:
+
+                - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise
+                  use wavelength dependent.
+
+                - ``'constant'``: Constant weights based on rms_sn**2
+
+                - ``'uniform'``: Uniform weighting.
+
+                - ``'wave_dependent'``: Wavelength dependent weights will be
+                  used irrespective of the rms_sn ratio. This option will not
+                  work well at low S/N ratio although it is useful for objects
+                  where only a small fraction of the spectral coverage has high
+                  S/N ratio (like high-z quasars).
+
+                - ``'relative'``: Calculate weights by fitting to the ratio of
+                  spectra? Note, relative weighting will only work well when
+                  there is at least one spectrum with a reasonable S/N, and a
+                  continuum.  RJC note - This argument may only be better when
+                  the object being used has a strong continuum + emission lines.
+                  The reference spectrum is assigned a value of 1 for all
+                  wavelengths, and the weights of all other spectra will be
+                  determined relative to the reference spectrum. This is
+                  particularly useful if you are dealing with highly variable
+                  spectra (e.g. emission lines) and require a precision better
+                  than ~1 per cent.
+
+                - ``'ivar'``: Use inverse variance weighting. This is not well
+                  tested and should probably be deprecated.
 
         Returns
         -------
-        rms_sn : ndarray, shape = (len(specobjs_list),)
-            Root mean square S/N value for each input spectra
-        weights : ndarray, shape (len(specobjs_list),)
-            Weights to be applied to the spectra. These are
-            signal-to-noise squared weights.
+        rms_sn : `numpy.ndarray`_
+            Array of root-mean-square S/N value for each input spectra. Shape = (nexp,)
+        weights : list
+            List of  len(nexp) containing the signal-to-noise squared weights to be
+            applied to the spectra. This output is aligned with the vector (or
+            vectors) provided in waves which is read in by this routine, i.e. it is a
+            list of arrays of type `numpy.ndarray`_  with the same shape as those in waves.
         """
 
         nexp = len(self.stack_dict['specobjs_list'])
@@ -523,7 +555,7 @@ class CoAdd2D:
                            f'flux not available in slit/order = {slitorderid}')
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, self.sn_smooth_npix, const_weights=const_weights)
+        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, sn_smooth_npix=self.sn_smooth_npix, weight_method=weight_method)
         return rms_sn, weights
 
     def coadd(self, interp_dspat=True):
@@ -778,8 +810,8 @@ class CoAdd2D:
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-
+        # Enforce low order traces since we are rectified
+        parcopy['reduce']['findobj']['trace_npoly'] = int(np.clip(parcopy['reduce']['findobj']['trace_npoly'],None,3))
         # Manual extraction.
         manual_obj = None
         if self.par['coadd2d']['manual'] is not None and len(self.par['coadd2d']['manual']) > 0:
@@ -787,8 +819,6 @@ class CoAdd2D:
         # Get bpm mask. There should not be any masked slits because we excluded those already
         # before the coadd, but we need to pass a bpm to FindObjects and Extract
         slits = pseudo_dict['slits']
-        #pseudo_reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-        #                                                                 flag=slits.bitmask.exclude_for_reducing)))
 
         # Initiate FindObjects object
         objFind = find_objects.FindObjects.get_instance(sciImage, pseudo_dict['slits'], self.spectrograph, parcopy,
@@ -825,9 +855,8 @@ class CoAdd2D:
                                                   waveimg=pseudo_dict['waveimg'], bkg_redux=self.bkg_redux,
                                                   basename=basename, show=show)
 
-        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
+        skymodel_pseudo, _, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, _, _, _ = exTract.run(
             model_noise=False, spat_pix=pseudo_dict['spat_img'])
-
 
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
@@ -840,8 +869,6 @@ class CoAdd2D:
         return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
-
-
 
     def snr_report(self, snr_bar, slitid=None):
         """
@@ -1397,7 +1424,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # adjustment for multislit to case 3) Bright object exists and parset `weights` is equal to 'auto'
         if (self.objid_bri is not None) and (weights == 'auto'):
             # compute weights using bright object
-            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
+            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, weight_method='constant')
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
             else:
@@ -1464,7 +1491,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                             #remove_indx.append(iobj)
                     # if there are objects on this slit left, we can proceed with computing rms_sn
                     if len(fluxes) > 0:
-                        rms_sn, weights = coadd.sn_weights(fluxes, ivars, gpms, const_weights=True)
+                        rms_sn, _ = coadd.calc_snr(fluxes, ivars, gpms)
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
@@ -1748,8 +1775,8 @@ class EchelleCoAdd2D(CoAdd2D):
                                   f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
                         continue
                     if flux is not None:
-                        rms_sn, weights = coadd.sn_weights([flux], [ivar], [mask], const_weights=True)
-                        order_snr[iord, iobj] = rms_sn
+                        rms_sn, _ = coadd.calc_snr([flux], [ivar], [mask])
+                        order_snr[iord, iobj] = rms_sn[0]
                         bpm[iord, iobj] = False
 
             # If there are orders that have bpm = True for some objs and not for others, set bpm = True for all objs

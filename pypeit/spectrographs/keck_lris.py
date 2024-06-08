@@ -101,7 +101,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -325,10 +325,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
         if ftype == 'science':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'standard':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
@@ -336,12 +337,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
-            return good_exp & (good_dome + good_internal)
+            return good_exp & (good_dome + good_internal) & no_img
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed') & no_img
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

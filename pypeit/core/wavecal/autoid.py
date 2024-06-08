@@ -52,7 +52,7 @@ def arc_fit_qa(waveFit,
         outfile (:obj:`str`, optional):
             Name of output file or 'show' to show on screen
         ids_only (bool, optional):
-            ??
+            Only show the main panel with the arc spectrum and the identified lines
         title (:obj:`str`, optional):
             Add a title to the spectrum plot
         log (:obj:`bool`, optional):
@@ -142,6 +142,8 @@ def arc_fit_qa(waveFit,
     # Title
     if title is not None:
         fig.suptitle(title, fontsize='x-large', va='top')
+
+    # If we're only plotting the ID panel, save the figure and return
     if ids_only:
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         if outfile is None:
@@ -580,6 +582,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
             wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect, lag_range=cc_shift_range,
                                         cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
+#                                        stretch_mnmx=(0.99,1.01),
                                         debug=debug_xcorr)
         msgs.info(f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, cc = {ccorr_vec[iarxiv]:5.3f}')
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
@@ -911,7 +914,7 @@ def map_fwhm(image, gpm, slits_left, slits_right, slitmask, npixel=None, nsample
         msgs.info(f"Calculating spectral resolution of slit {sl + 1}/{nslits}")
         # Fraction along the slit in the spatial direction to sample the arc line width
         nmeas = int(0.5+slit_lengths[sl]/_npixel) if nsample is None else nsample
-        slitsamp = np.linspace(0.01, 0.99, nmeas)
+        slitsamp = np.linspace(0.05, 0.95, nmeas)
         this_samp, this_cent, this_fwhm = np.array([]), np.array([]), np.array([])
         for ss in range(nmeas):
             spat_vec = np.atleast_2d((1-slitsamp[ss]) * slits_left[:, sl] + slitsamp[ss] * slits_right[:, sl]).T

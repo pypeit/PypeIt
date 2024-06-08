@@ -23,6 +23,7 @@ Submodules
    pypeit.scripts.coadd_datacube
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
+   pypeit.scripts.compile_wvarxiv
    pypeit.scripts.edge_inspector
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
@@ -35,6 +36,7 @@ Submodules
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
    pypeit.scripts.parse_slits
+   pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
    pypeit.scripts.run_pypeit

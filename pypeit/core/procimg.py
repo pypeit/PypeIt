@@ -695,17 +695,39 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
                 _var[data_slice] = osvar
             continue
         elif method.lower() == 'odd_even':
-            ossub = np.zeros_like(osfit)
             # Odd/even
-            if compress_axis == 1:
-                odd = np.median(overscan[:,1::2], axis=compress_axis)
-                even = np.median(overscan[:,0::2], axis=compress_axis)
-                # Do it
-                no_overscan[data_slice][:,1::2] -= odd[:,None]
-                no_overscan[data_slice][:,0::2] -= even[:,None]
-            else:
-                msgs.error('Not ready for this approach, please contact the Developers')
-            
+            # Different behavior depending on overscan geometry
+            _overscan = overscan if compress_axis == 1 else overscan.T
+            _no_overscan = no_overscan[data_slice] if compress_axis == 1 \
+                               else no_overscan[data_slice].T
+            # Compute median overscan of odd and even pixel stripes in overscan
+            odd = np.median(_overscan[:,1::2], axis=1)
+            even = np.median(_overscan[:,0::2], axis=1)
+            # Do the same for the data
+            odd_data = np.median(_no_overscan[:,1::2], axis=1)
+            even_data = np.median(_no_overscan[:,0::2], axis=1)
+            # Check for odd/even row alignment between overscan and data,
+            # which can be instrument/data reader-dependent when compress_axis is 0.
+            # Could be possibly be improved by removing average odd/even slopes in data
+            aligned = np.sign(np.median(odd-even)) == np.sign(np.median(odd_data-even_data))
+            if not aligned and compress_axis == 0:
+                odd, even = even, odd
+            # Now subtract
+            _no_overscan[:,1::2] -= odd[:,None]
+            _no_overscan[:,0::2] -= even[:,None]
+            no_overscan[data_slice] = _no_overscan if compress_axis == 1 else _no_overscan.T
+            if var is not None:
+                _osvar = var[os_slice] if compress_axis == 1 else var[os_slice].T
+                odd_var = np.sum(_osvar[:,1::2],axis=1)/_osvar[:,1::2].size**2
+                even_var = np.sum(_osvar[:,0::2],axis=1)/_osvar[:,0::2].size**2
+                if not aligned and compress_axis == 0:
+                    odd_var, even_var = even_var, odd_var
+                __var = _var[data_slice] if compress_axis == 1 else _var[data_slice].T
+                __var[:,1::2] = np.pi/2 * odd_var[:,None]
+                __var[:,0::2] = np.pi/2 * even_var[:,None]
+                _var[data_slice ] = __var if compress_axis == 1 else __var.T
+            continue
+
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
@@ -816,7 +838,9 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             sgnl = overscan[ii,:]
             LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=use_fr*(1-100/frame_orig.shape[1]), maximum_frequency=use_fr*(1+100/frame_orig.shape[1]), samples_per_peak=10)
             bst = np.argmax(power)
-            cc = np.polyfit(LSfreq[bst-2:bst+3],power[bst-2:bst+3],2)
+            imin = np.clip(bst-2,0,None)
+            imax = np.clip(bst+3,None,overscan.shape[1])
+            cc = np.polyfit(LSfreq[imin:imax],power[imin:imax],2)
             all_freq[ii] = -0.5*cc[1]/cc[0]
         cc = np.polyfit(all_rows, all_freq, 1)
         frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
@@ -832,7 +856,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Convert result to amplitude and phase
         amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
-        # STEP 2 - Using th emodel frequency, calculate how amplitude depends on pixel row (usually constant)
+        # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
         msgs.info("Measuring amplitude-pixel dependence of amplifier {0:d}".format(amp))
         nspec = overscan.shape[0]

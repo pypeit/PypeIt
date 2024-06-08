@@ -247,7 +247,6 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         #        sensfile = os.path.join(args.test_spec_path, sensfile)
         #    coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
-
         if coaddfile is None:
             coaddfile = build_coadd_file_name(coadd1dFile.filenames, spectrograph)
 
@@ -258,7 +257,8 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                par=par['coadd1d'],
                                                sensfuncfile=coadd1dFile.sensfiles,
                                                setup_id=coadd1dFile.setup_id,
-                                               debug=args.debug, show=args.show)
+                                               debug=args.debug, show=args.show,
+                                               chk_version=par['rdx']['chk_version'])
         # Run
         coAdd1d.run()
         # Save to file

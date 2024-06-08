@@ -180,7 +180,7 @@ def poly_ratio_fitfunc_chi2(theta, gpm, arg_dict):
     There are two non-standard things implemented here which increase ther robustness. The first is a non-standard error used for the
     chi, which adds robustness and increases the stability of the optimization. This was taken from the idlutils
     solve_poly_ratio code. The second thing is that the chi is remapped using the scipy huber loss function to
-    reduce sensitivity to outliers, ased on the scipy cookbook on robust optimization.
+    reduce sensitivity to outliers, based on the scipy cookbook on robust optimization.
 
     Args:
         theta (`numpy.ndarray`_): parameter vector for the polymomial fit
@@ -304,7 +304,7 @@ def poly_ratio_fitfunc(flux_ref, gpm, arg_dict, init_from_last=None, **kwargs_op
     except KeyError:
         debug = False
 
-    sigma_corr, maskchi = renormalize_errors(chi, mask=gpm, title = 'poly_ratio_fitfunc', debug=debug)
+    sigma_corr, maskchi = renormalize_errors(chi, mask=mask_both, title = 'poly_ratio_fitfunc', debug=debug)
     ivartot = ivartot1/sigma_corr**2
 
     return result, flux_scale, ivartot
@@ -747,10 +747,58 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sig_res = np.fmax(sn_smooth_npix / 10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
+    # TODO Should we be setting a floor on the weights to prevent tiny numbers?
     return sn_conv
 
-def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
-               ivar_weights=False, relative_weights=False, verbose=False):
+# TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
+def calc_snr(fluxes, ivars, gpms):
+
+    """
+    Calculate the rms S/N of each input spectrum.
+
+    Parameters
+    ----------
+    fluxes : list
+        List of length nexp containing the `numpy.ndarray`_ 1d float spectra. The
+        shapes in the list can be different. nexp = len(fluxes)
+    ivars : list
+        List of length nexp containing the `numpy.ndarray`_ 1d float inverse
+        variances of the spectra.
+    gpms : list
+        List of length nexp containing the `numpy.ndarray`_ 1d float boolean good
+        pixel masks of the spectra.
+    verbose : bool, optional
+        Verbosity of print out.
+
+    Returns
+    -------
+    rms_sn : `numpy.ndarray`_
+        Array of shape (nexp,) of root-mean-square S/N value for each input spectra where nexp=len(fluxes).
+    sn_val : list
+        List of length nexp containing the wavelength dependent S/N arrays for each input spectrum, i.e.
+        each element contains the array flux*sqrt(ivar)
+    """
+
+    nexp = len(fluxes)
+
+    # Calculate S/N
+    sn_val, rms_sn, sn2 = [], [], []
+    for iexp, (flux, ivar, gpm) in enumerate(zip(fluxes, ivars, gpms)):
+        sn_val_iexp = flux*np.sqrt(ivar)
+        sn_val.append(sn_val_iexp)
+        sn_val_ma = np.ma.array(sn_val_iexp, mask=np.logical_not(gpm))
+        sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
+        sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
+        if sn2_iexp is np.ma.masked:
+            msgs.error(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
+        else:
+            sn2.append(sn2_iexp)
+            rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
+
+    return np.array(rms_sn), sn_val
+
+# TODO add a wave_min, wave_max option here to deal with objects like high-z QSOs etc. which only have flux in a given wavelength range.
+def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', verbose=False):
 
     """
     Calculate the S/N of each input spectrum and create an array of
@@ -769,22 +817,41 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
         pixel masks of the spectra.
     sn_smooth_npix : float, optional
         Number of pixels used for determining smoothly varying S/N ratio
-        weights. This can be set to None if const_weights is True, since then
+        weights. This must be passed for all weight methods excpet for weight_method='constant' or 'uniform', since then
         wavelength dependent weights are not used.
-    const_weights : bool, optional
-        Use a constant weights for each spectrum?
-    ivar_weights : bool, optional
-        Use inverse variance weighted scheme?
-    relative_weights : bool, optional
-        Calculate weights by fitting to the ratio of spectra? Note, relative
-        weighting will only work well when there is at least one spectrum with a
-        reasonable S/N, and a continuum.  RJC note - This argument may only be
-        better when the object being used has a strong continuum + emission
-        lines. The reference spectrum is assigned a value of 1 for all
-        wavelengths, and the weights of all other spectra will be determined
-        relative to the reference spectrum. This is particularly useful if you
-        are dealing with highly variable spectra (e.g. emission lines) and
-        require a precision better than ~1 per cent.
+    weight_method : str, optional
+
+        The weighting method to be used. Options are ``'auto'``, ``'constant'``, ``'uniform'``, ``'wave_dependent'``,
+        ``'relative'``, or ``'ivar'``. The default is ``'auto'``.  Behavior is
+        as follows:
+
+            - ``'auto'``: Use constant weights if rms_sn < 3.0, otherwise use
+              wavelength dependent.
+
+            - ``'constant'``: Constant weights based on rms_sn**2
+
+            - ``'uniform'``: Uniform weighting.
+
+            - ``'wave_dependent'``: Wavelength dependent weights will be used
+              irrespective of the rms_sn ratio. This option will not work well
+              at low S/N ratio although it is useful for objects where only a
+              small fraction of the spectral coverage has high S/N ratio (like
+              high-z quasars).
+
+            - ``'relative'``: Calculate weights by fitting to the ratio of
+              spectra? Note, relative weighting will only work well when there
+              is at least one spectrum with a reasonable S/N, and a continuum.
+              RJC note - This argument may only be better when the object being
+              used has a strong continuum + emission lines. The reference
+              spectrum is assigned a value of 1 for all wavelengths, and the
+              weights of all other spectra will be determined relative to the
+              reference spectrum.  This is particularly useful if you are
+              dealing with highly variable spectra (e.g. emission lines) and
+              require a precision better than ~1 per cent.
+
+            - ``'ivar'``: Use inverse variance weighting. This is not well
+              tested and should probably be deprecated.
+
     verbose : bool, optional
         Verbosity of print out.
 
@@ -798,37 +865,29 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
         vectors) provided in waves, i.e. it is a list of arrays of type
         `numpy.ndarray`_  with the same shape as those in waves.
     """
+    if weight_method not in ['auto', 'constant', 'uniform', 'wave_dependent', 'relative', 'ivar']:
+        msgs.error('Unrecognized option for weight_method=%s').format(weight_method)
 
     nexp = len(fluxes)
     # Check that all the input lists have the same length
     if len(ivars) != nexp or len(gpms) != nexp:
         msgs.error("Input lists of spectra must have the same length")
 
-    # Check sn_smooth_npix is set if const_weights=False
-    if sn_smooth_npix is None and not const_weights:
-        msgs.error('sn_smooth_npix cannot be None if const_weights=False')
+    # Check that sn_smooth_npix if weight_method = constant or uniform
+    if sn_smooth_npix is None and weight_method not in ['constant', 'uniform']:
+        msgs.error("sn_smooth_npix cannot be None unless the weight_method='constant' or weight_method='uniform'")
 
-    # Give preference to ivar_weights
-    if ivar_weights and relative_weights:
-        msgs.warn("Performing inverse variance weights instead of relative weighting")
-        relative_weights = False
-
-    # Calculate S/N
-    sn_val, rms_sn, sn2 = [], [], []
-    for iexp in range(nexp):
-        sn_val_iexp = fluxes[iexp]*np.sqrt(ivars[iexp])
-        sn_val.append(sn_val_iexp)
-        sn_val_ma = np.ma.array(sn_val_iexp, mask=np.logical_not(gpms[iexp]))
-        sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
-        sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
-        if sn2_iexp is np.ma.masked:
-            msgs.error(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
-        else:
-            sn2.append(sn2_iexp)
-            rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
+    rms_sn, sn_val = calc_snr(fluxes, ivars, gpms)
+    sn2 = np.square(rms_sn)
 
     # Check if relative weights input
-    if relative_weights:
+    if verbose:
+        msgs.info('Computing weights with weight_method=%s'.format(weight_method))
+
+    weights = []
+
+    weight_method_used = [] if weight_method == 'auto' else nexp*[weight_method]
+    if weight_method == 'relative':
         # Relative weights are requested, use the highest S/N spectrum as a reference
         ref_spec = np.argmax(sn2)
         if verbose:
@@ -836,99 +895,42 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, const_weights=False,
                 "The reference spectrum (ref_spec={0:d}) has a typical S/N = {1:.3f}".format(ref_spec, sn2[ref_spec]))
         # Adjust the arrays to be relative
         refscale = utils.inverse(sn_val[ref_spec])
-        gpms_rel = []
         for iexp in range(nexp):
             # Compute the relative (S/N)^2 and update the mask
             sn2[iexp] /= sn2[ref_spec]
-            gpms_rel.append(gpms[iexp] & ((gpms[ref_spec]) | (sn_val[ref_spec] != 0)))
-            sn_val[iexp] *= refscale
-
-        sn_gpms = gpms_rel
-    else:
-        sn_gpms = gpms
-
-    # TODO: Should ivar weights be deprecated??
-    # Initialise weights
-    weights = []
-    if ivar_weights:
-        if verbose:
-            msgs.info("Using ivar weights for merging orders")
+            gpm_rel = gpms[iexp] & ((gpms[ref_spec]) | (sn_val[ref_spec] != 0))
+            sn_val_rescaled = sn_val[iexp]*refscale
+            weights.append(smooth_weights(sn_val_rescaled** 2, gpm_rel, sn_smooth_npix))
+    elif weight_method == 'ivar':
+        # TODO: Should ivar weights be deprecated??
         for ivar, mask in zip(ivars, gpms):
             weights.append(smooth_weights(ivar, mask, sn_smooth_npix))
-    else:
+    elif weight_method == 'constant':
         for iexp in range(nexp):
-            # Now
-            if (rms_sn[iexp] < 3.0) or const_weights:
-                weight_method = 'constant'
+            weights.append(np.full(fluxes[iexp].size, np.fmax(sn2[iexp], 1e-2)))  # set the minimum  to be 1e-2 to avoid zeros
+    elif weight_method == 'uniform':
+        for iexp in range(nexp):
+            weights.append(
+                np.full(fluxes[iexp].size, 1.0))
+    elif weight_method == 'wave_dependent':
+        for iexp in range(nexp):
+            weights.append(smooth_weights(sn_val[iexp] ** 2, gpms[iexp], sn_smooth_npix))
+    elif weight_method == 'auto':
+        for iexp in range(nexp):
+            if rms_sn[iexp] < 3.0:
                 weights.append(np.full(fluxes[iexp].size, np.fmax(sn2[iexp], 1e-2)))  # set the minimum  to be 1e-2 to avoid zeros
+                weight_method_used.append('constant')
             else:
-                weight_method = 'wavelength dependent'
-                # JFH THis line is experimental but it deals with cases where the spectrum drops to zero. We thus
-                # transition to using ivar_weights. This needs more work because the spectra are not rescaled at this point.
-                # RJC - also note that nothing should be changed to sn_val is relative_weights=True
-                #sn_val[sn_val[:, iexp] < 1.0, iexp] = ivar_stack[sn_val[:, iexp] < 1.0, iexp]
-                weights.append(smooth_weights(sn_val[iexp]**2, sn_gpms[iexp], sn_smooth_npix))
-            if verbose:
-                msgs.info('Using {:s} weights for coadding, S/N '.format(weight_method) +
-                          '= {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
-                              rms_sn[iexp], np.mean(weights[iexp]), iexp))
+                weights.append(smooth_weights(sn_val[iexp]**2, gpms[iexp], sn_smooth_npix))
+                weight_method_used.append('wavelength dependent')
 
+    if verbose:
+        for iexp in range(nexp):
+            msgs.info('Using {:s} weights for coadding, S/N '.format(weight_method_used[iexp]) +
+                      '= {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(rms_sn[iexp], np.mean(weights[iexp]), iexp))
 
     # Finish
     return np.array(rms_sn), weights
-
-
-# TODO: This was commented out and would need to be refactored if brought back
-# because of changes to the SensFunc and Telluric datamodels.
-## TODO Rename this function to something sensfunc related
-#def get_tell_from_file(sensfile, waves, masks, iord=None):
-#    '''
-#    Get the telluric model from the sensfile.
-#
-#    Args:
-#        sensfile (str): the name of your fits format sensfile
-#        waves (ndarray): wavelength grid for your output telluric model
-#        masks (ndarray, bool): mask for the wave
-#        iord (int or None): if None returns telluric model for all orders, otherwise return the order you want
-#
-#    Returns:
-#         ndarray: telluric model on your wavelength grid
-#    '''
-#
-#
-#    sens_param = Table.read(sensfile, 1)
-#    sens_table = Table.read(sensfile, 2)
-#    telluric = np.zeros_like(waves)
-#
-#    if (waves.ndim == 1) and (iord is None):
-#        msgs.info('Loading Telluric from Longslit sensfiles.')
-#        tell_interp = scipy.interpolate.interp1d(sens_table[0]['WAVE'], sens_table[0]['TELLURIC'], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_interp
-#    elif (waves.ndim == 1) and (iord is not None):
-#        msgs.info('Loading order {:} Telluric from Echelle sensfiles.'.format(iord))
-#        wave_tell_iord = sens_table[iord]['WAVE']
-#        tell_mask = (wave_tell_iord > 1.0)
-#        tell_iord = sens_table[iord]['TELLURIC']
-#        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                        bounds_error=False, fill_value=np.nan)(waves[masks])
-#        telluric[masks] = tell_iord_interp
-#    else:
-#        norder = np.shape(waves)[1]
-#        for iord in range(norder):
-#            wave_iord = waves[:, iord]
-#            mask_iord = masks[:, iord]
-#
-#            # Interpolate telluric to the same grid with waves
-#            # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
-#            wave_tell_iord = sens_table[iord]['WAVE']
-#            tell_mask = (wave_tell_iord > 1.0)
-#            tell_iord = sens_table[iord]['TELLURIC']
-#            tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
-#                                                    bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
-#            telluric[mask_iord, iord] = tell_iord_interp
-#
-#    return telluric
 
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
@@ -1170,7 +1172,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         msgs.error("Scale method not recognized! Check documentation for available options")
     # Finish
     if show:
-        scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, scale, method_used, mask = mask, mask_ref=mask_ref,
+        scale_spec_qa(wave, flux*mask, ivar*mask, wave_ref, flux_ref*mask_ref, ivar_ref*mask_ref, scale, method_used, mask = mask, mask_ref=mask_ref,
                       title='Scaling Applied to the Data')
 
     return flux_scale, ivar_scale, scale, method_used
@@ -1400,7 +1402,7 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult,
 
 # TODO: Change mask to gpm
 def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack, mask_stack,
-                  outmask, norder=None, title='', qafile=None):
+                  outmask, norder=None, title='', qafile=None, show_telluric=False):
     """
 
     Routine to creqate QA for showing the individual spectrum
@@ -1436,6 +1438,8 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
             Plot title
         qafile (:obj:`str`, optional):
             QA file name
+        show_telluric (:obj:`bool`, optional):
+            Show the atmospheric absorption if wavelengths > 9000A are covered by the spectrum
 
     """
 
@@ -1464,7 +1468,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
 
         # TODO Use one of our telluric models here instead
         # Plot transmission
-        if (np.max(wave[mask]) > 9000.0):
+        if (np.max(wave[mask]) > 9000.0) and show_telluric:
             skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
@@ -1537,7 +1541,7 @@ def weights_qa(waves, weights, gpms, title='', colors=None):
     plt.show()
 
 def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
-             title=None, qafile=None):
+             title=None, qafile=None, show_telluric=False):
     """
     Routine to make QA plot of the final stacked spectrum. It works for both
     longslit/mulitslit, coadded individual order spectrum of the Echelle data
@@ -1562,6 +1566,8 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
         plot title
     qafile : str, optional
         QA file name
+    show_telluric : bool, optional
+        Show a telluric absorptoin model on top of the data if wavelengths cover > 9000A
     """
     #TODO: This routine should take a parset
 
@@ -1575,7 +1581,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     # plot how may exposures you used at each pixel
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
-    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60], sharex=num_plot)
     num_plot.plot(wave[wave_gpm],nused[wave_gpm],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
@@ -1592,7 +1598,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     ymin, ymax = get_ylim(flux, ivar, gpm)
 
     # Plot transmission
-    if (np.max(wave[gpm])>9000.0) and (tell is None):
+    if (np.max(wave[gpm])>9000.0) and (tell is None) and show_telluric:
         skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
@@ -1851,8 +1857,6 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
     qdone = False
     while (not qdone) and (iter < maxiter_reject):
         # Compute the stack
-        #from IPython import embed
-        #embed()
         wave_stack, flux_stack, ivar_stack, gpm_stack, nused = compute_stack(
             wave_grid, waves_list, fluxes_list, ivars_list, utils.array_to_explist(this_gpms, nspec_list=nspec_list), weights_list)
         # Interpolate the individual spectra onto the wavelength grid of the stack. Use wave_grid_mid for this
@@ -2022,10 +2026,9 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
              ref_percentile=70.0, maxiter_scale=5, wave_grid_input=None,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None,
              sn_min_polyscale=2.0, sn_min_medscale=0.5,
-             const_weights=False, maxiter_reject=5, sn_clip=30.0,
+             weight_method='auto', maxiter_reject=5, sn_clip=30.0,
              lower=3.0, upper=3.0, maxrej=None, qafile=None, title='', debug=False,
-             debug_scale=False, debug_order_stack=False,
-             debug_global_stack=False, show_scale=False, show=False, verbose=True):
+             debug_scale=False, show_scale=False, show=False, verbose=True):
 
     '''
     Main driver routine for coadding longslit/multi-slit spectra.
@@ -2100,8 +2103,9 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         maximum SNR for perforing median scaling
     sn_min_medscale : float, optional, default = 0.5
         minimum SNR for perforing median scaling
-    const_weights : bool, optional
-        If True, apply constant weight
+    weight_method (str):
+        Weight method to use for coadding spectra (see
+            :func:`~pypeit.core.coadd.sn_weights`) for documentation. Default='auto'
     sn_clip: float, optional, default=30.0
         Errors are capped during rejection so that the S/N is never greater than
         sn_clip. This prevents overly aggressive rejection in high S/N ratio
@@ -2157,6 +2161,12 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         spectrum on wave_stack wavelength grid. True=Good.
         shape=(ngrid,)
     '''
+
+    #debug_scale=True
+    #show_scale=True
+    #debug=True
+    #show=True
+
     #from IPython import embed
     #embed()
     # We cast to float64 because of a bug in np.histogram
@@ -2172,7 +2182,7 @@ def combspec(waves, fluxes, ivars, gpms, sn_smooth_npix,
         dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+    rms_sn, weights = sn_weights(_fluxes, _ivars, gpms, sn_smooth_npix=sn_smooth_npix, weight_method=weight_method, verbose=verbose)
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, wave_grid_mid, _waves, _fluxes, _ivars, gpms, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
@@ -2192,7 +2202,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
-                   const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
+                   weight_method='auto', maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None,
                    qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
     """
@@ -2267,8 +2277,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         maximum SNR for perforing median scaling
     sn_min_medscale : float, optional
         minimum SNR for perforing median scaling
-    const_weights : `numpy.ndarray`_, optional
-        Constant weight factors specified
+    weight_method (str):
+        Weight method to use for coadding spectra (see
+            :func:`~pypeit.core.coadd.sn_weights`) for documentation. Default='auto'
     maxiter_reject : int, optional
         maximum number of iterations for stacking and rejection. The code stops
         iterating either when the output mask does not change betweeen
@@ -2333,7 +2344,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
-        const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
+        weight_method=weight_method, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
         show=show)
 
@@ -2348,7 +2359,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3,
                  sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
-                 sn_smooth_npix=None, const_weights=False, maxiter_reject=5,
+                 maxiter_reject=5,
                  sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug_order_stack=False,
                  debug_global_stack=False, debug=False,
@@ -2436,8 +2447,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         maximum SNR for perforing median scaling
     sn_min_medscale : float, optional, default = 0.5
         minimum SNR for perforing median scaling
-    const_weights : bool, optional
-        If True, apply constant weight
     maxiter_reject : int, optional, default=5
         maximum number of iterations for stacking and rejection. The code stops
         iterating either when the output mask does not change betweeen
@@ -2573,17 +2582,17 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
 
     #  nspec, norder, nexp = shape
     # Decide how much to smooth the spectra by if this number was not passed in
-    nspec_good = []
-    ngood = []
-    if sn_smooth_npix is None:
-        # Loop over setups
-        for wave, norder, nexp in zip(waves_arr_setup, norders, nexps):
-            # This is the effective good number of spectral pixels in the stack
-            nspec_good.append(np.sum(wave > 1.0))
-            ngood.append(norder*nexp)
-        nspec_eff = np.sum(nspec_good)/np.sum(ngood)
-        sn_smooth_npix = int(np.round(0.1 * nspec_eff))
-        msgs.info('Using a sn_smooth_pix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+    #nspec_good = []
+    #ngood = []
+    #if sn_smooth_npix is None:
+    #    # Loop over setups
+    #    for wave, norder, nexp in zip(waves_arr_setup, norders, nexps):
+    #        # This is the effective good number of spectral pixels in the stack
+    #        nspec_good.append(np.sum(wave > 1.0))
+    #        ngood.append(norder*nexp)
+    #    nspec_eff = np.sum(nspec_good)/np.sum(ngood)
+    #    sn_smooth_npix = int(np.round(0.1 * nspec_eff))
+    #    msgs.info('Using a sn_smooth_pix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     # Create the setup lists
     waves_setup_list = [utils.echarr_to_echlist(wave)[0] for wave in waves_arr_setup]
@@ -2607,8 +2616,8 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     rms_sn_setup_list = []
     colors = []
     for isetup in range(nsetups):
-        rms_sn_vec, _ = sn_weights(fluxes_setup_list[isetup], ivars_setup_list[isetup], gpms_setup_list[isetup],
-                                   sn_smooth_npix=sn_smooth_npix, const_weights=const_weights, verbose=verbose)
+        ## Need to feed have optional wave_min, wave_max here to deal with sources like high-z quasars?
+        rms_sn_vec, _ = calc_snr(fluxes_setup_list[isetup], ivars_setup_list[isetup], gpms_setup_list[isetup])
         rms_sn = rms_sn_vec.reshape(norders[isetup], nexps[isetup])
         mean_sn_ord = np.mean(rms_sn, axis=1)
         best_orders = np.argsort(mean_sn_ord)[::-1][0:_nbests[isetup]]
@@ -2618,6 +2627,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
         weights.append(weights_isetup)
         rms_sn_setup_list.append(rms_sn)
         colors.append([setup_colors[isetup]]*norders[isetup]*nexps[isetup])
+
 
 
     # Create the waves_setup_list

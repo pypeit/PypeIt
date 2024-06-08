@@ -284,13 +284,8 @@ class PypeItImage(datamodel.DataContainer):
 
         # Parse everything *but* the mask extension
         d, version_passed, type_passed, parsed_hdus \
-                = super()._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
-        if not type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
-        if not version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f(f'Current version of {cls.__name__} object in code (v{cls.version})'
-               ' does not match version used to write your HDU(s)!')
+                = cls._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         if mask_ext in hdu:
             # If the mask extension exists, parse it
@@ -786,14 +781,14 @@ class PypeItImage(datamodel.DataContainer):
             msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
                       f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
 
+        # Create a copy of the detector, if it is defined, to be used when
+        # creating the new pypeit image below
+        _detector = None if self.detector is None else self.detector.copy()
+
         # Create the new image.
-        # TODO: We should instead *copy* the detector object; otherwise, it's
-        # possible that it will be shared between multiple images.  Nominally,
-        # this should be okay because the detector data is meant to be static,
-        # but we should fix this.
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
-                                      fullmask=new_fullmask, detector=self.detector,
+                                      fullmask=new_fullmask, detector=_detector,
                                       spat_flexure=spat_flexure, PYP_SPEC=new_spec,
                                       units=new_units)
 
