@@ -289,6 +289,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(scifile, 'dispname') == 'SCFCGRMB01':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'wvarxiv_subaru_focas_SCFCGRMB01.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['stretch_func'] = 'quadratic'
         # ---- NOTE: from Debora ----
         # The pypeit_sensfunc script uses the config_specific_par() method
         # with a reduced spec1d file to pull out some info, although the method

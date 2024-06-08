@@ -744,10 +744,14 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         if stretch_func == 'quadratic':
             bounds = [lag_range, stretch_mnmx, (-1.0e-6, 1.0e-6)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])
-        if stretch_func == 'linear':
+        elif stretch_func == 'linear':
             bounds = [lag_range, stretch_mnmx, (0.0,0.0)]
             x0_guess = np.array([shift_cc, 1.0, 0.0])        
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
+        else:
+            msgs.error('Unrecognized stretch_func')
+        result = scipy.optimize.differential_evolution(
+                zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, 
+                bounds=bounds, disp=False, polish=True, seed=seed)
     except PypeItError:
         msgs.warn("Differential evolution failed.")
         return 0, None, None, None, None, None, None
