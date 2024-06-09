@@ -41,6 +41,8 @@ class Setup(scriptbase.ScriptBase):
                                  '\'A,B\' or \'B,D,E\' or \'E\'.')
         parser.add_argument('-b', '--background', default=False, action='store_true',
                             help='Include the background-pair columns for the user to edit')
+        parser.add_argument('-f', '--flexure', default=False, action='store_true',
+                            help='Include the manual spatial shift (flexure) column for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -145,6 +147,7 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
+                                                   write_shift = args.flexure,
                                                    configs=configs,
                                                    version_override=args.version_override,
                                                    date_override=args.date_override)

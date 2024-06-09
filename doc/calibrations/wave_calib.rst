@@ -369,13 +369,11 @@ copied below:
       c      : Clear automatically identified lines
       d      : Delete all line identifications (start from scratch)
       f      : Fit the wavelength solution
-      g      : Toggle ghost solution (show predicted line positions when wavele
-ngth is on the x-axis)
+      g      : Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)
       h      : Reset ghost parameters
       i      : Include an undetected line to the detected line list
                First select fitting pixels (LMB drag = add, RMB drag = remove)
-               Then press 'i' to perform a fit.         NOTE: ghost solution mu
-st be turned off to select fit regions.
+               Then press 'i' to perform a fit.         NOTE: ghost solution must be turned off to select fit regions.
       l      : Load saved line IDs from file (waveids.ascii in local directory)
       m      : Select a line
       r      : Refit a line
