@@ -23,11 +23,10 @@ class CombineImage:
     Process and combine detector images. 
 
     Args:
-            Parameters that dictate the processing of the images.
-        rawImages (:obj:`list`):
-            Either a single :class:`~pypeit.images.rawimage.RawImage` object or a list of one or more 
+        rawImages (:obj:`list`, :class:`~pypeit.images.pypeitimage.PypeItImage):  
+            Either a single :class:`~pypeit.images.pypeitimage.PypeItImage` object or a list of one or more 
             of these objects to be combined into a an image.
-       spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.            
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
