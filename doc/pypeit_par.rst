@@ -413,6 +413,7 @@ Key                          Type              Options                          
 ``trace_median_frac``        int, float        ..                                           ..              After detection of peaks in the rectified Sobel-filtered image and before refitting the edge traces, the rectified image is median filtered with a kernel width of `trace_median_frac*nspec` along the spectral dimension.                                                                                                                                                                                                                                                                                                                                                                            
 ``trace_rms_tol``            int, float        ..                                           ..              After retracing edges using peaks detected in the rectified and collapsed image, the RMS difference (in pixels) between the original and refit traces are calculated.  This sets the upper limit of the RMS for traces that will be removed.  If None, no limit is set and all new traces are kept.                                                                                                                                                                                                                                                                                                   
 ``trace_thresh``             int, float        ..                                           ..              After rectification and median filtering of the Sobel-filtered image (see `trace_median_frac`), values in the median-filtered image *below* this threshold are masked in the refitting of the edge trace data.  If None, no masking applied.                                                                                                                                                                                                                                                                                                                                                          
+``trim_spec``                list              ..                                           ..              User-defined truncation of all slits in the spectral direction.Should be two integers, e.g. 100,150 trims 100 pixels from the short wavelength end and 150 pixels from the long wavelength end of the spectral axis of the detector.                                                                                                                                                                                                                                                                                                                                                                  
 ``use_maskdesign``           bool              ..                                           False           Use slit-mask designs to identify slits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ===========================  ================  ===========================================  ==============  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
@@ -497,7 +498,7 @@ Key                       Type                       Options                    
 ``sigdetect``             int, float, list, ndarray  ..                                                                            5.0               Sigma threshold above fluctuations for arc-line detection.  Arcs are continuum subtracted and the fluctuations are computed after continuum subtraction.  This can be a single number or a vector (list or numpy array) that provides the detection threshold for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``sigrej_final``          float                      ..                                                                            3.0               Number of sigma for rejection for the final guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``sigrej_first``          float                      ..                                                                            2.0               Number of sigma for rejection for the first guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``stretch_func``          str                        ``linear``, ``quad``                                                          ``linear``        Whether to use a linear (linear) or quadratic (quad) function to stretch the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, the quadratic mode tends to do better because the wavelength solution is typically at least 2nd or 3rd order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``stretch_func``          str                        ``linear``, ``quadratic``                                                     ``quadratic``     Whether to use a linear (linear) or quadratic (quad) function to stretch the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, the quadratic mode tends to do better because the wavelength solution is typically at least 2nd or 3rd order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``use_instr_flag``        bool                       ..                                                                            False             If True, restrict to lines matching the instrument.  WARNING: This is only implemented for shane_kast_red + HolyGrail.  Do not use it unless you really know what you are doing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``wvrng_arxiv``           list                       ..                                                                            ..                Cut the arxiv template down to this specified wavelength range [min,max]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ========================  =========================  ============================================================================  ================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
@@ -581,21 +582,21 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.Collate1DPar`
 
-=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                        Type        Options  Default                          Description                                                                                                                                                                                                                                                                                                                                                                                                       
-=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
-``dry_run``                bool        ..       False                            If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
-``exclude_serendip``       bool        ..       False                            Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
-``exclude_slit_trace_bm``  list, str   ..       []                               A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
-``flux``                   bool        ..       False                            If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
-``ignore_flux``            bool        ..       False                            If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                              
-``match_using``            str         ..       ``ra/dec``                       Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
-``outdir``                 str         ..       ``/home/dusty/work/PypeIt/doc``  The path where all coadded output files and report files will be placed.                                                                                                                                                                                                                                                                                                                                          
-``refframe``               str         ..       ..                               Perform reference frame correction prior to coadding. Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                            
-``spec1d_outdir``          str         ..       ..                               The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
-``tolerance``              str, float  ..       ``1.0``                          The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
-``wv_rms_thresh``          float       ..       ..                               If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
-=========================  ==========  =======  ===============================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+=========================  ===============  =======  =======================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                        Type             Options  Default                                  Description                                                                                                                                                                                                                                                                                                                                                                                                       
+=========================  ===============  =======  =======================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
+``dry_run``                bool             ..       False                                    If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                             
+``exclude_serendip``       bool             ..       False                                    Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                               
+``exclude_slit_trace_bm``  list, str        ..                                                A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                        
+``flux``                   bool             ..       False                                    If set, the script will flux calibrate using archived sensfuncs before coadding.                                                                                                                                                                                                                                                                                                                                  
+``ignore_flux``            bool             ..       False                                    If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated.                                                                                                                                                                                                                                              
+``match_using``            str              ..       ``ra/dec``                               Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                               
+``outdir``                 str              ..       ``/Users/dpelliccia/PypeIt/PypeIt/doc``  The path where all coadded output files and report files will be placed.                                                                                                                                                                                                                                                                                                                                          
+``refframe``               str              ..       ..                                       Perform reference frame correction prior to coadding. Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                            
+``spec1d_outdir``          str              ..       ..                                       The path where all modified spec1d files are placed. These are only created if flux calibration or refframe correction are asked for.                                                                                                                                                                                                                                                                             
+``tolerance``              str, float, int  ..       1.0                                      The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used (`e.g.`, '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+``wv_rms_thresh``          float            ..       ..                                       If set, any objects with a wavelength RMS > this value are skipped, else all wavelength RMS values are accepted.                                                                                                                                                                                                                                                                                                  
+=========================  ===============  =======  =======================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -648,22 +649,22 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==============  =======  ===============================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type            Options  Default                          Description                                                                                                                                                                                                                                                                                                                                                                                               
-======================  ==============  =======  ===============================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float      ..       0                                The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                          
-``chk_version``         bool            ..       True                             If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!
-``detnum``              int, list       ..       ..                               Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                           
-``ignore_bad_headers``  bool            ..       False                            Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                          
-``maskIDs``             str, int, list  ..       ..                               Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                        
-``qadir``               str             ..       ``QA``                           Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                
-``quicklook``           bool            ..       False                            Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                           
-``redux_path``          str             ..       ``/home/dusty/work/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                      
-``scidir``              str             ..       ``Science``                      Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                           
-``slitspatnum``         str, list       ..       ..                               Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                       
-``sortroot``            str             ..       ..                               A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                    
-``spectrograph``        str             ..       ..                               Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                             
-======================  ==============  =======  ===============================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==============  =======  =======================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type            Options  Default                                  Description                                                                                                                                                                                                                                                                                                                                                                                               
+======================  ==============  =======  =======================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float      ..       0                                        The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                          
+``chk_version``         bool            ..       True                                     If True enforce strict PypeIt version checking to ensure that all files were created with the current version of PypeIt.  If set to False, the code will attempt to read out-of-date files and keep going.  Beware (!!) that this can lead to unforeseen bugs that either cause the code to crash or lead to erroneous results. I.e., you really need to know what you are doing if you set this to False!
+``detnum``              int, list       ..       ..                                       Restrict reduction to a list of detector indices. In case of mosaic reduction (currently only available for Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of tuples of the detector indices that are mosaiced together. E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for Keck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]``                                           
+``ignore_bad_headers``  bool            ..       False                                    Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                          
+``maskIDs``             str, int, list  ..       ..                                       Restrict reduction to a set of slitmask IDs Example syntax -- ``maskIDs = 818006,818015`` This must be used with detnum (for now).                                                                                                                                                                                                                                                                        
+``qadir``               str             ..       ``QA``                                   Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                
+``quicklook``           bool            ..       False                                    Run a quick look reduction? This is usually good if you want to quickly reduce the data (usually at the telescope in real time) to get an initial estimate of the data quality.                                                                                                                                                                                                                           
+``redux_path``          str             ..       ``/Users/dpelliccia/PypeIt/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                      
+``scidir``              str             ..       ``Science``                              Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                           
+``slitspatnum``         str, list       ..       ..                                       Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = DET01:175,DET01:205 or MSC02:2234  If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.                                                                                                                                                       
+``sortroot``            str             ..       ..                                       A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                    
+``spectrograph``        str             ..       ..                                       Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                                                                                                                                             
+======================  ==============  =======  =======================================  ==========================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -949,7 +950,7 @@ Key                      Type                                            Options
 ``star_dec``             float                                           ..                ..                           DEC of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                     
 ``star_mag``             float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                         
 ``star_ra``              float                                           ..                ..                           RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                      
-``star_type``            str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly). Can be set to ``NONE`` for a flat spectrum.                                                                                                                                                                                                                                                                                                                                     
+``star_type``            str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                     
 =======================  ==============================================  ================  ===========================  ============================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -1023,7 +1024,7 @@ Key                      Type                Options  Default                   
 ``star_dec``             float               ..       ..                          Object declination in decimal deg                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``star_mag``             float, int          ..       ..                          AB magnitude in V band                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``star_ra``              float               ..       ..                          Object right-ascension in decimal deg                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``star_type``            str                 ..       ..                          stellar type. Can be set to ``NONE`` for a flat spectrum.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``star_type``            str                 ..       ..                          stellar type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``sticky``               bool                ..       True                        Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  If set to True then points rejected from a previous iteration are kept rejected, in other words the bad pixel mask is the OR of all previous iterations and rejected pixels accumulate. If set to False, the bad pixel mask is the mask from the previous iteration, and if the model fit changes between iterations, points can alternate from being rejected to not rejected. At present this code only performs optimizations with differential evolution and experience shows that sticky needs to be True in order for these to converge. This is because the outliers can be so large that they dominate the loss function, and one never iteratively converges to a good model fit. In other words, the deformations in the model between iterations with sticky=False are too small to approach a reasonable fit.
 ``telgridfile``          str                 ..       ..                          File containing the telluric grid for the observatory in question. These grids are generated from HITRAN models for each observatory using nominal site parameters. They must be downloaded from the GoogleDrive and installed in your PypeIt installation via the pypeit_install_telluric script. NOTE: This parameter no longer includes the full pathname to the Telluric Grid file, but is just the filename of the grid itself.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``tell_norm_thresh``     int, float          ..       0.9                         Threshold of telluric absorption region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
@@ -4661,6 +4662,7 @@ Alterations to the default parameters are:
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
+              overscan_method = odd_even
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -4669,60 +4671,85 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None,
+          [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
       [[alignframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
           lamps = XeI, KrI, ArI, HgI,
@@ -4739,7 +4766,9 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 200, None,
       [[process]]
+          overscan_method = odd_even
           mask_cr = True
+          use_biasimage = False
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
@@ -4758,6 +4787,7 @@ Alterations to the default parameters are:
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
+              overscan_method = odd_even
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -4766,60 +4796,85 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None,
+          [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
       [[alignframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI,
@@ -4838,10 +4893,16 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 200, None,
       [[process]]
+          overscan_method = odd_even
           mask_cr = True
+          use_biasimage = False
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-lbt_mods2b:
 
@@ -4857,6 +4918,7 @@ Alterations to the default parameters are:
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
+              overscan_method = odd_even
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -4865,60 +4927,85 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None,
+          [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
       [[alignframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
           lamps = XeI, KrI, ArI, HgI,
@@ -4935,7 +5022,9 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 200, None,
       [[process]]
+          overscan_method = odd_even
           mask_cr = True
+          use_biasimage = False
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
@@ -4954,6 +5043,7 @@ Alterations to the default parameters are:
       [[biasframe]]
           exprng = None, 0.001,
           [[[process]]]
+              overscan_method = odd_even
               combine = median
               use_biasimage = False
               shot_noise = False
@@ -4962,60 +5052,85 @@ Alterations to the default parameters are:
       [[darkframe]]
           exprng = 999999, None,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              overscan_method = odd_even
               clip = False
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None,
+          [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
       [[alignframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = 0, None,
           [[[process]]]
+              overscan_method = odd_even
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
+              overscan_method = odd_even
               satpix = nothing
+              use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200,
           [[[process]]]
+              overscan_method = odd_even
               mask_cr = True
+              use_biasimage = False
               noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI,
@@ -5034,10 +5149,16 @@ Alterations to the default parameters are:
   [scienceframe]
       exprng = 200, None,
       [[process]]
+          overscan_method = odd_even
           mask_cr = True
+          use_biasimage = False
           noise_floor = 0.01
   [flexure]
       spec_method = boxcar
+  [sensfunc]
+      algorithm = IR
+      [[IR]]
+          telgridfile = TellPCA_3000_26000_R10000.fits
 
 .. _instr_par-ldt_deveny:
 

@@ -45,6 +45,7 @@ Submodules
    pypeit.manual_extract
    pypeit.metadata
    pypeit.onespec
+   pypeit.orderstack
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
