@@ -1480,7 +1480,8 @@ class Calibrations:
             indx = fitstbl.find_frames(frametype) & in_grp
             if not any(indx):
                 continue
-            if not all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]):
+            if not (all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]) or
+                    all([fitstbl['calib'][indx][0] in cc.split(',') for cc in fitstbl['calib'][indx]])):
                 msgs.error(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
                            'are not all associated with the same subset of calibration '
                            'groups; calib for the first file is '
