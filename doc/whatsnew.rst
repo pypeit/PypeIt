@@ -11,7 +11,7 @@ What's New in PypeIt
 
 ----
 
-.. include:: releases/1.15.1dev.rst
+.. include:: releases/1.16.0.rst
 
 ----
 
