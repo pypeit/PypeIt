@@ -216,7 +216,6 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         # CHIP1
         # TODO - UPDATE ALL OF THIS
 
-        # TODO -- May need to flip specflip
         # TODO -- Deal with dataswec, oscansec
         detector_dict1 = dict(
             binning         = binning,
