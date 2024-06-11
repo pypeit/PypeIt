@@ -1,7 +1,25 @@
 from matplotlib import pyplot, rc, dates
+import matplotlib.dates as mdates
+import matplotlib as mpl
+mpl.rcParams['font.family'] = 'stixgeneral'
 
 import numpy
 from IPython import embed
+
+def set_fontsize(ax, fsz):
+    """
+    Set the fontsize throughout an Axis
+
+    Args:
+        ax (Matplotlib Axis):
+        fsz (float): Font size
+
+    Returns:
+
+    """
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+                 ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fsz)
 
 user_dates = ["2021-03-11", "2022-04-29", "2022-11-07", "2022-12-06", "2023-06-08", "2023-06-29", "2023-07-11", "2023-09-03", "2023-10-13", "2023-12-01", "2023-12-15", "2024-02-22", "2024-03-21", "2024-04-09", "2024-05-02", "2024-05-19", "2024-06-06", "2024-06-10"]
 user_dates = numpy.array([numpy.datetime64(date) for date in user_dates])
@@ -26,7 +44,7 @@ cite_pred_all = cite_pred_all[cite_all.size-1:]
 rc('font', size=14)
 
 w,h = pyplot.figaspect(1)
-fig = pyplot.figure(figsize=(1.5*w,1.5*h))
+fig = pyplot.figure(figsize=(1.9*w,1.5*h))
 
 ax = fig.add_axes([0.2, 0.2, 0.75, 0.75])
 ax.plot(user_dates, user_number, ls='-', color='k', label='Slack Users')
@@ -47,7 +65,16 @@ ax.plot(cite_pred_dates, cite_pred_all, ls=':', color='C0')
 #fig.canvas.print_figure('pypeit_users.pdf', bbox_inches='tight')
 
 ax.legend()
-pyplot.show()
-fig.clear()
-pyplot.close(fig)
 
+ax.xaxis.set_major_locator(mdates.YearLocator())
+
+set_fontsize(ax, 16)
+
+
+outfile = "pypeit_users.png"
+pyplot.savefig(outfile, dpi=300)
+print(f"Saved: {outfile}")
+
+#pyplot.show()
+#fig.clear()
+#pyplot.close(fig)
