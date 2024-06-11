@@ -3,14 +3,14 @@
 
 .. _orderstack:
 
-=======
+==========
 OrderStack
-=======
+==========
 
 Overview
 ========
 
-For Echelle spectrograph reductions, in addition to the :doc:`onespec`, the PypeIt 
+For Echelle spectrograph reductions, in addition to the :ref:`onespec`, the PypeIt
 spectrum output will include the coadded orders for each echelle setup used per
 spectrum per source, fully calibrated but not yet telluric corrected.
 

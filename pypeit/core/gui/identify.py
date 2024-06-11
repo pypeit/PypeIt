@@ -870,7 +870,7 @@ class Identify:
                     wvcalib.to_file(outfname, overwrite=True)
                     msgs.info("A WaveCalib container was written to wvcalib.fits")
 
-                # overwrite the existing WVCalib file
+                # Ask if overwrite the existing WVCalib file only if force_save=False, otherwise don't overwrite
                 ow_wvcalib = ''
                 if not force_save:
                     while ow_wvcalib != 'y' and ow_wvcalib != 'n':
@@ -880,11 +880,6 @@ class Identify:
                                   ' and re-run run_pypeit. ')
                         print('')
                         ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
-                else:
-                    msgs.warn('Overwriting existing Calibrations/WaveCalib*.fits file.'
-                              'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibrations/ ' + msgs.newline() +
-                                  ' and re-run run_pypeit.')
-                    ow_wvcalib = 'y'
 
                 if ow_wvcalib == 'y':
                     wvcalib.to_file()
@@ -903,7 +898,7 @@ class Identify:
                             slits.to_file()
                             print('               ')
                     print('         ')
-                    # we ask to clean up the Calibrations directory only if we are not forcing the save
+                    # ask to clean up the Calibrations directory only if force_save=False, otherwise don't clean up
                     if not force_save:
                         clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
                                             ' calibrations except the Arcs and WaveCalib files. y/[n]: ')

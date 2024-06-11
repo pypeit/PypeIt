@@ -2,7 +2,7 @@
 
     $ pypeit_coadd_1dspec -h
     usage: pypeit_coadd_1dspec [-h] [--debug] [--show] [--par_outfile PAR_OUTFILE]
-                               [-m] [-v VERBOSITY]
+                               [-v VERBOSITY]
                                coadd1d_file
     
     Coadd 1D spectra produced by PypeIt
@@ -107,8 +107,6 @@
       --show                show QA during coadding process
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
-      -m, --save_multi      save coadded order arrays in addition to 1d coadded
-                            vector?
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename

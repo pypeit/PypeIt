@@ -381,6 +381,23 @@ def shift_and_stretch(spec, shift, stretch, stretch2, stretch_func='quadratic'):
         shifted and stretch spectrum. Regions where there is no information are set to zero.
 
     """
+    # TODO: DP: This is the old code that was used to shift and stretch.
+    #  Comparing to the new one, I have seen some differences in spec_out.
+    #  I leave this old code here for now, so that we can investigate this a little more in the future.
+    # nspec = spec.shape[0]
+    # # pad the spectrum on both sizes
+    # x1 = np.arange(nspec)/float(nspec-1)
+    # nspec_stretch = int(nspec*stretch)
+    # x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
+    # spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
+    # # Now create a shifted version
+    # ind_shift = np.arange(nspec_stretch) - shift
+    # spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
+    # # Now interpolate onto the original grid
+    # spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
+    #
+    # return spec_out
+    # ###################################
 
     # Positive value of shift means features shift to larger pixel values
 
