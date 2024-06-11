@@ -66,7 +66,7 @@ class SensFunc(datamodel.DataContainer):
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
-    version = '1.0.1'
+    version = '1.0.2'
     """Datamodel version."""
 
     # TODO: Add this if we want to set the output float type for the np.ndarray
@@ -188,7 +188,9 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='SENS_FLUXED_STD_FLAM_IVAR', dtype=float, length=norders, shape=(nspec_in,),
                          description='The inverse variance of F_lambda for the fluxed standard star spectrum'),
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
-                         description='The good pixel mask for the fluxed standard star spectrum ')])
+                         description='The good pixel mask for the fluxed standard star spectrum '),
+            table.Column(name='SENS_STD_MODEL_FLAM', dtype=float, length=norders, shape=(nspec_in,),
+                         description='The F_lambda for the standard model spectrum')])
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -478,7 +480,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
-
 
 
     def eval_zeropoint(self, wave, iorddet):
@@ -793,6 +794,14 @@ class SensFunc(datamodel.DataContainer):
         axis.set_ylabel(r'$f_{{\lambda}}~~~(10^{{-17}}~{{\rm erg~s^{-1}~cm^{{-2}}~\AA^{{-1}}}})$')
         axis.set_title('Fluxed Std Compared to True Spectrum:' + spec_str)
         fig.savefig(self.fstdfile)
+
+        #save the model that was used
+        model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
+                                                       bounds_error=False, fill_value='extrapolate')
+        model_flux_sav = np.zeros_like(self.sens['SENS_FLUXED_STD_FLAM'])
+        for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
+            wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
+            model_flux_sav[iorddet][wave_gpm] = model_interp_func(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm])
 
 
 

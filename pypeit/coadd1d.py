@@ -16,6 +16,7 @@ from astropy import stats
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.onespec import OneSpec
+from pypeit.orderstack import OrderStack
 from pypeit import utils
 from pypeit import sensfunc
 from pypeit import specobjs
@@ -100,7 +101,9 @@ class CoAdd1D:
         """
 
         # Coadd the data
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        # if there are multiple orders/slits, the stacks will be extracted from the coadd1d object, otherwise it'll be None
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
+
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -134,7 +137,7 @@ class CoAdd1D:
         # Generate the spectrum container object
         onespec = OneSpec(wave=self.wave_coadd, wave_grid_mid=self.wave_grid_mid, flux=self.flux_coadd,
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd,
-                          sigma = np.sqrt(utils.inverse(self.ivar_coadd)),
+                          sigma=np.sqrt(utils.inverse(self.ivar_coadd)),
                           mask=self.gpm_coadd.astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
 
@@ -147,9 +150,35 @@ class CoAdd1D:
 
         # Add on others
         if telluric is not None:
-            onespec.telluric  = telluric
+            onespec.telluric = telluric
         if obj_model is not None:
             onespec.obj_model = obj_model
+
+        #save the order stacks from the echelle reduction
+        if self.order_stacks is not None and (fits.getheader(self.spec1dfiles[0])['PYPELINE'] == 'Echelle'):
+            for setup_num, setup_val in enumerate(self.unique_setups):
+                if len(self.unique_setups) > 1:
+                    wave_stack = np.array(self.order_stacks[0][setup_num])
+                    flux_stack = np.array(self.order_stacks[1][setup_num])
+                    ivar_stack = np.array(self.order_stacks[2][setup_num])
+                    mask_stack = np.array(self.order_stacks[3][setup_num]).astype(int)
+                    sigma_stack = np.sqrt(utils.inverse(ivar_stack))
+                else:
+                    wave_stack = np.array(self.order_stacks[0])
+                    flux_stack = np.array(self.order_stacks[1])
+                    ivar_stack = np.array(self.order_stacks[2])
+                    mask_stack = np.array(self.order_stacks[3]).astype(int)
+                    sigma_stack = np.sqrt(utils.inverse(ivar_stack))
+                orderstack = OrderStack(wave_stack, 
+                                        flux_stack, 
+                                        ivar_stack=ivar_stack, 
+                                        mask_stack=mask_stack, 
+                                        sigma_stack=sigma_stack,
+                                        PYP_SPEC=self.spectrograph.name, 
+                                        ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'],
+                                        setup_name = setup_val)
+                orderstack.head0 = self.headers[setup_num]
+                orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -164,6 +193,15 @@ class MultiSlitCoAdd1D(CoAdd1D):
     """
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
+
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
+                 debug=False, show=False, chk_version=False):
+        """
+        See :class:`CoAdd1D` instantiation for argument descriptions.
+        """
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
+
 
     def load(self):
         """
@@ -262,9 +300,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             # update good exposures index
             goodindx_exp = goodindx_exp[np.logical_not(masked_exps)]
 
-        # check if there is still more than 1 exposure left
-        if len(_fluxes) < 2:
-            msgs.error('At least 2 unmasked exposures are required for coadding.')
+        # check if there is still at least 1 exposure left
+        if len(_fluxes) < 1:
+            msgs.error('At least 1 unmasked exposures are required for coadding.')
 
         # check if there is any bad exposure by comparing the rms_sn with the median rms_sn among all exposures
         if len(_fluxes) > 2:
@@ -313,8 +351,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
         self.waves, self.fluxes, self.ivars, self.gpms, self.headers = self.load()
         # check if there are bad exposures and remove them
         self.gpm_exp, _waves, _fluxes, _ivars, _gpms = self.check_exposures()
-        # Perform and return the coadd
-        return coadd.multi_combspec(_waves, _fluxes, _ivars, _gpms,
+        # Perform the coadd
+        wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd = \
+            coadd.multi_combspec(_waves, _fluxes, _ivars, _gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             dv=self.par['dv'], dwave=self.par['dwave'], dloglam=self.par['dloglam'],
             wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
@@ -324,6 +363,9 @@ class MultiSlitCoAdd1D(CoAdd1D):
             sn_min_polyscale=self.par['sn_min_polyscale'], weight_method = self.par['weight_method'],
             maxiter_reject=self.par['maxiter_reject'], lower=self.par['lower'], upper=self.par['upper'],
             maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'], debug=self.debug, show=self.show)
+
+        # return
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, None
 
 
 
@@ -337,8 +379,8 @@ class EchelleCoAdd1D(CoAdd1D):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par,
-                         sensfuncfile=sensfuncfile, setup_id=setup_id, debug=debug, show=show,
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
+                         setup_id=setup_id, debug=debug, show=show,
                          chk_version=chk_version)
 
         if sensfuncfile is None:
@@ -376,21 +418,31 @@ class EchelleCoAdd1D(CoAdd1D):
 
         Returns
         -------
-        wave_grid_mid : something
-            describe
-        wave_coadd : something
-            describe
-        flux_coadd : something
-            describe
-        ivar_coadd : something
-            describe
-        gpm_coadd : something
-            describe
+        wave_grid_mid : `numpy.ndarray`_
+            Wavelength grid (in Angstrom) evaluated at the bin centers,
+            uniformly-spaced either in lambda or log10-lambda/velocity. See
+            core.wavecal.wvutils.py for more.  shape=(ngrid,)
+        wave_coadd : `numpy.ndarray`_
+            Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the
+            wavelengths of each spectrum that contriuted to a bin in the input
+            wave_grid wavelength grid. It thus has ngrid elements, whereas
+            wave_grid has ngrid+1 elements to specify the ngrid total number
+            of bins. Note that wave_giant_stack is NOT simply the wave_grid
+            bin centers, since it computes the weighted average;
+        flux_coadd : `numpy.ndarray`_
+            Final stacked spectrum on wave_stack wavelength grid.  shape=(ngrid,)
+        ivar_coadd : `numpy.ndarray`_
+            Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to
+            weighting and masking. shape=(ngrid,)
+        gpm_coadd : `numpy.ndarray`_
+            Mask for stacked spectrum on wave_stack wavelength grid. True=Good. shape=(ngrid,)
+        order_stacks_output : `numpy.ndarray`_, None
+            Stacked orders.  None if not echelle data.  shape=(norders, ngrid)
         """
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
-        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
+        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
@@ -400,7 +452,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      wave_grid_max=self.par['wave_grid_max'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
                                      ref_percentile=self.par['ref_percentile'],
-                                     maxiter_scale=self.par['maxiter_scale'],
+                                     maxiter_scale=self.par['maxiter_scale'], 
                                      sigrej_scale=self.par['sigrej_scale'],
                                      scale_method=self.par['scale_method'],
                                      sn_min_medscale=self.par['sn_min_medscale'],
@@ -409,10 +461,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-
-
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
-
+        
+        
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
         """
@@ -522,9 +573,9 @@ class SlicerIFUCoAdd1D(MultiSlitCoAdd1D):
     Child of MultiSlitCoAdd1d for SlicerIFU reductions.
     """
 
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False, chk_version=False):
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
+                         setup_id=setup_id, debug = debug, show = show, chk_version=chk_version)

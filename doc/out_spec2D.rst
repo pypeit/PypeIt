@@ -64,7 +64,7 @@ Here is a typical call:
 This opens 4 tabs in the `ginga`_ display, one for each of the
 following:
 
- - Procesed image (sciimg-det##)
+ - Processed image (sciimg-det##)
  - Sky subtracted image (skysub-det##)
  - Sky residual image (sky_resid-det##)
  - Full residual image which removes the object too (resid-det##)

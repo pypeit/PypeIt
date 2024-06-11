@@ -7,6 +7,7 @@ Script to determine the sensitivity function for a PypeIt 1D spectrum.
 from IPython import embed
 
 from pypeit.scripts import scriptbase
+from pathlib import Path
 
 
 class SensFunc(scriptbase.ScriptBase):
@@ -63,8 +64,9 @@ class SensFunc(scriptbase.ScriptBase):
                                  "simultaneously use a .sens file with the --sens_file option. If "
                                  "you are using a .sens file, set the flatfile there via e.g.:\n\n"
                                  "F|    [sensfunc]\n"
-                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n"
-                                 "\nWhere Flat_A_0_DET01.fits is the flat file in your Calibrations directory\n")
+                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n\n"
+                                 "Where Flat_A_0_DET01.fits is the flat file in your "
+                                 "Calibrations directory\n")
 
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
@@ -118,6 +120,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "              multi_spec_det = 3,7\n"
                        "\n")
 
+
         # Determine the spectrograph and generate the primary FITS header
         with io.fits_open(args.spec1dfile) as hdul:
             spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
@@ -134,15 +137,17 @@ class SensFunc(scriptbase.ScriptBase):
                 if key.upper() in hdul[0].header.keys():
                     primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
-        # If the .sens file was passed in read it and overwrite default parameters
 
+
+        # If the .sens file was passed in read it and overwrite default parameters
         if args.sens_file is not None:
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
-                merge_with=(sensFile.cfg_lines,))
+            par = pypeitpar.PypeItPar.from_cfg_lines(
+                        cfg_lines=spectrograph_config_par.to_config(),
+                        merge_with=(sensFile.cfg_lines,))
         else:
-            par = spectrograph_config_par 
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config())
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -179,13 +184,12 @@ class SensFunc(scriptbase.ScriptBase):
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                 debug=args.debug,
+                                                 par_fluxcalib=par['fluxcalib'], debug=args.debug,
                                                  chk_version=par['rdx']['chk_version'])
         # Generate the sensfunc
         sensobj.run()
         # Write it out to a file, including the new primary FITS header
         sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
 
-        #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
-
+        #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.      
 
