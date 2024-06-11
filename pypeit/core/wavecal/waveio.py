@@ -51,14 +51,15 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray,int]:
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray, int, np.ndarray, np.ndarray,
+                                                                    np.ndarray, np.ndarray]:
     """
     Load a full template file from disk
 
     Parameters
     ----------
     arxiv_file : str
-        File with archive spectrum
+        File with archive spectrum, potentially including emission line pixel ids, wavelengths, and fit polynomial order.
     det : int
         Detector number
     wvrng : list, optional
@@ -66,12 +67,20 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
 
     Returns
     -------
-    wave : ndarray
+    wave : np.ndarray
         Wavelength vector
-    flux : ndarray
+    flux : np.ndarray
         Flux vector
     binning : int
         binning of the template arc spectrum
+    order : np.ndarray
+        Echelle orders of the saved wavelength solution, if applicable
+    line_pix : np.ndarray
+        Pixel values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_wav : np.ndarray
+        Wavelength values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_fit_ord : np.ndarray
+        Polynomial order of the saved wavelength solution, if applicable
 
     """
     calibfile, fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
@@ -83,6 +92,14 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
+    
+    # for echelle spectrographs
+    tbl_order = tbl['order'].data if 'order' in tbl.keys() else None
+
+    # for solutions with saved line IDs and pixels
+    tbl_line_pix = tbl['lines_pix'].data if 'lines_pix' in tbl.keys() else None
+    tbl_line_wav = tbl['lines_wav'].data if 'lines_wav' in tbl.keys() else None
+    tbl_line_fit_ord = tbl['lines_fit_ord'].data if 'lines_fit_ord' in tbl.keys() else None
 
     # Cut down?
     if wvrng is not None:
@@ -91,7 +108,7 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):

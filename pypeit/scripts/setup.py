@@ -41,6 +41,8 @@ class Setup(scriptbase.ScriptBase):
                                  '\'A,B\' or \'B,D,E\' or \'E\'.')
         parser.add_argument('-b', '--background', default=False, action='store_true',
                             help='Include the background-pair columns for the user to edit')
+        parser.add_argument('-f', '--flexure', default=False, action='store_true',
+                            help='Include the manual spatial shift (flexure) column for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -79,25 +81,35 @@ class Setup(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('setup', args.verbosity)
 
         if args.spectrograph is None:
-            raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
-                          'command-line option.')
-
-        # Check that input spectrograph is supported
-        if args.spectrograph not in available_spectrographs:
-            raise ValueError(f'Instrument "{args.spectrograph}" unknown to PypeIt.\n'
-                             f'\tOptions are: {", ".join(available_spectrographs)}\n'
-                             '\tSelect an available instrument or consult the documentation '
-                             'on how to add a new instrument.')
+            if args.gui is False:
+                raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
+                            'command-line option.')
+        else:
+            # Check that input spectrograph is supported
+            if args.spectrograph not in available_spectrographs:
+                raise ValueError(f'Instrument "{args.spectrograph}" unknown to PypeIt.\n'
+                                 f'\tOptions are: {", ".join(available_spectrographs)}\n'
+                                 '\tSelect an available instrument or consult the documentation '
+                                 'on how to add a new instrument.')
 
         if args.gui:
             from pypeit.scripts.setup_gui import SetupGUI
-            if isinstance(args.root,list):
-                root_args = args.root
-            else:
-                # If the root argument is a single string, convert it to a lsit.
-                # This can happen when the default for --root is used
-                root_args = [args.root]
-            gui_args = SetupGUI.parse_args(["-s", args.spectrograph, "-e", args.extension, "-r", *root_args])
+            # Build up arguments to the GUI
+            setup_gui_argv = ["-e", args.extension]
+            if args.spectrograph is not None:
+                setup_gui_argv += ["-s", args.spectrograph]
+
+                # Pass root but only if there's a spectrograph, because
+                # root has a default value but can't be acted upon by the GUI
+                # without a spectrograph.
+                if isinstance(args.root,list):
+                    root_args = args.root
+                else:
+                    # If the root argument is a single string, convert it to a list.
+                    # This can happen when the default for --root is used
+                    root_args = [args.root]
+                setup_gui_argv += ["-r"] + root_args
+            gui_args = SetupGUI.parse_args(setup_gui_argv)
             SetupGUI.main(gui_args)
 
         # Initialize PypeItSetup based on the arguments
@@ -135,6 +147,7 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
+                                                   write_shift = args.flexure,
                                                    configs=configs,
                                                    version_override=args.version_override,
                                                    date_override=args.date_override)

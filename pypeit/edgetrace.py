@@ -5352,7 +5352,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
         right = self.edge_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.traceimg.detector.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
-        if self.spectrograph.spec_min_max is None or ech_order is None:
+        if self.par['trim_spec'] is not None:
+            trim_low, trim_high = self.par['trim_spec']
+            specmin = np.asarray([trim_low]*nslit,dtype=np.float64)
+            specmax = np.asarray([self.nspec-trim_high]*nslit,dtype=np.float64)
+        elif self.spectrograph.spec_min_max is None or ech_order is None:
             specmin = np.asarray([-np.inf]*nslit)
             specmax = np.asarray([np.inf]*nslit)
         else:

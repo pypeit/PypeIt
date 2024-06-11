@@ -4,7 +4,7 @@
 .. _onespec:
 
 =======
-OneSpec 
+OneSpec
 =======
 
 Overview
@@ -23,6 +23,11 @@ i.e. it can be anything you wish.
 The header of the primary extension includes the
 `core_meta` of PypeIt, e.g. RA, DEC, MJD, and 
 configuration parameters of the instrument.
+
+In addition, for echelle spectrograph reductions, the PypeIt output
+will include the coadded orders for each echelle setup used per
+spectrum per source, fully calibrated but not yet telluric corrected.
+See :ref:`orderstack` for more details.
 
 Inspection
 ==========

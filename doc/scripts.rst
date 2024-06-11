@@ -487,6 +487,8 @@ mask design (e.g. Keck/DEIMOS).  The Flags column describes
 failure modes or reasons why the slit was not reduced.
 *None* is the preferred state for a science slit.
 
+.. _pypeit_chk_wavecalib:
+
 pypeit_chk_wavecalib
 --------------------
 

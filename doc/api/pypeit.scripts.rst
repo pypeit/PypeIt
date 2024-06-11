@@ -33,6 +33,7 @@ Submodules
    pypeit.scripts.install_linelist
    pypeit.scripts.install_ql_calibs
    pypeit.scripts.install_telluric
+   pypeit.scripts.install_wvarxiv
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
