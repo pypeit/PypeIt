@@ -482,17 +482,17 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             xdangles = np.unique(np.int32(fitstbl['xdangle'].value))
             if len(xdangles) == 3:
                 sort_xdagles = np.argsort(xdangles)
-                # example of xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
+                # xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
                 # select the corresponding files for the requested detector
                 if det == 1:
                     # blue detector
-                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[2]])[0]
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -3)[0]
                 elif det == 2:
                     # green detector
-                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[1]])[0]
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -4)[0]
                 elif det == 3:
                     # red detector
-                    return np.where(np.int32(fitstbl['xdangle'].value) == xdangles[sort_xdagles[0]])[0]
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -5)[0]
             else:
                 msgs.warn('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
                           'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
