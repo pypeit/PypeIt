@@ -208,10 +208,41 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
 
-        # These numbers are from the ESO FORS2 user manual at: 0
-        # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
-        # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        '''
+        # From Kentaro Aoki on Slack on 2024-06-11
+        Each chip has four amplifiers.
+        When binning=1, the chip1 has the overscan regions
+        ovregion1="[521:535,*]"
+        ovregion2="[538:552,*]"
+        ovregion3="[1593:1607,*]"
+        ovregion4="[1611:1625,*]",
+        the chip 2 has
+        ovregion1="[521:535,*]"
+        ovregion2="[538:552,*]"
+        ovregion3="[1593:1607,*]"
+        ovregion4="[1610:1624,*]"
+        When binning=2,
+        the chip1 has
+        ovregion1="[261:275,*]"
+        ovregion2="[278:292,*]"
+        ovregion3="[813:827,*]"
+        ovregion4="[831:845,*]",
+        the chip 2 has
+        ovregion1="[261:275,*]"
+        ovregion2="[278:292,*]"
+        ovregion3="[813:827,*]"
+        ovregion4="[830:844,*]"
+        The gains of chip 1 are
+        gain1=2.081
+        gain2=2.047
+        gain3=2.111
+        gain4=2.087.
+        Those of chip 2 are
+        gain1=2.105
+        gain2=1.968
+        gain3=1.999
+        gain4=1.918.
+        '''
 
         # CHIP1
         # TODO - UPDATE ALL OF THIS
@@ -229,8 +260,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
-            numamplifiers   = 1,
-            gain            = np.atleast_1d(0.70),
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.081, 2.047, 2.111, 2.087]), # [gain1, gain2, gain3, gain4
             ronoise         = np.atleast_1d(2.9), # High gain
             datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
             #oscansec=np.atleast_1d('[2062:,:]'),
@@ -249,8 +280,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
-            numamplifiers   = 1,
-            gain            = np.atleast_1d(0.70),
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.105, 1.968, 1.999, 1.918]), # [gain1, gain2, gain3, gain4
             ronoise         = np.atleast_1d(3.15),  # High gain
             datasec=np.atleast_1d('[11:2059,:]'),
             oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
