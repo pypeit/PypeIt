@@ -758,7 +758,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     header_name = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
-    comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
+    comment = 'Hamamatsu detector (R400, B480, B600, R831); see :doc:`gemini_gmos`'
 
     def hdu_read_order(self):
         """
@@ -1202,6 +1202,9 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'R831':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r831_ham.fits'
+        if self.get_meta_value(scifile, 'dispname')[0:4] == 'B480':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_north_ham_b480.fits'
+
         return par
 
 
@@ -1240,6 +1243,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
         # Slurp the NOD&Shuffle
         headarr = self.get_headarr(scifile)
         self.nod_shuffle_pix = headarr[0]['NODPIX']
+
         #
         return par
 

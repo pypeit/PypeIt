@@ -40,6 +40,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
+        
+        par.reset_all_processimages_par(use_biasimage=False, use_overscan=True, overscan_method='odd_even')
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
@@ -341,6 +343,10 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -662,6 +668,10 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 

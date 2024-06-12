@@ -279,7 +279,7 @@ class Spectrograph:
                 Input raw fits filename
         """
         if self.allowed_extensions is not None:
-            _filename = Path(filename).resolve()
+            _filename = Path(filename).absolute()
             if _filename.suffix not in self.allowed_extensions:
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '
                            f'extension ({_filename.suffix}).  The allowed extensions for '
@@ -740,9 +740,8 @@ class Spectrograph:
                 # TODO: Instead check if 'rtol' exists and is not None?
                 if isinstance(configs[cfg_id[0]][key], (float, np.floating)) \
                         and isinstance(configs[_cfg_id][key], (float, np.floating)):
-                    # NOTE: No float-valued metadata can be 0!
-                    matched += [np.abs(configs[cfg_id[0]][key]-configs[_cfg_id][key])
-                                    / configs[cfg_id[0]][key] < self.meta[key]['rtol']]
+                    
+                    matched += [np.isclose(configs[_cfg_id][key], configs[cfg_id[0]][key], rtol=self.meta[key].get('rtol',0.0), atol=self.meta[key].get('atol',0.0), equal_nan=True)]
                 else:
                     matched += [np.all(configs[cfg_id[0]][key] == configs[_cfg_id][key])]
             if not np.all(matched):
@@ -1146,7 +1145,7 @@ class Spectrograph:
         """
         # Check extension and then open
         self._check_extensions(raw_file)
-        hdu = io.fits_open(raw_file)
+        hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
