@@ -41,6 +41,8 @@ import astropy.utils.data
 import github
 import requests
 
+# NOTE: pygit2 is only used for testing purposes.  It is not a requirement for a
+# general user.  Hence the try block below.
 try:
     from pygit2 import Repository
 except ImportError:
