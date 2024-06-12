@@ -31,9 +31,6 @@ Functionality/Performance Improvements and Additions
 - Updated the list of available CALSPEC standard star with the latest version
   from the CALSPEC website.
 
-- Added the functionality to use slitless flats to create pixelflats. Note: new frametype
-  `slitless_pixflat` is added to the PypeIt frametype list.
-
 Instrument-specific Updates
 ---------------------------
 

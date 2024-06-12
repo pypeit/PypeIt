@@ -16,6 +16,9 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Added the functionality to use slitless flats to create pixelflats. Note: new frametype
+  `slitless_pixflat` is added to the PypeIt frametype list.
+
 Instrument-specific Updates
 ---------------------------
 
