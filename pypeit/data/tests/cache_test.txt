@@ -1,0 +1,3 @@
+This file is used by a unit test of the cache system.  The file is deleted
+locally, downloaded and accessed by the cache, and then moved from the cache to
+the main directory.  See pypeit/tests/test_pkgdata.py.

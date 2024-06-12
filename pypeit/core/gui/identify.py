@@ -861,7 +861,7 @@ class Identify:
                     _specdata = specdata if specdata is not None else self.specdata
                     order_vec = np.flip(order_vec, axis=0) if order_vec is not None else None
                     wvutils.write_template(wavelengths, _specdata, binspec, './',
-                                        wvarxiv_name, cache=True, order = order_vec,
+                                        wvarxiv_name, to_cache=True, order = order_vec,
                                         lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr,
                                         lines_fit_ord = lines_fit_ord)
                 # Write the WVCalib file

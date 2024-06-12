@@ -118,7 +118,7 @@ class Setup(scriptbase.ScriptBase):
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)
 
         # Print selected files
-        output_path = Path(args.output_path).resolve()
+        output_path = Path(args.output_path).absolute()
         if args.cfg_split is None:
             # Output directory is hard-coded to be 'setup_files'
             output_path /= 'setup_files'
@@ -153,10 +153,10 @@ class Setup(scriptbase.ScriptBase):
                                                    date_override=args.date_override)
 
             # Write the calib file for each written pypeit file.
-            setups = [Path(p).resolve().name.split('.')[0].split('_')[-1] for p in pypeit_files]
+            setups = [Path(p).absolute().name.split('.')[0].split('_')[-1] for p in pypeit_files]
             for i, setup in enumerate(setups):
                 indx = ps.fitstbl.find_configuration(setup)
-                calib_file = Path(pypeit_files[i]).resolve().with_suffix('.calib')
+                calib_file = Path(pypeit_files[i]).absolute().with_suffix('.calib')
                 caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
                 Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph,
                                                  caldir, subset=indx, overwrite=True)
