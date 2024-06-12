@@ -107,23 +107,17 @@ class SourceObject:
         if 'PYP_SPEC' not in header or header['PYP_SPEC'] != self._spectrograph.name:
             return False
 
-        first_header = self.spec1d_header_list[0]
+        # Build the config to compare against from the first header, 
+        # ignoring "decker" because it's valid to coadd spectra with different slit masks
+        first_config = {key: self.spec1d_header_list[0][key] 
+                            for key in self._spectrograph.configuration_keys() if key != 'decker'}
 
-        for key in self._spectrograph.configuration_keys():
-            # Ignore "decker" because it's valid to coadd spectra with different slit masks
-            if key != "decker":
-                if key not in first_header and key not in header:
-                    # Both are missing the key, this is ok
-                    continue
-                elif key not in first_header or key not in header:
-                    # One has a value and the other doesn't so they don't match
-                    return False
+        second_config = {key: header[key] 
+                            for key in self._spectrograph.configuration_keys() if key != 'decker'}
 
-                if first_header[key] != header[key]:
-                    return False
-
-        # No mismatches were found
-        return True
+        # Use spectrograph.same_configuration to compare the configurations, with check_keys set to False
+        # so only the keys in first_config are checked
+        return self._spectrograph.same_configuration([first_config, second_config],check_keys=False)
 
     def match(self, spec_obj, spec1d_header, tolerance, unit = u.arcsec):
         """Determine if a SpecObj matches this group within the given tolerance.

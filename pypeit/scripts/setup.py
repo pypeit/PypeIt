@@ -41,6 +41,8 @@ class Setup(scriptbase.ScriptBase):
                                  '\'A,B\' or \'B,D,E\' or \'E\'.')
         parser.add_argument('-b', '--background', default=False, action='store_true',
                             help='Include the background-pair columns for the user to edit')
+        parser.add_argument('-f', '--flexure', default=False, action='store_true',
+                            help='Include the manual spatial shift (flexure) column for the user to edit')
         parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
                             help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=1,
@@ -116,7 +118,7 @@ class Setup(scriptbase.ScriptBase):
         ps.run(setup_only=True, clean_config=not args.keep_bad_frames)
 
         # Print selected files
-        output_path = Path(args.output_path).resolve()
+        output_path = Path(args.output_path).absolute()
         if args.cfg_split is None:
             # Output directory is hard-coded to be 'setup_files'
             output_path /= 'setup_files'
@@ -145,15 +147,16 @@ class Setup(scriptbase.ScriptBase):
             pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, 
                                                    write_bkg_pairs=args.background,
                                                    write_manual=args.manual_extraction,
+                                                   write_shift = args.flexure,
                                                    configs=configs,
                                                    version_override=args.version_override,
                                                    date_override=args.date_override)
 
             # Write the calib file for each written pypeit file.
-            setups = [Path(p).resolve().name.split('.')[0].split('_')[-1] for p in pypeit_files]
+            setups = [Path(p).absolute().name.split('.')[0].split('_')[-1] for p in pypeit_files]
             for i, setup in enumerate(setups):
                 indx = ps.fitstbl.find_configuration(setup)
-                calib_file = Path(pypeit_files[i]).resolve().with_suffix('.calib')
+                calib_file = Path(pypeit_files[i]).absolute().with_suffix('.calib')
                 caldir = calib_file.parent / ps.par['calibrations']['calib_dir']
                 Calibrations.association_summary(calib_file, ps.fitstbl, ps.spectrograph,
                                                  caldir, subset=indx, overwrite=True)
