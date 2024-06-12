@@ -2,8 +2,8 @@ from scipy.io import readsav
 import numpy as np
 import pathlib
 
+from pypeit import dataPaths
 from pypeit import io
-from pypeit import data
 
 
 def sav_to_fits(savfile):
@@ -32,7 +32,7 @@ def sav_to_fits(savfile):
 
     io.write_to_fits(
         sav,
-        data.Paths.static_calibs / 'keck_deimos', f'{savfile_name}.fits',
+        dataPaths.static_calibs.get_file_path(f'keck_deimos/{savfile_name}.fits'),
         overwrite=True
     )
 

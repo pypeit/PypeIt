@@ -1,0 +1,6 @@
+|            koaid|                                                        filename|     ra|               dec|target|dispname| decker|binning|         mjd|   airmass|exptime|
+|             char|                                                            char| double|            double|  char|    char|   char|   char|      double|    double| double|
+|                 |                                                                |       |                  |      |        |       |       |            |          |       |
+|             null|                                                            null|   null|              null|  null|    null|   null|   null|        null|      null|   null|
+ DE.20100913.22358 spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits 352.304 -3.097083333333333 CFHQS1     830G CFHQS1B     1,1 55452.258696 2.40403914  1800.0 
+ DE.20100913.22358 spec2d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits 352.304 -3.097083333333333 CFHQS1     830G CFHQS1B     1,1 55452.258696 2.40403914  1800.0 

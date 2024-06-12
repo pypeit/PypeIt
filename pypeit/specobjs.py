@@ -95,7 +95,7 @@ class SpecObjs:
                 slf.calibs['DIR'] = slf.header['CLBS_DIR']
                 for key in slf.header.keys():
                     if key.startswith('CLBS_') \
-                            and (Path(slf.calibs['DIR']).resolve() / slf.header[key]).exists():
+                            and (Path(slf.calibs['DIR']).absolute() / slf.header[key]).exists():
                         slf.calibs['_'.join(key.split('_')[1:])] = slf.header[key]
 
             detector_hdus = {}
@@ -221,7 +221,6 @@ class SpecObjs:
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        # Test
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #

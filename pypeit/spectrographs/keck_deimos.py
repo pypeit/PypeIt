@@ -31,7 +31,7 @@ from pypeit.core import wave
 from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
 from pypeit.images.detector_container import DetectorContainer
-from pypeit import data
+from pypeit import dataPaths
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
 
@@ -217,7 +217,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # raw frame date in mjd
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), format='mjd').value
             # get the measurements files
-            measure_files = sorted((data.Paths.spectrographs / "keck_deimos" / "gain_ronoise" / amp_folder).glob("*"))
+            # NOTE: The use of ``glob`` here *requires* that the files be on disk
+            measure_files = sorted((dataPaths.spectrographs / "keck_deimos" / "gain_ronoise" / amp_folder).glob("*"))
             # Parse the dates recorded in the name of the files
             measure_dates = np.array([f.name.split('.')[2] for f in measure_files])
             # convert into datetime format
@@ -1229,13 +1230,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
 
-        mp_dir = data.Paths.static_calibs / 'keck_deimos'
-
         if slider in [3,4]:
-            self.amap = fits.getdata(mp_dir / f'amap.s{slider}.2003mar04.fits')
-            self.bmap = fits.getdata(mp_dir / f'bmap.s{slider}.2003mar04.fits')
+            self.amap = fits.getdata(dataPaths.static_calibs.get_file_path(
+                                        f'keck_deimos/amap.s{slider}.2003mar04.fits'))
+            self.bmap = fits.getdata(dataPaths.static_calibs.get_file_path(
+                                        f'keck_deimos/bmap.s{slider}.2003mar04.fits'))
         else:
-            msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
+            msgs.error(f'No amap/bmap available for slider {slider}. Set `use_maskdesign = False`')
         #TODO: Figure out which amap and bmap to use for slider 2
 
         return self.amap, self.bmap

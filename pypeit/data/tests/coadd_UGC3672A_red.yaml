@@ -1,0 +1,11 @@
+'spectrograph': 'shane_kast_red'
+'extract': 'opt'
+'flux': True
+'filenames': ['spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits', 'spec1d_J22*']
+'global':
+     'scale_method': 'hand'
+'a':
+    'object': 'O210-S1467-D02-I0012'
+    'outfile': 'UGC3672A_r.fits'
+    'local': 
+        'otol': 10

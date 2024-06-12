@@ -5,6 +5,7 @@ from pypeit.scripts import scriptbase
 # The import of all the script modules here is what enables the dynamic
 # compiling of all the available scripts below
 from pypeit.scripts import cache_github_data
+from pypeit.scripts import clean_cache
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
@@ -28,6 +29,7 @@ from pypeit.scripts import install_extinctfile
 from pypeit.scripts import install_linelist
 from pypeit.scripts import install_ql_calibs
 from pypeit.scripts import install_telluric
+from pypeit.scripts import install_wvarxiv
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
