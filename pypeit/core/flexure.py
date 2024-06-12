@@ -24,10 +24,11 @@ from scipy import interpolate
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
+from pypeit import dataPaths
+from pypeit import io
 from pypeit import utils
 from pypeit.display import display
 from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
@@ -36,7 +37,6 @@ from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit import specobj, specobjs
-from pypeit import data
 from pypeit import wavemodel
 
 from IPython import embed
@@ -907,7 +907,7 @@ def get_archive_spectrum(sky_file, obj_skyspec=None, spec_fwhm_pix=None):
     if sky_file != 'model':
         # Load Archive. Save the fwhm to avoid the performance hit from calling it on the archive sky spectrum
         # multiple times
-        sky_spectrum = data.load_sky_spectrum(sky_file)
+        sky_spectrum = io.load_sky_spectrum(sky_file)
         # get arxiv sky spectrum resolution (FWHM in pixels)
         arx_fwhm_pix = autoid.measure_fwhm(sky_spectrum.flux.value, sigdetect=4., fwhm=4.)
         if arx_fwhm_pix is None:
@@ -1467,7 +1467,7 @@ class MultiSlitFlexure(DataContainer):
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
         #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
         sky_file = 'sky_single_mg.dat'
-        self.sky_table = ascii.read(data.Paths.sky_spec / sky_file)
+        self.sky_table = ascii.read(dataPaths.sky_spec.get_file_path(sky_file))
 
     # NOTE: If you make changes to how this object is bundled into the output
     # datamodel, make sure you update the documentation in

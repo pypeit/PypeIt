@@ -210,7 +210,7 @@ class PypeItMetaData:
 
         # Build the table
         for idx, ifile in enumerate(_files):
-            _ifile = Path(ifile).resolve()
+            _ifile = Path(ifile).absolute()
             # User data (for frame type)
             if usrdata is None:
                 usr_row = None
@@ -1601,7 +1601,7 @@ class PypeItMetaData:
             msgs.error('Cannot write sorted instrument configuration table without \'setup\' '
                        'column; run set_configurations.')
 
-        _ofile = Path(ofile).resolve()    
+        _ofile = Path(ofile).absolute()    
         if _ofile.exists() and not overwrite:
             msgs.error(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
 

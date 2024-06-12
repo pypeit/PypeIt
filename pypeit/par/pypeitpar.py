@@ -4230,7 +4230,7 @@ class FindObjPar(ParSet):
 
     def validate(self):
         if self.data['std_spec1d'] is not None \
-                and not Path(self.data['std_spec1d']).resolve().exists():
+                and not Path(self.data['std_spec1d']).absolute().exists():
             msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 

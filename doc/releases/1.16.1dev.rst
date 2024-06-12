@@ -1,0 +1,46 @@
+
+Version 1.16.1dev
+=================
+
+Installation Changes
+--------------------
+
+- Significant expansion of PypeIt's use of the cache system; see
+  :ref:`data_installation`.  Important changes include that most cached files
+  are now version dependent.  When upgrading to new versions of PypeIt, users
+  should delete their cache and start fresh.
+
+Dependency Changes
+------------------
+
+Functionality/Performance Improvements and Additions
+----------------------------------------------------
+
+Instrument-specific Updates
+---------------------------
+
+- Improved LRIS frame typing, including the typing of slitless flats and sky flats.
+
+Script Changes
+--------------
+
+- Modifications to the cache-related :ref:`install_scripts` to accommodate
+  expansion of and changes to the cache system.
+- Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
+  files in the cache.
+
+Datamodel Changes
+-----------------
+
+Under-the-hood Improvements
+---------------------------
+
+- Introduced :class:`~pypeit.pypeitdata.PypeItDataPaths` to handle all
+  interactions with the ``pypeit/data`` directory, which provides a unified
+  interface for accessing on-disk and cached files.
+
+Bug Fixes
+---------
+
+- None
+
