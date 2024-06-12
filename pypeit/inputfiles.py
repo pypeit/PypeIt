@@ -1085,8 +1085,8 @@ def grab_rawfiles(file_of_files:str=None, list_of_files:list=None, raw_paths:lis
         # PypeIt formatted list of files
         return RawFiles.from_file(file_of_files).filenames
 
-    _raw_paths = [Path().resolve()] if raw_paths is None \
-                    else [Path(p).resolve() for p in raw_paths]
+    _raw_paths = [Path().absolute()] if raw_paths is None \
+                    else [Path(p).absolute() for p in raw_paths]
 
     if list_of_files is not None:
         # An actual list

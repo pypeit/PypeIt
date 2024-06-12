@@ -1,0 +1,14 @@
+[coadd1d]
+   coaddfile = files/pisco_coadd.fits
+   sensfuncfile = files/sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits
+   flux_value = False
+
+# User-defined fluxing parameters
+coadd1d read
+filename | obj_id 
+files/spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits | OBJ0653-DET01 
+files/spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits | OBJ0205-DET01 
+files/spec1d_cN20170331S0220-pisco_GNIRS_20170331T091538.731.fits | OBJ0658-DET01 
+files/spec1d_cN20170331S0221-pisco_GNIRS_20170331T092059.597.fits | OBJ0211-DET01 
+coadd1d end
+

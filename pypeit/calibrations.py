@@ -167,12 +167,12 @@ class Calibrations:
         # Calibrations
         self.reuse_calibs = reuse_calibs
         self.chk_version = chk_version
-        self.calib_dir = Path(caldir).resolve()
+        self.calib_dir = Path(caldir).absolute()
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
 
         # QA
-        self.qa_path = None if qadir is None else Path(qadir).resolve()
+        self.qa_path = None if qadir is None else Path(qadir).absolute()
         if self.qa_path is not None:
             # TODO: This should only be defined in one place!  Where?...
             qa_png_path = self.qa_path / 'PNGs'
@@ -869,7 +869,7 @@ class Calibrations:
         # Slits don't exist or we're not resusing them.  See if the Edges
         # calibration frame exists.
         edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(calib_key,
-                            calib_dir=self.calib_dir)).resolve()
+                            calib_dir=self.calib_dir)).absolute()
         # If so, reuse it?
         if edges_file.exists() and self.reuse_calibs:
             # Yep!  Load it and parse it into slits.
@@ -980,6 +980,12 @@ class Calibrations:
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file, chk_version=self.chk_version)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
+            if self.par['wavelengths']['method'] == 'echelle':
+                msgs.info('Method set to Echelle -- checking wv_calib for 2dfits')
+                if not hasattr(self.wv_calib, 'wv_fit2d'):
+                    msgs.error('There is no 2d fit in this Echelle wavelength '
+                               'calibration! Please generate a new one with a 2d fit.')
+
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
                 return self.wv_calib
@@ -1179,7 +1185,7 @@ class Calibrations:
                       'processed calibration frames.  Ignoring former request.')
 
         # Set the calibrations path
-        _caldir = str(Path(caldir).resolve())
+        _caldir = str(Path(caldir).absolute())
 
         # This defines the classes used by each frametype that results in an
         # output calibration frame:
@@ -1251,7 +1257,7 @@ class Calibrations:
                 if not isinstance(val, dict) or 'proc' not in val:
                     continue
                 for file in val['proc']:
-                    _file = Path(file).resolve()
+                    _file = Path(file).absolute()
                     # NOTE: This assumes the calib_type (i.e., the class
                     # attribute of the processed calibration frame) is the first
                     # element of the output file name.  If we change the
@@ -1304,7 +1310,7 @@ class Calibrations:
         if fitstbl.calib_groups is None:
             msgs.error('Calibration groups have not been defined!')
 
-        _ofile = Path(ofile).resolve()
+        _ofile = Path(ofile).absolute()
         if _ofile.exists() and not overwrite:
             msgs.error(f'{_ofile} exists!  To overwrite, set overwrite=True.')
 

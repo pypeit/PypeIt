@@ -7,10 +7,8 @@ import numpy as np
 from linetools.spectra.io import readspec
 
 from pypeit.core import flexure
-from pypeit import data
+from pypeit import dataPaths
 from pypeit.core.wavecal import autoid
-
-from pypeit.tests.tstutils import data_path
 
 from IPython import embed
 
@@ -18,8 +16,9 @@ from IPython import embed
 def test_flex_shift():
     # Dummy slf
     # Read spectra
-    obj_spec = readspec(data_path('obj_lrisb_600_sky.fits'))
-    arx_file = data.Paths.sky_spec / 'sky_LRISb_600.fits'
+    spec_file = dataPaths.tests.get_file_path('obj_lrisb_600_sky.fits', to_pkg='symlink')
+    obj_spec = readspec(str(spec_file))
+    arx_file = dataPaths.sky_spec.get_file_path('sky_LRISb_600.fits', to_pkg='symlink')
 
     # Call
     flex_dict = flexure.spec_flex_shift(obj_spec, sky_file=arx_file, mxshft=60)
@@ -42,3 +41,4 @@ def test_flex_image():
     assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
     xshft, yshft = flexure.calculate_image_offset(img[:-1, :-1], img[:-1, :-1])
     assert(np.abs(xshft) < 1.0e-6 and np.abs(yshft) < 1.0e-6)
+

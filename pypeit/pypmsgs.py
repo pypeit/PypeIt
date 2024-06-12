@@ -43,6 +43,9 @@ class PypeItBitMaskError(PypeItError):
 class PypeItDataModelError(PypeItError):
     pass
 
+class PypeItPathError(PypeItError):
+    pass
+
 
 class Messages:
     """
