@@ -17,7 +17,8 @@ from astropy import convolution
 from astropy import constants
 
 from pypeit import msgs
-from pypeit import utils, data
+from pypeit import cache
+from pypeit import utils
 from pypeit.core import arc
 from pypeit.pypmsgs import PypeItError
 
@@ -879,7 +880,7 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
                    order=None, lines_pix_arr=None, lines_wav_arr=None,
-                   lines_fit_ord=None, overwrite=True, cache=False):
+                   lines_fit_ord=None, overwrite=True, to_cache=False):
     """
     Write the template spectrum into a binary FITS table
 
@@ -901,7 +902,7 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
             Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
-        cache (bool, optional):
+        to_cache (bool, optional):
             Store the wavelength solution in the pypeit cache?
         lines_pix_arr (`numpy.ndarray`_, optional):
             Pixel values of identified arc line centroids
@@ -931,9 +932,9 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     outfile = os.path.join(outpath, outroot)
     tbl.write(outfile, overwrite=overwrite)
     msgs.info(f"Your arxiv solution has been written to {outfile}\n")
-    if cache:
+    if to_cache:
         # Also copy the file to the cache for direct use
-        data.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
+        cache.write_file_to_cache(outroot, outroot, "arc_lines/reid_arxiv")
 
         msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
                   f"To utilize this wavelength solution, insert the{msgs.newline()}"

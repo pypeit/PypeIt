@@ -9,7 +9,7 @@ import numpy as np
 from astropy import table
 
 from pypeit.utils import to_string, string_table
-from pypeit import data
+from pypeit import dataPaths
 
 from IPython import embed
 
@@ -23,7 +23,7 @@ def write_tables(path):
         ofile = path / f'{sset}_table.rst'
 
         # get table data
-        star_file = data.Paths.standards / f'{sset}' / f"{sset}_info.txt"
+        star_file = dataPaths.standards.get_file_path(f'{sset}/{sset}_info.txt')
         star_tbl = table.Table.read(star_file, comment='#', format='ascii')
 
         # create the table for the rst file

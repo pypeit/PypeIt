@@ -1,7 +1,7 @@
-pypeit.data.utils module
+pypeit.pypeitdata module
 ========================
 
-.. automodule:: pypeit.data.utils
+.. automodule:: pypeit.pypeitdata
    :members:
    :private-members:
    :undoc-members:
