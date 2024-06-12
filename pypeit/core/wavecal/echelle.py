@@ -89,7 +89,7 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
             continue
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
-        for ic in range(angle_fits_params['ech_n_final'] + 1):
+        for ic in range(int(np.ceil(angle_fits_params['ech_n_final']) + 1)):
             coeff_predict[ic] = fitting.evaluate_fit(
                 ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
@@ -192,7 +192,8 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
-                        composite_arc_file, debug=False, pad=3):
+                        composite_arc_file, debug=False, 
+                        cc_percent_ceil=50.0, pad=3):
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -215,6 +216,8 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         Number of orders to pad the coverage by on the blue and red side.
     debug : bool, optional
         Passed to xcorr_shift
+    cc_percent_ceil: float, optional
+        The percent_ceil value to be used by xcorr_shift to set the percentile to which to normalize the CCF
 
     Returns
     -------
@@ -233,16 +236,15 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
         nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
-
+    msgs.info(f'initial orders vec guess = {order_vec_guess}')
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
-
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-        percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
+        percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
         msgs.info(f'Cross-correlation for order identification: shift={shift_cc:.3f}, corr={corr_cc:.3f}')

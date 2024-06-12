@@ -36,6 +36,7 @@ Instrument-specific Updates
       ``raw header cards``.
 
 - Added example of improved wavelength solution for GEMINI/GMOS
+- Introduces reduction pipeline for high-resolution modes of Keck/NIRSPEC
 - Expanded the template for `shane_kast_red` and the 1200/5000 grating
 - Fixed and improved the wavelength template `magellan_fire_long`
 - Updated Gemini/GMOS-S with the new detector parameters for the Hamamatsu CCDs replaced on 2023-12-14

@@ -149,7 +149,7 @@ class SetupCoAdd2D(scriptbase.ScriptBase):
         # Match spec2d files to objects
         object_spec2d_files = {}
         for obj in objects:
-            object_spec2d_files[obj] = [f for f in spec2d_files if obj in f.name]
+            object_spec2d_files[obj] = [f for f in spec2d_files if obj.strip() in f.name]
             if len(object_spec2d_files[obj]) == 0:
                 msgs.warn(f'No spec2d files found for target={obj}.')
                 del object_spec2d_files[obj]

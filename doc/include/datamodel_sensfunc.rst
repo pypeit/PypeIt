@@ -1,5 +1,5 @@
 
-Version 1.0.1
+Version 1.0.2
 
 ==============  ==============================  =========  ========================================================================================================================================================================================================
 HDU Name        HDU Type                        Data Type  Description                                                                                                                                                                                             
@@ -60,4 +60,5 @@ Column                         Data Type  Description
 ``SENS_FLUXED_STD_FLAM``       float64    The F_lambda for the fluxed standard star spectrum                    
 ``SENS_FLUXED_STD_FLAM_IVAR``  float64    The inverse variance of F_lambda for the fluxed standard star spectrum
 ``SENS_FLUXED_STD_MASK``       bool       The good pixel mask for the fluxed standard star spectrum             
+``SENS_STD_MODEL_FLAM``        float64    The F_lambda for the standard model spectrum                          
 =============================  =========  ======================================================================

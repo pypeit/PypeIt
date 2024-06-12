@@ -381,7 +381,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
                nreid_min, cont_sub=True, det_arxiv=None, detections=None,
                cc_shift_range=None, cc_thresh=0.8, cc_local_thresh=0.8,
                match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,
-               sigdetect=5.0, fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
+               sigdetect=5.0, fwhm=4.0, percent_ceil=50, max_lag_frac=1.0,
+               debug_xcorr=False, debug_reid=False, debug_peaks = False, stretch_func = 'linear'):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -458,6 +459,19 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     fwhm: float, default = 4.0
         Full width at half maximum for the arc lines
 
+    stretch_func: str, default = 'linear', optional
+        Choose whether the function stretching the wavelength reference to match the observed arc
+        lamp spectrum should be 'quad' (quadratic stretch function) or 'linear' (linear stretch only)
+
+    percent_ceil (float, optional, default=50.0):
+        Upper percentile threshold for thresholding positive and negative values. If set to None, no thresholding
+        will be performed.
+
+    max_lag_frac : float, default = 1.0
+        Fraction of the total spectral pixels used to determine the range of lags
+        to search over.  The range of lags will be [-nspec*max_lag_frac +1, nspec*max_lag_frac].
+
+        
     Returns
     -------
     (detections, spec_cont_sub, patt_dict)
@@ -574,16 +588,18 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
     disp = np.zeros(narxiv)
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
+    stretch2_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
+    
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
-        success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect, lag_range=cc_shift_range,
-                                        cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
-#                                        stretch_mnmx=(0.99,1.01),
-                                        debug=debug_xcorr)
+        success, shift_vec[iarxiv], stretch_vec[iarxiv], stretch2_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
+            wvutils.xcorr_shift_stretch(use_spec, use_spec_arxiv[:, iarxiv], sigdetect=sigdetect,
+                                        lag_range=cc_shift_range, cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
+                                        debug=debug_xcorr, percent_ceil=percent_ceil, max_lag_frac=max_lag_frac,
+                                        stretch_func=stretch_func)
         msgs.info(f'shift = {shift_vec[iarxiv]:5.3f}, stretch = {stretch_vec[iarxiv]:5.3f}, cc = {ccorr_vec[iarxiv]:5.3f}')
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -594,8 +610,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list,
         wcen[iarxiv] = wvc_arxiv[iarxiv] - shift_vec[iarxiv]*disp[iarxiv]
         # For each peak in the arxiv spectrum, identify the corresponding peaks in the input spectrum. Do this by
         # transforming these arxiv slit line pixel locations into the (shifted and stretched) input spectrum frame
-        det_arxiv_ss = this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
-        spec_arxiv_ss = wvutils.shift_and_stretch(use_spec_arxiv[:, iarxiv], shift_vec[iarxiv], stretch_vec[iarxiv])
+        det_arxiv_ss = this_det_arxiv**2*stretch2_vec[iarxiv] + this_det_arxiv*stretch_vec[iarxiv] + shift_vec[iarxiv]
+        spec_arxiv_ss = wvutils.shift_and_stretch(use_spec_arxiv[:, iarxiv], shift_vec[iarxiv],
+                                                   stretch_vec[iarxiv], stretch2_vec[iarxiv], stretch_func=stretch_func)
 
         if debug_xcorr:
             plt.figure(figsize=(14, 6))
@@ -1070,11 +1087,10 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
     -------
     wvcalib : dict
         Dict of wavelength calibration solutions
+    order : ndarray
+        Array containing the order IDs of the slits if using an Echelle spectrograph. "None" otherwise.
 
     """
-    #debug = True
-    #debug_xcorr = True
-    #debug_reid = True
     # Load line lists
     line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
@@ -1084,12 +1100,19 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         if par['reid_arxiv'] is None:
             msgs.error('WavelengthSolutionPar parameter `reid_arxiv` not '
                        'specified for "full_template" method.')
-        temp_wv, temp_spec, temp_bin = waveio.load_template(
-            par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
+        temp_wv_og, temp_spec_og, temp_bin, order, lines_pix, lines_wav, lines_fit_ord = \
+            waveio.load_template(par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
-        temp_wv = template_dict['wave']
-        temp_spec = template_dict['spec']
+        temp_wv_og = template_dict['wave']
+        temp_spec_og = template_dict['spec']
         temp_bin = template_dict['bin']
+        order = template_dict['order']
+        lines_pix = template_dict['lines_pix'] 
+        lines_wav = template_dict['lines_wav'] 
+        lines_fit_ord = template_dict['lines_fit_ord']
+
+    temp_wv = temp_wv_og
+    temp_spec = temp_spec_og
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
@@ -1143,6 +1166,78 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         else:  # No padding necessary
             pad_spec = obs_spec_cont_sub
             tspec = templ_spec_cont_sub
+
+        # check if there is an arxived solution for this slit:
+        if lines_pix is not None:
+            if lines_pix[slit] is not None:
+                msgs.info(f'An arxived solution exists! Loading those line IDs for slit {slit+1}/{nslits}')
+                msgs.info('Checking for possible shifts')
+                shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec_og[slit,:], obs_spec_i, debug=debug, fwhm=fwhm, 
+                                                        percent_ceil=50.0, lag_range=par['cc_shift_range'])#par['cc_percent_ceil'])
+                msgs.info(f'Shift = {shift_cc} pixels! Shifting detections now')
+                pix_arxiv_ss = lines_pix[slit] - shift_cc
+                bdisp = np.nanmedian(np.abs(temp_wv - np.roll(temp_wv, 1)))
+                # Collate and proceed
+                dets = pix_arxiv_ss[np.where(np.logical_and(pix_arxiv_ss < len(obs_spec_i)-50, pix_arxiv_ss > 50))[0]]
+                IDs = lines_wav[slit][np.where(np.logical_and(pix_arxiv_ss < len(obs_spec_i)-50, pix_arxiv_ss > 50))[0]]
+                msgs.info(f'Using lines from pixel {dets} mapped to Wavelengths: {IDs}')
+                gd_det = np.where(IDs > 0.)[0]
+                if len(gd_det) < 2:
+                    msgs.warn("Not enough useful IDs")
+                    wvcalib[str(slit)] = None
+                    continue
+                # Fit
+                xnspecmin1 = (float(len(obs_spec_i))-1)
+                pypeitFit = fitting.robust_fit(dets[gd_det]/(float(len(obs_spec_i))-1), IDs[gd_det], lines_fit_ord[slit], 
+                                                function=par['func'], maxiter=gd_det.size - lines_fit_ord[slit] - 2,
+                            lower=2.0, upper=2.0, maxrej=1, sticky=True,
+                            minx=0.0, maxx=1.0, weights=np.ones(dets.size))
+                all_idsion = []
+                for ss, iwave in enumerate(IDs):
+                    mn = np.min(np.abs(iwave-line_lists['wave']))
+                    if mn/bdisp < par['match_toler']:
+                        imn = np.argmin(np.abs(iwave-line_lists['wave']))
+                        #print(imn, line_lists['ion'])
+                        all_idsion.append(line_lists['ion'][imn])
+                    else:
+                        all_idsion.append('UNKNWN')
+                all_idsion = np.array(all_idsion)
+
+                ions = all_idsion
+                # Final RMS
+                rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
+                rms_pix = rms_ang/bdisp
+
+                # Pack up fit
+                spec_vec = np.arange(nspec)
+                wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
+                cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
+                cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
+                cen_disp = cen_wave - cen_wave_min1
+
+                # Ions bit
+                ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
+                for kk,ion in enumerate(ions):
+                    ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
+                # DataContainer time
+
+                try:        
+                    # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
+                    final_fit = wv_fitting.WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=dets[gd_det], wave_fit=IDs[gd_det],
+                                        ion_bits=ion_bits, xnorm=(float(len(obs_spec_i))-1),
+                                        cen_wave=cen_wave, cen_disp=cen_disp,
+                                        spec=obs_spec_i, wave_soln = wave_soln, sigrej=3.0,
+                                        shift=0., tcent=dets, rms=rms_pix)
+
+                except TypeError:
+                    wvcalib[str(slit)] = None
+                else:
+                    wvcalib[str(slit)] = copy.deepcopy(final_fit)
+
+                continue
+            else:
+                msgs.info('No solution yet for this slit, so making one now...')
+
         # Cross-correlate
         shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pad_spec, debug=debug, fwhm=fwhm,
                                                 percent_ceil=x_percentile, lag_range=par['cc_shift_range'])
@@ -1156,7 +1251,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
             ax.plot(xvals, np.roll(pad_spec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
-            #embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
@@ -1197,8 +1291,10 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
+                                                              percent_ceil=x_percentile,
                                                               cc_shift_range=par['cc_shift_range'],
-                                                              cc_thresh=0.1, fwhm=fwhm)
+                                                              cc_thresh=0.1, fwhm=fwhm,
+                                                              stretch_func=par['stretch_func'])
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -1214,7 +1310,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         dets = np.concatenate(sv_det)
         IDs = np.concatenate(sv_IDs)
         gd_det = np.where(IDs > 0.)[0]
-        if len(gd_det) < 4:
+        if len(gd_det) < 2:
             msgs.warn("Not enough useful IDs")
             wvcalib[str(slit)] = None
             continue
@@ -1231,12 +1327,12 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
                                               sigrej_first=par['sigrej_first'],
                                               sigrej_final=par['sigrej_final'])
         except TypeError:
-            #embed(header='974 of autoid')
             wvcalib[str(slit)] = None
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
+        
     # Finish
-    return wvcalib
+    return wvcalib, order
 
 
 def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
@@ -1371,9 +1467,10 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             cont_sub=par['reid_cont_sub'], match_toler=par['match_toler'], cc_shift_range=par['cc_shift_range'],
             cc_thresh=cc_thresh, cc_local_thresh=par['cc_local_thresh'], nlocal_cc=par['nlocal_cc'],
             nonlinear_counts=nonlinear_counts, sigdetect=sigdetect, fwhm=fwhm,
+            percent_ceil=par['cc_percent_ceil'], max_lag_frac=par['cc_offset_minmax'],
             debug_peaks=(debug_peaks or debug_all),
             debug_xcorr=(debug_xcorr or debug_all),
-            debug_reid=(debug_reid or debug_all))
+            debug_reid=(debug_reid or debug_all), stretch_func=par['stretch_func'])
 
         # Check if an acceptable reidentification solution was found
         if not all_patt_dict[str(iord)]['acceptable']:
@@ -1394,7 +1491,7 @@ def echelle_wvcalib(spec, orders, spec_arxiv, wave_arxiv, lamps, par,
             sigrej_first=par['sigrej_first'],
             n_final=n_final,
             sigrej_final=par['sigrej_final'])
-
+        msgs.info(f"Number of lines used in fit: {len(final_fit['pixel_fit'])}")
         # Did the fit succeed?
         if final_fit is None:
             # This pattern wasn't good enough
@@ -1692,7 +1789,7 @@ class ArchiveReid:
                            cc_shift_range=self.par['cc_shift_range'], cc_local_thresh=self.cc_local_thresh,
                            nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
                            sigdetect=sigdetect, fwhm=fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid=self.debug_reid)
+                           debug_reid=self.debug_reid, stretch_func=self.par['stretch_func'])
             # str for the reports below
             order_str = '' if orders is None else ', order={}'.format(orders[slit])
             # Check if an acceptable reidentification solution was found
@@ -1740,7 +1837,6 @@ class ArchiveReid:
         # Print the final report of all lines
         report_final(self.nslits, self.all_patt_dict, self.detections, self.wv_calib, self.ok_mask, self.bad_slits)
 
-
     def get_results(self):
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
 
@@ -1763,8 +1859,6 @@ class ArchiveReid:
 
         # Return
         return np.stack(wave_soln_arxiv,axis=-1), np.stack(arcspec_arxiv,axis=-1)
-
-
 
 
 class HolyGrail:
@@ -2360,7 +2454,8 @@ class HolyGrail:
                 # spec_gs_adj is the stretched spectrum
                 success, shift_vec[cntr], stretch_vec[cntr], ccorr_vec[cntr], _, _ =  \
                     wvutils.xcorr_shift_stretch(self._spec[:, bs],self._spec[:, gs],
-                                                cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug)
+                                                cc_thresh=cc_thresh, fwhm=fwhm, debug=self._debug,
+                                                stretch_func=self._par['stretch_func'])
                 if success != 1:
                     msgs.warn('cross-correlation failed or cc<cc_thresh.')
                     continue
@@ -2383,7 +2478,7 @@ class HolyGrail:
                     plt.plot(xrng, self._spec[:, gs], color='black', drawstyle='steps-mid', linestyle=':',
                              label='good slit arc', linewidth=0.5)
                     plt.plot(gsdet, tampl_gs, 'k+', markersize=8.0, label='good slit lines')
-                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr])
+                    gdarc_ss = wvutils.shift_and_stretch(self._spec[:, gs], shift_vec[cntr], stretch_vec[cntr], 0.0*stretch_vec[cntr], stretch_func = 'linear')
                     #tampl_ss = np.interp(gsdet_ss, xrng, gdarc_ss)
                     for iline in range(gsdet_ss.size):
                         plt.plot([gsdet[iline],gsdet_ss[iline]],[tampl_gs[iline], tampl_gs[iline]], color='cornflowerblue', linewidth = 1.0)
@@ -2917,7 +3012,6 @@ class HolyGrail:
         alldisp = self._bind[bidx[1]]
         allhnum = np.abs(histimg[bidx])
 
-        #debug = False
         if self._debug:# or slit==2:
             this_hist = histimg
             plt.clf()
@@ -2925,15 +3019,6 @@ class HolyGrail:
             fx = plt.figure(1, figsize=(12, 8))
             ax_image = fx.add_axes(rect_image)
             extent = [self._binw[0], self._binw[-1], self._bind[0], self._bind[-1]]
-            # plt.subplot(221)
-            # plt.imshow((np.abs(histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(222)
-            # plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(223)
-            # plt.imshow((np.abs(histimgp[:, ::-1].T)), extent=extent, aspect='auto')
-            # plt.subplot(224)
-            # plt.imshow((np.abs(histimgm[:, ::-1].T)), extent=extent, aspect='auto')
-            #plt.imshow((np.abs(sm_histimg[:, ::-1].T)), extent=extent, aspect='auto')
             cimg = ax_image.imshow(this_hist.T, extent=extent, aspect='auto',vmin=-2.0,vmax=5.0,
                        interpolation='nearest',origin='lower',cmap='Set1')
             nm = histimg.max() - histimg.min()
@@ -2950,14 +3035,7 @@ class HolyGrail:
             ax_image.plot(allwcen + delta_wv/2.0, alldisp + delta_disp/2.0, color='red', marker='+', markersize=10.0, fillstyle='none',
                      linestyle='None', zorder = 10,label=label)
             ax_image.legend()
-            #plt.plot(self._binw[bidx[0]], self._bind[bidx[1]], 'r+')
-#            ax_image.axvline(allwcen, color='r', linestyle='--')
-#            ax_image.axhline(alldisp, color='r', linestyle='--')
             plt.show()
-            #if False:
-            #    plt.clf()
-            #    plt.imshow(histimgp[:, ::-1].T, extent=extent, aspect='auto',vmin=0.0,vmax=1.0)
-            #    plt.show()
 
 
         # Find all good solutions
