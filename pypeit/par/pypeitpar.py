@@ -362,14 +362,6 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_sigdetect'] = [int, float]
         descr['spat_flexure_sigdetect'] = 'Detection threshold for spatial flexure cross-correlation peaks.'
 
-<<<<<<< HEAD
-        
-=======
-        defaults['spat_flexure_maxlag'] = 20
-        dtypes['spat_flexure_maxlag'] = int
-        descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
-
->>>>>>> develop
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
         dtypes['combine'] = str
