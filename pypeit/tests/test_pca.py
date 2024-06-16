@@ -8,9 +8,9 @@ import pytest
 
 from astropy.io import fits
 
+from pypeit import dataPaths
 from pypeit.tracepca import TracePCA
 from pypeit.core.fitting import PypeItFit
-from pypeit.tests.tstutils import data_path
 
 @pytest.fixture
 def vec_coo():
@@ -52,7 +52,7 @@ def test_prediction(vec_coo, bogus_vectors):
 
 def test_rms():
     """Test on some real data."""
-    center = np.load(data_path('example_trace_deimos_1200G_M_7750.npz'))['center']
+    center = np.load(dataPaths.tests.get_file_path('example_trace_deimos_1200G_M_7750.npz'))['center']
 
     pca = TracePCA(trace_cen=center, npca=2)
     pca.build_interpolator(np.array([3,1]), function='legendre') #, debug=True)

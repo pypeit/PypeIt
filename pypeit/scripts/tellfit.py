@@ -89,7 +89,7 @@ class TellFit(scriptbase.ScriptBase):
         from astropy.io import fits
 
         from pypeit import msgs
-        from pypeit import data
+        from pypeit import dataPaths
         from pypeit.par import pypeitpar
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core import telluric
@@ -136,7 +136,7 @@ class TellFit(scriptbase.ScriptBase):
         # Checks
         if par['telluric']['telgridfile'] is None:
             msgs.error('A file with the telluric grid must be provided.')
-        elif not os.path.isfile(data.get_telgrid_filepath(par['telluric']['telgridfile'])):
+        elif not os.path.isfile(dataPaths.telgrid.get_file_path(par['telluric']['telgridfile'])):
             msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Check your "
                        f"installation.")
 

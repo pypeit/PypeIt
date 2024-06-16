@@ -1,0 +1,5 @@
+|  id|           file|   num|      date|
+|long|           char|double|      char|
+|    |               |      |          |
+|null|           null|  null|      null|
+    1 spec1d_b27.fits  1.234 2021-01-01 

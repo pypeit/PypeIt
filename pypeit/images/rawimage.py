@@ -305,7 +305,8 @@ class RawImage:
         return utils.inverse(var)
 
     def estimate_readnoise(self):
-        """ Estimate the readnoise (in electrons) based on the overscan regions of
+        r"""
+        Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if
@@ -640,7 +641,7 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
                                     if self.par['spat_flexure_correct'] else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
@@ -733,7 +734,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False):
+    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -746,6 +747,8 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            maxlag (:obj:'float', optional):
+                Maximum range of lag values over which to compute the CCF.
 
         Return:
             float: The calculated flexure correction

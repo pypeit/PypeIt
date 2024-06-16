@@ -517,7 +517,6 @@ class SpecObj(datamodel.DataContainer):
                 Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
-
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:

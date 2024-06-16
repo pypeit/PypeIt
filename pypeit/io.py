@@ -24,10 +24,6 @@ import numpy
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import msgs
-from pypeit import par
-#from pypeit import inputfiles
-
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
 import scipy
@@ -35,6 +31,14 @@ import astropy
 import sklearn
 import pypeit
 import time
+
+# TODO: Reminder that our aim is to eventually deprecate use of xspectrum1d in
+# favor of specutils.Spectrum1D (or whatever it is in specutils>2.0).
+from linetools.spectra import xspectrum1d
+
+from pypeit import msgs
+from pypeit import dataPaths
+from pypeit import __version__
 
 # TODO -- Move this module to core/
 
@@ -783,7 +787,7 @@ def fits_open(filename, **kwargs):
     # string before checking that it exists.  There should be a more robust way
     # to do this!  Is there are more appropriate os.path function that allows
     # for this different type of object?
-    if isinstance(filename, (str, Path)) and not Path(filename).resolve().exists():
+    if isinstance(filename, (str, Path)) and not Path(filename).absolute().exists():
         msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
@@ -915,7 +919,7 @@ def load_object(module, obj=None):
     try:
         Module = importlib.import_module(_module)
     except (ModuleNotFoundError, ImportError, TypeError) as e:
-        p = Path(module + '.py').resolve()
+        p = Path(module + '.py').absolute()
         if not p.exists():
             raise ImportError(f'Unable to load module {_module}!') from e
         spec = importlib.util.spec_from_file_location(_module, str(p))
@@ -923,3 +927,70 @@ def load_object(module, obj=None):
         spec.loader.exec_module(Module)
 
     return getattr(Module, obj)
+
+
+def load_telluric_grid(filename: str):
+    """
+    Load a telluric atmospheric grid from the PypeIt data directory.
+
+    Args:
+        filename (:obj:`str`):
+            The filename (NO PATH) of the telluric atmospheric grid to use.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: Telluric Grid FITS HDU list
+    """
+    # Check for existence of file parameter
+    # TODO: Do we need this check?
+    if not isinstance(filename, str) or len(filename) == 0:
+        msgs.error("No file specified for telluric correction.  "
+                   "See https://pypeit.readthedocs.io/en/latest/telluric.html")
+
+    # Get the data path for the filename, whether in the package directory or cache
+    to_pkg = 'move' if ".dev" in __version__ else None
+    file_with_path = dataPaths.telgrid.get_file_path(filename, to_pkg=to_pkg)
+
+    # Check for existance of file
+    # NOTE: With the use of `PypeItDataPath.get_file_path`, this should never fault
+    if not file_with_path.is_file():
+        msgs.error(f"File {file_with_path} is not on your disk.  "
+                   "You likely need to download the Telluric files.  "
+                   "See https://pypeit.readthedocs.io/en/release/installing.html"
+                   "#atmospheric-model-grids")
+
+    return fits_open(file_with_path)
+
+
+def load_thar_spec():
+    """
+    Load the archived ThAr spectrum from the PypeIt data directory.
+
+    The spectrum read is *always*
+    ``pypeit/data/arc_lines/thar_spec_MM201006.fits``.
+
+    Returns:
+        `astropy.io.fits.HDUList`_: ThAr Spectrum FITS HDU list
+    """
+    return fits_open(dataPaths.arclines.get_file_path('thar_spec_MM201006.fits'))
+
+
+def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
+    """
+    Load a sky spectrum from the PypeIt data directory into an XSpectrum1D
+    object.
+
+    .. todo::
+
+        Try to eliminate the XSpectrum1D dependancy
+
+    Args:
+        sky_file (:obj:`str`):
+            The filename (NO PATH) of the sky file to use.
+
+    Returns:
+        `linetools.spectra.xspectrum1d.XSpectrum1D`_: Sky spectrum
+    """
+    path = dataPaths.sky_spec.get_file_path(sky_file)
+    return xspectrum1d.XSpectrum1D.from_file(str(path))
+
+
