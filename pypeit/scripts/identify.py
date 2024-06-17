@@ -1,5 +1,5 @@
 """
-Launch the identify GUI tool.
+Launch the pypeit_identify GUI tool.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -13,7 +13,7 @@ class Identify(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Launch PypeIt identify tool, display extracted '
+        parser = super().get_parser(description='Launch PypeIt pypeit_identify tool, display extracted '
                                                 'Arc, and load linelist.', width=width)
         parser.add_argument('arc_file', type=str, default=None, help='PypeIt Arc file')
         parser.add_argument('slits_file', type=str, default=None, help='PypeIt Slits file')
@@ -22,9 +22,15 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-s', '--solution', default=False, action='store_true',
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
-        parser.add_argument("--wmax", type=float, default=26000.0, help="Maximum wavelength range")
-        parser.add_argument("--slit", type=int, default=0,
-                            help="Which slit to load for wavelength calibration")
+        parser.add_argument("--wmax", type=float, default=50000.0, help="Maximum wavelength range")
+        parser.add_argument("--slits", type=str, default='0',
+                            help="Which slit to load for wavelength calibration. " 
+                            "Format should be [0,1,...] for multiple slits, 0 for only one slit. "
+                            "If creating a new WaveCalib with the -n flag, this is not necessary.")
+        parser.add_argument('-m', '--multi', default=False, action = 'store_true',
+                            help="Set this flag to create wavelength solutions for muliple slits")
+        parser.add_argument('-n', '--new_sol', default=False, action = 'store_true',
+                            help="Set this flag to construct a new WaveCalib file, rather than using the exising one")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
@@ -50,15 +56,19 @@ class Identify(scriptbase.ScriptBase):
     def main(args):
 
         import os
+        import json
 
         import numpy as np
-        
+                
         from pypeit import msgs
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
         from pypeit.wavecalib import BuildWaveCalib, WaveCalib
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
+        from pypeit.core.wavecal import autoid
+        from linetools.utils import jsonify
+
 
         chk_version = not args.try_old
 
@@ -86,6 +96,7 @@ class Identify(scriptbase.ScriptBase):
         # Reset the mask
         slits.mask = slits.mask_init
 
+        msgs.info('Loading in Solution if desired and exists')
         # Check if a solution exists
         solnname = WaveCalib.construct_file_name(msarc.calib_key, calib_dir=msarc.calib_dir)
         wv_calib = WaveCalib.from_file(solnname, chk_version=chk_version) \
@@ -102,30 +113,23 @@ class Identify(scriptbase.ScriptBase):
             # Obtain a list of good slits
             ok_mask_idx = np.where(np.logical_not(wavecal.wvc_bpm))[0]
 
-        # Launch the identify window
-        # TODO -- REMOVE THIS HACK
-        try:
-            nonlinear_counts = msarc.detector.nonlinear_counts()
-        except AttributeError:
-            nonlinear_counts = None
-        arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
-                                        wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
-                                        nonlinear_counts=nonlinear_counts,
-                                        pxtoler=args.pixtol, test=args.test, 
-                                        fwhm=args.fwhm,
-                                        sigdetect=args.sigdetect,
-                                        specname=spec.name,
-                                        y_log=not args.linear,
-                                        rescale_resid=args.rescale_resid)
+            # print to screen the slit widths if maskdef_designtab is available
+            if slits.maskdef_designtab is not None:
+                msgs.info("Slit widths (arcsec): {}".format(np.round(slits.maskdef_designtab['SLITWID'].data, 2)))
 
-        # If testing, return now
-        if args.test:
-            return arcfitter
-        final_fit = arcfitter.get_results()
-        # If testing, return now
-        if args.test:
-            return arcfitter
-        final_fit = arcfitter.get_results()
+            # Generate a map of the instrumental spectral FWHM
+            # TODO nsample should be a parameter
+            fwhm_map = autoid.map_fwhm(wavecal.msarc.image, wavecal.gpm, wavecal.slits_left, wavecal.slits_right, wavecal.slitmask,
+                                    nsample=10, slit_bpm=wavecal.wvc_bpm, specord=wavecal.par['fwhm_spec_order'],
+                                    spatord=wavecal.par['fwhm_spat_order'])
+            # Calculate the typical spectral FWHM down the centre of the slit
+            measured_fwhms = np.zeros(slits.nslits, dtype=object)
+            for islit in range(slits.nslits):
+                if islit not in ok_mask_idx:
+                    continue
+                # Measure the spectral FWHM (in pixels) at the midpoint of the slit
+                # (i.e. the midpoint in both the spectral and spatial directions)
+                measured_fwhms[islit] = fwhm_map[islit].eval(wavecal.msarc.image.shape[0]//2, 0.5)
 
             # Save for redo's
             wavecal.measured_fwhms = measured_fwhms

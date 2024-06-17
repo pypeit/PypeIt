@@ -128,12 +128,8 @@ class SensFunc(datamodel.DataContainer):
                  'steps',
                  'splice_multi_det',
                  'meta_spec',
-<<<<<<< HEAD
                  'std_dict',
                  'chk_version'
-=======
-                 'std_dict'
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                 ]
 
     _algorithm = None
@@ -192,15 +188,9 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='SENS_FLUXED_STD_FLAM_IVAR', dtype=float, length=norders, shape=(nspec_in,),
                          description='The inverse variance of F_lambda for the fluxed standard star spectrum'),
             table.Column(name='SENS_FLUXED_STD_MASK', dtype=bool, length=norders, shape=(nspec_in,),
-<<<<<<< HEAD
                          description='The good pixel mask for the fluxed standard star spectrum '),
             table.Column(name='SENS_STD_MODEL_FLAM', dtype=float, length=norders, shape=(nspec_in,),
                          description='The F_lambda for the standard model spectrum')])
-=======
-                         description='The good pixel mask for the fluxed standard star spectrum ')])
-
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -259,11 +249,7 @@ class SensFunc(datamodel.DataContainer):
                                     multi_spec_det=self.par['multi_spec_det'])
 
         if self.sobjs_std is None:
-<<<<<<< HEAD
             msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
-=======
-            msgs.error('There is a problem with your standard star spec1d file: {:s}'.format(self.spec1df))
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
@@ -494,10 +480,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
-<<<<<<< HEAD
-=======
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 
     def eval_zeropoint(self, wave, iorddet):
@@ -813,7 +795,6 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('Fluxed Std Compared to True Spectrum:' + spec_str)
         fig.savefig(self.fstdfile)
 
-<<<<<<< HEAD
         #save the model that was used
         model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
                                                        bounds_error=False, fill_value='extrapolate')
@@ -822,8 +803,6 @@ class SensFunc(datamodel.DataContainer):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             model_flux_sav[iorddet][wave_gpm] = model_interp_func(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm])
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 
 
@@ -932,7 +911,10 @@ class IRSensFunc(SensFunc):
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
                                                    resln_guess=self.par['IR']['resln_guess'],
                                                    resln_frac_bounds=self.par['IR']['resln_frac_bounds'],
+                                                   pix_shift_bounds=self.par['IR']['pix_shift_bounds'],
                                                    sn_clip=self.par['IR']['sn_clip'],
+                                                   teltype=self.par['IR']['teltype'],
+                                                   tell_npca=self.par['IR']['tell_npca'],
                                                    mask_hydrogen_lines=self.par['mask_hydrogen_lines'],
                                                    maxiter=self.par['IR']['maxiter'],
                                                    lower=self.par['IR']['lower'],

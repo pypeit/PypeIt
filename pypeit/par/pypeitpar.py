@@ -219,7 +219,8 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+                 use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
+                 spat_flexure_correct=None, spat_flexure_maxlag=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -298,6 +299,16 @@ class ProcessImagesPar(ParSet):
                                       'be set to True to combine arcs with multiple different lamps. ' \
                                       'For all other cases, this parameter should probably be False.'
 
+        defaults['subtract_scattlight'] = False
+        dtypes['subtract_scattlight'] = bool
+        descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
+                                       'be set to True for spectrographs that have dedicated methods to subtract ' \
+                                       'scattered light. For all other cases, this parameter should be False.'
+
+        defaults['scattlight'] = ScatteredLightPar()
+        dtypes['scattlight'] = [ParSet, dict]
+        descr['scattlight'] = 'Scattered light subtraction parameters.'
+
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
@@ -338,6 +349,9 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
 
+        defaults['spat_flexure_maxlag'] = 20
+        dtypes['spat_flexure_maxlag'] = int
+        descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
 
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
@@ -429,10 +443,10 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
-                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
-                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
+                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
+                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
+                   'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
@@ -2306,7 +2320,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, tell_npca=None, teltype=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2332,6 +2346,18 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
+        
+        defaults['tell_npca'] = 5
+        dtypes['tell_npca'] = int
+        descr['tell_npca'] = 'Number of telluric PCA components used. Can be set to any number from 1 to 10.'
+        
+        defaults['teltype'] = 'pca'
+        options['teltype'] = TelluricPar.valid_teltype()
+        dtypes['teltype'] = str
+        descr['teltype'] = 'Method used to evaluate telluric models, either pca or grid. The grid option uses a ' \
+                           'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
+                           'observatory, whereas the pca option uses principal components of a larger model grid ' \
+                           'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2352,12 +2378,12 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
-        defaults['resln_frac_bounds'] = (0.5,1.5)
+        defaults['resln_frac_bounds'] = (0.6,1.4)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
-                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'This range is in units of the resln_guess, so the (0.6, 1.4) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
-                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+                                     'bounds_resln = (0.6*resln_guess, 1.4*resln_guess)'
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
@@ -2560,7 +2586,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'tell_npca',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
@@ -2758,12 +2784,13 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
                  ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
-                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
-                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
-                 sigrej_first=None, sigrej_final=None, numsearch=None,
+                 reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
+                 cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
+                 n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
                  nfitpix=None, refframe=None,
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
-                 ech_separate_2d=None, redo_slits=None, qa_log=None):
+                 ech_2dfit=None, ech_separate_2d=None, redo_slits=None, qa_log=None,
+                 cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2813,6 +2840,16 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
                            'wavelength fit will be performed as a function of spectral pixel ' \
                            'and order number to improve the wavelength solution'
+        defaults['ech_2dfit'] = True
+        dtypes['ech_2dfit'] = bool
+        descr['ech_2dfit'] = 'By default, a 2D fit to the echelle orders will be performed. If set to False, then even if ' \
+                             'this is an echelle spectrograph, the 2-d fit will not be generated. ' \
+                             'Set this to False if you wish to use the arxiv solution exactly as it ' \
+                             'was saved with pypeit_identify.'
+
+        defaults['ech_separate_2d'] = False
+        dtypes['ech_separate_2d'] = bool
+        descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
@@ -2886,12 +2923,13 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image'
 
-        defaults['fwhm_fromlines'] = False
+        defaults['fwhm_fromlines'] = True
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
                                   'If True, the estimated FWHM will override ``fwhm`` only in '\
-                                  'the determination of the wavelength solution (`i.e.`, not in '\
-                                  'WaveTilts).'
+                                  'the determination of the wavelength solution (including the ' \
+                                  'calculation of the threshold for the solution RMS, see ' \
+                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
@@ -2970,12 +3008,14 @@ class WavelengthSolutionPar(ParSet):
                              'be added to it to make it odd.'
 
         # These are the parameters used for the iterative fitting of the arc lines
-        defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = float
-        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
-                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
-                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
-                                     
+        defaults['rms_thresh_frac_fwhm'] = 0.15
+        dtypes['rms_thresh_frac_fwhm'] = float
+        descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
+                                        'a slit/order solution. If ``fwhm_fromlines`` is True, ' \
+                                        'FWHM will be computed from the arc lines in each slits, otherwise ``fwhm`` ' \
+                                        'will be used. This parameter is used for the \'holy-grail\', ' \
+                                        '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
+                                        'a slit using the ``redo_slits`` parameter. '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -3038,6 +3078,35 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
+        defaults['cc_percent_ceil'] = 50.0
+        dtypes['cc_percent_ceil'] = float
+        descr['cc_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, '  \
+                                   'to prevent large lines from dominating. If 100, all lines are allowed at their '  \
+                                   'maximum heights. May produce spurious peaks in xcorr'
+        
+        defaults['echelle_pad'] = 3
+        dtypes['echelle_pad'] = int
+        descr['echelle_pad'] = 'Number of orders by which to pad the echellogram reference in the echelle '  \
+                                'method. Values > 0 allow for some error in the reddest order guess, '  \
+                                'but require sufficient reference orders.'
+        
+        defaults['cc_offset_minmax'] = 1.0
+        dtypes['cc_offset_minmax'] = float
+        descr['cc_offset_minmax'] = 'Fraction of the total spectral pixels used to determine the range of '  \
+                                     'pixel shifts allowed when cross-correlating the input arc spectrum with '  \
+                                     'the archive spectrum. Restricting this can be crucial if there are few '  \
+                                     'reference lines and the cross correlation can get confused. '  \
+                                     'This parameter is only used if ``cc_shift_range`` is None.'
+        
+        defaults['stretch_func'] = 'quadratic'
+        dtypes['stretch_func'] = str
+        options['stretch_func'] = WavelengthSolutionPar.valid_stretch_func_methods()
+        descr['stretch_func'] = 'Whether to use a linear (linear) or quadratic (quad) function to stretch '  \
+                                'the extracted arcs when identifying emission lines with reidentify. For NIRSPEC, ' \
+                                'the quadratic mode tends to do better because the wavelength solution ' \
+                                'is typically at least 2nd or 3rd order.'
+                
+        
 
 
 
@@ -3053,14 +3122,14 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
-                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
-                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
-                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
+                   'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'reid_cont_sub', 'cc_shift_range', 'cc_thresh', 'cc_local_thresh',
+                   'nlocal_cc', 'rms_thresh_frac_fwhm', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
-                   'redo_slits', 'qa_log']
+                   'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3983,7 +4052,7 @@ class FindObjPar(ParSet):
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4043,6 +4112,10 @@ class FindObjPar(ParSet):
         defaults['find_fwhm'] = 5.0
         dtypes['find_fwhm'] = [int, float]
         descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
+
+        defaults['fof_link'] = 1.5
+        dtypes['fof_link'] = [int, float]
+        descr['fof_link'] = 'The linking distance, in arcseconds, for the Friends of Friends algorithm to link objects across traces in Echelle spectrographs. '
 
         defaults['ech_find_max_snr'] = 1.0
         dtypes['ech_find_max_snr'] = [int, float]
@@ -4130,7 +4203,7 @@ class FindObjPar(ParSet):
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d']
+                   'std_spec1d', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

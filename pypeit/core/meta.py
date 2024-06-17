@@ -154,10 +154,7 @@ def define_additional_meta(nlamps=20):
                        'dec_off': dict(dtype=float, comment='Dither offset in DEC'),
                        'echangle':dict(dtype=float, comment='Echelle angle'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
-<<<<<<< HEAD
                        'filter2': dict(dtype=str, comment='Second filter in optical path'),
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                        'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
                        'humidity': dict(dtype=float, comment='Humidity at observation time (as a percentage, not a fraction)'),

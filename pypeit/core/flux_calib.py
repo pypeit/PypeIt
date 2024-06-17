@@ -428,6 +428,29 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             # vega is V=0.03
             std_dict['flux'] = vega_data['col2'] * 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
+        elif 'PHOENIX' in star_type:
+            msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
+            ## Vega model from TSPECTOOL
+            vega_file = data.Paths.standards / 'PHOENIX_10000K_4p0.fits'
+            vega_data = table.Table.read(vega_file, format='fits')
+            std_dict = dict(cal_file='PHOENIX_10000K_4p0', name=star_type, Vmag=star_mag,
+                            std_ra=ra, std_dec=dec)
+            std_dict['std_source'] = 'VEGA'
+            std_dict['wave'] = vega_data['Wavelength'] * units.AA
+
+            # vega is V=0.03
+            std_dict['flux'] = vega_data['Flux'] *1e-11* 10**(0.4*(0.03-star_mag)) / PYPEIT_FLUX_SCALE * \
+                               units.erg / units.s / units.cm ** 2 / units.AA
+        elif 'NONE' == star_type:
+            msgs.info('Setting Standard to Continuum')
+            ## Vega model from TSPECTOOL
+            std_dict = dict(cal_file='continuum', name=star_type, Vmag=star_mag,
+                            std_ra=ra, std_dec=dec)
+            std_dict['std_source'] = 'continuum'
+            std_dict['wave'] = np.arange(2000,50000,1.0)*units.AA
+
+            std_dict['flux'] = np.ones(np.shape(std_dict['wave']))*units.erg/units.s/units.cm**2/units.AA
+                               #units.erg / units.s / units.cm ** 2 / units.AA
         ## using Kurucz stellar model
         else:
             # Create star spectral model
@@ -733,7 +756,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     return meta_table, out_table
 
 def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, 
+                         extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
@@ -820,6 +844,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         senstot = sensfunc_obs * ext_corr
     else:
         senstot = sensfunc_obs.copy()
+
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom
