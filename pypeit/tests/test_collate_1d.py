@@ -51,42 +51,56 @@ class MockSpecObj:
 
 
 def mock_header(file):
+
+
     if os.path.basename(file) == 'spec1d_file1':
-        return {'MJD': '58878.0',
-                'PYP_SPEC': 'keck_deimos',
-                'DISPNAME': '830G',
-                'DECKER': 'Z6CL01B',
-                'BINNING': '1,1',
-                'AIRMASS': '1.0',
-                'EXPTIME': '1200.0',
-                'RA':       '201.1517', 
-                'DEC':      '+27.3246',
-                'FILENAME': 'DE.20100913.22358',
-                'SEMESTER': '2019B',
-                'PROGID':   'TEST1'}
+        return fits.Header(
+                   {'MJD': '58878.0',
+                    'PYP_SPEC':  'keck_deimos',
+                    'DISPNAME':  '830G',
+                    'DISPANGLE': 8800.0,
+                    'AMP':       'SINGLE:B',
+                    'FILTER1':   'OG550',
+                    'DECKER':    'Z6CL01B',
+                    'BINNING':   '1,1',
+                    'AIRMASS':   '1.0',
+                    'EXPTIME':   '1200.0',
+                    'RA':        '201.1517', 
+                    'DEC':       '+27.3246',
+                    'FILENAME':  'DE.20100913.22358',
+                    'SEMESTER':  '2019B',
+                    'PROGID':    'TEST1'})
     elif os.path.basename(file) == 'spec1d_file3':
         # Invalid header w/o MJD
-        return {'PYP_SPEC': 'keck_deimos',
-                'DISPNAME': '830G',
-                'DECKER': 'Z6CL01B',
-                'BINNING': '1,1',
-                'AIRMASS': '1.0',
-                'EXPTIME': '1200.0',
-                'FILENAME': 'DE.20100913.22358',
-                'SEMESTER': '2019B',
-                'PROGID':   'TEST1'}
+        return fits.Header(
+                    {'PYP_SPEC':  'keck_deimos',
+                     'DISPNAME':  '830G',
+                     'DISPANGLE': 8800.0,
+                     'AMP':       'SINGLE:B',
+                     'FILTER1':   'OG550',
+                     'DECKER':    'Z6CL01B',
+                     'BINNING':   '1,1',
+                     'AIRMASS':   '1.0',
+                     'EXPTIME':   '1200.0',
+                     'FILENAME':  'DE.20100913.22358',
+                     'SEMESTER':  '2019B',
+                     'PROGID':    'TEST1'})
     else:
         # Return a different decker to make sure it's properly ignored
-        return {'MJD': '58879.0',
-                'PYP_SPEC': 'keck_deimos',
-                'DISPNAME': '830G',
-                'DECKER': 'foo',
-                'BINNING': '1,1',
-                'AIRMASS': '1.0',
-                'EXPTIME': '1200.0',
-                'RA':      '201.0052', 
-                'DEC':     '+27.2418',
-                'FILENAME': 'DE.20100914.12358'}
+        return fits.Header(
+                    {'MJD':       '58879.0',
+                     'PYP_SPEC':  'keck_deimos',
+                     'DISPNAME':  '830G',
+                     'DISPANGLE': 8800.0,
+                     'AMP':       'SINGLE:B',
+                     'FILTER1':   'OG550',
+                     'DECKER':    'foo',
+                     'BINNING':   '1,1',
+                     'AIRMASS':   '1.0',
+                     'EXPTIME':   '1200.0',
+                     'RA':        '201.0052', 
+                     'DEC':       '+27.2418',
+                     'FILENAME':  'DE.20100914.12358'})
 
 class MockSpecObjs:
     def __init__(self, file):
@@ -237,36 +251,60 @@ def test_config_key_match():
 
     spectrograph = load_spectrograph('keck_deimos')
 
-    header1 = {'dispname': '830G',
-               'MJD': '58878.0',
-               'PYP_SPEC': 'keck_deimos',
-               'decker': 'Z6CL01B',
-               'binning': '1,1'}
-    header2 = {'dispname': '830G',
-               'MJD': '58878.0',
-               'PYP_SPEC': 'keck_deimos',
-               'decker': 'foo',
-               'binning': '1,1'}
-    header3 = {'dispname': '830L',
-               'MJD': '58878.0',
-               'PYP_SPEC': 'keck_deimos',
-               'decker': 'Z6CL01B',
-               'binning': '1,1'}
-    header4 = {'dispname': '830G',
-               'MJD': '58878.0',
-               'PYP_SPEC': 'keck_deimos',
-               'decker': 'Z6CL01B',
-               'binning': '1,1',
-               'amp':  'foo'}
-    header5 = {'dispname': '830G',
-               'MJD': '58878.0',
-               'decker': 'foo',
-               'binning': '1,1'}
-    header6 = {'dispname': '830G',
-               'MJD': '58878.0',
-               'PYP_SPEC': 'keck_nires',
-               'decker': 'foo',
-               'binning': '1,1'}
+    header1 = fits.Header(
+               {'dispname': '830G',
+                'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
+                'DISPANGLE': 8800.0,
+                'AMP':       'SINGLE:B',
+                'FILTER1':   'OG550',
+                'decker': 'Z6CL01B',
+                'binning': '1,1'})
+    header2 = fits.Header(
+               {'dispname': '830G',
+                'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
+                'DISPANGLE': 8800.0,
+                'AMP':       'SINGLE:B',
+                'FILTER1':   'OG550',
+                'decker': 'foo',
+                'binning': '1,1'})
+    header3 = fits.Header(
+               {'dispname': '830L',
+                'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
+                'DISPANGLE': 8800.0,
+                'AMP':       'SINGLE:B',
+                'FILTER1':   'OG550',
+                'decker': 'Z6CL01B',
+                'binning': '1,1'})
+    header4 = fits.Header(
+               {'dispname': '830G',
+                'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
+                'DISPANGLE': 8800.0,
+                'FILTER1':   'OG550',
+                'decker': 'Z6CL01B',
+                'binning': '1,1',
+                'amp':  'foo'})
+    header5 = fits.Header(
+               {'dispname': '830G',
+                'MJD': '58878.0',
+                'DISPANGLE': 8800.0,
+                'AMP':       'SINGLE:B',
+                'FILTER1':   'OG550',
+                'decker': 'foo',
+                'binning': '1,1'})
+
+    header6 = fits.Header(
+               {'dispname': '830G',
+                'MJD': '58878.0',
+                'PYP_SPEC': 'keck_nires',
+                'DISPANGLE': 8800.0,
+                'AMP':       'SINGLE:B',
+                'FILTER1':   'OG550',
+                'decker': 'foo',
+                'binning': '1,1'})
 
     sobjs = mock_specobjs('spec1d_file1')
     sobj = sobjs.specobjs[0]
@@ -274,8 +312,7 @@ def test_config_key_match():
     so1 = SourceObject(sobj, header1, 'spec1d_file1', spectrograph, 'ra/dec')
     so4 = SourceObject(sobj, header4, 'spec1d_file1', spectrograph, 'ra/dec')
 
-    # Test that config keys match regardless of decker and even if neither
-    # header has amp
+    # Test that config keys match regardless of decker
     assert so1._config_key_match(header2) is True
 
     # Test that config keys don't match if dispname doesn't match

@@ -5,6 +5,7 @@ from pypeit.scripts import scriptbase
 # The import of all the script modules here is what enables the dynamic
 # compiling of all the available scripts below
 from pypeit.scripts import cache_github_data
+from pypeit.scripts import clean_cache
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
@@ -47,6 +48,7 @@ from pypeit.scripts import skysub_regions
 from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
+from pypeit.scripts import compile_wvarxiv
 
 
 # Build the list of script classes

@@ -48,7 +48,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -63,6 +63,8 @@ class Spec2DObj(datamodel.DataContainer):
                                  descr='2D processed inverse variance image (float32)'),
                  'skymodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D sky model image (float32)'),
+                 'bkg_redux_skymodel': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D sky model image without the background subtraction (float32)'),
                  'objmodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D object model image (float32)'),
                  'ivarmodel': dict(otype=np.ndarray, atype=np.floating,
@@ -176,7 +178,7 @@ class Spec2DObj(datamodel.DataContainer):
             self.calibs['DIR'] = hdr['CLBS_DIR']
             for key in hdr.keys():
                 if key.startswith('CLBS_') \
-                        and (Path(self.calibs['DIR']).resolve() / hdr[key]).exists():
+                        and (Path(self.calibs['DIR']).absolute() / hdr[key]).exists():
                     self.calibs['_'.join(key.split('_')[1:])] = hdr[key]
 
         if 'PROCSTEP' in hdr:
@@ -185,7 +187,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.head0 = hdu[0].header
         return self
 
-    def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
+    def __init__(self, sciimg, ivarraw, skymodel, bkg_redux_skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
@@ -335,8 +337,9 @@ class Spec2DObj(datamodel.DataContainer):
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
             # Get em all
-            for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
-                self[imgname][inmask] = spec2DObj[imgname][inmask]
+            for imgname in ['sciimg','ivarraw','skymodel', 'bkg_redux_skymodel', 'objmodel','ivarmodel','waveimg','bpmmask']:
+                if self[imgname] is not None and spec2DObj[imgname] is not None:
+                    self[imgname][inmask] = spec2DObj[imgname][inmask]
 
     def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
         """ Calculate a chi map and run some stats on it
@@ -630,7 +633,7 @@ class AllSpec2DObj:
                 combination of this and ``update_det`` may also alter this
                 object based on the existing file.
         """
-        _outfile = Path(outfile).resolve()
+        _outfile = Path(outfile).absolute()
         if _outfile.exists():
             # Clobber?
             if not overwrite:

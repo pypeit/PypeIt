@@ -23,7 +23,7 @@ from scipy.spatial import cKDTree
 import numpy as np
 import pickle
 
-from pypeit import data
+from pypeit import dataPaths
 
 def trigon(linelist, numsrch, maxlin):
     """ Generate a series of trigon patterns, given an input list of detections or lines from a linelist
@@ -280,7 +280,7 @@ def main(polygon, numsearch=8, maxlinear=100.0, use_unknowns=True, leafsize=30, 
         return None
 
     if outname is None:
-        outname = data.get_linelist_filepath(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+        outname = dataPaths.linelist.get_file_path(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
     outindx = outname.replace('.kdtree', '.index')
     print("Generating Tree")
     tree = cKDTree(pattern, leafsize=leafsize)

@@ -305,7 +305,8 @@ class RawImage:
         return utils.inverse(var)
 
     def estimate_readnoise(self):
-        """ Estimate the readnoise (in electrons) based on the overscan regions of
+        r"""
+        Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if
@@ -746,6 +747,8 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            maxlag (:obj:'float', optional):
+                Maximum range of lag values over which to compute the CCF.
 
         Return:
             float: The calculated flexure correction
