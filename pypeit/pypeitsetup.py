@@ -380,11 +380,11 @@ class PypeItSetup:
         self.fitstbl.remove_rows(rows, regroup=regroup)
         # Remove the files from the file list
         self.file_list = [f for f in self.file_list 
-                            if Path(f).resolve().name in self.fitstbl['filename']]
+                            if Path(f).absolute().name in self.fitstbl['filename']]
         # Remove the files from the frametype
         if self.frametype is not None:
             self.frametype = {k : v for k,v in self.frametype.items()
-                                if Path(k).resolve().name in self.fitstbl['filename']}
+                                if Path(k).absolute().name in self.fitstbl['filename']}
         # Remove the files from the user data
         if self.usrdata is not None:
             keep = [i for i in range(len(self.usrdata)) 
