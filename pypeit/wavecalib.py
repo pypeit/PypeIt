@@ -350,11 +350,7 @@ class WaveCalib(calibframe.CalibFrame):
             thismask = (slitmask == slit_spat)
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
-<<<<<<< HEAD
             if self.par['echelle'] and self.par['ech_2dfit']:
-=======
-            if self.par['echelle']:
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
                     ordr_det = slits.det_of_slit(
@@ -694,7 +690,6 @@ class BuildWaveCalib:
                                              self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-<<<<<<< HEAD
                                              nsnippet=self.par['nsnippet'], 
                                              x_percentile=self.par['cc_percent_ceil'])
 
@@ -703,10 +698,6 @@ class BuildWaveCalib:
                 # Hold for later usage
                 self.slits.ech_order = order_vec[:self.slits.nslits]
                 self.arccen = arccen
-=======
-                                             nsnippet=self.par['nsnippet'])
-                                             #debug=True, debug_reid=True, debug_xcorr=True)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
             angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
@@ -719,12 +710,8 @@ class BuildWaveCalib:
                     self.meta_dict['dispname'],
                     angle_fits_file,
                     composite_arc_file,
-<<<<<<< HEAD
                     pad=self.par['echelle_pad'],
                     cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
-=======
-                    pad=3, debug=False)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
@@ -888,14 +875,8 @@ class BuildWaveCalib:
                 msgs.info(f"New RMS for redo of order={order}: {final_fit['rms']}")
 
                 # Keep?
-<<<<<<< HEAD
                 if final_fit['rms'] < frac_rms_thresh*wave_rms_thresh:
                     msgs.info('Updating wavelength solution.')
-=======
-                # TODO -- Make this a parameter?
-                increase_rms = 1.5
-                if final_fit['rms'] < increase_rms*self.par['rms_threshold']* np.median(self.measured_fwhms)/self.par['fwhm']:
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                     # TODO -- This is repeated from build_wv_calib()
                     #  Would be nice to consolidate
                     # QA

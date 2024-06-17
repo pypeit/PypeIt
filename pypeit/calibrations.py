@@ -980,15 +980,12 @@ class Calibrations:
             self.wv_calib = wavecalib.WaveCalib.from_file(cal_file, chk_version=self.chk_version)
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
-<<<<<<< HEAD
             if self.par['wavelengths']['method'] == 'echelle':
                 msgs.info('Method set to Echelle -- checking wv_calib for 2dfits')
                 if not hasattr(self.wv_calib, 'wv_fit2d'):
                     msgs.error('There is no 2d fit in this Echelle wavelength '
                                'calibration! Please generate a new one with a 2d fit.')
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             # Return
             if self.par['wavelengths']['redo_slits'] is None:
                 return self.wv_calib

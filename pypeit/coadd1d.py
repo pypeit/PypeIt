@@ -29,33 +29,19 @@ from pypeit.history import History
 class CoAdd1D:
 
     @classmethod
-<<<<<<< HEAD
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
                      setup_id=None, debug=False, show=False, chk_version=True):
-=======
-    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                     debug=False, show=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
         Superclass factory method which generates the subclass instance. See
         :class:`CoAdd1D` instantiation for argument descriptions.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
-<<<<<<< HEAD
         return next(c for c in utils.all_subclasses(CoAdd1D) if c.__name__ == pypeline)(
             spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
             setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
                  setup_id=None, debug=False, show=False, chk_version=True):
-=======
-        return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile, setup_id=setup_id,
-            debug=debug, show=show)
-
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
 
         Args:
@@ -104,10 +90,7 @@ class CoAdd1D:
         #
         self.debug = debug
         self.show = show
-<<<<<<< HEAD
         self.chk_version = chk_version
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         self.nexp = len(self.spec1dfiles) # Number of exposures
         self.coaddfile = None
         self.gpm_exp = np.ones(self.nexp, dtype=bool).tolist()  # list of bool indicating the exposures that have been coadded
@@ -118,13 +101,9 @@ class CoAdd1D:
         """
 
         # Coadd the data
-<<<<<<< HEAD
         # if there are multiple orders/slits, the stacks will be extracted from the coadd1d object, otherwise it'll be None
         self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
 
-=======
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -173,7 +152,6 @@ class CoAdd1D:
         if telluric is not None:
             onespec.telluric = telluric
         if obj_model is not None:
-<<<<<<< HEAD
             onespec.obj_model = obj_model
 
         #save the order stacks from the echelle reduction
@@ -201,9 +179,6 @@ class CoAdd1D:
                                         setup_name = setup_val)
                 orderstack.head0 = self.headers[setup_num]
                 orderstack.to_file(coaddfile.split('.fits')[0] + '_orderstack' + setup_val + '.fits', history=history, overwrite=overwrite)
-=======
-            onespec.obj_model = obj_model[wave_gpm]
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Write
         onespec.to_file(coaddfile, history=history, overwrite=overwrite)
 
@@ -219,12 +194,8 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions.
     """
 
-<<<<<<< HEAD
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, 
                  debug=False, show=False, chk_version=False):
-=======
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None, debug=False, show=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
@@ -403,24 +374,14 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions.
     """
 
-<<<<<<< HEAD
     def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None,
                  setup_id=None, debug=False, show=False, chk_version=True):
-=======
-    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfuncfile=None, setup_id=None,
-                 debug=False, show=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
         See :class:`CoAdd1D` instantiation for argument descriptions.
         """
-<<<<<<< HEAD
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
                          setup_id=setup_id, debug=debug, show=show,
                          chk_version=chk_version)
-=======
-        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfuncfile = sensfuncfile,
-                         setup_id=setup_id, debug = debug, show = show)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         if sensfuncfile is None:
             msgs.error('sensfuncfile is a required argument for echelle coadding')
@@ -481,11 +442,7 @@ class EchelleCoAdd1D(CoAdd1D):
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens, self.headers = self.load()
-<<<<<<< HEAD
         wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd),  order_stacks \
-=======
-        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, self.weights_sens,
                                      setup_ids=self.unique_setups,
                                      nbests=self.par['nbests'],
@@ -504,16 +461,9 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-<<<<<<< HEAD
         
         
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
-=======
-
-
-        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
         """

@@ -221,10 +221,6 @@ class SpecObjs:
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-<<<<<<< HEAD
-=======
-        # Test
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #
