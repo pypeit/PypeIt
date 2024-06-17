@@ -145,8 +145,13 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with OH lines
+<<<<<<< HEAD
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.25
         par['calibrations']['wavelengths']['sigdetect']=[5,5,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
+=======
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=[3,2,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
@@ -201,7 +206,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['polyorder'] = 5
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         # Coadding. I'm not sure what this should be for PRISM mode?
         par['coadd1d']['wave_method'] = 'log10'
@@ -391,13 +396,20 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
         par['calibrations']['wavelengths']['sigdetect']=3
+<<<<<<< HEAD
         par['calibrations']['wavelengths']['fwhm'] = 10
         par['calibrations']['wavelengths']['n_first']=3
         par['calibrations']['wavelengths']['n_final']=6
         par['calibrations']['wavelengths']['nsnippet'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_MOSFIRE', 'Ne_IR_MOSFIRE']
+=======
+        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['n_first']=2
+        par['calibrations']['wavelengths']['n_final']=4
+        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
@@ -419,7 +431,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

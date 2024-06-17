@@ -219,8 +219,12 @@ class ProcessImagesPar(ParSet):
                  dark_expscale=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
+<<<<<<< HEAD
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
                  spat_flexure_correct=None, spat_flexure_maxlag=None):
+=======
+                 use_pattern=None, subtract_continuum=None, spat_flexure_correct=None):
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Grab the parameter names and values from the function
         # arguments
@@ -299,6 +303,7 @@ class ProcessImagesPar(ParSet):
                                       'be set to True to combine arcs with multiple different lamps. ' \
                                       'For all other cases, this parameter should probably be False.'
 
+<<<<<<< HEAD
         defaults['subtract_scattlight'] = False
         dtypes['subtract_scattlight'] = bool
         descr['subtract_scattlight'] = 'Subtract off the scattered light from an image. This parameter should only ' \
@@ -309,6 +314,8 @@ class ProcessImagesPar(ParSet):
         dtypes['scattlight'] = [ParSet, dict]
         descr['scattlight'] = 'Scattered light subtraction parameters.'
 
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         defaults['empirical_rn'] = False
         dtypes['empirical_rn'] = bool
         descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
@@ -349,9 +356,12 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
 
+<<<<<<< HEAD
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
         descr['spat_flexure_maxlag'] = 'Maximum of possible spatial flexure correction, in pixels'
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
@@ -443,10 +453,17 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
+<<<<<<< HEAD
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
                    'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
                    'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
                    'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+=======
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'use_pattern',
+                   'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+                   'dark_expscale', 'spat_flexure_correct', 'use_illumflat', 'use_specillum',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                    'satpix', #'calib_setup_and_bit',
                    'n_lohi', 'mask_cr',
                    'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
@@ -2320,7 +2337,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, tell_npca=None, teltype=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -2346,6 +2363,7 @@ class TelluricPar(ParSet):
                                'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
                                'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
                                'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
+<<<<<<< HEAD
         
         defaults['tell_npca'] = 5
         dtypes['tell_npca'] = int
@@ -2358,6 +2376,8 @@ class TelluricPar(ParSet):
                            'fixed grid of pre-computed HITRAN+LBLRTM atmospheric transmission models for each ' \
                            'observatory, whereas the pca option uses principal components of a larger model grid ' \
                            'to compute an accurate pseudo-telluric model with a much lighter telgridfile.'
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2378,12 +2398,21 @@ class TelluricPar(ParSet):
 
 
         pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
+<<<<<<< HEAD
         defaults['resln_frac_bounds'] = (0.6,1.4)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
                                      'This range is in units of the resln_guess, so the (0.6, 1.4) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
                                      'bounds_resln = (0.6*resln_guess, 1.4*resln_guess)'
+=======
+        defaults['resln_frac_bounds'] = (0.5,1.5)
+        dtypes['resln_frac_bounds'] = tuple
+        descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
+                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'spectral resolution fit to be within the range ' \
+                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
@@ -2586,7 +2615,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'teltype', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'tell_npca',
+        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
                    'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
                    'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
@@ -2784,6 +2813,7 @@ class WavelengthSolutionPar(ParSet):
     def __init__(self, reference=None, method=None, echelle=None, ech_nspec_coeff=None, ech_norder_coeff=None,
                  ech_sigrej=None, lamps=None, bad_orders_maxfrac=None, frac_rms_thresh=None,
                  sigdetect=None, fwhm=None, fwhm_fromlines=None, fwhm_spat_order=None, fwhm_spec_order=None,
+<<<<<<< HEAD
                  reid_arxiv=None, nreid_min=None, reid_cont_sub=None, cc_shift_range=None, cc_thresh=None,
                  cc_local_thresh=None, nlocal_cc=None, rms_thresh_frac_fwhm=None, match_toler=None, func=None,
                  n_first=None, n_final=None, sigrej_first=None, sigrej_final=None, numsearch=None,
@@ -2791,6 +2821,14 @@ class WavelengthSolutionPar(ParSet):
                  nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
                  ech_2dfit=None, ech_separate_2d=None, redo_slits=None, qa_log=None,
                  cc_percent_ceil=None, echelle_pad=None, cc_offset_minmax=None, stretch_func=None):
+=======
+                 reid_arxiv=None, nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
+                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
+                 sigrej_first=None, sigrej_final=None, numsearch=None,
+                 nfitpix=None, refframe=None,
+                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None,
+                 ech_separate_2d=None, redo_slits=None, qa_log=None):
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2840,6 +2878,7 @@ class WavelengthSolutionPar(ParSet):
         descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
                            'wavelength fit will be performed as a function of spectral pixel ' \
                            'and order number to improve the wavelength solution'
+<<<<<<< HEAD
         defaults['ech_2dfit'] = True
         dtypes['ech_2dfit'] = bool
         descr['ech_2dfit'] = 'By default, a 2D fit to the echelle orders will be performed. If set to False, then even if ' \
@@ -2850,6 +2889,8 @@ class WavelengthSolutionPar(ParSet):
         defaults['ech_separate_2d'] = False
         dtypes['ech_separate_2d'] = bool
         descr['ech_separate_2d'] = 'For echelle spectrographs, fit the 2D solutions on separate detectors separately'
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
@@ -2923,13 +2964,12 @@ class WavelengthSolutionPar(ParSet):
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         'binned pixels of the input arc image'
 
-        defaults['fwhm_fromlines'] = True
+        defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
                                   'If True, the estimated FWHM will override ``fwhm`` only in '\
-                                  'the determination of the wavelength solution (including the ' \
-                                  'calculation of the threshold for the solution RMS, see ' \
-                                  '``rms_thresh_frac_fwhm``), but not for the wave tilts calibration.' \
+                                  'the determination of the wavelength solution (`i.e.`, not in '\
+                                  'WaveTilts).'
 
         defaults['fwhm_spat_order'] = 0
         dtypes['fwhm_spat_order'] = int
@@ -3008,6 +3048,7 @@ class WavelengthSolutionPar(ParSet):
                              'be added to it to make it odd.'
 
         # These are the parameters used for the iterative fitting of the arc lines
+<<<<<<< HEAD
         defaults['rms_thresh_frac_fwhm'] = 0.15
         dtypes['rms_thresh_frac_fwhm'] = float
         descr['rms_thresh_frac_fwhm'] = 'Maximum RMS (expressed as fraction of the FWHM) for keeping ' \
@@ -3016,6 +3057,14 @@ class WavelengthSolutionPar(ParSet):
                                         'will be used. This parameter is used for the \'holy-grail\', ' \
                                         '\'reidentify\', and \'echelle\' methods and  when re-analyzing ' \
                                         'a slit using the ``redo_slits`` parameter. '
+=======
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = float
+        descr['rms_threshold'] = 'Maximum RMS (in binned pixels) for keeping a slit/order solution. ' \
+                                 'Used for echelle spectrographs, the \'reidentify\' method, and when re-analyzing a slit with the redo_slits parameter.' \
+                                    'In a future PR, we will refactor the code to always scale this threshold off the measured FWHM of the arc lines.'
+                                     
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -3078,6 +3127,7 @@ class WavelengthSolutionPar(ParSet):
         descr['qa_log'] = 'Governs whether the wavelength solution arc line QA plots will have log or linear scaling'\
                           'If True, the scaling will be log, if False linear'
 
+<<<<<<< HEAD
         defaults['cc_percent_ceil'] = 50.0
         dtypes['cc_percent_ceil'] = float
         descr['cc_percent_ceil'] = 'Determines the percentile at which to cap lines used in cross correlation, '  \
@@ -3107,6 +3157,8 @@ class WavelengthSolutionPar(ParSet):
                                 'is typically at least 2nd or 3rd order.'
                 
         
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 
 
@@ -3122,6 +3174,7 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
+<<<<<<< HEAD
         parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff', 'ech_2dfit',
                    'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'bad_orders_maxfrac', 'frac_rms_thresh',
                    'lamps', 'sigdetect', 'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
@@ -3130,6 +3183,16 @@ class WavelengthSolutionPar(ParSet):
                    'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
                    'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
                    'redo_slits', 'qa_log', 'cc_percent_ceil', 'echelle_pad', 'cc_offset_minmax', 'stretch_func']
+=======
+        parkeys = ['reference', 'method', 'echelle', 'ech_nspec_coeff',
+                   'ech_norder_coeff', 'ech_sigrej', 'ech_separate_2d', 'lamps', 'sigdetect',
+                   'fwhm', 'fwhm_fromlines', 'fwhm_spat_order', 'fwhm_spec_order',
+                   'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+                   'sigrej_first', 'sigrej_final', 'numsearch', 'nfitpix',
+                   'refframe', 'nsnippet', 'use_instr_flag', 'wvrng_arxiv', 
+                   'redo_slits', 'qa_log']
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

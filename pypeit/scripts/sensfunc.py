@@ -125,11 +125,6 @@ class SensFunc(scriptbase.ScriptBase):
             spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
             spectrograph_config_par = spectrograph.config_specific_par(hdul)
 
-        # Determine the spectrograph and generate the primary FITS header
-        with io.fits_open(args.spec1dfile) as hdul:
-            spectrograph = load_spectrograph(hdul[0].header['PYP_SPEC'])
-            spectrograph_config_par = spectrograph.config_specific_par(hdul)
-
             # Construct a primary FITS header that includes the spectrograph's
             #   config keys for inclusion in the output sensfunc file
             primary_hdr = io.initialize_header()
@@ -141,17 +136,15 @@ class SensFunc(scriptbase.ScriptBase):
                 if key.upper() in hdul[0].header.keys():
                     primary_hdr[key.upper()] = hdul[0].header[key.upper()]
 
-
-
         # If the .sens file was passed in read it and overwrite default parameters
+
         if args.sens_file is not None:
             sensFile = inputfiles.SensFile.from_file(args.sens_file)
             # Read sens file
-            par = pypeitpar.PypeItPar.from_cfg_lines(
-                        cfg_lines=spectrograph_config_par.to_config(),
-                        merge_with=(sensFile.cfg_lines,))
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config(),
+                merge_with=(sensFile.cfg_lines,))
         else:
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_config_par.to_config())
+            par = spectrograph_config_par 
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -188,12 +181,13 @@ class SensFunc(scriptbase.ScriptBase):
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
         sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
-                                                 par_fluxcalib=par['fluxcalib'], debug=args.debug,
-                                                 chk_version=par['rdx']['chk_version'])
+                                                 debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
         # Write it out to a file, including the new primary FITS header
         sensobj.to_file(outfile, primary_hdr=primary_hdr, overwrite=True)
+
+        #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.      
 

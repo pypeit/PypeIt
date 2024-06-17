@@ -301,7 +301,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Set this as default... but use `holy-grail` for DV4, DV8
         par['calibrations']['wavelengths']['method'] = 'full_template'  # Default: 'holy-grail'
         # The DeVeny arc line FWHM varies based on slitwidth used
+<<<<<<< HEAD
         par['calibrations']['wavelengths']['fwhm'] = 3.0  # Default: 4.0
+=======
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
@@ -510,6 +514,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+<<<<<<< HEAD
+=======
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+             # Start with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 1800
 
@@ -536,6 +546,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             #  and it's associated tweaks in parameters
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
             par['calibrations']['wavelengths']['sigdetect'] = 10.0  # Default: 5.0
+<<<<<<< HEAD
+=======
+            par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
+            # Start/end with a lower-order Legendre polymonial for the wavelength fit
+            par['calibrations']['wavelengths']['n_first'] = 2  # Default: 3
+            par['calibrations']['wavelengths']['n_final'] = 4  # Default: 5
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             # The approximate resolution of this grating
             par['sensfunc']['UVIS']['resolution'] = 3200
 

@@ -321,7 +321,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -419,7 +419,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+<<<<<<< HEAD
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[0]
+=======
+        par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Objects FWHM
         # Find objects

@@ -836,8 +836,14 @@ class EchelleFindObjects(FindObjects):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
+<<<<<<< HEAD
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype and spectrograph.orders is not None \
                             else self.slits.ech_order
+=======
+        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
+                            else self.slits.ech_order
+#                            else self.spectrograph.order_vec(self.spatial_coo)
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         if self.order_vec is None:
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
@@ -1164,7 +1170,61 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
             self.show('global', global_sky=_global_sky, slits=True, sobjs=sobjs_show, clear=False)
         return _global_sky
 
+<<<<<<< HEAD
     # TODO :: This function should be removed from the find_objects() class, once the flexure code has been tidied up.
+=======
+    def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
+                      previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False):
+        """
+        Perform global sky subtraction. This IFU-specific routine ensures that the
+        edges of the slits are not trimmed, and performs a spatial and spectral
+        correction using the sky spectrum, if requested. See Reduce.global_skysub()
+        for parameter definitions.
+        """
+        # Generate a global sky sub for all slits separately
+        global_sky_sep = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+                                               trim_edg=trim_edg, show_fit=show_fit, show=show,
+                                               show_objs=show_objs)
+        # Check if any slits failed
+        if np.any(global_sky_sep[self.slitmask >= 0] == 0) and not self.bkg_redux:
+            # Cannot continue without a sky model for all slits
+            msgs.error("Global sky subtraction has failed for at least one slit.")
+
+        # Check if flexure or a joint fit is requested
+        if not self.par['reduce']['skysub']['joint_fit'] and self.par['flexure']['spec_method'] == 'skip':
+            return global_sky_sep
+        if self.wv_calib is None:
+            msgs.error("A wavelength calibration is needed (wv_calib) if a joint sky fit is requested.")
+        msgs.info("Generating wavelength image")
+
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        # Calculate spectral flexure
+        method = self.par['flexure']['spec_method']
+        # TODO :: Perhaps include a new label for IFU flexure correction - e.g. 'slitcen_relative' or 'slitcenIFU' or 'IFU'
+        #      :: If a new label is introduced, change the other instances of 'method' (see below), and in flexure.spec_flexure_qa()
+        if method in ['slitcen']:
+            self.calculate_flexure(global_sky_sep)
+
+        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
+        if not self.par['reduce']['skysub']['joint_fit']:
+            return global_sky_sep
+
+        # Do the spatial scaling first
+        # if self.par['scienceframe']['process']['use_illumflat']:
+        #     # Perform the correction
+        #     self.illum_profile_spatial(skymask=skymask)
+        #     # Re-generate a global sky sub for all slits separately
+        #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
+        #                                           show_fit=show_fit, show=show, show_objs=show_objs)
+
+        # Use sky information in all slits to perform a joint sky fit
+        global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
+                                       show_fit=show_fit, show=show, show_objs=show_objs,
+                                       objs_not_masked=objs_not_masked)
+
+        return global_sky
+
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     def calculate_flexure(self, global_sky):
         """
         Convenience function to calculate the flexure of an IFU. The flexure is calculated by cross-correlating the

@@ -121,12 +121,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+<<<<<<< HEAD
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 4
 
         par['calibrations']['wavelengths']['match_toler'] = 1.5
+=======
+        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
+        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
+        par['calibrations']['wavelengths']['fwhm'] = 8.0
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
         par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
@@ -159,6 +168,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+<<<<<<< HEAD
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
         par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
         
@@ -167,6 +177,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
         # Similarly, the resolution guess is higher than it should be
         par['telluric']['resln_frac_bounds'] = (0.25,1.25)
+=======
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Coadding
         par['coadd1d']['wave_method'] = 'log10'

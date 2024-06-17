@@ -9,11 +9,15 @@ import time
 import shutil 
 import glob
 
+<<<<<<< HEAD
 from pypeit import dataPaths
 from pypeit.scripts import setup
 from pypeit import pypeitsetup
 from pypeit.inputfiles import PypeItFile
 from pypeit.cache import git_most_recent_tag
+=======
+from pkg_resources import resource_filename
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 from IPython import embed
 
@@ -51,6 +55,7 @@ def extinction_files():
 
 def make_example_kast_pypeit_file(version, date):
 
+<<<<<<< HEAD
     # Set the paths for the rst file, ...
     oroot = PYP_ROOT / 'doc' / 'include'
     # ... with the data, and ...
@@ -62,6 +67,13 @@ def make_example_kast_pypeit_file(version, date):
         shutil.rmtree(sroot)
 
     # Run setup 
+=======
+    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() \
+                / 'RAW_DATA' / 'shane_kast_blue' / '600_4310_d55'
+    
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'shane_kast_blue', '-c', 'all',
                                     '-d', str(oroot),
                                     '--version_override', version, 
@@ -84,6 +96,7 @@ def make_example_kast_pypeit_file(version, date):
 
 def make_example_deimos_pypeit_file(version, date):
 
+<<<<<<< HEAD
     oroot = PYP_ROOT / 'doc' / 'include'
     droot = DEV_ROOT / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
     sroot = oroot / 'keck_deimos_A'
@@ -91,6 +104,12 @@ def make_example_deimos_pypeit_file(version, date):
         # Remove pre-existing directory
         shutil.rmtree(sroot)
 
+=======
+    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_deimos' / '1200G_M_7750'
+    
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_deimos', '-c', 'all',
                                     '-d', str(oroot),
                                     '--version_override', version, 
@@ -113,12 +132,20 @@ def make_example_deimos_pypeit_file(version, date):
 
 def make_example_gnirs_pypeit_files(version, date):
 
+<<<<<<< HEAD
     oroot = PYP_ROOT / 'doc' / 'include'
     droot = DEV_ROOT / 'RAW_DATA' / 'gemini_gnirs_echelle' / '32_SB_SXD'
     sroot = oroot / 'gemini_gnirs_echelle_A'
     if sroot.is_dir():
         # Remove pre-existing directory
         shutil.rmtree(sroot)
+=======
+    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+
+    # Create the default pypeit file
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'gemini_gnirs_echelle' \
+                / '32_SB_SXD'
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'gemini_gnirs_echelle', '-b',
                                     '-c', 'A', '-d', str(oroot),
@@ -149,6 +176,7 @@ def make_example_gnirs_pypeit_files(version, date):
 
 def make_example_nires_pypeit_files(version, date):
 
+<<<<<<< HEAD
     oroot = PYP_ROOT / 'doc' / 'include'
     droot = DEV_ROOT / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
     sroot = oroot / 'keck_nires_A'
@@ -156,6 +184,13 @@ def make_example_nires_pypeit_files(version, date):
         # Remove pre-existing directory
         shutil.rmtree(sroot)
 
+=======
+    oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'
+
+    # Create the default pypeit file
+    droot = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'keck_nires' / 'ABBA_wstandard'
+    
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     pargs = setup.Setup.parse_args(['-r', str(droot), '-s', 'keck_nires', '-b', '-c', 'A',
                                     '-d', str(oroot),
                                     '--version_override', version, 
@@ -193,7 +228,11 @@ def make_example_sorted_file():
     ps.run(setup_only=True)
 
     # Write the sorted file,
+<<<<<<< HEAD
     sorted_file = pathlib.Path().absolute() / ps.pypeit_file.replace('.pypeit', '.sorted')
+=======
+    sorted_file = Path().resolve() / ps.pypeit_file.replace('.pypeit', '.sorted')
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     ps.fitstbl.write_sorted(sorted_file)
 
     oroot = Path(resource_filename('pypeit', '')).resolve().parent / 'doc' / 'include'

@@ -1252,12 +1252,16 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
+<<<<<<< HEAD
         par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R25000.fits'
         par['sensfunc']['IR']['pix_shift_bounds'] = (-8.0,8.0)
 
         # Telluric parameters
         par['telluric']['pix_shift_bounds'] = (-8.0,8.0)
 
+=======
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         return par
 
     def init_meta(self):

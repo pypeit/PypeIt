@@ -4,7 +4,11 @@
     usage: run_pypeit [-h] [-v VERBOSITY] [-r REDUX_PATH] [-m] [-s] [-o] [-c]
                       pypeit_file
     
+<<<<<<< HEAD
     ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.16.1.dev84+g643dd5acc[0m
+=======
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.13.1.dev859+gf736f5f47[0m
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     ##  
     ##  Available spectrographs include:
     ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,

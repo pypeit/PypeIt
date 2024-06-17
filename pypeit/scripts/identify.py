@@ -1,5 +1,5 @@
 """
-Launch the pypeit_identify GUI tool.
+Launch the identify GUI tool.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -13,7 +13,7 @@ class Identify(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Launch PypeIt pypeit_identify tool, display extracted '
+        parser = super().get_parser(description='Launch PypeIt identify tool, display extracted '
                                                 'Arc, and load linelist.', width=width)
         parser.add_argument('arc_file', type=str, default=None, help='PypeIt Arc file')
         parser.add_argument('slits_file', type=str, default=None, help='PypeIt Slits file')
@@ -22,15 +22,9 @@ class Identify(scriptbase.ScriptBase):
         parser.add_argument('-s', '--solution', default=False, action='store_true',
                             help="Load a wavelength solution from the arc_file (if it exists)")
         parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
-        parser.add_argument("--wmax", type=float, default=50000.0, help="Maximum wavelength range")
-        parser.add_argument("--slits", type=str, default='0',
-                            help="Which slit to load for wavelength calibration. " 
-                            "Format should be [0,1,...] for multiple slits, 0 for only one slit. "
-                            "If creating a new WaveCalib with the -n flag, this is not necessary.")
-        parser.add_argument('-m', '--multi', default=False, action = 'store_true',
-                            help="Set this flag to create wavelength solutions for muliple slits")
-        parser.add_argument('-n', '--new_sol', default=False, action = 'store_true',
-                            help="Set this flag to construct a new WaveCalib file, rather than using the exising one")
+        parser.add_argument("--wmax", type=float, default=26000.0, help="Maximum wavelength range")
+        parser.add_argument("--slit", type=int, default=0,
+                            help="Which slit to load for wavelength calibration")
         parser.add_argument("--det", type=int, default=1, help="Detector index")
         parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
         parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
@@ -124,6 +118,10 @@ class Identify(scriptbase.ScriptBase):
                                         y_log=not args.linear,
                                         rescale_resid=args.rescale_resid)
 
+        # If testing, return now
+        if args.test:
+            return arcfitter
+        final_fit = arcfitter.get_results()
         # If testing, return now
         if args.test:
             return arcfitter

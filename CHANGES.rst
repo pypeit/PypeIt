@@ -1,10 +1,3 @@
-
-****************************************************************************
-USE OF THIS FILE IS NOW DEPRECATED.  CHANGES SHOULD BE ADDED TO THE RELEVANT
-RELEASE FILE IN doc/releases
-****************************************************************************
-
-
 1.14.0 (18 Sep 2023)
 --------------------
 
@@ -59,6 +52,10 @@ RELEASE FILE IN doc/releases
     - Added a function ``check_spectrograph()`` (currently only defined for LRIS),
       that checks (during ``pypeit_setup``) if the selected spectrograph is the
       corrected one for the data used. 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 1.13.0 (2 June 2023)
 --------------------

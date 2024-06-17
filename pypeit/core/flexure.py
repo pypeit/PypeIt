@@ -83,9 +83,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
                                cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
-        msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
-        return 0.
+        msgs.warn('No peak found in spatial flexure.  Assuming there is none...')     
+       return 0.
 
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
@@ -116,9 +115,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
-                    spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
-                    method="boxcar", minwave=None, maxwave=None):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_fwhm_pix, spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
+                    method="boxcar"):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -447,7 +445,7 @@ def flexure_interp(shift, wave):
 
 def spec_flex_shift_global(slit_specs, islit, sky_file, empty_flex_dict,
                            return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None,
-                           mxshft=20, excess_shft="crash", method='slitcen', minwave=None, maxwave=None):
+                           mxshft=20, excess_shft="crash", method='slitcen'):
     """ Calculate flexure shifts using the sky spectrum extracted at the center of the slit
 
     Args:
@@ -523,9 +521,9 @@ def spec_flex_shift_global(slit_specs, islit, sky_file, empty_flex_dict,
     return flex_list
 
 
-def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_file, empty_flex_dict,
+def spec_flex_shift_local(slits, slitord, specobjs, islit, sky_spectrum, arx_fwhm_pix, empty_flex_dict,
                           return_later_slits, flex_list, keys_to_update, spec_fwhm_pix=None, mxshft=20,
-                          excess_shft="crash", method='boxcar', minwave=None, maxwave=None):
+                          excess_shft="crash", method='boxcar'):
     """ Calculate flexure shifts using the sky spectrum boxcar-extracted at the location of the detected objects
 
     Args:

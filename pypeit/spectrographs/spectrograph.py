@@ -1145,7 +1145,11 @@ class Spectrograph:
         """
         # Check extension and then open
         self._check_extensions(raw_file)
+<<<<<<< HEAD
         hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
+=======
+        hdu = io.fits_open(raw_file)
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
@@ -1862,6 +1866,7 @@ class Spectrograph:
         msgs.warn(f"Pattern noise removal is not implemented for spectrograph {self.name}")
         return []
 
+<<<<<<< HEAD
     def scattered_light_archive(self, binning, dispname):
         """ Archival model parameters for the scattered light. These are based on best fits to currently available data.
 
@@ -1899,6 +1904,8 @@ class Spectrograph:
 
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     def __repr__(self):
         """Return a string representation of the instance."""

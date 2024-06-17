@@ -517,6 +517,10 @@ class SpecObj(datamodel.DataContainer):
                 Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:

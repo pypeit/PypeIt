@@ -178,7 +178,6 @@ class RawImage:
                           subtract_pattern=False,
                           subtract_overscan=False,
                           subtract_continuum=False,
-                          subtract_scattlight=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -644,10 +643,13 @@ class RawImage:
         self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
                                     if self.par['spat_flexure_correct'] else None
 
+<<<<<<< HEAD
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
             self.subtract_scattlight(scattlight, slits)
 
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
         # bitmask below.
@@ -1124,6 +1126,7 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
+<<<<<<< HEAD
     def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
         Analyze and subtract the scattered light from the image.
@@ -1258,6 +1261,8 @@ class RawImage:
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
+=======
+>>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     def trim(self, force=False):
         """
         Trim image attributes to include only the science data.
@@ -1396,3 +1401,5 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
+
+
