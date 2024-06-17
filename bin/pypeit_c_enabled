@@ -30,7 +30,8 @@ try:
 except:
     print("Can't check status of OpenMP support")
 else:
-    if 'openmp' in bspline_extension.extra_compile_args:
+    # Windows uses -openmp, other environments use -fopenmp
+    if any(['openmp' in arg for arg in bspline_extension.extra_compile_args]):
         print('OpenMP compiler support detected.')
     else:
         print('OpenMP compiler support not detected. Bspline utilities single-threaded.')
