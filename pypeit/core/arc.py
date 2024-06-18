@@ -179,7 +179,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=300)
         plt.close()
     else:
         plt.show()
@@ -291,9 +291,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1, 0.9, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
-                ax0.text(0.1, 0.8, r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
                 ax0.get_yaxis().set_label_coords(-0.15, 0.5)
 
@@ -311,7 +311,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=200)
         plt.close()
     else:
         plt.show()
@@ -1001,6 +1001,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
                                                         sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
                                                         stdfunc = np.nanstd)
         thresh = med + sigdetect*stddev
+        if stddev == 0.0:
+            msgs.warn('stddev = 0.0, so resetting to 1.0')
+            stddev = 1.0
     else:
         med = 0.0
         if isinstance(input_thresh,(float, int)):
@@ -1025,7 +1028,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # TODO: Why does this interpolate to pixt and not tcent?
     tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
-
+    
     # Find the lines that meet the following criteria:
     #   - Amplitude is in the linear regime of the detector response
     #   - Center is within the limits of the spectrum
@@ -1035,7 +1038,6 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
-
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1

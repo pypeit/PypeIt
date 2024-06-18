@@ -877,29 +877,8 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
     if sn_smooth_npix is None and weight_method not in ['constant', 'uniform']:
         msgs.error("sn_smooth_npix cannot be None unless the weight_method='constant' or weight_method='uniform'")
 
-<<<<<<< HEAD
     rms_sn, sn_val = calc_snr(fluxes, ivars, gpms)
     sn2 = np.square(rms_sn)
-=======
-    # Give preference to ivar_weights
-    if ivar_weights and relative_weights:
-        msgs.warn("Performing inverse variance weights instead of relative weighting")
-        relative_weights = False
-
-    # Calculate S/N
-    sn_val, rms_sn, sn2 = [], [], []
-    for iexp in range(nexp):
-        sn_val_iexp = fluxes[iexp]*np.sqrt(ivars[iexp])
-        sn_val.append(sn_val_iexp)
-        sn_val_ma = np.ma.array(sn_val_iexp, mask=np.logical_not(gpms[iexp]))
-        sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
-        sn2_iexp = sn_sigclip.mean()**2  # S/N^2 value for each spectrum
-        if sn2_iexp is np.ma.masked:
-            msgs.error(f'No unmasked value in iexp={iexp+1}/{nexp}. Check inputs.')
-        else:
-            sn2.append(sn2_iexp)
-            rms_sn.append(np.sqrt(sn2_iexp))  # Root Mean S/N**2 value for all spectra
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     # Check if relative weights input
     if verbose:
@@ -1016,10 +995,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
-<<<<<<< HEAD
     
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),snr_do_not_rescale)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
 
@@ -1141,10 +1117,6 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         mask_ref = ivar_ref > 0.0
 
 
-<<<<<<< HEAD
-=======
-    # Interpolate the reference spectrum onto the wavelengths of the spectrum that will be rescaled
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     flux_ref_int, ivar_ref_int, mask_ref_int, _ = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
 
     # estimates the SNR of each spectrum and the stacked mean SNR
@@ -2715,7 +2687,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # For the first iteration use the scale_method input as an argument (default=None, which will allow
     # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
     # we are then applying tiny corrections and median scaling is much faster
-<<<<<<< HEAD
     # ASC: This has been updated from:
     # scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
     # to implement 2 median scaling prior to attempting other methods (particularly solve poly ratio). 
@@ -2723,9 +2694,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # It was initially implemented with NIRSPEC in mind, but was not very effective in that case. We have tested
     # it against the X-Shooter dev suite example and found it does not harm the reduction, and may prove helpful in future. 
     scale_method_iter = ['median']*(2) + [scale_method]  + ['median']*(niter_order_scale - 3)
-=======
-    scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     # Iteratively scale and stack the entire set of spectra arcoss all setups, orders, and exposures
     for iteration in range(niter_order_scale):
         # JFH This scale_spec_stack routine takes a list of [(nspec1,), (nspec2,), ...] arrays, so a loop needs to be
