@@ -403,27 +403,12 @@ def shift_and_stretch(spec, shift, stretch, stretch2, stretch_func='quadratic'):
     # Positive value of shift means features shift to larger pixel values
 
     nspec = spec.shape[0]
-<<<<<<< HEAD
     
     # Can do the stretch and shift in one operation
     if stretch_func == 'linear': stretch2 = 0.0
 
     return scipy.interpolate.interp1d(np.arange(nspec)**2*stretch2 + np.arange(nspec)*stretch + shift, 
                                            spec, kind=stretch_func, bounds_error=False, fill_value=0.0)(np.arange(nspec))
-=======
-    # pad the spectrum on both sizes
-    x1 = np.arange(nspec)/float(nspec-1)
-    nspec_stretch = int(nspec*stretch)
-    x2 = np.arange(nspec_stretch)/float(nspec_stretch-1)
-    spec_str = (scipy.interpolate.interp1d(x1, spec, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(x2)
-    # Now create a shifted version
-    ind_shift = np.arange(nspec_stretch) - shift
-    spec_str_shf = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(ind_shift)
-    # Now interpolate onto the original grid
-    spec_out = (scipy.interpolate.interp1d(np.arange(nspec_stretch), spec_str_shf, kind = 'quadratic', bounds_error = False, fill_value = 0.0))(np.arange(nspec))
-
-    return spec_out
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
 
 def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
@@ -437,20 +422,13 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
     Parameters
     ----------
     theta : float `numpy.ndarray`_
-<<<<<<< HEAD
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch, theta[2] = stretch2
-=======
-        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     y1 : float `numpy.ndarray`_, shape = (nspec,)
         First spectrum which acts as the refrence
     y2 : float `numpy.ndarray`_, shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
-<<<<<<< HEAD
     stretch_func : str, optional, default = 'quadratic'
         Use quadratic ('quadratic') or linear ('linear') stretch.
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     Returns
     -------
@@ -461,13 +439,8 @@ def zerolag_shift_stretch(theta, y1, y2, stretch_func = 'quadratic'):
 
     """
 
-<<<<<<< HEAD
     shift, stretch, stretch2 = theta
     y2_corr = shift_and_stretch(y2, shift, stretch, stretch2, stretch_func= stretch_func)
-=======
-    shift, stretch = theta
-    y2_corr = shift_and_stretch(y2, shift, stretch)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     # Zero lag correlation
     corr_zero = np.sum(y1*y2_corr)
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2_corr*y2_corr))
@@ -546,11 +519,7 @@ def get_xcorr_arc(inspec1, sigdetect=5.0, sig_ceil=10.0, percent_ceil=50.0, use_
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
 def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0,
-<<<<<<< HEAD
                 do_xcorr_arc=True, lag_range=None, max_lag_frac=1.0,  debug=False):
-=======
-                do_xcorr_arc=True, debug=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     """
     Determine the shift inspec2 relative to inspec1.  This routine computes the
@@ -616,7 +585,6 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
         return 0.0, 0.0
 
     nspec = y1.shape[0]
-<<<<<<< HEAD
     if lag_range is not None:  
         lagmin = lag_range[0]  
         lagmax = lag_range[1]  
@@ -627,20 +595,12 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
     lags = np.linspace(lagmin, lagmax, 2*nspec-1)
     corr = scipy.signal.correlate(y1, y2, mode='full')
 
-=======
-    lags = np.arange(-nspec + 1, nspec)
-    corr = scipy.signal.correlate(y1, y2, mode='full')
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
     corr_norm = corr/corr_denom
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(corr_norm, sigdetect=3.0,
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
-<<<<<<< HEAD
                                                                                      cont_frac_fwhm=1.0, cont_samp=30, 
                                                                                      nfind=1)
-=======
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30, nfind=1)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     corr_max = np.interp(pix_max, np.arange(lags.shape[0]),corr_norm)
     lag_max  = np.interp(pix_max, np.arange(lags.shape[0]),lags)
     if debug:
@@ -656,14 +616,9 @@ def xcorr_shift(inspec1, inspec2, percent_ceil=50.0, use_raw_arc=False, sigdetec
 
 
 def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use_raw_arc=False,
-<<<<<<< HEAD
                         shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect=5.0, sig_ceil=10.0,
                         fwhm = 4.0, max_lag_frac=1.0, lag_range=None, debug=False, toler=1e-5, seed=None,
                         stretch_func='quadratic'):
-=======
-                        shift_mnmx=(-0.2,0.2), stretch_mnmx=(0.95,1.05), sigdetect = 5.0, sig_ceil=10.0,
-                        fwhm = 4.0, debug=False, toler=1e-5, seed = None):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     """
     Determine the shift and stretch of inspec2 relative to inspec1.  This
@@ -726,12 +681,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         may not work well if this range is significantly expanded
         because the linear approximation used to transform the arc
         starts to break down.
-<<<<<<< HEAD
     max_lag_frac: float, default = 1.0
         Maximum range of lags over which to compute the cross correlation, 
         expressed as a fraction of the length of the vectors being cross-correlated.
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     seed: int or np.random.RandomState, optional, default = None
         Seed for scipy.optimize.differential_evolution optimizer. If not
         specified, the calculation will not be repeatable
@@ -739,11 +691,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         Tolerance for differential evolution optimizaiton.
     debug = False
         Show plots to the screen useful for debugging.
-<<<<<<< HEAD
     stretch_func : str, optional, default = 'quadratic'
         Use quadratic ('quadratic') or linear ('linear') stretch.
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     Returns
     -------
@@ -765,13 +714,10 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         the optimal stretch which was determined.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh,  then this
         will be just be 1.0
-<<<<<<< HEAD
     stretch2: float
         the optimal second order stretch which was determined.  If cc_thresh is set,
         and the initial cross-correlation is < cc_thresh,  then this
         will be just be 1.0. This is 0.0 if the stretch_func = linear
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     cross_corr: float
         the value of the cross-correlation coefficient at the optimal
         shift and stretch. This is a number between zero and unity,
@@ -792,10 +738,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
 
     nspec = inspec1.size
-<<<<<<< HEAD
-=======
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     y1 = get_xcorr_arc(inspec1, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
                        sig_ceil=sig_ceil, fwhm=fwhm)
     y2 = get_xcorr_arc(inspec2, percent_ceil=percent_ceil, use_raw_arc=use_raw_arc, sigdetect=sigdetect,
@@ -803,21 +745,16 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
 
     if y1 is None or y2 is None:
         msgs.warn('No lines detected punting on shift/stretch')
-        return 0, None, None, None, None, None
+        return 0, None, None, None, None, None, None
 
     # Do the cross-correlation first and determine the initial shift
-<<<<<<< HEAD
     shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil=None, do_xcorr_arc=False, lag_range=lag_range,
                                     sigdetect=sigdetect, fwhm=fwhm, max_lag_frac=max_lag_frac, debug=debug)
-=======
-    shift_cc, corr_cc = xcorr_shift(y1, y2, percent_ceil = None, do_xcorr_arc=False, sigdetect = sigdetect, fwhm=fwhm, debug = debug)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     # TODO JFH Is this a good idea? Stretch fitting seems to recover better values
     #if corr_cc < -np.inf: # < cc_thresh:
     #    return -1, shift_cc, 1.0, corr_cc, shift_cc, corr_cc
 
-<<<<<<< HEAD
     if lag_range is None:
         lag_range = (shift_cc + nspec * shift_mnmx[0], shift_cc + nspec * shift_mnmx[1])
     # TODO Can we make the differential evolution run faster?
@@ -837,20 +774,6 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
     stretch_de = result.x[1]
     stretch2_de = result.x[2]
 
-=======
-    bounds = [(shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]), stretch_mnmx]
-    x0_guess = np.array([shift_cc, 1.0])
-    # TODO Can we make the differential evolution run faster?
-    try:
-        result = scipy.optimize.differential_evolution(zerolag_shift_stretch, args=(y1,y2), x0=x0_guess, tol=toler, bounds=bounds, disp=False, polish=True, seed=seed)
-    except PypeItError:
-        msgs.warn("Differential evolution failed.")
-        return 0, None, None, None, None, None
-    else:
-        corr_de = -result.fun
-        shift_de = result.x[0]
-        stretch_de = result.x[1]
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     if not result.success:
         msgs.warn('Fit for shift and stretch did not converge!')
@@ -864,40 +787,32 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, percent_ceil=50.0, use
         corr_out = corr_cc
         shift_out = shift_cc
         stretch_out = 1.0
+        stretch2_out = 0.0
         result_out = 1
     else:
         corr_out = corr_de
         shift_out = shift_de
         stretch_out = stretch_de
+        stretch2_out = stretch2_de
         result_out = int(result.success)
 
     if debug:
         x1 = np.arange(nspec)
-<<<<<<< HEAD
         y2_trans = shift_and_stretch(y2, shift_out, stretch_out, stretch2_out, stretch_func='quadratic')
         plt.figure(figsize=(14, 6))
         plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
         plt.plot(x1,y2/y2.max(), color='grey', drawstyle='steps', label='inspec2, reference original')
         print('REFERENCE MAX', np.max(y2))
         plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label='inspec2, reference shift & stretch')
-=======
-        y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
-        plt.figure(figsize=(14, 6))
-        plt.plot(x1,y1/y1.max(), 'k-', drawstyle='steps', label ='inspec1, input spectrum')
-        plt.plot(x1,y2_trans/y2_trans.max(), 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         plt.title('shift= {:5.3f}'.format(shift_out) +
-                  ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
+                  ',  stretch = {:7.5f}'.format(stretch_out) + 
+                                    ',  stretch2 = {:7.5f}'.format(stretch2_out) + ', corr = {:5.3f}'.format(corr_out))
         plt.legend()
         plt.show()
 
-<<<<<<< HEAD
     # check if the cc is above the threshold
     if corr_out < cc_thresh:
         result_out = -1
-=======
-    return result_out, shift_out, stretch_out, corr_out, shift_cc, corr_cc
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     return result_out, shift_out, stretch_out, stretch2_out, corr_out, shift_cc, corr_cc
 
@@ -964,12 +879,8 @@ def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
-<<<<<<< HEAD
                    order=None, lines_pix_arr=None, lines_wav_arr=None,
                    lines_fit_ord=None, overwrite=True, to_cache=False):
-=======
-                   order=None, overwrite=True, cache=False):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     """
     Write the template spectrum into a binary FITS table
 
@@ -1005,7 +916,10 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
     tbl['flux'] = nwspec
     if order is not None:
         tbl['order'] = order
-
+    if lines_pix_arr is not None:
+        tbl['lines_pix'] = lines_pix_arr
+        tbl['lines_wav'] = lines_wav_arr
+        tbl['lines_fit_ord'] = lines_fit_ord
     tbl.meta['BINSPEC'] = binspec
     # Detector snippets??
     if det_cut is not None:
@@ -1029,11 +943,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
                   f"   [[wavelengths]]{msgs.newline()}"
                   f"     reid_arxiv = {outroot}{msgs.newline()}"
                   f"     method = full_template\n")
-<<<<<<< HEAD
         print("")  # Empty line for clarity
         msgs.info(f"To use exactly the solutions created above {msgs.newline()}"
                   f"disable the 2d fitting by adding the keyword ech_2dfit = False")
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     print("")  # Empty line for clarity
     msgs.info("Please consider sharing your solution with the PypeIt Developers.")

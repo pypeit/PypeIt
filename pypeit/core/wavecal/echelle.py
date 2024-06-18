@@ -84,28 +84,18 @@ def predict_ech_wave_soln(angle_fits_params, ech_angle_coeffs, ech_angle, order_
     for iord, order in enumerate(order_vec):
         # Index of the order in the total order vector used cataloguing the fits in the coeff arxiv
         indx = order - angle_fits_params['order_min']
-<<<<<<< HEAD
         # check if the order is in the arxiv, if not skip this order
         if indx < 0 or indx >= angle_fits_params['norders']:
             continue
         coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
         # Evaluate the coefficients for this order and the current ech_angle
         for ic in range(int(np.ceil(angle_fits_params['ech_n_final']) + 1)):
-=======
-        coeff_predict = np.zeros(angle_fits_params['ech_n_final'] + 1)
-        # Evaluate the coefficients for this order and the current ech_angle
-        for ic in range(angle_fits_params['ech_n_final'] + 1):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             coeff_predict[ic] = fitting.evaluate_fit(
                 ech_angle_coeffs[indx, ic, :], angle_fits_params['ech_func'],
                 ech_angle, minx=angle_fits_params['ech_xmin'], maxx=angle_fits_params['ech_xmax'])
 
         wave_soln_guess[:, iord] = fitting.evaluate_fit(coeff_predict, angle_fits_params['wave_func'], xnspec,
         minx=angle_fits_params['wave_xmin'], maxx=angle_fits_params['wave_xmax'])
-<<<<<<< HEAD
-=======
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     return wave_soln_guess
 
@@ -176,7 +166,6 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
         igood = gpm_composite[:, indx]
         arcspec_guess[:, iord] = interpolate.interp1d(wave_composite[igood, indx], arc_composite[igood, indx],
                                                       kind='cubic', bounds_error=False,
-<<<<<<< HEAD
                                                       fill_value=0.)(wave_soln_guess[:, iord])
         # sometimes wave_soln_guess[:, iord] is wrong and therefore is outside the range of
         # wave_composite[igood, indx] and the corresponding arcspec_guess[:, iord] is all zeros
@@ -197,22 +186,14 @@ def predict_ech_arcspec(angle_fits_file, composite_arc_file, echangle, xdangle, 
                 npad *= -1
                 arcspec_guess[:, iord] = arc_composite[igood, indx][npad // 2:npad // 2 + nspec]
                 wave_soln_guess[:, iord] = wave_composite[igood, indx][npad // 2:npad // 2 + nspec]
-=======
-                                                      fill_value=-1e10)(wave_soln_guess[:, iord])
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     return order_vec_guess, wave_soln_guess, arcspec_guess
 
 
 def identify_ech_orders(arcspec, echangle, xdangle, dispname, 
                         angle_fits_file, 
-<<<<<<< HEAD
                         composite_arc_file, debug=False, 
                         cc_percent_ceil=50.0, pad=3):
-=======
-                        composite_arc_file, debug=False, pad=3):
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     """
     Identify the orders in the echelle spectrum via cross correlation with the best guess predicted arc based
     on echangle, xdangle, and cross-disperser
@@ -255,23 +236,14 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         angle_fits_file, composite_arc_file, echangle, xdangle, dispname, 
         nspec, norders, pad=pad)
     norders_guess = order_vec_guess.size
-<<<<<<< HEAD
     msgs.info(f'initial orders vec guess = {order_vec_guess}')
     # Since we padded the guess we need to pad the data to the same size
     arccen_pad = np.zeros((nspec, norders_guess))
     arccen_pad[:nspec, :norders] = arcspec
-=======
-
-    # Since we padded the guess we need to pad the data to the same size
-    arccen_pad = np.zeros((nspec, norders_guess))
-    arccen_pad[:nspec, :norders] = arcspec
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     # Cross correlate the data with the predicted arc spectrum
     # TODO Does it make sense for xcorr_shift to continuum subtract here?
     shift_cc, corr_cc = wvutils.xcorr_shift(
         arccen_pad.flatten('F'), arcspec_guess_pad.flatten('F'), 
-<<<<<<< HEAD
         percent_ceil=cc_percent_ceil, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
 
     if debug:
@@ -285,9 +257,6 @@ def identify_ech_orders(arcspec, echangle, xdangle, dispname,
         ax.plot(xvals, np.roll(arcspec_guess_pad.flatten('F'), int(shift_cc)), 'k', label='input')  # Input
         ax.legend()
         plt.show()
-=======
-        percent_ceil=50.0, sigdetect=5.0, sig_ceil=10.0, fwhm=4.0, debug=debug)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     
     # Finish
     ordr_shift = int(np.round(shift_cc / nspec))

@@ -715,17 +715,12 @@ class Identify:
         return wvcalib
 
     def store_solution(self, final_fit, binspec, rmstol=0.15,
-<<<<<<< HEAD
                        force_save=False, wvcalib=None, multi=False,
                        fits_dicts=None, specdata=None, slits=None,
                        lines_pix_arr=None, lines_wav_arr=None, lines_fit_ord=None,
                        custom_wav=None, custom_wav_ind=None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
         for multiple traces
-=======
-                       force_save=False, wvcalib=None):
-        """Check if the user wants to store this solution in the reid arxiv
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         Parameters
         ----------
@@ -734,7 +729,6 @@ class Identify:
             Dict of wavelength calibration solutions (see self.get_results())
         binspec : int
             Spectral binning
-<<<<<<< HEAD
         rmstol : float, optional
             RMS tolerance allowed for the wavelength solution to be stored in the archive
         force_save : bool, optional
@@ -751,32 +745,18 @@ class Identify:
             Numpy array containing the pixel locations of all ID'd lines
         lines_wav_arr : array, optional
             Numpy array containing wavelengths of all the ID'd lines
-=======
-        rmstol : float
-            RMS tolerance allowed for the wavelength solution to be stored in the archive
-        force_save : bool
-            Force save
-        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
-            Wavelength solution
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         Returns
         -------
 
-<<<<<<< HEAD
         wvarxiv_name : :obj:`str`
             The name of the wvarxiv file if saved. "None" if not saved
-=======
-        wvarxiv_name : :obj:`str` or :obj:`None`
-            The name of the wvarxiv file if saved, else None
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         """
         # For return
         wvarxiv_name = None
 
         # Line IDs
         ans = ''
-<<<<<<< HEAD
         # I am guessing we want to save the line IDs only if we are not dealing with a multi-trace solution
         if not multi:
             if not force_save:
@@ -787,30 +767,16 @@ class Identify:
                 ans = 'y'
             if ans == 'y':
                 self.save_IDs()
-=======
-        if not force_save:
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store the line IDs? (y/n): ")
-        else:
-            ans = 'y'
-        if ans == 'y':
-            self.save_IDs()
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Solution
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
             return
-<<<<<<< HEAD
         elif final_fit['rms'] < rmstol or multi:
-=======
-        elif final_fit['rms'] < rmstol:
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             ans = ''
             if not force_save:
                 while ans != 'y' and ans != 'n':
                     ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
             else:
-<<<<<<< HEAD
                 msgs.info('Saving the wavelength solution to disk')
                 ans = 'y'
             if ans == 'y':
@@ -898,26 +864,12 @@ class Identify:
                                         wvarxiv_name, to_cache=True, order = order_vec,
                                         lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr,
                                         lines_fit_ord = lines_fit_ord)
-=======
-                ans = 'y'
-            if ans == 'y':
-                # Arxiv solution
-                wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
-                                                             (self.specdata.size - 1))
-
-                # Instead of a generic name, save the wvarxiv with a unique identifier
-                date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec, './', wvarxiv_name, cache=True)
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
                 if wvcalib is not None:
                     wvcalib.to_file(outfname, overwrite=True)
                     msgs.info("A WaveCalib container was written to wvcalib.fits")
 
-<<<<<<< HEAD
                 # Ask if overwrite the existing WVCalib file only if force_save=False, otherwise don't overwrite
                 ow_wvcalib = ''
                 if not force_save:
@@ -956,8 +908,6 @@ class Identify:
                                 for f in cal_root.glob(f'{cal}*'):
                                     f.unlink()
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
                 print("https://pypeit.readthedocs.io/en/release/calibrations/construct_template.html")
@@ -966,7 +916,6 @@ class Identify:
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
                 print("  (3) the {0:s} file".format(outfname))
                 print("\nPlease consider sending your solution to the PypeIt team!\n")
-<<<<<<< HEAD
 
         else:
             print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
@@ -984,21 +933,6 @@ class Identify:
                         ans = 'y'
                     if ans == 'y':
                         self.save_IDs()
-=======
-        else:
-            print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
-            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
-            if ans != 'y':
-                # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
-                ans = ''
-                if not force_save:
-                    while ans != 'y' and ans != 'n':
-                        ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
-                else:
-                    ans = 'y'
-                if ans == 'y':
-                    self.save_IDs()
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # For the cases that need the wvarxiv name, return it
         return wvarxiv_name

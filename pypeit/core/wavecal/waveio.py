@@ -92,7 +92,6 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
-<<<<<<< HEAD
     
     # for echelle spectrographs
     tbl_order = tbl['order'].data if 'order' in tbl.keys() else None
@@ -101,8 +100,6 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
     tbl_line_pix = tbl['lines_pix'].data if 'lines_pix' in tbl.keys() else None
     tbl_line_wav = tbl['lines_wav'].data if 'lines_wav' in tbl.keys() else None
     tbl_line_fit_ord = tbl['lines_fit_ord'].data if 'lines_fit_ord' in tbl.keys() else None
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
     # Cut down?
     if wvrng is not None:
@@ -111,7 +108,7 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):
