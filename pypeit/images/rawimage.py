@@ -178,6 +178,7 @@ class RawImage:
                           subtract_pattern=False,
                           subtract_overscan=False,
                           subtract_continuum=False,
+                          subtract_scattlight=False,
                           trim=False,
                           orient=False,
                           subtract_bias=False,
@@ -640,16 +641,13 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
                                     if self.par['spat_flexure_correct'] else None
 
-<<<<<<< HEAD
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
             self.subtract_scattlight(scattlight, slits)
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
         # bitmask below.
@@ -736,7 +734,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False):
+    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -764,7 +762,7 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits)
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, maxlag = maxlag)
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
@@ -1126,7 +1124,6 @@ class RawImage:
         #cont = ndimage.median_filter(self.image, size=(1,101,3), mode='reflect')
         self.steps[step] = True
 
-<<<<<<< HEAD
     def subtract_scattlight(self, msscattlight, slits, debug=False):
         """
         Analyze and subtract the scattered light from the image.
@@ -1261,8 +1258,6 @@ class RawImage:
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     def trim(self, force=False):
         """
         Trim image attributes to include only the science data.
@@ -1401,5 +1396,3 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
-
-

@@ -257,12 +257,8 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
                                                par=par['coadd1d'],
                                                sensfuncfile=coadd1dFile.sensfiles,
                                                setup_id=coadd1dFile.setup_id,
-<<<<<<< HEAD
                                                debug=args.debug, show=args.show,
                                                chk_version=par['rdx']['chk_version'])
-=======
-                                               debug=args.debug, show=args.show)
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Run
         coAdd1d.run()
         # Save to file
