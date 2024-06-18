@@ -5,8 +5,6 @@ Implements KCWI-specific functions.
 .. include:: ../include/links.rst
 """
 
-import glob
-
 from IPython import embed
 
 import numpy as np
@@ -16,8 +14,10 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
 from scipy.optimize import curve_fit
+
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -915,7 +915,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
-<<<<<<< HEAD
         # Subtract scattered light, but only for the pixel and illum flats,
         # as well as and science/standard star data.
         par['calibrations']['scattlight_pad'] = 6  # This is the unbinned number of pixels to pad
@@ -926,8 +925,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['scienceframe']['process']['scattlight']['finecorr_pad'] = 4  # This is the unbinned number of pixels to pad
         par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
         # par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Correct the illumflat for pixel-to-pixel sensitivity variations
         par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
@@ -1012,14 +1009,11 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
@@ -1060,7 +1054,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-<<<<<<< HEAD
     def scattered_light_archive(self, binning, dispname):
         """ Archival model parameters for the scattered light. These are based on best fits to currently available data.
 
@@ -1157,8 +1150,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         # Return the best-fitting archival parameters and the bounds
         return x0, bounds
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     def fit_2d_det_response(self, det_resp, gpmask):
         r"""
         Perform a 2D model fit to the KCWI detector response.
@@ -1429,14 +1420,11 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading KCWI file: {fil}')
+        hdu = io.fits_open(fil)
         detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)

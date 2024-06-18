@@ -113,7 +113,6 @@ overscan regions. Also note that this pattern noise is different
 from the detector structure mentioned above for pixelflats. The
 pattern noise is additive, the detector structure is multiplicative.
 
-<<<<<<< HEAD
 Scattered Light Removal
 -----------------------
 
@@ -145,8 +144,6 @@ following lines to your :ref:`pypeit_file`:
                 subtract_scattlight = False
 
 
-=======
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 Relative spectral illumination correction
 -----------------------------------------
 

@@ -3,7 +3,6 @@ Module for LRIS specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import os
 
 from IPython import embed
@@ -19,6 +18,7 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -75,14 +75,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Remove slits that are too short
         par['calibrations']['slitedges']['minimum_slit_length'] = 3.
         # 1D wavelengths
-<<<<<<< HEAD
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # Might be grism dependent
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
-=======
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -105,7 +101,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -143,7 +139,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Wave FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
@@ -441,14 +436,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LRIS file: {fil}')
+        hdu = io.fits_open(fil)
         head0 = hdu[0].header
 
         # Get post, pre-pix values
@@ -853,18 +845,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
 
-<<<<<<< HEAD
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.06
-=======
-        # 1D wavelength solution -- Additional parameters are grism dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
-        par['calibrations']['wavelengths']['sigdetect'] = 10.0
-
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 3
-        par['calibrations']['wavelengths']['method'] = 'full_template'
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
 
         # Allow for longer exposure times on blue side (especially if using the Dome lamps)
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
@@ -1182,7 +1164,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             t2020_1 = time.Time("2020-06-30", format='isot')  # First run
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
             # Check for the new detector (Mark4) upgrade
-            t2021_upgrade = time.Time("2021-04-15", format='isot') 
+            t2021_upgrade = time.Time("2021-04-22", format='isot')
             date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), 
                              format='mjd')
 
@@ -1194,7 +1176,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 detector_dict2['gain'] = np.atleast_1d([1.26])
                 detector_dict1['ronoise'] = np.atleast_1d([99.])
                 detector_dict2['ronoise'] = np.atleast_1d([5.2])
-            elif date > t2021_upgrade: 
+            elif date >= t2021_upgrade:
                 # Note:  We are unlikely to trip this.  Other things probably failed first
                 msgs.error("This is the new detector.  Use keck_lris_red_mark4")
             else: # This is the 2020 July 29 run
@@ -1533,7 +1515,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             return detector_container.DetectorContainer(**detector_dict1)
 
         # Date of Mark4 installation
-        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        t2021_upgrade = time.Time("2021-04-22", format='isot')
         # TODO -- Update with the date we transitioned to the correct ones
         t_gdhead = time.Time("2029-01-01", format='isot')
         date = time.Time(hdu[0].header['MJD'], format='mjd')
