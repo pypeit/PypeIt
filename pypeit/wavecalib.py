@@ -1119,11 +1119,7 @@ class BuildWaveCalib:
             prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
-<<<<<<< HEAD
         if self.par['echelle'] and self.par['ech_2dfit']:
-=======
-        if self.par['echelle']:
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # Test and scale by measured_fwhms 
