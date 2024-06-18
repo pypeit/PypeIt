@@ -496,20 +496,12 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
             arc_spec[:,islit] = np.nan
             continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
-<<<<<<< HEAD
         
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.invert(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1, 
                                                       cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
-=======
-        # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
-        arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
-                                                      mask=np.invert(arcmask[:,left:right]),
-                                                      sigma=3.0, axis=1)[1]
-
->>>>>>> 3d081acc5 (Revert "Merge branch 'nirspec' into APF_Levy")
     # Get the mask, set the masked values to 0, and return
     arc_spec_bpm = np.isnan(arc_spec)
     arc_spec[arc_spec_bpm] = 0.0
