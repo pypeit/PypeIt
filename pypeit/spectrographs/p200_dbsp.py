@@ -19,6 +19,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.spectrographs.ldt_deveny import LDTDeVenySpectrograph
 
 
 def flip_fits_slice(s: str) -> str:
@@ -168,6 +169,9 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+    
+    def get_rawimage(self, raw_file, det):
+        return LDTDeVenySpectrograph.get_rawimage(self, raw_file, det)
 
 
 class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
