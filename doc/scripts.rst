@@ -566,6 +566,24 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
+pypeit_show_pixflat
+-------------------
+
+Inspect in a Ginga window the (slitless) pixel flat produced by PypeIt and stored
+in ``data/static_calibs/{spectrograph_name}``.  It displays each detector separately
+in different channels. The script is useful for assessing the quality of the pixel-to-pixel
+response of the detector. Typical call is:
+
+.. code-block:: console
+
+        pypeit_show_pixflat keck_lris_blue PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
+
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_show_pixflat.rst
+
 pypeit_show_2dspec
 ------------------
 

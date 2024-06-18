@@ -204,7 +204,8 @@ need to provide the matching flat field images in your
 In short, if ``use_pixelflat=True`` for *any* of your frame types,
 at least one of the data files in the
 :ref:`pypeit_file` :ref:`data_block` must
-be labelled as ``pixelflat`` (unless you `Feed a PixelFlat`_).
+be labelled as ``pixelflat``, or ``slitless_pixflat``
+(unless you `Feed a PixelFlat`_).
 
 And, if ``use_illumflat=True`` for *any* of your frame types,
 at least one of the data files in the
@@ -216,26 +217,42 @@ frames for the pixel and illumination corrections. This is
 supported, but we recommend that you set the ``trace`` frames
 to be the same as the ``illumflat`` frames.
 
+Generate a Slitless PixelFlat
+-----------------------------
+
+If a set of ``slitless_pixflat`` frames are available in the
+:ref:`data_block` of the :ref:`pypeit_file`, PypeIt will generate
+a slitless pixel flat (unless you `Feed a PixelFlat`_ instead)
+during the main :ref:`run-pypeit`, and will apply it to frame
+types that have ``use_pixelflat=True``.
+The slitless pixel flat is generated separately for each detector
+(even in the case of a mosaic reduction) and it is stored in a FITS
+file in the reduction directory, with one extension per detector.
+The file will also be saved to the PypeIt cache
+directory ``data/static_calibs/{spectrograph_name}`` and will be
+automatically used during the current reduction. To use this file in future reductions,
+the user should add the slitless pixel flat file name to the :ref:`pypeit_file`
+as shown in `Feed a PixelFlat`_.
+
 Feed a PixelFlat
 ----------------
 
 If you have generated your own pixel flat (or were provided one)
 and it is trimmed and oriented following the expected :ref:`pypeit-orientation`,
-then you may feed this into PypeIt.  This is the recommended approach
-at present for :ref:`lrisb`.
+then you may feed this into PypeIt.  The PixelFlat file should be
+stored in ``data/static_calibs/{spectrograph_name}``.
 
-And you perform this by modifying the :ref:`parameter_block`:
-
-.. TODO: IS THIS STILL THE CORRECT APPROACH?  WHAT DO PEOPLE DO IF THEY DON'T
-.. HAVE THE DEV SUITE?
+To use the available PixelFlat, you need to modify the :ref:`parameter_block` like, e.g.:
 
 .. code-block:: ini
 
-    [calibrations]
-        [[flatfield]]
-            pixelflat_file = /Users/joe/python/PypeIt-development-suite/CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+   [calibrations]
+      [[flatfield]]
+         pixelflat_file = PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
 
-None of the frames in the :ref:`data_block` should be labelled as ``pixelflat``.
+If any of the frames in the :ref:`data_block` are labelled as ``pixelflat``, or ``slitless_pixflat``,
+the provided pixel flat file will still be used instead of generating a new one.
+
 
 Algorithms
 ----------

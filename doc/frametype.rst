@@ -42,24 +42,25 @@ description can be listed as follows:
 
 More detailed descriptions are given in the table below.
 
-================ =============================================================
-Frame Type       Description
-================ =============================================================
-``align``        Used to align spatial positions in multiple slits. This frame is particularly useful for slit-based IFU, such as Keck KCWI.
-``arc``          Spectrum of one or more calibration arc lamps
-``bias``         Bias frame;  typically a 0s exposure with the shutter closed
-``dark``         Dark frame;  typically a >0s exposure to assess dark current (shutter closed)
-``illumflat``    Spectrum taken to correct illumination profile of the slit(s). This is often the same as the trace flat (below).
-``lampoffflats`` Spectrum taken to remove persistence from lamp on flat exposures and/or thermal emission from the telescope and dome. Usually this is an exposure using a flat with lamps OFF
-``pinhole``      Spectrum taken through a pinhole slit (i.e. a very short slit length), and is used to define the centre if a slit (currently, this frame is only used for echelle data reduction). Often this is an exposure using a flat lamp, but one can in principle use a standard star frame too (or a science frame if the spectrum is uniform).
-``pixelflat``    Spectrum taken to correct for pixel-to-pixel detector variations Often an exposure using a dome (recommended) or internal flat lamp, but for observations in the very blue, this may be on-sky
-``science``      Spectrum of one or more science targets
-``standard``     Spectrum of spectrophotometric standard star PypeIt includes a list of pre-defined standards
-``trace``        Spectrum taken to define the slit edges. Often this is an exposure using a flat lamp, but for observations in the very blue, this may be on-sky. The slit length of a trace frame should be the same as the science slit.
-``tilt``         Exposure used to trace the tilt in the wavelength solution. Often the same file(s) as the arc.
-``sky``          On-sky observation of the sky used for background subtraction
-``None``         File could not be automatically identified by PypeIt
-================ =============================================================
+==================== =============================================================
+Frame Type           Description
+==================== =============================================================
+``align``            Used to align spatial positions in multiple slits. This frame is particularly useful for slit-based IFU, such as Keck KCWI.
+``arc``              Spectrum of one or more calibration arc lamps
+``bias``             Bias frame;  typically a 0s exposure with the shutter closed
+``dark``             Dark frame;  typically a >0s exposure to assess dark current (shutter closed)
+``illumflat``        Spectrum taken to correct illumination profile of the slit(s). This is often the same as the trace flat (below).
+``lampoffflats``     Spectrum taken to remove persistence from lamp on flat exposures and/or thermal emission from the telescope and dome. Usually this is an exposure using a flat with lamps OFF
+``pinhole``          Spectrum taken through a pinhole slit (i.e. a very short slit length), and is used to define the centre if a slit (currently, this frame is only used for echelle data reduction). Often this is an exposure using a flat lamp, but one can in principle use a standard star frame too (or a science frame if the spectrum is uniform).
+``pixelflat``        Spectrum taken to correct for pixel-to-pixel detector variations. Often an exposure using a dome (recommended) or internal flat lamp, but for observations in the very blue, this may be on-sky
+``slitless_pixflat`` Spectrum taken without slitmask to correct for pixel-to-pixel detector variations. This is often an exposure taken on-sky
+``science``          Spectrum of one or more science targets
+``standard``         Spectrum of spectrophotometric standard star PypeIt includes a list of pre-defined standards
+``trace``            Spectrum taken to define the slit edges. Often this is an exposure using a flat lamp, but for observations in the very blue, this may be on-sky. The slit length of a trace frame should be the same as the science slit.
+``tilt``             Exposure used to trace the tilt in the wavelength solution. Often the same file(s) as the arc.
+``sky``              On-sky observation of the sky used for background subtraction
+``None``             File could not be automatically identified by PypeIt
+==================== =============================================================
 
 .. TODO: Need to check that "sky" frametype is correct and/or used!
 
