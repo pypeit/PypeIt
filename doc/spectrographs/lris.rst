@@ -212,21 +212,39 @@ Pixel Flat
 
 It is recommend to correct for pixel-to-pixel variations using a slitless
 flat.  If you did not take such calibration frames or cannot process them,
-you may wish to use an archival.
-`This link <https://drive.google.com/drive/folders/1YmDgCgXrsRbkuH_Pc_MLShWVdSrMkoFP?usp=sharing>`__
-has the existing ones staged by the PypeIt team.
+you may wish to use an archival one available from the PypeIt team. You can find
+them in ``data/static_calibs/``.
 
 And then set the following in your :ref:`pypeit_file`:
 
 .. code-block:: ini
 
-    [calibrations]
-        [[flatfield]]
-            frame = path_to_the_file/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+   [calibrations]
+      [[flatfield]]
+         pixelflat_file = PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
 
-.. warning::
 
-    Internal flats may be too bright and need to be tested.
+If, instead, you have taken slitless pixelflat frames, PypeIt will be able to identify them
+(see :ref:`lris_frames_report`) and process them during the reduction. A slitless pixelflat file will be generated
+and stored in the reduction folder. The file will also be saved to the PypeIt cache
+directory ``data/static_calibs/{spectrograph_name}`` and will be automatically used during
+the reduction process. To use this file in future reduction, the user can add the
+slitless pixelflat file name to the :ref:`pypeit_file` as shown above. Consider sharing
+your slitless pixelflat file with the PypeIt Developers.
+
+To generate slitless pixelflat, we recommend using twilight flats taken about 10 minutes after sunset.
+Internal flats may be too bright and need to be tested.
+Our recommended recipe for taking twilight flats is:
+
+   1. Point away from the Galaxy (i.e. avoid stars)
+   2. Select the desired setup for your spectroscopy
+   3. Remove any selected slitmask/longslit
+   4. Expose for 2s
+   5. Check counts and make sure you have more than 40,000
+   6. Offset by ~1' and 1' in NE
+   7. Repeat 4-6, increasing the exposure each time you dip below 30,000 counts or so
+
+About 5 exposures is enough but the more the better.
 
 Trace Flat
 ----------

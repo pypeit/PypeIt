@@ -62,9 +62,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     ech_fixed_format = False
     supported = False
     # TODO before support = True
-    # 1. Implement flat fielding
-    # 2. Test on several different setups
-    # 3. Implement PCA extrapolation into the blue 
+    # 1. Implement flat fielding - DONE
+    # 2. Test on several different setups - DONE
+    # 3. Implement PCA extrapolation into the blue
+
+    comment = 'Post detector upgrade (~ August 2004)'
 
 
     # TODO: Place holder parameter set taken from X-shooter VIS for now.
