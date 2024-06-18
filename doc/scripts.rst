@@ -566,6 +566,8 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
+.. _pypeit_show_pixflat:
+
 pypeit_show_pixflat
 -------------------
 

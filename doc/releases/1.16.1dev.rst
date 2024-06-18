@@ -18,11 +18,17 @@ Functionality/Performance Improvements and Additions
 
 - Added the functionality to use slitless flats to create pixelflats. Note: new frametype
   `slitless_pixflat` is added to the PypeIt frametype list.
+- The created pixelflats are stored in the reduction directory and in the PypeIt cache directory
+  `data/static_calibs/{spectrograph_name}`.
+- Added a functionality that allows, when multiple frames are combined, to scale each
+  frame to have the same mean value before combining. To use this
+  functionality, the new parameter ``scale_mean`` should be set to ``True``.
 
 Instrument-specific Updates
 ---------------------------
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
+- Improved HIRES frame typing and configuration setup.
 
 Script Changes
 --------------
@@ -31,6 +37,8 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
+- Added ``pypeit_show_pixflat`` script to inspect the (slitless) pixel flat
+  generated during the reduction and stored in ``data/static_calibs/{spectrograph_name}``
 
 Datamodel Changes
 -----------------
@@ -45,5 +53,7 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- None
+- Fix a MAJOR BUT SUBTLE bug in the use of ``numpy.argsort``. When using ``numpy.argsort``
+  the parameter kind='stable' should be used to ensure that a sorting algorithm more robust
+  than "quicksort" is used.
 
