@@ -232,7 +232,7 @@ and stored in the reduction folder. The file will also be saved to the PypeIt ca
 directory ``data/static_calibs/{spectrograph_name}`` and will be automatically used during
 the reduction process. To use this file in future reductions, the user can add the
 slitless pixelflat file name to the :ref:`pypeit_file` as shown above. Consider sharing
-your slitless pixelflat file with the PypeIt Developers.
+your slitless pixelflat file with the PypeIt Developers. See more in :ref:`generate-pixflat`.
 
 To generate slitless pixelflat, we recommend using twilight flats taken about 10 minutes after sunset.
 Internal flats may be too bright and need to be tested.

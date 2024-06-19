@@ -217,6 +217,8 @@ frames for the pixel and illumination corrections. This is
 supported, but we recommend that you set the ``trace`` frames
 to be the same as the ``illumflat`` frames.
 
+.. _generate-pixflat:
+
 Generate a Slitless PixelFlat
 -----------------------------
 
