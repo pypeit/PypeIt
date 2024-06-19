@@ -63,7 +63,7 @@ Frame                  ``hatch``      ``lampstat01``                           `
 ``pixelflat``          ``'closed'``   ``'Halogen' or '2H'``                    ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
 ``pixelflat``          ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
 ``trace``              ``'closed'``   ``'Halogen'`` or ``'2H'``                ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
-``trace``              ``'closed'``   ``'Halogen'`` or ``'2H'``                ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
+``trace``              ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
 ``illumflat``          ``'closed'``   ``'Halogen'`` or ``'2H'``                ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
 ``illumflat``          ``'open'``     ``'on'``                                 ``!= 'GOH_LRIS'``   ``<60s`` (LRIS RED) or ``<300s`` (LRIS BLUE)
 ``arc``                ``'closed'``   ``!= 'Halogen', '2H', 'on', 'off'``      ``!= 'GOH_LRIS'``   Not used

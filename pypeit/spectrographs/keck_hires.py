@@ -66,7 +66,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     # 2. Test on several different setups - DONE
     # 3. Implement PCA extrapolation into the blue
 
-    comment = 'Post detector upgrade (~ August 2004)'
+    comment = 'Post detector upgrade (~ August 2004). See :doc:`keck_hires`'
 
 
     # TODO: Place holder parameter set taken from X-shooter VIS for now.
