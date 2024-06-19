@@ -33,15 +33,15 @@ set of criteria used to classify the frame type.
 The header cards required for the frame-typing and their associated keyword in the
 :class:`~pypeit.metadata.PypeItMetaData` object are:
 
-===============     ======================================================
+===============     ============
 ``fitstbl`` key     Header Key
-===============     ======================================================
+===============     ============
 ``exptime``         ``ELAPTIME``
 ``hatch``           ``HATOPEN``
 ``lampstat01``      See below
 No key              ``XCOVOPEN``
 No key              ``AUTOSHUT``
-===============     ======================================================
+===============     ============
 
 ``lampstat01`` is defined using a combination of header keywords, which include
 ``LAMPCAT1``, ``LAMPCAT2``, ``LAMPQTZ2``, ``LAMPNAME``. If ``LAMPCAT1 = True`` or
