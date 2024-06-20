@@ -494,7 +494,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
 
     # Check standard star
     if std_trace is not None and std_trace.shape[1] != norders:
-        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
+        msgs.error(f'Standard star trace ({std_trace.shape}) does not match the number of orders ({norders}) in the echelle data.')
 
     # For traces
     nspec = slit_left.shape[0]
