@@ -43,7 +43,8 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
 from pypeit import utils
-from pypeit import data
+from pypeit import cache
+from pypeit import dataPaths
 
 
 class Calibrations:
@@ -175,7 +176,7 @@ class Calibrations:
 
         # pixel flat file
         self.pixel_flat_file = None if self.par['flatfield']['pixelflat_file'] is None else \
-            data.Paths.static_calibs / self.spectrograph.name / self.par['flatfield']['pixelflat_file']
+            dataPaths.static_calibs / self.spectrograph.name / self.par['flatfield']['pixelflat_file']
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).absolute()
@@ -678,7 +679,7 @@ class Calibrations:
             _pixel_flat_file = self.pixel_flat_file
             # check if it was cached
             if not self.pixel_flat_file.exists():
-                cached = data.search_cache(self.pixel_flat_file.name)
+                cached = cache.search_cache(self.pixel_flat_file.name)
                 if len(cached) != 0:
                     _pixel_flat_file = cached[0]
 
@@ -794,7 +795,7 @@ class Calibrations:
             # file is saved in the working directory, but it is also cached in the data/static_calibs folder
             # therefore we update self.pixel_flat_file with the new file located in the cache
             # update the self.pixel_flat_file to the new file
-            self.pixel_flat_file = data.Paths.static_calibs / self.spectrograph.name / fname
+            self.pixel_flat_file = dataPaths.static_calibs / self.spectrograph.name / fname
             # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
             # so that it can be used for the other files in the same run
             self.par['flatfield']['pixelflat_file'] = self.pixel_flat_file.name
@@ -817,7 +818,7 @@ class Calibrations:
         _pixel_flat_file = self.pixel_flat_file
         if not self.pixel_flat_file.exists():
             # check if the file has been cached in the data/static_calibs folder
-            cached = data.search_cache(self.pixel_flat_file.name)
+            cached = cache.search_cache(self.pixel_flat_file.name)
             if len(cached) == 0:
                 msgs.error(f'Pixel flat file: {self.pixel_flat_file.name} not found. Cannot load the pixel flat!')
             else:
@@ -828,7 +829,7 @@ class Calibrations:
             # We need to grab mosaic info from another existing calibration frame.
             # We use EdgeTraceSet image to get `tform` and `m_order`. Check if EdgeTraceSet file exists.
             edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(self.flatimages.calib_key,
-                                                                         calib_dir=self.calib_dir)).resolve()
+                                                                         calib_dir=self.calib_dir)).absolute()
             if not edges_file.exists():
                 msgs.error('Edges file not found in the Calibrations folder. '
                            'It is needed to grab the mosaic parameters to load and mosaic the input pixel flat!')
