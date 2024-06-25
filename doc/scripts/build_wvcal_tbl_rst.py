@@ -12,22 +12,20 @@ import datetime
 try:
     __UTC__ = datetime.UTC
 except AttributeError as e:
-    from datetime import timezone
-    __UTC__ = timezone.utc
+    __UTC__ = datetime.timezone.utc
 
 import numpy
 import astropy.table
 
-from pypeit.utils import to_string, string_table
-from pypeit import data
+from pypeit.utils import string_table
+from pypeit import dataPaths
 
 from IPython import embed
 
 
 def write_linelist_table(output_root):
 
-    line_list_dir = resources.files('pypeit') / 'data'/ 'arc_lines' / 'lists'
-    files = sorted(line_list_dir.glob('*_lines.dat'))
+    files = sorted(dataPaths.linelist.glob('*_lines.dat'))
     nfiles = len(files)
 
     lamp = numpy.empty(nfiles, dtype=object)
@@ -66,7 +64,7 @@ def write_reid_arxiv_table(output_root):
 
     # TODO: Pull wavelength range (and resolution?) from files
 
-    reid_dir = resources.files('pypeit') / 'data'/ 'arc_lines' / 'reid_arxiv'
+    reid_dir = dataPaths.reid_arxiv
 
     # Find all the files
     files = sorted(list(reid_dir.glob('*.fits')) + list(reid_dir.glob('*.json')))
