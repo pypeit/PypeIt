@@ -4,9 +4,11 @@ Implements APF-specific functions
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import os
 
 import numpy as np
 from astropy.time import Time
+import astropy.io.fits
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -90,14 +92,26 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         # Detector 1
+
+        binning = 1
+        if hdu:
+            # the CCD can only be binned 1x1 or 2x2
+            # the square binning means both keywords will be the same
+            # rbin means binning in the row, cbin is column (r is spatial)
+            # finally, for reasons know only to god and Richard Stover,
+            # 1 pixel binning is 0 and 2 pixel binning is 1 maybe this is
+            # number of extra pixels on the detector?
+            binning = self.get_meta_value(self.get_headarr(hdu), 'rbin')
+            binning = int(binning) + 1
+
         detector_dict = dict(
-            binning='1,1',
-            det=1,
+            binning=binning,
+            det=det,
             dataext=0,
             specaxis=0,
             specflip=True,
             spatflip=True,
-            platescale=0.39, # SV made a very fast camera and the instrument takes a f/3 beam
+            platescale=0.432, # SV made a very fast camera and the instrument takes a f/3 beam
             saturation=65535.,
             mincounts=-1e10,
             nonlinear=0.99, # the full well is like 300k and the gain is 1.031
@@ -191,10 +205,16 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # 93 0.42944
         # 108 0.42552
         # 124 0.43146
+
+        if binning:
+            bin_spat = binning
+        else:
+            bin_spat = 1
+
         plate_scale = np.zeros_like(order_vec)
         plate_scale += (0.43346 + 0.43767 + 0.43551 + 0.42944 + 0.42552 + 0.43146)/6.0
 
-        return plate_scale
+        return plate_scale*bin_spat
 
     def init_meta(self):
         """
@@ -209,7 +229,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='TOBJECT')
         self.meta['decker'] = dict(ext=0, card=None, compound=True)
-        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
 
@@ -310,6 +329,42 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         return ord_spat_pos
 
+
+    def get_rawimage(self, raw_file, det, spectrim=None):
+        """ Read the image
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        if not os.path.isfile(raw_file):
+            msgs.error(f'{raw_file} not found!')
+        hdu_l = astropy.io.fits.open(raw_file)
+        hdu = hdu_l.pop(0)
+        head0 = hdu.header
+
+        datasec = head0['DATASEC']
+        datasec = datasec[1:-1] # trin [ ]
+        xs , ys = datasec.split(",")
+        yb, ye = ys.split(":")
+        xb, xe = xs.split(":")
+        xb = int(xb) - 1
+        yb = int(yb) - 1
+        xe = int(xe)
+        ye = int(ye)
+
+
+        # Grab the data
+        full_image = hdu.data.astype(float)
+        rawdatasec_img = np.zeros_like(full_image, dtype=int)
+        oscansec_img = np.zeros_like(full_image, dtype=int)
+
+        # Data
+        rawdatasec_img[yb:ye, xb:xe] = 1
+        # Overscan
+        oscansec_img[yb:ye, xe:] = 1
+
+        #embed(header='435 of keck_esi.py')
+
+        return self.get_detector_par(1, hdu=hdu), \
+                full_image, hdu, head0['EXPTIME'], rawdatasec_img, oscansec_img
 
 # def apf_read_chip(hdu):
 #     """ Read the APF detector
