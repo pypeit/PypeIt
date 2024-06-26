@@ -34,6 +34,8 @@ from pypeit.core import fitting
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import dataPaths
+from pypeit import cache
+
 
 class FlatImages(calibframe.CalibFrame):
     """
@@ -2041,7 +2043,7 @@ def merge(init_cls, merge_cls):
     return FlatImages(**dd)
 
 
-def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pixelflat_name, cache=True):
+def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pixelflat_name, to_cache=True):
     """
     Write the pixel-to-pixel flat-field images to a FITS file.
     The FITS file will have an extension for each detector (never a mosaic).
@@ -2058,7 +2060,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
             Path to the output directory.
         pixelflat_name (:obj:`str`):
             Name of the output file to be written.
-        cache (:obj:`bool`, optional):
+        to_cache (:obj:`bool`, optional):
             If True, the file will be written to the cache directory pypeit/data/static_calibs.
 
     """
@@ -2127,7 +2129,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
                f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}"  \
 
     cache_path = (dataPaths.static_calibs / spec_name).path
-    if cache:
+    if to_cache:
         # Check if the directory exists
         if not cache_path.is_dir():
             cache_path.mkdir(parents=True)

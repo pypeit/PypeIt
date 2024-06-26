@@ -790,7 +790,7 @@ class Calibrations:
 
             # Save the result
             flatfield.write_pixflat_to_fits(pixflat_norm_list, detname_list, self.spectrograph.name,
-                                            self.calib_dir.parent, fname, cache=True)
+                                            self.calib_dir.parent, fname, to_cache=True)
 
             # file is saved in the working directory, but it is also cached in the data/static_calibs folder
             # therefore we update self.pixel_flat_file with the new file located in the cache
