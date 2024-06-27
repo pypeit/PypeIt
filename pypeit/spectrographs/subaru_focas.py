@@ -10,6 +10,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
+from pypeit import io
 from pypeit.images import detector_container
 from astropy.coordinates import SkyCoord
 from astropy import units
@@ -55,6 +56,10 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        # NOTE: after removing overscan regions, finding edges does not
+        # work well and translate into slits--the error message suggested
+        # to add this
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0
@@ -82,7 +87,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
         par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['arcframe']['exprng'] = [None, 1]
+        par['calibrations']['arcframe']['exprng'] = [None, 10]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
         #
         par['scienceframe']['exprng'] = [61, None]
@@ -173,8 +178,6 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'COMPARISON')
 
-
-
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
@@ -221,8 +224,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         ovregion2="[538:552,*]"
         ovregion3="[1593:1607,*]"
         ovregion4="[1610:1624,*]"
-        When binning=2,
-        the chip1 has
+        When binning=2, the chip1 has the overscan regions
         ovregion1="[261:275,*]"
         ovregion2="[278:292,*]"
         ovregion3="[813:827,*]"
@@ -232,6 +234,7 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         ovregion2="[278:292,*]"
         ovregion3="[813:827,*]"
         ovregion4="[830:844,*]"
+
         The gains of chip 1 are
         gain1=2.081
         gain2=2.047
@@ -242,51 +245,130 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         gain2=1.968
         gain3=1.999
         gain4=1.918.
+
+        Readout noise, chip 1:
+        noise1=4.2
+        noise2=3.8
+        noise3=3.6
+        noise4=4.0
+        Readout noise, chip 2:
+        noise1=4.3
+        noise2=3.7
+        noise3=3.4
+        noise4=3.6
         '''
 
-        # CHIP1
-        # TODO - UPDATE ALL OF THIS
+        # CHIP1 ("right", DET-ID == 1)
+        # NOTE: a) 1-based indexing, b) end index included in range,
+        #       c) order is Y, X
+        # NOTE: There is an extra column at x=1609 of Chip1 which causes
+        #        a shift in the position of ch4.
+        datamap_det1 = {'1': ['[:, 9:520]', '[:, 553:1064]',
+                              '[:, 1081:1592]', '[:, 1625:2136]'],
+                        '2': ['[:, 5: 260]', '[:, 293:548]',
+                              '[:, 557:812]', '[:, 846:1101]'],
+                        # NOTE: tried other axis, doesn't work as expected
+                        #'2': ['[5:260,:]', '[293:548,:]',
+                        #      '[557:812,:]', '[846:1101,:]'],
+                        '4': ['[:, 3:130]', '[:, 163:290]',
+                              '[:, 295:422]', '[:, 456:583]'],
+                        }
+        ovrscan_det1 = {'1': ['[:, 521:535]', '[:, 538:552]',
+                              '[:, 1593:1607]', '[:, 1611:1625]'],
+                        '2': ['[:, 261:275]', '[:, 278:292]',
+                              '[:, 813:827]', '[:, 831:845]'],
+                        # NOTE: tried other axis, doesn't work as expected
+                        #'2': ['[261:275,:]', '[278:292,:]',
+                        #      '[813:827,:]', '[831:845,:]'],
+                        '4': ['[:, 0:2]', '[:, 130:162]',
+                              '[:, 290:294]', '[:, 422:455]'],
+                        }
+
+        # CHIP2 ("left", DET-ID == 2)
+        datamap_det2 = {'1': ['[:, 9:520]', '[:, 553:1064]',
+                              '[:, 1081:1592]', '[:, 1625:2136]'],
+                        '2': ['[:, 5:260]', '[:, 293:548]',
+                              '[:, 557:812]', '[:, 845:1100]'],
+                        # NOTE: tried other axis, doesn't work as expected
+                        #'2': ['[5:260,:]', '[293:548,:]',
+                        #     '[557:812,:]', '[845:1100,:]'],
+                        '4': ['[:, 3:130]', '[:, 163:290]',
+                              '[:, 295:422]', '[:, 455:582]'],
+                        }
+        ovrscan_det2 = {'1': ['[:, 521:535]', '[:, 538:552]',
+                              '[:, 1593:1607]', '[:, 1610:1624]'],
+                        '2': ['[:, 261:275]', '[:, 278:292]',
+                              '[:, 813:827]', '[:, 830:844]'],
+                        # NOTE: tried other axis, doesn't work as expected
+                        #'2': ['[261:275,:]', '[278:292,:]',
+                        #      '[813:827,:]', '[830:844,:]'],
+                        '4': ['[:, 1:2]', '[:, 131:162]',
+                              '[:, 291:294]', '[:, 423:454]'],
+                        }
 
         # TODO -- Deal with dataswec, oscansec
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
+            # FOCAS puts all data in the primary hdu
             dataext         = 0,
+            # FOCAS spectral axis is Y (0 in python/PypeIt indexing)
             specaxis        = 0,
+            # FOCAS spectral axis increases in the opposite direction
+            # PypeIt expects
             specflip        = True,
             spatflip        = False,
-            platescale      = 0.126,  # average between order 11 & 30, see manual
+            # arcsec per pixel in the spatial dimension for an unbinned pixel
+            platescale      = 0.1038,
+            # FIX! not a FOCAS value I could find
             darkcurr        = 2.1,  # e-/pixel/hour
-            saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
-            nonlinear       = 0.80,
+            saturation      = 65535.,
+            # need to check on this, 40000 ADU count was provided by Aoki
+            nonlinear       = 40000 / 65535.,
+            # FIX! not a FOCAS value I could find
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([2.081, 2.047, 2.111, 2.087]), # [gain1, gain2, gain3, gain4
-            ronoise         = np.atleast_1d(2.9), # High gain
-            datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
-            #oscansec=np.atleast_1d('[2062:,:]'),
-            oscansec=np.atleast_1d('[1:10,:]'), # Overscan has artifacts so use pre-scan
+            # [gain1, gain2, gain3, gain4
+            gain            = np.atleast_1d([2.081, 2.047, 2.111, 2.087]),
+            # [noise1, noise2, noise3, noise4
+            ronoise         = np.atleast_1d([4.2, 3.8, 3.6, 4.0]),
+            # NOTE: PypeIt binning variable is "<spectral>,<spatial>"
+            # but FOCAS only removes overscan in the spatial
+            # NOTE 2: gave up on trying to use these and implemented a
+            # get_rawimage() method (below).
+            #datasec         = np.atleast_1d(datamap_det1[binning[-1]]),
+            #oscansec        = np.atleast_1d(ovrscan_det1[binning[-1]]),
         )
         # CHIP2
         detector_dict2 = dict(
             binning         = binning,
             det             = 1,  # ESO writes these to separate FITS images!!
+            # FOCAS puts all data in the primary hdu
             dataext         = 0,
+            # FOCAS spectral axis is Y (0 in python/PypeIt indexing)
             specaxis        = 0,
+            # FOCAS spectral axis increases in the opposite direction
+            # PypeIt expects
             specflip        = True,
             spatflip        = False,
-            platescale      = 0.126,  # average between order 11 & 30, see manual
+            # arcsec per pixel in the spatial dimension for an unbinned pixel
+            platescale      = 0.1038,
+            # FIX! not a FOCAS value I could find
             darkcurr        = 1.4,  # e-/pixel/hour
-            saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
-            nonlinear       = 0.80,
+            saturation      = 65535.,
+            # need to check on this, 40000 ADU count was provided by Aoki
+            nonlinear       = 40000 / 65535.,
+            # FIX! not a FOCAS value I could find
             mincounts       = -1e10,
             numamplifiers   = 4,
-            gain            = np.atleast_1d([2.105, 1.968, 1.999, 1.918]), # [gain1, gain2, gain3, gain4
-            ronoise         = np.atleast_1d(3.15),  # High gain
-            datasec=np.atleast_1d('[11:2059,:]'),
-            oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
-            #datasec=np.atleast_1d('[20:,0:2048]'),
-            #oscansec=np.atleast_1d('[4:20,4:2044]'),
+            # [gain1, gain2, gain3, gain4
+            gain            = np.atleast_1d([2.105, 1.968, 1.999, 1.918]),
+            # [noise1, noise2, noise3, noise4
+            ronoise         = np.atleast_1d([4.3, 3.7, 3.4, 3.6]),
+            # NOTE: PypeIt binning variable is "<spectral>,<spatial>"
+            # but FOCAS only removes overscan in the spatial
+            #datasec         = np.atleast_1d(datamap_det2[binning[-1]]),
+            #oscansec        = np.atleast_1d(ovrscan_det2[binning[-1]]),
         )
         # Finish
         if chip == '1':
@@ -431,3 +513,178 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
 #            dither_id.append(hdr['FRAMEID'])
 #            offset_arcsec[ifile] = hdr['YOFFSET']
         return dither_pattern, dither_id, offset_arcsec
+
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # Read
+        msgs.info(f'Attempting to read FOCAS file: {raw_file}, det={det}')
+
+        # NOTE: io.fits_open checks that the file exists
+        hdu_l = io.fits_open(raw_file)
+        head = hdu_l[0].header
+        data = hdu_l[0].data
+
+        # Grab the detector or mosaic parameters
+        # TODO
+        # nimg = 1
+        # mosaic = None
+        detector = self.get_detector_par(det, hdu=hdu_l)
+
+        # Need the exposure time
+        exptime = float(head['EXPTIME'])
+        bin_x = int(head['BIN-FCT1'])
+
+        arr_shape = data.shape
+        # allocate output arrays
+        rawdata = data.astype(float)
+        rawdatasec_img = np.zeros(arr_shape, dtype=int)
+        oscansec_img = np.zeros(arr_shape, dtype=int)
+
+        # collect correct data & overscan for binning in spatial (X) axis
+        oscan_arr = overscan[bin_x][(det - 1)*4:][:4]
+        assert len(oscan_arr) == 4
+
+        # fill in rawdatasec_img and oscansec_img arrays according to
+        # specification above
+        for i, oscan in enumerate(oscan_arr):
+            n_amp = i + 1
+
+            if n_amp in [2, 4]:
+                lft_oscan_start, lft_oscan_end = oscan[0] - 1, oscan[1]
+                oscansec_img[:, lft_oscan_start:lft_oscan_end] = n_amp
+
+            data_start, data_end = oscan[2] - 1, oscan[3]
+            rawdatasec_img[:, data_start:data_end] = n_amp
+
+            if n_amp in [1, 3]:
+                rgt_oscan_start, rgt_oscan_end = oscan[4] - 1, oscan[5]
+                oscansec_img[:, rgt_oscan_start:rgt_oscan_end] = n_amp
+
+        return (detector, rawdata, hdu_l, exptime, rawdatasec_img, oscansec_img)
+
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Subaru FOCAS only allows for mosaicing both detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            PypeIt.
+        """
+        return [(1,2)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
+
+
+    def raw_header_cards(self):
+        """
+        Return additional raw header cards to be propagated in
+        downstream output files for configuration identification.
+
+        The list of raw data FITS keywords should be those used to populate
+        the :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.configuration_keys`
+        or are used in :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.config_specific_par`
+        for a particular spectrograph, if different from the name of the
+        PypeIt metadata keyword.
+
+        This list is used by :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
+        to include additional FITS keywords in downstream output files.
+
+        Returns:
+            :obj:`list`: List of keywords from the raw data files that should
+            be propagated in output files.
+        """
+        return ['DISPERSR', 'FILTER02', 'SLIT''SLT-LEN', 'SLT-PA',
+                'SLT-WID']
+
+
+# Definitions for the over scan regions in the DS9 image coordinate.
+# Format
+# 1: start of left overscan region
+# 2: end of left overscan region
+# 3: start of image region
+# 4: end of image region
+# 5: start of right overscan region
+# 6: end of right overscan region
+#
+overscan = {}
+# binning == 1
+overscan[1] = np.asarray([
+    # For right (DET_ID == 1) image
+    [2, 8, 9, 520, 521, 536],
+    [537, 552, 553, 1064, 1065, 1071],
+    [1074, 1080, 1081, 1592, 1593, 1608],
+    [1610, 1625, 1626, 2137, 2138, 2143],
+    #
+    # For left (DET_ID == 2) image
+    [2, 8, 9, 520, 521, 536],
+    [537, 552, 553, 1064, 1065, 1071],
+    [1074, 1080, 1081, 1592, 1593, 1608],
+    [1609, 1624, 1625, 2136, 2137, 2142],
+    ])
+
+# binning == 2
+overscan[2] = np.asarray([
+    # For right (DET-ID == 1) image
+    [1, 4, 5, 260, 261, 276],
+    [277, 292, 293, 548, 549, 551],
+    [553, 556, 557, 812, 813, 828],
+    [829, 845, 846, 1101, 1102, 1104],
+    #
+    # For left (DET-ID == 2) image
+    [2, 4, 5, 260, 261, 276],
+    [277, 292, 293, 548, 549, 551],
+    [553, 556, 557, 812, 813, 828],
+    [829, 844, 845, 1100, 1101, 1104],
+    ])
+
+# binning == 4
+overscan[4] = np.asarray([
+    # For right (DET-ID == 1) image
+    [1, 2, 3, 130, 131, 146],
+    [147, 162, 163, 290, 291, 292],
+    [293, 294, 295, 422, 423, 438],
+    [439, 455, 456, 583, 584, 584],
+    #
+    # For left (DET-ID == 2) image
+    [1, 2, 3, 130, 131, 146],
+    [147, 162, 163, 290, 291, 292],
+    [293, 294, 295, 422, 423, 438],
+    [439, 454, 455, 582, 583, 584],
+    ])
