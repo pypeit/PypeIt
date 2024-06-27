@@ -2128,7 +2128,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
                f"     pixelflat_file = {pixelflat_name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"  \
                f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}"  \
 
-    cache_path = (dataPaths.static_calibs / spec_name).path
+    cache_path = dataPaths.static_calibs.path / spec_name
     if to_cache:
         # Check if the directory exists
         if not cache_path.is_dir():

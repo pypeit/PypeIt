@@ -176,7 +176,7 @@ class Calibrations:
 
         # pixel flat file
         self.pixel_flat_file = None if self.par['flatfield']['pixelflat_file'] is None else \
-            dataPaths.static_calibs / self.spectrograph.name / self.par['flatfield']['pixelflat_file']
+            dataPaths.static_calibs.path / self.spectrograph.name / self.par['flatfield']['pixelflat_file']
 
         # QA
         self.qa_path = None if qadir is None else Path(qadir).absolute()
@@ -795,7 +795,7 @@ class Calibrations:
             # file is saved in the working directory, but it is also cached in the data/static_calibs folder
             # therefore we update self.pixel_flat_file with the new file located in the cache
             # update the self.pixel_flat_file to the new file
-            self.pixel_flat_file = dataPaths.static_calibs / self.spectrograph.name / fname
+            self.pixel_flat_file = dataPaths.static_calibs.path / self.spectrograph.name / fname
             # we still need to update self.par['flatfield']['pixelflat_file'] to the new file,
             # so that it can be used for the other files in the same run
             self.par['flatfield']['pixelflat_file'] = self.pixel_flat_file.name
