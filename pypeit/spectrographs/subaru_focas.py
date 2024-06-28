@@ -87,11 +87,9 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
         par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['arcframe']['exprng'] = [None, 10]
-        par['calibrations']['standardframe']['exprng'] = [1, 61]
-        #
-        par['scienceframe']['exprng'] = [61, None]
-
+        par['calibrations']['arcframe']['exprng'] = [1, None]
+        par['calibrations']['standardframe']['exprng'] = [1, None]
+        par['scienceframe']['exprng'] = [1, None]
 
         return par
 
@@ -320,8 +318,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             # arcsec per pixel in the spatial dimension for an unbinned pixel
             platescale      = 0.1038,
-            # FIX! not a FOCAS value I could find
-            darkcurr        = 2.1,  # e-/pixel/hour
+            # Value from 2010, probably should be remeasured
+            darkcurr        = 0.8,  # e-/pixel/hour
             saturation      = 65535.,
             # need to check on this, 40000 ADU count was provided by Aoki
             nonlinear       = 40000 / 65535.,
@@ -353,8 +351,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             # arcsec per pixel in the spatial dimension for an unbinned pixel
             platescale      = 0.1038,
-            # FIX! not a FOCAS value I could find
-            darkcurr        = 1.4,  # e-/pixel/hour
+            # Value from 2010, probably should be remeasured
+            darkcurr        = 0.7,  # e-/pixel/hour
             saturation      = 65535.,
             # need to check on this, 40000 ADU count was provided by Aoki
             nonlinear       = 40000 / 65535.,
@@ -630,8 +628,8 @@ class SubaruFOCASSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['DISPERSR', 'FILTER02', 'SLIT''SLT-LEN', 'SLT-PA',
-                'SLT-WID']
+        return ['DISPERSR', 'FILTER02', 'SLIT', 'SLT-LEN', 'SLT-PA',
+                'SLT-WID']  #, 'SLTCPIX1', 'SLTCPIX2', 'SLTC-RA', 'SLTC-DEC']
 
 
 # Definitions for the over scan regions in the DS9 image coordinate.
