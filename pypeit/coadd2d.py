@@ -27,6 +27,7 @@ from pypeit.images import pypeitimage
 from pypeit.core import findobj_skymask
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
+from pypeit.core import parse 
 #from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
@@ -835,7 +836,8 @@ class CoAdd2D:
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
             # Get plate scale
-            platescale = sciImage.detector.platescale * self.spat_samp_fact
+            platescale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale*self.spat_samp_fact
+            #platescale = sciImage.detector.platescale * self.spat_samp_fact
 
             # Assign slitmask design information to detected objects
             slits.assign_maskinfo(sobjs_obj, platescale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
@@ -895,26 +897,29 @@ class CoAdd2D:
         msg_string += msgs.newline() + '-------------------------------------'
         msgs.info(msg_string)
 
-    def offsets_report(self, offsets, offsets_method):
+    def offsets_report(self, offsets, platescale, offsets_method):
         """
         Print out a report on the offsets
 
         Args:
-            offsets:
-            offsets_method:
-
+            offsets (`numpy.ndarray`_)
+                Array of offsets
+            platescale (float):
+                the plate scale for this detector
+            offsets_method (str):
+                A string describing the method used to determine the offsets
         Returns:
 
         """
 
         if offsets_method is not None and offsets is not None:
-            msg_string = msgs.newline() + '---------------------------------------------'
+            msg_string = msgs.newline() + '---------------------------------------------------------------------------------'
             msg_string += msgs.newline() + ' Summary of offsets from {}     '.format(offsets_method)
-            msg_string += msgs.newline() + '---------------------------------------------'
-            msg_string += msgs.newline() + '           exp#      offset                  '
+            msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
+            msg_string += msgs.newline() + '           exp#      offset (pixels)    offset (arcsec)'
             for iexp, off in enumerate(offsets):
-                msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
-            msg_string += msgs.newline() + '-----------------------------------------------'
+                msg_string += msgs.newline() + '            {:d}            {:5.2f}              {:6.3f}'.format(iexp, off, off*platescale)
+            msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
             msgs.info(msg_string)
 
     def offset_slit_cen(self, slitid, offsets):
@@ -1126,17 +1131,18 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
+        platescale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
+        #platescale = self.stack_dict['detectors'][0].platescale
         # 1) offsets are provided in the header of the spec2d files
         if offsets == 'header':
             msgs.info('Using offsets from header')
-            pscale = self.stack_dict['detectors'][0].platescale
             dithoffs = [self.spectrograph.get_meta_value(f, 'dithoff') for f in self.spec2d]
             if None in dithoffs:
                 msgs.error('Dither offsets keyword not found for one or more spec2d files. '
                            'Choose another option for `offsets`')
-            dithoffs_pix = - np.array(dithoffs) / pscale
+            dithoffs_pix = - np.array(dithoffs) / platescale
             self.offsets = dithoffs_pix[0] - dithoffs_pix
-            self.offsets_report(self.offsets, 'header keyword')
+            self.offsets_report(self.offsets, platescale, 'header keyword')
 
         elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
@@ -1147,7 +1153,7 @@ class CoAdd2D:
             msgs.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(offsets, 'offsets')
-            self.offsets_report(self.offsets, 'user input')
+            self.offsets_report(self.offsets, platescale, 'user input')
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         elif offsets == 'maskdef_offsets':
@@ -1155,7 +1161,7 @@ class CoAdd2D:
                 # the offsets computed during the main reduction (`run_pypeit`) are used
                 msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
                 self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                self.offsets_report(self.offsets, 'maskdef_offset')
+                self.offsets_report(self.offsets, platescale, 'maskdef_offset')
             else:
                 # if maskdef_offsets were not computed during the main reduction, we cannot continue
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
@@ -1402,7 +1408,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 plt.show()
 
             self.offsets = offsets
-            self.offsets_report(self.offsets, offsets_method)
+            platescale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
+            self.offsets_report(self.offsets, platescale, offsets_method)
 
     def compute_weights(self, weights):
         """

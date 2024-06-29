@@ -714,28 +714,17 @@ class QL(scriptbase.ScriptBase):
                             help='If standard star observations are automatically detected, '
                                  'ignore those frames.  Otherwise, they are included with the '
                                  'reduction of the science frames.')
-        parser.add_argument('--skip_display', dest='show', default=True, action='store_false',
-                            help='Run the quicklook without displaying any results.')
+        parser.add_argument('--skip_display', dest='skip_display', default=False, action='store_true',
+                            help='Run the quicklook without displaying any results. The default skip_display=False will show the results.') 
+        parser.add_argument('--removetrace', default=False, action='store_true',
+                            help='When the image is shown, do not overplot traces in the skysub, sky_resid, and resid '
+                                 'channels')
 
         # TODO: Add fluxing option?
 
         # Coadding options
         parser.add_argument('--coadd2d', default=False, action='store_true',
                             help='Perform default 2D coadding.')
-        # TODO: Consolidate slitspatnum and only_slits!
-        parser.add_argument('--only_slits', type=str, nargs='+',
-                            help='If coadding, only coadd this space-separated set of slits.  If '
-                                 'not provided, all slits are coadded.')
-        parser.add_argument('--offsets', type=str, default=None,
-                            help='If coadding, spatial offsets to apply to each image; see the '
-                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
-                                 'either maskdef_offsets or auto.  If not specified, the '
-                                 '(spectrograph-specific) default is used.')
-        parser.add_argument('--weights', type=str, default=None,
-                            help='If coadding, weights used to coadd images; see the '
-                                 '[coadd2d][weights] parameter.  Options are restricted here to '
-                                 'either uniform or auto.  If not specified, the '
-                                 '(spectrograph-specific) default is used.')
         parser.add_argument('--spec_samp_fact', default=1.0, type=float,
                             help='If coadding, adjust the wavelength grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
@@ -744,6 +733,21 @@ class QL(scriptbase.ScriptBase):
                             help='If coadding, adjust the spatial grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
                                  'sampling, set value to >1.0).')
+        parser.add_argument('--offsets', type=str, default=None,
+                            help='If coadding, spatial offsets to apply to each image; see the '
+                                 '[coadd2d][offsets] parameter.  Options are restricted here to '
+                                 'either maskdef_offsets or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')                
+        parser.add_argument('--weights', type=str, default=None,
+                            help='If coadding, weights used to coadd images; see the '
+                                 '[coadd2d][weights] parameter.  Options are restricted here to '
+                                 'either uniform or auto.  If not specified, the '
+                                 '(spectrograph-specific) default is used.')
+        # TODO: Consolidate slitspatnum and only_slits!
+        parser.add_argument('--only_slits', type=str, nargs='+',
+                            help='If coadding, only coadd this space-separated set of slits.  If '
+                                 'not provided, all slits are coadded.')
+
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
 
@@ -1017,9 +1021,12 @@ class QL(scriptbase.ScriptBase):
             frame = pypeIt.fitstbl.find_frames('science', index=True)[0]
             spec2d_file = pypeIt.spec_output_file(frame, twod=True)
 
-        if args.show:
+        if not args.skip_display:
             # TODO: Need to parse detector here?
-            Show2DSpec.main(Show2DSpec.parse_args([spec2d_file]))
+            show2d_spec_args = [spec2d_file]
+            if args.removetrace:
+                show2d_spec_args += ['--removetrace']
+            Show2DSpec.main(Show2DSpec.parse_args(show2d_spec_args))
 
         # TODO: 
         #   - Print a statement that allows users to copy-paste the correct
