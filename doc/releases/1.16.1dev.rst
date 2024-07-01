@@ -40,5 +40,6 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- None
+- Fixed a fault caused when all frames in a pypeit file are identified as being
+  part of ``all`` calibration groups.
 
