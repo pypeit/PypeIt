@@ -705,8 +705,8 @@ class PypeIt:
 
         msgs.info(f'Building/loading calibrations for detector {det}')
         # Instantiate Calibrations class
-        user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
-                                             self.par['rdx']['maskIDs'])
+        user_slits = slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                               self.par['rdx']['maskIDs'])
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
             self.calibrations_path, qadir=self.qa_path,

@@ -507,6 +507,9 @@ class RawImage:
         # for developers to *re*process an image multiple times from scratch
         # with different parameters to test changes.
 
+        from pathlib import Path 
+        testnan = Path(self.filename).name == 'g0018.fits'
+        
         # Set input to attributes
         self.par = par
         if bpm is not None:
@@ -543,6 +546,10 @@ class RawImage:
         #   - Convert from ADU to electron counts.
         if self.par['apply_gain']:
             self.apply_gain()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='apply gain')
+                exit()
 
         # Apply additive corrections.  The order matters and is fixed.
         #
@@ -550,11 +557,19 @@ class RawImage:
         #     step *must* be done before subtract_overscan
         if self.par['use_pattern']:
             self.subtract_pattern()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract pattern')
+                exit()
 
         #   - Estimate the readnoise using the overscan regions.  NOTE: This
         #     needs to be done *after* any pattern subtraction.
         if self.par['empirical_rn'] or not np.all(self.ronoise > 0):
             self.estimate_readnoise()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='estimate readnoise')
+                exit()
 
         #   - Initialize the variance images.  Starts with the shape and
         #     orientation of the raw image.  Note that the readnoise variance
@@ -567,6 +582,10 @@ class RawImage:
         #     is added to the variance.
         if self.par['use_overscan']:
             self.subtract_overscan()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract overscan')
+                exit()
 
         # TODO: Do we need to keep trim and orient as optional?
 
@@ -574,11 +593,19 @@ class RawImage:
         #     var, and datasec_img.
         if self.par['trim']:
             self.trim()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='trim')
+                exit()
 
         #   - Re-orient to PypeIt convention. This re-orients the image, rn2img,
         #     proc_var, var, and datasec_img.
         if self.par['orient']:
             self.orient()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='orient')
+                exit()
 
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
@@ -611,6 +638,10 @@ class RawImage:
             # Bias frame.  Shape and orientation must match *processed* image,.
             # Uncertainty from the bias subtraction is added to the variance.
             self.subtract_bias(bias)
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract bias')
+                exit()
 
         # TODO: Checking for count (well-depth) saturation should be done here.
         # TODO :: Non-linearity correction should be done here.
@@ -629,12 +660,20 @@ class RawImage:
         #     from the image being processed.  If available, uncertainty from
         #     the dark subtraction is added to the processing variance.
         self.subtract_dark()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract dark')
+                exit()
 
         # Create the mosaic images.  This *must* come after trimming and
         # orienting and before determining the spatial flexure shift and
         # applying any flat-fielding.
         if self.nimg > 1 and mosaic:
             self.build_mosaic()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='build mosaic')
+                exit()
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
@@ -647,11 +686,19 @@ class RawImage:
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
             self.subtract_scattlight(scattlight, slits)
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract scattlight')
+                exit()
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
         # bitmask below.
         flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='flatfield')
+                exit()
 
         # Calculate the inverse variance
         self.ivar = self.build_ivar()
@@ -660,12 +707,20 @@ class RawImage:
         if self.par['subtract_continuum']:
             # Calculate a simple smooth continuum image, and subtract this from the frame
             self.subtract_continuum()
+        if testnan:
+            if not np.all(np.isfinite(self.image)):
+                embed(header='subtract continuum')
+                exit()
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
         _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
                 = self._squeeze()
+        if testnan:
+            if not np.all(np.isfinite(_image)):
+                embed(header='squeeze')
+                exit()
         # NOTE: BPM MUST BE A BOOLEAN!
         pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
                                               det_img=_det_img, rn2img=_rn2img, base_var=_base_var,
@@ -677,6 +732,10 @@ class RawImage:
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],
                                               bpm=_bpm.astype(bool))
+        
+        if testnan:
+            embed(header='pypeitImage')
+            exit()
 
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
@@ -1396,3 +1455,5 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
+    
+
