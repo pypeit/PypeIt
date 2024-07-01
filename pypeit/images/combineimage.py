@@ -190,6 +190,7 @@ class CombineImage:
             file_list.append(rawImage.filename)
 
         # Check that all exposure times are consistent
+        # TODO: JFH suggests that we move this to calibrations.check_calibrations
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
             msgs.warn('Exposure time is not consistent for all images being combined!  '
