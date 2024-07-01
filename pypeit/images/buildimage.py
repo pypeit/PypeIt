@@ -4,8 +4,6 @@
 .. include:: ../include/links.rst
 """
 
-import os
-
 from IPython import embed
 
 import numpy as np
@@ -255,7 +253,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
         
     rawImage_list = []
-    lampstat = [None] * len(file_list)
     # Loop on the files
     for ii, ifile in enumerate(file_list):
         # Load raw image
@@ -264,26 +261,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias, 
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
-
-        # Save the lamp status
-        # TODO: Is there a way we can get this from fitstbl instead?
-        lampstat[ii] = spectrograph.get_lamps_status(rawImage_list[ii].rawheadlist)
-
-    # Check that the lamps being combined are all the same:
-    if not lampstat[1:] == lampstat[:-1]:
-        msgs.warn("The following files contain different lamp status")
-        # Get the longest strings
-        maxlen = max([len("Filename")]+[len(os.path.split(x)[1]) for x in file_list])
-        maxlmp = max([len("Lamp status")]+[len(x) for x in lampstat])
-        strout = "{0:" + str(maxlen) + "}  {1:s}"
-        # Print the messages
-        print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
-        print(msgs.indent() + strout.format("Filename", "Lamp status"))
-        print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
-        for ff, file in enumerate(file_list):
-            print(msgs.indent()
-                  + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
-        print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, spectrograph, frame_par['process'])
