@@ -217,7 +217,8 @@ class WaveCalib(calibframe.CalibFrame):
         # Parse all the WAVE2DFIT extensions
         # TODO: It would be good to have the WAVE2DFIT extensions follow the
         # same naming convention as the WAVEFIT extensions...
-        wave2d_fits = [fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
+        wave2d_fits = [fitting.PypeItFit() if len(hdu[e].data) == 0 
+                            else fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
                             for e in ext if 'WAVE2DFIT' in e]
         if len(wave2d_fits) > 0:
             d['wv_fit2d'] = np.asarray(wave2d_fits)
