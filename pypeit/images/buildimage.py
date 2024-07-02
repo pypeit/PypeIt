@@ -248,6 +248,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
 
     # Do it
+    testnan = len(file_list) == 1 and 'g0018.fits' in file_list[0]
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages, scattlight=scattlight,
                                    sigma_clip=frame_par['process']['clip'],
@@ -255,6 +256,9 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
                                    slits=slits, combine_method=frame_par['process']['combine'],
                                    mosaic=mosaic)
+    if testnan:
+        embed()
+        exit()
 
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \

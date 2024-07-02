@@ -5296,11 +5296,11 @@ Alterations to the default parameters are:
           find_trim_edge = 0, 0,
           maxnumber_sci = 5
           maxnumber_std = 1
-          find_fwhm = 4.4
+          find_fwhm = np.float64(4.4)
       [[skysub]]
           sky_sigrej = 4.0
       [[extraction]]
-          boxcar_radius = 1.9
+          boxcar_radius = np.float64(1.9)
           use_2dmodel_mask = False
   [flexure]
       spec_method = boxcar

@@ -733,10 +733,6 @@ class RawImage:
                                               shot_noise=self.par['shot_noise'],
                                               bpm=_bpm.astype(bool))
         
-        if testnan:
-            embed(header='pypeitImage')
-            exit()
-
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
