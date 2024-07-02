@@ -617,11 +617,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         offsets = np.sqrt(
                 mask_tbl['slitpos_x'].to('arcsec').value**2 +
                 mask_tbl['slitpos_y'].to('arcsec').value**2)
-        # NOT READY FOR TILTS
-        if np.any(np.invert(np.isclose(mask_tbl['slittilt'].value, 0.))):
-            msgs.error('NOT READY FOR TILTED SLITS')
-        # NOT SURE WE HAVE THE TILT SIGN CORRECT
-        slit_pas = posx_pa + mask_tbl['slittilt'].to('deg').value
+        # Sign here checked by Jack O'Donnell
+        slit_pas = posx_pa - mask_tbl['slittilt'].to('deg').value
         off_signs = np.ones_like(slit_pas)
         negy = mask_tbl['slitpos_y'] < 0.
         off_signs[negy] = -1.
