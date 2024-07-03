@@ -157,8 +157,8 @@ All of these **must** subclass from
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
-                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
-                        mosaic=None, calib_dir=None, setup=None, calib_id=None):
+                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
+                        slits=None, mosaic=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results.
 
@@ -248,17 +248,13 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
 
     # Do it
-    testnan = len(file_list) == 1 and 'g0018.fits' in file_list[0]
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages, scattlight=scattlight,
-                                   sigma_clip=frame_par['process']['clip'],
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
+                                   scattlight=scattlight, sigma_clip=frame_par['process']['clip'],
                                    sigrej=frame_par['process']['comb_sigrej'],
                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
                                    slits=slits, combine_method=frame_par['process']['combine'],
                                    mosaic=mosaic)
-    if testnan:
-        embed()
-        exit()
 
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \
