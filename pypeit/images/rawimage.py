@@ -677,7 +677,7 @@ class RawImage:
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],
                                               bpm=_bpm.astype(bool))
-        
+
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
@@ -1396,5 +1396,3 @@ class RawImage:
     def __repr__(self):
         return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
                f'steps={self.steps}>'
-    
-
