@@ -691,7 +691,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.get_slitmask(maskfile)
 
         # Binning of flat
-        _, bin_spat= parse.parse_binning(binning)
+        _, bin_spat = parse.parse_binning(binning)
 
         # Slit center
         slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0],
@@ -708,15 +708,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         left_edges = []
         right_edges = []
         for islit in range(self.slitmask.nslits):
-            # DEBUGGING
-            #islit = 14  # 10043
+            # JOD: Need to adjust predicted images by slit tilt (which is
+            # slit PA relative to mask PA)
+            slittilt = self.slitmask.onsky[islit,4] - self.slitmask.posx_pa
             # Left coord
             left_coord = slit_coords[islit].directional_offset_by(
                 self.slitmask.onsky[islit,4]*units.deg - 180.*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
             right_coord = slit_coords[islit].directional_offset_by(
                 self.slitmask.onsky[islit,4]*units.deg,
-                self.slitmask.onsky[islit,2]*units.arcsec/2.)
+                self.slitmask.onsky[islit,2]*units.arcsec/2./np.cos(np.radians(slittilt)))
 
             got_it = False
             for kk, iwcs in enumerate(wcss):
@@ -744,6 +745,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         left_edges = np.array(left_edges).astype(float)
         right_edges = np.array(right_edges).astype(float)
         sortindx = np.argsort(left_edges)
+
         return left_edges, right_edges, sortindx, self.slitmask
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
