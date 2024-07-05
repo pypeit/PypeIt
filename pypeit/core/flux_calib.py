@@ -431,7 +431,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         elif 'PHOENIX' in star_type:
             msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
             ## Vega model from TSPECTOOL
-            vega_file = data.Paths.standards / 'PHOENIX_10000K_4p0.fits'
+            vega_file = dataPaths.standards.get_file_path('PHOENIX_10000K_4p0.fits')
             vega_data = table.Table.read(vega_file, format='fits')
             std_dict = dict(cal_file='PHOENIX_10000K_4p0', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
