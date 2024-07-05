@@ -782,7 +782,7 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 # prompt the user to give the orders that were used here
-                if '"echelle": true' in wvcalib.strpar:
+                if wvcalib is not None and '"echelle": true' in wvcalib.strpar:
                     while True:
                         try:
                             print('')

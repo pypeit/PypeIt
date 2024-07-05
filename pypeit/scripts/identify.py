@@ -266,6 +266,9 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
 
+            # convert specdata into an array, since it's currently a list
+            specdata = np.array(specdata)
+
         # If we just want the normal one-trace output
         else:
             arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
@@ -317,7 +320,7 @@ class Identify(scriptbase.ScriptBase):
                                 rmstol=args.rmstol,
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
-                                specdata = np.array(specdata),
+                                specdata = specdata,
                                 slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,
