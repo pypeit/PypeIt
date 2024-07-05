@@ -304,7 +304,6 @@ class Identify(scriptbase.ScriptBase):
 
             fits_dicts = None
             specdata = None
-            slits = None 
             lines_pix_arr = None
             lines_wav_arr = None
             lines_fit_ord = None 
