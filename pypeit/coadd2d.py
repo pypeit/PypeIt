@@ -34,7 +34,8 @@ from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
 
-
+#TODO We should decide which parameters go in through the parset 
+# and which parameters are passed in to the method as arguments
 class CoAdd2D:
 
     """

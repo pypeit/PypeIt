@@ -41,8 +41,10 @@ def show_trace(sobjs, det, viewer, ch):
         det (:obj:`str`):
             The string identifier for the detector or mosaic used to select the
             extractions to show.
-        viewer (?):
-        ch (?):
+        viewer (:class:`~ginga.misc.Bunch.Bunch`):
+            Ginga viewer object.
+        ch (:obj:`str`):
+            The name of the channel in the Ginga viewer to plot the traces.
     """
     if sobjs is None:
         return
@@ -79,11 +81,12 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('file', type=str, default=None, help='Path to a PypeIt spec2d file')
         parser.add_argument('--list', default=False, action='store_true',
                             help='List the extensions only?')
-        parser.add_argument('--det', default='1', type=str,
+        parser.add_argument('--det', default=None, type=str,
                             help='Detector name or number.  If a number, the name is constructed '
                                  'assuming the reduction is for a single detector.  If a string, '
                                  'it must match the name of the detector object (e.g., DET01 for '
-                                 'a detector, MSC01 for a mosaic).')
+                                 'a detector, MSC01 for a mosaic). If not set, the first available detector'
+                                 'in the spec2d file will be shown')
         parser.add_argument('--spat_id', type=int, default=None,
                             help='Restrict plotting to this slit (PypeIt ID notation)')
         parser.add_argument('--maskID', type=int, default=None,
@@ -134,6 +137,17 @@ class Show2DSpec(scriptbase.ScriptBase):
         msgs.set_logfile_and_verbosity('show_2dspec', args.verbosity)
 
         # Parse the detector name
+        if args.det is None: 
+            allspec2d_det = fits.getval(args.file,'HIERARCH ALLSPEC2D_DETS')
+            detname = allspec2d_det.split(',')[0]
+        else: 
+            try: 
+                det = int(args.det)
+            except:
+                detname = args.det
+            else: 
+                detname = DetectorContainer.get_name(det)
+
         try:
             det = int(args.det)
         except:

@@ -993,6 +993,10 @@ class QL(scriptbase.ScriptBase):
                 command_line_args += ['--offsets', args.offsets]
             if args.weights is not None:
                 command_line_args += ['--weights', args.weights]
+            if args.spec_samp_fact != 1.0:
+                command_line_args += ['--spec_samp_fact', str(args.spec_samp_fact)]
+            if args.spat_samp_fact != 1.0:
+                command_line_args += ['--spat_samp_fact', str(args.spat_samp_fact)]
             SetupCoAdd2D.main(SetupCoAdd2D.parse_args(command_line_args))
 
             # Find all the coadd2d scripts
@@ -1006,9 +1010,9 @@ class QL(scriptbase.ScriptBase):
             
             # Run the coadding
             coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
-            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file),
-                                                     '--spec_samp_fact', str(args.spec_samp_fact),
-                                                     '--spat_samp_fact', str(args.spat_samp_fact)]))
+            CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
+            #                                         '--spec_samp_fact', str(args.spec_samp_fact),
+            #                                         '--spat_samp_fact', str(args.spat_samp_fact)]))
 
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar()

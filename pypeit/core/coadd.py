@@ -882,7 +882,7 @@ def sn_weights(fluxes, ivars, gpms, sn_smooth_npix=None, weight_method='auto', v
 
     # Check if relative weights input
     if verbose:
-        msgs.info('Computing weights with weight_method=%s'.format(weight_method))
+        msgs.info('Computing weights with weight_method={:s}'.format(weight_method))
 
     weights = []
 
