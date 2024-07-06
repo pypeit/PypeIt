@@ -895,7 +895,7 @@ class CoAdd2D:
             msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
             msg_string += msgs.newline() + '           exp#      offset (pixels)    offset (arcsec)'
             for iexp, off in enumerate(offsets):
-                msg_string += msgs.newline() + '            {:2d}            {:5.2f}              {:6.3f}'.format(iexp, off, off*platescale)
+                msg_string += msgs.newline() + '            {:2d}            {:6.2f}              {:6.3f}'.format(iexp, off, off*platescale)
             msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
             msgs.info(msg_string)
 
