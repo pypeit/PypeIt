@@ -873,30 +873,6 @@ class CoAdd2D:
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
-    def snr_report(self, snr_bar, slitid=None):
-        """
-        ..todo.. I need a doc string
-
-        Args:
-            snr_bar:
-            slitid:
-
-        Returns:
-
-        """
-
-        # Print out a report on the SNR
-        msg_string = msgs.newline() + '-------------------------------------'
-        msg_string += msgs.newline() + '  Summary for highest S/N object'
-        if slitid is not None:
-            msg_string += msgs.newline() + '      found on slitid = {:d}            '.format(slitid)
-        msg_string += msgs.newline() + '-------------------------------------'
-        msg_string += msgs.newline() + '           exp#        S/N'
-        for iexp, snr in enumerate(snr_bar):
-            msg_string += msgs.newline() + '            {:d}         {:5.2f}'.format(iexp, snr)
-
-        msg_string += msgs.newline() + '-------------------------------------'
-        msgs.info(msg_string)
 
     def offsets_report(self, offsets, platescale, offsets_method):
         """
@@ -1319,7 +1295,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 np.repeat(user_objid, self.nexp), _slitidx_bri, user_slit, None
         elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
-            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
+            self.objid_bri, self.spat_pixpos_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
         else:
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = (None,)*4
@@ -1435,47 +1411,55 @@ class MultiSlitCoAdd2D(CoAdd2D):
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, weight_method='constant')
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
+                # TODO Should we not still printo out a report for this usage case?
             else:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
-                self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri, objid=self.objid_bri)
+                self.snr_report(self.spatid_bri, self.spat_pixpos_bri, self.snr_bar_bri)
 
-    def get_brightest_obj(self, specobjs_list, spat_ids):
+    def get_brightest_obj(self, specobjs_list, slit_spat_ids):
 
         """
-        Utility routine to find the brightest object in each exposure given a specobjs_list for MultiSlit reductions.
+        Utility routine to find the brightest reference object in each exposure given a specobjs_list 
+        for MultiSlit reductions.
 
         Args:
             specobjs_list: list
                List of SpecObjs objects.
-            spat_ids (`numpy.ndarray`_):
+            slit_spat_ids (`numpy.ndarray`_):
 
         Returns:
             tuple: Returns the following:
                 - objid: ndarray, int, shape=(len(specobjs_list),):
-                  Array of object ids representing the brightest object
+                  Array of object ids representing the brightest reference object
                   in each exposure
-                - slit_idx (int): 0-based index
-                - spat_id (int): SPAT_ID for slit that highest S/N ratio object is on
-                  (only for pypeline=MultiSlit)
+                - spatid_pixpos: ndarray, float, shape=(len(specobjs_list),):
+                  Array of spatial pixel positions of the brightest reference object
+                  in each exposure
+                - slit_idx (int): 
+                  A zero-based index for the slit that the brightest object is on
+                - spat_id (int): 
+                  The SPAT_ID for the slit that the highest S/N ratio object is on
                 - snr_bar: ndarray, float, shape (len(list),): Average
-                  S/N over all the orders for this object
+                  S/N computed over all the exposures for this brightest reference object
         """
         msgs.info('Finding brightest object')
         nexp = len(specobjs_list)
-        nslits = spat_ids.size
+        nslits = slit_spat_ids.size
 
         slit_snr_max = np.zeros((nslits, nexp), dtype=float)
         bpm = np.ones(slit_snr_max.shape, dtype=bool)
         objid_max = np.zeros((nslits, nexp), dtype=int)
+        spat_pixpos_max = np.zeros((nslits, nexp), dtype=float)
         # Loop over each exposure, slit, find the brightest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
-            for islit, spat_id in enumerate(spat_ids):
+            for islit, spat_id in enumerate(slit_spat_ids):
                 if len(sobjs) == 0:
                     continue
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
+                    spat_pixpos_this = sobjs[ithis].SPAT_PIXPOS
                     fluxes, ivars, gpms = [], [], []
                     for iobj, spec in enumerate(sobjs[ithis]):
                         # check if OPT_COUNTS is available
@@ -1503,6 +1487,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         imax = np.argmax(rms_sn)
                         slit_snr_max[islit, iexp] = rms_sn[imax]
                         objid_max[islit, iexp] = objid_this[imax]
+                        spat_pixpos_max[islit, iexp] = spat_pixpos_this[imax]
                         bpm[islit, iexp] = False
 
         # If a slit has bpm = True for some exposures and not for others, set bpm = True for all exposures
@@ -1525,8 +1510,41 @@ class MultiSlitCoAdd2D(CoAdd2D):
             snr_bar_mean = slit_snr[slitid]
             snr_bar = slit_snr_max[slitid, :]
             objid = objid_max[slitid, :]
+            spat_pixpos = spat_pixpos_max[slitid, :]
 
-        return objid, slitid, spat_ids[slitid], snr_bar
+        return objid, spat_pixpos, slitid, slit_spat_ids[slitid], snr_bar
+
+
+    def snr_report(self, slitid, spat_pixpos, snr_bar):
+        """
+        
+        Print out a SNR report for the reference object used to compute the weights for multislit 2D coadds. 
+
+        Args:
+            slitid (:obj:`int`):
+                The SPAT_ID of the slit that the reference object is on
+            spat_pixpos (:obj:`numpy.ndarray`):
+                Array of spatial pixel position of the reference object in the slit for each exposure shape = (nexp,)
+            snr_bar (:obj:`numpy.ndarray`):
+                Array of average S/N ratios for the reference object in each exposure, shape = (nexp,)
+  
+
+        Returns:
+
+        """
+
+        # Print out a report on the SNR
+        msg_string = msgs.newline() + '-------------------------------------'
+        msg_string += msgs.newline() + '  Summary for highest S/N object'
+        msg_string += msgs.newline() + '      found on slitid = {:d}            '.format(slitid)
+        msg_string += msgs.newline() + '-------------------------------------'
+        msg_string += msgs.newline() + '       exp#   spat_pixpos     S/N'
+        msg_string += msgs.newline() + '-------------------------------------'
+        for iexp, (spat,snr) in enumerate(zip(spat_pixpos, snr_bar)):
+            msg_string += msgs.newline() + '       {:2d}      {:7.1f}      {:5.2f}'.format(iexp, spat, snr)
+        msg_string += msgs.newline() + '-------------------------------------'
+        msgs.info(msg_string)
+
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
     # single slit???
@@ -1806,6 +1824,30 @@ class EchelleCoAdd2D(CoAdd2D):
                       'ratio for every exposure')
             return None, None, None
         return objid, None, snr_bar
+
+    def snr_report(self, snr_bar):
+        """
+        Printo out a SNR report for echelle 2D coadds.
+
+        Args:
+            snr_bar (:obj:`numpy.ndarray`):
+                Array of average S/N ratios for the brightest object in each exposure. Shape = (nexp,)
+    
+        Returns:
+
+        """
+
+        # Print out a report on the SNR
+        msg_string = msgs.newline() + '-------------------------------------'
+        msg_string += msgs.newline() + '  Summary for highest S/N object'
+        msg_string += msgs.newline() + '-------------------------------------'
+        msg_string += msgs.newline() + '           exp#        S/N'
+        for iexp, snr in enumerate(snr_bar):
+            msg_string += msgs.newline() + '            {:d}         {:5.2f}'.format(iexp, snr)
+
+        msg_string += msgs.newline() + '-------------------------------------'
+        msgs.info(msg_string)
+
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
         """
