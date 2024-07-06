@@ -46,9 +46,12 @@ def show_trace(sobjs, det, viewer, ch):
         ch (:obj:`str`):
             The name of the channel in the Ginga viewer to plot the traces.
     """
+   
     if sobjs is None:
         return
     in_det = np.where(sobjs.DET == det)[0]
+    if len(in_det) == 0: 
+        return 
     trace_list = []
     trc_name_list = []
     maskdef_extr_list = []
@@ -148,12 +151,12 @@ class Show2DSpec(scriptbase.ScriptBase):
             else: 
                 detname = DetectorContainer.get_name(det)
 
-        try:
-            det = int(args.det)
-        except:
-            detname = args.det
-        else:
-            detname = DetectorContainer.get_name(det)
+        #try:
+        #    det = int(args.det)
+        #except:
+        #    detname = args.det
+        #else:
+        #    detname = DetectorContainer.get_name(det)
 
         # Find the set of channels to show
         show_channels = [0,1,2,3] if args.channels is None \

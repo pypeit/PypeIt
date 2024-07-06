@@ -1218,7 +1218,7 @@ class CoAdd2D:
             msgs.error('Invalid value for `weights`')
 
 
-    def get_brightest_object(self, specobjs_list, spat_ids):
+    def get_brightest_obj(self, specobjs_list, spat_ids):
         """
         Dummy method to identify the brightest object. Overloaded by child methods.
 
@@ -1437,7 +1437,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
             else:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
-                self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
+                self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri, objid=self.objid_bri)
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
 
@@ -1451,7 +1451,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         Returns:
             tuple: Returns the following:
-                - objid: ndarray, int, shape (len(specobjs_list),):
+                - objid: ndarray, int, shape=(len(specobjs_list),):
                   Array of object ids representing the brightest object
                   in each exposure
                 - slit_idx (int): 0-based index
