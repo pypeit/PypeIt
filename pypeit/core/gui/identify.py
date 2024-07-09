@@ -885,7 +885,8 @@ class Identify:
                     if ow_wvcalib == 'y':
                         wvcalib.to_file()
                         if multi:
-                            slit_list_str = ''; slit_list = np.arange(np.shape(specdata_multi)[0])
+                            slit_list_str = ''
+                            slit_list = np.arange(np.shape(specdata_multi)[0])
                             for islit in slit_list:
                                 if islit < len(slit_list) - 1:
                                     slit_list_str += str(islit) + ','

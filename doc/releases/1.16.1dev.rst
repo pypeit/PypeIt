@@ -26,6 +26,9 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
+- Changed the name of the multi-dimensional specdata to specdata_multi in pypeit_identify
+  and improved the robustness of the saving dialog when calibrating single trace spectra.
+- Fixed a read-in error for the high resolution A0V PHOENIX model.
 
 Datamodel Changes
 -----------------
