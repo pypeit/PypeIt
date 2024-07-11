@@ -177,7 +177,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             all of ``PypeIt`` methods.
         """
 
-        return super().configuration_keys() + ['decker', 'binning']
+        return []
 
 
     def get_detector_par(self, det, hdu=None):
