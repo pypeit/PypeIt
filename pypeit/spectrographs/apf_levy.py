@@ -56,6 +56,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 2.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
         # Reidentification parameters
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['ech_fix_format'] = True
