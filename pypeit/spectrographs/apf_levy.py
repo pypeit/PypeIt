@@ -103,9 +103,12 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             # number of extra pixels on the detector?
             binning = self.get_meta_value(self.get_headarr(hdu), 'rbin')
             binning = int(binning) + 1
+            binning_str = '{:d},{:d}'.format(binning, binning)
+        else:
+            binning_str = '1,1'
 
         detector_dict = dict(
-            binning=binning,
+            binning=binning_str,
             det=det,
             dataext=0,
             specaxis=0,
