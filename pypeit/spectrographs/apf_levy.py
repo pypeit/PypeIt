@@ -158,6 +158,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             else:
                 msgs.error(f"Unrecognized decker {decker_str}")
 
+        if meta_key == 'binning':
+            binning = '%d,%d' % (headarr[0]['RBIN']+1, headarr[0]['CBIN']+1)
+            return
+
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
@@ -244,6 +248,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card=None, compound=True)
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['binning'] = dict(ext=0, card=None, compound=True)
 
         self.meta['instrument'] = dict(ext=0, card='VERSION')
         self.meta['idname'] = dict(ext=0, card='OBJECT')
