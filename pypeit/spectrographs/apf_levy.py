@@ -168,39 +168,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
         """
-        par = super().default_pypeit_par()
 
-        par['calibrations']['slitedges']['edge_thresh'] = 600.
-        par['calibrations']['slitedges']['fit_order'] = 5
-        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-        par['calibrations']['slitedges']['left_right_pca'] = True
-
-        par['calibrations']['tilts']['tracethresh'] = 20
-        # Bias
-
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        # Reidentification parameters
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['ech_fix_format'] = True
-        # Echelle parameters
-        par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
-
-        # Processing steps
-        turn_off = dict(use_biasimage=False,
-                        use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-        # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
-
-        return par
+        return super().configuration_keys() + ['decker', 'binning']
 
 
     def get_detector_par(self, det, hdu=None):
