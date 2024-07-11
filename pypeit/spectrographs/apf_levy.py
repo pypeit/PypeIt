@@ -9,6 +9,7 @@ import os
 import numpy as np
 from astropy.time import Time
 import astropy.io.fits
+from IPython import embed
 
 from pypeit import msgs
 from pypeit import telescopes
