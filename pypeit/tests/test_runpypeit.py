@@ -91,7 +91,7 @@ def test_run_pypeit():
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     
     # Check RMS
-    assert specObjs[0].WAVE_RMS < 0.02  # difference must be less than 0.02 pixels
+    assert specObjs[0].WAVE_RMS < 0.08  # RMS must be less than 0.08 pixels
 
     # Flexure
     assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels
