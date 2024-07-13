@@ -52,7 +52,7 @@ class ShaneTelescopePar(TelescopePar):
                                                 diameter=3.05,
                                                 eff_aperture=6.3617)
 
-
+                                
 class WHTTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')
@@ -61,7 +61,7 @@ class WHTTelescopePar(TelescopePar):
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
                                               diameter=4.2)
-
+                                
 class APFTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Lick Observatory')
@@ -70,7 +70,7 @@ class APFTelescopePar(TelescopePar):
                                               latitude=loc.lat.to(units.deg).value,
                                               elevation=loc.height.to(units.m).value,
                                               diameter=2.4)
-
+                                
 class TNGTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')

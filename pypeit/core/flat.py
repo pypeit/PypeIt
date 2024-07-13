@@ -328,7 +328,7 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     # Extract the list of  spatial IDs from the slitmask
     slitmask_spatid = np.unique(slitmask)
-    slitmask_spatid = np.sort(slitmask_spatid[slitmask_spatid != 0])
+    slitmask_spatid = np.sort(slitmask_spatid[slitmask_spatid > 0])
     # Initialise the scale image that will be returned
     scaleImg = np.ones_like(rawimg)
     # Divide the slit into several bins and calculate the median of each bin

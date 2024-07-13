@@ -452,7 +452,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      wave_grid_max=self.par['wave_grid_max'],
                                      spec_samp_fact=self.par['spec_samp_fact'],
                                      ref_percentile=self.par['ref_percentile'],
-                                     maxiter_scale=self.par['maxiter_scale'],
+                                     maxiter_scale=self.par['maxiter_scale'], 
                                      sigrej_scale=self.par['sigrej_scale'],
                                      scale_method=self.par['scale_method'],
                                      sn_min_medscale=self.par['sn_min_medscale'],
