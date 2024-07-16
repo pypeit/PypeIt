@@ -179,26 +179,46 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         return []
 
-
-    def get_detector_par(self, det, hdu=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Return metadata for the selected detector.
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
         Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
             det (:obj:`int`):
-                1-indexed detector number.
-            hdu (`astropy.io.fits.HDUList`_, optional):
-                The open fits file with the raw image of interest.  If not
-                provided, frame-dependent parameters are set to a default.
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
         Returns:
-            :class:`~pypeit.images.detector_container.DetectorContainer`:
-            Object with the detector metadata.
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        # its a fixed format spectrometer
-        # different deckers are used for different kinds of calibrations
-        # we will treat deckers separately
-        return ['decker']
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+
+        # Get the binning 
+        msgs.info("Custom bad pixel mask for Levy")
+        hdu = io.fits_open(filename)
+        binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
+        hdu.close()
+
+        # Add the bad pixels
+        # Return
+        return bpm_img
 
     def order_platescale(self, order_vec, binning=None):
         """
