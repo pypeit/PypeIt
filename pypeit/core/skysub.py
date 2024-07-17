@@ -136,11 +136,14 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
-    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) & np.isfinite(image) & np.isfinite(ivar)
+    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) \
+            & np.isfinite(image) & np.isfinite(ivar)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > max_mask_frac:
-        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of {:f}%. '.format(100.0*bad_pixel_frac, 100.0*max_mask_frac)
-                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
+        msgs.warn(f'This slit/order has {100.0*bad_pixel_frac:.3f}% of the pixels masked, which '
+                  f'exceeds the threshold of {100.0*max_mask_frac:.3f}%.'
+                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on '
+                  'global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
