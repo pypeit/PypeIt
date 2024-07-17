@@ -838,8 +838,8 @@ class CoAdd3D:
             msgs.info("Calculating relative sensitivity for grating correction")
             # Load the Flat file
             flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
-            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
-                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', spat_flexure=spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', spat_flexure=spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
             if flatimages.pixelflat_spec_illum is None:
                 # Calculate the relative scale
@@ -950,7 +950,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+            left, right, _ = slits.select_edges(flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -1015,8 +1015,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             msgs.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -1041,7 +1041,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             bpmmask = spec2DObj.bpmmask
 
             # Mask the edges of the spectrum where the sky model is bad
-            sky_is_good = datacube.make_good_skymask(slitid_img_init, spec2DObj.tilts)
+            sky_is_good = datacube.make_good_skymask(slitid_img, spec2DObj.tilts)
 
             # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
@@ -1074,7 +1074,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.mnmx_wv is None:
                 self.mnmx_wv = np.zeros((len(self.spec2d), slits.nslits, 2))
             for slit_idx, slit_spat in enumerate(slits.spat_id):
-                onslit_init = (slitid_img_init == slit_spat)
+                onslit_init = (slitid_img == slit_spat)
                 self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
                 self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
@@ -1097,7 +1097,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Construct a good pixel mask
             # TODO: This should use the mask function to figure out which elements are masked.
-            onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
+            onslit_gpm = (slitid_img > 0) & (bpmmask.mask == 0) & sky_is_good
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
@@ -1109,7 +1109,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else wave0
             cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
             self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv))
-            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, initial=True, flexure=spat_flexure)
+            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, flexure=spat_flexure)
 
             # Extract wavelength and delta wavelength arrays from the images
             wave_ext = waveimg[onslit_gpm]
@@ -1198,7 +1198,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             wghts = self.weights[ff] * np.ones(sciImg.shape)
 
             # Get the slit image and then unset pixels in the slit image that are bad
-            slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
+            slitid_img_gpm = slitid_img * onslit_gpm.astype(int)
 
             # If individual frames are to be output without aligning them,
             # there's no need to store information, just make the cubes now
@@ -1209,7 +1209,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 else:
                     outfile = datacube.get_output_filename(fil, self.cubepar['output_filename'], self.combine, ff + 1)
                 # Get the coordinate bounds
-                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+                slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
                 # Set the wavelength range of the white light image.

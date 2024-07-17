@@ -586,7 +586,7 @@ class FlatFieldPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
-                 spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
+                 spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_method=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
@@ -651,6 +651,17 @@ class FlatFieldPar(ParSet):
         dtypes['tweak_slits'] = bool
         descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
                                'This will work even if illumflatten is set to False '
+
+        defaults['tweak_method'] = 'threshold'
+        options['tweak_method'] = FlatFieldPar.valid_tweak_methods()
+        dtypes['tweak_method'] = str
+        descr['tweak_method'] = 'Method used to tweak the slit edges (when "tweak_slits" is set to True).  ' \
+                                'Options include: {0:s}. '.format(', '.join(options['tweak_method'])) + \
+                                'The "threshold" method determines when the left and right slit edges ' \
+                                'fall below a threshold relative to the peak illumination. ' \
+                                'The "gradient" method determines where the gradient is the highest at ' \
+                                'the left and right slit edges. This method performs better when there is ' \
+                                'systematic vignetting in the spatial direction. ' \
 
         defaults['tweak_slits_thresh'] = 0.93
         dtypes['tweak_slits_thresh'] = float
@@ -769,7 +780,7 @@ class FlatFieldPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
-                   'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
+                   'tweak_slits', 'tweak_method', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
                    'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response']
@@ -789,6 +800,13 @@ class FlatFieldPar(ParSet):
         Return the valid flat-field methods
         """
         return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+
+    @staticmethod
+    def valid_tweak_methods():
+        """
+        Return the valid options for tweaking slits.
+        """
+        return ['threshold', 'gradient']
 
     @staticmethod
     def valid_saturated_slits_methods():
