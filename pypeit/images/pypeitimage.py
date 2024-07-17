@@ -779,16 +779,16 @@ class PypeItImage(datamodel.DataContainer):
         if other.spat_flexure is not None and spat_flexure is not None \
                 and other.spat_flexure != spat_flexure:
             msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
+
+        # Create a copy of the detector, if it is defined, to be used when
+        # creating the new pypeit image below
+        _detector = None if self.detector is None else self.detector.copy()
 
         # Create the new image.
-        # TODO: We should instead *copy* the detector object; otherwise, it's
-        # possible that it will be shared between multiple images.  Nominally,
-        # this should be okay because the detector data is meant to be static,
-        # but we should fix this.
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
-                                      fullmask=new_fullmask, detector=self.detector,
+                                      fullmask=new_fullmask, detector=_detector,
                                       spat_flexure=spat_flexure, PYP_SPEC=new_spec,
                                       units=new_units)
 

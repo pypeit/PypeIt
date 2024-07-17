@@ -22,14 +22,14 @@ from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 from astropy import stats
 from astropy import convolution
 
+from pypeit import msgs
+from pypeit import dataPaths
 from pypeit import utils
 from pypeit.core import fitting
 from pypeit import specobjs
-from pypeit import msgs
 from pypeit.core import combine
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from pypeit import data
 
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0,
@@ -995,6 +995,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
+    
     snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),snr_do_not_rescale)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
 
@@ -1116,7 +1117,6 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         mask_ref = ivar_ref > 0.0
 
 
-    # Interpolate the reference spectrum onto the wavelengths of the spectrum that will be rescaled
     flux_ref_int, ivar_ref_int, mask_ref_int, _ = interp_spec(wave, wave_ref, flux_ref, ivar_ref, mask_ref)
 
     # estimates the SNR of each spectrum and the stacked mean SNR
@@ -1469,7 +1469,7 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         # TODO Use one of our telluric models here instead
         # Plot transmission
         if (np.max(wave[mask]) > 9000.0) and show_telluric:
-            skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
+            skytrans_file = dataPaths.skisim.get_file_path('atm_transmission_secz1.5_1.6mm.dat')
             skycat = np.genfromtxt(skytrans_file, dtype='float')
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
@@ -1581,7 +1581,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
     # plot how may exposures you used at each pixel
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
-    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60], sharex=num_plot)
     num_plot.plot(wave[wave_gpm],nused[wave_gpm],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
@@ -1599,7 +1599,7 @@ def coadd_qa(wave, flux, ivar, nused, gpm=None, tell=None,
 
     # Plot transmission
     if (np.max(wave[gpm])>9000.0) and (tell is None) and show_telluric:
-        skytrans_file = data.get_skisim_filepath('atm_transmission_secz1.5_1.6mm.dat')
+        skytrans_file = dataPaths.skisim.get_file_path('atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
@@ -2687,7 +2687,13 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # For the first iteration use the scale_method input as an argument (default=None, which will allow
     # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
     # we are then applying tiny corrections and median scaling is much faster
-    scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
+    # ASC: This has been updated from:
+    # scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
+    # to implement 2 median scaling prior to attempting other methods (particularly solve poly ratio). 
+    # This may be helpful to correcting offsets between adjacent orders in multi-setup echelle observations. 
+    # It was initially implemented with NIRSPEC in mind, but was not very effective in that case. We have tested
+    # it against the X-Shooter dev suite example and found it does not harm the reduction, and may prove helpful in future. 
+    scale_method_iter = ['median']*(2) + [scale_method]  + ['median']*(niter_order_scale - 3)
     # Iteratively scale and stack the entire set of spectra arcoss all setups, orders, and exposures
     for iteration in range(niter_order_scale):
         # JFH This scale_spec_stack routine takes a list of [(nspec1,), (nspec2,), ...] arrays, so a loop needs to be

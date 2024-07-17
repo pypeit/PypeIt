@@ -122,7 +122,7 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id', 'manual'], [int, int, str])
+        self._impose_types(['comb_id', 'bkg_id', 'manual', 'shift'], [int, int, str, float])
 
         # Initialize internal attributes
         self.configs = None
@@ -176,7 +176,7 @@ class PypeItMetaData:
                     msgs.warn(f'More than one instrument in your dataset! {instr_names} \n'
                               'Proceed with great caution...')
                 # Check the name
-                if instr_names[0] != self.spectrograph.header_name:
+                if not instr_names[0].startswith(self.spectrograph.header_name):
                     msgs.warn('The instrument name in the headers of the raw files does not match the '
                               f'expected one! Found {instr_names[0]}, expected {self.spectrograph.header_name}.  '
                               'You may have chosen the wrong PypeIt spectrograph name!')
@@ -211,7 +211,7 @@ class PypeItMetaData:
 
         # Build the table
         for idx, ifile in enumerate(_files):
-            _ifile = Path(ifile).resolve()
+            _ifile = Path(ifile).absolute()
             # User data (for frame type)
             if usrdata is None:
                 usr_row = None
@@ -386,7 +386,7 @@ class PypeItMetaData:
         """
         self.table.remove_rows(np.atleast_1d(rows))
         if regroup:
-            for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id']:
+            for col in ['setup', 'calib', 'calibbit', 'comb_id', 'bkg_id', 'shift']:
                 if col in self.keys():
                     del self.table[col]
             self.set_configurations()
@@ -747,7 +747,7 @@ class PypeItMetaData:
         ignore_frames, ignore_indx = self.ignore_frames()
         # Find the indices of the frames not to ignore
         indx = np.arange(len(self.table))
-        indx = indx[np.logical_not(np.in1d(indx, ignore_indx))]
+        indx = indx[np.logical_not(np.isin(indx, ignore_indx))]
 
         if len(indx) == 0:
             msgs.error('No frames to use to define configurations!')
@@ -857,7 +857,7 @@ class PypeItMetaData:
                 mod_cfg = self.spectrograph.modify_config(self.table[i], cfg)
                 this_cfg = self.get_configuration(i, modified=True)
                 if self.spectrograph.same_configuration([this_cfg, mod_cfg], check_keys=False):
-                    if d in self.table['setup'][i]:
+                    if d in self.table['setup'][i].split(','):
                         continue
                     elif self.table['setup'][i] == 'None':
                         self.table['setup'][i] = d
@@ -882,7 +882,7 @@ class PypeItMetaData:
         # For each configuration, determine if any of the frames with
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
-            in_cfg = np.array([cfg_key in _setup for _setup in self.table['setup']])
+            in_cfg = np.array([cfg_key in _setup.split(',') for _setup in self.table['setup']])
             for ftype, metakey in ignore_frames.items():
 
                 # TODO: For now, use this assert to check that the
@@ -937,7 +937,7 @@ class PypeItMetaData:
                 # assign
                 new_cfg_key = np.full(len(self.table['setup'][indx]), 'None', dtype=object)
                 for c in range(len(self.table['setup'][indx])):
-                    if cfg_key in self.table['setup'][indx][c]:
+                    if cfg_key in self.table['setup'][indx][c].split(','):
                         new_cfg_key[c] = self.table['setup'][indx][c]
                     elif self.table['setup'][indx][c] == 'None':
                         new_cfg_key[c] = cfg_key
@@ -1168,7 +1168,7 @@ class PypeItMetaData:
         # any changes to the strings will be truncated at 4 characters.
         self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
-            in_cfg = np.array([configs[i] in _set for _set in self.table['setup']]) # & (self['framebit'] > 0)
+            in_cfg = np.array([configs[i] in _set.split(',') for _set in self.table['setup']]) # & (self['framebit'] > 0)
             if not any(in_cfg):
                 continue
             icalibs = np.full(len(self['calib'][in_cfg]), 'None', dtype=object)
@@ -1478,7 +1478,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False):
+    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False, write_shift = False):
         """
         Generate the list of columns to be included in the fitstbl
         (nearly the complete list).
@@ -1489,6 +1489,9 @@ class PypeItMetaData:
                 and bkg_id
             write_manual (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for manual extraction
+            write_shift (:obj:`bool`, optional):
+                Add additional ``PypeIt`` column(s) for manual flexure
+                correction
 
 
         Returns:
@@ -1506,10 +1509,12 @@ class PypeItMetaData:
         # manual
         if write_manual:
             extras += ['manual']
+        if write_shift:
+            msgs.info('Adding Shift Column')
+            extras += ['shift']
         for key in extras:
             if key not in columns:
                 columns += [key]
-
         # Take only those present
         output_cols = np.array(columns)
         return output_cols[np.isin(output_cols, self.keys())].tolist()
@@ -1542,6 +1547,8 @@ class PypeItMetaData:
             self['comb_id'] = -1
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
+        if 'shift' not in self.keys():
+            self['shift'] = 0
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1576,6 +1583,8 @@ class PypeItMetaData:
         """
         if 'manual' not in self.keys():
             self['manual'] = ''
+        if 'shift' not in self.keys():
+            self['shift'] = 0
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
@@ -1611,14 +1620,14 @@ class PypeItMetaData:
             msgs.error('Cannot write sorted instrument configuration table without \'setup\' '
                        'column; run set_configurations.')
 
-        _ofile = Path(ofile).resolve()    
+        _ofile = Path(ofile).absolute()    
         if _ofile.exists() and not overwrite:
             msgs.error(f'{_ofile} already exists.  Use ovewrite=True to overwrite.')
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual)
-
+        msgs.info(f'Columns being used are: {output_cols}')
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
             for key in cfgs.keys():
@@ -1629,7 +1638,7 @@ class PypeItMetaData:
         ff = open(_ofile, 'w')
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
-            indx = np.array([setup in _set for _set in self['setup']])
+            indx = np.array([setup in _set.split(',') for _set in self['setup']])
             if not np.any(indx):
                 continue
             subtbl = self.table[output_cols][indx]
@@ -1660,6 +1669,7 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
+                     write_shift = False,
                      configs=None, config_subdir=True,
                      version_override=None, date_override=None):
         """
@@ -1688,6 +1698,9 @@ class PypeItMetaData:
                 object and background frame pairs.  
             write_manual (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for manual extraction
+            write_shift (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual spatial flexure
+                correction
             configs (:obj:`str`, :obj:`list`, optional):
                 One or more strings used to select the configurations
                 to include in the returned objects. If ``'all'``,
@@ -1735,7 +1748,8 @@ class PypeItMetaData:
 
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
-                                           write_manual=write_manual)
+                                           write_manual=write_manual,
+                                           write_shift = write_shift)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
@@ -1758,7 +1772,7 @@ class PypeItMetaData:
                 setup_dict[f'Setup {setup}'][key] = cfg[setup][key]
             
             # Get the paths
-            in_cfg = np.array([setup in _set for _set in self.table['setup']])
+            in_cfg = np.array([setup in _set.split(',') for _set in self.table['setup']])
             if not np.any(in_cfg):
                 continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
@@ -1778,7 +1792,6 @@ class PypeItMetaData:
             #with io.StringIO() as ff:
             #    subtbl.write(ff, format='ascii.fixed_width')
             #    data_lines = ff.getvalue().split('\n')[:-1]
-
             # Config lines
             if cfg_lines is None:
                 cfg_lines = ['[rdx]']

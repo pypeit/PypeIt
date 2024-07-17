@@ -2,11 +2,12 @@
 Module to run tests on SlitTraceSet
 """
 import os
-import pytest
+
+from IPython import embed
 
 import numpy as np
 
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit.images import detector_container
 
 
@@ -52,9 +53,9 @@ def test_bundle():
 
 def test_io():
     detector = detector_container.DetectorContainer(**def_det)
-    detector.to_file(data_path('tmp_detector.fits'), overwrite=True)
+    detector.to_file(data_output_path('tmp_detector.fits'), overwrite=True)
 
-    _new_detector = detector.from_file(data_path('tmp_detector.fits'))
+    _new_detector = detector.from_file(data_output_path('tmp_detector.fits'))
 
     # Check a few attributes are equal
     assert detector['dataext'] == _new_detector['dataext'], 'Bad read dataext'
@@ -62,5 +63,15 @@ def test_io():
     assert detector['binning'] == _new_detector['binning'], 'Bad read binning'
     assert np.array_equal(detector['datasec'], _new_detector['datasec']), 'Bad read datasec'
 
-    os.remove(data_path('tmp_detector.fits'))
+    os.remove(data_output_path('tmp_detector.fits'))
 
+
+def test_copy():
+    detector = detector_container.DetectorContainer(**def_det)
+    detcopy = detector.copy()
+
+    # Check that a couple of relevant attributes have different memory locations
+    assert detector is not detcopy, 'Should not point to the same reference'
+    assert detector.gain is not detcopy.gain, \
+        'numpy array attributes should not point to the same reference'
+    
