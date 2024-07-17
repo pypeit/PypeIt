@@ -20,6 +20,7 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
+- Added support for the (decommissioned) AAT/UHRF instrument
 
 Script Changes
 --------------
