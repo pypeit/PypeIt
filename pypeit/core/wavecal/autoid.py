@@ -3189,7 +3189,7 @@ class HolyGrail:
             if self._outroot is not None:
                 # Write IDs
                 out_dict = dict(pix=use_tcent, IDs=self._all_patt_dict[str(slit)]['IDs'])
-                jdict = ltu.jsonify(out_dict)
+                jdict = utils.jsonify(out_dict)
                 ltu.savejson(self._outroot + slittxt + '.json', jdict, easy_to_read=True, overwrite=True)
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.json'))
 

@@ -13,6 +13,8 @@ Installation Changes
 Dependency Changes
 ------------------
 
+- Support added for numpy>=2.0.0; numpy<=2.0.0 should still be supported
+
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
