@@ -411,7 +411,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         # Pull star spectral model from archive
         msgs.info("Getting archival standard spectrum")
         # Grab closest standard within a tolerance
-        std_dict = find_standard_file(ra, dec)
+        std_dict = find_standard_file(ra, dec,to_pkg='symlink')
 
     elif (star_mag is not None) and (star_type is not None):
         ## using vega spectrum

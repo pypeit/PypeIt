@@ -10,7 +10,7 @@ import json
 import numpy as np
 from matplotlib import pyplot as plt
 
-from linetools.utils import jsonify
+from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
 

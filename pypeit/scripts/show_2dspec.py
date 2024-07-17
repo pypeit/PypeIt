@@ -248,6 +248,9 @@ class Show2DSpec(scriptbase.ScriptBase):
             waveimg = spec2DObj.waveimg
 
             img_gpm = spec2DObj.select_flag(invert=True)
+            if not np.any(img_gpm):
+                msgs.warn('The full science image is masked!')
+
             model_gpm = img_gpm.copy()
             if args.ignore_extract_mask:
                 model_gpm |= spec2DObj.select_flag(flag='EXTRACT')
@@ -306,6 +309,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
+                
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
                                                 clear=_clear, cuts=(cut_min, cut_max))
