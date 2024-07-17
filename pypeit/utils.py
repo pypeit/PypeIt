@@ -1474,7 +1474,7 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
-    elif isinstance(obj, (np.string_, str)):
+    elif isinstance(obj, (np.str_, str)):
         obj = str(obj)
         # Worry about colons!
         if ':' in obj:
@@ -1516,6 +1516,64 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
+def jsonify(obj, debug=False):
+    """ Recursively process an object so it can be serialised in json
+    format. Taken from linetools.
+
+    WARNING - the input object may be modified if it's a dictionary or
+    list!
+
+    Parameters
+    ----------
+    obj : any object
+    debug : bool, optional
+
+    Returns
+    -------
+    obj - the same obj is json_friendly format (arrays turned to
+    lists, np.int64 converted to int, np.float64 to float, and so on).
+
+    """
+    if isinstance(obj, np.float64):
+        obj = float(obj)
+    elif isinstance(obj, np.float32):
+        obj = float(obj)
+    elif isinstance(obj, np.int32):
+        obj = int(obj)
+    elif isinstance(obj, np.int64):
+        obj = int(obj)
+    elif isinstance(obj, np.int16):
+        obj = int(obj)
+    elif isinstance(obj, np.bool_):
+        obj = bool(obj)
+    elif isinstance(obj, np.str_):
+        obj = str(obj)
+    elif isinstance(obj, units.Quantity):
+        if obj.size == 1:
+            obj = dict(value=obj.value, unit=obj.unit.to_string())
+        else:
+            obj = dict(value=obj.value.tolist(), unit=obj.unit.to_string())
+    elif isinstance(obj, np.ndarray):  # Must come after Quantity
+        obj = obj.tolist()
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            obj[key] = jsonify(value, debug=debug)
+    elif isinstance(obj, list):
+        for i,item in enumerate(obj):
+            obj[i] = jsonify(item, debug=debug)
+    elif isinstance(obj, tuple):
+        obj = list(obj)
+        for i,item in enumerate(obj):
+            obj[i] = jsonify(item, debug=debug)
+        obj = tuple(obj)
+    elif isinstance(obj, units.Unit):
+        obj = obj.name
+    elif obj is units.dimensionless_unscaled:
+        obj = 'dimensionless_unit'
+
+    if debug:
+        print(type(obj))
+    return obj
 
 def add_sub_dict(d, key):
     """

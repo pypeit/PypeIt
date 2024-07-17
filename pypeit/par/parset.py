@@ -345,7 +345,7 @@ class ParSet:
         return '\n'.join(row_string)+'\n'
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatim=False):
+    def _data_string(data, use_repr=False, verbatim=False):
         """
         Convert a single datum into a string
         
