@@ -96,7 +96,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         # Detector 1
 
-        binning = 1
+        binning = '1,1'
         if hdu:
             # the CCD can only be binned 1x1 or 2x2
             # the square binning means both keywords will be the same
@@ -104,14 +104,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
             # finally, for reasons know only to god and Richard Stover,
             # 1 pixel binning is 0 and 2 pixel binning is 1 maybe this is
             # number of extra pixels on the detector?
-            binning = self.get_meta_value(self.get_headarr(hdu), 'rbin')
-            binning = int(binning) + 1
-            binning_str = '{:d},{:d}'.format(binning, binning)
-        else:
-            binning_str = '1,1'
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         detector_dict = dict(
-            binning=binning_str,
+            binning=binning,
             det=det,
             dataext=0,
             specaxis=0,
@@ -166,7 +162,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         if meta_key == 'binning':
             binning = '%d,%d' % (headarr[0]['RBIN']+1, headarr[0]['CBIN']+1)
-            return
+            return binning
 
         msgs.error("Not ready for this compound meta")
 
