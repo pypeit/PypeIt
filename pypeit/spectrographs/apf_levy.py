@@ -8,11 +8,11 @@ import os
 
 import numpy as np
 from astropy.time import Time
-import astropy.io.fits
 from IPython import embed
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
@@ -374,9 +374,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         if not os.path.isfile(raw_file):
             msgs.error(f'{raw_file} not found!')
-        hdu_l = astropy.io.fits.open(raw_file)
-        hdu = hdu_l.pop(0)
-        head0 = hdu.header
+        hdu = io.fits_open(raw_file)
+        head0 = hdu[0].header
 
         datasec = head0['DATASEC']
         datasec = datasec[1:-1] # trim [ ]
@@ -390,7 +389,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
 
         # Grab the data
-        full_image = hdu.data.astype(float)
+        full_image = hdu[0].data.astype(float)
         rawdatasec_img = np.zeros_like(full_image, dtype=int)
         oscansec_img = np.zeros_like(full_image, dtype=int)
 
@@ -401,7 +400,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         #embed(header='435 of keck_esi.py')
 
-        return self.get_detector_par(1, hdu=hdu_l), \
+        return self.get_detector_par(1, hdu=hdu), \
                 full_image, hdu, head0['EXPTIME'], rawdatasec_img, oscansec_img
 
 # def apf_read_chip(hdu):
