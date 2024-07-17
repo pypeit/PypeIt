@@ -14,8 +14,10 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit.core import parse
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+
 
 
 class APFLevySpectrograph(spectrograph.Spectrograph):
@@ -209,13 +211,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-
-        # Get the binning 
-        msgs.info("Custom bad pixel mask for Levy")
-        hdu = io.fits_open(filename)
-        binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
-        hdu.close()
-
         # Add the bad pixels
         # Return
         return bpm_img
@@ -384,7 +379,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         head0 = hdu.header
 
         datasec = head0['DATASEC']
-        datasec = datasec[1:-1] # trin [ ]
+        datasec = datasec[1:-1] # trim [ ]
         xs , ys = datasec.split(",")
         yb, ye = ys.split(":")
         xb, xe = xs.split(":")
@@ -406,7 +401,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         #embed(header='435 of keck_esi.py')
 
-        return self.get_detector_par(1, hdu=hdu), \
+        return self.get_detector_par(1, hdu=hdu_l), \
                 full_image, hdu, head0['EXPTIME'], rawdatasec_img, oscansec_img
 
 # def apf_read_chip(hdu):
