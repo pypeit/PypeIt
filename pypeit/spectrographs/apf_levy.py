@@ -110,10 +110,6 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
         detector_dict = dict(
             binning=binning_str,
-            specaxis=1,
-            spataxis=0,
-            specflip=False,
-            spatflip=False,
             det=det,
             dataext=0,
             specaxis=0,
