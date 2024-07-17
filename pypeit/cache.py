@@ -63,13 +63,22 @@ __PYPEIT_DATA__ = resources.files('pypeit') / 'data'
 def git_branch():
     """
     Return the name/hash of the currently checked out branch
-
+    
     Returns:
-        :obj:`str`: Branch name or hash
+        :obj:`str`: Branch name or hash. Defaults to "develop" if PypeIt is not currently in a repository
+        or pygit2 is inot installed.
+    
     """
-    if Repository is None:
+    if Repository is not None:
+        try:
+            repo = Repository(resources.files('pypeit'))
+        except Exception as e:
+            # PypeIt not in a git repo
+            repo = None
+
+    if Repository is None or repo is None:
         return 'develop' if '.dev' in __version__ else __version__
-    repo = Repository(resources.files('pypeit'))
+
     return str(repo.head.target) if repo.head_is_detached else str(repo.head.shorthand)
 
 

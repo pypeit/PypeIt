@@ -746,7 +746,7 @@ class PypeItMetaData:
         ignore_frames, ignore_indx = self.ignore_frames()
         # Find the indices of the frames not to ignore
         indx = np.arange(len(self.table))
-        indx = indx[np.logical_not(np.in1d(indx, ignore_indx))]
+        indx = indx[np.logical_not(np.isin(indx, ignore_indx))]
 
         if len(indx) == 0:
             msgs.error('No frames to use to define configurations!')
