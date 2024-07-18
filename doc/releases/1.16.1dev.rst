@@ -42,5 +42,5 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
+- Fix "The system cannot find the file specified" errors when installing on Windows.
 
