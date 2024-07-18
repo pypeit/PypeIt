@@ -222,6 +222,30 @@ for x86-64:
 Solutions/Recommendations/Feedback for these installation options are welcome;
 please `Submit an issue`_.
 
+User Installation on Windows
+---------------------------------------------
+
+#. Download `Python for Windows <https://www.python.org/downloads/windows/>`_.
+
+#. Run the installer.
+   
+    * Make sure "Add python.exe to Path" or "Add Python to environment variables" is selected before installing.
+    * If you have Admin privileges click "Disable path length limit" after the installation succeeds.
+
+#. Downloand and run the `Visual Studio build tools <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_ installer.
+
+    * Only "Desktop Development with C++" needs to be checked.
+    * Click install
+
+#. Create a virtual environment as in `Setup a clean python environment <environment_>`__ and install PypeIt as described above.
+
+If running ``python`` on Windows brings up a window for the Microsoft Store you may want to change the application alias.
+This is under ``Settings -> Apps -> App execution aliases`` on Windows 10 and ``Settings -> Apps -> Advanced app settings -> App execution aliases``
+on Windows 11. Disable the ``App Installer`` options for the ``python.exe`` and ``python3.exe`` executables.
+ 
+An alternative for running under Windows is to install the `Windows Subsystem for Linux (WSL) <https://learn.microsoft.com/en-us/windows/wsl/install>`_.
+This in effect allows you to run PypeIt under Linux under Windows.
+
 ----
 
 .. _data_installation:

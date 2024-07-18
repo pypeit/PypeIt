@@ -42,5 +42,5 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- None
+- Fix "The system cannot find the file specified" errors when installing on Windows.
 
