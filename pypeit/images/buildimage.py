@@ -254,7 +254,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         
     rawImage_list = []
     # Loop on the files
-    for ii, ifile in enumerate(file_list):
+    for ifile in file_list:
         # Load raw image
         rawImage = rawimage.RawImage(ifile, spectrograph, det)
         # Process
