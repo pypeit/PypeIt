@@ -303,3 +303,24 @@ and launches a GUI from the `linetools`_ package. e.g.:
 
     lt_xspec J1217p3905_coadd.fits
 
+UVES_popler coaddition
+======================
+
+If you prefer to use a GUI for the coaddition (to manually remove
+bad pixels, ghosts, cosmic rays etc.), then you can use the UVES_popler tool.
+This tool is developed by Michael Murphy and is available at
+`this link <https://github.com/MTMurphy77/UVES_popler/>`__.
+For details on how to use the tool, please refer to the
+`UVES_popler documentation <https://astronomy.swin.edu.au/~mmurphy/UVES_popler/>`__.
+Here is an example of a coadded spectrum using UVES_popler:
+
+.. image:: ../figures/uves_popler.png
+   :scale: 60%
+
+UVES_popler was originally written to coadd ESO/UVES echelle spectra
+that were reduced by the ESO pipeline, and it has been recently modified
+to support the reduction of PypeIt longslit and echelle data. If you
+require some support on how to use UVES_popler with PypeIt data, please
+join the `PypeIt Users Slack <https://pypeit-users.slack.com>`__ and
+ask for help in the #coadd1d channel. All are welcome to join using
+`this invitation link <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__.
