@@ -25,14 +25,10 @@ class CombineImage:
         rawImages (:obj:`list`, :class:`~pypeit.images.pypeitimage.PypeItImage):  
             Either a single :class:`~pypeit.images.pypeitimage.PypeItImage` object or a list of one or more 
             of these objects to be combined into a an image.
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.            
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
 
     Attributes:
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
         det (:obj:`int`, :obj:`tuple`):
             The 1-indexed detector number(s) to process.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -42,11 +38,10 @@ class CombineImage:
             to be combined.             
 
     """
-    def __init__(self, rawImages, spectrograph, par):
+    def __init__(self, rawImages, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.rawImages = list(rawImages) if hasattr(rawImages, '__len__') else [rawImages]
-        self.spectrograph = spectrograph
         self.par = par  # This musts be named this way as it is frequently a child
 
         # NOTE: nimgs is a property method.  Defining rawImages above must come
@@ -244,6 +239,7 @@ class CombineImage:
                                           noise_floor=self.par['noise_floor'])
 
         # Build the combined image
+        embed()
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nframes,
                                        amp_img=rawImage.amp_img, det_img=rawImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
@@ -252,7 +248,7 @@ class CombineImage:
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        detector=rawImage.detector,
-                                       PYP_SPEC=self.spectrograph.name,
+                                       PYP_SPEC=rawImage.PYP_SPEC,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],
                                        shot_noise=self.par['shot_noise'])
