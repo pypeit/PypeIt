@@ -263,7 +263,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
 
     # Do it
-    combineImage = combineimage.CombineImage(rawImage_list, spectrograph, frame_par['process'])
+    combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
     # Return class type, if returning any of the frame_image_classes
     cls = frame_image_classes[frame_par['frametype']] \
