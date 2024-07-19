@@ -214,6 +214,7 @@ class Calibrations:
         """
         Check if the input calibration files are consistent with each other.
         This step is usually needed when combining calibration frames of a given type.
+        This routine currently only prints out warning messages if the calibration files are not consistent.
 
         Note: The exposure times are currently checked in the combine step, so they are not checked here.
 
@@ -224,6 +225,7 @@ class Calibrations:
         check_lamps : bool, optional
             Check if the lamp status is the same for all the files. Default is True.
         """
+
         lampstat = [None] * len(file_list)
         # Loop on the files
         for ii, ifile in enumerate(file_list):
