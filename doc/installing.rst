@@ -546,7 +546,8 @@ GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for exam
 
 .. code-block:: console
 
-    CC=gcc-12 pip install pypeit
+    $ export CC=gcc-12 
+    $ pip install pypeit
 
 Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
 that as needed to use your desired compiler. The ``pypeit_c_enabled`` script can be used to check if
