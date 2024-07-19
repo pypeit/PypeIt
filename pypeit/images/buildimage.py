@@ -261,7 +261,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias, 
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
-    
+
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, spectrograph, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)

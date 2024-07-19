@@ -4,8 +4,6 @@
 .. include:: ../include/links.rst
 """
 
-import os
-
 from IPython import embed
 
 import numpy as np
@@ -17,6 +15,7 @@ from pypeit.par import pypeitpar
 from pypeit import utils
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask
+
 
 class CombineImage:
     """
@@ -165,13 +164,8 @@ class CombineImage:
                 rn2img_stack = np.zeros(shape, dtype=float)
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
-                lampstat = [None]*self.nimgs
                 exptime = np.zeros(self.nimgs, dtype=float)
 
-            # Save the lamp status
-            # TODO: As far as I can tell, this is the *only* place rawheadlist
-            # is used.  Is there a way we can get this from fitstbl instead?
-            lampstat[kk] = self.spectrograph.get_lamps_status(rawImage.rawheadlist)
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
             # Processed image
@@ -195,25 +189,8 @@ class CombineImage:
             gpm_stack[kk] = rawImage.select_flag(invert=True)
             file_list.append(rawImage.filename)
 
-        # TODO JFH: This should not be here, but rather should be done in the Calibrations class. Putting in calibration specific
-        # lamp checking in an image combining class is not ideal. 
-        # Check that the lamps being combined are all the same:
-        if not lampstat[1:] == lampstat[:-1]:
-            msgs.warn("The following files contain different lamp status")
-            # Get the longest strings
-            maxlen = max([len("Filename")]+[len(os.path.split(x)[1]) for x in self.files])
-            maxlmp = max([len("Lamp status")]+[len(x) for x in lampstat])
-            strout = "{0:" + str(maxlen) + "}  {1:s}"
-            # Print the messages
-            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
-            print(msgs.indent() + strout.format("Filename", "Lamp status"))
-            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
-            for ff, file in enumerate(self.files):
-                print(msgs.indent()
-                      + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
-            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
-
-        # Do a similar check for exptime
+        # Check that all exposure times are consistent
+        # TODO: JFH suggests that we move this to calibrations.check_calibrations
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
             msgs.warn('Exposure time is not consistent for all images being combined!  '
