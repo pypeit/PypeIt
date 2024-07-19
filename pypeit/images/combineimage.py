@@ -239,7 +239,6 @@ class CombineImage:
                                           noise_floor=self.par['noise_floor'])
 
         # Build the combined image
-        embed()
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nframes,
                                        amp_img=rawImage.amp_img, det_img=rawImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
