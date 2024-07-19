@@ -43,7 +43,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
       - spec.OPT_COUNTS_NIVAR  -->  Optimally extracted noise variance (sky + read noise) only
       - spec.OPT_MASK  -->   Mask for optimally extracted flux
       - spec.OPT_FWHM  -->   Spectral FWHM (in A) for optimally extracted flux
-      - spec.OPT_BLAZE  -->   Normalized blaze function for the optimally extracted flux
+      - spec.OPT_FLAT  -->   Flat field spectrum, normalised at the peak value, for the optimally extracted flux
       - spec.OPT_COUNTS_SKY  -->  Optimally extracted sky
       - spec.OPT_COUNTS_SIG_DET  -->  Square root of optimally extracted read noise squared
       - spec.OPT_FRAC_USE  -->  Fraction of pixels in the object profile subimage used for this extraction
@@ -243,7 +243,7 @@ def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_COUNTS_NIVAR = None if nivar_opt is None else nivar_opt*np.logical_not(badwvs)  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt*np.logical_not(badwvs)     # Mask for optimally extracted flux
     spec.OPT_FWHM = fwhm_opt  # Spectral FWHM (in Angstroms) for the optimally extracted spectrum
-    spec.OPT_BLAZE = blaze_opt  # Normalized blaze function for the optimally extracted spectrum
+    spec.OPT_FLAT = blaze_opt   # Flat field spectrum, normalised to the peak value
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
     spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
@@ -340,7 +340,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
       - spec.BOX_COUNTS_NIVAR -->  Box car extracted noise variance
       - spec.BOX_MASK -->  Box car extracted mask
       - spec.BOX_FWHM -->  Box car extracted spectral FWHM
-      - spec.BOX_BLAZE -->  Box car extracted blaze function (normalized)
+      - spec.BOX_FLAT -->  Box car extracted flatfield spectrum function (normalized to peak value)
       - spec.BOX_COUNTS_SKY -->  Box car extracted sky
       - spec.BOX_COUNTS_SIG_DET -->  Box car extracted read noise
       - spec.BOX_NPIX  -->  Number of pixels used in boxcar sum
@@ -472,7 +472,7 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
     spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box*np.logical_not(bad_box)
     spec.BOX_MASK = mask_box*np.logical_not(bad_box)
     spec.BOX_FWHM = fwhm_box  # Spectral FWHM (in Angstroms) for the boxcar extracted spectrum
-    spec.BOX_BLAZE = blaze_box  # Normalized blaze function
+    spec.BOX_FLAT = blaze_box  # Flat field spectrum, normalised to the peak value
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_SIG_DET = base_box
     # TODO - Confirm this should be float, not int
