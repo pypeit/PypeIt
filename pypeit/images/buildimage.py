@@ -159,10 +159,10 @@ All of these **must** subclass from
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
-                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
-                        mosaic=None, calib_dir=None, setup=None, calib_id=None):
+                        scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
+                        slits=None, mosaic=None, calib_dir=None, setup=None, calib_id=None):
     """
-    Perform basic image processing on a list of images and combine the results. All 
+    Perform basic image processing on a list of images and combine the results. All
     core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
     image combination is handled by :class:`~pypeit.images.combineimage.CombineImage`.
     This function can be used to process both single images, lists of images, and detector mosaics.
@@ -251,7 +251,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:
         mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
-        
+
     rawImage_list = []
     # Loop on the files
     for ifile in file_list:
@@ -259,9 +259,9 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         rawImage = rawimage.RawImage(ifile, spectrograph, det)
         # Process
         rawImage_list.append(rawImage.process(
-            frame_par['process'], scattlight=scattlight, bias=bias, 
+            frame_par['process'], scattlight=scattlight, bias=bias,
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
-    
+
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, spectrograph, frame_par['process'])
     pypeitImage = combineImage.run(maxiters=maxiters, ignore_saturation=ignore_saturation)
