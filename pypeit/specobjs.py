@@ -768,7 +768,13 @@ class SpecObjs:
                 header[key.upper()] = subheader[key]
                 # Also store the datetime in ISOT format
                 if key.upper() == 'MJD':
-                    header['DATETIME'] = (Time(subheader[key][0], format='mjd').isot, "Date and time of the observation in ISOT format")
+                    if isinstance(subheader[key], (list, tuple)):
+                        mjdval = subheader[key][0]
+                    elif isinstance(subheader[key], float):
+                        mjdval = subheader[key]
+                    else:
+                        raise ValueError('Header card must be a float or a FITS header tuple')
+                    header['DATETIME'] = (Time(mjdval, format='mjd').isot, "Date and time of the observation in ISOT format")
         # Add calibration associations to Header
         if self.calibs is not None:
             for key, val in self.calibs.items():
