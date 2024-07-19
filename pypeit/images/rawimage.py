@@ -676,9 +676,9 @@ class RawImage:
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],
-                                              bpm=_bpm.astype(bool))
+                                              bpm=_bpm.astype(bool), 
+                                              filename=self.filename)
 
-        pypeitImage.filename = self.filename
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
