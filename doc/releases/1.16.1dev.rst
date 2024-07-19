@@ -17,6 +17,7 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
+- Added support for data coaddition with the UVES_popler GUI tool.
 
 Instrument-specific Updates
 ---------------------------
