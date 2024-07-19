@@ -765,6 +765,7 @@ class MultiSlitExtract(Extract):
             sn_gauss = self.par['reduce']['extraction']['sn_gauss']
             use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
             no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+
             # TODO: skysub.local_skysub_extract() accepts a `prof_nsigma` parameter, but none
             #       is provided here.  Additionally, the ExtractionPar keyword std_prof_nsigma
             #       is not used anywhere in the code.  Should it be be used here, in conjunction
@@ -882,6 +883,8 @@ class EchelleExtract(Extract):
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
         use_2dmodel_mask = self.par['reduce']['extraction']['use_2dmodel_mask']
+        no_local_sky = self.par['reduce']['skysub']['no_local_sky']
+
         self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
             = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                               self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -898,6 +901,7 @@ class EchelleExtract(Extract):
                                               model_noise=model_noise,
                                               show_profile=show_profile,
                                               show_resids=show_resids, show_fwhm=show_fwhm,
+                                              no_local_sky=no_local_sky,
                                               base_var=self.sciImg.base_var,
                                               count_scale=self.sciImg.img_scale,
                                               adderr=self.sciImg.noise_floor)

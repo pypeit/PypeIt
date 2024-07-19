@@ -136,11 +136,14 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
-    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) & np.isfinite(image) & np.isfinite(ivar)
+    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask) \
+            & np.isfinite(image) & np.isfinite(ivar)
     bad_pixel_frac = np.sum(thismask & np.logical_not(gpm))/np.sum(thismask)
     if bad_pixel_frac > max_mask_frac:
-        msgs.warn('This slit/order has {:5.3f}% of the pixels masked, which exceeds the threshold of {:f}%. '.format(100.0*bad_pixel_frac, 100.0*max_mask_frac)
-                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on global sky-subtraction.')
+        msgs.warn(f'This slit/order has {100.0*bad_pixel_frac:.3f}% of the pixels masked, which '
+                  f'exceeds the threshold of {100.0*max_mask_frac:.3f}%.'
+                  + msgs.newline() + 'There is likely a problem with this slit. Giving up on '
+                  'global sky-subtraction.')
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
@@ -283,7 +286,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     fullbkpt : `numpy.ndarray`_, optional
         A 1d float array containing the breakpoints to be used for the
         B-spline fit. The breakpoints are arranged in the spectral
-        direction,  i.e. along the directino of the piximg independent
+        direction,  i.e. along the direction of the piximg independent
         variable.
 
     Returns
@@ -1061,7 +1064,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
-                             count_scale=None):
+                             count_scale=None, no_local_sky:bool=False):
     """
     Perform local sky subtraction, profile fitting, and optimal extraction slit
     by slit. Objects are sky/subtracted extracted in order of the highest
@@ -1240,6 +1243,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         array is not positive, modulo the provided ``adderr``.  This is one of
         the components needed to construct the model variance; see
         ``model_noise``.
+    no_local_sky : bool, default = False, optional
+        If True, do not perform local sky subtraction. This is useful for
+        A-B extraction where the sky has already been subtracted.
 
     Returns
     -------
@@ -1421,7 +1427,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                                    fwhmimg=fwhmimg, flatimg=flatimg,
                                    spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                    trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
-                                   sigrej=sigrej,
+                                   sigrej=sigrej, no_local_sky=no_local_sky,
                                    use_2dmodel_mask=use_2dmodel_mask,
                                    bkpts_optimal=bkpts_optimal, force_gauss=force_gauss,
                                    sn_gauss=sn_gauss, model_full_slit=model_full_slit,

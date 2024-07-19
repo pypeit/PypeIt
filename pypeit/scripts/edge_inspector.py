@@ -32,7 +32,7 @@ class EdgeInspector(scriptbase.ScriptBase):
         chk_version = not args.try_old
 
         # Set the file name to the full path
-        trace_file = Path(args.trace_file).resolve()
+        trace_file = Path(args.trace_file).absolute()
         # Load
         edges = edgetrace.EdgeTraceSet.from_file(trace_file, chk_version=chk_version)
         # Inspector object

@@ -155,7 +155,7 @@ class ChkForCalibs(scriptbase.ScriptBase):
             # TODO: This is nearly an exact copy of the code in
             # `pypeit/scripts/setup.py`.  Consolidate somehow?
             # Output directory is hard-coded to be 'setup_files'
-            output_path = Path().resolve() / 'setup_files'
+            output_path = Path().absolute() / 'setup_files'
             if not output_path.exists():
                 output_path.mkdir(parents=True)
             # Write the sorted file,

@@ -1,219 +1,581 @@
-Calspec
+The text below is taken from the CALSPEC website
+(https://www.stsci.edu/hst/instrumentation/reference-data-for-calibration-and-tools/astronomical-catalogs/calspec)
+on April 17th 2024.
 
-CALSPEC contains the composite stellar spectra that are the
-fundamental flux standards for HST calibrations. All files are in
-machine independent binary FITS table format. Information about the
-pedigree of a given spectrum is in the header of the FITS table file,
-which can be read with the IRAF hedit task or by mrdfits.pro in IDL.
+CALSPEC contains the composite stellar spectra that are flux standards on the HST system.
+All files are in machine independent binary FITS table format. Information about the pedigree
+of a given spectrum is in the header of the FITS file, which can be read with the IRAF hedit task,
+by mrdfits.pro in IDL, or with the Python astropy.io.fits package. Table 1 below summarizes this
+set of standard star spectra. Columns 2-4 give the spectral type, V, and B-V magnitudes of the stars.
+Column 5 is the computer compatible file name with the plus and minus signs converted to underscores or omitted.
+Thus, the actual CALSPEC file name is the prefix in column 5, plus one of the suffixes in columns 6 or 7,
+plus ".fits". For example, a standard that has STIS data is "bd_28d4211_stis_005.fits".
+The naming convention in column 7 includes STIS, NIC, and WFC to indicate some contribution from
+any of the three HST spectrophotometers. Column 8 has the amount of variability found by Mullally et al. (2022),
+including upper limits. More documentation on some of these stars, including coordinates, finding charts and
+spectral types are in Turnshek et al. (1990), Bohlin, Colina & Finley (1995), and Colina & Bohlin (1997).
 
-The Table below summarizes the set of recommended standard star
-spectra. Columns 2-4 give the spectral type, V, and B magnitudes of
-the stars. More documentation on some of these stars, eg. coordinates,
-finding charts and spectral types are in Turnshek et al. (1990),
-Bohlin, Colina & Finley (1995), and Colina & Bohlin (1997). A set of
-A-stars for JWST calibration were developed by Bohlin & Cohen (2008)
-from NICMOS observations, while all 8 of these stars (HD165459 and
-1*_nic_002.fits) have Spitzer IRAC observations and coordinates
-documented in Reach et al. (2005). Column 5 is the computer compatible
-file name with the plus and minus signs converted to
-underscores. Thus, the actual CALSPEC file name is the prefix in
-column 5, plus one of the suffixes in columns 6-9, plus ".fits". For
-example, a standard that has STIS data is "bd_28d4211_stis_001.fits".
+The BOSZ grid for main-sequence (MS) stars (Bohlin et al. 2017) provides models for each G-A type MS standard,
+while a separate file includes the STIS and NICMOS fluxes concatenated with a BOSZ R=500 model for the
+extrapolation to 32 microns (col. 7). In 2023, Szabolcs Meszaros updated his BOSZ models because of important
+improvements of the model atmosphere spectral synthesis codes and linelists. The original models are now
+replaced by updated calculations with the old R=300,000 model (col. 6) now replaced with R=200,000 resolution
+models that extend to a shorter wavelength limit of 500A. Starting in 2022 April, the BOSZ LTE models are
+replaced with R=5000 Hubeny NLTE models for stars hotter than 15,000K (Bohlin et al. 2022). Beginning in 2019,
+WFC3 IR grism fluxes (Bohlin & Deustua 2019) supplement the NICMOS spectral energy distributions (SEDs).
+Coordinates are in Table 2. The final two columns of Table 2 provide the complete long names needed for
+a successful Simbad search.
 
-High fidelity models are available for a few stars, as listed in
-column 6. Models for the three fundamental primary standards GD71,
-GD153, and G191B2B (Bohlin 2003) provide the basis for the secondary
-flux standards and are calculated with the Hubeny NLTE code for pure
-hydrogen. The observational spectra from columns 7-9 can be compared
-with the models; and in the case of G191B2B, there is ultraviolet line
-blanketing at the ~1 percent level. The model calculations extend to
-30 microns and cover the long wavelength limits of 2.7 microns for
-NICMOS, 1.1 microns for STIS and ACS, and 27 microns for JWST. Vega
-was observed by STIS (Bohlin & Gilliland 2004a) and revised by
-Bohlin(2007). The new composite flux standard alpha_lyr_stis_004.fits
-consists of IUE data from 1256-1675A, STIS CCD fluxes from 1675-5300A,
-and a specially tailored Kurucz 9400K model longward of 5300A (Kurucz
-2005). From 900-1256A, the hotter Kurucz (2003) 9550K model is more
-continuous with the IUE flux. The STIS and ACS observations of the
-SDSS standard BD+17 4708 are documented in Bohlin & Gilliland (2004b)
-and are now extended to 2.5microns with NICMOS data.
+High-fidelity, non-BOSZ models at resolutions of less than R=200,000 are available for a few of the WD stars.
+The modeled IR fluxes for 13 stars are compared to Spitzer IRAC photometry in Bohlin et al. (2011).
+NLTE models for the three fundamental primary WD standards GD71, GD153, and G191B2B are updated by
+Bohlin, et al. (2020), where the pure H I models of Rauch (TMAP) are used for GD71 and GD153, while
+G191B2B has a Hubeny (TLUSTY) metal line-blanketed model. Wavelength dependent changes are <1% from
+0.167-10 microns, and there is also a wavelength independent increase of 0.87% for all SEDs. A driving
+force for the 2020 update is greatly improved agreement to <1% at 0.15-30 microns between the TMAP
+and TLUSTY models. As a result of the changes to the primary standards, the flux calibration is revised,
+and all stars with STIS spectra and their models are updated as of 2020 March.
 
-Column 7 lists the CDBS suffix names for the second choice standard
-stars with STIS data from Bohlin, Dickinson, & Calzetti (2001) and
-NICMOS fluxes per Bohlin (2007). The naming convention in column 7 is
-_STIS_ for STIS only, _NIC_ for NICMOS only, and _STISNIC_ for stars
-with both types of spectrophotometry. Tabulated in column 8 are the
-next best standard star flux distributions, which are composed of FOS
-spectra in the UV and Oke spectra at the longer wavelengths. Also
-appearing in column 8 are the three solar analogs that are comprised
-of FOS observation but do not have "_FOS" in the CALSPEC file name.
+The observational spectra from column 7 can be compared with the column 6 models. The model calculations
+cover the long wavelength limits of 2.5 microns for NICMOS, 1.7 microns for WFC3, one micron for STIS
+and ACS, and ~30 microns for some JWST or Spitzer filters. The composite flux standard alpha_lyr_stis
+consists of a special Kurucz 9550K model from 900-1152A (Kurucz 2003), IUE data from 1152-1675A, STIS CCD
+fluxes from 1675-10200A (Bohlin & Gilliland 2004a), and the 9550K model longward of 10200A. The STIS and ACS
+observations of the SDSS standard BD+17 4708 are documented in Bohlin & Gilliland (2004b) and are extended
+to 2.5 microns with NICMOS data, while Bohlin & Landolt (2015) present the evidence for variability
+of BD+17 4708. All observed wavelengths are corrected to the heliocentric vacuum reference frame.
+Model wavelengths are corrected to the same vacuum heliocentric standard, if the radial velocity appears
+in Simbad. In summary, the files of choice for calibration of photometry and low resolution spectra are
+the *stis* files. For calibration of high resolution spectrometers, the R=200,000 *mod* files may be helpful.
 
-The names for the last set of standard stars appear in column 9 of the
-Table. The application of corrections to the original IUE and optical
-fluxes produces a consistent set of spectrophotometric standards from
-1150 to 9200A (Bohlin 1996 and references therein). This set of
-standards is composed of IUE+Oke data only.
+CALSPEC also contains the ultraviolet to near-infrared absolute flux distribution of the Sun to 2.7 microns
+(filename: sun_reference_stis_001.fits). The solar reference spectrum combines absolute flux measurements
+from space and the ground with a model spectrum for the near-infrared (Colina, Bohlin, & Castelli 1996).
+The absolute solar flux measurements of Thuillier (2003) from 1990-23975A, the composite of Rieke et al. (2009),
+and the solar model from the website of R. Kurucz are additional choices for a solar reference spectrum.
+The Kurucz model for the Sun (sun_mod_001.fits) at a spectral resolution of R=5000 is in column 6 of Table 1b,
+where the model has been normalized to the SED of Thuillier (2003) at 6800-7700A.
 
-CALSPEC also contains the ultraviolet to near-infrared absolute flux
-distribution of the Sun (filename: sun_reference_stis_001.fits) to 2.7
-microns. The solar reference spectrum combines absolute flux
-measurements from space and from the ground with a model spectrum for
-the near-infrared (Colina, Bohlin, & Castelli 1996). The newer
-absolute solar flux measurements of Thuillier (2003) may be a better
-choice for a solar reference spectrum from 1990-23975A.
+Also in the CALSPEC data directory are a combined FUSE and STIS high resolution spectrum of G191B2B (Rauch et al. 2013)
+ g191b2b_stisfuse_001.fits and the covariance matrix WDcovar_002.fits for the uncertainty of the HST flux
+ system as a function of wavelength. As explained in more detail by Bohlin et al. (2014), the uncertainty
+ is relative to the reference wavelength of 5556A (5557.5 in vacuum), where this relative uncertainty
+ is zero and the absolute uncertainty is 0.5% (Bohlin 2014, Bohlin et al. 2020).
+
+CAUTIONS:
+
+Even though the column-7 flux distributions are the best observational SEDs, caution is still required,
+because some SEDs flagged with an asterisk are not entirely from the gold-standard STIS, NICMOS, or WFC3 data.
+Supplemental IUE, FOS, or Oke observations have lower signal-to-noise, wavelength precision,
+and photometric accuracy, as discussed in BDC. Thus, the FITS headers of any SED used
+for precision science applications should be checked to be sure that the wavelength region of
+interest is identified as STIS, NICMOS, or WFC3. To aid in selecting the best SEDs,
+Table 1 is divided into 1a and 1b, where the 1a stars in column 7 have all the possible STIS
+coverage and 1b tabulates stars that are missing some STIS coverage. In case the UV is too
+bright for the STIS MAMA detectors, IUE or FOS data may be used for 1a stars, but the asterisk
+flag is retained to remind users of this deficiency. Stars cooler than A type are considered complete,
+if the only missing coverage is in regions where the UV continuum flux is tiny and undetectable.
+For the coolest M, L, and T stars, G750L provides complete STIS coverage.
+
+Table 1a: Files of the Flux1 Standards with Complete STIS Coverage
+
+Star name   Sp. T.      V       B-V   Name               Model      STIS**      Var (%)
+[1]         [2]         [3]     [4]   [5]                [6]        [7]              [8]
+109 VIR     A0III       3.73    -0.01 109vir             _mod_003   _stis_003        --
+10 LAC      O9V         4.88    -0.21 10lac              _mod_005   _stis_007        <0.23
+16 CYG B    G3V         6.20    0.66  16cygb             _mod_004   _stis_004        <0.21
+18 SCO      G2V         5.50    0.65  18sco              _mod_005   _stis_005        --
+1732526     A4V         12.53   0.12  1732526            _mod_005   _stisnic_007     1.40
+17403462    A6V         12.48   0.20  1740346            --         _stisnic_005     --
+1743045     A8III       13.52   0.28  1743045            _mod_005   _stisnic_007     <1.32
+1757132     A3V         12.01   -0.10 1757132            _mod_005   _stiswfc_004     <0.37
+1802271     A2V         11.53   0.02  1802271            _mod_005   _stiswfcnic_004  <0.82
+1805292     A4V         12.28   0.14  1805292            _mod_004   _stisnic_006     <0.49
+1808347     A3V         11.69   0.49  1808347            _mod_005   _stiswfc_004     1.65
+1812095     A3V         12.01   -0.07 1812095            _mod_004   _stisnic_006     1.57
+2M0036+18   L3.5        J=12.47 ...   2m003618           --         _stiswfcnic_006  --
+2M0559-14   T4.5        J=13.80 ...   2m055914           --         _stiswfcnic_005  --
+AGK+81 266  sdO         11.95   -0.36 agk_81d266         --         _stisnic_007*    --
+ALPHA LYR   A0V         0.031   0.00  alpha_lyr          _mod_004   _stis_011*       --
+BD+02 3375  A5          9.93    0.45  bd02d3375          _mod_003   _stis_006        --
+BD-11 3759  M3.5V       11.32   1.60  bd11d3759          --         _stis_003        --
+BD+21 0607  F2          9.22    0.44  bd21d0607          _mod_003   _stis_006        --
+BD+26 2606  A5          9.73    0.39  bd26d2606          _mod_003   _stis_006        --
+BD+29 2091  F5          10.22   0.50  bd29d2091          _mod_003   _stis_006        --
+BD+54 1216  sdF6        9.71    0.48  bd54d1216          _mod_002   _stis_005        --
+BD+60 1753  A1V         9.65    0.07  bd60d1753          _mod_005   _stiswfc_004     <0.17
+BD+17 47083 sdF8        9.47    0.44  bd_17d4708         --         _stisnic_007     --
+BD+75 325   sdO5        9.55    -0.33 bd_75d325          --         _stis_006*       --
+C26202      F8IV        16.64   0.26  c26202             _mod_006   _stiswfcnic_005  --
+DELTA UMI   A1V         4.34    0.03  delumi             _mod_004   _stis_004        0.04
+ETA1 DOR    A0V         5.69    -0.01 eta1dor            _mod_004   _stis_004        0.18
+ETA UMA     B3V         1.85    -0.10 etauma             _mod_004   _stis_007        --
+FEIGE110    sdO         11.83   -0.30 feige110           --         _stisnic_008*    --
+FEIGE34     sdO         11.14   -0.23 feige34            --         _stis_006*       --
+G191B2B     DA.8        11.781  -0.33 g191b2b            _mod_012   _stiswfcnic_004* <0.74
+GD153       DA1.2       13.349  -0.29 gd153              _mod_012   _stiswfcnic_004  <2.44
+GD71        DA1.5       13.032  -0.25 gd71               _mod_012   _stiswfcnic_004  <1.90
+GJ754.1A    DBQA5       12.29   0.05  gj7541a            _mod_001   _stis_004        --
+GRW+70 5824 DA2.4       12.60   -0.06 grw_70d5824        _mod_001   _stiswfcnic_003  --
+HD009051    G7III       8.92    0.81  hd009051           _mod_004   _stis_007        --
+HD031128    F4V         9.14    0.41  hd031128           _mod_003   _stis_006        --
+HD074000    sdF6        9.66    0.45  hd074000           _mod_003   _stis_006        --
+HD101452    A2/3        8.20    -0.36 hd101452           _mod_003   _stis_003        <0.09
+HD106252    G0          7.36    0.64  hd106252           _mod_006   _stis_008        --
+HD111980    F7V         8.38    0.53  hd111980           _mod_003   _stis_006        --
+HD115169    G3V         9.20    0.69  hd115169           _mod_003   _stis_003        <0.11
+HD116405    A0V         8.34    -0.07 hd116405           _mod_004   _stis_006        <0.10
+HD128998    A1V         5.83    0.00  hd128998           _mod_003   _stis_003        0.05
+HD142331    G5V         8.75    0.64  hd142331           _mod_005   _stis_005        --
+HD14943     A5V         5.91    0.19  hd14943            _mod_003   _stis_005        0.05
+HD158485    A4V         6.50    0.13  hd158485           _mod_003   _stis_005        0.42
+HD159222    G1V         6.56    0.65  hd159222           _mod_006   _stis_008        --
+HD160617    F           8.73    0.45  hd160617           _mod_002   _stis_005        --
+HD163466    A6V         6.85    0.19  hd163466           _mod_003   _stis_005        0.17
+HD1654595   A4V         6.86    0.13  hd165459           _mod_004   _stisnic_006     --
+HD167060    G3V         8.92    0.64  hd167060           _mod_005   _stis_005        <0.09
+HD172728    A0V         5.74    -0.05 hd172728           _mod_002  _stis_002         --
+HD180609    A0V         9.42    0.15  hd180609           _mod_004   _stis_006        <0.13
+HD185975    G3V         8.10    0.68  hd185975           _mod_004   _stis_007        --
+HD200654    G           9.11    0.63  hd200654           _mod_004   _stis_007        --
+HD200775    B2Ve        7.43    0.33  hd200775                      _stis_001        --
+HD205905    G2V         6.74    0.62  hd205905           _mod_007   _stis_009        0.26
+HD2094586   G0V         7.65    0.59  hd209458           _mod_003   _stisnic_008     --
+HD2811      A3V         7.50    0.17  hd2811             _mod_004   _stis_004        --
+HD37725     A3V         8.31    -0.19 hd37725            _mod_005   _stiswfc_004     0.13
+HD37962     G2V         7.85    0.65  hd37962            _mod_008   _stis_010        <0.09
+HD38949     G1V         7.80    0.57  hd38949            _mod_005   _stis_007        1.17
+HD55677     A4V         9.41    0.06  hd55677            _mod_004   _stis_004        0.24
+HD607537    B3IV        6.68    -0.09 hd60753            --         _stis_004        --
+HD93521     O9Vp        6.99    -0.27 hd93521            _mod_003   _stis_007*       --
+HS2027+0651 DO          16.9    ...   hs2027             --         _stis_006        --
+HZ21        DO2         14.69   -0.33 hz21               --         _stis_007        --
+HZ438       DA          12.91   -0.31 hz43               --         _stis_005*       --
+HZ43B8      M3Ve        14.30   ...   hz43b              --         _stis_005        --
+HZ44        sdB         11.65   -0.23 hz44               --         _stis_006*       --
+HZ4         DA3.4       14.51   0.09  hz4                --         _stis_008        --
+KF06T2      K1.5III     13.80   1.30  kf06t2             _mod_006   _stiswfcnic_005  --
+KF08T3      K0.5III     13.18   1.21  kf08t3             _mod_005   _stisnic_004     --
+KSI2 CETI   B9III       4.28    -0.04 ksi2ceti           _mod_004   _stis_006        --
+LAMBDA LEP  B0.5V       4.29    -0.25 lamlep             _mod_005   _stis_007        0.35
+LDS749B     DBQ4        14.674  -0.04 lds749b            _mod_007   _stisnic_008     --
+MU COL      O9.5V       5.18    -0.28 mucol              _mod_005   _stis_007        0.12
+NGC2506-G31 G1V         17.9    0.7   ngc2506g31         _mod_003   _stis_003        --
+NGC6681-1   ...         15.77   0.18  NGC6681_1          --         _stis_002        --
+NGC6681-2   ...         16.20   0.05  NGC6681_2          --         _stis_002        --
+NGC6681-3   ...         16.90   0.03  NGC6681_3          --         _stis_002        --
+NGC6681-4   ...         16.14   0.04  NGC6681_4          --         _stis_002        --
+NGC6681-5   ...         16.37   0.03  NGC6681_5          --         _stis_002        --
+NGC6681-6   ...         16.20   0.04  NGC6681_6          --         _stis_002        --
+NGC6681-7   ...         16.05   1.24  NGC6681_7          --         _stis_002        --
+NGC6681-8   ...         17.01   -0.01 NGC6681_8          --         _stis_002        --
+NGC6681-9   ...         15.80   0.18  NGC6681_9          --         _stis_002        --
+NGC6681-10  ...         19.14   -0.14 NGC6681_10         --         _stis_002        --
+NGC6681-11  ...         15.65   0.22  NGC6681_11         --         _stis_002        --
+NGC6681-12  ...         17.62   -0.08 NGC6681_12         --         _stis_002        --
+P041C9      GOV         12.16   0.68  p041c              _mod_004   _stisnic_009*    <0.44
+P177D       G0V         13.49   0.60  p177d              _mod_005   _stisnic_010*    <1.00
+P330E       G2V         12.92   0.64  p330e              _mod_007   _stiswfcnic_006* <0.76
+SDSS132811  DA          g=17.01 ...   sdss132811         --         _stis_004        --
+SDSSJ151421 DA1.8       16.5    0.89  sdss151421         _mod_004   _stis_005        --
+SF1615+001A G           16.75   0.49  sf1615_001a        _mod_005   _stisnic_010     --
+SIGMA ORI   O9.5V+B0.2V 3.79    -0.21 sigori             --         _stis_001        --
+SIRIUS      A1V         -1.46   0.00  sirius             _mod_005   _stis_005*       --
+SNAP-2      G0-5        16.23   0.86  snap2              _mod_006   _stiswfcnic_005  --
+VB8         M7V         16.92   1.8   vb8                --         _stiswfcnic_004  --
+WD0148+467  DA3.6       12.46   0.06  wd0148_467         --         _stiswfc_001     --
+WD0227+050  DA2.5       12.80   -0.05 wd0227_050         --         _stiswfc_002     --
+WD0308-565  sdB         14.07   -0.11 wd0308_565         _mod_007   _stis_009        --
+WD0809+177  DA          13.46   --    wd0809_177         --         _stiswfc_002     --
+WD1057+719  DA1.2       14.68   ...   wd1057_719         _mod_009   _stisnic_011     <6.05
+WD1105-048  DA3         13.06   0.04  wd1105_048         --         _stiswfc_002     --
+WD1105-340  DA3.6       13.63   0.16  wd1105_340         --         _stiswfc_002     --
+WD1202-232  DA5.7       12.90   0.14  wd1202_232         --         _stiswfc_002     --
+WD1327-083  DA3.5       12.34   0.06  wd1327_083         --         _stiswfc_004     --
+WD1544-377  DA4.8       12.80   0.30  wd1544_377         --         _stiswfc_002     --
+WD1657+343  DA.9        16.1    ...   wd1657_343         _mod_009   _stiswfcnic_006  <37.88
+WD1713+695  DA3.2       13.20   ~0.2  wd1713_695         --         _stiswfc_002     --
+WD1911+536  DA          13.26   ~-0.1 wd1911_536         --         _stiswfc_001     --
+WD1919+145  DA3.3       13.01   0.06  wd1919_145         --         _stiswfc_001     --
+WD2039-682  DA3.0       13.30   0.05  wd2039_682         --         _stiswfc_001     --
+WD2117+539  DA3.4       12.81   --    wd2117_539         --         _stiswfc_002     --
+WD2126+734  DA3.1       12.83   -0.03 wd2126_734         --         _stiswfc_002     --
+WD2149+021  DA2.8       12.74   -0.01 wd2149_021         --         _stiswfc_001     --
+WD2341+322  DA3.8       12.94   0.12  wd2341_322         --         _stiswfc_004     --
+
+
+Table 1b: Files of the Flux1 Standards with Incomplete STIS Coverage
+
+Star name   Sp. T.  V      B-V   Name          Model    STIS**
+[1]         [2]     [3]    [4]   [5]           [6]      [7]
+1812524     A4V     12.27  0.18  1812524       --       _nic_005
+BD+28 42114 sdO     10.51  -0.34 bd_28d4211    --       _stis_005*
+KF01T5      K1III   13.56  ...   kf01t5        --       _nic_004
+KF06T1      K1.5III 13.52  0.98  kf06t1        --       _nic_004
+SNAP-1      sdB     15.40  0.20  snap1         --       _stisnic_008
+SUN         G2V     -26.75 0.63  sun_reference --       _stis_002*
+SUN         G2V     -26.75 0.63  sun           _mod_001 --
+WD0320-539  DA      14.9   ...   wd0320_539    _mod_001 _stis_005
+WD0947+857  DA      16.4   ...   wd0947_857    _mod_003 _stis_006
+WD1026+453  DA      16.13  -0.04 wd1026_453    _mod_003 _stis_006
+
+* WARNING. Some wavelength coverage from sources of lower precision, such as IUE, FOS, or Oke.
+** The STIS low resolution modes cover the 1140-10200A range, the NICMOS grism coverage is 0.8-2.5 micron,
+and the two WFC3 grisms cover 0.8-1.7 micron. See the *.fits headers for the exact source ranges.
+
+(1)  The unit of flux in all files is erg s-1 cm-2 A-1.
+(2)  Dust ring (Bohlin et al, 2011). Variable at +/- 0.01 mag (Pancino et al. 2012).
+(3)  BD+17 4708 is variable (Bohlin & Landolt 2015).
+(4)  BD+28 4211 has a companion at 2.8arcsec (Landolt & Uomoto (2007).
+(5)  Dust ring (Bohlin et al, 2011).
+(6)  Transiting Planet.
+(7)  No single model fits well in the sense that an unresolved cool companion would explain the problem.
+(8)  HZ43 and HZ3B are separated by ~3arcsec (BDC).
+(9)  P041C has an M companion 0.57arcsec away (Gilliland & Rajan 2011)
+Access to the latest CALSPEC files
+
+
+
+Table 2:  Coordinates, Radial Velocity (km/s), Proper Motion (PM), and Alternate Star Names
+
+Star Name    R.A.        Decl.        Vr     PM (mas/yr)         Simbad Name                  Alt. Simbad Name
+--          (2000)       (2000)       --     R.A.        Decl.   --                           --
+10 LAC      22 39 15.679 +39 03 00.97 -10.0  -0.32       -5.46   --                           --
+109 VIR     14 46 14.925 +01 53 34.38 -6.1   -114.03     -22.13  HD130109                     --
+16 CYG B    19 41 51.973 +50 31 03.09 -27.7  -134.79     -162.49 HD186427                     --
+18 SCO      16 15 37.270 -08 22 09.98 11.9   232.16      -495.37 HD146233                     --
+1732526     17 32 52.630 +71 04 43.12 --     0.22        -2.71   2MASS J17325264+7104431      TYC 4424-1286-1
+1740346     17 40 34.679 +65 27 14.77 --     -5.72       -3.44   2MASS J17403468+6527148      TYC 4207-219-1
+1743045     17 43 04.486 +66 55 01.66 --     1.10        -2.79   2MASS J17430448+6655015      --
+1757132     17 57 13.233 +67 03 40.77 --     0.41        -14.03  2MASS J17571324+6703409      TYC 4212-455-1
+1802271     18 02 27.163 +60 43 35.54 --     5.40        2.17    2MASS J18022716+6043356      TYC 4201-1542-12
+1805292     18 05 29.275 +64 27 52.13 --     -1.64       10.06   2MASS J18052927+6427520      TYC 4209-1396-1
+1808347     18 08 34.736 +69 27 28.72 --     4.43        8.52    2MASS J18083474+6927286      TYC 4433-1800-1
+1812095     18 12 09.567 +63 29 42.26 --     4.07        1.31    2MASS J18120957+6329423      TYC 4205-1677-1
+1812524     18 12 52.381 +60 02 31.95 --     -3.03       -8.02   2MASS J18125240+6002319      TYC 4201-1717-1
+2M0036+18   00 36 16.112 +18 21 10.29 19.0   901.56      124.02  2MASS J00361617+1821104      --
+2M0559-14   05 59 19.188 -14 04 49.22 --     570.20      -337.59 2MASS J05591914-1404488      --
+AGK+81 266  09 21 19.177 +81 43 27.63 --     -11.26      -51.26  --                           --
+ALPHA LYR   18 36 56.336 +38 47 01.28 -21.0  200.94      286.23  Vega                         HD172167
+BD+02 3375  17 39 45.595 +02 24 59.61 -398.0 -366.01     75.12   --                           --
+BD-11 3759  14 34 16.812 -12 31 10.42 -1.0   -355.04     593.22  --                           --
+BD+17 4708  22 11 31.375 +18 05 34.16 -291.0 506.37      60.49   --                           --
+BD+21 0607  04 14 35.516 +22 21 04.25 340.0  425.99      -301.87 HD284248                     --
+BD+26 2606  14 49 02.355 +25 42 09.14 33.0   -5.88       -347.60 --                           --
+BD+28 4211  21 51 11.022 +28 51 50.37 --     -34.73      -56.85  WD2148+286                   --
+BD+29 2091  10 47 23.163 +28 23 55.93 83.0   177.50      -824.83 --                           --
+BD+54 1216  08 19 22.572 +54 05 09.63 66.0   -34.20      -628.56 HD233511                     --
+BD+60 1753  17 24 52.275 +60 25 50.75 -27.3  4.89        3.76    --                           --
+BD+75 325   08 10 49.490 +74 57 57.94 -50.0  7.17        10.30   --                           --
+C26202      03 32 32.843 -27 51 48.58 --     --          --      2MASS J03323287-2751483      [B2010] C26202
+DELTA UMI   17 32 12.997 +86 35 11.26 -7.6   10.17       53.97   HD166205                     --
+ETA UMA     13 47 32.438 +49 18 47.76 -13.0  -121.17     -14.91  HD120315                     --
+ETA1 DOR    06 06 09.382 -66 02 22.63 17.6   13.66       27.82   HD42525                      --
+FEIGE110    23 19 58.400 -05 09 56.17 --     -10.68      0.31    --                           --
+FEIGE34     10 39 36.738 +43 06 09.21 1.0    12.54       -25.41  WD1036+433                   --
+G191B2B     05 05 30.618 +52 49 51.92 22.1   12.70       -93.42  BD+52 913                    EGGR 247 WD0501+527
+GD153       12 57 02.322 +22 01 52.63 8.3    -38.40      -202.99 WD1254+223                   --
+GD71        05 52 27.620 +15 53 13.23 30.0   76.73       -172.96 WD0549+158                   --
+GJ754.1A    19 20 34.923 -07 40 00.07 --     -61.28      -161.77 LAWD74                       WD1917-077
+GRW+70 5824 13 38 50.478 +70 17 07.64 26.0   -402.08     -24.56  LAWD52                       WD1337+705
+HD2811      00 31 18.490 -43 36 23.00 --     -6.02       -4.18   --                           --
+HD009051    01 28 46.503 -24 20 25.44 -72.0  53.56       -17.03  --                           --
+HD14943     02 22 54.675 -51 05 31.66 5.0    22.33       66.38   HR 701                       --
+HD031128    04 52 09.910 -27 03 50.94 112.0  164.76      -26.52  --                           --
+HD37725     05 41 54.370 +29 17 50.96 --     15.05       -26.93  --                           --
+HD37962     05 40 51.966 -31 21 03.99 3.0    -59.65      -365.23 --                           --
+HD38949     05 48 20.059 -24 27 49.85 3.0    -30.44      -35.42  --                           --
+HD55677     07 14 31.290 +13 51 36.79 -2.0   -2.66       -6.81   --                           --
+HD60753     07 33 27.319 -50 35 03.31 20.0   -3.12       5.31    --                           --
+HD074000    08 40 50.804 -16 20 42.51 206.0  350.82      -484.16 --                           --
+HD93521     10 48 23.512 +37 34 13.09 -14.0  0.22        1.72    --                           --
+HD101452    11 40 13.651 -39 08 47.67 --     -34.17      -20.98  --                           --
+HD106252    12 13 29.510 +10 02 29.89 16.0   22.86       -280.01 --                           --
+HD111980    12 53 15.053 -18 31 20.01 155.0  299.49      -796.09 --                           --
+HD115169    13 15 47.388 -29 30 21.18 21.2   -110.57     -82.09  --                           --
+HD116405    13 22 45.124 +44 42 53.91 -19.0  8.01        -10.29  --                           --
+HD128998    14 38 15.222 +54 01 24.02 -3.0   17.28       -18.99  HR 5467                      --
+HD142331    15 54 19.788 -08 34 49.37 -70.8  -105.98     -23.73  --                           --
+HD158485    17 26 04.837 +58 39 06.83 -30.0  -9.10       14.67   HR 6514                      --
+HD159222    17 32 00.992 +34 16 16.13 -52.0  -240.70     63.71   HR 6538                      --
+HD160617    17 42 49.324 -40 19 15.51 100.0  -62.39      -393.23 --                           --
+HD163466    17 52 25.376 +60 23 46.94 -16.0  -2.73       42.67   --                           --
+HD165459    18 02 30.741 +58 37 38.16 -19.2  -13.06      24.61   --                           --
+HD167060    18 17 44.143 -61 42 31.62 15.2   88.52       -145.15 --                           --
+HD172728    18 37 33.517 +62 31 35.67 -10.5  -8.98       49.58   --                           --
+HD180609    19 12 47.200 +64 10 37.17 --     -3.06       -7.79   --                           --
+HD185975    20 28 18.740 -87 28 19.94 -19.0  169.76      -56.99  --                           --
+HD200654    21 06 34.751 -49 57 50.28 -45.0  193.94      -273.89 --                           --
+HD200775    21 01 36.921 +68 09 47.79 -3.4   7.60        -2.82   --                           --
+HD205905    21 39 10.151 -27 18 23.67 -17.0  384.10      -83.96  --                           --
+HD209458    22 03 10.773 +18 53 03.55 -15.0  29.58       -17.89  --                           --
+HS2027+0651 20 29 32.506 +07 01 07.70 --     9.24        1.53    WD2027+0651                  --
+HZ21        12 13 56.264 +32 56 31.36 --     -100.88     30.13   WD1211+332                   --
+HZ4         03 55 21.988 +09 47 18.13 46.0   173.27      -5.51   WD0352+096                   --
+HZ43        13 16 21.853 +29 05 55.38 54.0   -157.96     -110.23 WD1314+293                   --
+HZ43B       13 16 21.495 +29 05 53.07 --     --          --      --                           --
+HZ44        13 23 35.263 +36 07 59.55 --     -66.27      -4.52   WD1321+364                   --
+KF01T5      18 04 03.894 +66 55 43.81 -22.0  -0.40       0.47    2MASS J18040388+6655437      [RMC2005] KF01T5
+KF06T1      17 57 58.486 +66 52 29.41 -41.0  -2.13       -8.70   2MASS J17575849+6652293      [RMC2005] KF06T1
+KF06T2      17 58 37.995 +66 46 52.11 --     0.62        -4.42   2MASS J17583798+6646522      [RMC2005] KF06T2
+KF08T3      17 55 16.216 +66 10 11.61 -50.0  2.09        -6.39   2MASS J17551622+6610116      [RMC2005] KF08T3
+KSI2 CETI   02 28 09.557 +08 27 36.22 12.0   23.71       -4.79   --                           --
+LAMBDA LEP  05 19 34.524 -13 10 36.44 20.0   -3.30       -4.91   --                           --
+LDS749B     21 32 16.233 +00 15 14.40 -81.0  413.23      27.27   LAWD87                       WD2129+000
+MU COL      05 45 59.895 -32 18 23.16 109.0  2.99        -22.03  --                           --
+NGC2506G31  08 00 14.212 -10 47 29.47 --     --          --      --                           --
+NGC6681-1   18 43 13.319 -32 17 25.36 218.7  --          --      --                           --
+NGC6681-2   18 43 13.165 -32 17 25.82 218.7  --          --      --                           --
+NGC6681-3   18 43 13.041 -32 17 25.41 218.7  --          --      --                           --
+NGC6681-4   18 43 12.893 -32 17 26.43 218.7  --          --      --                           --
+NGC6681-5   18 43 12.872 -32 17 26.56 218.7  --          --      --                           --
+NGC6681-6   18 43 12.755 -32 17 25.69 218.7  --          --      --                           --
+NGC6681-7   18 43 12.639 -32 17 27.09 218.7  --          --      --                           --
+NGC6681-8   18 43 12.278 -32 17 27.51 218.7  --          --      --                           --
+NGC6681-9   18 43 12.199 -32 17 27.11 218.7  --          --      --                           --
+NGC6681-10  18 43 12.146 -32 17 26.58 218.7  --          --      --                           --
+NGC6681-11  18 43 12.049 -32 17 27.52 218.7  --          --      --                           --
+NGC6681-12  18 43 11.902 -32 17 27.91 218.7  --          --      --                           --
+P041C       14 51 57.980 +71 43 17.39 -22.0  -49.32      19.58   2MASS J14515797+7143173      GSPC P 41-C
+P177D       15 59 13.579 +47 36 41.91 --     -7.90       1.57    2MASS J15591357+4736419      GSPC P177-D
+P330E       16 31 33.813 +30 08 46.40 -53.0  -8.99       -38.77  2MASS J16313382+3008465      GSPC P330-E
+SDSS132811  13 28 11.498 +46 30 50.94 --     -130.86     -30.80  SDSS J132811.45+463050.8     WD1326+467
+SDSSJ151421 15 14 21.273 +00 47 52.81 12.0   4.4         -27.04  SDSS J151421.27+004752.8     LB769 WD1511+009
+SF1615+001A 16 18 14.240 +00 00 08.61 --     2.40        -10.94  2MASS J16181422+0000086      [B2010] SF1615+001A
+SIGMA ORI   05 38 44.765 -02 36 00.28 29.9   4.6         -0.4    --                           --
+SIRIUS      06 45 08.917 -16 42 58.02 -6.0   -546.01     -1223.1 --                           --
+SNAP-1      16 29 35.747 +52 55 53.61 --     -3.16       -20.80  2MASS J16293576+5255532      --
+SNAP-2      16 19 46.103 +55 34 17.86 --     -2.91       -10.95  2MASS J16194609+5534178      --
+VB8         16 55 35.256 -08 23 40.75 15.0   -813.42     -870.61 --                           --
+WD0148+467  01 52 02.962 +47 00 06.65 64.0   4.64        122.02  --                           --
+WD0227+050  02 30 16.628 +05 15 50.70 16.5   76.96       -24.50  --                           --
+WD0809+177  08 12 37.809 +17 37 01.43 --     73.48       -87.17  --                           --
+WD1105-048  11 07 59.950 -05 09 26.03 47.9   -55.55      -442.63 --                           --
+WD1105-340  11 07 47.897 -34 20 51.49 --     39.89       -263.43 --                           --
+WD1202-232  12 05 26.674 -23 33 12.14 23.3   41.82       226.56  --                           --
+WD1544-377  15 47 30.021 -37 55 08.46 21.1   -423.69     -209.11 --                           --
+WD1713+695  17 13 06.091 +69 31 25.51 --     -55.51      -343.04 --                           --
+WD1911+536  19 12 48.566 +53 43 13.45 --     144.45      136.06  --                           --
+WD1919+145  19 21 40.418 +14 40 41.40 49.5   -33.02      -75.93  --                           --
+WD2039-682  20 44 21.459 -68 05 21.36 57.0   182.10      -228.17 --                           --
+WD2117+539  21 18 56.264 +54 12 41.24 --     -85.45      193.19  --                           --
+WD2126+734  21 26 57.656 +73 38 44.67 8.0    55.34       -314.20 --                           --
+WD2149+021  21 52 25.379 +02 23 19.58 28.2   15.32       -300.53 --                           --
+WD0308-565  03 09 47.918 -56 23 49.41 -68.0  149.24      66.92   --                           --
+WD0320-539  03 22 14.820 -53 45 16.47 57.8   6.56        -59.93  --                           --
+WD0947+857  09 57 54.296 +85 29 40.88 --     -28.13      -27.27  --                           --
+WD1026+453  10 29 45.295 +45 07 04.93 --     -90.46      1.68    --                           --
+WD1057+719  11 00 34.243 +71 38 02.92 76.0   -43.64      -21.75  --                           --
+WD1327-083  13 30 13.637 -08 34 29.47 36.0   -1111.1     -472.38 Gaia DR2 3630035787972473600 --
+WD1657+343  16 58 51.113 +34 18 53.32 --     8.77        -31.23  Gaia DR2 1337946019956816256 --
+WD2341+322  23 43 50.721 +32 32 46.73 -16.0  -215.82     -59.74  Gaia DR2 2871730307948650368 LAWD93
+
+History
+
+2023 September Update
+In addition to Ks photometry for nine G-stars from a G. Rieke draft (Absolute Calibration IV:
+Use of G-Type Stars as Primary Calibrators), the available Spitzer IRAC photometry of Bohlin et al. (2022)
+is now a constraint to the model fits for nine G-stars: 16cygb, 18sco, hd106252, hd142331, hd159222,
+hd167060, hd205905, hd37962, and p330e. HD142331 is not included in Bohlin et al. (2022). The E(B-V)=0.02
+prior on 18 Sco is removed, even though the best fit of E(B-V)=0.06 seems a bit high.
+2023 April Update
+George Rieke provided precision Ks photometry that improved the constraints on fitting BOSZ LTE models
+for seven stars (18sco, hd106252, hd205905, hd37962, ngc2506g31, p177d, and snap2.) Because of instabilities
+of the fits due to partial degeneracy of effective temperature and reddening, two stars required priors
+of E(B-V)=0.02 for 18sco and E(B-V)=0.08 for ngc2506g31. The Rieke Ks values for 16CygB, HD159222, and P330E
+are consistent to better than 1% with existing fits to their HST spectrophotometry.
+
+2023 February Update
+Karl Gordon provided a new extinction curve for 912A to 32 microns and R(V)=A(V)/E(B-V)=3.1 (Gordon et al. 2023).
+Szabolcs Meszaros updated his BOSZ models for the G-A type stars; and those *mod* files that were originally
+at R=300,000 are now R=200,000. GD153 and GD71 have revised radial velocities. Of the total of 126 *stis* SEDs,
+there are now 71 revised stellar spectra files. There are revised *mod* files for 59 of the 76 stars with models.
+Only those SEDs with substantial change of >0.3% are updated.
+
+2022 October Update
+The CTE correction for the STIS CCD data is updated (Bohlin & Lockwood 2022); and there are 18 new stars of
+which only two have models. There are a total of 69 new and revised stellar spectra files (*stis*), plus new
+or revised model files (*mod*) for 30 of the 69 stars. An existing SED is revised if there are substantial
+changes of >0.5% in the stellar flux. With the new formulation for the STIS CTE correction the STIS, ACS,
+and WFC3 flux measures are in accord at the 1% level, not only for the primary standards and other stars in
+the neighborhood of V=13 and brighter, but also now for fainter stars in the V=16 range.
+
+2022 April Update
+A column 8 is added to Table 1a for the amount of variability found by Mullally et al. (2022). Eleven revised
+observational and 10 revised model SEDs are in CALSPEC. Three of these have improved model fits with a change
+that exceeds 0.5% (1732526, 1743045, HD37962); four faint WDs have significant additional STIS observations
+(SDSSJ151421, WD0308-565, WD1057+719, WD1657+343); and four hot stars are now modeled with a new NLTE grid to
+replace the previous LTE models (10LAC, ETAUMA, LAMLEP, MUCOL). The model for the He star WD0308-565 is unchanged.
+Compare the Narayan et al. (2019) model to the CALSPEC model for SDSSJ151421.
+
+2021 March Update
+There are new pure helium Koester models for LDS749B and WD0308-565; both the model and the observational
+SEDs are new for these two stars. The 19 SEDs with WFC3 IR grism data are updated. The columns for FOS+Oke
+and IUE+Oke are deleted, and those SEDs are removed from current_calspec, because of lower precision than
+the robust set of modern HST data. Those demoted SEDs remain in the full CALSPEC directory.
+
+2020 April Update
+Three stars with more STIS observations and 12 new stars in the NGC6681 globular cluster are delivered.
+WD1057+719 now has full STIS coverage and is promoted from Table 1b to 1a. A preferred faint standard,
+WD1657+343 has a robust set of STIS observations along with WFC3 and NICMOS spectra, while WD1057+719 is
+deficient in G750L with only one exposure. The faint WD0308-565 has only two repeat verification observations,
+except for G230L with the desired minimum of three observations. The 12 faint NGC6681 stars are in a crowded
+field, and some have a few percent long-wavelength contamination from neighbors. These 12 stars appear in the
+finding chart of Proffitt, et al, (2003), Avila et al. (2019) and correspond to those labels a-m with the
+omission of star d. The Table 1a B and V values are actually HST/WFC3 F438W and F606W photometry from here.
+
+2020 March Update
+The most recent SEDs calculated by the TLUSTY and TMAP NLTE model atmosphere codes for the primary
+WDs G191B2B, GD153, and GD71 show improved agreement to 1% from 0.15 to 30 microns, in comparison to the
+previous 1% consistency only from 0.2 to 5 microns. These new NLTE models of hot WDs now provide the flux
+standards from the FUV to the mid-IR (Bohlin, Hubeny, and Rauch 2020, AJ, in press). The wavelength dependent
+change in the HST flux scale exceeds 1% only shortward of 0.167 and longward of 10 microns but does reach 2%
+at the short wavelength limit of STIS at 0.115 micron. In addition, there is a gray increase of 0.87% in all
+fluxes due to the increase of the 5556A (air) flux of Vega from 3.44 to 3.47 e-9 erg s-1 cm-2 A-1.
+
+2019 September Update
+To improve the photometric precision, the standard extraction height is increased for the STIS G230LB and
+G430L gratings, making the default height 11 pixels for all five CCD modes. New STIS observations of Table
+1b stars in Cycle 26 have promoted eta UMa, Feige 110, Feige 34, HD93521, HZ21, HZ4, and HZ44 from Table 1b
+to Table 1a. New stars for JWST calibration are 109 Vir, 16 CygB, 18 Sco, delta UMi, eta1 Dor, HD101452,
+HD115169, HD128998, HD142331, HD167060, HD2811, and HD55677. Models for 12 low-metallicity, Southern stars
+from program 12813 now have R=300,000 BOSZ models. There is one new WD, while Vega and Sirius change by 1-2%,
+because the correction for these highly saturated data is found to change with time (Bohlin, et al. 2019).
+
+2019 January Update
+New WFC3 IR grism SEDs are incorporated in revised SEDs for 17 stars and in two new WDs WD1327_083 and
+WD2341_322 (Bohlin & Deustua 2019 subm.) Two new stars with only STIS data are added: BD_11D3759
+(Maíz Apellániz & Weiler 2018) and a faint WD SDSS132811 for ACS/SBC calibration.
+
+2017 November Update
+The R=5000 resolution solar model from the Kurucz website is added as sun_mod_001.fits.
+
+2017 August Update
+The STIS G430L region of GRW+70 5824 is upgraded from the poor single observation to an average of
+multiple visits. Because of the multitude of UV observation for monitoring the changing STIS sensitivity,
+GRW+70 5824 is now among the best choices of standard stars. The sparse sample of cool stars in CALSPEC
+motivated new STIS observations of KF08T3 (K1.5III) for combining with the existing NICMOS SED to make
+the new kf08t3_stisnic_001. The models for the JWST calibration are updated to include the computed model continuum.
+
+2017 February Update
+Thirty-two main sequence stars for JWST calibration are re-delivered after fitting BOSZ models to the
+STIS & NICMOS SEDs (Bohlin et al. 2017). The R=500 model provides the extrapolation of the data to 32 microns,
+while the pure R=300,000 model is also available here; both models are normalized to the STIS flux
+distribution at 6000-9000A.
+
+2015 April Update
+The wavelength coverage of P330E is extended to 2000A, and Table 2 is updated.
+
+2015 January Update
+The G750L STIS spectra require a wider extraction width of 11 pixels, resulting in flux changes
+of up to ~2% (Bohlin & Proffitt 2015).
+
+2014 March Update
+A STIS flux distribution for the primary IR standard Sirius (Bohlin 2014) is added to CALSPEC with
+an IUE extension to shorter wavelengths and with a special Kurucz model beyond 1 micron. The specially
+tailored Kurucz models for both Sirius and Vega, as normalized to STIS, are also now included.
+Bohlin (2014) reconciled the absolute visible and IR flux measures, resulting in a 5556A flux reduction
+from 3.46 to 3.44 e-9 erg s-1 cm-2 A-1. Thus, all of the STIS and NICMOS SEDs are reduced by 0.6% at all wavelengths.
+
+2013 December Update
+Added coordinates for Reach et al. (2005) stars to Table 2.
+
+2013 November Update
+The low dispersion (R~500) CALSPEC database is expanded from 60 to 93 members with 19 new SEDs for
+JWST flux calibration (programs 12428 and 12682), 13 new southern standards (12813), and one partial
+flux distribution from the MAST HST archive. The new stars are measured with STIS and have preliminary
+extensions to 40 microns from model atmosphere fits. The basis for the wavelength dependence of the
+fluxes is switched from Hubeny pure hydrogen to Rauch model atmosphere calculations, and all dependence
+on ground based V magnitudes is removed (Bohlin, Gordon, & Tremblay 2014). This delivery encompasses
+an update for 48 stars with STIS or NICMOS spectrophotometry, the 32 new standards with complete STIS
+coverage, and eta UMa with archival STIS G230LB data. In addition, 8 high fidelity stellar models are
+new or updated. For the first time, high dispersion observations of G191B2B and an uncertainty
+covariance matrix are included.
+
+2011 December Update
+Calibration standard WD0308-565 derived from STIS data was added to the list of CALSPEC data.
+
+2010 February Update
+The 2010 February CALSPEC delivery included six revised models, 22 revised standard star flux distributions,
+and four new SEDs from STIS observations. HZ43 was demoted from its primary standard category some years
+ago because of its bright cool companion. The revisions to the flux distributions are all generally
+less than 1%. The main change was driven by the discovery of a small error of ~0.57% in the gain 4 to
+gain 1 ratio for the STIS CCD (Goudfroiij, et al. 2009). The weighting for the STIS sensitivity is changed
+from the total counts for each observation to equal weight for each of the three primary standard WDs,
+regardless of the number of observations. A few stars have additional STIS observations included in their
+observed average SED. The NICMOS dispersion relations have been updated (Pirzkal, Bohlin, & Thatte 2009).
+For seven G stars (Bohlin 2010), the observed flux distributions have been extended from the NICMOS
+long wavelength limit of ~2.5 microns to 40 microns, using the best fitting Castelli & Kurucz (2004) model SED.
 
 2009 January Update
+The 2009 January CALSPEC delivery encompassed six new models and 22 standard star flux distributions.
+The switch to TLUSTY203 caused a small change in the continuum fluxes with a 0.3% increase in the
+1300A/10000A flux ratio. In a narrow region around 4000A between H-delta and H-epsilon, the new models
+are up to ~0.9% fainter. The correction of a V bandpass error made all stars fainter by a constant 0.35%,
+independent of wavelength. Pure hydrogen NLTE models are provided for the first time for the faint stars
+WD1057+719 and WD1657+343; and these models include a small amount of interstellar reddening (Bohlin 2007).
+There is one new standard, HD209458, delivered to CALSPEC for the first time. The G230LB STIS spectra of
+G191B2B have replaced the FOS fluxes at 1700-3850A, and new NICMOS observations are included for many stars.
 
-The 2009 January CALSPEC delivery encompasses six new models and 22
-standard star flux distributions. The model flux distributions are for
-pure hydrogen in NLTE and are computed with the TLUSTY code, version
-203, while the previous models used the outdated version 200. The
-calculated SEDs for the three primary standards G191B2B, GD153, and
-GD71 are placed on an absolute flux scale using a synthetic
-calculation of the V magnitudes relative to Vega and provide the flux
-calibrations for both the STIS and the NICMOS spectrophotometry. The
-switch to TLUSTY203 caused a small change in the continuum fluxes with
-a 0.3% increase in the 1300A/10000A flux ratio. In a narrow region
-around 4000A between H-delta and H-epsilon, the new models are up to
-~0.9% fainter. In addition, the synthetic V magnitude calculation was
-corrected to remove an extra factor of wavelength that had been
-included explicitly but was discovered to be already included in the
-Cohen et al. (2003) V filter transmissions. The correction of this
-error made all stars fainter by a constant 0.35%, independent of
-wavelength. A new model for the historical standard HZ43 is included
-for completeness. Pure hydrogen NLTE models are provided for the first
-time for the faint stars WD1057+719 and WD1657+343; and these models
-include a small amount of interstellar reddening (Bohlin 2007).
+UPDATES: 1996Feb22, 1999Jul19, 2001Jun5, 2004Feb27, 2006Sep1, 2007Oct LDS749B (Bohlin & Koester 2008),
+2008Jul Bohlin & Cohen (2008), 2009Jan, 2010Feb, 2011Dec WD0308-565, 2013Nov, 2013Dec, 2014Mar, 2015Jan,
+2015Apr, 2017Feb, 2017Aug, 2017Nov, 2019Jan, 2019Sep, 2020Mar, 2020Apr, 2021Mar, 2022Apr, 2022Oct,
+2023Feb, 2023Apr, 2023Sep..
 
-The above changes that make the three primary WD models fainter by a
-few tenths of a percent affect all 22 newly measured SEDs by the same
-amount. There is one new standard, HD209458, delivered to CALSPEC for
-the first time. The G230LB STIS spectra of G191B2B have replaced the
-FOS fluxes at 1700-3850A in g191b2b_stisnic_002. A lot of new NICMOS
-observations are included in the updates of the stisnic_001 to
-stisnic_002 measurements; and all stars in this delivery have NICMOS
-fluxes measured to 2.5 microns, except for Vega, which is too bright
-for any NICMOS mode, and except for WD1657+343, which is too faint for
-the NICMOS G206 mode that covers the 1.9-2.5 micron range. Two stars
-AKG+81 266 and GRW+70 5824 have more STIS observations included and
-now also have NICMOS spectrophotometry, which promotes these two SEDs
-into the STISNIC category. All of the NICMOS spectra have been
-reprocessed with the new CALNICA algorithm (Dahlen et al. 2008) and
-the new 2008 flat fields. A correction for the correlation of the
-NICMOS sensitivity with temperature is also applied.
+PLEASE report errors or send comments to bohlin@stsci.edu.
 
-The order of preference for the choice of a standard flux distribution
-is from left to right in the Table, i.e. from the best in column 6 to
-the last choice with the lowest quality in column 9.
+Thanks to Pierre Maxted for a set of corrections.
 
-CDBS Files of the Flux Standards with Columns in Order of Preference(1)
---------------------------------------------------------------------------------
-Star name    Sp. T.    V     B-V    CDBS name	Model	   STIS        FOS+Oke  IUE+Oke
-  (1)          (2)    (3)    (4)       (5)	 (6)	    (7) 	 (8)	  (9)
+This page made use of the SIMBAD database, operated at CDS, Strasbourg, France.
 
-1732526       A4V    12.53   0.12  1732526               _NIC_002
-1740346       A6V    12.48   0.20  1740346		 _NIC_002	 
-1743045       A8III  13.52   0.28  1743045		 _NIC_002
-1802271       A2V    11.98   0.08  1802271               _NIC_002
-1805292       A4V    12.28   0.14  1805292		 _NIC_002
-1812095       A5V    11.74   0.20  1812095		 _NIC_002
-1812524       A4V    12.27   0.18  1812524		 _NIC_002
-2M0036+18     L3.5   21.34   ...   2M003618		 _STISNIC_002
-2M0559-14     T5     I=19.14	   2M055914		 _STISNIC_002
-AGK+81 266    sdO    11.94  -0.34  AGK_81D266		 _STISNIC_002		 _005
-ALPHA-LYR     A0V     0.026  0.00  ALPHA_LYR		 _STIS_004		 _004
-BD+17 4708    sdF8    9.47   0.44  BD_17D4708		 _STISNIC_002
-BD+25 4655     ?      9.69  -0.31  BD_25D4655					 _002
-BD+28 4211(2) Op     10.51  -0.34  BD_28D4211		 _STIS_001     _FOS_003  _005
-BD+33 2642    B2IV   10.83  -0.17  BD_33D2642			       _FOS_003  _004
-BD+75 325     O5p     9.55  -0.33  BD_75D325		 _STIS_001     _FOS_003  _005
-C26202        G      16.64   ...   C26202		 _STISNIC_002
-FEIGE110      D0p    11.83  -0.30  FEIGE110		 _STISNIC_002		 _005
-FEIGE34       DO     11.18  -0.34  FEIGE34		 _STIS_001		 _005
-FEIGE66       sdO    10.51  -0.29  FEIGE66					 _002
-FEIGE67       sdO    11.82  -0.34  FEIGE67					 _002
-G191B2B       DA0    11.781 -0.33  G191B2B     _MOD_005  _STISNIC_002  _FOS_003  _005
-G93-48        DA3    12.74  -0.01  G93_48					 _004
-GD108         sdB?   13.56  -0.22  GD108					 _005
-GD153         DA1    13.346 -0.29  GD153       _MOD_005  _STISNIC_002  _FOS_003
-GD50          DA2    14.06  -0.28  GD50 					 _004
-GD71          DA1    13.032 -0.25  GD71        _MOD_006  _STISNIC_002  _FOS_003
-GRW+70 5824   DA3    12.77  -0.09  GRW_70D5824  	 _STISNIC_002		 _005
-HD165459      A4V     6.86   0.13  HD165459              _NIC_002
-HD209458      G0V     7.65   0.59  HD209458              _STISNIC_002
-HD93521       O9Vp    6.99  -0.27  HD93521		 _STIS_001		 _005
-HZ2           DA3    13.88  -0.09  HZ2  					 _005
-HZ21          DO2    14.69  -0.33  HZ21 		 _STIS_001		 _005
-HZ4           DA4    14.51  +0.09  HZ4  		 _STIS_002		 _004
-HZ43 (3)      DA     12.91  -0.31  HZ43        _MOD_005  _STIS_001     _FOS_003
-HZ43B (3)     M      14.30   ...   HZ43B		 _STIS_001
-HZ44          sdO    11.67  -0.29  HZ44 		 _STIS_001     _FOS_003  _005
-KF01T5        K1III  13.56   ...   KF01T5		 _NIC_001
-KF06T1       K1.5III 13.52   ...   KF06T1		 _NIC_001
-KF06T2       K1.5III 13.8    ...   KF06T2		 _NIC_001
-KF08T3       K0.5III 13.5    ...   KF08T3		 _NIC_001
-LB227         DA4    15.32  +0.06  LB227					 _004
-LDS749B       DBQ4   14.674 -0.04  LDS749B     _MOD_001	 _STISNIC_002		 _005
-LTT9491       DC     14.10  +0.03  LTT9491					 _002
-NGC7293       ...    13.53  -0.37  NGC7293					 _005
-P041C         GOV    12.00   0.62  P041C		 _STISNIC_002  _001
-P177D         G0V    13.47   0.66  P177D		 _STISNIC_002  _001
-P330E         G0V    13.00   0.64  P330E		 _STISNIC_002  _001
-SF1615+001A   G      16.753 +0.66  SF1615001A		 _STISNIC_002
-SNAP-1        WD     15.6    ...   SNAP1		 _STISNIC_002
-SNAP-2        G      16.2    ...   SNAP2		 _STISNIC_002
-VB8           M7     16.81   ...   VB8  		 _STISNIC_002
-WD1057+719    DA1.2  14.8    ...   WD1057_719  _MOD_001  _STISNIC_002
-WD1657+343    DA1    16.1    ...   WD1657_343  _MOD_001  _STISNIC_002
-SUN           G2V   -26.75   0.63  SUN_REFERENCE	 _STIS_001
-(1) The unit of flux in all files is erg s-1 cm-2 A-1.
-
-(2) BD+28 4211 has a companion at 2.8arcsec (Landolt & Uomoto (2007).
-
-(3) HZ43 and HZ3B are separated by ~3arcsec (Bohlin, Dickinson, &
-Calzetti 2001).
-
-SUPPLEMENTAL CALSPEC contains previous CALSPEC versions and
-spectrophotometry that may be useful for special purposes.
-
-UPDATES: 96Feb22, 99Jul19, 01Jun5, 04Feb27, 06Sep1, 07Oct-LDS749B
-(Bohlin & Koester 2008), 08Jul-Bohlin & Cohen (2008), 09Jan
-
-REFERENCES
-
-Bohlin, R.C. 1996, AJ, 111, 1743
-Bohlin, R.C. 2000, AJ, 120, 437
-Bohlin, R. 2003, 2002 HST Calibration Workshop, ed. S. Arribas, A. Koekemoer,
-   & B. Whitmore, (Baltimore:STScI), p. 115
-Bohlin, R. C. 2007, in The Future of Photometric, Spectrophotometric, and
-   Polarimetric Standardization, ASP Conf. Series, Vol. 364, p. 315 ed. C. Sterken;
-   also Astro-Ph 0608715
-Bohlin. R. C., & Cohen, M. 2008, AJ, 136, 1171
-Bohlin, R.C., Colina, L., & Finley, D.S. 1995, AJ, 110, 1316
-Bohlin, R. C., Dickinson, M. E., & Calzetti, D. 2001, AJ, 122, 2118
+References
+Avila, R. J., et al. 2019, Instrument Science Report, ACS 2019-05, (Baltimore:STScI)
+Bohlin, R. C., & Lockwood, S. 2022, Instrument Science Report, STIS 2022-07, (Baltimore:STScI)
+Bohlin, R. C., Krick, J. E., Gordon, K. D., and Hubeny, I. 2022, AJ, 164, 10
+Bohlin, R. C., Hubeny, I., & Rauch, T. 2020, AJ, 160, 21
+Bohlin. R. C., & Deustua, S. E. 2019, AJ, 157, 229.
+Bohlin, R. C., Deustua, S. E., and de Rosa 2019, AJ, 158, 211
+Bohlin, R. C., Meszaros, Sz., Fleming, S., Gordon, K. D., Koekemoer, A. M., & Kovacs, J. 2017, AJ, 153, 234
+Bohlin, R. C., & Landolt, A. U. 2015, AJ, 149, 122
+Bohlin, R. C., & Proffitt, C. R. 2015, Instrument Science Report, STIS 2015-01, (Baltimore:STScI)
+Bohlin, R. C. 2014, AJ, 147, 127
+Bohlin, R. C., Gordon, K. D., & Tremblay, P.-E. 2014, PASP, 126, 711
+Bohlin, R. C., et al. 2011, AJ, 141, 173
+Bohlin, R. C. 2010, AJ, 139, 1515
+Bohlin, R. C., & Cohen, M. 2008, AJ, 136, 1171
+Bohlin, R. C., & Koester, D. 2008, AJ, 135, 1092
+Bohlin, R. C. 2007, in The Future of Photometric, Spectrophotometric, and Polarimetric Standardization, ASP Conf. Series,
+    Vol. 364, p. 315 ed. C. Sterken
 Bohlin, R. C., & Gilliland, R. L. 2004a, AJ, 127, 3508
 Bohlin, R. C., & Gilliland, R. L. 2004b, AJ, 128, 3053
-Bohlin, R. C., & Koester, D. 2008, AJ, 135, 1092
-Cohen, M., Megeath, S.~T., Hammersley, P.~L., Martin-Luis, F., & Stauffer, J.
-	2003, AJ, 125, 2645
+Bohlin, R. C., Dickinson, M. E., & Calzetti, D. 2001, AJ, 122, 2118 (BDC)
+Bohlin, R.C. 2000, AJ, 120, 437
+Bohlin, R.C. 1996, AJ, 111, 1743
+Bohlin, R.C., Colina, L., & Finley, D.S. 1995, AJ, 110, 1316
+Castelli, F., & Kurucz, R. 2004, IAU Symp. No. 210, Modeling of Stellar Atmospheres, eds. N. Piskunov, W. Weiss,
+    & D. Gray 2003, poster A20; also arXiv:0405.087 [astro-ph]
+Cohen, M., Megeath, S.~T., Hammersley, P.~L., Martin-Luis, F., & Stauffer, J. 2003, AJ, 125, 2645
 Colina, L., & Bohlin, R. 1994, AJ, 108, 1931
 Colina, L., & Bohlin, R. 1997, AJ, 113, 1138
 Colina, L., Bohlin, R.C., & Castelli, F. 1996, AJ, 112, 307
-Dahlen, T.,McLaughlin, H., V. Laidler, M. Regan, E. Bergeron, R. Jedrzejewski,
-	R. Bohlin, R. de Jong, & A. Viana 2008, Instrument Science Report,
-	NICMOS 2008-02, (Baltimore:STScI)
-Kurucz, R. 2003, http://kurucz.harvard.edu/
-Kurucz, R. 2005, Vega spectrum at T=9400K, log g=3.90, [M/H]=-0.5,
-   and zero microturbulent velocity, personal communication
+Gilliland, R., & Rajan, A. 2011, Instrument Science Report, WFC3 2011-03, (Baltimore:STScI)
+Gordon, K. D., et al. 2023, ApJ, 950, 86
+Goudfrooij, P., Wolfe, M. A., Bohlin, R. C., Proffitt, C. R., & Lennon, D. J. 2009, Instrument Science Report,
+    STIS 2009-02, (Baltimore:STScI)
+Kurucz, R. 2003, and all references to Kurucz website, http://kurucz.harvard.edu/
 Landolt, A., & Uomoto, A. 2007, AJ, 133, 768
+Maíz Apellániz, J., & Weiler, M. 2018, A&A, 619, 180
+Megessier, C. 1995, A&A, 296, 771
+Mullally, S. E., et al. 2022, AJ, 163, 136
+Narayan, G., et al. 2019, ApJS, 241, 20
 Oke, J.B. 1990, AJ, 99, 1621
+Pancino, E., et al. 2012, MNRAS, 426, 1767
+Pirzkal, N., Bohlin, R.,  & Thatte D. 2009, Instrument Science Report, NICMOS 2009-006, (Baltimore:STScI)
+Proffitt, C. R., Brown, T. M., Mobasher, B., & Davies, J. 2003, Instrument Science Report, STIS 2003-01,
+    (Baltimore:STScI)
+Rauch, T., Werner, K., Bohlin, R., & Kruk, J. 2013, A&A, 560, A106
 Reach, W. T., et al. 2005, PASP, 117, 978
-Thuillier, G., Herse, M., Labs, D., Foujols, T., Peetermans, W., Gillotay, D.,
-   Simon, P., & Mandel, H. 2003, Sol. Phys., 214, 1
-Turnshek, D.A., Bohlin, R.C., Williamson, R., Lupie, O., Koornneef, J., &
-   Morgan D. 1990, AJ, 99, 1243
-
-NOTE: There is a known bug with trying to access files via ftp server
-with the Safari browser. The recommended browser for retrieving the
-files is Firefox.
-
+Rieke, G. H., et al. 2008, AJ, 135, 2245
+Thuillier, G., Herse, M., Labs, D., Foujols, T., Peetermans, W., Gillotay, D., Simon, P., & Mandel, H. 2003,
+    Sol. Phys., 214, 1
+Turnshek, D.A., Bohlin, R.C., Williamson, R., Lupie, O., Koornneef, J., & Morgan D. 1990, AJ, 99, 1243
