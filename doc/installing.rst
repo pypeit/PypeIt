@@ -542,11 +542,11 @@ will work single-threaded if OpenMP is not available. GCC supports OpenMP
 out of the box, however the ``clang`` compiler that Apple's XCode provides does not. So
 for optimal performance on Apple hardware, you will want to install GCC via ``homebrew``
 or ``macports`` and specify its use when installing ``pypeit``. For example, if you installed
-GCC 12.x via ``homebrew``, you would get ``pypeit`` to use it by doing, for example:
+GCC via ``homebrew``, you would get ``pypeit`` to use it by doing, for example:
 
 .. code-block:: console
 
-    $ export CC=gcc-12 
+    $ export CC=/opt/homebrew/bin/gcc
     $ pip install pypeit
 
 Basically, ``pypeit`` checks the ``CC`` environment variable for what compiler to use so configure
