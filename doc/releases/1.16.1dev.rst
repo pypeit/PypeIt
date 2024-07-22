@@ -42,5 +42,5 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
-- None
+- Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
 
