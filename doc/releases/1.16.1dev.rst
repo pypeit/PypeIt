@@ -43,4 +43,4 @@ Bug Fixes
 ---------
 
 - Fix "The system cannot find the file specified" errors when installing on Windows.
-
+- Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
