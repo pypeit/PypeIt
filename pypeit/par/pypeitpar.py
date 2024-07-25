@@ -4070,7 +4070,8 @@ class FindObjPar(ParSet):
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None, fof_link = None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None,
+                 use_std_trace=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4193,14 +4194,22 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        # TODO do we want this to be True or False by default?
+        defaults['use_std_trace'] = False
+        dtypes['use_std_trace'] = bool
+        descr['use_std_trace'] = 'If True, the trace of the standard star spectrum is used as a crutch for ' \
+                                 'tracing the object spectra. This is useful when a direct trace is not possible ' \
+                                 '(i.e., faint sources). Note that a standard star exposure must be included in your ' \
+                                 'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
+
+
         defaults['std_spec1d'] = None
         dtypes['std_spec1d'] = str
-        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
-                              'trace of the standard star spectrum is used as a crutch for ' \
-                              'tracing the object spectra, when a direct trace is not possible ' \
-                              '(i.e., faint sources).  If provided, this overrides use of any ' \
-                              'standards included in your pypeit file; the standard exposures ' \
-                              'will still be reduced.'
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star. ' \
+                               'This can be used to trace the object spectra, but the ``use_std_trace`` ' \
+                               'parameter must be set to True. If provided, this overrides use of ' \
+                               'any standards included in your pypeit file; the standard exposures ' \
+                               'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -4221,7 +4230,7 @@ class FindObjPar(ParSet):
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d', 'fof_link']
+                   'std_spec1d', 'use_std_trace', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4233,9 +4242,11 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        if self.data['std_spec1d'] is not None \
-                and not Path(self.data['std_spec1d']).absolute().exists():
-            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
+        if self.data['std_spec1d'] is not None:
+            if not self.data['use_std_trace']:
+                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+            elif not Path(self.data['std_spec1d']).absolute().exists():
+                msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
