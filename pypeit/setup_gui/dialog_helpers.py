@@ -81,7 +81,7 @@ class DialogResponses(enum.Enum):
 
 
 class FileDialog:
-    """Opens a file dialog for either opening or saving files.  This encapsulates
+    r"""Opens a file dialog for either opening or saving files.  This encapsulates
     the logic to use QFileDialog in a way that can be used by the view or controller and
     can be easilly patched by unit tests.
     
@@ -178,12 +178,12 @@ class FileDialog:
             
     @classmethod
     def create_open_file_dialog(cls, parent : QWidget, caption : str, file_type : FileType, history_group : str = "OpenFile") -> FileDialog:
-        """Creates a dialog to prompt the user for an existing file.
+        r"""Creates a dialog to prompt the user for an existing file.
         
         Args:
             parent: The parent widget of the pop-up dialog
             caption: A caption for the dialog
-            filter:  A QFileDialog filter for a file to open. For example: "Text Files (`*`.txt)"
+            filter:  A QFileDialog filter for a file to open. For example: "Text Files (\*.txt)"
             history_group: The group in the applications persistent settings to persist the history.
                            Defaults to "OpenFile"
                                

@@ -26,14 +26,13 @@ except AttributeError as e:
 
 from qtpy.QtCore import QObject, Qt, QThread
 from qtpy.QtGui import QKeySequence
-from qtpy.QtWidgets import QAction
+from qtpy.QtWidgets import QAction, QApplication
 
 from pypeit.setup_gui.view import SetupGUIMainWindow, PypeItFileView, DialogResponses
 from pypeit.setup_gui.text_viewer import TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import prompt_to_save, display_error, FileDialog, FileType
 from pypeit.setup_gui.model import PypeItSetupGUIModel, ModelState, PypeItFileModel
 from pypeit import msgs
-
 from pypeit.display import display
 from pypeit import io as pypeit_io
 
@@ -596,39 +595,39 @@ class SetupGUIController(QObject):
     and performing actions requested by the user.
     
     Args:
-        args (:class:`argparse.Namespace`): The non-QT command line arguments used to start the GUI.
+        logfile ()
     """
 
 
     main_window = None
     model = PypeItSetupGUIModel()
 
-    def __init__(self, args):
+    def __init__(self, verbosity : int, spectrograph : str|None, root : list[str]|str|None, extension : str|None):
         super().__init__()
+
+        # Note QT expects the program name as arg 0
+        self.app = QApplication(sys.argv)
 
         QCoreApplication.setOrganizationName("PypeIt")
         QCoreApplication.setApplicationName("SetupGUI")
         QCoreApplication.setOrganizationDomain("pypeit.readthedocs.io")
 
-        if args.logfile is not None:
-            logpath = Path(args.logfile)
-            if logpath.exists():
-                timestamp = datetime.now(__UTC__).strftime("%Y%m%d-%H%M%S")
-                old_log=logpath.parent / (logpath.stem + f".{timestamp}" + logpath.suffix)
-                logpath.rename(old_log)
                 
-        self.model.setup_logging(args.logfile, verbosity=args.verbosity)
-        if args.spectrograph is not None:
-            self.model.obslog_model.set_spectrograph(args.spectrograph)
-        if args.root is not None:
-            for root_dir in args.root:
-                self.model.obslog_model.add_raw_data_directory(root_dir)
-        if args.spectrograph is not None and args.root is not None:
+        self.model.setup_logging(verbosity=verbosity)
+        if spectrograph is not None:
+            self.model.obslog_model.set_spectrograph(spectrograph)
+            if isinstance(root,list):
+                for root_dir in root:
+                    self.model.obslog_model.add_raw_data_directory(root_dir)
+            elif root is not None:
+                self.model.obslog_model.add_raw_data_directory(root)
+
+        if spectrograph is not None and root is not None:
             self.run_setup_at_startup = True
         else:
             self.run_setup_at_startup = False
 
-        self.model.obslog_model.default_extension = args.extension
+        self.model.obslog_model.default_extension = extension
         SetupGUIController.main_window = SetupGUIMainWindow(self.model, self)
         self.operation_thread = OperationThread()
 
@@ -650,16 +649,10 @@ class SetupGUIController(QObject):
         """
         return PypeItFileController(model)
 
-    def start(self, app):
+    def start(self):
         """
         Starts the PypeItSetupGUi event loop. Exits the GUI when the GUI is closed.
-
-        Args:
-            app (QApplication): The Qt application object for the GUI. The caller is expected
-                                to pass any Qt specific command line arguments to this object
-                                before calling start(). 
         """
-        self.app = app
         self.main_window.show()
         if self.run_setup_at_startup:
             self.run_setup()
@@ -676,7 +669,7 @@ class SetupGUIController(QObject):
         timer = QTimer()
         timer.start(500)
         timer.timeout.connect(lambda: None)
-        sys.exit(app.exec_())
+        sys.exit(self.app.exec_())
 
     def save_all(self):
         """"

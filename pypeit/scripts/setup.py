@@ -5,6 +5,7 @@ This script generates files to setup a PypeIt run
 .. include:: ../include/links.rst
 """
 import argparse
+from datetime import datetime, timezone
 from IPython import embed
 
 from pypeit.scripts import scriptbase
@@ -77,9 +78,6 @@ class Setup(scriptbase.ScriptBase):
         from pypeit.pypeitsetup import PypeItSetup
         from pypeit.calibrations import Calibrations
 
-        # Set the verbosity, and create a logfile if verbosity == 2
-        msgs.set_logfile_and_verbosity('setup', args.verbosity)
-
         if args.spectrograph is None:
             if args.gui is False:
                 raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
@@ -93,24 +91,12 @@ class Setup(scriptbase.ScriptBase):
                                  'on how to add a new instrument.')
 
         if args.gui:
-            from pypeit.scripts.setup_gui import SetupGUI
-            # Build up arguments to the GUI
-            setup_gui_argv = ["-e", args.extension]
-            if args.spectrograph is not None:
-                setup_gui_argv += ["-s", args.spectrograph]
-
-                # Pass root but only if there's a spectrograph, because
-                # root has a default value but can't be acted upon by the GUI
-                # without a spectrograph.
-                if isinstance(args.root,list):
-                    root_args = args.root
-                else:
-                    # If the root argument is a single string, convert it to a list.
-                    # This can happen when the default for --root is used
-                    root_args = [args.root]
-                setup_gui_argv += ["-r"] + root_args
-            gui_args = SetupGUI.parse_args(setup_gui_argv)
-            SetupGUI.main(gui_args)
+            # Start the GUI
+            from pypeit.setup_gui.controller import SetupGUIController
+            gui = SetupGUIController(args.verbosity, args.spectrograph, args.root, args.extension)
+            gui.start()
+        else:
+            msgs.set_logfile_and_verbosity("setup", args.verbosity)       
 
         # Initialize PypeItSetup based on the arguments
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
