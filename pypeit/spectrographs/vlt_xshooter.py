@@ -515,12 +515,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # TODO: Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
-        
-        
-        # FBD 2024: Latest versions of manual give 0.245" as the average
+        # TODO: Figure out the order-dependence of the updated plate scale
+        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
         plate_scale = 0.245*np.ones_like(order_vec)
         return plate_scale
 
