@@ -230,21 +230,15 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.197, # average between order 11 & 30, see manual
-            darkcurr        = 0.0,  # e-/pixel/hour
+            platescale      = 0.245, # average across all orders, see manual
+            darkcurr        = 72.0,  # e-/pixel/hour
             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.86,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(2.12), #
-            ronoise         = np.atleast_1d(8.0), # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
+            gain            = np.atleast_1d(2.29),
+            ronoise         = np.atleast_1d(8.0), # Read noise depends on exposure time (see XShooter manual) but this is the typical value.
             datasec         = np.atleast_1d('[4:2044,4:]'), # These are all unbinned pixels
-            # EMA: No real overscan for XSHOOTER-NIR:
-            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
-            # The overscan region below contains only zeros
-            # ToDo should we just set it as empty?
-            #  JXP says yes
-            #oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -263,18 +257,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
                         use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
-        # Require dark images to be subtracted from the flat images used for
-        # tracing, pixelflats, and illumflats
-        # par['calibrations']['traceframe']['process']['use_darkimage'] = True
-        # par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        # par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
-        # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
-
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 50.
@@ -304,7 +291,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-#        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
@@ -313,7 +299,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['qa_log'] = False
 
         # Flats
-        #par['calibrations']['standardframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
@@ -324,22 +309,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['reduce']['findobj']['trace_npoly'] = 8
+        par['reduce']['findobj']['find_extrap_npoly'] = 3
+        par['reduce']['findobj']['trace_npoly'] = 3
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is only one object on the slit.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
-
-
-        # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
-        # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
-        # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
-        # images.
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-        #par['calibrations']['traceframe']['process']['bias'] = 'force'
-        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
-        #par['scienceframe']['process']['bias'] = 'skip'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -488,32 +461,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             vlt_sc = dataPaths.static_calibs / 'vlt_xshoooter'
             bpm_loc = np.loadtxt(vlt_sc.get_file_path('BP_MAP_RP_NIR.dat'), usecols=(0,1))
             bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
-#            try :
-#                bpm_loc = np.loadtxt(vlt_sc.get_file_path('BP_MAP_RP_NIR.dat'), usecols=(0,1))
-#            except IOError :
-#                # TODO: Do we need this anymore?  Both the *.dat and *.fits.gz
-#                # files are present in the repo.
-#                msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-#                bpm_fits = io.fits_open(vlt_sc.get_file_path('BP_MAP_RP_NIR.fits.gz'))
-#                # ToDo: this depends on datasec, biassec, specflip, and specaxis
-#                #       and should become able to adapt to these parameters.
-#                # Flipping and shifting BPM to match the PypeIt format
-#                y_shift = -2
-#                x_shift = 18
-#                bpm_data = np.flipud(bpm_fits[0].data)
-#                y_len = len(bpm_data[:,0])
-#                x_len = len(bpm_data[0,:])
-#                bpm_data_pypeit = np.full( ((y_len+abs(y_shift)),(x_len+abs(x_shift))) , 0)
-#                bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] = bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] + bpm_data
-#                bpm_data_pypeit = np.roll(bpm_data_pypeit,-y_shift,axis=0)
-#                bpm_data_pypeit = np.roll(bpm_data_pypeit,x_shift,axis=1)
-#                filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
-#                y_bpm, x_bpm = np.where(filt_bpm)
-#                bpm_loc = np.array([y_bpm,x_bpm]).T
-#                # NOTE: This directly access the path, but we shouldn't be doing that...
-#                np.savetxt(vlt_sc.path / 'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
-#            finally :
-#                bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
         return bpm_img
 
@@ -548,8 +495,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         Return the minimum and maximum spectral pixel expected for the
         spectral range of each order.
         """
-        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
-        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+        spec_max = np.asarray([1477,1513,1547, 1588,1628,1682,1733, 1795, 1855, 1930, 2005,  2040,2040,2040,2040,2040])
+        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210,  165,   115,   58,   5,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
@@ -572,9 +519,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # TODO: Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
-
-        # Right now I just assume a simple linear trend
-        plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
+        
+        
+        # FBD 2024: Latest versions of manual give 0.245" as the average
+        plate_scale = 0.245*np.ones_like(order_vec)
         return plate_scale
 
     @property
@@ -633,17 +581,17 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.16, # average from order 17 and order 30, see manual
+            platescale      = 0.154, # average from order 17 and order 30, see manual
             darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.86,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(0.595), # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
-            ronoise         = np.atleast_1d(3.1), # raw unbinned images are (4000,2106) (spec, spat)
-            datasec=np.atleast_1d('[:,11:2058]'),  # pre and oscan are in the spatial direction
-            oscansec=np.atleast_1d('[:,2059:2106]'),
-        )
+            gain            = np.atleast_1d(0.64),   # Assumes high gain. TODO: grab this from the header
+            ronoise         = np.atleast_1d(3.4),    # Assumes slow readout. TODO: grab this from the header
+            datasec=np.atleast_1d('[:,11:2058]'),    # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
+            oscansec=np.atleast_1d('[:,2059:2106]'), # raw unbinned images are (4000,2106) (spec, spat)
+        )                                            # pre and oscan are in the spatial direction
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -924,14 +872,14 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             specaxis        = 0,
             specflip        = True,
             spatflip        = True,
-            platescale      = 0.161, # average from order 14 and order 24, see manual
+            platescale      = 0.164, # average from order 14 and order 24, see manual
             darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 0.86,  
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(1.61),
-            ronoise         = np.atleast_1d(2.60),
+            gain            = np.atleast_1d(0.63), # Assumes high gain. TODO: grab this from the header
+            ronoise         = np.atleast_1d(2.4),  # Assumes slow readout. TODO: grab this from the header
             datasec         = np.atleast_1d('[:,49:2096]'), # '[49:2000,1:2999]',
             oscansec        = np.atleast_1d('[:,1:48]'), # '[1:48, 1:2999]',
             )
