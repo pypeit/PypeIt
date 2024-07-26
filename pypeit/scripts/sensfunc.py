@@ -21,6 +21,8 @@ class SensFunc(scriptbase.ScriptBase):
         parser.add_argument("spec1dfile", type=str,
                             help='spec1d file for the standard that will be used to compute '
                                  'the sensitivity function')
+        parser.add_argument("--extr", type=str, default='OPT', choices=['OPT', 'BOX'],
+                            help='Extraction method to use. Default is OPT.  Options are: OPT or BOX')
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
                             help="R|Override the default algorithm for computing the sensitivity "
                                  "function.  Note that it is not possible to set --algorithm and "
@@ -121,6 +123,15 @@ class SensFunc(scriptbase.ScriptBase):
                        "              multi_spec_det = 3,7\n"
                        "\n")
 
+        if args.extr is not None and args.sens_file is not None:
+            msgs.error("It is not possible to set --extr and simultaneously use a .sens file via "
+                       "the --sens_file option. If you are using a .sens file set the extraction "
+                       "method there via:\n"
+                       "\n"
+                       "         [sensfunc]\n"
+                       "              extr = BOX\n"
+                       "\n")
+
 
         # Determine the spectrograph and generate the primary FITS header
         with io.fits_open(args.spec1dfile) as hdul:
@@ -166,6 +177,11 @@ class SensFunc(scriptbase.ScriptBase):
             # parse
             multi_spec_det  = [int(item) for item in args.multi.split(',')]
             par['sensfunc']['multi_spec_det'] = multi_spec_det
+
+        # If extr was provided override defaults. Note this does undo .sens
+        # file since they cannot both be passed
+        if args.extr is not None:
+            par['sensfunc']['extr'] = args.extr
 
         # TODO Add parsing of detectors here. If detectors passed from the
         # command line, overwrite the parset values read in from the .sens file

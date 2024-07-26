@@ -78,6 +78,7 @@ class SensFunc(datamodel.DataContainer):
                  'pypeline': dict(otype=str, descr='PypeIt pipeline reduction path'),
                  'spec1df': dict(otype=str,
                                  descr='PypeIt spec1D file used to for sensitivity function'),
+                 'extr': dict(otype=str, descr='Extraction method used for the standard star (OPT or BOX)'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
                                  descr='File name (or shorthand) with the standard flux data'),
@@ -213,6 +214,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Input and Output files
         self.spec1df = spec1dfile
+        self.extr = par['extr']
         self.sensfile = sensfile
         self.par = par
         self.chk_version = chk_version
@@ -252,7 +254,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
-                = self.sobjs_std.unpack_object(ret_flam=False)
+                = self.sobjs_std.unpack_object(ret_flam=False, extract_type=self.extr)
 
         # Compute the blaze function
         # TODO Make the blaze function optional
@@ -470,7 +472,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack the fluxed standard
         _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ \
-                = self.sobjs_std.unpack_object(ret_flam=True)
+                = self.sobjs_std.unpack_object(ret_flam=True, extract_type=self.extr)
         # Reshape to 2d arrays
         wave, flam, flam_ivar, flam_mask, _, _, _ \
                 = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
