@@ -494,8 +494,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         Return the minimum and maximum spectral pixel expected for the
         spectral range of each order.
         """
-        spec_max = np.asarray([1477,1513,1547, 1588,1628,1682,1733, 1795, 1855, 1930, 2005,  2040,2040,2040,2040,2040])
-        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210,  165,   115,   58,   5,   0,   0,   0,   0])
+        spec_max = np.asarray([1477,1513,1547, 1588,1628,1682,1733,1795,1855,1930,2005,2040,2040,2040,2040,2040])
+        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248, 210, 165, 115,  58,   5,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
