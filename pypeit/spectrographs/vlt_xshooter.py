@@ -309,8 +309,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['reduce']['findobj']['find_extrap_npoly'] = 3
-        par['reduce']['findobj']['trace_npoly'] = 3
+        par['reduce']['findobj']['trace_npoly'] = 8
         par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is only one object on the slit.
         par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object on the slit.
 
