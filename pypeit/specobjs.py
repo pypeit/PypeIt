@@ -221,8 +221,10 @@ class SpecObjs:
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        if getattr(self, flux_key)[0] is None:
-            msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
+
+        if np.any([f is None for f in getattr(self, flux_key)]):
+            other = 'OPT' if extract_type == 'BOX' else 'BOX'
+            msgs.error(f"Some or all fluxes are not available for {extract_type} extraction. Try {other} extraction.")
         #
         nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
@@ -1068,5 +1070,5 @@ def lst_to_array(lst, mask=None):
     if isinstance(lst[0], units.Quantity):
         return units.Quantity(lst)[mask]
     else:
-        return np.array(lst)[mask]
+        return np.array(lst, dtype="object")[mask]
 

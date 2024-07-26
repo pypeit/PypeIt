@@ -1921,7 +1921,7 @@ class SensFuncPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
-                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1938,6 +1938,11 @@ class SensFuncPar(ParSet):
         descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
                             'function computed from a flat field file in the Calibrations directory, e.g.' \
                             'Calibrations/Flat_A_0_DET01.fits'
+
+        defaults['extr'] = 'OPT'
+        dtypes['extr'] = str
+        descr['extr'] = 'Extraction method to use for the sensitivity function.  Options are: ' \
+                        '\'OPT\' (optimal extraction), \'BOX\' (boxcar extraction). Default is \'OPT\'.'
 
         defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
@@ -2028,7 +2033,7 @@ class SensFuncPar(ParSet):
                                           options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-#        self.validate()
+        self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
@@ -2036,7 +2041,7 @@ class SensFuncPar(ParSet):
 
         # Single element parameters
         parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
@@ -2057,6 +2062,14 @@ class SensFuncPar(ParSet):
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        allowed_extractions = ['BOX', 'OPT']
+        if self.data['extr'] not in allowed_extractions:
+            msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
 
     @staticmethod
     def valid_algorithms():
