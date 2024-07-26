@@ -112,6 +112,11 @@ class Show1DSpec(scriptbase.ScriptBase):
         else:
             exten = args.exten-1 # 1-index in FITS file
 
+        # Check Extraction
+        if args.extract == 'OPT':
+            if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
+                    msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
+        
         if args.ginga:
             # show the 1d spectrum in Ginga
             from pypeit.display.display import show_1dspec
@@ -120,11 +125,6 @@ class Show1DSpec(scriptbase.ScriptBase):
                         masked=args.masked, extraction=args.extract,
                         fluxed=args.flux)
             return
-
-        # Check Extraction
-        if args.extract == 'OPT':
-            if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                    msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
         spec = sobjs[exten].to_xspec1d(masked=args.masked, extraction=args.extract,
                                        fluxed=args.flux)
