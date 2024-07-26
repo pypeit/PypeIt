@@ -42,7 +42,7 @@ Under-the-hood Improvements
 Bug Fixes
 ---------
 
+- Fix "The system cannot find the file specified" errors when installing on Windows.
 - Fixed a fault caused when all frames in a pypeit file are identified as being
   part of ``all`` calibration groups.
 - Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
-
