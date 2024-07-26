@@ -1265,6 +1265,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
         det=det,
         inmask=inmask, 
         std_trace=std_trace,
+        ncoeff=ncoeff,
         specobj_dict=specobj_dict,
         snr_thresh=snr_thresh,
         show_peaks=show_peaks, 
