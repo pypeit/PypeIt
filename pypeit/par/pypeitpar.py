@@ -4207,8 +4207,7 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
-        # TODO do we want this to be True or False by default?
-        defaults['use_std_trace'] = False
+        defaults['use_std_trace'] = True
         dtypes['use_std_trace'] = bool
         descr['use_std_trace'] = 'If True, the trace of the standard star spectrum is used as a crutch for ' \
                                  'tracing the object spectra. This is useful when a direct trace is not possible ' \
