@@ -258,7 +258,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     # Generate a whitelight image, and fit a 2D Gaussian to estimate centroid and width
     msgs.info("Making white light image")
-    wl_img = make_whitelight_fromcube(_flxcube, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
+    wl_img = make_whitelight_fromcube(_flxcube, bpmcube, wave=wave, wavemin=whitelight_range[0], wavemax=whitelight_range[1])
     popt, pcov, model = fitGaussian2D(wl_img, norm=True)
     if boxcar_radius is None:
         nsig = 4  # 4 sigma should be far enough... Note: percentage enclosed for 2D Gaussian = 1-np.exp(-0.5 * nsig**2)
