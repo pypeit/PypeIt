@@ -1076,5 +1076,15 @@ def lst_to_array(lst, mask=None):
     if isinstance(lst[0], units.Quantity):
         return units.Quantity(lst)[mask]
     else:
-        return np.array(lst, dtype="object")[mask]
+        # if all the elements of lst have the same type, np.array(lst)[mask] will work
+        if len(set(map(type, lst))) == 1:
+            return np.array(lst)[mask]
+        else:
+            # if not, we need to use dtype="object"
+            return np.array(lst, dtype="object")[mask]
+        # TODO: The dtype="object" is needed for the case where one element of lst is not a list but None.
+        #  This would prevent the error "ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions..."
+        #  However, this is may introduce other issues, where an array of objects creates problems in other parts of the code.
+        #  I am using this workaround. Any suggestions/ideas?
+
 
