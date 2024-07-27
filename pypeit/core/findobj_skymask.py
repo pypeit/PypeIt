@@ -2566,7 +2566,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     if len(sobjs) > 0:
         msgs.info('Fitting the object traces')
         # Note the transpose is here to pass in the TRACE_SPAT correctly.
-        xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
+        xinit_fweight = np.copy(sobjs.TRACE_SPAT.T).astype(float)
         spec_mask = (spec_vec >= spec_min_max_out[0]) & (spec_vec <= spec_min_max_out[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask), maxshift=1.,
