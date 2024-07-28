@@ -620,11 +620,11 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                     idx = np.where(std_trace['ECH_ORDER'] == this_order)[0][0]
                     # standard star trace in this order
                     std_in = std_trace[idx]['TRACE_SPAT']
-                    x_trace = np.interp(slit_spec_pos, spec_vec, std_in[:,iord])
+                    x_trace = np.interp(slit_spec_pos, spec_vec, std_in)
                     shift = np.interp(
                         slit_spec_pos, spec_vec, slit_left[:,iord] + 
                         slit_width[:,iord]*frac_mean_new[iord]) - x_trace
-                    thisobj.TRACE_SPAT = std_in[:,iord] + shift
+                    thisobj.TRACE_SPAT = std_in + shift
                 else:
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
