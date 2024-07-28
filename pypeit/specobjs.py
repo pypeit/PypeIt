@@ -1010,6 +1010,7 @@ class SpecObjs:
 
         return groups
 
+
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile, chk_version=True):
     """
@@ -1022,9 +1023,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              Filename with the standard star spec1d file.  Can be None.
 
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
-         be None if ``std_outfile`` is None, or if the selected detector/mosaic
-         is not available in the provided spec1d file.
+         `astropy.table.Table`_: Table with the trace of the standard star on the input detector.
+         If this is a MultiSlit reduction, the table will have a single column: `TRACE_SPAT`.
+         If this is an Echelle reduction, the table will have two columns: `ECH_ORDER` and `TRACE_SPAT`.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file, or for SlicerIFU reductions.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -1041,20 +1044,24 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         # No standard extracted on this detector??
         if sobjs_std is None:
             return None
-        std_trace = sobjs_std.TRACE_SPAT
+
+        # create table that contains the trace of the standard
+        std_tab = Table()
         # flatten the array if this multislit
         if 'MultiSlit' in pypeline:
-            std_trace = std_trace.flatten()
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'Echelle' in pypeline:
-            std_trace = std_trace.T
+            std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'SlicerIFU' in pypeline:
-            std_trace = None
+            std_tab = None
         else:
             msgs.error('Unrecognized pypeline')
     else:
-        std_trace = None
+        std_tab = None
 
-    return std_trace
+    return std_tab
+
 
 def lst_to_array(lst, mask=None):
     """
