@@ -21,6 +21,7 @@ Functionality/Performance Improvements and Additions
 - Added the possibility to decide if the extracted standard star spectrum should be
   used as a crutch for tracing the object in the science frame (before it was done as default).
   This is done by setting the parameter ``use_std_trace`` in FindObjPar.
+- Now PypeIt can handle the case where "Standard star trace does not match the number of orders in the echelle data"
 
 Instrument-specific Updates
 ---------------------------
