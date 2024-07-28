@@ -326,8 +326,13 @@ class FindObjects:
 
         Parameters
         ----------
-        std_trace : `numpy.ndarray`_, optional
-            Trace of the standard star
+        std_trace : `astropy.table.Table`_:, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            For Echelle reduction, the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). For SlicerIFU reduction, std_trace is None.
+            If None, the slit boundaries are used as the crutch.
         show_peaks : :obj:`bool`, optional
             Show peaks in find_objects methods
         show_skysub_fit : :obj:`bool`, optional
@@ -400,11 +405,13 @@ class FindObjects:
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_:, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            For Echelle reduction, the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). For SlicerIFU reduction, std_trace is None.
+            If None, the slit boundaries are used as the crutch.
         show_peaks : :obj:`bool`, optional
             Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
@@ -724,11 +731,12 @@ class MultiSlitFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_:, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            The shape of each row must be (nspec,). If None,
+            the slit boundaries are used as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
@@ -798,7 +806,7 @@ class MultiSlitFindObjects(FindObjects):
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-                                std_trace=std_trace,
+                                std_trace=std_trace[0]['TRACE_SPAT'],
                                 snr_thresh=snr_thresh,
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -874,11 +882,12 @@ class EchelleFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_:, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For Echelle reduction,
+            the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). If None,
+            the slit boundaries are used as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional

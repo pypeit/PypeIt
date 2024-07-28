@@ -11,6 +11,7 @@ import scipy.ndimage
 import matplotlib.pyplot as plt
 
 import astropy.stats
+from astropy import table
 
 from pypeit import msgs
 from pypeit import utils
@@ -238,10 +239,11 @@ def ech_findobj_ineach_order(
             Good-pixel mask for input image.  Must have the same shape as
             ``image``.  If None, all pixels in ``slitmask`` with non-negative
             values are considered good.
-        std_trace (`numpy.ndarray`_, optional):
-            Vector with the standard star trace, which is used as a crutch for
-            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
-            used as the crutch.
+        std_trace (`astropy.table.Table`_:, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
         box_radius (:obj:`float`, optional):
@@ -313,7 +315,10 @@ def ech_findobj_ineach_order(
         specobj_dict['SLITID'] = slit_spats[iord]
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = iorder
-        std_in = None if std_trace is None else std_trace[:, iord]
+        std_in = None
+        if std_trace is not None and 'ECH_ORDER' in std_trace.keys() and np.any(std_trace['ECH_ORDER'] == iorder):
+            idx = np.where(std_trace['ECH_ORDER'] == iorder)[0][0]
+            std_in = std_trace[idx]['TRACE_SPAT']
 
         # Get SLTIORD_ID for the objfind QA
         ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
@@ -444,7 +449,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                   slit_spat_id: np.ndarray,
                   order_vec:np.ndarray,
                   obj_id:np.ndarray,
-                  std_trace:specobjs.SpecObjs=None,
+                  std_trace:table.Table=None,
                   show:bool=False):
     """
     For objects which were only found on some orders, the standard (or
@@ -484,9 +489,11 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             ``np.arange(norders)`` (but this is *not* recommended).
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
-        std_trace (:class:`~pypeit.specobjs.SpecObjs`, optional):
-            Standard star objects (including the traces)
-            Defaults to None.
+        std_trace (`astropy.table.Table`_:, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         show (bool, optional): 
             Plot diagnostics related to filling the
             missing orders
@@ -506,8 +513,9 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     slit_width = slit_righ - slit_left
 
     # Check standard star
-    if std_trace is not None and std_trace.shape[1] != norders:
-        msgs.error('Standard star trace does not match the number of orders in the echelle data.')
+    if std_trace is not None and len(std_trace) != norders:
+        msgs.warn('Standard star trace does not match the number of orders in the echelle data.'
+                  ' Will use the slit edges to trace the object in the missing orders.')
 
     # For traces
     nspec = slit_left.shape[0]
@@ -607,12 +615,16 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
-                if std_trace is not None:
-                    x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
+                if std_trace is not None and 'ECH_ORDER' in std_trace.keys() and \
+                        np.any(std_trace['ECH_ORDER'] == this_order):
+                    idx = np.where(std_trace['ECH_ORDER'] == this_order)[0][0]
+                    # standard star trace in this order
+                    std_in = std_trace[idx]['TRACE_SPAT']
+                    x_trace = np.interp(slit_spec_pos, spec_vec, std_in[:,iord])
                     shift = np.interp(
                         slit_spec_pos, spec_vec, slit_left[:,iord] + 
                         slit_width[:,iord]*frac_mean_new[iord]) - x_trace
-                    thisobj.TRACE_SPAT = std_trace[:,iord] + shift
+                    thisobj.TRACE_SPAT = std_in[:,iord] + shift
                 else:
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
@@ -1124,10 +1136,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             Plate scale in arcsec/pix. This can either be a single float for
             every order, or an array with shape (norders,) providing the plate
             scale of each order.
-        std_trace (`numpy.ndarray`_, optional):
-            Vector with the standard star trace, which is used as a crutch for
-            tracing.  Shape must be (nspec,).  If None, the slit boundaries are
-            used as the crutch.
+        std_trace (`astropy.table.Table`_:, optional):
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. The table has two columns:
+            `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
+            If None, or for missing orders, the slit boundaries are used as the crutch.
         ncoeff (:obj:`int`, optional):
             Order of polynomial fit to traces.
         npca (:obj:`int`, optional):
@@ -1325,7 +1338,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
 
     return sobjs_ech
 
-
+# TODO: THIS IS DEPRECATED
 def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det='DET01',
                 inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
@@ -2537,6 +2550,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
                 # If no standard trace is provided shift left slit boundary over to be initial trace
             else:
                 # ToDO make this the average left and right boundary instead. That would be more robust.
+                # Print a status message for the first object
+                if iobj == 0:
+                    msgs.info('Using slit edges as crutch for object tracing')
                 sobjs[iobj].TRACE_SPAT = slit_left + xsize*sobjs[iobj].SPAT_FRACPOS
 
             sobjs[iobj].trace_spec = spec_vec
