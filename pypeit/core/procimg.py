@@ -813,6 +813,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         frequency = np.mean(frq)
 
     # Perform the overscan subtraction for each amplifier
+    full_model = np.zeros_like(frame_orig)  # Store the model pattern for all amplifiers in this array
     for aa, amp in enumerate(amps):
         # Get the frequency to use for this amplifier
         if isinstance(frequency, list):
@@ -823,9 +824,9 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             use_fr = frequency
 
         # Extract overscan
-        overscan, os_slice = rect_slice_with_mask(frame_orig, tmp_oscan, amp)
+        overscan, os_slice = rect_slice_with_mask(frame_orig.copy(), tmp_oscan, amp)
         # Extract overscan+data
-        oscandata, osd_slice = rect_slice_with_mask(frame_orig, tmp_oscan+tmp_data, amp)
+        oscandata, osd_slice = rect_slice_with_mask(frame_orig.copy(), tmp_oscan+tmp_data, amp)
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
@@ -854,7 +855,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         tmpamp = np.fft.rfft(overscan, axis=1)
         idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(tmpamp), axis=1))
         # Convert result to amplitude and phase
-        amps = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
+        ampls = (np.abs(tmpamp))[idx] * (2.0 / overscan.shape[1])
 
         # STEP 2 - Using the model frequency, calculate how amplitude depends on pixel row (usually constant)
         # Use the above to as initial guess parameters for a chi-squared minimisation of the amplitudes
@@ -877,7 +878,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             try:
                 # Now fit it
                 popt, pcov = scipy.optimize.curve_fit(
-                    cosfunc, cent[wgd], hist[wgd], p0=[amps[ii], 0.0],
+                    cosfunc, cent[wgd], hist[wgd], p0=[ampls[ii], 0.0],
                     bounds=([0, -np.inf],[np.inf, np.inf])
                 )
             except ValueError:
@@ -920,21 +921,15 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             model_pattern[ii, :] = cosfunc_full(xdata_all, amp_mod[ii], frq_mod[ii], popt[0])
 
         # Estimate the improvement of the effective read noise
-        tmp = outframe.copy()
-        tmp[osd_slice] -= model_pattern
-        mod_oscan, _ = rect_slice_with_mask(tmp, tmp_oscan, amp)
-        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5)[-1]
-        new_ron = astropy.stats.sigma_clipped_stats(overscan-mod_oscan, sigma=5)[-1]
+        full_model[osd_slice] = model_pattern
+        old_ron = astropy.stats.sigma_clipped_stats(overscan, sigma=5, stdfunc='mad_std')[-1]
+        new_ron = astropy.stats.sigma_clipped_stats(overscan-full_model[os_slice], sigma=5, stdfunc='mad_std')[-1]
         msgs.info(f'Effective read noise of amplifier {amp} reduced by a factor of {old_ron/new_ron:.2f}x')
-
-        # Subtract the model pattern from the full datasec
-        outframe[osd_slice] -= model_pattern
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
-        outframe = outframe.T
-    # Return the result
-    return outframe
+        return (outframe - full_model).T
+    return outframe - full_model
 
 
 def pattern_frequency(frame, axis=1):
@@ -1395,3 +1390,51 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
     return var
 
 
+def nonlinear_counts(counts, ampimage, nonlinearity_coeffs):
+    r"""
+    Apply a nonlinearity correction to the provided counts.
+
+    The nonlinearity correction is applied to the provided ``counts`` using the
+    hard-coded parameters in the provided ``nonlinearity_coeffs``.  The
+    correction is applied to the provided ``counts`` using the following
+    equation:
+
+    .. math::
+
+        C_{\rm corr} = C \left[ 1 + a_i C \right]
+
+    where :math:`C` is the provided counts, :math:`C_{\rm corr}` is the corrected counts
+    :math:`a_i` are the provided coefficients (one for each amplifier).
+
+    Parameters
+    ----------
+    counts : `numpy.ndarray`_
+        Array with the counts to correct.
+    ampimage : `numpy.ndarray`_
+        Array with the amplifier image.  This is used to determine the
+        amplifier-dependent nonlinearity correction coefficients.
+    nonlinearity_coeffs : `numpy.ndarray`_
+        Array with the nonlinearity correction coefficients.  The shape of the
+        array must be :math:`(N_{\rm amp})`, where :math:`N_{\rm amp}` is the
+        number of amplifiers. The coefficients are applied to the counts using
+        the equation above.
+
+    Returns
+    -------
+    corr_counts :
+        Array with the corrected counts.
+    """
+    msgs.info('Applying a non-linearity correction to the counts.')
+    # Check the input
+    if counts.shape != ampimage.shape:
+        msgs.error('Counts and amplifier image have different shapes.')
+    _nonlinearity_coeffs = np.asarray(nonlinearity_coeffs)
+    # Setup the output array
+    corr_counts = counts.copy()
+    unqamp = np.unique(ampimage)
+    for uu in range(unqamp.size):
+        thisamp = unqamp[uu]
+        indx = (ampimage == thisamp)
+        corr_counts[indx] = counts[indx] * (1. + _nonlinearity_coeffs[thisamp]*counts[indx])
+    # Apply the correction
+    return corr_counts
