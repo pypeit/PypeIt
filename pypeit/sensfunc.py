@@ -339,7 +339,6 @@ class SensFunc(datamodel.DataContainer):
         # to get rid of this .squeeze()
         return log10_blaze_function.squeeze()
 
-
     def _bundle(self):
         """
         Bundle the object for writing using
@@ -482,7 +481,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
-
 
     def eval_zeropoint(self, wave, iorddet):
         """
