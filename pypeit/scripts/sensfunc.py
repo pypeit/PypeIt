@@ -59,8 +59,9 @@ class SensFunc(scriptbase.ScriptBase):
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
         parser.add_argument("-f", "--flatfile", type=str,
-                            help="R|Use the flat file for computing the sensitivity "
-                                 "function.  Note that it is not possible to set --flatfile and "
+                            help="R|Use a flat calibration file to compute the blaze function when generating "
+                                 "the sensitivity function.  This is helpful to account for small scale undulations "
+                                 "in the sensitivity function.  Note that it is not possible to set --flatfile and "
                                  "simultaneously use a .sens file with the --sens_file option. If "
                                  "you are using a .sens file, set the flatfile there via e.g.:\n\n"
                                  "F|    [sensfunc]\n"
