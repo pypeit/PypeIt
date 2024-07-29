@@ -800,13 +800,17 @@ class MultiSlitFindObjects(FindObjects):
 
             maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
                 else self.par['reduce']['findobj']['maxnumber_sci']
+            # standard star
+            std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
+
+            # Find objects
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-                                std_trace=std_trace[0]['TRACE_SPAT'],
+                                std_trace=std_in,
                                 snr_thresh=snr_thresh,
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
