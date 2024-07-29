@@ -181,8 +181,8 @@ class TraceAlignment:
             dict:  self.align_dict
         """
         # Generate slits
-        slitid_img_init = self.slits.slit_img(initial=True)
-        left, right, _ = self.slits.select_edges(initial=True)
+        slitid_img_init = self.slits.slit_img()
+        left, right, _ = self.slits.select_edges()
         align_prof = dict({})
 
         # Go through the slits

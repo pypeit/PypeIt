@@ -666,7 +666,7 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+        offslitmask = self.slits.slit_img(pad=pad, flexure=None) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
@@ -837,6 +837,7 @@ class Calibrations:
             msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
+
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
