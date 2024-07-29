@@ -44,7 +44,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['calibrations']['slitedges']['edge_thresh'] = 5.
+        par['calibrations']['slitedges']['edge_thresh'] = 3.
         par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
