@@ -510,9 +510,15 @@ class EchelleCoAdd1D(CoAdd1D):
                     header_out['RA_OBJ']  = sobjs[indx][0]['RA']
                     header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
-            # Store the information
-            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
-                = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+            # TODO :: The error below can be removed if we refactor to use a list of numpy arrays. But, if we do that,
+            #  we need to make several changes to the ech_combspec function.
+            try:
+                # Store the information
+                waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
+                    = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
+            except ValueError:
+                msgs.error('The shape (Nspec,Norder) of spectra is not consistent between exposures. '
+                           'These spec1ds cannot be coadded at this time.')
 
         return waves, fluxes, ivars, gpms, weights_sens, header_out
 
