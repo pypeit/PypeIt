@@ -297,6 +297,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
         par['calibrations']['wavelengths']['qa_log'] = False
+        # Measured FWHM is correct, but resulting wavelength solution is poor.
+        # This should be explored further, but for now, turning off fwhm_fromlines helps.
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = False
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
