@@ -22,6 +22,7 @@ Functionality/Performance Improvements and Additions
   used as a crutch for tracing the object in the science frame (before it was done as default).
   This is done by setting the parameter ``use_std_trace`` in FindObjPar.
 - Now PypeIt can handle the case where "Standard star trace does not match the number of orders in the echelle data"
+  both in `run_pypeit` and in `pypeit_coadd_1dspec`.
 
 Instrument-specific Updates
 ---------------------------
@@ -33,15 +34,14 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
-- Added the ``--extr`` parameter in the ``pypeit_sensfunc`` script (also as a SensFuncPar)
-  to allow the user to specify the extraction method to use when computing the sensitivity
-  function (before only optimal extraction was used).
-
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
 - The `grating_corr` column is now used to select the correct grating
   correction file for each spec2d file when generating the datacube.
+- Added the ``--extr`` parameter in the ``pypeit_sensfunc`` script (also as a SensFuncPar)
+  to allow the user to specify the extraction method to use when computing the sensitivity
+  function (before only optimal extraction was used).
 
 Datamodel Changes
 -----------------
