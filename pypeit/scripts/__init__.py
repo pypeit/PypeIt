@@ -21,6 +21,7 @@ from pypeit.scripts import coadd_datacube
 from pypeit.scripts import collate_1d
 from pypeit.scripts import compare_sky
 from pypeit.scripts import edge_inspector
+from pypeit.scripts import extract_datacube
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
@@ -64,5 +65,3 @@ def script_classes():
     return dict([ (n,c) for n,c in zip(scr_n[srt],scr_c[srt])])
 
 pypeit_scripts = list(script_classes().keys())
-
-
