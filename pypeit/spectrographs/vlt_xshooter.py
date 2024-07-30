@@ -413,14 +413,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                                | (fitstbl['target'] == 'LAMP,FLAT'))
                                & good_flat_seq)
         
-        if ftype in ['dark']:
+        if ftype in ['lampoffflats']:
             # Lamp off flats are taken second (even exposure number)
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                 | (fitstbl['target'] == 'LAMP,QFLAT')
                                 | (fitstbl['target'] == 'LAMP,FLAT'))
                                & good_dark_seq)
-        
-        # TODO: Figure out how to identify lampoffflats
         
         if ftype == 'pinhole':
             # Don't type pinhole
