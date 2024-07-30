@@ -202,7 +202,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
         super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfuncfile=sensfuncfile,
                          setup_id=setup_id, debug=debug, show=show, chk_version=chk_version)
 
-
     def load(self):
         """
         Load the arrays we need for performing coadds.
@@ -461,8 +460,7 @@ class EchelleCoAdd1D(CoAdd1D):
                                      lower=self.par['lower'], upper=self.par['upper'],
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show, show_exp=self.show)
-        
-        
+
         return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd, order_stacks
 
     def load_ech_arrays(self, spec1dfiles, objids, sensfuncfiles):
@@ -474,7 +472,7 @@ class EchelleCoAdd1D(CoAdd1D):
                 List of spec1d files for this setup.
             objids (list):
                 List of objids. This is aligned with spec1dfiles
-            sensfuncfile (list):
+            sensfuncfiles (list):
                 List of sensfuncfiles. This is aligned with spec1dfiles and objids
 
         Returns:
@@ -488,7 +486,7 @@ class EchelleCoAdd1D(CoAdd1D):
             indx = sobjs.name_indices(objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, _, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, _, _, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # This np.atleast2d hack deals with the situation where we are wave_iexp is actually Multislit data, i.e. we are treating
             # it like an echelle spectrograph with a single order. This usage case arises when we want to use the
@@ -496,6 +494,7 @@ class EchelleCoAdd1D(CoAdd1D):
             if wave_iexp.ndim == 1:
                 wave_iexp, flux_iexp, ivar_iexp, gpm_iexp = np.atleast_2d(wave_iexp).T, np.atleast_2d(flux_iexp).T, np.atleast_2d(ivar_iexp).T, np.atleast_2d(gpm_iexp).T
             weights_sens_iexp = sensfunc.SensFunc.sensfunc_weights(sensfuncfiles[iexp], wave_iexp,
+                                                                   ech_order_vec=meta_spec['ECH_ORDERS'],
                                                                    debug=self.debug,
                                                                    chk_version=self.chk_version)
             # Allocate arrays on first iteration
@@ -515,9 +514,7 @@ class EchelleCoAdd1D(CoAdd1D):
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp], weights_sens[...,iexp] \
                 = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, weights_sens_iexp
 
-
         return waves, fluxes, ivars, gpms, weights_sens, header_out
-
 
     def load(self):
         """
@@ -562,8 +559,6 @@ class EchelleCoAdd1D(CoAdd1D):
             loaded = self.load_ech_arrays(_spec1dfiles[setup_indx], _objids[setup_indx], _sensfuncfiles[setup_indx])
             for c, l in zip(combined, loaded):
                 c.append(l)
-
-
 
         return waves, fluxes, ivars, gpms, weights_sens, headers
 
