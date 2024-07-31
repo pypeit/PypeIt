@@ -175,7 +175,7 @@ class TraceEdges(scriptbase.ScriptBase):
                                            debug=args.debug, show_stages=args.show,
                                            qa_path=qa_path)
 
-            print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+            msgs.info(f'Tracing for detector {det} finished in { time.perf_counter()-t:.1f} s.')
             # Write the two calibration frames
             edges.to_file()
             edges.get_slits().to_file()

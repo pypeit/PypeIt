@@ -4928,7 +4928,48 @@ class EdgeTraceSet(calibframe.CalibFrame):
         """
         Refine the order locations for "free-format" Echelles.
 
-        Traces must be synced before reaching here.
+        Traces must be synced before calling this function.
+
+        The procedure is as follows:
+
+            - The function selects the good traces and calculates the width of
+              each order and the gap between each order and fits them with
+              Legendre polynomials (using the polynomial orders set by the
+              ``order_width_poly`` and ``order_gap_poly`` parameters); 5-sigma
+              outliers are removed from the fit.
+
+            - Based on this fit, the code adds missed orders, both interspersed
+              with detected orders and extrapolated over the full spatial range
+              of the detector/mosaic.  The spatial extent over which this
+              prediction is performed is set by ``order_spat_range`` and can be
+              limited by any resulting overlap in the prediction, as set by
+              ``max_overlap``.
+
+            - Any detected "orders" that are actually the adjoining of one or
+              more orders are flagged for rejection.
+
+        Args:
+            reference_row (:obj:`int`):
+                The index of the spectral pixel (row) in the set of left and
+                right traces at which to predict the positions of the missed
+                orders.  Nominally, this is the reference row used for the
+                construction of the trace PCA.
+            combined_order_tol (:obj:`float`, optional):
+                For orders that are very nearly overlapping, the automated edge
+                tracing can often miss the right and left edges of two adjacent
+                orders.  This leads to the detected edges of two adjacent orders
+                being combined into a single order.  This value sets the maximum
+                ratio of the width of any given detected order to the polynomial
+                fit to the order width as a function of spatial position on the
+                detector.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ objects that provide (1,2) the
+            left and right edges of orders to be added to the set of edge traces
+            and (3) a boolean array indicating which of the existing traces
+            should be removed.
         """
         # Select the left/right traces
         # TODO: This is pulled from get_slits.  Maybe want a function for this.
@@ -5022,26 +5063,43 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Sort the left edges
         _left = _left[srt]
 
+        # NOTE: Although I haven't tested this, I think this approach works best
+        # under the assumption that the overlap *decreases* from small pixel
+        # numbers to large pixel numbers.  This should be true if the pypeit
+        # convention is maintained with blue orders toward small pixel values
+        # and red orders at large pixel values.
+
         # Deal with overlapping orders among the ones to be added.  The edges
         # are adjusted equally on both sides to avoid changing the order center
         # and exclude the overlap regions from the reduction.
-        if np.any(_left[1:] - _right[:-1] < 0):
-            # Loop sequentially so that each pair is updated as the loop progresses
-            for i in range(1, _left.size):
-                # *Negative* of the gap; i.e., positives values means there's
-                # overlap
-                ngap = _right[i-1] - _left[i]
-                if ngap > 0:
-                    # Adjust both order edges to avoid the overlap region but
-                    # keep the same center coordinate
-                    _left[i-1] += ngap
-                    _right[i-1] -= ngap
-                    _left[i] += ngap
-                    _right[i] -= ngap
+        if np.all(_left[1:] - _right[:-1] > 0):
+            # There is no overlap, so just return the orders to add
+            return add_left, add_right, rmtraces
+
+        # Loop sequentially so that each pair is updated as the loop progresses
+        nord = _left.size
+        good_order = np.ones(nord, dtype=bool)
+        for i in range(1, nord):
+            # *Negative* of the gap; i.e., positives values means there's
+            # overlap
+            ngap = _right[i-1] - _left[i]
+            if ngap > 0:
+                if self.par['max_overlap'] is not None:
+                    good_order[i-1] = 2*ngap/(_right[i-1] - _left[i-1]) < self.par['max_overlap']
+                    good_order[i] = 2*ngap/(_right[i] - _left[i]) < self.par['max_overlap']
+                # Adjust both order edges to avoid the overlap region but
+                # keep the same center coordinate
+                _left[i-1] += ngap
+                _right[i-1] -= ngap
+                _left[i] += ngap
+                _right[i] -= ngap
 
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
-        return _left[isrt][:add_left.size], _right[isrt][:add_right.size], rmtraces
+        good_order = good_order[isrt][:add_left.size]
+        return _left[isrt][:add_left.size][good_order], \
+                _right[isrt][:add_left.size][good_order], \
+                rmtraces
         
     def order_refine_free_format_qa(self, cen, combined_orders, width, gap, width_fit, gap_fit,
                                     order_cen, order_missing, ofile=None):

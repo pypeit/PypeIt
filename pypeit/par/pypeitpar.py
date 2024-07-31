@@ -3227,9 +3227,10 @@ class EdgeTracePar(ParSet):
                  minimum_slit_dlength=None, dlength_range=None, minimum_slit_length=None,
                  minimum_slit_length_sci=None, length_range=None, minimum_slit_gap=None, clip=None,
                  order_match=None, order_offset=None, add_missed_orders=None, order_width_poly=None,
-                 order_gap_poly=None, order_spat_range=None, overlap=None, use_maskdesign=None,
-                 maskdesign_maxsep=None, maskdesign_step=None, maskdesign_sigrej=None, pad=None,
-                 add_slits=None, add_predict=None, rm_slits=None, maskdesign_filename=None):
+                 order_gap_poly=None, order_spat_range=None, overlap=None, max_overlap=None,
+                 use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
+                 maskdesign_sigrej=None, pad=None, add_slits=None, add_predict=None,
+                 rm_slits=None, maskdesign_filename=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3646,6 +3647,19 @@ class EdgeTracePar(ParSet):
                            'the code attempts to convert the short slits into slit gaps.  This ' \
                            'is particularly useful for blue orders in Keck-HIRES data.'
 
+        defaults['max_overlap'] = None
+        dtypes['max_overlap'] = float
+        descr['max_overlap'] = 'When adding missing echelle orders based on where existing ' \
+                               'orders are found, the prediction can yield overlapping orders.  ' \
+                               'The edges of these orders are adjusted to eliminate the ' \
+                               'overlap, and orders can be added up over the spatial range of ' \
+                               'the detector set by ``order_spate_range``.  If this value is ' \
+                               'None, orders are added regardless of how much they overlap.  ' \
+                               'If not None, this defines the maximum fraction of an order ' \
+                               'spatial width that can overlap with other orders.  For example, ' \
+                               'if ``max_overlap=0.5``, any order that overlaps its neighboring ' \
+                               'orders by more than 50% will not be added as a missing order.'
+
         defaults['use_maskdesign'] = False
         dtypes['use_maskdesign'] = bool
         descr['use_maskdesign'] = 'Use slit-mask designs to identify slits.'
@@ -3751,8 +3765,8 @@ class EdgeTracePar(ParSet):
                    'bound_detector', 'minimum_slit_dlength', 'dlength_range', 'minimum_slit_length',
                    'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
                    'order_match', 'order_offset',  'add_missed_orders', 'order_width_poly',
-                   'order_gap_poly', 'order_spat_range', 'overlap', 'use_maskdesign',
-                   'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
+                   'order_gap_poly', 'order_spat_range', 'overlap', 'max_overlap',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
                    'maskdesign_filename', 'pad', 'add_slits', 'add_predict', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -3791,6 +3805,8 @@ class EdgeTracePar(ParSet):
         if not self['auto_pca'] and self['sync_predict'] == 'pca':
             warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
             self['sync_predict'] = 'nearest'
+        if self['max_overlap'] is not None and (self['max_overlap'] < 0 or self['max_overlap'] > 1):
+            msgs.error('If defined, max_overlap must be in the range [0,1].')
 
 
 class WaveTiltsPar(ParSet):
