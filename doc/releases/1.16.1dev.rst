@@ -32,7 +32,6 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
-
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
@@ -48,6 +47,9 @@ Under-the-hood Improvements
 - Introduced :class:`~pypeit.pypeitdata.PypeItDataPaths` to handle all
   interactions with the ``pypeit/data`` directory, which provides a unified
   interface for accessing on-disk and cached files.
+- When adding missing orders, the full syncing procedure is no longer performed.
+  The code now only checks that the edges are still synced after the missed
+  orders are added.
 
 Bug Fixes
 ---------
