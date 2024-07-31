@@ -55,7 +55,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
 
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_HARPS']
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 2.0
         par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
