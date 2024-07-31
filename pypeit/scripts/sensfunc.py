@@ -21,8 +21,14 @@ class SensFunc(scriptbase.ScriptBase):
         parser.add_argument("spec1dfile", type=str,
                             help='spec1d file for the standard that will be used to compute '
                                  'the sensitivity function')
-        parser.add_argument("--extr", type=str, default='OPT', choices=['OPT', 'BOX'],
-                            help='Extraction method to use. Default is OPT.  Options are: OPT or BOX')
+        parser.add_argument("--extr", type=str, default=None, choices=['OPT', 'BOX'],
+                            help="R|Override the default extraction method used for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --extr and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the algorithm there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         extr = BOX\n"
+                                 "\nThe extraction options are: OPT or BOX")
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
                             help="R|Override the default algorithm for computing the sensitivity "
                                  "function.  Note that it is not possible to set --algorithm and "
