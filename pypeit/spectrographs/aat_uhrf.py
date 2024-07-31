@@ -103,6 +103,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 10.0
 
         # Set some parameters for the calibrations
+        # par['calibrations']['wavelengths']['reid_arxiv'] = 'None'
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['n_final'] = 3
         par['calibrations']['tilts']['spat_order'] = 4
@@ -130,8 +131,8 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='APPRA')
-        self.meta['dec'] = dict(ext=0, card='APPDEC')
+        self.meta['ra'] = dict(ext=0, card='MEANRA')
+        self.meta['dec'] = dict(ext=0, card='MEANDEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         # dispname is arm specific (blue/red)
         self.meta['decker'] = dict(ext=0, card='WINDOW')
@@ -248,10 +249,9 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
         """
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        if self.get_meta_value(scifile, 'dispname') == 'UHRF_X8':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'aat_uhrf_UFC27405.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-        else:
-            msgs.error("Wavelength setup not supported!")
+        if par['calibrations']['wavelengths']['reid_arxiv'] is None:
+            msgs.warn("Wavelength setup not supported!" + msgs.newline() + msgs.newline() +
+                       "Please perform your own wavelength calibration, and provide the path+filename using:" + msgs.newline() +
+                       msgs.pypeitpar_text(['calibrations', 'wavelengths', 'reid_arxiv = <insert path+fileanme>']))
         # Return
         return par
