@@ -18,6 +18,10 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Added the ``max_overlap`` parameter, which limits the set of new order traces
+  added, to compensate for orders missed during automated edge-tracing, to those
+  that have less than a given fractional overlap with adjacent orders.
+
 Instrument-specific Updates
 ---------------------------
 

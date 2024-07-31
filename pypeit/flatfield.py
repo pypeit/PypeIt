@@ -1584,8 +1584,9 @@ class FlatField:
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'],
                                       debug=debug)
 
-    def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93, maxfrac=0.1, debug=False):
-        """
+    def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93,
+                         maxfrac=0.1, debug=False):
+        r"""
         Tweak the slit edges based on the normalized slit illumination profile.
 
         Args:
@@ -1607,11 +1608,11 @@ class FlatField:
             method (:obj:`str`, optional):
                 Method to use for tweaking the slit edges. Options are:
                     - 'threshold': Use the threshold to set the slit edge
-                        and then shift it to the left or right based on the
-                        illumination profile.
+                      and then shift it to the left or right based on the
+                      illumination profile.
                     - 'gradient': Use the gradient of the illumination
-                        profile to set the slit edge and then shift it to
-                        the left or right based on the illumination profile.
+                      profile to set the slit edge and then shift it to
+                      the left or right based on the illumination profile.
             thresh (:obj:`float`, optional):
                 Threshold of the normalized flat profile at which to
                 place the two slit edges.
@@ -1637,6 +1638,7 @@ class FlatField:
                 - The fraction of the slit that the right edge is shifted to
                   the left
                 - The adjusted right edge
+
         """
         # TODO :: Since this is just a wrapper, and not really "core", maybe it should be moved to pypeit.flatfield?
         # Tweak the edges via the specified method

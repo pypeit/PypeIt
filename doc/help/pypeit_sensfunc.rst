@@ -62,11 +62,13 @@
       -s SENS_FILE, --sens_file SENS_FILE
                             Configuration file with sensitivity function parameters
       -f FLATFILE, --flatfile FLATFILE
-                            Use the flat file for computing the sensitivity
-                            function.  Note that it is not possible to set
-                            --flatfile and simultaneously use a .sens file with the
-                            --sens_file option. If you are using a .sens file, set
-                            the flatfile there via e.g.:
+                            Use a flat calibration file to compute the blaze
+                            function when generating the sensitivity function.  This
+                            is helpful to account for small scale undulations in the
+                            sensitivity function.  Note that it is not possible to
+                            set --flatfile and simultaneously use a .sens file with
+                            the --sens_file option. If you are using a .sens file,
+                            set the flatfile there via e.g.:
                              
                                 [sensfunc]
                                      flatfile = Calibrations/Flat_A_0_DET01.fits
