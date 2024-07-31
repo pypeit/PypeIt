@@ -602,7 +602,7 @@ class SetupGUIController(QObject):
     main_window = None
     model = PypeItSetupGUIModel()
 
-    def __init__(self, verbosity : int, spectrograph : str|None, root : list[str]|str|None, extension : str|None):
+    def __init__(self, verbosity : int, spectrograph : str|None=None, root : list[str]|str|None=None, extension : str|None=".fits"):
         super().__init__()
 
         # Note QT expects the program name as arg 0
@@ -628,6 +628,14 @@ class SetupGUIController(QObject):
             self.run_setup_at_startup = False
 
         self.model.obslog_model.default_extension = extension
+
+        defaultFont = self.app.font()
+        msgs.info(f"Default font pixel size: {defaultFont.pixelSize()}")
+        msgs.info(f"Default font point size: {defaultFont.pointSizeF()}")
+        if defaultFont.pointSizeF() < 12.0:
+            msgs.info(f"Setting font to 12.")
+            defaultFont.setPointSize(12)
+            self.app.setFont(defaultFont)
         SetupGUIController.main_window = SetupGUIMainWindow(self.model, self)
         self.operation_thread = OperationThread()
 

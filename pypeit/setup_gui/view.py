@@ -8,7 +8,7 @@ from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
+from qtpy.QtWidgets import QAction, QSplitter, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
 from qtpy.QtGui import QIcon,QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
@@ -20,13 +20,19 @@ from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, Persist
 from pypeit import msgs
 
 def debugSizeStuff(widget:QWidget, name="widget"):
-    """Helper method for logging sizxing information about a wdiget and its layout."""
+    """Helper method for logging sizxing information about a wdiget and its layout."""   
     msgs.info(f"{name} (width/height): {widget.width()}/{widget.height()} geometry x/y/w/h: {widget.geometry().x()}/{widget.geometry().y()}/{widget.geometry().width()}/{widget.geometry().height()} min w/h {widget.minimumWidth()}/{widget.minimumHeight()} hint w/h {widget.sizeHint().width()}/{widget.sizeHint().height()} min hint w/h {widget.minimumSizeHint().width()}/{widget.minimumSizeHint().height()} cm tlbr: {widget.contentsMargins().top()}/{widget.contentsMargins().left()}/{widget.contentsMargins().bottom()}/{widget.contentsMargins().right()} frame w/h {widget.frameSize().width()}/{widget.frameSize().height()}")
     layout = widget.layout()
     if layout is None:
         msgs.info(f"{name} layout is None")
     else:
         msgs.info(f"{name} layout size constraint {layout.sizeConstraint()} spacing: {layout.spacing()} cm: tlbr {layout.contentsMargins().top()}/{layout.contentsMargins().left()}/{layout.contentsMargins().bottom()}/{layout.contentsMargins().right()} totalMinSize (w/h): {layout.totalMinimumSize().width()}/{layout.totalMinimumSize().width()} totalMaxSize (w/h): {layout.totalMaximumSize().width()}/{layout.totalMaximumSize().width()} totalHint (w/h): {layout.totalSizeHint().width()}/{layout.totalSizeHint().width()}")
+
+    fm = widget.fontMetrics()
+    if fm is None:
+        msgs.info(f"{name} fm is None")
+    else:
+        msgs.info(f"{name} fm lineSpacing: {fm.lineSpacing()} maxWidth: {fm.maxWidth()}, avg width: {fm.averageCharWidth()}")
 
 def calculateButtonMinSize(button_widget : QPushButton) -> QSize:
     """Calculates and sets the minimum size of a budget widget
@@ -519,20 +525,8 @@ class PypeItMetadataView(QTableView):
         self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
         self.setModel(model)
 
-        # Set to a minimum number of rows high so the frame type editor has enough space
-        if model.rowCount() > 0:
-            row_height = self.verticalHeader().sectionSize(0)
-        else:
-            row_height = self.verticalHeader().defaultSectionSize()
-
-        # We use 11 rows, 1 for the header, and 10 data rows. This seems to give an adaquate buffer to the frame type editor.
-        min_height = (self.contentsMargins().top() + self.contentsMargins().bottom() + 
-                      self.horizontalScrollBar().sizeHint().height() +
-                      11*row_height)
-        msgs.info(f"current min_height/height/hint h: {self.minimumHeight()}/{self.height()}/{self.sizeHint().height()}, scrollbar hint h {self.horizontalScrollBar().sizeHint().height()}, currentmargin top/bottom: {self.contentsMargins().top()}/{self.contentsMargins().bottom()} hdr min_height/height/hint h: {self.horizontalHeader().minimumHeight()}/{self.horizontalHeader().height()}/{self.horizontalHeader().sizeHint().height()}")
-        msgs.info(f"rowHeight: {row_height} current min_height {self.minimumHeight()} new min_height {min_height}")
-        if min_height > self.minimumHeight():
-            self.setMinimumHeight(min_height)
+        font = QFont("Monospace")
+        self.setFont(font)
 
         self.addActions(controller.getActions(self))
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
@@ -593,7 +587,7 @@ class ConfigValuesPanel(QGroupBox):
     Args:
         spec_name (str):            Name of spectrograph for the configuration.
         config (dict):     The name/value pairs for the configuration keys defined by the spectrograph.
-        lines_to_display (int):     How many lines to display before scrolling.
+        lines_to_display (int):     How many lines to display initially.
         parent (QWidget, Optional): The parent widget, defaults to None.
     """
     def __init__(self, spec_name, config, lines_to_display, parent=None):
@@ -642,28 +636,34 @@ class ConfigValuesPanel(QGroupBox):
         # Figure out the correct height for this panel, so that only the spectrograph and self.number_of_lines
         # config keys are visible
 
-        # Find the minimum height of the form widget needed to hold the number of lines to display
+        # Find the minimum height of the form widget needed to hold the total number of config lines
         msgs.info(f"font height: {fm.height()} vertical spacing {self._form_widget_layout.verticalSpacing()}")
+        self.setMaximumHeight(self.computeHeight(len(self._config_labels)))
+                                     
+        layout.addWidget(self._scroll_area)
+
+    def computeHeight(self, lines_to_display:int) ->int:
+        """Compute the height needed to display a given number of lines
+        
+        Args:
+            lines_to_display: The number of lines to display
+        Return:
+            The vertical size in pixels needed to display the given number of configuration lines
+        """
+        fm = self.fontMetrics()
         min_fw_height = self._form_widget_layout.verticalSpacing()*(lines_to_display-1) + fm.height()*lines_to_display
 
         # The height of this panel is that height plus the margins + the group box title
         scroll_area_margins = self._scroll_area.contentsMargins()
         group_box_margins = self.contentsMargins()
         form_widget_margins = self._form_widget.contentsMargins()
-        self.setFixedHeight(min_fw_height + 
-                            fm.height()   +  # Group Box Title
-                            group_box_margins.top()   + group_box_margins.bottom() +
-                            scroll_area_margins.top() + scroll_area_margins.bottom() +
-                            form_widget_margins.top() + form_widget_margins.bottom())
 
-        # Set to fixed sizing policy
-        policy = QSizePolicy()
-        policy.setHorizontalPolicy(QSizePolicy.Minimum)
-        policy.setVerticalPolicy(QSizePolicy.Fixed)
-        policy.setControlType(QSizePolicy.DefaultType)
-        self.setSizePolicy(policy)
-        
-        layout.addWidget(self._scroll_area)
+        return (min_fw_height + 
+                fm.height()   +  # Group Box Title
+                group_box_margins.top()   + group_box_margins.bottom() +
+                scroll_area_margins.top() + scroll_area_margins.bottom() +
+                form_widget_margins.top() + form_widget_margins.bottom())
+
 
     def setNewValues(self, config_dict: dict) -> None:
         """Update the panel to display new configuration values.
@@ -778,27 +778,14 @@ class PypeItFileView(TabManagerBaseTab):
         self.filename_value.setAlignment(Qt.AlignLeft)
         layout.addWidget(self.filename_value)
 
-        # Add the spectrograph configuration keys to the third row, first column
-        third_row_layout = QHBoxLayout()
-        layout.addLayout(third_row_layout)
+        # The third row consists of a splitter, allowing the user to 
+        # decide how much space to divide between the portions of a PypeIt file. 
+        # These are displayed in the same order as in a .pypeit file:
+        # PypeIt Parameters
+        # Setup (or Config Valeus)
+        # Raw data paths
+        # File metadata
 
-        # Add the ConfigValuesPanel, displaying the spectrograph + config keys.
-        self.config_panel = ConfigValuesPanel(model.spec_name, model.config_values, 5, parent=self)
-        third_row_layout.addWidget(self.config_panel)
-
-        # Add the Raw Data directory panel to the third row, second column
-        # This is not editable, because the user can add/remove directories by adding/removing individual
-        # files in the metadata_file_table
-        paths_group = QGroupBox(self.tr("Raw Data Directories"),self)
-        paths_group_layout = QVBoxLayout(paths_group)        
-        paths_viewer = QListView(paths_group)
-        paths_viewer.setModel(model.paths_model)
-        paths_viewer.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        paths_group_layout.addWidget(paths_viewer)   
-        third_row_layout.addWidget(paths_group)
-
-        # Make the paths wider than the config values panel
-        third_row_layout.setStretch(1, 2)
 
         # Create a group box and a tree view for the pypeit parameters
         params_group = QGroupBox(self.tr("PypeIt Parameters"))
@@ -807,28 +794,119 @@ class PypeItFileView(TabManagerBaseTab):
         self.params_tree.setModel(model.params_model)
         self.params_tree.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.params_tree.expandToDepth(1)
-
         params_group_layout.addWidget(self.params_tree)
         params_group.setLayout(params_group_layout)        
-        layout.addWidget(params_group)
+        fm = params_group.fontMetrics()
+        pg_cm = params_group.contentsMargins()
+        pt_cm = self.params_tree.contentsMargins()
 
-        # Create a group box and table view for the file metadata table
+        # Compute the initial height to use in the q splitter
+        pg_init_height = (fm.lineSpacing() + # Title
+                          pg_cm.top() + pg_cm.bottom() + # Group Box margin 
+                          pt_cm.top() + pt_cm.bottom() + # Params Tree margin
+                          self.params_tree.header().sizeHint().height() + # Params tree header
+                          3 * fm.lineSpacing() # desired # of rows
+                         )
+        # The minimum height is always the height of the title, so the section can be hidden
+        # by the user
+        params_group.setMinimumHeight(fm.lineSpacing())
+
+
+        # Create the ConfigValuesPanel, displaying the spectrograph + config keys.
+        # We default to displaying only 3 lines of the configuration.
+        self.config_panel = ConfigValuesPanel(model.spec_name, model.config_values, 3, parent=self)
+        fm = self.config_panel.fontMetrics()
+        
+        config_panel_init_height = self.config_panel.computeHeight(3)
+
+        self.config_panel.setMinimumHeight(fm.lineSpacing())
+
+        # Create the Raw Data directory panel
+        # This is not editable, because the user can add/remove directories by adding/removing individual
+        # files in the metadata_file_table
+        paths_group = QGroupBox(self.tr("Raw Data Directories"),self)
+        paths_group_layout = QVBoxLayout(paths_group)        
+        paths_viewer = QListView(paths_group)
+        paths_viewer.setModel(model.paths_model)
+        paths_viewer.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        paths_group_layout.addWidget(paths_viewer)   
+        pg_fm = paths_group.fontMetrics()
+        pv_fm = paths_viewer.fontMetrics()
+        pg_cm = paths_group.contentsMargins()
+        pv_cm = paths_viewer.contentsMargins()
+
+        # We set the initial height to be able to display two paths
+        paths_group_init_height =    (pg_fm.lineSpacing() + # title line
+                                     pg_cm.top() + pg_cm.bottom() + # group widget margins
+                                     pv_cm.top() + pv_cm.bottom() + # list margins
+                                     2 * pv_fm.lineSpacing() ) # Two paths in the list
+
+        paths_group.setMinimumHeight(pg_fm.lineSpacing())
+
+
+        # Create a group box and metadata view for the file metadata table
         file_group = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QVBoxLayout()
         self.file_metadata_table = PypeItMetadataView(self, model.metadata_model, controller.getMetadataController(model.metadata_model))
         file_group_layout.addWidget(self.file_metadata_table)
         file_group.setLayout(file_group_layout)        
-        layout.addWidget(file_group)
+        self.file_group = file_group
+        fm = file_group.fontMetrics()
 
+        # The file metadata is allowed to stretch, so its initial height can start as its preferred size
+        file_group_init_height = file_group.sizeHint().height()
+
+        file_group.setMinimumHeight(fm.lineSpacing())
+
+        # Create the splitter to separate the four items
+        splitter = QSplitter(self)
+        splitter.setOrientation(Qt.Orientation.Vertical)
+
+        # Do not allow children to be collapsed beyond their minimimum size, so that a title section
+        # is always visible
+        splitter.setChildrenCollapsible(False)
         
-        # Stretch the metadata and params rows more than the filename and config_key rows
-        layout.setStretch(2,4)
-        layout.setStretch(3,10)
-        layout.setStretch(4,10)
+        splitter.addWidget(params_group)
+        splitter.addWidget(self.config_panel)
+        splitter.addWidget(paths_group)
+        splitter.addWidget(file_group)
+        layout.addWidget(splitter)
 
+        # Set the stretch factors to fixed for everything but the file metadata group
+        pg_index = splitter.indexOf(params_group)
+        cfg_index = splitter.indexOf(self.config_panel)
+        paths_index = splitter.indexOf(paths_group)
+        fg_index = splitter.indexOf(file_group)
+
+        splitter.setStretchFactor(pg_index, 0)
+        splitter.setStretchFactor(cfg_index, 0)
+        splitter.setStretchFactor(paths_index, 0)
+        splitter.setStretchFactor(fg_index, 1)
+
+        # Set the initial sizes of the four sections within the splitter
+        splitter.setSizes([pg_init_height,config_panel_init_height,paths_group_init_height,file_group_init_height])
+
+        # Monitor the model for updates
         self.model.stateChanged.connect(self.update_from_model)
 
-
+    def splitterMoved(self, pos, index):
+        msgs.info(f"splitter moved pos {pos} index {index}")
+        msgs.info(f"params size/sizeHint/minSizeHint:   {self.params_group.size()} / {self.params_group.sizeHint()} / {self.params_group.minimumSizeHint()}")        
+        msgs.info(f"setup size/sizeHint/minSizeHint:    {self.config_panel.size()} / {self.config_panel.sizeHint()} / {self.config_panel.minimumSizeHint()}")        
+        msgs.info(f"paths size/sizeHint/minSizeHint:    {self.paths_group.size()} / {self.paths_group.sizeHint()} / {self.paths_group.minimumSizeHint()}")        
+        msgs.info(f"metadata size/sizeHint/minSizeHint: {self.file_group.size()} / {self.file_group.sizeHint()} / {self.file_group.minimumSizeHint()}")        
+        msgs.info(f"Splitter sizes: {self.splitter.sizes()}")
+        #sizes = self.splitter.sizes()
+        #msgs.info(f"Sizes:   {self.splitter.sizes()}")
+        #pg_index = self.splitter.indexOf(self.params_group)
+        #if self.params_group.size().height == 0:
+        #    fm = self.params_group.fontMetrics()
+        #    self.params_group.setMinimumHeight(fm.height())
+        #    self.splitter.setCollapsible(pg_index,False)
+        #    sizes[pg_index] = fm.height()
+        #    self.splitter.setSizes(sizes)
+        #elif self.splitter.isCollapsible(pg_index) is False and self.params_group.size().height > 0:
+        #    self.splitter.setCollapsible(pg_index,True)
     def update_from_model(self):
         """
         Signal handler that updates view when the underlying model changes.
@@ -879,9 +957,25 @@ class ObsLogView(TabManagerBaseTab):
         self._controller = controller
 
         layout = QVBoxLayout(self)
+
+        # We use a splitter to separate the spectrograph/raw data paths from the file metadata
+        # Create the splitter to hold both rows
+        splitter=QSplitter(self)
+        splitter.setOrientation(Qt.Orientation.Vertical)
+        layout.addWidget(splitter)
+
+        # Do not allow children to be collapsed beyond their minimimum size, so that a title section
+        # is always visible
+        splitter.setChildrenCollapsible(False)
+
+        # First build a widget to contain the spectrograph/ raw data paths
+        spec_paths_widget = QWidget()
+
         # Place the spectrograph group box and combo box in the first row, first column
-        top_row_layout = QHBoxLayout()
-        layout.addLayout(top_row_layout)
+        spec_paths_layout = QHBoxLayout(spec_paths_widget)
+        # No Margins, this is just a container
+        spec_paths_layout.setContentsMargins(0,0,0,0) 
+
         spectrograph_box = QGroupBox(title=self.tr("Spectrograph"), parent=self)
         spectrograph_layout = QHBoxLayout()        
 
@@ -895,7 +989,7 @@ class ObsLogView(TabManagerBaseTab):
         spectrograph_layout.addWidget(self.spectrograph)
         spectrograph_layout.setAlignment(self.spectrograph, Qt.AlignTop)
         spectrograph_box.setLayout(spectrograph_layout)
-        top_row_layout.addWidget(spectrograph_box)
+        spec_paths_layout.addWidget(spectrograph_box)
 
         # Create a Group Box to group the paths editor and viewer
         paths_group = QGroupBox(self.tr("Raw Data Directories"),self)
@@ -911,11 +1005,21 @@ class ObsLogView(TabManagerBaseTab):
 
         self._paths_viewer = QListView(paths_group)
         self._paths_viewer.setModel(model.paths_model)
-        fm = self.fontMetrics()
-        # Only display 5 paths
-        lines =5
-        self._paths_viewer.setFixedHeight(fm.height()*lines+self._paths_viewer.spacing()*(lines-1))
         paths_group_layout.addWidget(self._paths_viewer)
+        
+        # The initial height of the first row in the splitter. The raw data paths will be larger
+        # so we use its size for the row.  We start with it displaying 2 paths
+        initial_lines = 2
+        fm = self.fontMetrics()
+        viewer_margins = self._paths_viewer.contentsMargins()
+        path_group_margins = paths_group.contentsMargins()
+        spec_paths_init_height = (fm.lineSpacing() + # Group titles
+                                  path_group_margins.top() + path_group_margins.bottom() + # Groupbox margins
+                                  self.paths_editor.sizeHint().height() + # Path editor
+                                  paths_group_layout.spacing() + # Gap between editor and viewer
+                                  viewer_margins.top() + viewer_margins.bottom() + # viewer margins
+                                  fm.height()*initial_lines+self._paths_viewer.spacing()*(initial_lines-1) # Number of lines desired
+        )
 
         # Add action for removing a path
         self._paths_viewer.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -928,21 +1032,45 @@ class ObsLogView(TabManagerBaseTab):
 
 
         # Add the Raw Data directory panel to the first row, second column
-        top_row_layout.addWidget(paths_group)
+        spec_paths_layout.addWidget(paths_group)
 
-        # Make the metadata wider than the spectrograph
-        top_row_layout.setStretch(1, 2)
+        # Make the raw data paths wider than the spectrograph
+        spec_paths_layout.setStretch(1, 2)
 
+        # The second row consists of a group box containing the metadata view
 
-        # Add the File Metadata box in the second row
-        file_group = QGroupBox(self.tr("File Metadata"))
+        file_group_widget = QGroupBox(self.tr("File Metadata"))
         file_group_layout = QHBoxLayout()        
-        self.obslog_table = PypeItMetadataView(file_group, model.metadata_model, controller.getMetadataController(model.metadata_model))
+        self.obslog_table = PypeItMetadataView(file_group_widget, model.metadata_model, controller.getMetadataController(model.metadata_model))
         file_group_layout.addWidget(self.obslog_table)
-        file_group.setLayout(file_group_layout)
-        layout.addWidget(file_group)
-        # Make File Metadata taller than the spectrograph/raw data paths row
-        layout.setStretch(1,4)
+        file_group_widget.setLayout(file_group_layout)
+
+        # The initial height for the second row, which will be allowed to stretch to fill the tab
+        file_group_init_height = file_group_widget.sizeHint().height()
+
+        # Set minimum height to the height of one line of text for the widgets inside the splitter.
+        # This prevents the splitter from hiding the titles of each section.
+        spectrograph_box.setMinimumHeight(spectrograph_box.fontMetrics().lineSpacing())
+        paths_group.setMinimumHeight(paths_group.fontMetrics().lineSpacing())
+        file_group_widget.setMinimumHeight(file_group_widget.fontMetrics().lineSpacing())
+
+        # Add the widgets to the splitter, and set the stretch factor such that the metadata will stretch to
+        # fill the available space, but the spectrograph/raw data paths will only stretch if the user decides to 
+        # resize them.
+        splitter.addWidget(spec_paths_widget)
+        splitter.addWidget(file_group_widget)
+
+        spec_paths_index = splitter.indexOf(spec_paths_widget)
+        file_group_index = splitter.indexOf(file_group_widget)
+
+        splitter.setStretchFactor(spec_paths_index, 0)
+        splitter.setStretchFactor(file_group_index, 1)
+
+        # Set the initial heights of the splitter children
+        splitter.setSizes([spec_paths_init_height, file_group_init_height])
+
+
+        # Connect with the model
         self.setModel(model)
 
         # Update model with new spectrograph/data paths
