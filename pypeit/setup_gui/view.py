@@ -9,8 +9,8 @@ from pathlib import Path
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
 from qtpy.QtWidgets import QAction, QSplitter, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
-from qtpy.QtGui import QIcon,QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
-from qtpy.QtCore import Qt, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
+from qtpy.QtGui import QIcon, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
+from qtpy.QtCore import Qt, QEvent, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
 from pypeit.spectrographs import  available_spectrographs
 
@@ -518,8 +518,9 @@ class PypeItMetadataView(QTableView):
     def __init__(self, parent, model, controller):
         super().__init__(parent=parent)
         self._controller=controller
+        self._shownOnce = False
         self._controller.setView(self)
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
@@ -542,11 +543,38 @@ class PypeItMetadataView(QTableView):
         proxy_model.setSourceModel(model)
         sort_column = model.getColumnNumFromName('mjd')
         proxy_model.sort(sort_column, Qt.AscendingOrder)
+        old_model = self.model()
+        if old_model is not None:
+            old_model.modelReset.disconnect(self._handleModelReset)
         super().setModel(proxy_model)
+        
+        # Listen to model resets so we can fix column sizes
+        proxy_model.modelReset.connect(self._handleModelReset)
 
+        # Enable sorting
         self.setSortingEnabled(True)
         self.horizontalHeader().setSortIndicator(sort_column, Qt.AscendingOrder)
 
+    def _handleModelReset(self):
+        """
+        Fix column and row sizes after the model is reset.
+        """
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+
+    def showEvent(self, event : QEvent):
+        """
+        Event handler that sets column and row sizes to fit contents
+        the first time the view is shown.
+
+        Args:
+            event: The show event (unused)
+        """
+        if not self._shownOnce:
+            # Fix column and row sizes the first time the view is shown
+            self.resizeColumnsToContents()
+            self.resizeRowsToContents()
+            self._shownOnce=True
 
     def selectionChanged(self, selected, deselected):
         """Event handler called by Qt when a selection change. Overriden from QTableView.
