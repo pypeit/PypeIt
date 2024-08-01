@@ -1032,18 +1032,28 @@ class PypeItMetaData:
         Set the calibration group bit based on the string values of the
         'calib' column.
         """
-        # NOTE: This is a hack to ensure the type of the *elements* of the calib
-        # column are all strings, but that the type of the column remains as
-        # "object".  I'm calling this a hack because doing this is easier than
+        # Ensure that the type of the *elements* of the calib column are all
+        # strings, but that the type of the column remains as "object".
+        # NOTE: This is effectively a hack because doing this is easier than
         # trying to track down everywhere calib is changed to values that may or
         # may not be integers instead of strings.
         self['calib'] = np.array([str(c) for c in self['calib']], dtype=object)
+
         # Collect and expand any lists
         # group_names = np.unique(np.concatenate(
         #                 [s.split(',') for s in self['calib'] if s not in ['all', 'None']]))
-        # DP changed to below because np.concatenate does not accept an empty list,
-        # which is the case when calib is None for all frames. This should avoid the code to crash
-        group_names = np.unique(sum([s.split(',') for s in self['calib'] if s not in ['all', 'None']], []))
+        # NOTE: The above doesn't always work because np.concatenate does not
+        # accept an empty list, which is the case when calib is None or 'all'
+        # for all frames.
+        group_names = np.unique(sum([s.split(',') for s in self['calib']
+                                        if s not in ['all', 'None']], []))
+        
+        # If all the calibration groups are set to None or 'all', group_names
+        # can be an empty list.  But we need to identify at least one
+        # calibration group, so I insert a mock value.
+        if group_names.size == 0:
+            group_names = np.array(['0'], dtype=object)
+
         # Expand any ranges
         keep_group = np.ones(group_names.size, dtype=bool)
         added_groups = []
@@ -1052,6 +1062,7 @@ class PypeItMetaData:
                 # Parse the range
                 keep_group[i] = False
                 added_groups += [str(n) for n in parse.str2list(name)]
+
         # Combine and find the unique *integer* identifiers
         group_names = np.unique(np.asarray(added_groups + 
                                             (group_names[keep_group]).tolist()).astype(int))

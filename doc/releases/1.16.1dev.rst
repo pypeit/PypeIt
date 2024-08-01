@@ -47,6 +47,12 @@ Script Changes
 - Added ``pypeit_show_pixflat`` script to inspect the (slitless) pixel flat
   generated during the reduction and stored in ``data/static_calibs/{spectrograph_name}``
 
+- A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
+  sources to be extracted from datacubes.
+- The sensitivity function is now generated outside of datacube generation.
+- The `grating_corr` column is now used to select the correct grating
+  correction file for each spec2d file when generating the datacube.
+
 Datamodel Changes
 -----------------
 
@@ -67,3 +73,6 @@ Bug Fixes
 - Fix a MAJOR BUT SUBTLE bug in the use of ``numpy.argsort``. When using ``numpy.argsort``
   the parameter kind='stable' should be used to ensure that a sorting algorithm more robust
   than "quicksort" is used.
+
+
+

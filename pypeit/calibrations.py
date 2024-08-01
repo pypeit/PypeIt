@@ -4,6 +4,7 @@ Class for guiding calibration object generation in PypeIt.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import os
 from pathlib import Path
 from datetime import datetime
 from copy import deepcopy
@@ -216,6 +217,46 @@ class Calibrations:
         self.success = False
         self.failed_step = None
 
+    def check_calibrations(self, file_list, check_lamps=True):
+        """
+        Check if the input calibration files are consistent with each other.
+        This step is usually needed when combining calibration frames of a given type.
+        This routine currently only prints out warning messages if the calibration files are not consistent.
+
+        Note: The exposure times are currently checked in the combine step, so they are not checked here.
+
+        Parameters
+        ----------
+        file_list : list
+            List of calibration files to check
+        check_lamps : bool, optional
+            Check if the lamp status is the same for all the files. Default is True.
+        """
+
+        lampstat = [None] * len(file_list)
+        # Loop on the files
+        for ii, ifile in enumerate(file_list):
+            # Save the lamp status
+            headarr = deepcopy(self.spectrograph.get_headarr(ifile))
+            lampstat[ii] = self.spectrograph.get_lamps_status(headarr)
+
+        # Check that the lamps being combined are all the same
+        if check_lamps:
+            if not lampstat[1:] == lampstat[:-1]:
+                msgs.warn("The following files contain different lamp status")
+                # Get the longest strings
+                maxlen = max([len("Filename")] + [len(os.path.split(x)[1]) for x in file_list])
+                maxlmp = max([len("Lamp status")] + [len(x) for x in lampstat])
+                strout = "{0:" + str(maxlen) + "}  {1:s}"
+                # Print the messages
+                print(msgs.indent() + '-' * maxlen + "  " + '-' * maxlmp)
+                print(msgs.indent() + strout.format("Filename", "Lamp status"))
+                print(msgs.indent() + '-' * maxlen + "  " + '-' * maxlmp)
+                for ff, file in enumerate(file_list):
+                    print(msgs.indent()
+                          + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
+                print(msgs.indent() + '-' * maxlen + "  " + '-' * maxlmp)
+
     def find_calibrations(self, frametype, frameclass):
         """
         Find calibration files and identifiers.
@@ -341,6 +382,9 @@ class Calibrations:
         # Reset the BPM
         self.get_bpm(frame=raw_files[0])
 
+        # Perform a check on the files
+        self.check_calibrations(raw_files)
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -383,6 +427,9 @@ class Calibrations:
 
         # Reset the BPM
         self.get_bpm(frame=raw_files[0])
+
+        # Perform a check on the files
+        self.check_calibrations(raw_files)
 
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
@@ -433,6 +480,9 @@ class Calibrations:
         # Reset the BPM
         self.get_bpm(frame=raw_files[0])
 
+        # Perform a check on the files
+        self.check_calibrations(raw_files)
+
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
         msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -479,6 +529,9 @@ class Calibrations:
         if cal_file.exists() and self.reuse_calibs:
             self.msbias = frame['class'].from_file(cal_file, chk_version=self.chk_version)
             return self.msbias
+
+        # Perform a check on the files
+        self.check_calibrations(raw_files)
 
         # Otherwise, create the processed file.
         msgs.info(f'Preparing a {frame["class"].calib_type} calibration frame.')
@@ -529,6 +582,9 @@ class Calibrations:
         # calling get_dark then get_bpm unnecessarily creates the bpm twice.  Is
         # there any reason why creation of the bpm should come after the dark,
         # or can we change the order?
+
+        # Perform a check on the files
+        self.check_calibrations(raw_files)
 
         # Otherwise, create the processed file.
         self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -604,6 +660,9 @@ class Calibrations:
         # Reset the BPM
         self.get_bpm(frame=raw_scattlight_files[0])
 
+        # Perform a check on the files
+        self.check_calibrations(raw_scattlight_files)
+
         binning = self.fitstbl[scatt_idx[0]]['binning']
         dispname = self.fitstbl[scatt_idx[0]]['dispname']
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -614,7 +673,7 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+        offslitmask = self.slits.slit_img(pad=pad, flexure=None) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
@@ -983,6 +1042,10 @@ class Calibrations:
         if len(raw_pixel_files) > 0:
             # Reset the BPM
             self.get_bpm(frame=raw_pixel_files[0])
+
+            # Perform a check on the files
+            self.check_calibrations(raw_pixel_files)
+
             msgs.info('Creating pixel-flat calibration frame using files: ')
             for f in raw_pixel_files:
                 msgs.prindent(f'{Path(f).name}')
@@ -995,6 +1058,10 @@ class Calibrations:
             if len(raw_lampoff_files) > 0:
                 # Reset the BPM
                 self.get_bpm(frame=raw_lampoff_files[0])
+
+                # Perform a check on the files
+                self.check_calibrations(raw_lampoff_files)
+
                 msgs.info('Subtracting lamp off flats using files: ')
                 for f in raw_lampoff_files:
                     msgs.prindent(f'{Path(f).name}')
@@ -1021,9 +1088,14 @@ class Calibrations:
         if not pix_is_illum and len(raw_illum_files) > 0:
             # Reset the BPM
             self.get_bpm(frame=raw_illum_files[0])
+
+            # Perform a check on the files
+            self.check_calibrations(raw_illum_files)
+
             msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
+
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
@@ -1033,6 +1105,10 @@ class Calibrations:
                 for f in raw_lampoff_files:
                     msgs.prindent(f'{Path(f).name}')
                 if lampoff_flat is None:
+                    # Perform a check on the files
+                    self.check_calibrations(raw_lampoff_files)
+
+                    # Build the image
                     lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                   self.par['lampoffflatsframe'],
                                                                   raw_lampoff_files,
@@ -1144,6 +1220,9 @@ class Calibrations:
         # Reset the BPM
         self.get_bpm(frame=raw_trace_files[0])
 
+        # Perform a check on the files
+        self.check_calibrations(raw_trace_files)
+
         traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'], raw_trace_files,
                                                     bias=self.msbias, bpm=self.msbpm,
@@ -1157,6 +1236,9 @@ class Calibrations:
 
             # Reset the BPM
             self.get_bpm(frame=raw_trace_files[0])
+
+            # Perform a check on the files
+            self.check_calibrations(raw_lampoff_files)
 
             lampoff_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['lampoffflatsframe'],

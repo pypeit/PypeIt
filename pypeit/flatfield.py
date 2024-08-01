@@ -828,6 +828,7 @@ class FlatField:
         # Set parameters (for convenience;
         spec_samp_fine = self.flatpar['spec_samp_fine']
         spec_samp_coarse = self.flatpar['spec_samp_coarse']
+        tweak_method = self.flatpar['tweak_method']
         tweak_slits = self.flatpar['tweak_slits']
         tweak_slits_thresh = self.flatpar['tweak_slits_thresh']
         tweak_slits_maxfrac = self.flatpar['tweak_slits_maxfrac']
@@ -1111,9 +1112,10 @@ class FlatField:
                 # TODO: Will this break if
                 left_thresh, left_shift, self.slits.left_tweak[:,slit_idx], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit_idx] \
-                        = flat.tweak_slit_edges(self.slits.left_init[:,slit_idx],
+                        = self.tweak_slit_edges(self.slits.left_init[:,slit_idx],
                                                 self.slits.right_init[:,slit_idx],
                                                 spat_coo_data, spat_flat_data,
+                                                method=tweak_method,
                                                 thresh=tweak_slits_thresh,
                                                 maxfrac=tweak_slits_maxfrac, debug=debug)
                 # TODO: Because the padding doesn't consider adjacent
@@ -1124,14 +1126,15 @@ class FlatField:
                 # Update the onslit mask
                 _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False)
                 onslit_tweak = _slitid_img == slit_spat
-                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx,
-                                                               slitid_img=_slitid_img)
+                # Note, we need to get the full image with the coordinates similar to spat_coo_init, otherwise, the
+                # tweaked locations are biased.
+                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, slitid_img=_slitid_img)
 
                 # Construct the empirical illumination profile
                 # TODO This is extremely inefficient, because we only need to re-fit the illumflat, but
                 #  spatial_fit does both the reconstruction of the illumination function and the bspline fitting.
                 #  Only the b-spline fitting needs be reddone with the new tweaked spatial coordinates, so that would
-                #  save a ton of runtime. It is not a trivial change becauase the coords are sorted, etc.
+                #  save a ton of runtime. It is not a trivial change because the coords are sorted, etc.
                 exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                     spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
                     norm_spec, spat_coo_tweak, median_slit_widths[slit_idx], spat_gpm, gpm, debug=False)
@@ -1182,7 +1185,7 @@ class FlatField:
                 spat_model[onslit_padded] = spat_bspl.value(spat_coo_final[onslit_padded])[0]
                 specspat_illum = np.fmax(spec_model, 1.0) * spat_model
                 norm_spatspec = rawflat / specspat_illum
-                self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)
+                spat_illum_fine = self.spatial_fit_finecorr(norm_spatspec, onslit_tweak, slit_idx, slit_spat, gpm, doqa=doqa)[onslit_tweak]
 
             # ----------------------------------------------------------
             # Construct the illumination profile with the tweaked edges
@@ -1423,6 +1426,11 @@ class FlatField:
             A positive number trims the slit edges, a negative number pads the slit edges.
         doqa : :obj:`bool`, optional:
             Save the QA?
+
+        Returns
+        -------
+        illumflat_finecorr: `numpy.ndarray`_
+            An image (same shape as normed) containing the fine correction to the spatial illumination profile
         """
         # check id self.waveimg is available
         if self.waveimg is None:
@@ -1439,6 +1447,7 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
+
         left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
@@ -1448,7 +1457,6 @@ class FlatField:
         this_slit = np.where(onslit_tweak & self.rawflatimg.select_flag(invert=True) & (self.waveimg!=0.0))
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
-                                                       initial=True,
                                                        slitid_img=slitimg,
                                                        flexure_shift=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
         # Generate the trimmed versions for fitting
@@ -1491,7 +1499,7 @@ class FlatField:
             normed[np.logical_not(onslit_tweak)] = 1  # For the QA, make everything off the slit equal to 1
             spatillum_finecorr_qa(normed, illumflat_finecorr, this_left, this_right, ypos_fit, this_slit_trim,
                                   outfile=outfile, title=title, half_slen=slitlen//2)
-        return
+        return illumflat_finecorr
 
     def extract_structure(self, rawflat_orig, slit_trim=3):
         """
@@ -1606,7 +1614,7 @@ class FlatField:
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                       model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
+                                      flexure=self.wavetilts.spat_flexure  if self.wavetilts is not None else 0.0,
                                       smooth_npix=self.flatpar['slit_illum_smooth_npix'],
                                       debug=debug)
 
@@ -1899,7 +1907,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
 # TODO :: This could possibly be moved to core.flat
 def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5):
+                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5, debug=False):
     """
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
@@ -1932,6 +1940,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         Spatial flexure
     maxiter : :obj:`int`
         Maximum number of iterations to perform
+    debug : :obj:`bool`
+        Show the results of the relative spectral illumination correction
 
     Returns
     -------
@@ -1948,14 +1958,14 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
     # Setup the slits
-    slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, initial=True, flexure=flexure)
+    slitid_img = slits.slit_img(pad=0, flexure=flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, flexure=flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
-        onslit_init = (slitid_img_init == slit_spat)
+        onslit_init = (slitid_img == slit_spat)
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
@@ -1990,7 +2000,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             for ss in range(1, slits.spat_id.size):
                 # Calculate the region of overlap
                 onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
-                onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
+                onslit_b_init = (slitid_img == slits.spat_id[wvsrt[ss]])
                 onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
                 hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg_copy[onslit_b_olap])
                 cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
@@ -2041,7 +2051,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         modelimg_copy /= relscl_model
         if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
-    debug = False
     if debug:
         embed()
         ricp = rawimg.copy()
@@ -2056,12 +2065,24 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
             scale_ref = histScl * norm
             plt.subplot(211)
             plt.plot(wave_ref, this_spec)
+            plt.xlim([3600, 4500])
             plt.subplot(212)
             plt.plot(wave_ref, scale_ref)
+        plt.xlim([3600, 4500])
         plt.subplot(211)
         plt.plot(wave_ref, spec_ref, 'k--')
+        plt.xlim([3600, 4500])
         plt.show()
-
+        # Plot the relative scales of each slit
+        scales_med, scales_avg = np.zeros(slits.spat_id.size), np.zeros(slits.spat_id.size)
+        for ss in range(slits.spat_id.size):
+            onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now & (waveimg>3628) & (waveimg<4510)
+            scales_med[ss] = np.median(ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
+            scales_avg[ss] = np.mean(ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
+        plt.plot(slits.spat_id, scales_med, 'bo-', label='Median')
+        plt.plot(slits.spat_id, scales_avg, 'ro-', label='Mean')
+        plt.legend()
+        plt.show()
     return scaleImg
 
 
