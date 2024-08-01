@@ -450,14 +450,14 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
-                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
-                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
-                   'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'scale_to_mean', 'satpix', #'calib_setup_and_bit',
-                   'n_lohi', 'mask_cr',
-                   'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
-                   'sigfrac', 'objlim']
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
+                   'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
+                   'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
+                   'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
+                   'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
+                   'sigclip', 'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

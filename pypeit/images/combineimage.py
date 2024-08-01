@@ -62,9 +62,8 @@ class CombineImage:
         if self.nfiles == 0:
             msgs.error('CombineImage requires a list of files to instantiate')
 
-    def run(self, bias=None, scattlight=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean', mosaic=False,
-            scale_to_mean=False):
+
+    def run(self, ignore_saturation=False, maxiters=5):
         r"""
         Process and combine all images.
 
@@ -166,22 +165,6 @@ class CombineImage:
                 rejection iterations.  If None, rejection iterations continue
                 until no more data are rejected; see
                 :func:`~pypeit.core.combine.weighted_combine``.
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
-                Slit edge trace locations; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
-            dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
-                Dark-current image; passed directly to
-                :func:`~pypeit.images.rawimage.RawImage.process` for all images.
-            combine_method (:obj:`str`, optional):
-                Method used to combine images.  Must be ``'mean'`` or
-                ``'median'``; see above.
-            mosaic (:obj:`bool`, optional):
-                If multiple detectors are being processes, mosaic them into a
-                single image.  See
-                :func:`~pypeit.images.rawimage.RawImage.process`.
-            scale_to_mean (:obj:`bool`, optional):
-                If True, scale the images to their mean before combining.  This
-                is useful when combining images with different exposure times.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
@@ -269,7 +252,7 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # scale the images to their mean, if requested, before combining
-        if scale_to_mean:
+        if self.par['scale_to_mean']:
             msgs.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
             [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nfiles, dtype=float)/self.nfiles,
