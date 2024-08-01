@@ -974,22 +974,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
 
-    def initialize_slits(self, slits, initial=True):
-        """
-        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes that
-        we'll use here in :class:`FindObjects`. Identical to the parent but the
-        slits are not trimmed.
-
-        Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                SlitTraceSet object containing the slit boundaries that will be
-                initialized.
-            initial (:obj:`bool`, optional):
-                Use the initial definition of the slits. If False,
-                tweaked slits are used.
-        """
-        super().initialize_slits(slits, initial=True)
-
     def global_skysub(self, skymask=None, bkg_redux_sciimg=None, update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
                       reinit_bpm: bool = True):
@@ -1076,7 +1060,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         # Use the FWHM map determined from the arc lines to convert the science frame
         # to have the same effective spectral resolution.
-        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
         sciimg = skysub.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
@@ -1085,8 +1069,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, initial=True, flexure=self.spat_flexure_shift)
+        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
