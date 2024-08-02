@@ -8,9 +8,9 @@ from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QAction, QSplitter, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
-from qtpy.QtGui import QIcon, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
-from qtpy.QtCore import Qt, QEvent, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
+from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate, QSplitter
+from qtpy.QtGui import QIcon,QCursor, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
+from qtpy.QtCore import Qt, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
 from pypeit.spectrographs import  available_spectrographs
 
@@ -220,6 +220,10 @@ class PypeItEnumListEditor(QWidget):
         layout.addWidget(scroll_area)
 
         checkbox_container = QWidget()
+
+        # Make sure we have a pointer mouse cursor, rather than the cursor
+        # inherited from the table view
+        self.setCursor(Qt.ArrowCursor)
 
         # Create the checkboxes for each allowable option
         self._button_group = QButtonGroup()
@@ -520,17 +524,80 @@ class PypeItMetadataView(QTableView):
         self._controller=controller
         self._shownOnce = False
         self._controller.setView(self)
+
+        # Setup the header row to allow interactive resizing of columns,
+        # and the header column to resize to contents
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
-        self.setModel(model)
 
-        font = QFont("Monospace")
-        self.setFont(font)
+        # Allow selecting rows for copy/paste
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+        # Set the editor for editable columns
+        self.setItemDelegate(PypeItCustomEditorDelegate(parent=self))
+
+        # Set the model and keep track of what column the mouse is in so the
+        # cursor can be customized. We also track mouse events on the header
+        # so that the mouse can be reset when over the header row
+        self.setModel(model)
+        self.cur_col = "unknown"
+        self.editable_columns = model.editable_columns
+        self.horizontalHeader().installEventFilter(self)
+
+        # Set to a minimum number of rows high so the frame type editor has enough space
+        if model.rowCount() > 0:
+            row_height = self.verticalHeader().sectionSize(0)
+        else:
+            row_height = self.verticalHeader().defaultSectionSize()
+
+        # We use 11 rows, 1 for the header, and 10 data rows. This seems to give an adaquate buffer to the frame type editor.
+        min_height = (self.contentsMargins().top() + self.contentsMargins().bottom() + 
+                      self.horizontalScrollBar().sizeHint().height() +
+                      11*row_height)
+        msgs.info(f"current min_height/height/hint h: {self.minimumHeight()}/{self.height()}/{self.sizeHint().height()}, scrollbar hint h {self.horizontalScrollBar().sizeHint().height()}, currentmargin top/bottom: {self.contentsMargins().top()}/{self.contentsMargins().bottom()} hdr min_height/height/hint h: {self.horizontalHeader().minimumHeight()}/{self.horizontalHeader().height()}/{self.horizontalHeader().sizeHint().height()}")
+        msgs.info(f"rowHeight: {row_height} current min_height {self.minimumHeight()} new min_height {min_height}")
+        if min_height > self.minimumHeight():
+            self.setMinimumHeight(min_height)
 
         self.addActions(controller.getActions(self))
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
+        self.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event : QMouseEvent):
+        """Track which column the mouse cursor is over, and set the
+        cursor to an I-Beam shape when over an editable column
+        """
+        pos = event.position()
+        col= self.columnAt(int(pos.x()))
+        if col == -1:
+            name="unknown"
+        else:
+            name = self.model().headerData(col, Qt.Orientation.Horizontal)
+
+        # Set/Unset the cursor to indicate an editable column when the
+        # cursor enters a new column
+        if name != self.cur_col:
+            self.cur_col=name
+            if name in self.editable_columns:
+                self.setCursor(Qt.IBeamCursor)
+            else:
+                self.unsetCursor()
+
+    def eventFilter(self, watched : QObject, event : QEvent):
+        """Event filter that resets the mouse cursor when the mosue
+        is over the table header 
+        """
+        # We don't get a mouse leave event from the table until the
+        # mouse leaves the entire TableView, but we don't get mouseMove
+        # events when the mouse is over the header. So wait for an Enter
+        # event on the header row to unset any cursor set by
+        # mousing over an editable column.
+        # 
+        if event.type() == QEvent.Enter:            
+            self.cur_col = "unknown"                
+            self.unsetCursor()
+        return False
 
     def setModel(self, model):
         """Set the PypeItMetadataProxy model to use for the table.
@@ -585,6 +652,8 @@ class PypeItMetadataView(QTableView):
         """
         super().selectionChanged(selected, deselected)
         self.selectionUpdated.emit()
+
+
 
     def selectedRows(self):
         """
