@@ -269,6 +269,44 @@ class Spectrograph:
                 )
             )
         )
+    
+    @classmethod
+    def find_raw_files(cls, root, extension=None):
+        """
+        Find raw observations for this spectrograph in the provided directory.
+
+        This is a wrapper for :func:`~pypeit.io.files_from_extension` that
+        handles the restrictions of the file extensions specific to this
+        spectrograph.
+
+        Args:
+            root (:obj:`str`, `Path`_, :obj:`list`):
+                One or more paths to search for files, which may or may not include
+                the prefix of the files to search for.  For string input, this can
+                be the directory ``'/path/to/files/'`` or the directory plus the
+                file prefix ``'/path/to/files/prefix'``, which yeilds the search
+                strings ``'/path/to/files/*fits'`` or
+                ``'/path/to/files/prefix*fits'``, respectively.  For a list input,
+                this can use wildcards for multiple directories.
+            extension (:obj:`str`, :obj:`list`, optional):
+                One or more file extensions to search on.  If None, uses
+                :attr:`allowed_extensions`.  Otherwise, this *must* be a subset
+                of the allowed extensions for the selected spectrograph.
+
+        Returns:
+            :obj:`list`: List of `Path`_ objects with the full path to the set of
+            unique raw data filenames that match the provided criteria search
+            strings.
+        """
+        if extension is None:
+            _ext = cls.allowed_extensions
+        else:
+            _ext = extension if hasattr(extension, '__len__') else [extension]
+            _ext = [e for e in _ext if e in cls.allowed_extensions]
+            if len(_ext) == 0:
+                msgs.error(f'{extension} is not or does not include allowed extensions for '
+                           f'{cls.name}; choose from {cls.allowed_extensions}.')
+        return io.files_from_extension(root, extension=_ext)
 
     def _check_extensions(self, filename):
         """

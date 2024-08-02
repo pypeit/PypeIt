@@ -853,25 +853,28 @@ def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=Fals
 
 def files_from_extension(raw_path, extension='.fits'):
     """
-    Find files from one or more paths with one or more extensions
+    Find files from one or more paths with one or more extensions.
+
+    This is a recursive function.  If ``raw_path`` is a list, the function is
+    called for every item in the list and the results are concatenated.
 
     Args:
         raw_path (:obj:`str`, `Path`_, :obj:`list`):
             One or more paths to search for files, which may or may not include
-            the prefix of the files to search for.  
+            the prefix of the files to search for.  For string input, this can
+            be the directory ``'/path/to/files/'`` or the directory plus the
+            file prefix ``'/path/to/files/prefix'``, which yeilds the search
+            strings ``'/path/to/files/*fits'`` or
+            ``'/path/to/files/prefix*fits'``, respectively.  For a list input,
+            this can use wildcards for multiple directories.
 
-            For string input, this can be the directory ``'/path/to/files/'`` or
-            the directory plus the file prefix ``'/path/to/files/prefix'``,
-            which yeilds the search strings ``'/path/to/files/*fits'`` or
-            ``'/path/to/files/prefix*fits'``, respectively.
-
-            For a list input, this can use wildcards for multiple directories.
-
-        extension (str, list, optional):
+        extension (:obj:`str`, :obj:`list`, optional):
             One or more file extensions to search on.
 
     Returns:
-        list: List of raw data filenames (sorted) with full path
+        :obj:`list`: List of `Path`_ objects with the full path to the set of
+        unique raw data filenames that match the provided criteria search
+        strings.
     """
     if isinstance(raw_path, (str, Path)):
         _raw_path = Path(raw_path).absolute()
@@ -882,11 +885,12 @@ def files_from_extension(raw_path, extension='.fits'):
             if not _raw_path.is_dir():
                 msgs.error(f'{_raw_path} does not exist!')
         ext = extension if isinstance(extension, list) else [extension]
-        return numpy.concatenate([sorted(_raw_path.glob(f'{prefix}*{e}*')) for e in ext]).tolist()
+        files = numpy.concatenate([sorted(_raw_path.glob(f'{prefix}*{e}*')) for e in ext])
+        return numpy.unique(files).tolist()
     
     if isinstance(raw_path, list):
-        return numpy.concatenate([files_from_extension(p, extension=extension)
-                                  for p in raw_path]).tolist()
+        files = numpy.concatenate([files_from_extension(p, extension=extension) for p in raw_path])
+        return numpy.unique(files).tolist()
 
     msgs.error(f"Incorrect type {type(raw_path)} for raw_path; must be str, Path, or list.")
 
