@@ -163,8 +163,6 @@ class PypeItSetup:
                    cfg_lines=pypeItFile.cfg_lines, 
                    pypeit_file=filename)
 
-    # TODO: Make the default here match the default used by
-    # io.files_from_extension?
     @classmethod
     def from_file_root(cls, root, spectrograph, extension='.fits'):
         """

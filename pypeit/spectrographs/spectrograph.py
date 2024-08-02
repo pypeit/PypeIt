@@ -145,7 +145,7 @@ class Spectrograph:
     Metadata model that is generic to all spectrographs.
     """
 
-    allowed_extensions = None
+    allowed_extensions = ['.fits', '.fits.gz']
     """
     Defines the allowed extensions for the input fits files.
     """
