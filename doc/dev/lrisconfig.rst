@@ -13,7 +13,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia    6 Sep 2023 1.13.1.dev
-1.1         Debora Pelliccia   17 Jun 2024 1.15.1.dev
+1.1         Debora Pelliccia   10 Aug 2024 1.16.1.dev
 =========   ================   =========== ===========
 
 ----

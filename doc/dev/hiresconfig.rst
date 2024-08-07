@@ -12,7 +12,7 @@ Version History
 =========   ================   =========== ===========
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
-1.0         Debora Pelliccia   17 Jun 2024 1.15.1.dev
+1.0         Debora Pelliccia   10 Aug 2024 1.16.1.dev
 =========   ================   =========== ===========
 
 ----
@@ -52,6 +52,9 @@ that do not match the instrument configuration that an observer intended for the
 Therefore, PypeIt uses the ``dispname`` and ``binning`` keys to match the bias and
 slitless_pixflat frames to the configurations with frames taken with the same cross-disperser
 and same binning.
+Note that when using the ``echangle`` and ``xdangle`` keys to identify configurations, PypeIt
+uses a relative tolerance of 1e-3 and absolute tolerance of 1e-2 for ``echangle``, and a relative
+tolerance of 1e-2 for ``xdangle``, to account for small differences in the values of these angles.
 
 After that, :func:`pypeit.metadata.PypeItMetaData.set_configurations` associates each frame
 to the relevant unique configuration ("setup"), by assigning a setup identifier

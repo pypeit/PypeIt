@@ -234,14 +234,19 @@ the reduction process. To use this file in future reductions, the user can add t
 slitless pixelflat file name to the :ref:`pypeit_file` as shown above. Consider sharing
 your slitless pixelflat file with the PypeIt Developers. See more in :ref:`generate-pixflat`.
 
-To generate slitless pixelflat, we recommend using twilight flats taken about 10 minutes after sunset.
+To generate slitless pixelflat, we recommend using twilight flats. As these are taken
+on the twilight sky, it is important to dither between exposures to avoid bright stars
+from landing in the same part of the detector. Related, it is best to take these as close
+to sunset (or sunrise) as possible (about 10 minutes after/before sunset/sunrise) so that
+one can use the shortest exposure time possible (3s for LRIS given its shutter).
+
 Internal flats may be too bright and need to be tested.
 Our recommended recipe for taking twilight flats is:
 
    1. Point away from the Galaxy (i.e. avoid stars)
    2. Select the desired setup for your spectroscopy
    3. Remove any selected slitmask/longslit
-   4. Expose for 2s
+   4. Expose for 3s
    5. Check counts and make sure you have more than 40,000
    6. Offset by ~1' and 1' in NE
    7. Repeat 4-6, increasing the exposure each time you dip below 30,000 counts or so

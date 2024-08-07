@@ -53,7 +53,7 @@ Frame Type           Description
 ``lampoffflats``     Spectrum taken to remove persistence from lamp on flat exposures and/or thermal emission from the telescope and dome. Usually this is an exposure using a flat with lamps OFF
 ``pinhole``          Spectrum taken through a pinhole slit (i.e. a very short slit length), and is used to define the centre if a slit (currently, this frame is only used for echelle data reduction). Often this is an exposure using a flat lamp, but one can in principle use a standard star frame too (or a science frame if the spectrum is uniform).
 ``pixelflat``        Spectrum taken to correct for pixel-to-pixel detector variations. Often an exposure using a dome (recommended) or internal flat lamp, but for observations in the very blue, this may be on-sky
-``slitless_pixflat`` Spectrum taken without slitmask to correct for pixel-to-pixel detector variations. This is often an exposure taken on-sky
+``slitless_pixflat`` Spectrum taken without a slitmask or longslit to correct for pixel-to-pixel detector variations. This is often an exposure taken on-sky
 ``science``          Spectrum of one or more science targets
 ``standard``         Spectrum of spectrophotometric standard star PypeIt includes a list of pre-defined standards
 ``trace``            Spectrum taken to define the slit edges. Often this is an exposure using a flat lamp, but for observations in the very blue, this may be on-sky. The slit length of a trace frame should be the same as the science slit.
