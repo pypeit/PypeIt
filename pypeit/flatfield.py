@@ -554,7 +554,10 @@ class FlatField:
         self.slitless = slitless    # is this a slitless flat?
 
         # get waveimg here if available
-        self.build_waveimg()   # this set self.waveimg
+        if self.wavetilts is None or self.wv_calib is None:
+            msgs.warn("Wavelength calib or tilts are not available.  Wavelength image not generated.")
+        else:
+            self.build_waveimg()   # this set self.waveimg
 
         # Completed steps
         self.steps = []
@@ -694,7 +697,7 @@ class FlatField:
         """
         msgs.info("Generating wavelength image")
         if self.wavetilts is None or self.wv_calib is None:
-            msgs.warn("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
+            msgs.error("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
         else:
             flex = self.wavetilts.spat_flexure
             slitmask = self.slits.slit_img(initial=True, flexure=flex)
@@ -982,7 +985,7 @@ class FlatField:
 
             # Create the tilts image for this slit
             if self.slitless:
-                tilts = np.outer(np.arange(rawflat.shape[0]) / rawflat.shape[0], np.ones(rawflat.shape[1]))
+                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[0], 1)).T
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure

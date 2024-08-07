@@ -221,8 +221,6 @@ class CombineImage:
             rn2img_stack *= mscale**2
             basev_stack *= mscale**2
 
-            #TODO: Update docs
-
         # Coadd them
         if self.par['combine'] == 'mean':
             weights = np.ones(self.nimgs, dtype=float)/self.nimgs

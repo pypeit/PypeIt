@@ -632,6 +632,9 @@ class Spectrograph:
     def parse_raw_files(self, fitstbl, det=1, ftype=None):
         """
         Parse the list of raw files with given frame type and detector.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs. Therefore, this generic method
+        returns the indices of all the files in the input table.
 
         Args:
             fitstbl (`astropy.table.Table`_):
@@ -1619,7 +1622,17 @@ class Spectrograph:
 
     def vet_assigned_ftypes(self, type_bits, fitstbl):
         """
-        Check the assigned frame types for consistency.
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, this method can perform other checks on the assigned frame types
+        that are spectrograph-specific.
+
         Args:
             type_bits (`numpy.ndarray`_):
                 Array with the frame types assigned to each frame

@@ -415,12 +415,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
     def vet_assigned_ftypes(self, type_bits, fitstbl):
         """
-        Check the assigned frame types for consistency.
-        Args:
-            type_bits (`numpy.ndarray`_):
-                Array with the frame types assigned to each frame
-            fitstbl (`PypeItMetaData`_):
-                Table with the metadata for the frames to check.
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
 
         Returns:
             `numpy.ndarray`_: The updated frame types.
@@ -428,7 +437,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
 
-        # If both pixelflat and slitless_pixflat are assigned in the same configuration, remove pixelflat
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
 
         # where slitless_pixflat is assigned
         slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
@@ -454,6 +463,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     def parse_raw_files(self, fitstbl, det=1, ftype=None):
         """
         Parse the list of raw files with given frame type and detector.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs.
+        Since different slitless_pixflat frames are usually taken for
+        each of the three detectors, this method parses the slitless_pixflat
+        frames and returns the correct one for the requested detector.
 
         Args:
             fitstbl (`astropy.table.Table`_):
@@ -619,7 +633,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
 
 
-    def get_mosaic_par(self, mosaic, hdu=None, m_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -640,7 +654,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            m_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -691,7 +705,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), m_order)
+                      np.array(msc_tfm), msc_ord)
 
 
     @property

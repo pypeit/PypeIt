@@ -401,7 +401,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def vet_assigned_ftypes(self, type_bits, fitstbl):
         """
-        Check the assigned frame types for consistency.
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
+
         Args:
             type_bits (`numpy.ndarray`_):
                 Array with the frame types assigned to each frame
@@ -414,7 +429,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
 
-        # If both pixelflat and slitless_pixflat are assigned in the same configuration, remove pixelflat
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
 
         # where slitless_pixflat is assigned
         slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')

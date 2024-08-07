@@ -886,7 +886,7 @@ class Calibrations:
         # If this is a mosaic, we need to construct the pixel flat mosaic
         if isinstance(self.det, tuple):
             # We need to grab mosaic info from another existing calibration frame.
-            # We use EdgeTraceSet image to get `tform` and `m_order`. Check if EdgeTraceSet file exists.
+            # We use EdgeTraceSet image to get `tform` and `msc_ord`. Check if EdgeTraceSet file exists.
             edges_file = Path(edgetrace.EdgeTraceSet.construct_file_name(self.flatimages.calib_key,
                                                                          calib_dir=self.calib_dir)).absolute()
             if not edges_file.exists():
@@ -897,8 +897,8 @@ class Calibrations:
             traceimg = edgetrace.EdgeTraceSet.from_file(edges_file, chk_version=self.chk_version).traceimg
             det_info = traceimg.detector
             # check that the mosaic parameters are defined
-            if not np.all(np.in1d(['tform', 'm_order'], list(det_info.keys()))) or  \
-                    det_info.tform is None or det_info.m_order is None:
+            if not np.all(np.in1d(['tform', 'msc_ord'], list(det_info.keys()))) or  \
+                    det_info.tform is None or det_info.msc_ord is None:
                 msgs.error('Mosaic parameters are not defined in the Edges frame. Cannot load the pixel flat!')
 
             # read the file
@@ -913,7 +913,7 @@ class Calibrations:
                 # get the pixel flat images of only the detectors in the mosaic
                 pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in self.det])
                 # construct the pixel flat mosaic
-                pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, det_info.tform, order=det_info.m_order)
+                pixflat_msc, _,_,_ = build_image_mosaic(pixflat_images, det_info.tform, order=det_info.msc_ord)
                 # check that the mosaic has the correct shape
                 if pixflat_msc.shape != traceimg.image.shape:
                     msgs.error('The constructed pixel flat mosaic does not have the correct shape. '
