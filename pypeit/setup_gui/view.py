@@ -9,8 +9,8 @@ from pathlib import Path
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
 from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
 from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate, QSplitter
-from qtpy.QtGui import QIcon,QCursor, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
-from qtpy.QtCore import Qt, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
+from qtpy.QtGui import QIcon,QDesktopServices, QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
+from qtpy.QtCore import Qt, QUrl, QObject, QEvent, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
 from pypeit.spectrographs import  available_spectrographs
 
@@ -1542,6 +1542,15 @@ class SetupGUIMainWindow(QWidget):
         """Signal handler that clears the log window when it closes."""
         self._logWindow = None
             
+    def _helpButton(self):
+        """Signal handler that responds to the help button being pressed."""
+
+        result = QDesktopServices.openUrl(QUrl("https://pypeit.readthedocs.io/en/latest/"))
+        if result:
+            msgs.info("Opened PypeIT docs.")
+        else:
+            msgs.warn("Failed to open PypeIt docs at 'https://pypeit.readthedocs.io/en/latest/'")
+
     def _create_button_box(self):
         """Create the box with action buttons.
         
@@ -1586,6 +1595,12 @@ class SetupGUIMainWindow(QWidget):
         self.saveAllButton = button
 
         button_layout.addStretch()
+
+        button = QPushButton(text = 'Help')
+        button.setToolTip("Opens PypeIt online documentation.")        
+        button.clicked.connect(self._helpButton)
+        button_layout.addWidget(button)
+        self.helpButton = button
 
         button = QPushButton(text = 'View log')
         button.setToolTip("Opens a window containing the log.")
