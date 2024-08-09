@@ -485,7 +485,6 @@ class SpecObj(datamodel.DataContainer):
         # Now update the total flexure
         self.FLEX_SHIFT_TOTAL += shift
 
-    # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extinctfilepar=None,
                          extrap_sens=False):
@@ -502,8 +501,8 @@ class SpecObj(datamodel.DataContainer):
             exptime (float):
                 Exposure time
             tellmodel (?):
-                Telluric correction
-            extinct_correct (?):
+                Telluric correction. Note: This is deprecated and will be removed in a future version.
+            extinct_correct (bool, optional):
                 If True, extinction correct
             airmass (float, optional):
                 Airmass
@@ -517,7 +516,6 @@ class SpecObj(datamodel.DataContainer):
                 Used for extinction correction
             extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
-
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
@@ -578,8 +576,10 @@ class SpecObj(datamodel.DataContainer):
         Convert spectrum into np.ndarray arrays
 
         Args:
-            extraction (str): Extraction method to convert
+            extraction (str):
+               Extraction method to convert
             fluxed:
+               Use the fluxed tags
 
         Returns:
             tuple: wave, flux, ivar, mask arrays
@@ -599,7 +599,7 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return self[swave], self[sflux], self[sivar], self[smask]
 
-    def to_xspec1d(self, masked=False, **kwargs):
+    def to_xspec1d(self, masked=True, extraction='OPT', fluxed=True):
         """
         Create an `XSpectrum1D <linetools.spectra.xspectrum1d.XSpectrum1D>`_
         using this spectrum.
@@ -607,18 +607,22 @@ class SpecObj(datamodel.DataContainer):
         Args:
             masked (:obj:`bool`, optional):
                 If True, only unmasked data are included.
-            kwargs (:obj:`dict`, optional):
-                Passed directly to :func:`to_arrays`.
+            extraction (str):
+                Extraction method to convert
+            fluxed:
+                Use the fluxed tags
 
         Returns:
             `linetools.spectra.xspectrum1d.XSpectrum1D`_: Spectrum object
         """
-        wave, flux, ivar, gpm = self.to_arrays(**kwargs)
+        wave, flux, ivar, gpm = self.to_arrays(extraction=extraction, fluxed=fluxed)
         sig = np.sqrt(utils.inverse(ivar))
+        wave_gpm = wave > 1.0
+        wave, flux, sig, gpm = wave[wave_gpm], flux[wave_gpm], sig[wave_gpm], gpm[wave_gpm]
         if masked:
-            wave = wave[gpm]
-            flux = flux[gpm]
-            sig = sig[gpm]
+            flux = flux*gpm
+            sig = sig*gpm
+
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 

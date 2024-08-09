@@ -11,7 +11,7 @@
                      [--ignore_std] [--skip_display] [--coadd2d]
                      [--only_slits ONLY_SLITS [ONLY_SLITS ...]] [--offsets OFFSETS]
                      [--weights WEIGHTS] [--spec_samp_fact SPEC_SAMP_FACT]
-                     [--spat_samp_fact SPAT_SAMP_FACT]
+                     [--spat_samp_fact SPAT_SAMP_FACT] [--try_old]
                      spectrograph
     
     Script to produce quick-look PypeIt reductions
@@ -26,12 +26,13 @@
                             keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
                             keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
                             keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
-                            keck_nires, keck_nirspec_low, lbt_luci1, lbt_luci2,
-                            lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
-                            ldt_deveny, magellan_fire, magellan_fire_long,
-                            magellan_mage, mdm_modspec, mdm_osmos_mdm4k,
-                            mdm_osmos_r4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
-                            not_alfosc, not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
+                            keck_nires, keck_nirspec_high, keck_nirspec_high_old,
+                            keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
+                            lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
+                            magellan_fire, magellan_fire_long, magellan_mage,
+                            mdm_modspec, mdm_osmos_mdm4k, mdm_osmos_r4k,
+                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
+                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
                             p200_dbsp_red, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
@@ -133,4 +134,6 @@
                             If coadding, adjust the spatial grid sampling by this
                             factor. For a finer grid, set value to <1.0; for coarser
                             sampling, set value to >1.0). (default: 1.0)
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue.. (default: False)
     

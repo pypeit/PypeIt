@@ -1,23 +1,23 @@
 .. code-block:: console
 
-    # Auto-generated PypeIt input file using PypeIt version: 1.12.2
-    # UTC 2023-04-05T22:42:29.971
+    # Auto-generated PypeIt input file using PypeIt version: 1.16.0
+    # UTC 2024-06-11T08:31:55
     
     # User-defined execution parameters
     [rdx]
-        spectrograph = gemini_gnirs_echelle
+    spectrograph = gemini_gnirs_echelle
     
     # Setup
     setup read
-    Setup A:
-      decker: 0.68arcsec_G5530
-      dispangle: 6.1887
-      dispname: 32/mmSB_G5533
+    Setup A: null
+    decker: 0.68arcsec_G5530
+    dispangle: 6.1887
+    dispname: 32/mmSB_G5533
     setup end
     
     # Data block 
     data read
-     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/gemini_gnirs_echelle/32_SB_SXD
+     path /path/to/PypeIt-development-suite/RAW_DATA/gemini_gnirs_echelle/32_SB_SXD
                 filename |         frametype |           ra |         dec |   target |      dispname |           decker | binning |              mjd | airmass | exptime | dispangle |           dithoff | calib | comb_id | bkg_id
     cN20170331S0216.fits |  arc,science,tilt | 205.53380833 |  9.47733611 |    pisco | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.3709743134 |   1.077 |   300.0 |    6.1887 | -0.34225501721318 |     0 |       5 |     -1
     cN20170331S0217.fits |  arc,science,tilt | 205.53380833 |  9.47733611 |    pisco | 32/mmSB_G5533 | 0.68arcsec_G5530 |     1,1 | 57843.3746886267 |   1.068 |   300.0 |    6.1887 |  2.65774498278682 |     0 |       6 |     -1

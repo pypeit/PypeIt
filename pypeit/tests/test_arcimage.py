@@ -11,7 +11,7 @@ from pypeit.images import pypeitimage
 from pypeit.images import buildimage
 from pypeit.images import detector_container
 from pypeit.tests.test_detector import def_det
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_init():
@@ -30,13 +30,14 @@ def test_io():
     pypeitImage.detector = detector_container.DetectorContainer(**def_det)
     pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
-    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage, calib_dir=data_path(''),
+    arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage, calib_dir=data_output_path(''),
                                                     setup='A', calib_id=['1'],
                                                     detname='DET01')
     # Set paths and check name
-    ofile = Path(arcImage.get_path()).resolve()
-    assert str(ofile) == str(Path(data_path('Arc_A_1_DET01.fits')).resolve()), \
+    ofile = Path(arcImage.get_path()).absolute()
+    assert str(ofile) == str(Path(data_output_path('Arc_A_1_DET01.fits')).absolute()), \
             'Calibration file name changed'
+    
     # Write
     arcImage.to_file(overwrite=True)
     # Read

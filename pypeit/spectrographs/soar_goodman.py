@@ -44,6 +44,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
+        self.meta['mode'] = dict(ext=1, card='WAVMODE')
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
@@ -93,7 +94,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'mode','decker', 'binning', 'dispangle'] 
 
     def raw_header_cards(self):
         """
@@ -113,7 +114,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['GRATING', 'SLIT', 'CCDSUM', 'GRT_ANG']
+        return ['GRATING', 'WAVMODE','SLIT', 'CCDSUM', 'GRT_ANG']
 
 #    def pypeit_file_keys(self):
 #        """
@@ -330,7 +331,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         #par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
         # fix.
@@ -527,7 +528,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         # par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         return par
 

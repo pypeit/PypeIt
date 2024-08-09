@@ -177,6 +177,7 @@ class RawImage:
         self.steps = dict(apply_gain=False,
                           subtract_pattern=False,
                           subtract_overscan=False,
+                          correct_nonlinear=False,
                           subtract_continuum=False,
                           subtract_scattlight=False,
                           trim=False,
@@ -304,8 +305,29 @@ class RawImage:
                                      noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
 
+    def correct_nonlinear(self):
+        """
+        Apply a non-linear correction to the image.
+
+        This is a simple wrapper for :func:`~pypeit.core.procimg.nonlinear_counts`.
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step]:
+            # Already applied
+            msgs.warn('Non-linear correction was already applied.')
+            return
+
+        inim = self.image.copy()
+        for ii in range(self.nimg):
+            # Correct the image for non-linearity. Note that the variance image is not changed here.
+            self.image[ii, ...] = procimg.nonlinear_counts(self.image[ii, ...], self.datasec_img[ii, ...]-1,
+                                                           self.par['correct_nonlinear'])
+
+        self.steps[step] = True
+
     def estimate_readnoise(self):
-        """ Estimate the readnoise (in electrons) based on the overscan regions of
+        r"""
+        Estimate the readnoise (in electrons) based on the overscan regions of
         the image.
 
         If the readnoise is not known for any of the amplifiers (i.e., if
@@ -613,6 +635,12 @@ class RawImage:
 
         # TODO: Checking for count (well-depth) saturation should be done here.
 
+        #   - Perform a non-linearity correction.  This is done before the
+        #     flat-field and dark correction because the flat-field modifies
+        #     the counts.
+        if self.par['correct_nonlinear'] is not None:
+            self.correct_nonlinear()
+
         #   - Create the dark current image(s).  The dark-current image *always*
         #     includes the tabulated dark current and the call below ensures
         #     that this is *always* subtracted from the image being processed,
@@ -639,7 +667,7 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
                                     if self.par['spat_flexure_correct'] else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
@@ -674,7 +702,8 @@ class RawImage:
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],
-                                              bpm=_bpm.astype(bool))
+                                              bpm=_bpm.astype(bool), 
+                                              filename=self.filename)
 
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
@@ -732,7 +761,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False):
+    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -745,6 +774,8 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            maxlag (:obj:'float', optional):
+                Maximum range of lag values over which to compute the CCF.
 
         Return:
             float: The calculated flexure correction
@@ -758,7 +789,7 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits)
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, maxlag = maxlag)
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
@@ -837,62 +868,6 @@ class RawImage:
         # Apply flat-field correction
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
         # a bit overkill...
-        if debug:
-            iput = self.image[0].copy()
-            total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
-            self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
-            oput, flat_bpm = flat.flatfield(self.image[0], total_flat)
-            from matplotlib import pyplot as plt
-            from pypeit import edgetrace, wavetilts, wavecalib
-            from scipy.signal import savgol_filter
-
-            edges_file = "Calibrations/Edges_A_0_DET01.fits.gz"
-            tilts_file = "Calibrations/Tilts_A_0_DET01.fits"
-            wvcalib_file = "Calibrations/WaveCalib_A_0_DET01.fits"
-            flex = None
-            slits = edgetrace.EdgeTraceSet.from_file(edges_file).get_slits()
-            wvtilts = wavetilts.WaveTilts.from_file(tilts_file)
-            wv_calib = wavecalib.WaveCalib.from_file(wvcalib_file)
-
-            slitmask = slits.slit_img(initial=True, flexure=flex)
-            tilts = wvtilts.fit2tiltimg(slitmask, flexure=flex)
-            waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=flex)
-
-            # extract a spectrum down the centre of each slit
-            left, right, _ = slits.select_edges(initial=True)
-            cen = np.round(0.5 * (left + right)).astype(int)
-            lcen = np.round(0.75*left + 0.25*right).astype(int)
-            rcen = np.round(0.25*left + 0.75*right).astype(int)
-
-            colors = plt.cm.jet(np.linspace(0, 1, slits.nslits))
-            navg = 21
-            for ss in range(slits.nslits):
-                print("slit {0:d}".format(ss+1))
-                inarr = np.zeros((iput.shape[0], navg))
-                outarra = np.zeros((iput.shape[0], navg))
-                outarrb = np.zeros((iput.shape[0], navg))
-                outarrc = np.zeros((iput.shape[0], navg))
-                for ll in range(navg):
-                    ww = (np.arange(iput.shape[0]), cen[:, ss] + ll - navg // 2)
-                    inarr[:, ll] = iput[ww]
-                    outarra[:, ll] = oput[ww]
-                    ww = (np.arange(iput.shape[0]), lcen[:, ss] + ll - navg // 2)
-                    outarrb[:, ll] = oput[ww]
-                    ww = (np.arange(iput.shape[0]), rcen[:, ss] + ll - navg // 2)
-                    outarrc[:, ll] = oput[ww]
-                wa = (np.arange(iput.shape[0]), cen[:, ss])
-                wb = (np.arange(iput.shape[0]), lcen[:, ss])
-                wc = (np.arange(iput.shape[0]), rcen[:, ss])
-                plt.subplot(221)
-                plt.plot(waveimg[wa], np.median(inarr, axis=1), color=colors[ss])
-                plt.subplot(222)
-                plt.plot(waveimg[wa], savgol_filter(np.median(outarra, axis=1), 25, 3), color=colors[ss])
-                plt.subplot(223)
-                plt.plot(waveimg[wb], savgol_filter(np.median(outarrb, axis=1), 25, 3), color=colors[ss])
-                plt.subplot(224)
-                plt.plot(waveimg[wc], savgol_filter(np.median(outarrc, axis=1), 25, 3), color=colors[ss])
-            #     plt.plot(waveimg[ww], np.median(outarr, axis=1), color=colors[ss])
-            plt.show()
         total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
         self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
         self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
@@ -1223,10 +1198,10 @@ class RawImage:
             this_modpar = msscattlight.scattlight_param.copy()
             this_modpar[8] = 0.0  # This is the zero-level of the scattlight frame. The zero-level is determined by the finecorr
             # Apply the requested method for the scattered light
-            do_finecorr = self.par["scattlight"]["finecorr"]
+            do_finecorr = self.par["scattlight"]["finecorr_method"] is not None
             if self.par["scattlight"]["method"] == "model":
                 # Use predefined model parameters
-                scatt_img = scattlight.scattered_light_model(this_modpar, _img)
+                scatt_img = scattlight.scattered_light_model_pad(this_modpar, _img)
                 if debug:
                     specbin, spatbin = parse.parse_binning(self.detector[0]['binning'])
                     tmp = msscattlight.scattlight_param.copy()
@@ -1242,10 +1217,9 @@ class RawImage:
                                f"               {tmp[10]},  # Relative kernel scale (>1 means the kernel is more Gaussian, >0 but <1 makes the profile more lorentzian)\n" + \
                                f"               {tmp[11]}, {tmp[12]},  # Polynomial terms (coefficients of \"spat\" and \"spat*spec\")\n" + \
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
-                               # f"               {tmp[13]}, {tmp[14]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1270,7 +1244,7 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
                 pad = msscattlight.pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
@@ -1294,19 +1268,20 @@ class RawImage:
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(initial=True, flexure=None)
+                    left, right, _ = slits.select_edges(flexure=None)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
                                                                mask_regions=self.par['scattlight']['finecorr_mask'])
                 # Calculate the fine correction to the scattered light image, and add it to the full model
                 scatt_img += scattlight.fine_correction(_img-scatt_img, full_bpm, offslitmask,
+                                                        method=self.par['scattlight']['finecorr_method'],
                                                         polyord=self.par['scattlight']['finecorr_order'])
-            # Subtract the scattered light model from the image
+            # Subtract the total scattered light model from the image
             self.image[ii, ...] -= scatt_img
         self.steps[step] = True
 

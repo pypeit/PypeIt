@@ -283,6 +283,34 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Set the number of alignments in the align frames
         par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
 
+        # Correct the illumflat for pixel-to-pixel sensitivity variations
+        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
+
+        # KCWI has non-uniform spectral resolution across the field-of-view
+        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
+        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 10  # Sufficiently small value so less structure in relative weights
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -312,6 +340,9 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
 
         # Flux calibration parameters
         par['sensfunc']['UVIS']['extinct_correct'] = False  # This must be False - the extinction correction is performed when making the datacube
+
+        # If telluric is triggered
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         return par
 
@@ -604,7 +635,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         ra = self.compound_meta([hdr], 'ra')
@@ -871,7 +902,6 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
         self.meta['cenwave'] = dict(ext=0, card='BCWAVE', rtol=0.01)
 
-
     def raw_header_cards(self):
         """
         Return additional raw header cards to be propagated in
@@ -918,37 +948,26 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['scattlight_pad'] = 6  # This is the unbinned number of pixels to pad
         par['calibrations']['pixelflatframe']['process']['subtract_scattlight'] = True
         par['calibrations']['illumflatframe']['process']['subtract_scattlight'] = True
-        par['scienceframe']['process']['subtract_scattlight'] = True
-        par['scienceframe']['process']['scattlight']['finecorr_pad'] = 2
+        par['scienceframe']['process']['subtract_scattlight'] = False
+        par['scienceframe']['process']['scattlight']['finecorr_method'] = 'median'
+        par['scienceframe']['process']['scattlight']['finecorr_pad'] = 4  # This is the unbinned number of pixels to pad
         par['scienceframe']['process']['scattlight']['finecorr_order'] = 2
-        par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
+        # par['scienceframe']['process']['scattlight']['finecorr_mask'] = 12  # Mask the middle inter-slit region. It contains a strange scattered light feature that doesn't appear to affect any other inter-slit regions
 
-        # Correct the illumflat for pixel-to-pixel sensitivity variations
-        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
-
-        # Make sure the overscan is subtracted from the dark
-        par['calibrations']['darkframe']['process']['use_overscan'] = True
-
-        # Set the slit edge parameters
-        par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
-        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
-
-        # KCWI has non-uniform spectral resolution across the field-of-view
-        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
-        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
+        # Correct for non-linear behaviour in the detector response
+        nonlin_array = [-1.4E-7, -1.4E-7, -1.2E-7, -1.8E-7]  # AMPID=0,1,2,3 respectively
+        par['calibrations']['arcframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['tiltframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['pixelflatframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['illumflatframe']['process']['correct_nonlinear'] = nonlin_array
+        par['calibrations']['standardframe']['process']['correct_nonlinear'] = nonlin_array
+        par['scienceframe']['process']['correct_nonlinear'] = nonlin_array
 
         # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
-        # Relative illumination correction
-        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
-        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'mean'
+        par['calibrations']['flatfield']['spat_samp'] = 1.0  # This should give 1% accuracy in the spatial illumination correction for 2x2 binning, and <0.5% accuracy for 1x1 binning
+
+        # Need to fit sinusoidal sensitivity pattern, and include in the relative pixel response
         par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
 
         return par
@@ -1167,13 +1186,13 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         msgs.info("Performing a 2D fit to the detector response")
 
         # Define a 2D sine function, which is a good description of KCWI data
-        def sinfunc2d(x, amp, scl, phase, wavelength, angle):
+        def sinfunc2d(x, amp, scl, quad, phase, wavelength, angle):
             """
             2D Sine function
             """
             xx, yy = x
             angle *= np.pi / 180.0
-            return 1 + (amp + xx * scl) * np.sin(
+            return 1 + (amp + xx*scl + xx*xx*quad) * np.sin(
                 2 * np.pi * (xx * np.cos(angle) + yy * np.sin(angle)) / wavelength + phase)
 
         x = np.arange(det_resp.shape[0])
@@ -1181,11 +1200,12 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
         xx, yy = np.meshgrid(x, y, indexing='ij')
         # Prepare the starting parameters
         amp = 0.02  # Roughly a 2% effect
-        scale = 0.0  # Assume the amplitude is constant over the detector
+        scale, quad = 0.0, 0.0  # Assume the amplitude is constant over the detector
         wavelength = np.sqrt(det_resp.shape[0] ** 2 + det_resp.shape[1] ** 2) / 31.5  # 31-32 cycles of the pattern from corner to corner
         phase, angle = 0.0, -45.34  # No phase, and a decent guess at the angle
-        p0 = [amp, scale, phase, wavelength, angle]
-        popt, pcov = curve_fit(sinfunc2d, (xx[gpmask], yy[gpmask]), det_resp[gpmask], p0=p0)
+        p0 = [amp, scale, quad, phase, wavelength, angle]
+        this_bpm = gpmask & (np.abs(det_resp-1) < 0.1)  # Only expect this to be a 5% effect
+        popt, pcov = curve_fit(sinfunc2d, (xx[this_bpm], yy[this_bpm]), det_resp[this_bpm], p0=p0)
         return sinfunc2d((xx, yy), *popt)
 
 
@@ -1337,33 +1357,8 @@ class KeckKCRMSpectrograph(KeckKCWIKCRMSpectrograph):
         par['calibrations']['standardframe']['process']['use_pattern'] = False
         par['scienceframe']['process']['use_pattern'] = False
 
-        # Correct the illumflat for pixel-to-pixel sensitivity variations
-        par['calibrations']['illumflatframe']['process']['use_pixelflat'] = True
-
-        # Make sure the overscan is subtracted from the dark
-        par['calibrations']['darkframe']['process']['use_overscan'] = True
-
-        # Set the slit edge parameters
-        par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['pad'] = 2  # Need to pad out the tilts for the astrometric transform when creating a datacube.
-        par['calibrations']['slitedges']['edge_thresh'] = 5  # 5 works well with a range of setups tested by RJC (mostly 1x1 binning)
-
-        # KCWI has non-uniform spectral resolution across the field-of-view
-        par['calibrations']['wavelengths']['fwhm_spec_order'] = 1
-        par['calibrations']['wavelengths']['fwhm_spat_order'] = 2
-
-        # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
-        #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
-        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
-        # Relative illumination correction
-        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
-        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
-        par['calibrations']['flatfield']['slit_illum_smooth_npix'] = 5  # Sufficiently small value so less structure in relative weights
-        par['calibrations']['flatfield']['fit_2d_det_response'] = True  # Include the 2D detector response in the pixelflat.
+        # This is probably not necessary for KCRM
+        par['calibrations']['flatfield']['fit_2d_det_response'] = False  # Include the 2D detector response in the pixelflat.
 
         # Sky subtraction parameters
         par['reduce']['skysub']['bspline_spacing'] = 0.4

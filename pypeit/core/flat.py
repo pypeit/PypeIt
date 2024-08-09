@@ -16,43 +16,8 @@ import matplotlib.pyplot as plt
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.core import parse
-from pypeit.core import pixels
-from pypeit.core import tracewave
+from pypeit.core import coadd
 from pypeit import utils
-from pypeit.core import pydl
-
-# TODO: Put this in utils
-def linear_interpolate(x1, y1, x2, y2, x):
-    r"""
-    Interplate or extrapolate between two points.
-
-    Given a line defined two points, :math:`(x_1,y_1)` and
-    :math:`(x_2,y_2)`, return the :math:`y` value of a new point on
-    the line at coordinate :math:`x`.
-
-    This function is meant for speed. No type checking is performed and
-    the only check is that the two provided ordinate coordinates are not
-    numerically identical. By definition, the function will extrapolate
-    without any warning.
-
-    Args:
-        x1 (:obj:`float`):
-            First abscissa position
-        y1 (:obj:`float`):
-            First ordinate position
-        x2 (:obj:`float`):
-            Second abscissa position
-        y3 (:obj:`float`):
-            Second ordinate position
-        x (:obj:`float`):
-            Abcissa for new value
-
-    Returns:
-        :obj:`float`: Interpolated/extrapolated value of ordinate at
-        :math:`x`.
-    """
-    return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
 # TODO: Make this function more general and put it in utils.
@@ -361,6 +326,45 @@ def illum_profile_spectral_poly(rawimg, waveimg, slitmask, slitmask_trim, model,
     return scaleImg
 
 
+def smooth_scale(arr, wave_ref=None, polydeg=None, sn_smooth_npix=None):
+    """
+    Smooth the relative sensitivity array using a polynomial fit or a boxcar filter.
+
+    Parameters
+    ----------
+    arr : `numpy.ndarray`_
+        Array containing the relative sensitivity
+    wave_ref : `numpy.ndarray`_, optional
+        Wavelength array corresponding to the relative sensitivity array. Only used if polydeg is not None.
+    polydeg : :obj:`int`, optional
+        Degree of the polynomial fit to the relative sensitivity array. If None, a boxcar filter will be used.
+    sn_smooth_npix : :obj:`int`, optional
+        Number of pixels to use for the boxcar filter. Only used if polydeg is None.
+
+    Returns
+    -------
+    arr_smooth : `numpy.ndarray`
+        Smoothed relative sensitivity array
+    """
+    # Do some checks on the input
+    if polydeg is not None and wave_ref is None:
+        msgs.error("Must provide a wavelength array if polydeg is not None")
+    if polydeg is None and sn_smooth_npix is None:
+        msgs.error("Must provide either polydeg or sn_smooth_npix")
+    # Smooth the relative sensitivity array
+    if polydeg is not None:
+        gd = (arr != 0)
+        wave_norm = (wave_ref - wave_ref[0]) / (wave_ref[1] - wave_ref[0])
+        coeff = np.polyfit(wave_norm[gd], arr[gd], polydeg)
+        ref_relscale = np.polyval(coeff, wave_norm)
+    else:
+        ref_relscale = coadd.smooth_weights(arr, (arr != 0), sn_smooth_npix)
+    # Return the smoothed relative sensitivity array
+    return ref_relscale
+
+
+# TODO:: See pypeit/deprecated/flat.py for a spline version. The following polynomial version is faster, but
+#        the spline version is more versatile.
 def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
              slit_illum_ref_idx=0, gpmask=None, thismask=None, debug=False):
     """
@@ -465,107 +469,120 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
-def spline_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg,
-               slit_illum_ref_idx=0, gpmask=None, thismask=None, nbins=20, debug=False):
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, debug=False):
+    r""" Adjust slit edges based on the gradient of the normalized
+    flat-field illumination profile.
+
+    Args:
+        left (`numpy.ndarray`_):
+            Array with the left slit edge for a single slit. Shape is
+            :math:`(N_{\rm spec},)`.
+        right (`numpy.ndarray`_):
+            Array with the right slit edge for a single slit. Shape
+            is :math:`(N_{\rm spec},)`.
+        spat_coo (`numpy.ndarray`_):
+            Spatial pixel coordinates in fractions of the slit width
+            at each spectral row for the provided normalized flat
+            data. Coordinates are relative to the left edge (with the
+            left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
+            Function assumes the coordinate array is sorted.
+        norm_flat (`numpy.ndarray`_)
+            Normalized flat data that provide the slit illumination
+            profile. Shape is :math:`(N_{\rm flat},)`.
+        maxfrac (:obj:`float`, optional):
+            The maximum fraction of the slit width that the slit edge
+            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+            this means the maximum change in the slit width (either
+            narrowing or broadening) is 20% (i.e., 10% for either
+            edge).
+        debug (:obj:`bool`, optional):
+            If True, the function will output plots to test if the
+            fitting is working correctly.
+
+    Returns:
+        tuple: Returns six objects:
+
+            - The threshold used to set the left edge
+            - The fraction of the slit that the left edge is shifted to
+              the right
+            - The adjusted left edge
+            - The threshold used to set the right edge
+            - The fraction of the slit that the right edge is shifted to
+              the left
+            - The adjusted right edge
     """
-    Use a spline fit to control points along the spectral direction to construct a map between modelimg and
-    rawimg. Currently, this routine is only used for image slicer IFUs.
+    # Check input
+    nspec = len(left)
+    if len(right) != nspec:
+        msgs.error('Input left and right traces must have the same length!')
 
-    This problem needs to be recast into a smoothing problem, that can take advantage of the following:
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html#scipy.interpolate.UnivariateSpline
-    where:
-    y = science/model
-    w = model/science_error
-    resid = w*(y-f(x))
-    Then, iterate over this. The reason to iterate is that there should be a mapping between science and
-    science_error. Once we have an estimate of f(x), we can do the following:
-    spl = spline(science, science_error)
-    new_science_error = spl(model*f(x))
-    Now iterate a few times until new_science_error (and the fit) is converged.
+    # Median slit width
+    slitwidth = np.median(right - left)
 
-    Parameters
-    ----------
-    rawimg : `numpy.ndarray`_
-        Image data that will be used to estimate the spectral relative sensitivity
-    rawivar : `numpy.ndarray`_
-        Inverse variance image of rawimg
-    waveimg : `numpy.ndarray`_
-        Wavelength image
-    slitmask : `numpy.ndarray`_
-        A 2D int mask, the same shape as rawimg, indicating which pixels are on a slit. A -1 value
-        indicates not on a slit, while any pixels on a slit should have the value of the slit spatial ID
-        number.
-    slitmask_trim : `numpy.ndarray`_
-        Same as slitmask, but the slit edges are trimmed.
-    modelimg : `numpy.ndarray`_
-        A model of the rawimg data.
-    slit_illum_ref_idx : :obj:`int`
-        Index of slit that is used as the reference.
-    gpmask : `numpy.ndarray`_, optional
-        Boolean good pixel mask (True = Good)
-    thismask : `numpy.ndarray`_, optional
-        A boolean mask (True = good) that indicates all pixels where the scaleImg should be constructed.
-        If None, the slitmask that is generated by this routine will be used.
-    nbins : :obj:`int`
-        Number of bins in the spectral direction to sample the relative spectral sensitivity
-    debug : :obj:`bool`
-        If True, some plots will be output to test if the fitting is working correctly.
+    # Calculate the gradient of the normalized flat profile
+    grad_norm_flat = np.gradient(norm_flat)
+    # Smooth with a Gaussian kernel
+    # The standard deviation of the kernel is set to be one detector pixel. Since the norm_flat array is oversampled,
+    # we need to set the kernel width (sig_res) to be the oversampling factor.
+    sig_res = norm_flat.size / slitwidth
+    # The scipy.ndimage module is faster than the astropy convolution module
+    grad_norm_flat_smooth = scipy.ndimage.gaussian_filter1d(grad_norm_flat, sig_res, mode='nearest')
 
-    Returns
-    -------
-    scale_model: `numpy.ndarray`_
-        An image containing the appropriate scaling
-    """
-    # Some variables to consider putting as function arguments
-    numiter = 4
+    # Find the location of the minimum/maximum gradient - this is the amount of shift required
+    left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
+    right_shift = spat_coo[np.argmin(grad_norm_flat_smooth)]-1.0
 
-    # Start by calculating a ratio of the raming and the modelimg
-    nspec = rawimg.shape[0]
-    _ratio = rawimg * utils.inverse(modelimg)
-    _ratio_ivar = rawivar * modelimg**2
-    _fit_wghts = modelimg * np.sqrt(rawivar)
+    # Check if the shift is within the allowed range
+    if np.abs(left_shift) > maxfrac:
+        msgs.warn('Left slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*left_shift, 100*maxfrac) + msgs.newline() +
+                  'The left edge will not be tweaked.')
+        left_shift = 0.0
+    else:
+        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
+                  ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
+    if np.abs(right_shift) > maxfrac:
+        msgs.warn('Right slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*right_shift, 100*maxfrac) + msgs.newline() +
+                  'The right edge will not be tweaked.')
+        right_shift = 0.0
+    else:
+        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
+                  ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
 
-    # Generate the mask
-    _thismask = thismask if (thismask is not None) else (slitmask > 0)
-    gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
-    # Extract the list of  spatial IDs from the slitmask
-    slitmask_spatid = np.unique(slitmask)
-    slitmask_spatid = np.sort(slitmask_spatid[slitmask_spatid > 0])
+    # Calculate the tweak for the left edge
+    new_left = left + left_shift * slitwidth
+    new_right = right + right_shift * slitwidth
 
-    # Create a spline between the raw data and the error
-    # TODO :: This is slow and inefficient.
-    embed()
-    flxsrt = np.argsort(np.ravel(rawimg))
-    spl = scipy.interpolate.interp1d(np.ravel(rawimg)[flxsrt], np.ravel(rawivar)[flxsrt], kind='linear',
-                                     bounds_error=False, fill_value=0.0, assume_sorted=True)
-    modelmap = np.zeros_like(rawimg)
-    for sl, spatid in enumerate(slitmask_spatid):
-        print("sl")
-        # Prepare the masks, edges, and fitting variables
-        this_slit = (slitmask == spatid)
-        this_slit_trim = (slitmask_trim == spatid)
-        this_slit_mask = gpm & this_slit_trim
-        this_wave = waveimg[this_slit_mask]
-        this_wghts = _fit_wghts[this_slit_mask]
-        asrt = np.argsort(this_wave)
-        for ii in range(numiter):
-            # Generate the map between model and data
-            splmap = scipy.interpolate.UnivariateSpline(this_wave[asrt], _ratio[this_slit_mask][asrt], w=this_wghts[asrt],
-                                                        bbox=[None, None], k=3, s=nspec, ext=0, check_finite=False)
-            # Construct the mapping, and use this to make a model of the rawdata
-            this_modmap = splmap(this_wave[this_slit_mask])
-            this_modflx = modelimg[this_slit_mask] * this_modmap
-            # Update the fit weights
-            this_wghts = modelimg[this_slit_mask] * np.sqrt(spl(this_modflx))
-        # Produce the final model for this slit
-        modelmap[this_slit] = splmap(this_wave[this_slit])
-    return modelmap
+    # Calculate the value of the threshold at the new slit edges
+    left_thresh = np.interp(left_shift, spat_coo, norm_flat)
+    right_thresh = np.interp(1+right_shift, spat_coo, norm_flat)
+
+    if debug:
+        plt.subplot(211)
+        plt.plot(spat_coo, norm_flat, 'k-')
+        plt.axvline(0.0, color='b', linestyle='-', label='initial')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-', label='tweak (gradient)')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.axhline(left_thresh, xmax=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.axhline(right_thresh, xmin=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.legend()
+        plt.subplot(212)
+        plt.plot(spat_coo, grad_norm_flat, 'k-')
+        plt.plot(spat_coo, grad_norm_flat_smooth, 'm-')
+        plt.axvline(0.0, color='b', linestyle='-')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.show()
+    return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
 
 # TODO: See pypeit/deprecated/flat.py for the previous version. We need
 # to continue to vet this algorithm to make sure there are no
 # unforeseen corner cases that cause errors.
-def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
+def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
     r"""
     Adjust slit edges based on the normalized slit illumination profile.
 
@@ -671,10 +688,10 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
                         100*maxfrac))
             left_shift = maxfrac
         else:
-            left_shift = linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
-                                           spat_coo[i+1], left_thresh)
+            left_shift = utils.linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
+                                                  spat_coo[i+1], left_thresh)
         msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
-                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
 
     # ------------------------------------------------------------------
@@ -725,15 +742,15 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
                         100*maxfrac))
             right_shift = maxfrac
         else:
-            right_shift = 1-linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
-                                               spat_coo[i], right_thresh)
+            right_shift = 1-utils.linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
+                                                     spat_coo[i], right_thresh)
         msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
-                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
-#def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, snframe=None, varframe=None):
+
 def flatfield(sciframe, flatframe, varframe=None):
     r"""
     Field flatten the input image.

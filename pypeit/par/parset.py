@@ -345,7 +345,7 @@ class ParSet:
         return '\n'.join(row_string)+'\n'
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatim=False):
+    def _data_string(data, use_repr=False, verbatim=False):
         """
         Convert a single datum into a string
         
@@ -372,9 +372,11 @@ class ParSet:
                 return '..' if len(data) == 0 else '``' + data + '``'
             return data
         if isinstance(data, list):
-            # TODO: When the list is empty, should the return include the
-            # brackets?
-            return '[]' if len(data) == 0 \
+            # When the list is empty, return an empty string, which config_lines will append a "," to.
+            # This allows ConfigObj to interpret it as an empty list, instead of string, when re-reading the
+            # configuration lines into a ParSet
+            
+            return '' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)

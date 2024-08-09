@@ -211,7 +211,8 @@ def generate_sci_pypeitfile(redux_path:str,
                             slitspatnum:str=None,
                             maskID:str=None,
                             boxcar_radius:float=None,
-                            snr_thresh:float=None):
+                            snr_thresh:float=None,
+                            chk_version:bool=True):
     """
     Prepare to reduce the science frames:
 
@@ -268,7 +269,7 @@ def generate_sci_pypeitfile(redux_path:str,
     ps_sci.fitstbl._set_calib_group_bits()
 
     # Set the I/O directories
-    _redux_path = Path(redux_path).resolve()
+    _redux_path = Path(redux_path).absolute()
     sci_dir = _redux_path / folder_name_from_scifiles(ps_sci.fitstbl['filename'].data)
     calib_dir = sci_dir / ps_sci.par['calibrations']['calib_dir']
 
@@ -350,7 +351,7 @@ def generate_sci_pypeitfile(redux_path:str,
         # Iterate through each file to find the one with the relevant mask ID.
         detname = None
         for sliittrace_file in slittrace_files:
-            slitTrace = SlitTraceSet.from_file(sliittrace_file)
+            slitTrace = SlitTraceSet.from_file(sliittrace_file, chk_version=chk_version)
             if maskID in slitTrace.maskdef_id:
                 detname = slitTrace.detname
                 # Mosaic?
@@ -430,7 +431,7 @@ def calib_manifest(calib_dir, spectrograph):
         directory with the processed calibrations.
     """
     # Check the calibration directory exists
-    _calib_dir = Path(calib_dir).resolve()
+    _calib_dir = Path(calib_dir).absolute()
     if not _calib_dir.exists():
         return None
 
@@ -580,7 +581,7 @@ def get_setup_calib(calib_dir, calib_grp=None):
     Returns:
         :obj:`tuple`: The setup name and calibration group.
     """
-    _calib_dir = Path(calib_dir).resolve()
+    _calib_dir = Path(calib_dir).absolute()
 
     # Check there are files in the directory
     calib_files = sorted(_calib_dir.glob('*'))
@@ -743,6 +744,8 @@ class QL(scriptbase.ScriptBase):
                             help='If coadding, adjust the spatial grid sampling by this '
                                  'factor.  For a finer grid, set value to <1.0; for coarser '
                                  'sampling, set value to >1.0).')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
 
         return parser
 
@@ -751,6 +754,8 @@ class QL(scriptbase.ScriptBase):
     def main(args):
 
         tstart = time.perf_counter()
+
+        chk_version = not args.try_old
 
         # Parse the raw files
         files = get_files(args.raw_files, args.raw_path)
@@ -761,7 +766,7 @@ class QL(scriptbase.ScriptBase):
         # RawFile that can be edited?
         # from pypeit.inputfiles import RawFiles
         # tbl = Table()
-        # tbl['filename'] = [Path(r).resolve().name for r in files]
+        # tbl['filename'] = [Path(r).absolute().name for r in files]
         # RawFiles(file_paths=[args.raw_path], data_table=tbl).write('test.rawfiles')
 
         # Run PypeIt Setup on all the files
@@ -791,7 +796,7 @@ class QL(scriptbase.ScriptBase):
 
         # Set the directory with the calibrations
         setup_calib_dir = None if args.setup_calib_dir is None \
-                            else Path(args.setup_calib_dir).resolve()
+                            else Path(args.setup_calib_dir).absolute()
 
         # For any science files, independently prep their meta data and
         # associate them with the correct calibrations, if necessary.
@@ -915,7 +920,7 @@ class QL(scriptbase.ScriptBase):
             # Process them
             for calib_pypeit_file in calib_pypeit_files: 
                 # Path to PypeIt file
-                redux_path = Path(calib_pypeit_file).resolve().parent
+                redux_path = Path(calib_pypeit_file).absolute().parent
 
                 # Path for calibrations.
                 # NOTE: When running with science frames, there will only be one
@@ -960,7 +965,8 @@ class QL(scriptbase.ScriptBase):
                     slitspatnum=args.slitspatnum,
                     maskID=args.maskID, 
                     boxcar_radius=args.boxcar_radius,
-                    snr_thresh=args.snr_thresh)
+                    snr_thresh=args.snr_thresh,
+                    chk_version=chk_version)
 
         # Run it
         pypeIt = pypeit.PypeIt(sci_pypeit_file, reuse_calibs=True)
@@ -989,7 +995,7 @@ class QL(scriptbase.ScriptBase):
             # NOTE: This should only find *one* coadd2d file because quick-look
             # should be limited to performing reduction for one target at a
             # time.
-            coadd_file = sorted(Path(sci_pypeit_file).resolve().parent.glob('*.coadd2d'))
+            coadd_file = sorted(Path(sci_pypeit_file).absolute().parent.glob('*.coadd2d'))
             if len(coadd_file) != 1:
                 msgs.error('There should be only one 2D coadd file.')
             coadd_file = coadd_file[0]
@@ -1003,7 +1009,7 @@ class QL(scriptbase.ScriptBase):
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar()
             spec2d_files = coadd2dFile.filenames
-            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).resolve()
+            coadd_scidir = Path(coadd2d.CoAdd2D.output_paths(spec2d_files, par)[0]).absolute()
             basename = coadd2d.CoAdd2D.default_basename(spec2d_files)
             spec2d_file = str(coadd_scidir / f'spec2d_{basename}.fits')
         else:

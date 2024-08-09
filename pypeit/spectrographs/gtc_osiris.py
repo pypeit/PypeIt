@@ -384,7 +384,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
@@ -471,6 +471,13 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
 
+        # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
         par['reduce']['cube']['combine'] = False  # Make separate spec3d files from the input spec2d files
@@ -527,7 +534,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         raval = self.get_meta_value([hdr], 'ra')
@@ -955,7 +962,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'

@@ -4,11 +4,9 @@ Module to run tests on the ArchiveDir/ArchiveMetadata script.
 
 import pytest
 import os
-from functools import partial
-import filecmp
 
+from pypeit import dataPaths
 from pypeit.archive import ArchiveMetadata, ArchiveDir
-from pypeit.tests.tstutils import data_path
 
 
 class mock_file_info:
@@ -43,8 +41,8 @@ def get_multirow_metadata(file_info):
 
 def cmp_files(file1, file2):
     """
-    Compre two text files line by line. This function exists because
-    out test suite has to work under Windows and Linux, and the filecmp
+    Compare two text files line by line. This function exists because
+    our test suite has to work under Windows and Linux, and the filecmp
     package doesn't handle mixed newline styles.
 
     Returns:
@@ -108,7 +106,10 @@ def test_archive_dir(tmp_path):
     archive_root = str(tmp_path)
     metadata_file1 = os.path.join(archive_root, "by_id_meta.dat")
     metadata_file2 = os.path.join(archive_root, "by_object_meta.dat")
-    source_path = data_path("")
+    source_path = str(dataPaths.tests.path)
+
+    source_data_file1 = dataPaths.tests.get_file_path(_DATA_FILE1, to_pkg='symlink')
+    source_data_file2 = dataPaths.tests.get_file_path(_DATA_FILE2, to_pkg='symlink')
 
     # Test an Archiver with two metadta files, one with multiple rows per item
     col_names1 = ["id", "file", "num", "date"]
@@ -119,9 +120,9 @@ def test_archive_dir(tmp_path):
 
     test_meta3 = ArchiveMetadata(metadata_file1, col_names1, get_simple_metadata, False)
 
-    # Test an archvier that doesn't copy files.
+    # Test an archiver that doesn't copy files.
     archive_dir_nocopy = ArchiveDir(archive_root, [test_meta1, test_meta2], False)
-    archive_dir_nocopy.add(os.path.join(source_path, _DATA_FILE1))
+    archive_dir_nocopy.add(str(source_data_file1))
     archive_dir_nocopy.save()
 
     assert not os.path.exists(os.path.join(archive_root, _DATA_FILE1))
@@ -130,7 +131,7 @@ def test_archive_dir(tmp_path):
     # append to the metadata from the previous archive_dir_nocopy save
     archive_dir = ArchiveDir(archive_root, [test_meta3, test_meta2], True)
 
-    archive_dir.add(os.path.join(source_path, _DATA_FILE1))
+    archive_dir.add(str(source_data_file1))
     archive_dir.add(mock_file_info(source_path, _DATA_FILE2))
     archive_dir.save()
 
@@ -141,9 +142,8 @@ def test_archive_dir(tmp_path):
     assert dest_file2.exists()
 
     # Verify ipac metadata files are correct
-    good_path = data_path("ipac")
-    good_file1 = os.path.join(good_path, 'by_id_meta.dat')
-    good_file2 = os.path.join(good_path, 'by_object_meta.dat')
+    good_file1 = dataPaths.tests.get_file_path('ipac/by_id_meta.dat')
+    good_file2 = dataPaths.tests.get_file_path('ipac/by_object_meta.dat')
 
     assert cmp_files(good_file1, metadata_file1) is True
     assert cmp_files(good_file2, metadata_file2) is True

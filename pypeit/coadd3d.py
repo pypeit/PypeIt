@@ -15,7 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import alignframe, datamodel, flatfield, io, spec2dobj, utils
+from pypeit import alignframe, datamodel, flatfield, io, sensfunc, spec2dobj, utils
 from pypeit.core.flexure import calculate_image_phase
 from pypeit.core import datacube, extract, flux_calib, parse
 from pypeit.spectrographs.util import load_spectrograph
@@ -93,7 +93,7 @@ class DataCube(datamodel.DataContainer):
                  'spectrograph',
                  'spect_meta',
                  '_ivar',  # This is set internally, and should be accessed with self.ivar
-                 '_wcs'  # This is set internally, and should be accessed with self.wcs
+                 '_wcs'
                 ]
 
     def __init__(self, flux, sig, bpm, wave, PYP_SPEC, blaze_wave, blaze_spec, sensfunc=None,
@@ -106,6 +106,7 @@ class DataCube(datamodel.DataContainer):
         # Initialise the internals
         self._ivar = None
         self._wcs = None
+        self.head0 = None  # This contains the primary header of the spec2d used to make the datacube
 
     def _bundle(self):
         """
@@ -162,32 +163,44 @@ class DataCube(datamodel.DataContainer):
             subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
         else:
             subheader = {}
-        # Add em in
+        # Add them in
         for key in subheader:
             primary_hdr[key] = subheader[key]
+        # Set the exposure time to 1, since datacubes are counts/second.
+        # This is needed for the sensitivity function calculation
+        primary_hdr['EXPTIME'] = 1.0
         # Do it
         super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True, chk_version=True, **kwargs):
         """
+        Instantiate the object from an extension in the specified fits file.
+
         Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
 
         Args:
-            ifile (str):  Filename holding the object
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages (not currently used)
+            chk_version (:obj:`bool`, optional):
+                Passed to :func:`from_hdu`.
+            kwargs (:obj:`dict`, optional):
+                Arguments passed directly to :func:`from_hdu`.
         """
         with io.fits_open(ifile) as hdu:
             # Read using the base class
-            self = super().from_hdu(hdu)
+            self = cls.from_hdu(hdu, chk_version=chk_version, **kwargs)
             # Internals
             self.filename = ifile
-            self.head0 = hdu[1].header  # Actually use the first extension here, since it contains the WCS
+            self.head0 = hdu[0].header
             # Meta
             self.spectrograph = load_spectrograph(self.PYP_SPEC)
             self.spect_meta = self.spectrograph.parse_spec_header(hdu[0].header)
             self._ivar = None
-            self._wcs = None
+            self._wcs = wcs.WCS(hdu[1].header)
         return self
 
     @property
@@ -205,20 +218,35 @@ class DataCube(datamodel.DataContainer):
             self._ivar = utils.inverse(self.sig**2)
         return self._ivar
 
-    @property
-    def wcs(self):
+    def extract_spec(self, parset, outname=None, boxcar_radius=None, overwrite=False):
         """
-        Utility function to provide the world coordinate system of the datacube
+        Extract a spectrum from the datacube
 
-        Returns
-        -------
-        self._wcs : `astropy.wcs.WCS`_
-            The WCS based on the stored header information. Note that self._wcs should
-            not be accessed directly, and you should only call self.wcs
+        Parameters
+        ----------
+        parset : dict
+            A dictionary containing the :class:`~pypeit.par.pypeitpar.ReducePar` parameters.
+        outname : str, optional
+            Name of the output file
+        boxcar_radius : float, optional
+            Radius of the circular boxcar (in arcseconds) to use for the extraction
+        overwrite : bool, optional
+            Overwrite any existing files
         """
-        if self._wcs is None:
-            self._wcs = wcs.WCS(self.head0)
-        return self._wcs
+        # Extract the spectrum
+        fwhm = parset['findobj']['find_fwhm'] if parset['extraction']['use_user_fwhm'] else None
+
+        # Datacube's are counts/second, so set the exposure time to 1
+        exptime = 1.0
+        # TODO :: Avoid transposing these large cubes
+        sobjs = datacube.extract_point_source(self.wave, self.flux.T, self.ivar.T, self.bpm.T, self._wcs,
+                                              exptime=exptime, pypeline=self.spectrograph.pypeline,
+                                              fluxed=self.fluxed, boxcar_radius=boxcar_radius,
+                                              optfwhm=fwhm, whitelight_range=parset['cube']['whitelight_range'])
+
+        # Save the extracted spectrum
+        spec1d_filename = 'spec1d_' + self.filename if outname is None else outname
+        sobjs.write_to_fits(self.head0, spec1d_filename, overwrite=overwrite)
 
 
 class DARcorrection:
@@ -331,8 +359,9 @@ class CoAdd3D:
     """
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                     spectrograph=None, det=1, overwrite=False, show=False, debug=False):
+    def get_instance(cls, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
+                     ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                     overwrite=False, show=False, debug=False):
         """
         Instantiate the subclass appropriate for the provided spectrograph.
 
@@ -345,15 +374,15 @@ class CoAdd3D:
             :class:`CoAdd3D`: One of the subclasses with
             :class:`CoAdd3D` as its base.
         """
-
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd3D'))(
-                        spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
-                        dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
-                        show=show, debug=debug)
+                        spec2dfiles, par, skysub_frame=skysub_frame, sensfile=sensfile, scale_corr=scale_corr,
+                        grating_corr=grating_corr, ra_offsets=ra_offsets, dec_offsets=dec_offsets,
+                        spectrograph=spectrograph, det=det, overwrite=overwrite, show=show, debug=debug)
 
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                 spectrograph=None, det=None, overwrite=False, show=False, debug=False):
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=None,
+                 overwrite=False, show=False, debug=False):
         """
 
         Args:
@@ -368,8 +397,15 @@ class CoAdd3D:
             skysub_frame (:obj:`list`, optional):
                 If not None, this should be a list of frames to use for the sky subtraction of each individual
                 entry of spec2dfiles. It should be the same length as spec2dfiles.
+            sensfile (:obj:`list`, optional):
+                If not None, this should be a list of frames to use for the sensitivity function of each individual
+                entry of spec2dfiles. It should be the same length as spec2dfiles.
             scale_corr (:obj:`list`, optional):
                 If not None, this should be a list of relative scale correction options. It should be the
+                same length as spec2dfiles.
+            grating_corr (:obj:`list`, optional):
+                If not None, this should be a list of `str`, where each element is the relative path to the
+                 Flat calibration file that was used to reduce each spec2d file. It should be the
                 same length as spec2dfiles.
             ra_offsets (:obj:`list`, optional):
                 If not None, this should be a list of relative RA offsets of each frame. It should be the
@@ -388,7 +424,6 @@ class CoAdd3D:
                 Show results in ginga
             debug (:obj:`bool`, optional):
                 Show QA for debugging.
-
         """
         # TODO :: Consider loading all calibrations into a single variable within the main CoAdd3D parent class.
         # Set the variables
@@ -396,6 +431,7 @@ class CoAdd3D:
         self.numfiles = len(spec2dfiles)
         self.par = par
         self.overwrite = overwrite
+        self.chk_version = self.par['rdx']['chk_version']
         # Extract some parsets for simplicity
         self.cubepar = self.par['reduce']['cube']
         self.flatpar = self.par['calibrations']['flatfield']
@@ -404,27 +440,38 @@ class CoAdd3D:
         self.method = self.cubepar['method']
         self.combine = self.cubepar['combine']
         self.align = self.cubepar['align']
+        self.correct_dar = self.cubepar['correct_dar']
         # Do some quick checks on the input options
-        if skysub_frame is not None:
-            if len(skysub_frame) != self.numfiles:
-                msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
-        if scale_corr is not None:
-            if len(scale_corr) != self.numfiles:
-                msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
-        if ra_offsets is not None:
-            if len(ra_offsets) != self.numfiles:
-                msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
-        if dec_offsets is not None:
-            if len(dec_offsets) != self.numfiles:
-                msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
+        if skysub_frame is not None and len(skysub_frame) != self.numfiles:
+            msgs.error("The skysub_frame list should be identical length to the spec2dfiles list")
+        if sensfile is not None and len(sensfile) != self.numfiles:
+            msgs.error("The sensfile list should be identical length to the spec2dfiles list")
+        if scale_corr is not None and len(scale_corr) != self.numfiles:
+            msgs.error("The scale_corr list should be identical length to the spec2dfiles list")
+        if grating_corr is not None and len(grating_corr) != self.numfiles:
+            msgs.error("The grating_corr list should be identical length to the spec2dfiles list")
+        if ra_offsets is not None and len(ra_offsets) != self.numfiles:
+            msgs.error("The ra_offsets list should be identical length to the spec2dfiles list")
+        if dec_offsets is not None and len(dec_offsets) != self.numfiles:
+            msgs.error("The dec_offsets list should be identical length to the spec2dfiles list")
         # Make sure both ra_offsets and dec_offsets are either both None or both lists
         if ra_offsets is None and dec_offsets is not None:
             msgs.error("If you provide dec_offsets, you must also provide ra_offsets")
         if ra_offsets is not None and dec_offsets is None:
             msgs.error("If you provide ra_offsets, you must also provide dec_offsets")
         # Set the frame specific options
+        self.sensfile = None
+        if sensfile is None:
+            # User didn't provide a sensfile for each frame. Check if they provided a single one.
+            if self.cubepar['sensfile'] is not None:
+                # User provided a single sensfile. Use this for all frames.
+                self.sensfile = self.numfiles*[self.cubepar['sensfile']]
+        else:
+            # User provided a sensfile for each frame. Use these.
+            self.sensfile = sensfile
         self.skysub_frame = skysub_frame
         self.scale_corr = scale_corr
+        self.grating_corr = grating_corr
         self.ra_offsets = list(ra_offsets) if isinstance(ra_offsets, np.ndarray) else ra_offsets
         self.dec_offsets = list(dec_offsets) if isinstance(dec_offsets, np.ndarray) else dec_offsets
         # If there is only one frame being "combined" AND there's no reference image, then don't compute the translation.
@@ -447,8 +494,10 @@ class CoAdd3D:
             # User offsets are not provided, so turn off the user_alignment
             self.user_alignment = False
             # Initialise the lists of ra_offsets and dec_offsets
-            self.ra_offsets = [0.0 for _ in range(self.numfiles)]
-            self.dec_offsets = [0.0 for _ in range(self.numfiles)]
+            self.ra_offsets = [0.0]*self.numfiles
+            self.dec_offsets = [0.0]*self.numfiles
+        if self.grating_corr is None:
+            self.grating_corr = [None] * self.numfiles
 
         # Check on Spectrograph input
         if spectrograph is None:
@@ -462,7 +511,7 @@ class CoAdd3D:
         self.ifu_ra, self.ifu_dec = np.array([]), np.array([])  # The RA and Dec at the centre of the IFU, as stored in the header
 
         self.all_sci, self.all_ivar, self.all_wave, self.all_slitid, self.all_wghts = [], [], [], [], []
-        self.all_tilts, self.all_slits, self.all_align = [], [], []
+        self.all_tilts, self.all_slits, self.all_align, self.all_header = [], [], [], []
         self.all_wcs, self.all_ra, self.all_dec, self.all_dar = [], [], [], []
         self.weights = np.ones(self.numfiles)  # Weights to use when combining cubes
 
@@ -476,14 +525,17 @@ class CoAdd3D:
 
         # Determine what method is requested
         self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = 1, 1, 1
+        self.skip_subpix_weights = True
         if self.method == "subpixel":
             self.spec_subpixel, self.spat_subpixel, self.slice_subpixel = self.cubepar['spec_subpixel'], self.cubepar['spat_subpixel'], self.cubepar['slice_subpixel']
+            self.skip_subpix_weights = False
             msgs.info("Adopting the subpixel algorithm to generate the datacube, with subpixellation scales:" + msgs.newline() +
                       f"  Spectral: {self.spec_subpixel}" + msgs.newline() +
                       f"  Spatial: {self.spat_subpixel}" + msgs.newline() +
                       f"  Slices: {self.slice_subpixel}")
         elif self.method == "ngp":
             msgs.info("Adopting the nearest grid point (NGP) algorithm to generate the datacube.")
+            self.skip_subpix_weights = True
         else:
             msgs.error(f"The following datacube method is not allowed: {self.method}")
 
@@ -496,12 +548,10 @@ class CoAdd3D:
         self.check_outputs()
 
         # Check the reference cube and image exist, if requested
-        self.fluxcal = False
+        self.fluxcal = False if self.sensfile is None else True
         self.blaze_wave, self.blaze_spec = None, None
         self.blaze_spline, self.flux_spline = None, None
         self.flat_splines = dict()  # A dictionary containing the splines of the flatfield
-        if self.cubepar['standard_cube'] is not None:
-            self.make_sensfunc()
 
         # If a reference image has been set, check that it exists
         if self.cubepar['reference_image'] is not None:
@@ -568,22 +618,6 @@ class CoAdd3D:
             self.blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
                                          bounds_error=False, fill_value="extrapolate")
 
-    def make_sensfunc(self):
-        """
-        Generate the sensitivity function to be used for the flux calibration.
-        """
-        self.fluxcal = True
-        # The first standard star cube is used as the reference blaze spline
-        if self.cubepar['grating_corr']:
-            # Load the blaze information
-            stdcube = fits.open(self.cubepar['standard_cube'])
-            # If a reference blaze spline has not been set, do that now.
-            self.set_blaze_spline(stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data)
-        # Generate a spline representation of the sensitivity function
-        self.flux_spline = datacube.make_sensfunc(self.cubepar['standard_cube'], self.senspar,
-                                                  blaze_wave=self.blaze_wave, blaze_spline=self.blaze_spline,
-                                                  grating_corr=self.cubepar['grating_corr'])
-
     def set_default_scalecorr(self):
         """
         Set the default mode to use for relative spectral scale correction.
@@ -596,7 +630,9 @@ class CoAdd3D:
                 msgs.info("Loading default scale image for relative spectral illumination correction:" +
                           msgs.newline() + self.cubepar['scale_corr'])
                 try:
-                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'], self.detname)
+                    spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['scale_corr'],
+                                                              self.detname,
+                                                              chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.warn("Could not load scaleimg from spec2d file:" + msgs.newline() +
@@ -657,7 +693,8 @@ class CoAdd3D:
                 msgs.info("Loading the following frame for the relative spectral illumination correction:" +
                           msgs.newline() + scalecorr)
                 try:
-                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname)
+                    spec2DObj_scl = spec2dobj.Spec2DObj.from_file(scalecorr, self.detname,
+                                                                  chk_version=self.chk_version)
                 except Exception as e:
                     msgs.warn(f'Loading spec2d file raised {type(e).__name__}:\n{str(e)}')
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + scalecorr)
@@ -688,7 +725,9 @@ class CoAdd3D:
             msgs.info("Loading default image for sky subtraction:" +
                       msgs.newline() + self.cubepar['skysub_frame'])
             try:
-                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'], self.detname)
+                spec2DObj = spec2dobj.Spec2DObj.from_file(self.cubepar['skysub_frame'],
+                                                          self.detname,
+                                                          chk_version=self.chk_version)
                 skysub_exptime = self.spec.get_meta_value([spec2DObj.head0], 'exptime')
             except:
                 msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + self.cubepar['skysub_frame'])
@@ -758,7 +797,8 @@ class CoAdd3D:
                 # Load a user specified frame for sky subtraction
                 msgs.info("Loading skysub frame:" + msgs.newline() + opts_skysub)
                 try:
-                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname)
+                    spec2DObj_sky = spec2dobj.Spec2DObj.from_file(opts_skysub, self.detname,
+                                                                  chk_version=self.chk_version)
                     skysub_exptime = self.spec.get_meta_value([spec2DObj_sky.head0], 'exptime')
                 except:
                     msgs.error("Could not load skysub image from spec2d file:" + msgs.newline() + opts_skysub)
@@ -790,15 +830,16 @@ class CoAdd3D:
         spat_flexure : :obj:`float`, optional:
             Spatial flexure in pixels
         """
+        # Check if the Flat file exists
+        if not os.path.exists(flatfile):
+            msgs.warn("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
+            return
         if flatfile not in self.flat_splines.keys():
             msgs.info("Calculating relative sensitivity for grating correction")
-            # Check if the Flat file exists
-            if not os.path.exists(flatfile):
-                msgs.error("Grating correction requested, but the following file does not exist:" + msgs.newline() + flatfile)
             # Load the Flat file
-            flatimages = flatfield.FlatImages.from_file(flatfile)
-            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', initial=True, spat_flexure=spat_flexure) * \
-                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', initial=True, spat_flexure=spat_flexure)
+            flatimages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
+            total_illum = flatimages.fit2illumflat(slits, finecorr=False, frametype='illum', spat_flexure=spat_flexure) * \
+                          flatimages.fit2illumflat(slits, finecorr=True, frametype='illum', spat_flexure=spat_flexure)
             flatframe = flatimages.pixelflat_raw / total_illum
             if flatimages.pixelflat_spec_illum is None:
                 # Calculate the relative scale
@@ -860,11 +901,13 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         - White light images are also produced, if requested.
 
     """
-    def __init__(self, spec2dfiles, par, skysub_frame=None, scale_corr=None, ra_offsets=None, dec_offsets=None,
-                 spectrograph=None, det=1, overwrite=False, show=False, debug=False):
-        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, scale_corr=scale_corr, ra_offsets=ra_offsets,
-                         dec_offsets=dec_offsets, spectrograph=spectrograph, det=det, overwrite=overwrite,
-                         show=show, debug=debug)
+    def __init__(self, spec2dfiles, par, skysub_frame=None, sensfile=None, scale_corr=None, grating_corr=None,
+                 ra_offsets=None, dec_offsets=None, spectrograph=None, det=1,
+                 overwrite=False, show=False, debug=False):
+        super().__init__(spec2dfiles, par, skysub_frame=skysub_frame, sensfile=sensfile,
+                         scale_corr=scale_corr, grating_corr=grating_corr,
+                         ra_offsets=ra_offsets, dec_offsets=dec_offsets, spectrograph=spectrograph, det=det,
+                         overwrite=overwrite, show=show, debug=debug)
         self.mnmx_wv = None  # Will be used to store the minimum and maximum wavelengths of every slit and frame.
         self._spatscale = np.zeros((self.numfiles, 2))  # index 0, 1 = pixel scale, slicer scale
         self._specscale = np.zeros(self.numfiles)
@@ -898,7 +941,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 alignfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
                 if os.path.exists(alignfile) and self.cubepar['astrometric']:
                     msgs.info("Loading alignments")
-                    alignments = alignframe.Alignments.from_file(alignfile)
+                    alignments = alignframe.Alignments.from_file(alignfile,
+                                                                 chk_version=self.chk_version)
             else:
                 msgs.warn(f'Processed alignment frame not recorded or not found!')
                 msgs.info("Using slit edges for astrometric transform")
@@ -906,7 +950,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+            left, right, _ = slits.select_edges(flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -953,13 +997,15 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Load all spec2d files and prepare the data for making a datacube
         for ff, fil in enumerate(self.spec2d):
             # Load it up
-            msgs.info("Loading PypeIt spec2d frame:" + msgs.newline() + fil)
-            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname)
+            msgs.info(f"Loading PypeIt spec2d frame ({ff+1}/{len(self.spec2d)}):" + msgs.newline() + fil)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(fil, self.detname,
+                                                      chk_version=self.chk_version)
             detector = spec2DObj.detector
             spat_flexure = None  # spec2DObj.sci_spat_flexure
 
             # Load the header
             hdr0 = spec2DObj.head0
+            self.all_header.append(hdr0)
             self.ifu_ra = np.append(self.ifu_ra, self.spec.compound_meta([hdr0], 'ra'))
             self.ifu_dec = np.append(self.ifu_dec, self.spec.compound_meta([hdr0], 'dec'))
 
@@ -969,8 +1015,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             msgs.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(initial=True, flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -995,7 +1041,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             bpmmask = spec2DObj.bpmmask
 
             # Mask the edges of the spectrum where the sky model is bad
-            sky_is_good = datacube.make_good_skymask(slitid_img_init, spec2DObj.tilts)
+            sky_is_good = datacube.make_good_skymask(slitid_img, spec2DObj.tilts)
 
             # TODO :: Really need to write some detailed information in the docs about all of the various corrections that can optionally be applied
 
@@ -1028,7 +1074,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             if self.mnmx_wv is None:
                 self.mnmx_wv = np.zeros((len(self.spec2d), slits.nslits, 2))
             for slit_idx, slit_spat in enumerate(slits.spat_id):
-                onslit_init = (slitid_img_init == slit_spat)
+                onslit_init = (slitid_img == slit_spat)
                 self.mnmx_wv[ff, slit_idx, 0] = np.min(waveimg[onslit_init])
                 self.mnmx_wv[ff, slit_idx, 1] = np.max(waveimg[onslit_init])
 
@@ -1051,7 +1097,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
             # Construct a good pixel mask
             # TODO: This should use the mask function to figure out which elements are masked.
-            onslit_gpm = (slitid_img_init > 0) & (bpmmask.mask == 0) & sky_is_good
+            onslit_gpm = (slitid_img > 0) & (bpmmask.mask == 0) & sky_is_good
 
             # Generate the alignment splines, and then retrieve images of the RA and Dec of every pixel,
             # and the number of spatial pixels in each slit
@@ -1063,7 +1109,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             crval_wv = self.cubepar['wave_min'] if self.cubepar['wave_min'] is not None else wave0
             cd_wv = self.cubepar['wave_delta'] if self.cubepar['wave_delta'] is not None else dwv
             self.all_wcs.append(self.spec.get_wcs(spec2DObj.head0, slits, detector.platescale, crval_wv, cd_wv))
-            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, initial=True, flexure=spat_flexure)
+            ra_img, dec_img, minmax = slits.get_radec_image(self.all_wcs[ff], alignSplines, spec2DObj.tilts, flexure=spat_flexure)
 
             # Extract wavelength and delta wavelength arrays from the images
             wave_ext = waveimg[onslit_gpm]
@@ -1085,54 +1131,74 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             humidity = self.spec.get_meta_value([spec2DObj.head0], 'humidity')  # Expressed as a percentage (not a fraction!)
             darcorr = DARcorrection(airmass, parangle, pressure, temperature, humidity, cosdec)
 
-            # Compute the extinction correction
-            msgs.info("Applying extinction correction")
-            extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
-                                                      self.spec.telescope['latitude'],
-                                                      self.senspar['UVIS']['extinct_file'])
-            # extinction_correction requires the wavelength is sorted
-            extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
+            # TODO :: Need to make a note somewhere that the extinction correction cannot currently be done
+            #         in the datacube because the sensitivity function algorithms correct the standard star
+            #         for extinction when generating the sensitivity function. Including the extinction correction
+            #         in the datacube would result in a double correction of the standard star for extinction.
+            #         This could be wrong when combining multiple standard star exposures if the airmass of the
+            #         standard star exposures is significantly different. For now, to stay consistent with the
+            #         current pipeline, the extinction correction is done in the sensitivity function algorithms,
+            #         with the caveat that the standard star exposures are assumed to have similar airmasses.
+            #         For now, comment out the extinction correction, and reapply this later when the sensitivity
+            #         function algorithms are unified.
+            extcorr_sort = 1.0
+            if False:
+                # Compute the extinction correction
+                msgs.info("Applying extinction correction")
+                # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                extinct = flux_calib.load_extinction_data(self.spec.telescope['longitude'],
+                                                          self.spec.telescope['latitude'],
+                                                          self.senspar['UVIS']['extinct_file'])
+                # extinction_correction requires the wavelength is sorted
+                extcorr_sort = flux_calib.extinction_correction(wave_sort * units.AA, airmass, extinct)
 
             # Correct for sensitivity as a function of grating angle
             # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
             gratcorr_sort = 1.0
-            if self.cubepar['grating_corr']:
-                # Load the flatfield file
-                key = flatfield.FlatImages.calib_type.upper()
-                if key not in spec2DObj.calibs:
-                    msgs.error('Processed flat calibration file not recorded by spec2d file!')
-                flatfile = os.path.join(spec2DObj.calibs['DIR'], spec2DObj.calibs[key])
+            if self.grating_corr[ff] is not None:
                 # Setup the grating correction
+                flatfile = self.grating_corr[ff]
                 self.add_grating_corr(flatfile, waveimg, slits, spat_flexure=spat_flexure)
                 # Calculate the grating correction
                 gratcorr_sort = datacube.correct_grating_shift(wave_sort, self.flat_splines[flatfile + "_wave"],
                                                                self.flat_splines[flatfile],
                                                                self.blaze_wave, self.blaze_spline)
-            # Sensitivity function
-            sensfunc_sort = 1.0
+            # Sensitivity function - note that the sensitivity function factors in the exposure time and the
+            # wavelength sampling, so if the flux calibration will not be applied, the sens_factor needs to be
+            # scaled by the exposure time and the wavelength sampling
+            sens_sort = 1.0/(exptime * dwav_sort)  # If no sensitivity function is provided
             if self.fluxcal:
                 msgs.info("Calculating the sensitivity function")
-                sensfunc_sort = self.flux_spline(wave_sort)
-            # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
-            extcorr_sort *= sensfunc_sort / (exptime * gratcorr_sort)
+                # Load the sensitivity function
+                sens = sensfunc.SensFunc.from_file(self.sensfile[ff], chk_version=self.par['rdx']['chk_version'])
+                # Interpolate the sensitivity function onto the wavelength grid of the data
+                # TODO :: Change the ['UVIS']['extinct_file'] here when the sensitivity function calculation is unified.
+                sens_sort = flux_calib.get_sensfunc_factor(
+                    wave_sort, sens.wave[:, 0], sens.zeropoint[:, 0], exptime, delta_wave=dwav_sort,
+                    extinct_correct=True, longitude=self.spec.telescope['longitude'],
+                    latitude=self.spec.telescope['latitude'], extinctfilepar=self.senspar['UVIS']['extinct_file'],
+                    airmass=airmass, extrap_sens=self.par['fluxcalib']['extrap_sens'])
+            # Convert the flux units to counts/s, and correct for the relative sensitivity of different setups
+            sens_sort *= extcorr_sort/gratcorr_sort
             # Correct for extinction
-            sciImg[onslit_gpm] *= extcorr_sort[resrt]
-            ivar[onslit_gpm] /= extcorr_sort[resrt] ** 2
+            sciImg[onslit_gpm] *= sens_sort[resrt]
+            ivar[onslit_gpm] /= sens_sort[resrt] ** 2
 
             # Convert units to Counts/s/Ang/arcsec2
             # Slicer sampling * spatial pixel sampling
+            unitscale = self.all_wcs[ff].wcs.cunit[0].to(units.arcsec) * self.all_wcs[ff].wcs.cunit[1].to(units.arcsec)
             sl_deg = np.sqrt(self.all_wcs[ff].wcs.cd[0, 0] ** 2 + self.all_wcs[ff].wcs.cd[1, 0] ** 2)
             px_deg = np.sqrt(self.all_wcs[ff].wcs.cd[1, 1] ** 2 + self.all_wcs[ff].wcs.cd[0, 1] ** 2)
-            scl_units = dwav_sort * (3600.0 * sl_deg) * (3600.0 * px_deg)
-            sciImg[onslit_gpm] /= scl_units[resrt]
-            ivar[onslit_gpm] *= scl_units[resrt] ** 2
+            scl_units = unitscale * sl_deg * px_deg
+            sciImg[onslit_gpm] /= scl_units
+            ivar[onslit_gpm] *= scl_units ** 2
 
             # Calculate the weights relative to the zeroth cube
             self.weights[ff] = 1.0  # exptime  #np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
             wghts = self.weights[ff] * np.ones(sciImg.shape)
 
             # Get the slit image and then unset pixels in the slit image that are bad
-            slitid_img_gpm = slitid_img_init * onslit_gpm.astype(int)
+            slitid_img_gpm = slitid_img * onslit_gpm.astype(int)
 
             ##################################
             # Astrometric alignment to HST frames
@@ -1160,7 +1226,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 else:
                     outfile = datacube.get_output_filename(fil, self.cubepar['output_filename'], self.combine, ff + 1)
                 # Get the coordinate bounds
-                slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+                slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
                 numwav = int((np.max(waveimg) - wave0) / dwv)
                 bins = self.spec.get_datacube_bins(slitlength, minmax, numwav)
                 # Set the wavelength range of the white light image.
@@ -1179,7 +1245,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng, outfile=outfile,
                                                         spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel)
+                                                        slice_subpixel=self.slice_subpixel,
+                                                        skip_subpix_weights=self.skip_subpix_weights,
+                                                        correct_dar=self.correct_dar)
                     # Prepare the header
                     hdr = self.all_wcs[ff].to_header()
                     if self.fluxcal:
@@ -1190,7 +1258,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.info("Saving datacube as: {0:s}".format(outfile))
                     final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                           sensfunc=None, fluxed=self.fluxcal)
-                    final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                    final_cube.to_file(outfile, primary_hdr=self.all_header[ff], hdr=hdr, overwrite=self.overwrite)
                 # No need to proceed and store arrays - we are writing individual datacubes
                 continue
 
@@ -1218,7 +1286,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
         # Grab cos(dec) for convenience
         cosdec = np.cos(np.mean(self.ifu_dec[0]) * np.pi / 180.0)
         # Initialize the RA and Dec offset arrays
-        ra_offsets, dec_offsets = [0 for _ in range(self.numfiles)], [0 for _ in range(self.numfiles)]
+        ra_offsets, dec_offsets = [0.0]*self.numfiles, [0.0]*self.numfiles
         # Register spatial offsets between all frames
         if self.user_alignment:
             # The user has specified offsets - update these values accounting for the difference in header RA/DEC
@@ -1295,9 +1363,10 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                 ra_min=self.cubepar['ra_min'], ra_max=self.cubepar['ra_max'],
                                                 dec_min=self.cubepar['dec_min'], dec_max=self.cubepar['dec_max'],
                                                 wave_min=self.cubepar['wave_min'], wave_max=self.cubepar['wave_max'],
-                                                relative_weights=self.cubepar['relative_weights'],
+                                                weight_method=self.cubepar['weight_method'],
                                                 whitelight_range=self.cubepar['whitelight_range'],
                                                 reference_image=self.cubepar['reference_image'],
+                                                correct_dar=self.correct_dar,
                                                 specname=self.specname)
 
     def run(self):
@@ -1343,6 +1412,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
 
         # Align the frames
         # TODO :: NOTE THAT THIS IS 'and False' because the HST alignment is done when reading in the data.
+        msgs.work("Need to remove the False here")
         if self.align and False:
             self.ra_offsets, self.dec_offsets = self.run_align()
 
@@ -1359,6 +1429,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                 reference=self.cubepar['reference_image'], collapse=False, equinox=2000.0,
                                 specname=self.specname)
 
+        msgs.work("NEED TO REMOVE THIS TEMPORARY WCS")
         # Generate a temporary WCS
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = cube_wcs.wcs.equinox
@@ -1407,7 +1478,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                     outfile=outfile, overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                     spec_subpixel=self.spec_subpixel,
                                                     spat_subpixel=self.spat_subpixel,
-                                                    slice_subpixel=self.slice_subpixel)
+                                                    slice_subpixel=self.slice_subpixel,
+                                                    skip_subpix_weights=self.skip_subpix_weights,
+                                                    correct_dar=self.correct_dar)
                 # Prepare the header
                 hdr = cube_wcs.to_header()
                 if self.fluxcal:
@@ -1418,7 +1491,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                 msgs.info("Saving datacube as: {0:s}".format(outfile))
                 final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                       sensfunc=sensfunc, fluxed=self.fluxcal)
-                final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                # Note, we only store in the primary header the first spec2d file
+                final_cube.to_file(outfile, primary_hdr=self.all_header[0], hdr=hdr, overwrite=self.overwrite)
             else:
                 for ff in range(self.numfiles):
                     outfile = datacube.get_output_filename("", self.cubepar['output_filename'], False, ff)
@@ -1432,7 +1506,9 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                                                         overwrite=self.overwrite, whitelight_range=wl_wvrng,
                                                         outfile=outfile, spec_subpixel=self.spec_subpixel,
                                                         spat_subpixel=self.spat_subpixel,
-                                                        slice_subpixel=self.slice_subpixel, idx=ff)
+                                                        slice_subpixel=self.slice_subpixel,
+                                                        skip_subpix_weights=self.skip_subpix_weights,
+                                                        correct_dar=self.correct_dar, idx=ff)
                     # Prepare the header
                     hdr = cube_wcs.to_header()
                     if self.fluxcal:
@@ -1443,7 +1519,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
                     msgs.info("Saving datacube as: {0:s}".format(outfile))
                     final_cube = DataCube(flxcube, sigcube, bpmcube, wave, self.specname, self.blaze_wave, self.blaze_spec,
                                           sensfunc=sensfunc, fluxed=self.fluxcal)
-                    final_cube.to_file(outfile, hdr=hdr, overwrite=self.overwrite)
+                    final_cube.to_file(outfile, primary_hdr=self.all_header[ff], hdr=hdr, overwrite=self.overwrite)
 
 
 def hst_alignment(ff, sciImg, ivar, waveimg, slitid_img_gpm, wghts, raImg, decImg,
