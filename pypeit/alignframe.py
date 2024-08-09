@@ -316,8 +316,7 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="",
-                                   color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], color=color)
 
 
 class AlignmentSplines:
