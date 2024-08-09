@@ -1,6 +1,12 @@
+"""Classes for displaying text content to a Qt window.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+
 from pathlib import Path
 import io
-from typing import Optional
+from typing import Optional,Union
 
 from qtpy.QtWidgets import  QHBoxLayout, QVBoxLayout, QFileDialog, QWidget, QPlainTextEdit, QPushButton
 
@@ -29,7 +35,7 @@ class TextViewerWindow(QWidget):
     """Signal sent when the window is closed."""
 
 
-    def __init__(self, title : str, width : int, height : int, text_stream : io.TextIOBase, start_at_top : bool, filename: Optional[str|Path] = None, file_type : FileType = FileType("Text Files", ".txt")):
+    def __init__(self, title : str, width : int, height : int, text_stream : io.TextIOBase, start_at_top : bool, filename: Optional[Union[str,Path]] = None, file_type : FileType = FileType("Text Files", ".txt")):
         super().__init__()
         self._text_stream = text_stream
         self._file_type = file_type

@@ -1,5 +1,5 @@
 
-**Version**: 1.1.4
+**Version**: 1.1.5
 
 =====================  ============================  =====================  ====================================================================================================================================================
 Attribute              Type                          Array Type             Description                                                                                                                                         
@@ -28,7 +28,6 @@ Attribute              Type                          Array Type             Desc
 ``pypeline``           str                                                  PypeIt pypeline name                                                                                                                                
 ``right_init``         `numpy.ndarray`_              `numpy.floating`_      Spatial coordinates (pixel indices) of all right edges, one per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.                       
 ``right_tweak``        `numpy.ndarray`_              `numpy.floating`_      Spatial coordinates (pixel indices) of all right edges, one per slit.  These traces have been adjusted by the flat-field.  Shape is Nspec by Nslits.
-``slitbitm``           str                                                  List of BITMASK keys from SlitTraceBitMask                                                                                                          
 ``spat_id``            `numpy.ndarray`_              int, `numpy.integer`_  Slit ID number from SPAT measured at half way point.                                                                                                
 ``specmax``            `numpy.ndarray`_              `numpy.floating`_      Maximum spectral position (pixel units) allowed for each slit/order.  Shape is Nslits.                                                              
 ``specmin``            `numpy.ndarray`_              `numpy.floating`_      Minimum spectral position (pixel units) allowed for each slit/order.  Shape is Nslits.                                                              

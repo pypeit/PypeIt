@@ -10,7 +10,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import alignframe
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_alignments():
@@ -26,8 +26,8 @@ def test_alignments():
                         spat_id=np.arange(nslits))
 
     alignments = alignframe.Alignments(**instant_dict)
-    alignments.set_paths(data_path(''), 'A', '1', 'DET01')
-    ofile = Path(alignments.get_path()).resolve()
+    alignments.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    ofile = Path(alignments.get_path()).absolute()
 
     # I/O
     alignments.to_file(overwrite=True)

@@ -2,7 +2,7 @@
 
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT [ROOT ...]] [-e EXTENSION]
-                        [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-m]
+                        [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-f] [-m]
                         [-v VERBOSITY] [-k] [-G]
     
     Parse data files to construct a pypeit file in preparation for reduction using
@@ -20,12 +20,13 @@
                             keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
                             keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
                             keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire,
-                            keck_nires, keck_nirspec_low, lbt_luci1, lbt_luci2,
-                            lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
-                            ldt_deveny, magellan_fire, magellan_fire_long,
-                            magellan_mage, mdm_modspec, mdm_osmos_mdm4k,
-                            mdm_osmos_r4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
-                            not_alfosc, not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
+                            keck_nires, keck_nirspec_high, keck_nirspec_high_old,
+                            keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
+                            lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
+                            magellan_fire, magellan_fire_long, magellan_mage,
+                            mdm_modspec, mdm_osmos_mdm4k, mdm_osmos_r4k,
+                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
+                            not_alfosc_vert, ntt_efosc2, p200_dbsp_blue,
                             p200_dbsp_red, p200_tspec, shane_kast_blue,
                             shane_kast_red, shane_kast_red_ret, soar_goodman_blue,
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
@@ -53,6 +54,8 @@
                             (default: None)
       -b, --background      Include the background-pair columns for the user to edit
                             (default: False)
+      -f, --flexure         Include the manual spatial shift (flexure) column for
+                            the user to edit (default: False)
       -m, --manual_extraction
                             Include the manual extraction column for the user to
                             edit (default: False)

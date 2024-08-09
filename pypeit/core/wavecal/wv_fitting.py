@@ -68,8 +68,35 @@ class WaveFit(datamodel.DataContainer):
 
     @staticmethod
     def hduext_prefix_from_spatid(spat_id):
-        """ Naming for HDU extensions"""
+        """
+        Use the slit spatial ID number to construct the prefix for an output
+        HDU.
+
+        Args:
+            spat_id (:obj:`int`):
+                Slit/order spatial ID number
+
+        Returns:
+            :obj:`str`: The prefix to use for HDU extensions associated with
+            this data container.
+        """
         return 'SPAT_ID-{}_'.format(spat_id)
+    
+    @staticmethod
+    def parse_spatid_from_hduext(ext):
+        """
+        Parse the slit spatial ID integer from a *full* HDU extension name.
+
+        Args:
+            ext (:obj:`str`):
+                Full extension name.
+
+        Returns:
+            :obj:`int`: The parsed slit spatial ID number.  Returns None if the
+            extension name does not start with ``'SPAT_ID-'``.
+        """
+        return int(ext.replace('SPAT_ID-', '').split('_')[0]) \
+                    if ext.startswith('SPAT_ID-') else None
 
     def __init__(self, spat_id, ech_order=None, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
@@ -96,8 +123,7 @@ class WaveFit(datamodel.DataContainer):
         # Extension prefix (for being unique with slits)
         hdue_pref = self.hduext_prefix_from_spatid(self.spat_id)
         # Without PypeItFit
-        _d = super(WaveFit, self)._bundle(
-            ext=hdue_pref+'WAVEFIT', **kwargs)
+        _d = super()._bundle(ext=hdue_pref+'WAVEFIT', **kwargs)
         # Deal with PypeItFit
         if _d[0][hdue_pref+'WAVEFIT']['pypeitfit'] is not None:
             _d.append({hdue_pref+'PYPEITFIT': _d[0][hdue_pref + 'WAVEFIT'].pop('pypeitfit')})
@@ -129,31 +155,61 @@ class WaveFit(datamodel.DataContainer):
         return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @classmethod
-    def from_hdu(cls, hdu, **kwargs):
+    def from_hdu(cls, hdu, hdu_prefix=None, spat_id=None, **kwargs):
         """
-        Parse the data from the provided HDU.
+        Parse the data from one or more fits objects.
 
-        See the base-class :func:`~pypeit.datamodel.DataContainer.from_hdu` for
-        the argument descriptions.
+        .. note::
 
+                ``spat_id`` and ``hdu_prefix`` are mutually exclusive, with
+                ``hdu_prefix`` taking precedence. If *both* are None, the code
+                attempts to read the spatial ID number from the HDU extension
+                name(s) to construct the appropriate prefix.  In the latter
+                case, only the first :class:`WaveFit` object will be read if the
+                HDU object contains many.
+                
         Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            hdu_prefix (:obj:`str`, optional):
+                Only parse HDUs with extension names matched to this prefix.  If
+                None, ``spat_id`` will be used to construct the prefix if it is
+                provided, otherwise all extensions are parsed.
+            spat_id (:obj:`int`, optional):
+                Spatial ID number for the relevant slit/order for this
+                wavelength fit.  If provided, this is used to construct the
+                ``hdu_prefix`` using
+                :func:`~pypeit.core.wavecal.wv_fitting.WaveFit.hduext_prefix_from_spatid`.
             kwargs:
                 Passed directly to the base-class
-                :class:`~pypeit.datamodel.DataContainer.from_hdu`.  Should not
-                include ``hdu_prefix`` because this is set directly by the
-                class, read from the SPAT_ID card in a relevant header.
+                :class:`~pypeit.datamodel.DataContainer.from_hdu`.
 
         Returns:
             :class:`WaveFit`: Object instantiated from data in the provided HDU.
         """
-        if 'hdu_prefix' in kwargs:
-            kwargs.pop('hdu_prefix')
-        # Set hdu_prefix
-        spat_id = hdu[1].header['SPAT_ID'] if isinstance(hdu, fits.HDUList)\
-                    else hdu.header['SPAT_ID']
-        hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
-        # Run the default parser to get the data
-        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix, **kwargs)
+        # Get the HDU prefix
+        if hdu_prefix is not None:
+            _hdu_prefix = hdu_prefix
+        elif spat_id is not None:
+            _hdu_prefix = cls.hduext_prefix_from_spatid(spat_id)
+        else:
+            # Try to get it from the provided HDU(s)
+            _hdu = hdu if isinstance(hdu, fits.HDUList) else [hdu]
+            _hdu_prefix = None
+            for h in _hdu:
+                _spat_id = cls.parse_spatid_from_hduext(h.name)
+                if _spat_id is None:
+                    continue
+                _hdu_prefix = cls.hduext_prefix_from_spatid(_spat_id)
+                break
+            # At this point, _hdu_prefix will either be None because it couldn't
+            # find parse the slit ID, or it will be the correct prefix.
+            # TODO: Try to read the data in either case (what is currently
+            # done), or fault because the _bundle function *always* includes a
+            # prefix?
+
+        # Construct and return the object
+        return super().from_hdu(hdu, hdu_prefix=_hdu_prefix, **kwargs)
 
     @property
     def ions(self):
@@ -376,6 +432,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, dispersion,
             flg_penultimate = True
 
     # Final fit (originals can now be rejected)
+    if len(ifit) <= n_final:
+        n_order = len(ifit)-1
+        msgs.warn(f'Not enough lines for n_final! Fit order = {n_order}')
+            
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,

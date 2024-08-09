@@ -36,8 +36,6 @@
                                                     value are skipped, else all wavelength rms values are accepted.
                               refframe              Perform reference frame correction prior to coadding.
                                                     Options are ['observed', 'heliocentric', 'barycentric']. Defaults to None.
-                              chk_version           If true, spec1ds and archival sensfuncs must match the currently
-                                                    supported versions. If false (the default) version numbers are not checked.
                              
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -88,8 +86,14 @@
       --refframe {observed,heliocentric,barycentric}
                             Perform reference frame correction prior to coadding.
                             Options are: observed, heliocentric, barycentric
-      --chk_version         Whether to check the data model versions of spec1d files
-                            and sensfunc files.
+      --chk_version         If True enforce strict PypeIt version checking to ensure
+                            that all files were created with the current version of
+                            PypeIt. If set to False, the code will attempt to read
+                            out-of-date files and keep going. Beware (!!) that this
+                            can lead to unforeseen bugs that either cause the code
+                            to crash or lead to erroneous results. I.e., you really
+                            need to know what you are doing if you set this to
+                            False!
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename

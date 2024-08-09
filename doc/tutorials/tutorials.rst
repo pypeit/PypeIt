@@ -38,6 +38,7 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
    Keck LRIS <lris_howto>
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
+   Keck NIRSPEC <nirspec_high_howto>
    Shane Kast <kast_howto>
 
 ----

@@ -209,5 +209,9 @@ class Mosaic(datamodel.DataContainer):
         """
         return int(name[len(Mosaic.name_prefix):])
 
-
+    def copy(self):
+        """
+        Return a (deep) copy of the object.
+        """
+        return Mosaic(id=self.id, detectors=np.array([det.copy() for det in self.detectors]), shape=self.shape, shift=self.shift.copy(), rot=self.rot.copy(), tform=self.tform.copy(), msc_order=self.msc_order)
 

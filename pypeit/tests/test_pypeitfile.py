@@ -5,8 +5,9 @@ import pytest
 
 from astropy.table import Table
 
+from pypeit import dataPaths
 from pypeit.inputfiles import PypeItFile
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 # Bits needed to generate a PypeIt file
 
@@ -18,7 +19,7 @@ def pieces_of_pypeitfile():
     data['frametype'] = ['arc', 'science']
     data['exptime'] = [1., 10.]
 
-    file_paths = [data_path('')]
+    file_paths = [data_output_path('')]
 
     setup_dict = {'Setup A': ' '}
 
@@ -45,18 +46,18 @@ def test_instantiate():
 def test_read_pypeit_file():
     # Read the PypeIt file (backwards compatability)
     pypeItFile = PypeItFile.from_file(
-                data_path('example_pypeit_file.pypeit'))
+                    dataPaths.tests.get_file_path('example_pypeit_file.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_read_backwards_pypeit_file():
     # Read the PypeIt file (backwards compatability)
     pypeItFile = PypeItFile.from_file(
-                data_path('example_pypeit_file_backwards.pypeit'))
+                    dataPaths.tests.get_file_path('example_pypeit_file_backwards.pypeit'))
     assert isinstance(pypeItFile.config, dict)
 
 def test_write_pypeit_file():
     # Test writing a PypeIt file
-    outfile = data_path('tmp_file.pypeit')
+    outfile = data_output_path('tmp_file.pypeit')
     if os.path.isfile(outfile):
         os.remove(outfile)
 

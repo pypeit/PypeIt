@@ -8,7 +8,7 @@ import copy
 import numpy as np
 from scipy import interpolate, ndimage
 from matplotlib import pyplot as plt
-from matplotlib import cm, lines
+from matplotlib import lines, colormaps
 
 from IPython import embed
 
@@ -1061,7 +1061,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
     # Show the fit residuals as a function of spatial position
     line_indx = np.outer(np.ones(nspat), np.arange(nuse))
     lines_spec = tilts_spec_fit[0, :]
-    cmap = cm.get_cmap('coolwarm', nuse)
+    cmap = colormaps['coolwarm'].resampled(nuse)
 
     fig, ax = plt.subplots(figsize=(14, 12))
     # dummy mappable shows the spectral pixel

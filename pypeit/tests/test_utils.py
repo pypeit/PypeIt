@@ -11,7 +11,7 @@ import numpy as np
 
 from pypeit import utils
 from pypeit import msgs
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit import io
 
 
@@ -98,7 +98,7 @@ def test_yamlify():
     new_obj = utils.yamlify(obj)
 
     # Write
-    tst_file = data_path('tst.yaml')
+    tst_file = data_output_path('tst.yaml')
     with open(tst_file, 'w') as f:
         setup_lines = io.dict_to_lines(new_obj, level=1)
         f.write('\n'.join(setup_lines)+'\n')
@@ -138,3 +138,9 @@ def test_recursive_update():
     d = utils.recursive_update(d, u)
     assert sorted(list(d['rdx'].keys())) == ['detnum', 'spectrograph'], 'Missing merged keys'
 
+
+def test_occurrences():
+    inparr = np.array([1, 1, 4, 10, 5, 3, 5, 5, 8, 9])
+    tstarr = np.array([2, 2, 1,  1, 3, 1, 3, 3, 1, 1])
+    outarr = utils.occurrences(inparr)
+    assert np.array_equal(outarr, tstarr), 'Occurrences has failed'

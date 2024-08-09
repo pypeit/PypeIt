@@ -254,7 +254,7 @@ class JWSTNIRSpecSpectrograph(spectrograph.Spectrograph):
             ``PypeIt``.
         """
         return [(1,2)]
-
+    
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces

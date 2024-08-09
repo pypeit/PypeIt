@@ -10,8 +10,7 @@ from qtpy.QtWidgets import QApplication
 
 from pypeit.scripts import scriptbase
 from pypeit.setup_gui.controller import SetupGUIController
-from pypeit.setup_gui import model
-
+from pypeit.spectrographs import available_spectrographs
 class SetupGUI(scriptbase.ScriptBase):
 
     @classmethod
@@ -21,7 +20,7 @@ class SetupGUI(scriptbase.ScriptBase):
                                     width=width)
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
                             help='A valid spectrograph identifier: {0}'.format(
-                                    ', '.join(model.available_spectrographs())))
+                                    ', '.join(available_spectrographs)))
         parser.add_argument('-r', '--root', default=[], type=str,nargs='+',
                             help='Root to search for data files.  You can provide the top-level '
                                  'directory  (e.g., /data/Kast) or the search string up through '
@@ -54,6 +53,3 @@ class SetupGUI(scriptbase.ScriptBase):
         app = QApplication(qt_args)
         controller = SetupGUIController(args)
         controller.start(app)
-
-if __name__ == '__main__':
-    SetupGUI.entry_point()

@@ -25,7 +25,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
-from pypeit import data
+from pypeit import dataPaths
 
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
@@ -325,10 +325,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
         if ftype == 'science':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'standard':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
@@ -336,12 +337,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
-            return good_exp & (good_dome + good_internal)
+            return good_exp & (good_dome + good_internal) & no_img
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed') & no_img
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -1527,19 +1528,15 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = (
-                data.Paths.data / 'spectrographs' / 'keck_lris_red_mark4' / 'dict_for_ampmode.json'
-            )
+            ampmode_translate_file = dataPaths.spectrographs.get_file_path(
+                    'keck_lris_red_mark4/dict_for_ampmode.json')
             # Force any possible pathlib.Path object to string before `loadjson`
             ampmode_translate_dict = linetools.utils.loadjson(str(ampmode_translate_file))
             # Load up the corrected header
-            swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = (
-                data.Paths.data /
-                'spectrographs' /
-                'keck_lris_red_mark4' /
-                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits'
-            )
+            _amp = ampmode_translate_dict[amp_mode]
+            swap_binning = f"{binning[-1]}_{binning[0]}" # LRIS convention is oppopsite ours
+            header_file = dataPaths.spectrographs.get_file_path(
+                    f'keck_lris_red_mark4/header{_amp}_{swap_binning}.fits')
             correct_header = fits.getheader(header_file)
         else:
             correct_header = hdu[0].header

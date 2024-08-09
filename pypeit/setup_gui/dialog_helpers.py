@@ -1,8 +1,15 @@
+"""
+Utilities for creating and displaying dialogs in Qt.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+
 # Allow runtime evaluation of type annotations, specifically to allow class methods to return their own class
 from __future__ import annotations
 
 import enum
-from typing import Optional
+from typing import Optional,Union
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -93,7 +100,7 @@ class FileDialog:
                  caption : str, 
                  file_mode : QFileDialog.FileMode, 
                  file_type : Optional[FileType] =None,
-                 default_file : Optional[str|Path] = None,
+                 default_file : Optional[Union[str,Path]] = None,
                  history : Optional[QStringListModel] = None, 
                  save : bool = False, 
                  ask_for_all : bool = False):
@@ -151,23 +158,23 @@ class FileDialog:
             self.response = DialogResponses.CANCEL
             self.selected_path = None
             return DialogResponses.CANCEL
-        else:
-            path = Path(self._dialog.selectedFiles()[0])
-            self.selected_path = str(path)
-            if self._history is not None:
-                # Append new selections to history
-                # But we only want the path, not the full filename
-                if not path.is_dir():
-                    path = path.parent
-                if str(path) not in self._history.stringList():
-                    row_index = self._history.rowCount()
-                    self._history.insertRows(row_index, 1)
-                    self._history.setData(self._history.index(row_index, 0),str(path))
 
-            if self._ask_for_all and self.use_for_all_checkbox.isChecked():
-                return DialogResponses.ACCEPT_FOR_ALL
-            else:
-                return DialogResponses.ACCEPT
+        path = Path(self._dialog.selectedFiles()[0])
+        self.selected_path = str(path)
+        if self._history is not None:
+            # Append new selections to history
+            # But we only want the path, not the full filename
+            if not path.is_dir():
+                path = path.parent
+            if str(path) not in self._history.stringList():
+                row_index = self._history.rowCount()
+                self._history.insertRows(row_index, 1)
+                self._history.setData(self._history.index(row_index, 0),str(path))
+
+        if self._ask_for_all and self.use_for_all_checkbox.isChecked():
+            return DialogResponses.ACCEPT_FOR_ALL
+
+        return DialogResponses.ACCEPT
             
     @classmethod
     def create_open_file_dialog(cls, parent : QWidget, caption : str, file_type : FileType, history_group : str = "OpenFile") -> FileDialog:
@@ -187,9 +194,7 @@ class FileDialog:
         # Get history from settings
         history = PersistentStringListModel(history_group, "History")
 
-        file_dialog = cls(parent, caption, QFileDialog.ExistingFile, file_type=file_type, history=history)        
-
-        return file_dialog
+        return cls(parent, caption, QFileDialog.ExistingFile, file_type=file_type, history=history)
 
     @classmethod
     def create_save_location_dialog(cls, parent : QWidget, config_name : str, prompt_for_all : bool =False, history_group="OutputDirectory") -> FileDialog:
@@ -214,10 +219,9 @@ class FileDialog:
         history = PersistentStringListModel(history_group, "History")
 
         # Create the dialog.
-        save_dialog = cls(parent, parent.tr(f"Select location to save tab {config_name}."),
-                          QFileDialog.Directory, history=history, save=True, ask_for_all=prompt_for_all)
+        return cls(parent, parent.tr(f"Select location to save tab {config_name}."),
+                   QFileDialog.Directory, history=history, save=True, ask_for_all=prompt_for_all)
 
-        return save_dialog
 
 def display_error(parent : QWidget, message: str) -> None:
     """
@@ -237,9 +241,10 @@ def prompt_to_save(parent : QWidget) -> DialogResponses:
         parent: The parent widget of the pop-up dialog
 
     Returns:
-        DialogResponses: `SAVE` if the user wants to save, `ACCEPT` if they want to continue 
-                         without saving, `CANCEL` if they want to cancel the current operation 
-                         and to not lose any data.
+        DialogResponses: 
+            ``SAVE`` if the user wants to save, ``ACCEPT`` if they want to continue 
+            without saving, ``CANCEL`` if they want to cancel the current operation 
+            and to not lose any data.
     """
     response = QMessageBox.warning(parent, parent.tr("PypeIt Setup"), parent.tr("There are unsaved changes to PypeIt setup files.\nDo you want to save then?"),
                                    QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save)

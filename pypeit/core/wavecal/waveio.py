@@ -10,8 +10,9 @@ import linetools.utils
 import numpy as np
 
 from pypeit import msgs
+from pypeit import dataPaths
+from pypeit import cache
 from pypeit.core.wavecal import defs
-from pypeit import data
 
 from IPython import embed
 
@@ -50,14 +51,15 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray,int]:
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray, int, np.ndarray, np.ndarray,
+                                                                    np.ndarray, np.ndarray]:
     """
     Load a full template file from disk
 
     Parameters
     ----------
     arxiv_file : str
-        File with archive spectrum
+        File with archive spectrum, potentially including emission line pixel ids, wavelengths, and fit polynomial order.
     det : int
         Detector number
     wvrng : list, optional
@@ -65,15 +67,23 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
 
     Returns
     -------
-    wave : ndarray
+    wave : np.ndarray
         Wavelength vector
-    flux : ndarray
+    flux : np.ndarray
         Flux vector
     binning : int
         binning of the template arc spectrum
+    order : np.ndarray
+        Echelle orders of the saved wavelength solution, if applicable
+    line_pix : np.ndarray
+        Pixel values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_wav : np.ndarray
+        Wavelength values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_fit_ord : np.ndarray
+        Polynomial order of the saved wavelength solution, if applicable
 
     """
-    calibfile, fmt = data.get_reid_arxiv_filepath(arxiv_file)
+    calibfile, fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
     tbl = astropy.table.Table.read(calibfile, format=fmt)
     # Parse on detector?
     if 'det' in tbl.keys():
@@ -82,6 +92,14 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
+    
+    # for echelle spectrographs
+    tbl_order = tbl['order'].data if 'order' in tbl.keys() else None
+
+    # for solutions with saved line IDs and pixels
+    tbl_line_pix = tbl['lines_pix'].data if 'lines_pix' in tbl.keys() else None
+    tbl_line_wav = tbl['lines_wav'].data if 'lines_wav' in tbl.keys() else None
+    tbl_line_fit_ord = tbl['lines_fit_ord'].data if 'lines_fit_ord' in tbl.keys() else None
 
     # Cut down?
     if wvrng is not None:
@@ -90,7 +108,7 @@ def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):
@@ -107,7 +125,13 @@ def load_reid_arxiv(arxiv_file):
     """
     # This function allows users to specify their own `reid_arxiv`, in
     #   particular, the output from `pypeit_identify`.
-    calibfile, arxiv_fmt = data.get_reid_arxiv_filepath(arxiv_file)
+
+    # WARNING: If the file is being pulled from the cache, the arxiv_file *must*
+    # have the correct extension.  I.e., the cache file is always `contents`, so
+    # the "return_format=True" here is just returning the extension of
+    # `arxiv_file`.
+
+    calibfile, arxiv_fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
 
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if arxiv_fmt == 'json':
@@ -155,9 +179,9 @@ def load_line_list(line_file, use_ion=False):
     line_list : `astropy.table.Table`_
 
     """
-    line_file = data.get_linelist_filepath(f'{line_file}_lines.dat') if use_ion else \
-        data.get_linelist_filepath(line_file)
-    return astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
+    _line_file = f'{line_file}_lines.dat' if use_ion else line_file
+    _line_file = dataPaths.linelist.get_file_path(_line_file)
+    return astropy.table.Table.read(_line_file, format='ascii.fixed_width', comment='#')
 
 
 def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None):
@@ -186,8 +210,10 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
     # All?
     if all:
         # Search both in the package directory and the PypeIt cache
-        line_files = list(data.Paths.linelist.glob('*_lines.dat'))
-        line_files.append(data.search_cache('_lines.dat'))
+        line_files = list(dataPaths.linelist.glob('*_lines.dat'))
+        # TODO: When searching the cache, the filenames returned are always
+        # `contents`, this will break how the lamp names are extracted below
+        line_files.append(cache.search_cache('_lines.dat'))
         lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
@@ -196,9 +222,10 @@ def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_in
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
-    # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
+    # NOTE: If one of the `lamps` does not exist, dataPaths.linelist.get_file_path()
     #       will exit with msgs.error().
-    lists = [load_line_list(data.get_linelist_filepath(f'{lamp}_lines.dat')) for lamp in lamps]
+    lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
+                for lamp in lamps]
     # Stack
     if len(lists) == 0:
         return None
@@ -261,10 +288,10 @@ def load_tree(polygon=4, numsearch=20):
     # TODO: Can we save these as fits files instead?
     # TODO: Please don't use imports within functions
     import pickle
-    filename = data.get_linelist_filepath(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = data.get_linelist_filepath(
-        f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy'
-    )
+    filename = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
     try:
         with open(filename, "rb", encoding="utf-8") as f_obj:
             file_load = pickle.load(f_obj)
@@ -298,7 +325,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     line_dict = defs.lines()
     # Load
     if unknwn_file is None:
-        unknwn_file = data.get_linelist_filepath('UNKNWNs.dat')
+        unknwn_file = dataPaths.linelist.get_file_path('UNKNWNs.dat')
     line_list = load_line_list(unknwn_file)
     # Cut on input lamps?
     if all:
@@ -316,3 +343,4 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
         msk[match] = True
     # Finish
     return line_list[msk]
+

@@ -1,4 +1,10 @@
-""" Module to generate templates for the PypeIt full_template wavelength calibration routine
+"""
+Module to generate templates for the PypeIt full_template wavelength calibration routine
+
+This function uses direct access to the ``path`` attribute in the relevant
+pypeit data paths.  This should *not* be replicated in other parts of the code.
+This ``templates.py`` script is a developer only script, and it really shouldn't
+be distributed as part of the code base.
 
 .. include:: ../include/links.rst
 """
@@ -30,7 +36,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
-from pypeit import data
+from pypeit import dataPaths
 
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -56,7 +62,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False, binning=None, micron=False):
+                   shift_wave=False, binning=None, micron=False,
+                   reid_files:bool=False):
     """
     Generate a full_template for a given instrument
 
@@ -77,6 +84,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Name of output directory
         lowredux (bool, optional):
             If true, in_files are from LowRedux
+        reid_files (bool, optional):
+            If True, in_files are reid_arxiv files
         wvspec (ndarray, optional):
             Manually input the wavelength values
         ifiles (list, optional):
@@ -106,7 +115,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             which is the PypeIt convention. Default=False
     """
     if outdir is None:
-        outdir = data.Paths.reid_arxiv
+        outdir = dataPaths.reid_arxiv.path
     if ifiles is None:
         ifiles = np.arange(len(in_files))
     if binning is None:
@@ -128,6 +137,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                 wv_vac, spec = xidl_arcspec(in_file, slit)
             elif ascii_tbl:
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
+            elif reid_files:
+                wv_vac, spec = read_reid(in_file)
             else:
                 wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
             if micron:
@@ -266,6 +277,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
     elif '.fits' in in_file:
+        # TODO: This should not default to chk_version=False ...
         wvcalib = wavecalib.WaveCalib.from_file(in_file, chk_version=False)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
@@ -314,7 +326,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     extstr = ""
     while True:
         outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
-        if (data.Paths.reid_arxiv / outroot).exists():
+        if (dataPaths.reid_arxiv.path / outroot).exists():
             extstr = "_{0:02d}".format(cntr)
         else:
             break
@@ -448,6 +460,11 @@ def xidl_arcspec(xidl_file, slit):
     # Return
     return wv_vac.value, spec
 
+def read_reid(reid_file:str):
+    # Read
+    tbl = Table.read(reid_file)
+    # Return
+    return tbl['wave'].data, tbl['flux'].data
 
 def xidl_esihires(xidl_file, specbin=1, order_vec=None,
                   log10=True):
@@ -621,7 +638,7 @@ def main(flg):
         print("Wrote: {}".format(outfile))
 
     if flg & (2**14):  # Magellan/MagE Plots
-        new_mage_file = data.Paths.reid_arxiv / 'magellan_mage.fits'
+        new_mage_file = dataPaths.reid_arxiv.path / 'magellan_mage.fits'
         # Load
         mage_wave = Table.read(new_mage_file)
         llist = waveio.load_line_lists(['ThAr_MagE'])
@@ -635,12 +652,12 @@ def main(flg):
             # Fit
             final_fit = wv_fitting.fit_slit(fx, patt_dict, detections, llist)
             # Output
-            outfile=data.Paths.arc_plot / f'MagE_order{order:2d}_IDs.pdf'
+            outfile=dataPaths.arc_plot.path / f'MagE_order{order:2d}_IDs.pdf'
             autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
             print(f"Wrote: {outfile}")
             autoid.arc_fit_qa(
                 final_fit,
-                outfile=data.Paths.arc_plot / f'MagE_order{order:2d}_full.pdf'
+                outfile=dataPaths.arc_plot.path / f'MagE_order{order:2d}_full.pdf'
             )
 
     if flg & (2**15):  # VLT/X-Shooter reid_arxiv
@@ -648,7 +665,7 @@ def main(flg):
         for iroot, iout in zip(['vlt_xshooter_vis1x1.json', 'vlt_xshooter_nir.json'],
             ['vlt_xshooter_vis1x1.fits', 'vlt_xshooter_nir.fits']):
             # Load
-            old_file = data.Paths.reid_arxiv / iroot
+            old_file = dataPaths.reid_arxiv.path / iroot
             odict, par = waveio.load_reid_arxiv(old_file)
 
             # Do it
@@ -668,12 +685,12 @@ def main(flg):
             tbl['order'] = orders
             tbl.meta['BINSPEC'] = 1
             # Write
-            outfile = data.Paths.reid_arxiv / iout
+            outfile = dataPaths.reid_arxiv.path / iout
             tbl.write(outfile, overwrite=True)
             print("Wrote: {}".format(outfile))
 
     if flg & (2**16):  # VLT/X-Shooter line list
-        old_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_air_lines.dat')
+        old_file = dataPaths.linelist.path / 'ThAr_XSHOOTER_VIS_air_lines.dat'
         # Load
         air_list = waveio.load_line_list(old_file)
         # Vacuum
@@ -681,7 +698,7 @@ def main(flg):
         vac_list = air_list.copy()
         vac_list['wave'] = vac_wv
         # Write
-        new_file = data.get_linelist_filepath('ThAr_XSHOOTER_VIS_lines.dat')
+        new_file = dataPaths.linelist.path / 'ThAr_XSHOOTER_VIS_lines.dat'
         vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
         print("Wrote: {}".format(new_file))
 
@@ -689,7 +706,7 @@ def main(flg):
         iroot = 'keck_nires.json'
         iout = 'keck_nires.fits'
         # Load
-        old_file = data.Paths.reid_arxiv / iroot
+        old_file = dataPaths.reid_arxiv.path / iroot
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -709,7 +726,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = data.Paths.reid_arxiv / iout
+        outfile = dataPaths.reid_arxiv.path / iout
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -718,7 +735,7 @@ def main(flg):
         iroot = 'gemini_gnirs.json'
         iout = 'gemini_gnirs.fits'
         # Load
-        old_file = data.Paths.reid_arxiv / iroot
+        old_file = dataPaths.reid_arxiv.path / iroot
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -738,7 +755,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = data.Paths.reid_arxiv / iout
+        outfile = dataPaths.reid_arxiv.path / iout
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -756,7 +773,7 @@ def main(flg):
         iroot = 'magellan_fire_echelle.json'
         iout = 'magellan_fire_echelle.fits'
         # Load
-        old_file = data.Paths.reid_arxiv / iroot
+        old_file = dataPaths.reid_arxiv.path / iroot
         odict, par = waveio.load_reid_arxiv(old_file)
 
         # Do it
@@ -777,7 +794,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = data.Paths.reid_arxiv / iout
+        outfile = dataPaths.reid_arxiv.path / iout
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -791,7 +808,7 @@ def main(flg):
         wv_vac = airtovac(wave * units.AA)
         xidl_dict = readsav(spec_file)
         flux = xidl_dict['arc1d']
-        wvutils.write_template(wv_vac.value, flux, binspec, data.Paths.reid_arxiv, outroot, det_cut=None)
+        wvutils.write_template(wv_vac.value, flux, binspec, dataPaths.reid_arxiv.path, outroot, det_cut=None)
 
     # Gemini/Flamingos2
     if flg & (2**26):
@@ -801,7 +818,7 @@ def main(flg):
         slits = [0]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = data.Paths.reid_arxiv / iroot[ii]
+            wfile = dataPaths.reid_arxiv.path / iroot[ii]
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
 
 
@@ -824,7 +841,7 @@ def main(flg):
         slits = [1020,1020,1020]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = data.Paths.reid_arxiv / iroot[ii]
+            wfile = dataPaths.reid_arxiv.path / iroot[ii]
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
     # LBT/MODS
     if flg & (2**33):
@@ -834,14 +851,14 @@ def main(flg):
         slits = [[1557],[1573]]
         lcut = []
         for ii in range(len(iroot)):
-            wfile = data.Paths.reid_arxiv / iroot[ii]
+            wfile = dataPaths.reid_arxiv.path / iroot[ii]
             build_template(wfile, slits[ii], lcut, binspec, outroot[ii], lowredux=False)
     # P200 Triplespec
     if flg & (2**34):
         iroot = 'p200_triplespec_MasterWaveCalib.fits'
         iout = 'p200_triplespec.fits'
         # Load
-        old_file = data.Paths.reid_arxiv / iroot
+        old_file = dataPaths.reid_arxiv.path / iroot
         par = io.fits_open(old_file)
         pyp_spec = par[0].header['PYP_SPEC']
         spectrograph  = load_spectrograph(pyp_spec)
@@ -860,7 +877,7 @@ def main(flg):
         tbl['order'] = orders
         tbl.meta['BINSPEC'] = 1
         # Write
-        outfile = data.Paths.reid_arxiv / iout
+        outfile = dataPaths.reid_arxiv.path / iout
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 

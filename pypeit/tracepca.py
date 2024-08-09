@@ -112,7 +112,7 @@ class TracePCA(DataContainer):
                  coo=None):
 
         # Instantiate as an empty DataContainer
-        super(TracePCA, self).__init__()
+        super().__init__()
         self.is_empty = True
 
         # Only do the decomposition if the trace coordinates are provided.
@@ -240,7 +240,7 @@ class TracePCA(DataContainer):
 
     def _bundle(self, ext='PCA'):
         """Bundle the data for writing."""
-        d = super(TracePCA, self)._bundle(ext=ext)
+        d = super()._bundle(ext=ext)
         if self.pca_coeffs_model is None:
             return d
 
@@ -264,8 +264,7 @@ class TracePCA(DataContainer):
         argument descriptions.
         """
         # Run the default parser to get most of the data
-        d, version_passed, type_passed, parsed_hdus \
-                = super(TracePCA, cls)._parse(hdu, hdu_prefix=hdu_prefix)
+        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu, hdu_prefix=hdu_prefix)
 
         # This should only ever read one hdu!
         if len(parsed_hdus) > 1:
@@ -291,7 +290,7 @@ class TracePCA(DataContainer):
         :class:`~pypeit.datamodel.DataContainer.from_dict` that
         appropriately toggles :attr:`is_empty`.
         """
-        self = super(TracePCA, cls).from_dict(d=d)
+        self = super().from_dict(d=d)
         self.is_empty = False
         return self
 

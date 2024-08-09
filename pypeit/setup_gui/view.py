@@ -1,15 +1,67 @@
+"""
+The view portion of the PypeIt Setup GUI.  Responsible for displaying information to the user, and forwarding user input to the controller.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 from pathlib import Path
 
 from qtpy.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout, QComboBox, QToolButton, QFileDialog, QWidget, QGridLayout, QFormLayout
-from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
-from qtpy.QtWidgets import QPlainTextEdit, QWidgetAction, QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
+from qtpy.QtWidgets import QMessageBox, QTabWidget, QTreeView, QLayout, QLabel, QScrollArea, QListView, QTableView, QPushButton, QStyleOptionButton, QProgressDialog, QDialog, QHeaderView, QSizePolicy, QCheckBox, QDialog
+from qtpy.QtWidgets import QAction, QAbstractItemView, QStyledItemDelegate, QButtonGroup, QStyle, QTabBar,QAbstractItemDelegate
 from qtpy.QtGui import QIcon,QMouseEvent, QKeySequence, QPalette, QColor, QValidator, QFont, QFontDatabase, QFontMetrics, QTextCharFormat, QTextCursor
 from qtpy.QtCore import Qt, QObject, QSize, Signal,QSettings, QStringListModel, QAbstractItemModel, QModelIndex, QMargins, QSortFilterProxyModel, QRect
 
-from pypeit.setup_gui.model import ModelState, PypeItMetadataModel, available_spectrographs
+from pypeit.spectrographs import  available_spectrographs
+
+from pypeit.setup_gui.model import ModelState, PypeItMetadataModel
 from pypeit.setup_gui.text_viewer import LogWindow, TextViewerWindow
 from pypeit.setup_gui.dialog_helpers import DialogResponses, FileDialog, PersistentStringListModel
 from pypeit import msgs
+
+def debugSizeStuff(widget:QWidget, name="widget"):
+    """Helper method for logging sizxing information about a wdiget and its layout."""
+    msgs.info(f"{name} (width/height): {widget.width()}/{widget.height()} geometry x/y/w/h: {widget.geometry().x()}/{widget.geometry().y()}/{widget.geometry().width()}/{widget.geometry().height()} min w/h {widget.minimumWidth()}/{widget.minimumHeight()} hint w/h {widget.sizeHint().width()}/{widget.sizeHint().height()} min hint w/h {widget.minimumSizeHint().width()}/{widget.minimumSizeHint().height()} cm tlbr: {widget.contentsMargins().top()}/{widget.contentsMargins().left()}/{widget.contentsMargins().bottom()}/{widget.contentsMargins().right()} frame w/h {widget.frameSize().width()}/{widget.frameSize().height()}")
+    layout = widget.layout()
+    if layout is None:
+        msgs.info(f"{name} layout is None")
+    else:
+        msgs.info(f"{name} layout size constraint {layout.sizeConstraint()} spacing: {layout.spacing()} cm: tlbr {layout.contentsMargins().top()}/{layout.contentsMargins().left()}/{layout.contentsMargins().bottom()}/{layout.contentsMargins().right()} totalMinSize (w/h): {layout.totalMinimumSize().width()}/{layout.totalMinimumSize().width()} totalMaxSize (w/h): {layout.totalMaximumSize().width()}/{layout.totalMaximumSize().width()} totalHint (w/h): {layout.totalSizeHint().width()}/{layout.totalSizeHint().width()}")
+
+def calculateButtonMinSize(button_widget : QPushButton) -> QSize:
+    """Calculates and sets the minimum size of a budget widget
+    
+    Qt has code in QCommonStyle to set this size for a button, but I kept discovering that it would report a much
+    larger size for some reason. So this method exists to fix that.
+    
+    Args:
+        button_widget: The button to set the minimum size for. It should already have it's text set.
+    
+    Return:
+        The minimum size that was calcualted for the button
+    """
+    # Get the size of the button's text
+    fm = button_widget.fontMetrics()
+    text_size = fm.size(Qt.TextFlag.TextShowMnemonic,button_widget.text())
+
+    # Get the style sizes for the frame, margin, and (if applicable) the default indicator. These are integer values
+    style_options = QStyleOptionButton()
+    style_options = button_widget.initStyleOption(style_options)
+    button_margin = button_widget.style().pixelMetric(QStyle.PixelMetric.PM_ButtonMargin, style_options,button_widget)
+    button_default_frame = button_widget.style().pixelMetric(QStyle.PixelMetric.PM_DefaultFrameWidth,style_options,button_widget)
+    if button_widget.isDefault():
+        default_indicator = button_widget.style().pixelMetric(QStyle.PixelMetric.PM_ButtonDefaultIndicator,style_options,button_widget)
+    else:
+        default_indicator = 0
+
+
+    # The QT code doubles the frame size but not the margin, so we do the same
+    min_size = QSize(text_size.width() + button_margin + button_default_frame*2 + default_indicator*2,
+                     text_size.height() + button_margin + button_default_frame*2 + default_indicator*2)
+    msgs.info(f"Calculated button {button_widget.text()} minimum size ({min_size.width()}/{min_size.height()}) with text_size ({text_size.width()}/{text_size.height()}) margin size ({button_margin}) frame width ({button_default_frame}) and default indicator width ({default_indicator})")
+    
+    return min_size
+    
 
 
 class PathEditor(QWidget):
@@ -74,11 +126,20 @@ class PathEditor(QWidget):
         self.pathEntered.emit(new_path)
 
     def setHistory(self, history):
+        """Sets the past history of the PathEditor widget.
+        
+        Args:
+            history (QStringListModel): A string list model containing the history of the widget."""
         self._history = history
         self._path.setModel(history)
         self._path.setCurrentIndex(-1)
 
     def history(self):
+        """Returns the past history of the PathEditor widget.
+        
+        Returns:
+            QStringListModel: A stringh list model with the history of the widget.
+        """
         return self._history
     
     def browse(self):
@@ -133,11 +194,8 @@ class PypeItEnumListEditor(QWidget):
     closed = Signal(QWidget, bool)
     """
     Signal sent when the user closes the editor with the OK or CANCEL button.
-    Args:
-        editor (QWidget):
-            The editor that was closed.
-        accepted (bool):
-            True if a change was accepted, False if it was canceled.
+    The signal will provide the editor that was closed and a boolean that will
+    be True if the change was accepted or False if it was canceled.
     """
 
     def __init__(self, parent, allowed_values, index, num_lines):
@@ -177,7 +235,6 @@ class PypeItEnumListEditor(QWidget):
 
         msgs.info(f"Max checkbox width: {max_checkbox_width}")
         scroll_area.setWidget(checkbox_container)
-        #scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         # Figure out the minimum width
         min_width = max_checkbox_width
@@ -197,15 +254,30 @@ class PypeItEnumListEditor(QWidget):
         accept_button.clicked.connect(self._accepted)
         cancel_button=QPushButton(text="Cancel")
         cancel_button.clicked.connect(self._canceled)
-        
-
         ok_cancel_layout.addWidget(accept_button)
         ok_cancel_layout.addWidget(cancel_button)
         ok_cancel_container.setLayout(ok_cancel_layout)
-        
-        # Force the buttons to be the minimum width, other wise they
-        # tend to be too big
-        ok_cancel_container.setFixedWidth(min_width)
+
+        ok_cancel_layout_margins = ok_cancel_layout.contentsMargins()
+
+        # Use small margins along the left/right
+        ok_cancel_layout_margins.setRight(1)
+        ok_cancel_layout_margins.setLeft(1)
+        ok_cancel_layout.setContentsMargins(ok_cancel_layout_margins)
+
+        # Make sure the minimum width doesn't truncate the button's text
+        ok_button_min_size = calculateButtonMinSize(accept_button)
+        cancel_button_min_size = calculateButtonMinSize(cancel_button)
+        button_min_width = max(ok_button_min_size.width(), cancel_button_min_size.width())    
+    
+        ok_cancel_container_min_width = button_min_width*2 + ok_cancel_layout.spacing() + ok_cancel_layout_margins.left() + ok_cancel_layout_margins.right()
+        msgs.info(f"Okay cancel container min_width: {ok_cancel_container_min_width}")
+        if min_width < ok_cancel_container_min_width:
+            min_width = ok_cancel_container_min_width
+
+        # Set the okay/cancel button container's min width to keep Qt
+        # from making the buttons bigger than they need to be.
+        ok_cancel_container.setMinimumWidth(min_width)
         layout.addWidget(ok_cancel_container)
 
         # Set the minimum height for this widget given requested # of lines
@@ -216,13 +288,18 @@ class PypeItEnumListEditor(QWidget):
         min_height += scroll_area.contentsMargins().top() + scroll_area.contentsMargins().bottom()
 
         # Account for buttons
-        min_height += ok_cancel_container.sizeHint().height()
+        min_height += ok_button_min_size.height() + ok_cancel_layout.contentsMargins().top() + ok_cancel_layout.contentsMargins().bottom()
 
         self.setMinimumSize(min_width, min_height)
-        msgs.info(f"mw: {min_width}, actual width: {self.width()} hint w {self.sizeHint().width()}")
-        msgs.info(f"cc w: {checkbox_container.width()}, cc min w {checkbox_container.minimumWidth()}, cc hint w/h {checkbox_container.sizeHint().width()}/{checkbox_container.sizeHint().height()}")
-        msgs.info(f"ok w/h: {ok_cancel_container.width()}/{ok_cancel_container.height()}, ok min w/h {ok_cancel_container.minimumWidth()}/{ok_cancel_container.minimumHeight()}, ok hint w/h {ok_cancel_container.sizeHint().width()}/{ok_cancel_container.sizeHint().height()}")
         self._button_group.buttonToggled.connect(self._choiceChecked)
+
+        msgs.info(f"min_width/height: {min_width}/{min_height}")
+        debugSizeStuff(self, "Enum Editor")
+        debugSizeStuff(checkbox_container, "Checkbox Container")
+        debugSizeStuff(ok_cancel_container, "OK/Cancel Container")
+        debugSizeStuff(accept_button, "OK Button")
+        debugSizeStuff(cancel_button, "Cancel Button")
+        
 
     def _accepted(self, *args):
         """Signal handler for when the "OK" button is clicked."""
@@ -265,13 +342,10 @@ class PypeItEnumListEditor(QWidget):
     def selectedValues(self):
         """Return what values of the enumeration have been selected.
         
-        Return: (list of str): A comma seperated list of the selected values.
+        Return (list of str): A comma seperated list of the selected values.
         """
         return ",".join(sorted(self._values))
-    
-    def paint(self, *args, **kwargs):
-        msgs.info(f"width: {self.width()}")
-        return super().paint(*args,**kwargs)
+
 
 class PypeItCustomEditorDelegate(QStyledItemDelegate):
     """Custom item delegate for rows in a PypeItMetadataView."""
@@ -316,7 +390,16 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         super().paint(painter,option, index)
 
     def createEditor(self, parent,  option, index):
-        
+        """
+        Creates an editor widget for an item in the metadata table. This will be a
+        PypeItEnumListEditor for the columns that use one, or the Qt default for other editable columns.
+        Overriden from QStyledItemDelegate.
+
+        Args:
+            parent (QWidget): The parent widget of the new editor.
+            option (QtWidgets.QStyleOptionViewItem): Additional options for the editor.
+            index (QModelIndex): The index of the table cell being edited.
+        """
         model = index.model().sourceModel()
         
         column_name = model.getColumnNameFromNum(index)
@@ -331,6 +414,12 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
         return super().createEditor(parent, option, index)
     
     def setEditorData(self, editor, index):
+        """Sets the data being edited in the editor. Overriden from QStyledItemDelegate.
+
+        Args:
+            editor (QWidget):    The editor widget (created by createEditor)
+            index (QModelIndex): The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             msgs.info(f"Setting editor data {index.data(Qt.EditRole)}")
             editor.setSelectedValues(index.data(Qt.EditRole))
@@ -339,6 +428,13 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             super().setEditorData(editor, index)
 
     def setModelData(self,editor,model,index):
+        """Sets the edited data in the model post editing. Overriden from QStyledItemDelegate.
+        
+        Args:
+            editor (QWidget):           The editor widget (created by createEditor).
+            model (QAbstractItemModel): The model being edited.
+            index (QModelIndex):        The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             msgs.info(f"Setting choice model data: {editor.selectedValues()}")
             model.setData(index, editor.selectedValues())
@@ -347,6 +443,15 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
             super().setModelData(editor,model,index)
 
     def updateEditorGeometry(self, editor, option, index):
+        """Sets the editor's position and size in the GUI. Overriden from QStyledItemDelegate.
+        
+        Args:
+            editor (QWidget):                        The editor widget (created by crateEditor). This widgets geometry
+                                                     is set by this method.
+            model (QAbstractItemModel):              The model being edited
+            option (QtWidgets.QStyleOptionViewItem): Options object containing the recommended rectangle for the editor.
+            index (QModelIndex):                     The index of the item being edited.
+        """
         if isinstance(editor, PypeItEnumListEditor):
             # The upper left coordinate of the editor depends on how well it fits
             # vertically in it's parent
@@ -374,25 +479,17 @@ class PypeItCustomEditorDelegate(QStyledItemDelegate):
 
             # Adjust the editor'x upper left corner so that the editor is vislbe for
             # cells along the bottom or right of the parent table
-            right_x = self.metadata_view.viewport().geometry().bottomRight().x() - self.metadata_view.viewportMargins().right()
-            if self.metadata_view.verticalScrollBar().isVisible():
-                right_x -= self.metadata_view.verticalScrollBar().sizeHint().width()
-
+            right_x  = self.metadata_view.viewport().geometry().bottomRight().x() - self.metadata_view.viewportMargins().right()
             bottom_y = self.metadata_view.viewport().geometry().bottomRight().y() - self.metadata_view.viewportMargins().bottom()
-            if self.metadata_view.horizontalScrollBar().isVisible():
-                bottom_y -= self.metadata_view.horizontalScrollBar().sizeHint().height()
 
-            if editor_x + editor_width > right_x:
-                editor_x = right_x - editor_width
+            # The bottom x,y of the view port is measured without the margins, but the editor is placed relative to those
+            # margins, so we have to include the left/top margins in the below calculations
+            if editor_x + self.metadata_view.viewportMargins().left() + editor_width > right_x:
+                editor_x = right_x - (editor_width + self.metadata_view.viewportMargins().left())
 
-            if editor_y + editor_min_size.height() > bottom_y:
-                editor_y = bottom_y - editor_min_size.height()
+            if editor_y + self.metadata_view.viewportMargins().top() + editor_min_size.height() > bottom_y:
+                editor_y = bottom_y - (editor_min_size.height() + self.metadata_view.viewportMargins().top())
 
-            msgs.info(f"viewport bottom x,y: {self.metadata_view.viewport().geometry().bottomRight().x()},{self.metadata_view.viewport().geometry().bottomRight().y()}")
-            msgs.info(f"metadata view bottom x,y: {self.metadata_view.geometry().bottomRight().x()},{self.metadata_view.geometry().bottomRight().y()}")
-            msgs.info(f"viewport margins t,l,b,r: {self.metadata_view.viewportMargins().top()},{self.metadata_view.viewportMargins().left()},{self.metadata_view.viewportMargins().bottom()},{self.metadata_view.viewportMargins().right()}")
-            msgs.info(f"visible scroll bars: v,h: {self.metadata_view.verticalScrollBar().isVisible()},{self.metadata_view.horizontalScrollBar().isVisible()}")
-            msgs.info(f"scroll sizes v,h: {self.metadata_view.verticalScrollBar().sizeHint().width()},{self.metadata_view.horizontalScrollBar().sizeHint().height()}")
             geometry = QRect(editor_x, editor_y, editor_width, editor_min_size.height()) 
        
             msgs.info(f"Updating editor geometry to {(geometry.x(), geometry.y(), geometry.width(), geometry.height())}")
@@ -638,14 +735,17 @@ class TabManagerBaseTab(QWidget):
 
     @property
     def name(self):
+        """str: The name of the tab."""
         return self._name
 
     @property
     def state(self):
+        """ModelState: The state of the tab."""
         return self._state
 
     @property
     def closeable(self):
+        """bool: Whether the tab can be closed."""
         return self._closeable
 
 class PypeItFileView(TabManagerBaseTab):
@@ -729,10 +829,10 @@ class PypeItFileView(TabManagerBaseTab):
         self.model.stateChanged.connect(self.update_from_model)
 
 
-    """
-    Signal handler that updates view when the underlying model changes.
-    """
     def update_from_model(self):
+        """
+        Signal handler that updates view when the underlying model changes.
+        """
         # update the filename if it changed from saving
         self.filename_value.setText(self.model.filename)
 
@@ -786,7 +886,7 @@ class ObsLogView(TabManagerBaseTab):
         spectrograph_layout = QHBoxLayout()        
 
         self.spectrograph = QComboBox(spectrograph_box)
-        self.spectrograph.addItems(available_spectrographs())
+        self.spectrograph.addItems(available_spectrographs)
         self.spectrograph.setCurrentIndex(-1)
         self.spectrograph.setEditable(True)
         self.spectrograph.lineEdit().setPlaceholderText(self.tr("Select a spectrograph"))
@@ -850,6 +950,7 @@ class ObsLogView(TabManagerBaseTab):
         self.spectrograph.textActivated.connect(self.update_raw_data_paths_state)
 
     def _deletePaths(self, parent):
+        """Signal handler that removes raw data paths from the obslog"""
         msgs.info(f"Delete selection")
         selection = self._paths_viewer.selectedIndexes()
         rows = [index.row() for index in selection]
@@ -918,7 +1019,6 @@ class SpectrographValidator(QValidator):
     This is used by the spectrograph combo box to allow tab completion without
     allowing invalid names to be entered."""
     def __init__(self):
-        self._supported_spectrographs = available_spectrographs()
         super().__init__()
 
     def validate(self, str_input, int_input):
@@ -935,10 +1035,10 @@ class SpectrographValidator(QValidator):
             QValidator.State: Acceptable, Intermediate, or Invalid based on the input.
         """
         if str_input is not None:
-            if str_input.lower() in self._supported_spectrographs:
+            if str_input.lower() in  available_spectrographs:
                 return QValidator.Acceptable, str_input, int_input
             else:
-                for spectrograph in self._supported_spectrographs:
+                for spectrograph in  available_spectrographs:
                     if spectrograph.startswith(str_input.lower()):
                         return QValidator.Intermediate, str_input, int_input
         return QValidator.Invalid, str_input, int_input
@@ -946,9 +1046,9 @@ class SpectrographValidator(QValidator):
 class TabManagerWidget(QTabWidget):
     """
     Widget which manages tabs for the obslog and pypeit files.
-    It extends the QTabWidget functionality by allowing tabs by
-    adding widgets to add and remove tabs as well as specifying
-    the modification state with a "*" when a tab hasn't been saved.
+    It extends the QTabWidget functionality by allowing tabs
+    to be added or removed and by displaying the tab's name with a 
+    "*" when a tab hasn't been saved.
 
     Args:
         model (:class:`pypeit.setup_gui.model.SetupGUIStateModel`): Model object for a PypeIt Setup GUI.
@@ -973,12 +1073,14 @@ class TabManagerWidget(QTabWidget):
         self.currentChanged.connect(self.checkIfNewTabCurrent)
 
     def checkNewTabClicked(self, index):
+        """Signal handler that detects a click on the "+" tab widget and sends that as a tabCreateRequest signal."""
         if index == self.count() - 1:
             # Create as new tab. The new tab model will send the signals needed
             # to create the view and add it
             self.tabCreateRequest.emit()
 
     def checkIfNewTabCurrent(self, index):
+        """Signal handler thast prevents the "+" tab, from being the current tab."""
         # Try to prevent the + tab from being visible
         if self.count() > 1:
             if self.widget(index).name == "+":
@@ -986,8 +1088,15 @@ class TabManagerWidget(QTabWidget):
                 self.setCurrentIndex(0)
 
     def addNewTab(self, tab):
-        # Insert before the "+" tab. If this is the first tab being entered
-        # (ie the + tab), it is appended
+        """ Insert a new before the "+" tab. If this is the first tab being entered
+        (ie the + tab itself), it is appended
+        
+        Args:
+            tab (TabManagerBaseTab): The new tab widget to add.
+
+        Rerturns:
+            int: The index of the newly inserted tab.
+        """
         index = self.count()-1
         index=self.insertTab(index, tab, tab.name)
         msgs.info(f"Added {tab.name} at index {index}")
@@ -1000,6 +1109,11 @@ class TabManagerWidget(QTabWidget):
         return index
 
     def closeTab(self, tab_name):
+        """Close the tab with the given name.
+        
+        Args:
+            tab_name (str): The name of the tab to close.
+        """
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :
@@ -1012,6 +1126,14 @@ class TabManagerWidget(QTabWidget):
         del self._tabNames[index]
 
     def updateTabText(self, tab_name, tab_state):
+        """Update a tab's text when it state changes.
+        
+        Args:
+            tab_name (str): The name of the tab to update.
+            tab_state (ModelState): The model state of the data in the tab. If this is NEW or UNCHANGED,
+                                    the tab's text will be  "*" + tab_name. Otherwise it will be
+                                    tab_name.
+        """
         try:
             index = self._tabNames.index(tab_name)
         except ValueError :

@@ -1,7 +1,8 @@
 .. code-block:: console
 
     $ pypeit_flux_calib -h
-    usage: pypeit_flux_calib [-h] [--par_outfile] [-v VERBOSITY] flux_file
+    usage: pypeit_flux_calib [-h] [--par_outfile] [-v VERBOSITY] [--try_old]
+                             flux_file
     
     Flux calibrate 1D spectra produced by PypeIt
     
@@ -53,4 +54,6 @@
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename
                             flux_calib_YYYYMMDD-HHMM.log
+      --try_old             Attempt to load old datamodel versions. A crash may
+                            ensue..
     

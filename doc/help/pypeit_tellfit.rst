@@ -4,6 +4,7 @@
     usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-r REDSHIFT]
                           [-g TELL_GRID] [-p PCA_FILE] [-t TELL_FILE] [--debug]
                           [--plot] [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
+                          [--chk_version]
                           spec1dfile
     
     Telluric correct a spectrum
@@ -74,4 +75,8 @@
                             Verbosity level between 0 [none] and 2 [all]. Default:
                             1. Level 2 writes a log with filename tellfit_YYYYMMDD-
                             HHMM.log
+      --chk_version         Ensure the datamodels are from the current PypeIt
+                            version. By default (consistent with previous
+                            functionality) this is not enforced and crashes may
+                            ensue ...
     

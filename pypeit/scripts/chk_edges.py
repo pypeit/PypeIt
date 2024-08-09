@@ -6,7 +6,6 @@ This script displays the Trace image and the traces in an RC Ginga window.
 """
 
 from pypeit.scripts import scriptbase
-from pathlib import Path
 
 
 class ChkEdges(scriptbase.ScriptBase):
@@ -30,21 +29,26 @@ class ChkEdges(scriptbase.ScriptBase):
         return parser
 
     @staticmethod
-    def main(pargs):
+    def main(args):
+
+        from pathlib import Path
+
         from pypeit import edgetrace, slittrace, msgs
 
-        # Load
-        edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
+        chk_version = not args.try_old
 
-        if pargs.mpl:
+        # Load
+        edges = edgetrace.EdgeTraceSet.from_file(args.trace_file, chk_version=chk_version)
+
+        if args.mpl:
             edges.show(thin=10, include_img=True, idlabel=True)
             return
 
         # Set the Slits file name
-        slit_filename = pargs.slits_file
+        slit_filename = args.slits_file
         if slit_filename is not None:
             # File provided by user
-            slit_filename = Path(pargs.slits_file).resolve()
+            slit_filename = Path(args.slits_file).absolute()
             if not slit_filename.exists():
                 # But doesn't exist
                 msgs.warn(f'{slit_filename} does not exist!')
@@ -58,7 +62,7 @@ class ChkEdges(scriptbase.ScriptBase):
                 msgs.warn(f'{slit_filename} does not exist!')
         # NOTE: At this point, slit_filename *must* be a Path object
 
-        slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=(not pargs.try_old)) \
+        slits = slittrace.SlitTraceSet.from_file(slit_filename, chk_version=chk_version) \
                     if slit_filename.exists() else None
         edges.show(thin=10, in_ginga=True, slits=slits)
 

@@ -85,7 +85,7 @@ class ManualExtractionObj(datamodel.DataContainer):
         m_es = inp.split(';')
         for m_e in m_es:
             parse = m_e.split(':')
-            # det_strip will be a list of a single number (no mosaic) or 2 numbers (mosaic)
+            # det_strip will be a list of a single number (no mosaic) or >= 2 numbers (mosaic)
             det_strip = [int(d) for d in parse[0].strip('()').split(',')]
             # check if it's negative object (i.e., if the det number is negative)
             if np.all([item < 0 for item in det_strip]):
@@ -93,7 +93,7 @@ class ManualExtractionObj(datamodel.DataContainer):
                 det_strip = [item * -1 for item in det_strip]
             else:
                 idict['neg'] += [False]
-            if len(det_strip) == 2 and tuple(det_strip) in spectrograph.allowed_mosaics:
+            if len(det_strip) >= 2 and tuple(det_strip) in spectrograph.allowed_mosaics:
                 # we use detname, which is a string (e.g., 'DET01', 'MSC01')
                 idict['detname'] += [spectrograph.get_det_name(tuple(det_strip))]
             elif len(det_strip) == 1:

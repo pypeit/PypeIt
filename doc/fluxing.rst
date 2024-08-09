@@ -179,13 +179,9 @@ in science spectra for proper flux calibration.  It is generally measured by the
 observatory in a dedicated campaign (sometimes decades ago), and published for use.
 PypeIt includes measured extinction files for many of the observatories
 whose spectrographs are supported by the pipeline.  The list of current extinction
-files is in ``pypeit/data/extinction/README``, and shown below:
+files is in ``pypeit/data/extinction/extinction_curves.txt``, and shown below:
 
-.. TODO: I'm a bit surprised this works on readthedocs.  We might want to
-.. instead copy the README into the doc directory when we build to docs...
-
-.. include:: ../pypeit/data/extinction/README
-   :literal:
+.. include:: include/extinction_curves.txt.rst
 
 The extinction correction is applied twice in the flux calibration process:
 
@@ -203,6 +199,8 @@ further need be done.  If, however, you are working with a telescope situated
 more than 5 deg (geographic coordinates) from one of the listed observatories, the
 code will crash unless you specify a particular extinction file to use or install
 a custom extinction file in the PypeIt cache.
+
+.. _extinct-file:
 
 Specifying an extinction file to use
 ++++++++++++++++++++++++++++++++++++

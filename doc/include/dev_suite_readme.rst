@@ -419,6 +419,21 @@ To monitor a test in Nautilus as it is running, the logs can be tailed:
 
 Additionally they can be monitored with the `Nautilus Grafana page <https://grafana.nrp-nautilus.io/?orgId=1>`__.
 
+By default ``gen_kube_devsuite`` creates a job using a default container with PypeIt 
+pre-installed. It also supports running with different python versions by
+selecting a different container. For example:
+
+.. code-block:: console
+
+    $ ./gen_kube_devsuite devsuite-python3.11-job devsuite-python3.11-job.yml --container python3.11
+
+Any of the standard python images in docker hub can be used. To use a different container the full 
+download path must be given. For example:
+
+.. code-block:: console
+
+    $ ./gen_kube_devsuite devsuite-ubuntu-job devsuite-ubuntu-job.yml --container docker.io/library/ubuntu:22.04
+
 
 Additional Options
 ------------------

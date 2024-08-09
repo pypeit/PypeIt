@@ -18,11 +18,13 @@ Submodules
    pypeit.scripts.chk_scattlight
    pypeit.scripts.chk_tilts
    pypeit.scripts.chk_wavecalib
+   pypeit.scripts.clean_cache
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec
    pypeit.scripts.coadd_datacube
    pypeit.scripts.collate_1d
    pypeit.scripts.compare_sky
+   pypeit.scripts.compile_wvarxiv
    pypeit.scripts.edge_inspector
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
@@ -31,10 +33,12 @@ Submodules
    pypeit.scripts.install_linelist
    pypeit.scripts.install_ql_calibs
    pypeit.scripts.install_telluric
+   pypeit.scripts.install_wvarxiv
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
    pypeit.scripts.parse_slits
+   pypeit.scripts.print_bpm
    pypeit.scripts.qa_html
    pypeit.scripts.ql
    pypeit.scripts.run_pypeit
