@@ -11,7 +11,6 @@ from pypeit.par import pypeitpar
 from pypeit.par import parset
 from pypeit.par import util
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import data_path
 
 
 def test_eval_tuple():
@@ -112,6 +111,69 @@ def test_readcfg():
     pypeitpar.PypeItPar.from_cfg_file('default.cfg')
     os.remove(default_file)
 
+def print_diff_header(name1, name2):
+    print("----------------------------------------------------------------")
+    print(f"Comparing {name1} to {name2}")
+    print("----------------------------------------------------------------")
+
+def diff_pars(par1, name1, par2, name2):
+    """Print human readable diff output when comparing pars"""
+    
+    printed_header = False
+    result = True
+    first_par_keys = set(par1.keys())
+    second_par_keys = set(par2.keys())
+    missing_from_second = first_par_keys - second_par_keys
+    if len(missing_from_second) > 0:
+        if not printed_header:
+            print_diff_header(name1, name2)
+            printed_header=True
+        print(f"{name1} keys missing from {name2}: {','.join(missing_from_second)}")
+        result=False
+
+    missing_from_first = second_par_keys - first_par_keys
+    if len(missing_from_first) > 0:
+        if not printed_header:
+            print_diff_header(name1, name2)
+            printed_header=True
+        print(f"{name2} keys missing from {name1}: {','.join(missing_from_second)}")
+        result=False
+
+    for key in first_par_keys & second_par_keys:
+        first_value = par1[key]
+        second_value = par2[key]
+        if isinstance(first_value, parset.ParSet) and isinstance(second_value, parset.ParSet):
+            if not diff_pars(first_value, f"{name1}->{key}", second_value, f"{name2}->{key}"):
+                result=False
+        else:
+            if not first_value == second_value:
+                result = False
+                if not printed_header:
+                    print_diff_header(name1, name2)
+                    printed_header=True
+                else:
+                    print("\n")
+                print(f"{name1}->{key} differs from {name2}->{key}")
+                print(f"{name1}->{key} is type {type(first_value)}, value {first_value}")
+                print(f"{name2}->{key} is type {type(second_value)}, value {second_value}")
+    
+    return result
+
+def test_readwritecfg():
+    # Test writing and re-reading a file results in the same
+    # values
+    default_file = 'default.cfg'
+    if os.path.isfile(default_file):
+        os.remove(default_file)
+    default_par = pypeitpar.PypeItPar()
+    default_par.to_config(cfg_file=default_file)
+    assert os.path.isfile(default_file), 'No file written!'
+    read_par = pypeitpar.PypeItPar.from_cfg_file(default_file)
+
+    # Comparison that produces nice output when they differ
+    assert diff_pars(default_par, "Default", read_par, "Read")
+    os.remove(default_file) 
+
 def test_mergecfg():
     # Create a file with the defaults
     user_file = 'user_adjust.cfg'
@@ -155,7 +217,7 @@ def test_telescope():
     pypeitpar.TelescopePar()
 
 def test_fail_badpar():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because there's no junk parameter
     cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
@@ -164,7 +226,7 @@ def test_fail_badpar():
                                                 merge_with=cfg_lines) # Once as list
     
 def test_fail_badlevel():
-    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+    p = load_spectrograph('gemini_gnirs_echelle').default_pypeit_par()
 
     # Faults because process isn't at the right level (i.e., there's no
     # process parameter for CalibrationsPar)

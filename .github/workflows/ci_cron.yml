@@ -15,8 +15,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: ['3.9', '3.10', '3.11']
-        toxenv: [test-alldeps, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev, conda]
+        python: ['3.10', '3.11', '3.12']
+        toxenv: [test-alldeps, test-numpydev, test-linetoolsdev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
@@ -31,4 +31,4 @@ jobs:
         python -m pip install --upgrade pip tox
     - name: Test with tox
       run: |
-        tox -e ${{ matrix.toxenv }}
+        tox -e ${{ matrix.python }}-${{ matrix.toxenv }}

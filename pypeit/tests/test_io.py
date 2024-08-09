@@ -7,9 +7,10 @@ from IPython import embed
 
 from astropy.table import Table
 
+from pypeit import dataPaths
 from pypeit import io
 from pypeit import inputfiles
-from pypeit.tests.tstutils import data_path
+from pypeit.tests import tstutils
 
 
 def test_remove_suffix():
@@ -23,11 +24,15 @@ def test_remove_suffix():
 
 def test_grab_rawfiles():
 
-    tst_file = Path(data_path('test.rawfiles')).resolve()
+    tst_file = Path(tstutils.data_output_path('test.rawfiles')).absolute()
     if tst_file.exists():
         tst_file.unlink()
 
-    root = Path(data_path('')).resolve()
+    # Download and move all the b*fits.gz files into the local package
+    # installation
+    tstutils.install_shane_kast_blue_raw_data()
+
+    root = Path(tstutils.data_output_path('')).absolute()
     raw_files = [root / 'b11.fits.gz', root / 'b12.fits.gz']
     assert all([f.exists() for f in raw_files]), 'Files missing'
 
@@ -42,6 +47,6 @@ def test_grab_rawfiles():
     assert [str(f) for f in raw_files] == _raw_files, 'Bad list_of_files read'
 
     _raw_files = inputfiles.grab_rawfiles(raw_paths=[str(root)], extension='.fits.gz')
-    assert len(_raw_files) == 8, 'Found the wrong number of files'
+    assert len(_raw_files) == 9, 'Found the wrong number of files'
     assert all([str(root / f) in _raw_files for f in tbl['filename']]), 'Missing expected files'
 

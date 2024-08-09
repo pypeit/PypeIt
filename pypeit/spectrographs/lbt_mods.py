@@ -3,18 +3,18 @@ Module for LBT/MODS specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
 import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
 
 # TODO: FW: test MODS1B and MODS2B
 
@@ -40,10 +40,12 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             all of PypeIt methods.
         """
         par = super().default_pypeit_par()
+        
+        par.reset_all_processimages_par(use_biasimage=False, use_overscan=True, overscan_method='odd_even')
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [0, None]
@@ -206,14 +208,11 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading LBT/MODS file: {fil}')
+        hdu = io.fits_open(fil)
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
@@ -299,7 +298,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -310,7 +309,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -327,7 +326,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -344,6 +343,10 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -463,7 +466,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -474,7 +477,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -491,7 +494,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
@@ -620,7 +623,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.123,
-            darkcurr        = 0.4,
+            darkcurr        = 0.4,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -631,7 +634,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -648,7 +651,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.22
         par['calibrations']['wavelengths']['fwhm'] = 10.
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -665,6 +668,10 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+        
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -782,7 +789,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
-            darkcurr        = 0.5,
+            darkcurr        = 0.5,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.99,
             mincounts       = -1e10,
@@ -793,7 +800,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 #            datasec         = np.atleast_1d('[:,:]'),
 #            oscansec        = np.atleast_1d('[:,:]')
             )
-        return detector_container.DetectorContainer(**detector_dict)
+        return DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -810,7 +817,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 10.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.09
         par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit

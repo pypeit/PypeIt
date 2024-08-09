@@ -1,6 +1,10 @@
+"""
+.. include:: ../include/links.rst
+"""
 from datetime import datetime
 import os
 import copy
+from pathlib import Path
 import numpy as np
 import matplotlib
 try:
@@ -18,7 +22,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils
-from pypeit import data, msgs
+from pypeit import msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
 
@@ -104,7 +108,7 @@ class Identify:
         # Initialise the spectrum properties
         self.spec = spec
         self.specres = specres   # Residual information
-        self.specdata = spec.get_ydata()
+        self.specdata = spec.get_ydata()  # This only saves the specdata as a vector for a single slit wavelength solution
         self.specx = np.arange(self.specdata.size)
         self.plotx = self.specx.copy()
         self.specname = specname
@@ -199,12 +203,12 @@ class Identify:
 
         Parameters
         ----------
-        arccen : ndarray
+        arccen : `numpy.ndarray`_
             Arc spectrum
         lamps : :obj:`list`
             List of arc lamps to be used for wavelength calibration.
             E.g., ['ArI','NeI','KrI','XeI']
-        slits : :class:`SlitTraceSet`
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
             Data container with slit trace information
         slit : int, optional
             The slit to be used for wavelength calibration
@@ -244,6 +248,8 @@ class Identify:
 
         if sigdetect is None:
             sigdetect = par['sigdetect']
+            if isinstance(sigdetect, list):
+                sigdetect = sigdetect[slit]
         print(f"Using {sigdetect} for sigma detection")
 
         # If a wavelength calibration has been performed already, load it:
@@ -261,6 +267,7 @@ class Identify:
             msgs.warn("No wavelength calibration supplied!")
             msgs.info("No wavelength solution will be loaded.")
             wv_calib = None
+
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
         if nonlinear_counts is None:
@@ -272,11 +279,7 @@ class Identify:
         detns = tdetns[icut]
 
         # Load line lists
-        if 'ThAr' in lamps:
-            line_lists_all = waveio.load_line_lists(lamps)
-            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-        else:
-            line_lists = waveio.load_line_lists(lamps)
+        line_lists, _, _ = waveio.load_line_lists(lamps, include_unknown=False)
 
         # Trim the wavelength scale if requested
         if wavelim is not None:
@@ -408,7 +411,7 @@ class Identify:
         Note, only the LMB works.
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         if event.button == 1:
             self.update_line_id()
@@ -594,7 +597,7 @@ class Identify:
         """Draw the lines and annotate with their IDs
 
         Args:
-            event (Event): A matplotlib event instance
+            event (`matplotlib.backend_bases.Event`_): A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -624,10 +627,11 @@ class Identify:
         """Calculate the y locations of the annotated IDs
 
         Args:
-            scale (float): Scale the location relative to the maximum value of the spectrum
+            scale (float):
+                Scale the location relative to the maximum value of the spectrum
 
         Returns:
-            ypos (ndarray): y locations of the annotations
+            `numpy.ndarray`_: y locations of the annotations
         """
         ypos = np.zeros(self._detns.size)
         for xx in range(self._detns.size):
@@ -644,10 +648,11 @@ class Identify:
         """Get the index of the line closest to the cursor
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
 
         Returns:
-            ind (int): Index of the spectrum where the event occurred
+            int: Index of the spectrum where the event occurred
         """
         ind = np.argmin(np.abs(self.plotx - event.xdata))
         return ind
@@ -656,10 +661,11 @@ class Identify:
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
 
         Returns:
-            axisID (int, None): Axis where the event has occurred
+            int: Axis where the event has occurred
         """
         if event.inaxes == self.axes['main']:
             return 0
@@ -680,7 +686,7 @@ class Identify:
         manually identified all lines.
 
         Returns:
-            wvcalib (dict): Dict of wavelength calibration solutions
+            dict: Dict of wavelength calibration solutions
         """
         wvcalib = {}
         # Check that a result exists:
@@ -709,8 +715,12 @@ class Identify:
         return wvcalib
 
     def store_solution(self, final_fit, binspec, rmstol=0.15,
-                       force_save=False, wvcalib=None):
-        """Check if the user wants to store this solution in the reid arxiv
+                       force_save=False, wvcalib=None, multi=False,
+                       fits_dicts=None, specdata=None, slits=None,
+                       lines_pix_arr=None, lines_wav_arr=None, lines_fit_ord=None,
+                       custom_wav=None, custom_wav_ind=None):
+        """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
+        for multiple traces
 
         Parameters
         ----------
@@ -719,72 +729,184 @@ class Identify:
             Dict of wavelength calibration solutions (see self.get_results())
         binspec : int
             Spectral binning
-        rmstol : float
+        rmstol : float, optional
             RMS tolerance allowed for the wavelength solution to be stored in the archive
-        force_save : bool
+        force_save : bool, optional
             Force save
-        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
+        multi : bool, optional
+            Flag if the template has multiple slits/traces.
+        fits_dict : list, optional
+            List of dictionaries containing the _fitdict of previous calls, if multi-trace data
+        specdata : array, optional
+            Numpy array containing the flux information from all the traces
+        wvcalib : :class:`pypeit.wavecalib.WaveCalib`, optional
             Wavelength solution
+        lines_pix_arr : array, optional
+            Numpy array containing the pixel locations of all ID'd lines
+        lines_wav_arr : array, optional
+            Numpy array containing wavelengths of all the ID'd lines
 
         Returns
         -------
 
-        wvarxiv_name : :obj:`str` or :obj:`None`
-            The name of the wvarxiv file if saved, else None
+        wvarxiv_name : :obj:`str`
+            The name of the wvarxiv file if saved. "None" if not saved
         """
         # For return
         wvarxiv_name = None
 
         # Line IDs
         ans = ''
-        if not force_save:
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store the line IDs? (y/n): ")
-        else:
-            ans = 'y'
-        if ans == 'y':
-            self.save_IDs()
+        # I am guessing we want to save the line IDs only if we are not dealing with a multi-trace solution
+        if not multi:
+            if not force_save:
+                while ans != 'y' and ans != 'n':
+                    ans = input("Would you like to store the line IDs? (y/n): ")
+            else:
+                msgs.info("The line IDs are being saved to disk")
+                ans = 'y'
+            if ans == 'y':
+                self.save_IDs()
         # Solution
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
             return
-        elif final_fit['rms'] < rmstol:
+        elif final_fit['rms'] < rmstol or multi:
             ans = ''
             if not force_save:
                 while ans != 'y' and ans != 'n':
                     ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
             else:
+                msgs.info('Saving the wavelength solution to disk')
                 ans = 'y'
             if ans == 'y':
                 # Arxiv solution
-                wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
-                                                             (self.specdata.size - 1))
+                # prompt the user to give the orders that were used here
+                if '"echelle": true' in wvcalib.strpar:
+                    while True:
+                        try:
+                            print('')
+                            order_str = input("Which orders were we fitting? e.g. (32:39):  ")    
+                            order_vec = np.arange(int(order_str[1:3]), int(order_str[4:6])+1)
+                            if len(order_vec) != len(wvcalib.wv_fits):
+                                msgs.warn(f'The number of orders in this list, {order_vec} '+msgs.newline()+
+                                f'does not match the number of traces: {len(wvcalib.wv_fits)}' + msgs.newline() +
+                                'Please try again...')
+                                continue
+                        except ValueError:
+                            msgs.warn("Sorry, syntax may be invalid...")
+                            #better try again... Return to the start of the loop
+                            continue
+                        else:
+                            #orders were successfully parsed!
+                            #we're ready to exit the loop.
+                            break
+                else: 
+                    order_vec = None
+                make_arxiv = ''
+                if not force_save:
+                    while make_arxiv != 'y' and make_arxiv != 'n':
+                        print('          ')
+                        if multi:
+                            make_arxiv = input("Save the wavelength solution as a multi-trace arxiv? ([y]/n): ")
+                        else:
+                            make_arxiv = input("Save the wavelength solution as an arxiv? ([y]/n): ")
+                else:
+                    msgs.info('Saving the wavelength solution as an arxiv file.')
+                    make_arxiv = 'y'
 
-                # Instead of a generic name, save the wvarxiv with a unique identifier
-                date_str = datetime.now().strftime("%Y%m%dT%H%M")
-                wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
-                wvutils.write_template(wavelengths, self.specdata, binspec,
-                                         './', wvarxiv_name)
+                if make_arxiv != 'n':
+                    if multi:
+                        # check that specdata is defined
+                        if specdata is None:
+                            msgs.warn('Skipping arxiv save because arc line spectra are not defined by pypeit/scripts/identify.py')
+                        # check that the number of spectra in specdata is the same as the number of wvcalib solutions
+                        elif specdata is not None and np.shape(specdata)[0] != len(wvcalib.wv_fits):
+                            msgs.warn('Skipping arxiv save because there are not enough orders for full template')
+                            msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
+                        else:
+                            norder = np.shape(specdata)[0]
+                            wavelengths = np.copy(specdata)
+                            for iord in range(norder):
+                                if fits_dicts is not None:
+                                    fitdict = fits_dicts[iord]
+                                else:
+                                    msgs.warn('skipping saving fits because fits_dicts is not defined by pypeit/scripts/identify.py')
+                                    fitdict = None
+                                if fitdict is not None and fitdict['full_fit'] is not None:
+                                    wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
+                                                                            (specdata[iord,:].size - 1))
+                                elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
+                                    wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
+                    else:
+                        wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
+                                                                    (self.specdata.size - 1))
+                        order_vec = None; lines_fit_ord = None; lines_pix_arr = None; lines_wav_arr = None
+                    # Instead of a generic name, save the wvarxiv with a unique identifier
+                    date_str = datetime.now().strftime("%Y%m%dT%H%M")
+                    wvarxiv_name = f"wvarxiv_{self.specname}_{date_str}.fits"
 
-                # Also copy the file to the cache for direct use
-                data.write_file_to_cache(wvarxiv_name,
-                                         wvarxiv_name,
-                                         "arc_lines/reid_arxiv")
+                    if not force_save:
+                        # we ask the user if they want to use a different name only if they are not forcing the save
+                        name_check = input(f'Do you want to use the default arxiv name? ({wvarxiv_name}) [y]/n: ')
+                        if name_check == 'n':
+                            wvarxiv_name_new = ''
+                            while len(wvarxiv_name_new) < 2:
+                                wvarxiv_name_new = input('Please enter the desired filename: ')
+                            if '.fits' not in wvarxiv_name_new:
+                                wvarxiv_name_new += '.fits'
+                            wvarxiv_name = wvarxiv_name_new
 
-                msgs.info(f"Your arxiv solution has been written to ./{wvarxiv_name}\n")
-                msgs.info(f"Your arxiv solution has also been cached.{msgs.newline()}"
-                          f"To utilize this wavelength solution, insert the{msgs.newline()}"
-                          f"following block in your PypeIt Reduction File:{msgs.newline()}"
-                          f" [calibrations]{msgs.newline()}"
-                          f"   [[wavelengths]]{msgs.newline()}"
-                          f"     reid_arxiv = {wvarxiv_name}{msgs.newline()}"
-                          f"     method = full_template\n")
-
+                    # Write the wvarxiv file
+                    _specdata = specdata if specdata is not None else self.specdata
+                    order_vec = np.flip(order_vec, axis=0) if order_vec is not None else None
+                    wvutils.write_template(wavelengths, _specdata, binspec, './',
+                                        wvarxiv_name, to_cache=True, order = order_vec,
+                                        lines_pix_arr = lines_pix_arr, lines_wav_arr = lines_wav_arr,
+                                        lines_fit_ord = lines_fit_ord)
                 # Write the WVCalib file
                 outfname = "wvcalib.fits"
                 if wvcalib is not None:
                     wvcalib.to_file(outfname, overwrite=True)
                     msgs.info("A WaveCalib container was written to wvcalib.fits")
+
+                # Ask if overwrite the existing WVCalib file only if force_save=False, otherwise don't overwrite
+                ow_wvcalib = ''
+                if not force_save:
+                    while ow_wvcalib != 'y' and ow_wvcalib != 'n':
+                        print('')
+                        msgs.warn('Do you want to overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
+                                  'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibrations/ ' + msgs.newline() +
+                                  ' and re-run run_pypeit. ')
+                        print('')
+                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
+
+                if ow_wvcalib == 'y':
+                    wvcalib.to_file()
+                    if multi:
+                        slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
+                        for islit in slit_list:
+                            if islit < len(slit_list) - 1:
+                                slit_list_str += str(islit) + ','
+                            else: slit_list_str += str(islit)
+
+                        if slits:
+                            print('               ')
+                            msgs.info('Unflagging Slits from WaveCalib: ')
+                            slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                            slits.ech_order = order_vec
+                            slits.to_file()
+                            print('               ')
+                    print('         ')
+                    # ask to clean up the Calibrations directory only if force_save=False, otherwise don't clean up
+                    if not force_save:
+                        clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
+                                            ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
+                        if clean_calib == 'y':
+                            cal_root = Path('Calibrations').resolve()
+                            for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:
+                                for f in cal_root.glob(f'{cal}*'):
+                                    f.unlink()
 
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
@@ -794,19 +916,23 @@ class Identify:
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
                 print("  (3) the {0:s} file".format(outfname))
                 print("\nPlease consider sending your solution to the PypeIt team!\n")
+
         else:
             print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
-            if ans != 'y':
-                # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
-                ans = ''
-                if not force_save:
-                    while ans != 'y' and ans != 'n':
-                        ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
-                else:
-                    ans = 'y'
-                if ans == 'y':
-                    self.save_IDs()
+            # I am guessing we want to save the line IDs only if we are not dealing with a multi-trace solution
+            if not multi:
+                if ans != 'y':
+                    # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
+                    ans = ''
+                    if not force_save:
+                        while ans != 'y' and ans != 'n':
+                            ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
+                    else:
+                        msgs.info("The line IDs are being saved to disk")
+                        ans = 'y'
+                    if ans == 'y':
+                        self.save_IDs()
 
         # For the cases that need the wvarxiv name, return it
         return wvarxiv_name
@@ -815,7 +941,8 @@ class Identify:
         """What to do when the mouse button is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -849,10 +976,8 @@ class Identify:
         """What to do when the mouse button is released
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         self._msedown = False
         if event.inaxes is None:
@@ -900,10 +1025,8 @@ class Identify:
         """What to do when a key is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
+            event (`matplotlib.backend_bases.Event`_):
+                Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -1084,20 +1207,20 @@ class Identify:
         self._lineflg[rmid] = 0
 
     def fitsol_value(self, xfit=None, idx=None):
-        """Calculate the wavelength at a pixel
+        """
+        Calculate the wavelength at a pixel
 
         Parameters
         ----------
-
-        xfit : ndarray, float
+        xfit : `numpy.ndarray`_, float
             Pixel values that the user wishes to evaluate the wavelength
-        idx : ndarray, int
+        idx : `numpy.ndarray`_, int
             Index of the arc line detections that the user wishes to evaluate the wavelength
 
         Returns
         -------
-
-        disp : The wavelength (Angstroms) of the requested pixels
+        disp : `numpy.ndarray`_, float
+            The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -1114,11 +1237,15 @@ class Identify:
         """Calculate the dispersion as a function of wavelength
 
         Args:
-            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
-            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
+            xfit (`numpy.ndarray`_, float):
+                Pixel values that the user wishes to evaluate the wavelength
+            idx (int):
+                Index of the arc line detections that the user wishes to
+                evaluate the wavelength
 
         Returns:
-            disp (ndarray, float, None): The dispersion (Angstroms/pixel) as a function of wavelength
+            ndarray, float: The dispersion (Angstroms/pixel) as a function of
+            wavelength
         """
         if xfit is None:
             xfit = self._detns
@@ -1170,7 +1297,9 @@ class Identify:
             self._lineids = np.append(self._lineids, 0)[arsrt]
             self._lineflg = np.append(self._lineflg, 0)[arsrt]  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         else:
-            self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            # self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+            print("New detection is <{0:d} pixels of a detection - replacing closest detection".format(mindist))
+            self._detns[np.argmin(np.abs(self._detns - new_detn))] = new_detn
         # Reset the fit regions
         self._fitregions = np.zeros_like(self._fitregions)
         return

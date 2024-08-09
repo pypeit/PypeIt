@@ -57,22 +57,26 @@ class FluxCalib(scriptbase.ScriptBase):
                                  "specify no sensfiles and use an archived one.\n"
                                  "Archived sensfiles are available for the following spectrographs: " 
                                  + ",".join(SensFileArchive.supported_spectrographs()) + "\n\n")
-        parser.add_argument("--debug", default=False, action="store_true",
-                            help="show debug plots?")
+#        parser.add_argument("--debug", default=False, action="store_true",
+#                            help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename flux_calib_YYYYMMDD-HHMM.log')
-
 #        parser.add_argument("--plot", default=False, action="store_true",
 #                            help="Show the sensitivity function?")
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
     def main(args):
         """ Runs fluxing steps
         """
+
+        chk_version = not args.try_old
+
         # Set the verbosity, and create a logfile if verbosity == 2
         msgs.set_logfile_and_verbosity('flux_calib', args.verbosity)
 
@@ -109,9 +113,8 @@ class FluxCalib(scriptbase.ScriptBase):
                        'Run pypeit_flux_calib --help for information on the format')
 
         # Instantiate
-        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(
-            fluxFile.filenames, sensfiles, 
-            par=par['fluxcalib'], debug=args.debug)
+        fluxcalibrate.flux_calibrate(fluxFile.filenames, sensfiles, par=par['fluxcalib'],
+                                     chk_version=chk_version)
         msgs.info('Flux calibration complete')
         return 0
 

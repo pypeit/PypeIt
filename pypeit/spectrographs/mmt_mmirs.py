@@ -3,8 +3,6 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
-import glob
-
 import numpy as np
 from scipy.signal import savgol_filter
 
@@ -14,6 +12,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
@@ -123,7 +122,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.2012,
-            darkcurr        = 0.01,
+            darkcurr        = 36.0,  # e-/pixel/hour  (=0.01 e-/pixel/s)
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -158,9 +157,9 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.125
         par['calibrations']['wavelengths']['sigdetect']=5
-        par['calibrations']['wavelengths']['fwhm'] = 5
+        par['calibrations']['wavelengths']['fwhm'] = 4.
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
@@ -203,7 +202,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -349,15 +348,12 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading MMIRS file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
-        head1 = fits.getheader(fil[0],1)
+        msgs.info(f'Reading MMIRS file: {fil}')
+        hdu = io.fits_open(fil)
+        head1 = fits.getheader(fil,1)
 
         detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 

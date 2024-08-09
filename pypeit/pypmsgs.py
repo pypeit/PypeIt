@@ -5,13 +5,20 @@ Module for terminal and file logging.
     Why not use pythons native logging package?
 
 """
-import datetime
+from datetime import datetime
 import sys
 import os
 import getpass
-import glob
-import textwrap
 import inspect
+import io
+
+# TODO: datetime.UTC is not defined in python 3.10.  Remove this when we decide
+# to no longer support it.
+try:
+    __UTC__ = datetime.UTC
+except AttributeError as e:
+    from datetime import timezone
+    __UTC__ = timezone.utc
 
 # Imported for versioning
 import scipy
@@ -30,7 +37,13 @@ developers = ['ema', 'joe', 'milvang', 'rcooke', 'thsyu', 'xavier']
 class PypeItError(Exception):
     pass
 
+class PypeItBitMaskError(PypeItError):
+    pass
+
 class PypeItDataModelError(PypeItError):
+    pass
+
+class PypeItPathError(PypeItError):
     pass
 
 
@@ -43,16 +56,17 @@ class Messages:
 
     Parameters
     ----------
-    log : str or None
-      Name of saved log file (no log will be saved if log=="")
-    verbosity : int (0,1,2)
-      Level of verbosity:
-        0 = No output
-        1 = Minimal output
-        2 = All output (default)
+    log : str or file-like object,optional
+        Name of saved log file (no log will be saved if log=="").  If None, no
+        log is saved.
+    verbosity : int
+        Level of verbosity.  Options are
+            - 0 = No output
+            - 1 = Minimal output
+            - 2 = All output (default)
     colors : bool
-      If true, the screen output will have colors, otherwise
-      normal screen output will be displayed
+        If true, the screen output will have colors, otherwise normal screen
+        output will be displayed
     """
     def __init__(self, log=None, verbosity=None, colors=True):
 
@@ -78,6 +92,7 @@ class Messages:
         self.qa_path = None
 
         # Initialize the log
+        self._log_to_stderr = self._verbosity != 0
         self._log = None
         self._initialize_log_file(log=log)
 
@@ -124,7 +139,7 @@ class Messages:
         """
         devmsg = self._devmsg() if printDevMsg else ''
         _msg = premsg+devmsg+msg
-        if self._verbosity != 0:
+        if self._log_to_stderr != 0:
             print(_msg, file=sys.stderr)
         if self._log:
             clean_msg = self._cleancolors(_msg)
@@ -134,11 +149,12 @@ class Messages:
         """
         Expects self._log is already None.
         """
+
         if log is None:
             return
+        
+        self._log = log if isinstance(log, io.IOBase) else open(log, 'w')
 
-        # Initialize the log
-        self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
         self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
@@ -148,7 +164,7 @@ class Messages:
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
         self._log.write("------------------------------------------------------\n\n")
 
-    def reset(self, log=None, verbosity=None, colors=True):
+    def reset(self, log=None, verbosity=None, colors=True, log_to_stderr=None):
         """
         Reinitialize the object.
 
@@ -157,6 +173,11 @@ class Messages:
         """
         # Initialize other variables
         self._verbosity = self._defverb if verbosity is None else verbosity
+        if log_to_stderr is None:
+            self._log_to_stderr = self._verbosity != 0
+        else:
+            self._log_to_stderr = log_to_stderr
+
         self.reset_log_file(log)
         self.disablecolors()
         if colors:
@@ -182,15 +203,11 @@ class Messages:
         premsg = '\n'+self._start + self._white_RD + '[ERROR]   ::' + self._end + ' '
         self._print(premsg, msg)
 
-        # Close log file
-        # TODO: This no longer "closes" the QA plots
-        self.close()
+        # Close QA plots
+        close_qa(self.pypeit_file, self.qa_path)
 
         raise eval(cls)(msg)
 
-        # TODO: Does this do anything? I didn't think anything past `raise`
-        # would be executed.
-        sys.exit(1)
 
     def info(self, msg):
         """
@@ -243,15 +260,23 @@ class Messages:
 
         Parameters
         ----------
-        msglist: list of str
-          A list containing the pypeit parameters. The last element of the list
-          must be the argument and the variable. For example, to print:
+        msglist: list
+            A list containing the pypeit parameter strings. The last element of
+            the list must be the argument and the variable. For example, to
+            print:
 
-          [sensfunc]
-            [[UVIS]]
-              polycorrect = False
+            .. code-block:: ini
 
-        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+                [sensfunc]
+                    [[UVIS]]
+                        polycorrect = False
+
+            you should set ``msglist = ['sensfunc', 'UVIS', 'polycorrect = False']``.
+
+        Returns
+        -------
+        parstring : str
+            The parameter string
         """
         parstring = '\n'
         premsg = '             '
@@ -270,15 +295,19 @@ class Messages:
 
         Parameters
         ----------
-        msglist: list of str
-          A list containing the pypeit parameters. The last element of the list
-          must be the argument and the variable. For example, to print:
+        msglist: list
+            A list containing the pypeit parameter strings. The last element of
+            the list must be the argument and the variable. For example, to
+            print:
 
-          [sensfunc]
-            [[UVIS]]
-              polycorrect = False
+            .. code-block:: ini
 
-        you should set msglist = ['sensfunc', 'UVIS', 'polycorrect = False']
+                [sensfunc]
+                    [[UVIS]]
+                        polycorrect = False
+
+            you should set ``msglist = ['sensfunc', 'UVIS', 'polycorrect = False']``.
+
         """
         premsg = '             '
         for ll, lin in enumerate(msglist):
@@ -387,8 +416,9 @@ class Messages:
                 Verbosity level between 0 [none] and 2 [all]
         """
         # Create a UT timestamp (to the minute) for the log filename
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+        timestamp = datetime.now(__UTC__).strftime("%Y%m%d-%H%M")
         # Create a logfile only if verbosity == 2
         logname = f"{scriptname}_{timestamp}.log" if verbosity == 2 else None
         # Set the verbosity in msgs
         self.reset(log=logname, verbosity=verbosity)
+

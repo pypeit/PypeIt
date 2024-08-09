@@ -101,6 +101,26 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['binning', 'datasec'], 'dark': ['binning', 'datasec']}
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument
@@ -182,7 +202,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.12, # Manual 2.2
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -233,7 +253,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # 1D wavelength solution
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -283,6 +303,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             par['scienceframe']['process']['use_pixelflat'] = False
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_specillum'] = False
+        elif self.get_meta_value(scifile, 'dispname') == 'Gr#4':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr4.fits'
 
         return par
 

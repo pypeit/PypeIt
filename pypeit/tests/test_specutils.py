@@ -14,10 +14,12 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit.specutils import Spectrum1D, SpectrumList
 from pypeit.tests import tstutils
+from pypeit.pypmsgs import PypeItError
 
 import pytest
 specutils_required = pytest.mark.skipif(Spectrum1D is None or SpectrumList is None,
                                         reason='specutils not installed')
+
 
 @specutils_required
 def test_onespec_io():
@@ -27,7 +29,7 @@ def test_onespec_io():
     flux = np.ones(1000, dtype=float)
     # TODO: PYP_SPEC is required if we want to be able to read the file!
     spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
-    ofile = Path(tstutils.data_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
     spec.to_file(str(ofile), overwrite=True)
 
     _spec = Spectrum1D.read(ofile)
@@ -43,7 +45,7 @@ def test_onespec_io():
 @specutils_required
 def test_spec1d_io():
 
-    ofile = Path(tstutils.data_path('tmp.fits')).resolve()
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
 
     spec1 = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     npix_spec = 100
@@ -133,4 +135,33 @@ def test_spec1d_io():
     assert not spec[1].meta['fluxed'], 'Should have read the count data'
 
     ofile.unlink()
+
+
+@specutils_required
+def test_onespec_monotonic():
+    rng = np.random.default_rng(999)
+    grid_wave = np.linspace(3500,10000,1000)
+    wave = grid_wave + (10*rng.uniform(size=grid_wave.size) - 1)
+    flux = np.ones(1000, dtype=float)
+    # TODO: PYP_SPEC is required if we want to be able to read the file!
+    spec = onespec.OneSpec(wave, grid_wave, flux, PYP_SPEC='shane_kast_blue')
+    ofile = Path(tstutils.data_output_path('tmp.fits')).absolute()
+    spec.to_file(str(ofile), overwrite=True)
+
+    with pytest.raises(PypeItError):
+        # Should fault because the wavelength vector is not monotonically
+        # increasing
+        _spec = Spectrum1D.read(ofile)
+
+    # This will be fine because the grid *is* monotonically increasing
+    _spec = Spectrum1D.read(ofile, grid=True)
+
+    # This should be fine because reader will remove non-monotonically
+    # increasing wavelength measurements.
+    __spec = Spectrum1D.read(ofile, strict=False)
+
+    assert _spec.shape[0] > __spec.shape[0], 'Strict should remove data'
+
+    ofile.unlink()
+
 

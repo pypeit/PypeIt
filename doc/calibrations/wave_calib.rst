@@ -81,8 +81,9 @@ HgI     2900-12000  28 February 2022
 KrI     4000-10000  3 May 2018
 NeI     5000-12000  3 May 2018
 XeI     4000-12000  3 May 2018
-ZnI     3000-5000   21 December 2016
+ZnI     3000-5000   6 Sep 2023
 ThAr    3000-11000  9 January 2018
+FeAr    3000-9000   6 Sep 2023
 ======  ==========  ================
 
 In the case of the ThAr list, all of the lines are taken from the NIST database,
@@ -259,6 +260,60 @@ observations, long-slit observations where wavelengths
 vary (*e.g.*, grating tilts).  We are likely to implement
 this for echelle observations (*e.g.*, HIRES).
 
+.. _wvcalib-echelle:
+
+Echelle Spectrographs
+=====================
+
+Echelle spectrographs are a special case for wavelength
+solutions, primarily because the orders follow the
+grating equation.
+
+In general, the approach is:
+
+    #. Identify the arc lines in each order
+
+    #. Fit the arc lines in each order to a polynomial, individually
+
+    #. Fit a 2D solution to the lines using the order number as a basis
+
+    #. Reject orders where the RMS of the fit (measured in binned pixels)
+       exceeds a certain threshold set by the user (see :ref:`wvcalib-rms-threshold`)
+
+    #. Attempt to recover the missing orders using the 2D fit and a higher RMS
+       threshold
+
+    #. Refit the 2D solution
+
+One should always inspect the outputs, especially the 2D solution
+(global and orders).  One may then need to modify the ``rms_thresh_frac_fwhm``
+parameter and/or hand-fit a few of the orders to improve the solution.
+
+.. _wvcalib-rms-threshold:
+
+RMS threshold
+-------------
+
+The parameter that controls the RMS threshold is ``rms_thresh_frac_fwhm``, which
+is a fraction of the FWHM. If the parameter ``fwhm_fromlines`` is set to **True**,
+FWHM (in binned pixels) will be computed from the arc lines in each slits,
+otherwise the value set by the parameter ``fwhm`` will be used.
+
+That is, each order must satisfy the following:
+
+.. code-block:: ini
+
+    RMS < rms_thresh_frac_fwhm * FWHM     # FWHM in binned pixels
+
+
+Mosaics
+-------
+
+For echelle spectrographs with multiple detectors *per* camera
+that are mosaiced (e.g. Keck/HIRES), we fit the 2D solutions on a *per* detector
+basis.  Ths is because we have found the mosaic solutions to be
+too difficult to make sufficiently accurate.
+
 .. _wvcalib-byhand:
 
 By-Hand Approach
@@ -297,8 +352,37 @@ basics
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 You might find it helpful to specify the wavelength range of the
-linelist and the lamps to use using the ``pypeit_identify``
-command-line options.
+linelist and the lamps to use the ``pypeit_identify``
+command-line options.  The full list of identify operations is
+copied below:
+
+   .. code-block:: console
+
+      cursor : Select lines (LMB click)
+               Select regions (LMB drag = add, RMB drag = remove)
+               Navigate (LMB drag = pan, RMB drag = zoom)
+      left   : Advance the line list slider to the left by one
+      right  : Advance the line list slider to the right by one
+      p      : Toggle pan/zoom with the cursor
+      q      : Close Identify window and continue PypeIt reduction
+      a      : Automatically identify lines using current solution
+      c      : Clear automatically identified lines
+      d      : Delete all line identifications (start from scratch)
+      f      : Fit the wavelength solution
+      g      : Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)
+      h      : Reset ghost parameters
+      i      : Include an undetected line to the detected line list
+               First select fitting pixels (LMB drag = add, RMB drag = remove)
+               Then press 'i' to perform a fit.         NOTE: ghost solution must be turned off to select fit regions.
+      l      : Load saved line IDs from file (waveids.ascii in local directory)
+      m      : Select a line
+      r      : Refit a line
+      s      : Save current line IDs to a file
+      w      : Toggle wavelength/pixels on the x-axis of the main panel
+      y      : Toggle the y-axis scale between logarithmic and linear
+      z      : Delete a single line identification
+      +/-    : Raise/Lower the order of the fitting polynomial
+
 
 Here is a standard sequence of moves once the GUI pops up:
 

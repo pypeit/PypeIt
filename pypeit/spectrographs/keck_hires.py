@@ -13,6 +13,7 @@ import numpy as np
 from scipy.io import readsav
 
 from astropy.table import Table
+from astropy import time
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -35,10 +36,12 @@ class HIRESMosaicLookUp:
     # Original
     geometry = {
         'MSC01': {'default_shape': (6168, 3990),
-                  'blue_det': {'shift': (-2048.0 - 41.0, 0.0), 'rotation': 0.},
+                  'blue_det': {'shift': (-2048.0 - 41.0, -3.), 'rotation': 0.},
                   'green_det': {'shift': (0., 0.), 'rotation': 0.},
                   'red_det': {'shift': (2048.0 + 53.0, 0.), 'rotation': 0.}},
     }
+    # adding -3 to the blue_det shift in the y-direction helps to deal with the gap
+    # in the 2D fit wavelength solution between the blue and green detectors
 
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
@@ -79,24 +82,24 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['rdx']['detnum'] = [(1,2,3)]
 
         # Adjustments to parameters for Keck HIRES
-        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
-                       use_darkimage=False, use_illumflat=False, use_pixelflat=False,
-                       use_specillum=False)
-        par.reset_all_processimages_par(**turn_on)
-        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
-
+        turn_off_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median')
+        par.reset_all_processimages_par(**turn_off_on)
         # Right now we are using the overscan and not biases becuase the
         # standards are read with a different read mode and we don't yet have
         # the option to use different sets of biases for different standards,
         # or use the overscan for standards but not for science frames
-        # TODO testing
-        par['scienceframe']['process']['use_biasimage'] = False
-        par['scienceframe']['process']['use_illumflat'] = False
-        par['scienceframe']['process']['use_pixelflat'] = False
-        par['calibrations']['standardframe']['process']['use_illumflat'] = False
-        par['calibrations']['standardframe']['process']['use_pixelflat'] = False
-        # par['scienceframe']['useframe'] ='overscan'
 
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
+        par['calibrations']['traceframe']['exprng'] = [None, 60]
+        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [1, 600]
+        par['scienceframe']['exprng'] = [601, None]
+
+        # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -107,6 +110,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
 
+        par['calibrations']['slitedges']['add_missed_orders'] = True
+        par['calibrations']['slitedges']['order_width_poly'] = 2
+        par['calibrations']['slitedges']['order_gap_poly'] = 3
+
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
         par['calibrations']['tilts']['spat_order'] = 3
@@ -114,30 +121,31 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['n_final'] = 4 #[3] + 13 * [4] + [3]
-        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
-        par['calibrations']['wavelengths']['fwhm'] = 8.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 4
+
+        par['calibrations']['wavelengths']['match_toler'] = 1.5
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'echelle'
-        # TODO: the arxived solution is for 1x1 binning. It needs to be
-        # generalized for different binning!
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
-        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
-#        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['cc_shift_range'] = (-80.,80.)
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.25
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
+
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_sigrej'] = 2.0
         par['calibrations']['wavelengths']['ech_separate_2d'] = True
+        par['calibrations']['wavelengths']['bad_orders_maxfrac'] = 0.5
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.6
@@ -150,8 +158,54 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 11 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['polyorder'] = 5 #[9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_10500_R120000.fits'
+        par['sensfunc']['IR']['pix_shift_bounds'] = (-40.0,40.0)
+        
+        # Telluric parameters
+        # HIRES is usually oversampled, so the helio shift can be large
+        par['telluric']['pix_shift_bounds'] = (-40.0,40.0)
+        # Similarly, the resolution guess is higher than it should be
+        par['telluric']['resln_frac_bounds'] = (0.25,1.25)
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+
+        bin_spec, bin_spat = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+
+        # slit edges
+        # NOTE: With add_missed_orders set to True and order_spat_range set to the
+        # default (None), the code will try to add missing orders over the full
+        # range of the detector mosaic!
+        par['calibrations']['slitedges']['order_spat_range'] = [10., 6200./bin_spat]
+
+        # wavelength
+        par['calibrations']['wavelengths']['fwhm'] = 8.0/bin_spec
+
+        # Return
         return par
 
     def init_meta(self):
@@ -168,7 +222,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['mjd'] = dict(card=None, compound=True)
         # This may depend on the old/new detector
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -177,13 +231,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
-        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3)
-        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-3)
+        self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
+        self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
 #        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # NOTE: This is the native keyword.  IMAGETYP is from KOA.
-        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        self.meta['lampstat01'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -204,9 +259,41 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD', None) is not None:
+                return headarr[0]['MJD']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
+        elif meta_key == 'lampstat01':
+            if headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2'):
+                return 'ThAr1' if headarr[0].get('LAMPCAT1') else 'ThAr2'
+            elif headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1'):
+                # LAMPNAME is a configurable keyword, so there is no guarantee that the values are correct,
+                # so we use LAMPQTZ2, but LAMPQTZ1 keyword doesn't exist, so we use LAMPNAME and hope for the best
+                return 'on'
+            else:
+                return 'off'
+
+        elif meta_key == 'idname':
+            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+                    not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
+                if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
+                    return 'Object'
+                elif not headarr[0].get('HATOPEN'):
+                    return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
+            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
+                    return 'slitlessFlat'
+                else:
+                    return 'Line'
+            elif headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
+                    and not headarr[0].get('HATOPEN'):
+                return 'IntFlat'
+
         else:
             msgs.error("Not ready for this compound meta")
-
 
     def configuration_keys(self):
         """
@@ -222,7 +309,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['filter1', 'echangle', 'xdangle']
+        return ['decker', 'dispname', 'filter1', 'echangle', 'xdangle', 'binning']
 
     def raw_header_cards(self):
         """
@@ -253,7 +340,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno']
+        return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
 
 
 
@@ -288,7 +375,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat')
         if ftype in ['arc', 'tilt']:
@@ -506,7 +593,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     def default_mosaic(self):
         return self.allowed_mosaics[0]
 
-
     def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
@@ -535,7 +621,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.135,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 0.7, # Website says 0.6, but we'll push it a bit
             mincounts       = -1e10,

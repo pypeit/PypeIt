@@ -14,14 +14,14 @@ import configobj
 from astropy.table import Table
 from astropy.io import fits
 
+from pypeit import dataPaths
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
-from pypeit.tests import tstutils
 from pypeit import inputfiles 
 
 from pypeit import fluxcalibrate
@@ -32,7 +32,7 @@ def test_input_flux_file():
     """Tests for generating and reading fluxing input files
     """
     # Generate an input file
-    flux_input_file = tstutils.data_path('test.flux')
+    flux_input_file = data_output_path('test.flux')
     if os.path.isfile(flux_input_file):
         os.remove(flux_input_file)
 
@@ -46,7 +46,11 @@ def test_input_flux_file():
                         'spec1d_cN20170331S0217-pisco_GNIRS_20170331T085933.097.fits']
     data['sensfile'] = 'sens_cN20170331S0206-HIP62745_GNIRS_20170331T083351.681.fits'
     # 
-    paths = [tstutils.data_path('')]
+    paths = [data_output_path('')]
+    # If pulling from the cache, make sure there are symlinks at the expected path
+    for f in data['filename']:
+        dataPaths.tests.get_file_path(f, to_pkg='symlink')
+    dataPaths.tests.get_file_path(data['sensfile'][0], to_pkg='symlink')
 
     fluxFile = inputfiles.FluxFile(config=cfg_lines, 
                         file_paths=paths,
@@ -99,15 +103,18 @@ def test_flux_calib(tmp_path, monkeypatch):
         return {"DISPNAME": "600ZD",
                 "PYP_SPEC": "keck_deimos" }
 
-    def mock_get_flux_calib_instance(*args, **kwargs):
+    def mock_flux_calib(spec1d_files, sens_files, par):
         # The flux_calib caller doesn't use the output, it just
         # depends on the side effect of fluxing
         return None 
 
+    # Make sure the required files are in the expected place
+    dataPaths.tests.get_file_path('spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits',
+                                  to_pkg='symlink')
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(fits, "getheader", mock_get_header)
-        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+        monkeypatch.setattr(fluxcalibrate, "flux_calibrate", mock_flux_calib)
 
         # Test with a flux file missing "flux end"
 
@@ -140,8 +147,9 @@ def test_flux_calib(tmp_path, monkeypatch):
         config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
         with open(config_file_no_sens, "w") as f:
             print("flux read", file=f)
-            print(f"path {data_path('')}", file=f)
+            print(f"path {data_output_path('')}", file=f)
             print("filename", file=f)
+            # TODO: Are these meant to be the same file?
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("spec1d_cN20170331S0216-pisco_GNIRS_20170331T085412.181.fits", file=f)
             print("flux end", file=f)
@@ -161,8 +169,8 @@ def test_extinction_correction_ir():
     extinction_correction_tester('IR')
 
 def extinction_correction_tester(algorithm):
-    spec1d_file = data_path('spec1d_test.fits')
-    sens_file = data_path('sens_test.fits')
+    spec1d_file = data_output_path('spec1d_test.fits')
+    sens_file = data_output_path('sens_test.fits')
 
     if os.path.isfile(spec1d_file):
         os.remove(spec1d_file)
@@ -195,7 +203,7 @@ def extinction_correction_tester(algorithm):
     sensobj = sensfunc.SensFunc.get_instance(spec1d_file, sens_file, par['sensfunc'])
 
     sensobj.wave = np.linspace(3000, 6000, 300).reshape((300, 1))
-    sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape)
+    sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave.T.shape, 0)
     # make the zeropoint such that the sensfunc is flat
     sensobj.zeropoint = 30 - np.log10(sensobj.wave ** 2) / 0.4
 
@@ -203,7 +211,7 @@ def extinction_correction_tester(algorithm):
 
     # now flux our N_lam = 1 specobj
     par['fluxcalib']['extinct_correct'] = None
-    fluxCalibrate = fluxcalibrate.MultiSlitFC([spec1d_file], [sens_file], par=par['fluxcalib'])
+    fluxCalibrate = fluxcalibrate.flux_calibrate([spec1d_file], [sens_file], par=par['fluxcalib'])
     # without extinction correction, we should get constant F_lam
     # with extinction correction, the spectrum will be blue
 

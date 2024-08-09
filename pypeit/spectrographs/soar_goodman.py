@@ -44,6 +44,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='GRATING')
+        self.meta['mode'] = dict(ext=1, card='WAVMODE')
         self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
         self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
@@ -93,7 +94,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        return ['dispname', 'mode','decker', 'binning', 'dispangle'] 
 
     def raw_header_cards(self):
         """
@@ -113,7 +114,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
-        return ['GRATING', 'SLIT', 'CCDSUM', 'GRT_ANG']
+        return ['GRATING', 'WAVMODE','SLIT', 'CCDSUM', 'GRT_ANG']
 
 #    def pypeit_file_keys(self):
 #        """
@@ -251,7 +252,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.00008,  # e-/s/pix
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -310,7 +311,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['flatfield']['slit_illum_finecorr'] = False
@@ -322,7 +323,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         #par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        #par['calibrations']['biasframe']['exprng'] = [None, 1]
+        #par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         #par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]
@@ -330,7 +331,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         #par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         # TODO: Temporary fix for failure mode.  Remove once Ryan provides a
         # fix.
@@ -461,7 +462,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
             specflip=False,
             spatflip=False,
             platescale=0.15,
-            darkcurr=0.00008,  # e-/s/pix
+            darkcurr=0.0,  # e-/pixel/hour
             saturation=65535.,
             nonlinear=1.0,
             mincounts=-1e10,
@@ -508,7 +509,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.17
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm'] = 5.0
 
@@ -519,7 +520,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         # par['calibrations']['wavelengths']['disp'] = 0.2
 
         # Set the default exposure time ranges for the frame typing
-        # par['calibrations']['biasframe']['exprng'] = [None, 1]
+        # par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         # par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         # par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 30]
@@ -527,7 +528,7 @@ class SOARGoodmanBlueSpectrograph(SOARGoodmanSpectrograph):
         par['scienceframe']['exprng'] = [90, None]
 
         # par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R15000.fits'
 
         return par
 

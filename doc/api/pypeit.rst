@@ -9,12 +9,12 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
-   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.move_median
    pypeit.par
    pypeit.scripts
+   pypeit.setup_gui
    pypeit.spectrographs
    pypeit.specutils
 
@@ -27,10 +27,12 @@ Submodules
    pypeit.alignframe
    pypeit.archive
    pypeit.bitmask
+   pypeit.cache
    pypeit.calibframe
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
+   pypeit.coadd3d
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.extraction
@@ -43,10 +45,13 @@ Submodules
    pypeit.manual_extract
    pypeit.metadata
    pypeit.onespec
+   pypeit.orderstack
    pypeit.pypeit
+   pypeit.pypeitdata
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling
+   pypeit.scattlight
    pypeit.sensfilearchive
    pypeit.sensfunc
    pypeit.setup_package

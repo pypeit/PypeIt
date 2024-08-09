@@ -91,6 +91,9 @@ class PypeItImage(datamodel.DataContainer):
             :class:`~pypeit.images.rawimage.RawImage.process`.
     """
 
+    # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
+    # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
+    # documented here and instead we have the odd Args documentation above. 
     version = '1.3.0'
     """Datamodel version number"""
 
@@ -127,7 +130,8 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace')}
+                                            'and SlitTrace'), 
+                 'filename': dict(otype=str, descr='Filename for the image'),}
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -160,10 +164,11 @@ class PypeItImage(datamodel.DataContainer):
         # Done
         return self
 
+    # TODO This init method needs proper docs, which includes every optional argument. See my comment above. 
     def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None, units=None, exptime=None, noise_floor=None, shot_noise=None,
-                 bpm=None, crmask=None, usermask=None, clean_mask=False):
+                 filename=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None, 
+                 shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
             msgs.error('Must provide an image when instantiating PypeItImage.')
@@ -284,13 +289,8 @@ class PypeItImage(datamodel.DataContainer):
 
         # Parse everything *but* the mask extension
         d, version_passed, type_passed, parsed_hdus \
-                = super()._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
-        if not type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
-        if not version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f(f'Current version of {cls.__name__} object in code (v{cls.version})'
-               ' does not match version used to write your HDU(s)!')
+                = cls._parse(hdu, ext=ext, hdu_prefix=_hdu_prefix)
+        cls._check_parsed(version_passed, type_passed, chk_version=chk_version)
 
         if mask_ext in hdu:
             # If the mask extension exists, parse it
@@ -784,16 +784,16 @@ class PypeItImage(datamodel.DataContainer):
         if other.spat_flexure is not None and spat_flexure is not None \
                 and other.spat_flexure != spat_flexure:
             msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
+
+        # Create a copy of the detector, if it is defined, to be used when
+        # creating the new pypeit image below
+        _detector = None if self.detector is None else self.detector.copy()
 
         # Create the new image.
-        # TODO: We should instead *copy* the detector object; otherwise, it's
-        # possible that it will be shared between multiple images.  Nominally,
-        # this should be okay because the detector data is meant to be static,
-        # but we should fix this.
         new_pypeitImage = PypeItImage(newimg, ivar=new_ivar, nimg=new_nimg, rn2img=new_rn2,
                                       base_var=new_base, img_scale=new_img_scale,
-                                      fullmask=new_fullmask, detector=self.detector,
+                                      fullmask=new_fullmask, detector=_detector,
                                       spat_flexure=spat_flexure, PYP_SPEC=new_spec,
                                       units=new_units)
 
@@ -965,7 +965,7 @@ class PypeItCalibrationImage(PypeItImage, CalibFrame):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
 
         Returns:
             :class:`PypeItImage`: Image with the appropriate type and

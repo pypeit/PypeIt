@@ -31,6 +31,8 @@ class SkySubRegions(scriptbase.ScriptBase):
         parser.add_argument('-v', '--verbosity', type=int, default=1,
                             help='Verbosity level between 0 [none] and 2 [all]. Default: 1. '
                                  'Level 2 writes a log with filename skysub_regions_YYYYMMDD-HHMM.log')
+        parser.add_argument('--try_old', default=False, action='store_true',
+                            help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
     @staticmethod
@@ -46,6 +48,8 @@ class SkySubRegions(scriptbase.ScriptBase):
         from pypeit.images.detector_container import DetectorContainer
         from pypeit.edgetrace import EdgeTraceSet
 
+        chk_version = not args.try_old
+
         # Parse the detector name
         try:
             det = int(args.det)
@@ -55,7 +59,7 @@ class SkySubRegions(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load it up
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=True)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=chk_version)
         frame = spec2DObj.sciimg
         hdr = fits.open(args.file)[0].header
         fname = hdr['FILENAME']
@@ -95,7 +99,13 @@ class SkySubRegions(scriptbase.ScriptBase):
                                       initial=args.initial, flexure=spat_flexure)
 
         # Get the results
-        skyreg.get_result()
+        msskyreg = skyreg.get_result()
+
+        if msskyreg is not None:
+            outfil = skyreg.get_outname()
+            setup, calib_id, detname = msskyreg.parse_calib_key(calib_key)
+            msskyreg.set_paths(calib_dir, setup, calib_id, detname)
+            msskyreg.to_file(file_path=outfil)
 
         # Reset the defaults
         skyreg.finalize()

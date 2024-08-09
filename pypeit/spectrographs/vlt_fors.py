@@ -57,7 +57,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.25
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.07
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
         par['calibrations']['wavelengths']['n_final'] = 4
@@ -69,7 +69,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 5
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_9800_25000_R25000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
 
 
@@ -121,14 +121,23 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'decker':
-            try:  # Science
-                decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
-            except KeyError:  # Standard!
-                try:
-                    decker = headarr[0]['HIERARCH ESO SEQ SPEC TARG']
-                except KeyError:
+            if 'DECKER' in headarr[0]:
+                return headarr[0]['DECKER']
+            else:
+                mode = headarr[0]['HIERARCH ESO INS MODE']
+                if mode in ['LSS', 'MOS']:
+                    try:  # Science
+                        return headarr[0]['HIERARCH ESO INS SLIT NAME']
+                    except KeyError:  # Standard!
+                        try:
+                            return headarr[0]['HIERARCH ESO SEQ SPEC TARG']
+                        except KeyError:
+                            return headarr[0]['HIERARCH ESO INS MOS CHECKSUM']
+                elif mode == 'IMG':
+                    # This is for the bias frames
                     return None
-            return decker
+                else:
+                    msgs.error(f"PypeIt does not currently support VLT/FORS2 '{mode}' data reduction.")
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -207,7 +216,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     camera = 'FORS2'
     header_name = 'FORS2'
     supported = True
-    comment = '300I, 300V gratings'
+    comment = '300I, 300V gratings. Supports LSS and MOS mode only.'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -241,7 +250,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # These numbers are from the ESO FORS2 user manual at: 0
         # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
         # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
-        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+        # spectroscopy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
 
         # CHIP1
         detector_dict1 = dict(
@@ -252,7 +261,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 2.1,
+            darkcurr        = 2.1,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -272,7 +281,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 1.4,
+            darkcurr        = 1.4,  # e-/pixel/hour
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -330,11 +339,31 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             par['flexure']['spec_method'] = 'skip'
             #par['reduce']['skysub']['bspline_spacing'] = 0.6
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
+        decker = self.get_meta_value(scifile, 'decker')
+        if 'lSlit' in decker or 'LSS' in decker:
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-
         return par
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        This method returns a dictionary where the keys of the dictionary are
+        the list of configuration-independent frame types. The value of each
+        dictionary element can be set to one or more metadata keys that can
+        be used to assign each frame type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations` and how it
+        interprets the dictionary values, which can be None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration-independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': 'detector', 'dark': 'detector'}
 
     def configuration_keys(self):
         """

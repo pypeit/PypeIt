@@ -1,4 +1,7 @@
 """ Module for I/O in arclines
+
+.. include:: ../include/links.rst
+
 """
 import pathlib
 
@@ -7,8 +10,9 @@ import linetools.utils
 import numpy as np
 
 from pypeit import msgs
+from pypeit import dataPaths
+from pypeit import cache
 from pypeit.core.wavecal import defs
-from pypeit import data
 
 from IPython import embed
 
@@ -47,30 +51,40 @@ def load_wavelength_calibration(filename: pathlib.Path) -> dict:
     return wv_calib
 
 
-def load_template(arxiv_file, det, wvrng=None):
+def load_template(arxiv_file:str, det:int, wvrng:list=None)->tuple[np.ndarray,np.ndarray, int, np.ndarray, np.ndarray,
+                                                                    np.ndarray, np.ndarray]:
     """
     Load a full template file from disk
 
-    Args:
-        arxiv_file: str
-        det: int
-        wvrng (list, optional):
-            min, max wavelength range for the arxiv
+    Parameters
+    ----------
+    arxiv_file : str
+        File with archive spectrum, potentially including emission line pixel ids, wavelengths, and fit polynomial order.
+    det : int
+        Detector number
+    wvrng : list, optional
+        min, max wavelength range for the arxiv
 
-
-    Returns:
-        wave: ndarray
-        flux: ndarray
-        binning: int, Of the template arc spectrum
+    Returns
+    -------
+    wave : np.ndarray
+        Wavelength vector
+    flux : np.ndarray
+        Flux vector
+    binning : int
+        binning of the template arc spectrum
+    order : np.ndarray
+        Echelle orders of the saved wavelength solution, if applicable
+    line_pix : np.ndarray
+        Pixel values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_wav : np.ndarray
+        Wavelength values of identified arc line centroids in the saved wavelength solution, if applicable
+    line_fit_ord : np.ndarray
+        Polynomial order of the saved wavelength solution, if applicable
 
     """
-    # Path already included?
-    if pathlib.Path(arxiv_file).name == arxiv_file:
-        calibfile, _ = data.get_reid_arxiv_filepath(arxiv_file)
-    else:
-        calibfile = pathlib.Path(arxiv_file)
-    # Read me
-    tbl = astropy.table.Table.read(calibfile, format='fits')
+    calibfile, fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
+    tbl = astropy.table.Table.read(calibfile, format=fmt)
     # Parse on detector?
     if 'det' in tbl.keys():
         idx = np.where(tbl['det'].data & 2**det)[0]
@@ -78,6 +92,14 @@ def load_template(arxiv_file, det, wvrng=None):
         idx = np.arange(len(tbl)).astype(int)
     tbl_wv = tbl['wave'].data[idx]
     tbl_fx = tbl['flux'].data[idx]
+    
+    # for echelle spectrographs
+    tbl_order = tbl['order'].data if 'order' in tbl.keys() else None
+
+    # for solutions with saved line IDs and pixels
+    tbl_line_pix = tbl['lines_pix'].data if 'lines_pix' in tbl.keys() else None
+    tbl_line_wav = tbl['lines_wav'].data if 'lines_wav' in tbl.keys() else None
+    tbl_line_fit_ord = tbl['lines_fit_ord'].data if 'lines_fit_ord' in tbl.keys() else None
 
     # Cut down?
     if wvrng is not None:
@@ -86,7 +108,7 @@ def load_template(arxiv_file, det, wvrng=None):
         tbl_fx = tbl_fx[gd_wv]
 
     # Return
-    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC'], tbl_order, tbl_line_pix, tbl_line_wav, tbl_line_fit_ord
 
 
 def load_reid_arxiv(arxiv_file):
@@ -103,7 +125,13 @@ def load_reid_arxiv(arxiv_file):
     """
     # This function allows users to specify their own `reid_arxiv`, in
     #   particular, the output from `pypeit_identify`.
-    calibfile, arxiv_fmt = data.get_reid_arxiv_filepath(arxiv_file)
+
+    # WARNING: If the file is being pulled from the cache, the arxiv_file *must*
+    # have the correct extension.  I.e., the cache file is always `contents`, so
+    # the "return_format=True" here is just returning the extension of
+    # `arxiv_file`.
+
+    calibfile, arxiv_fmt = dataPaths.reid_arxiv.get_file_path(arxiv_file, return_format=True)
 
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if arxiv_fmt == 'json':
@@ -148,15 +176,15 @@ def load_line_list(line_file, use_ion=False):
 
     Returns
     -------
-    line_list : Table
+    line_list : `astropy.table.Table`_
 
     """
-    line_file = data.get_linelist_filepath(f'{line_file}_lines.dat') if use_ion else \
-        data.get_linelist_filepath(line_file)
-    return astropy.table.Table.read(line_file, format='ascii.fixed_width', comment='#')
+    _line_file = f'{line_file}_lines.dat' if use_ion else line_file
+    _line_file = dataPaths.linelist.get_file_path(_line_file)
+    return astropy.table.Table.read(_line_file, format='ascii.fixed_width', comment='#')
 
 
-def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
+def load_line_lists(lamps, all=False, include_unknown:bool=False, restrict_on_instr=None):
     """
     Loads a series of line list files
 
@@ -165,21 +193,27 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
     lamps : list
         List of arc lamps to be used for wavelength calibration.
         E.g., ['ArI','NeI','KrI','XeI']
-    unknown : bool, optional
-        Load the unknown list
     restrict_on_instr : str, optional
         Restrict according to the input spectrograph
+    all : bool, optional
+        Load all line lists, independent of the input lamps (not recommended)
+    include_unknown : bool, optional
+        If True, the tot_line_list includes the unknown lines
 
     Returns
     -------
-    line_list : Table
+    tot_line_list : astropy Table of line lists (including unknown lines, if requested)
+    line_list : astropy Table of line lists
+    unkn_lines : astropy Table of unknown lines
 
     """
     # All?
     if all:
         # Search both in the package directory and the PypeIt cache
-        line_files = list(data.Paths.linelist.glob('*_lines.dat'))
-        line_files.append(data.search_cache('_lines.dat'))
+        line_files = list(dataPaths.linelist.glob('*_lines.dat'))
+        # TODO: When searching the cache, the filenames returned are always
+        # `contents`, this will break how the lamp names are extracted below
+        line_files.append(cache.search_cache('_lines.dat'))
         lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
@@ -188,29 +222,35 @@ def load_line_lists(lamps, unknown=False, all=False, restrict_on_instr=None):
 
     msgs.info(f"Arc lamps used: {', '.join(lamps)}")
     # Read standard files
-    # NOTE: If one of the `lamps` does not exist, data.get_linelist_filepath()
+    # NOTE: If one of the `lamps` does not exist, dataPaths.linelist.get_file_path()
     #       will exit with msgs.error().
-    lists = [load_line_list(data.get_linelist_filepath(f'{lamp}_lines.dat')) for lamp in lamps]
+    lists = [load_line_list(dataPaths.linelist.get_file_path(f'{lamp}_lines.dat'))
+                for lamp in lamps]
     # Stack
     if len(lists) == 0:
         return None
-    line_lists = astropy.table.vstack(lists, join_type='exact')
+    line_lists_all = astropy.table.vstack(lists, join_type='exact')
 
     # Restrict on the spectrograph?
     if restrict_on_instr is not None:
         instr_dict = defs.instruments()
-        gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
-        line_lists = line_lists[gdI]
+        gdI = (line_lists_all['Instr'] & instr_dict[restrict_on_instr]) > 0
+        line_lists_all = line_lists_all[gdI]
 
-    # Unknown
-    if unknown:
+    # Load Unknowns
+    if 'ThAr' in lamps:
+        line_lists = line_lists_all[line_lists_all['ion'] != 'UNKNWN']
+        unkn_lines = line_lists_all[line_lists_all['ion'] == 'UNKNWN']
+    else:
+        line_lists = line_lists_all
         unkn_lines = load_unknown_list(lamps)
-        unkn_lines.remove_column('line_flag')  # may wish to have this info
-        # Stack
-        line_lists = astropy.table.vstack([line_lists, unkn_lines])
+        #unkn_lines.remove_column('line_flag')  # may wish to have this info
+
+    # Stack?
+    tot_line_list = astropy.table.vstack([line_lists, unkn_lines]) if include_unknown else line_lists_all
 
     # Return
-    return line_lists
+    return tot_line_list, line_lists, unkn_lines
 
 
 def load_tree(polygon=4, numsearch=20):
@@ -248,10 +288,10 @@ def load_tree(polygon=4, numsearch=20):
     # TODO: Can we save these as fits files instead?
     # TODO: Please don't use imports within functions
     import pickle
-    filename = data.get_linelist_filepath(f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = data.get_linelist_filepath(
-        f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy'
-    )
+    filename = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = dataPaths.linelist.get_file_path(
+                    f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
     try:
         with open(filename, "rb", encoding="utf-8") as f_obj:
             file_load = pickle.load(f_obj)
@@ -279,13 +319,13 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
 
     Returns
     -------
-    unknwn_lines : Table
+    unknwn_lines : `astropy.table.Table`_
 
     """
     line_dict = defs.lines()
     # Load
     if unknwn_file is None:
-        unknwn_file = data.get_linelist_filepath('UNKNWNs.dat')
+        unknwn_file = dataPaths.linelist.get_file_path('UNKNWNs.dat')
     line_list = load_line_list(unknwn_file)
     # Cut on input lamps?
     if all:
@@ -294,8 +334,13 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     # Otherwise
     msk = np.zeros(len(line_list), dtype=bool)
     for line in lines:
+        # Skip if the lines is not even in the line list
+        if line not in line_dict.keys():
+            continue
+        # Else consider masking
         line_flag = line_dict[line]
         match = line_list['line_flag'] % (2*line_flag) >= line_flag
         msk[match] = True
     # Finish
     return line_list[msk]
+

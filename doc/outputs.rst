@@ -62,6 +62,7 @@ they're produced, and their current datamodel.
    calibrations/calibrations
    out_spec2D
    out_spec1D
+   out_masks
 
 .. note::
 
@@ -101,6 +102,7 @@ See:
    :maxdepth: 1
 
    out_onespec
+   out_orderstack
 
 ----
 

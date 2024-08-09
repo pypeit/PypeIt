@@ -8,6 +8,7 @@ from pypeit.spectrographs import bok_bc
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
+from pypeit.spectrographs import keck_esi
 from pypeit.spectrographs import keck_deimos
 from pypeit.spectrographs import keck_hires
 from pypeit.spectrographs import keck_kcwi
@@ -22,6 +23,7 @@ from pypeit.spectrographs import magellan_fire
 from pypeit.spectrographs import magellan_ldss3
 from pypeit.spectrographs import magellan_mage
 from pypeit.spectrographs import magellan_imacs
+from pypeit.spectrographs import mdm_modspec
 from pypeit.spectrographs import mdm_osmos
 from pypeit.spectrographs import mmt_binospec
 from pypeit.spectrographs import mmt_bluechannel

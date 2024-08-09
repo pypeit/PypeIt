@@ -44,11 +44,11 @@ class Spec2DObj(datamodel.DataContainer):
     Args:
 
     Attributes:
-        head0 (`astropy.fits.Header`):
+        head0 (`astropy.io.fits.Header`_):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.0'
+    version = '1.1.1'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -63,6 +63,8 @@ class Spec2DObj(datamodel.DataContainer):
                                  descr='2D processed inverse variance image (float32)'),
                  'skymodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D sky model image (float32)'),
+                 'bkg_redux_skymodel': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D sky model image without the background subtraction (float32)'),
                  'objmodel': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D object model image (float32)'),
                  'ivarmodel': dict(otype=np.ndarray, atype=np.floating,
@@ -109,33 +111,30 @@ class Spec2DObj(datamodel.DataContainer):
                  'head0'                # Raw header
                 ]
 
-    # TODO: Allow for **kwargs here?
     @classmethod
-    def from_file(cls, file, detname, chk_version=True):
+    def from_file(cls, ifile, detname, chk_version=True):
         """
-        Override base-class :func:`~pypeit.datamodel.DataContainer.from_file` to
-        specify detector to read.
+        Instantiate the object from an extension in the specified fits file.
 
+        Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
+        to specify detector to read.
+        
         Args:
-            file (:obj:`str`):
-                File name to read.
+            ifile (:obj:`str`, `Path`_):
+                Fits file with the data to read
             detname (:obj:`str`):
                 The string identifier for the detector or mosaic used to select
                 the data that is read.
             chk_version (:obj:`bool`, optional):
-                If False, allow a mismatch in datamodel to proceed
-
-        Returns:
-            :class:`~pypeit.spec2dobj.Spec2DObj`: 2D spectra object.
+                Passed to :func:`from_hdu`.
         """
-        with io.fits_open(file) as hdu:
+        with io.fits_open(ifile) as hdu:
             # Check detname is valid
             detnames = np.unique([h.name.split('-')[0] for h in hdu[1:]])
             if detname not in detnames:
                 msgs.error(f'Your --det={detname} is not available. \n   Choose from: {detnames}')
             return cls.from_hdu(hdu, detname, chk_version=chk_version)
 
-    # TODO: Allow for **kwargs here?
     @classmethod
     def from_hdu(cls, hdu, detname, chk_version=True):
         """
@@ -160,7 +159,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         if len(ext) == 0:
             # No relevant extensions!
-            msgs.error(f'{detname} not available in any extension of {file}')
+            msgs.error(f'{detname} not available in any extension of the input HDUList.')
 
         mask_ext = f'{detname}-BPMMASK'
         has_mask = mask_ext in ext
@@ -179,7 +178,7 @@ class Spec2DObj(datamodel.DataContainer):
             self.calibs['DIR'] = hdr['CLBS_DIR']
             for key in hdr.keys():
                 if key.startswith('CLBS_') \
-                        and (Path(self.calibs['DIR']).resolve() / hdr[key]).exists():
+                        and (Path(self.calibs['DIR']).absolute() / hdr[key]).exists():
                     self.calibs['_'.join(key.split('_')[1:])] = hdr[key]
 
         if 'PROCSTEP' in hdr:
@@ -188,7 +187,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.head0 = hdu[0].header
         return self
 
-    def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
+    def __init__(self, sciimg, ivarraw, skymodel, bkg_redux_skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, wavesol, tilts, maskdef_designtab):
         # Slurp
@@ -259,7 +258,7 @@ class Spec2DObj(datamodel.DataContainer):
         the header.
 
         Args:
-            hdr (`astropy.io.fits.Header`, optional):
+            hdr (`astropy.io.fits.Header`_, optional):
                 Header object to update.  The object is modified in-place and
                 also returned. If None, an empty header is instantiated, edited,
                 and returned.
@@ -319,10 +318,14 @@ class Spec2DObj(datamodel.DataContainer):
             msgs.error("SPAT_IDs are not in sync!")
 
         # Find the good ones on the input object
-        bpm = spec2DObj.slits.mask.astype(bool)
-        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
-            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
-        gpm = np.invert(bpm & exc_reduce)
+#        bpm = spec2DObj.slits.mask.astype(bool)
+#        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
+#            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
+#        gpm = np.invert(bpm & exc_reduce)
+        bpm = spec2DObj.slits.bitmask.flagged(
+                    spec2DObj.slits.mask,
+                    and_not=spec2DObj.slits.bitmask.exclude_for_reducing)
+        gpm = np.logical_not(bpm)
 
         # Update slits.mask
         self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
@@ -334,8 +337,9 @@ class Spec2DObj(datamodel.DataContainer):
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
             inmask = slitmask == spat_id
             # Get em all
-            for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
-                self[imgname][inmask] = spec2DObj[imgname][inmask]
+            for imgname in ['sciimg','ivarraw','skymodel', 'bkg_redux_skymodel', 'objmodel','ivarmodel','waveimg','bpmmask']:
+                if self[imgname] is not None and spec2DObj[imgname] is not None:
+                    self[imgname][inmask] = spec2DObj[imgname][inmask]
 
     def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
         """ Calculate a chi map and run some stats on it
@@ -605,9 +609,9 @@ class AllSpec2DObj:
         Args:
             outfile (:obj:`str`, `Path`_):
                 Output filename
-            pri_hdr (:class:`astropy.io.fits.Header`, optional):
-                Header to be used in lieu of default
-                Usually generated by :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
+            pri_hdr (`astropy.io.fits.Header`_, optional):
+                Header to be used in lieu of default Usually generated by
+                :func:`~pypeit.spec2dobj.AllSpec2DObj.build_primary_hdr`
             slitspatnum (:obj:`str` or :obj:`list`, optional):
               Restricted set of slits for reduction
               If provided, do not clobber the existing file but only update
@@ -615,7 +619,7 @@ class AllSpec2DObj:
             pri_hdr():
                 Baseline primary header.  If None, initial primary header is
                 empty.  Usually generated by
-                :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
+                :func:`~pypeit.spec2dobj.AllSpec2DObj.build_primary_hdr`
             update_det (:obj:`list`, optional):
                 If the output file already exists, this sets the list of
                 detectors/mosaics to update with the data in this object.  If
@@ -629,7 +633,7 @@ class AllSpec2DObj:
                 combination of this and ``update_det`` may also alter this
                 object based on the existing file.
         """
-        _outfile = Path(outfile).resolve()
+        _outfile = Path(outfile).absolute()
         if _outfile.exists():
             # Clobber?
             if not overwrite:

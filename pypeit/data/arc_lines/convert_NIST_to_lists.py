@@ -5,10 +5,11 @@ Module for generating Arc Line lists
 
 import pdb
 import datetime
+from IPython import embed
 
 import astropy.table
 
-from pypeit import data
+from pypeit import dataPaths
 
 
 def parser(options=None):
@@ -52,9 +53,8 @@ def init_line_list():
         'amplitude': 0,
         'Source': dummy_src,
     }
-
     # Return table
-    return astropy.table.Table(idict)
+    return astropy.table.Table(rows=[idict])
 
 
 def load_line_list(line):
@@ -69,7 +69,7 @@ def load_line_list(line):
     line_list : Table
 
     """
-    line_file = data.Paths.nist / f'{line}_vacuum.ascii'
+    line_file = dataPaths.nist.get_file_path(f'{line}_vacuum.ascii')
 
     # Check the NIST lines file exists
     if not line_file.is_file():
@@ -104,9 +104,8 @@ def load_line_list(line):
     line_list.rename_column('Observed', 'wave')
     # Others
     # Grab ion name
-    i0 = line_file.rfind('/')
-    i1 = line_file.rfind('_')
-    ion = line_file[i0+1:i1]
+    i1 = line_file.name.rfind('_')
+    ion = line_file.name[:i1]
     line_list.add_column(astropy.table.Column([ion]*len(line_list), name='Ion', dtype='U5'))
     line_list.add_column(astropy.table.Column([1]*len(line_list), name='NIST'))
     return line_list
@@ -158,15 +157,17 @@ def main(args=None):
     # Finally, sort the list by increasing wavelength
     linelist.sort('wave')
 
+    print(linelist)
+
     # Write?
     if not pargs.write:
         print("=============================================================")
         print("Rerun with --write if you are happy with what you see.")
         print("=============================================================")
-        return
+        return linelist
 
     # Write the table to disk
-    outfile = data.get_linelist_filepath(f'{line}_lines.dat')
+    outfile = dataPaths.linelist.get_file_path(f'{line}_lines.dat')
     write_line_list(linelist, outfile)
     return
 

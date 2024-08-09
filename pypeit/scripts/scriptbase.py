@@ -3,10 +3,12 @@ Implements base classes for use with ``PypeIt`` scripts.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
+
 """
 from IPython import embed
 
 import os
+from pathlib import Path
 import argparse
 import textwrap
 from functools import reduce
@@ -199,6 +201,23 @@ class ScriptBase:
         """
         return argparse.ArgumentParser(description=description,
                                        formatter_class=lambda prog: formatter(prog, width=width))
+
+    @staticmethod
+    def expandpath(path_pattern):
+        """
+        Expand a path pattern with wildcards into all matching files.
+
+        Thanks to:
+        https://stackoverflow.com/questions/51108256/how-to-take-a-pathname-string-with-wildcards-and-resolve-the-glob-with-pathlib
+
+        Args:
+            path_pattern (:obj:`str`):
+                Search pattern for files on disk.  Wildcards can occur anywhere
+                in the path.
+        """
+        p = Path(path_pattern).expanduser()
+        parts = p.parts[p.is_absolute():]
+        return Path(p.root).glob(str(Path(*parts)))
 
 
 

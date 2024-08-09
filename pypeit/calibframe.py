@@ -107,9 +107,9 @@ class CalibFrame(datamodel.DataContainer):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
         """
-        self.calib_dir = Path(odir).resolve()
+        self.calib_dir = Path(odir).absolute()
         # TODO: Keep this, or throw an error if the directory doesn't exist instead?
         if not self.calib_dir.exists():
             self.calib_dir.mkdir(parents=True)
@@ -152,7 +152,7 @@ class CalibFrame(datamodel.DataContainer):
                 Passed directly to
                 :func:`~pypeit.datamodel.DataContainer.to_file`.
         """
-        _file_path = self.get_path() if file_path is None else Path(file_path).resolve()
+        _file_path = self.get_path() if file_path is None else Path(file_path).absolute()
         super().to_file(_file_path, overwrite=overwrite, **kwargs)
 
     @classmethod
@@ -169,15 +169,10 @@ class CalibFrame(datamodel.DataContainer):
             **kwargs:
                 Passed directly to :func:`~pypeit.datamodel.DataContainer._parse`.
         """
+        # Parse
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
-        # Check version and type?
-        if not dm_type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!')
-        if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f(f'Current version of {cls.__name__} object in code ({cls.version}) '
-               'does not match version used to write your HDU(s)!')
-
+        # Check
+        cls._check_parsed(dm_version_passed, dm_type_passed, chk_version=chk_version)
         # Instantiate
         self = cls.from_dict(d=d)
 
@@ -207,7 +202,6 @@ class CalibFrame(datamodel.DataContainer):
             self.calib_id = self.ingest_calib_id(hdr['CALIBID'])
         else:
             msgs.warn('Header does not have CALIBID card; cannot parse calibration IDs.')
-        return self
 
     @staticmethod
     def parse_key_dir(inp, from_filename=False):
@@ -228,7 +222,7 @@ class CalibFrame(datamodel.DataContainer):
             the processed calibration frame.
         """
         if from_filename:
-            path = Path(inp).resolve()
+            path = Path(inp).absolute()
             return '_'.join(path.name.split('.')[0].split('_')[1:]), str(path.parent)
 
         if isinstance(inp, str):
@@ -303,6 +297,74 @@ class CalibFrame(datamodel.DataContainer):
         return _calib_id.tolist()
 
     @staticmethod
+    def construct_calib_id(calib_id, ingested=False):
+        """
+        Use the calibration ID to construct a unique identifying string included
+        in output file names.
+
+        Args:
+            calib_id (:obj:`str`, :obj:`list`, :obj:`int`):
+                Identifiers for one or more calibration groups for this
+                calibration frame.  Strings (either as individually entered or
+                as elements of a provided list) can be single or comma-separated
+                integers.  Otherwise, all strings must be convertible to
+                integers; the only exception is the string 'all'.
+            ingested (:obj:`bool`, optional):
+                Indicates that the ``calib_id`` object has already been
+                "ingested" (see :func:`ingest_calib_id`).  If True, this will
+                skip the ingestion step.
+
+        Returns:
+            :obj:`str`: A string identifier to include in output file names.
+        """
+        # Ingest the calibration IDs, if necessary
+        _calib_id = calib_id if ingested else CalibFrame.ingest_calib_id(calib_id)
+        if len(_calib_id) == 1:
+            # There's only one calibration ID, so return it.  This works both
+            # for 'all' and for single-integer calibration groupings.
+            return _calib_id[0]
+
+        # Convert the IDs to integers and sort them
+        calibs = np.sort(np.array(_calib_id).astype(int))
+
+        # Find where the list is non-sequential
+        indx = np.diff(calibs) != 1
+        if not np.any(indx):
+            # The full list is sequential, so give the starting and ending points
+            return f'{calibs[0]}+{calibs[-1]}'
+
+        # Split the array into sequential subarrays (or single elements) and
+        # combine them into a single string
+        split_calibs = np.split(calibs, np.where(indx)[0]+1)
+        return '-'.join([f'{s[0]}+{s[-1]}' if len(s) > 1 else f'{s[0]}' for s in split_calibs])
+
+    @staticmethod
+    def parse_calib_id(calib_id_name):
+        """
+        Parse the calibration ID(s) from the unique string identifier used in
+        file naming.  I.e., this is the inverse of :func:`construct_calib_id`.
+
+        Args:
+            calib_id_name (:obj:`str`):
+                The string identifier used in file naming constructed from a
+                list of calibration IDs using :func:`construct_calib_id`.
+
+        Returns:
+            :obj:`list`: List of string representations of single calibration
+            group integer identifiers.
+        """
+        # Name is all, so we're done
+        if calib_id_name == 'all':
+            return ['all']
+        # Parse the name into slices and enumerate them
+        calib_id = []
+        for slc in calib_id_name.split('-'):
+            split_slc = slc.split('+')
+            calib_id += split_slc if len(split_slc) == 1 \
+                    else np.arange(int(split_slc[0]), int(split_slc[1])+1).astype(str).tolist()
+        return calib_id
+
+    @staticmethod
     def construct_calib_key(setup, calib_id, detname):
         """
         Construct the identifier used for a given set of calibrations.
@@ -325,12 +387,12 @@ class CalibFrame(datamodel.DataContainer):
             detname (:obj:`str`):
                 The identifier used for the detector or detector mosaic for the
                 relevant instrument; see
-                :func:`~pypeit.spectrograph.spectrograph.Spectrograph.get_det_name`.
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.get_det_name`.
 
         Returns:
             :obj:`str`: Calibration identifier.
         """
-        return f'{setup}_{"-".join(CalibFrame.ingest_calib_id(calib_id))}_{detname}'
+        return f'{setup}_{CalibFrame.construct_calib_id(calib_id)}_{detname}'
 
     @staticmethod
     def parse_calib_key(calib_key):
@@ -346,8 +408,8 @@ class CalibFrame(datamodel.DataContainer):
         Returns:
             :obj:`tuple`: The three components of the calibration key.
         """
-        setup, calib_id, detname = calib_key.split('_')
-        return setup, ','.join(calib_id.split('-')), detname
+        setup, calib_id_name, detname = calib_key.split('_')
+        return setup, ','.join(CalibFrame.parse_calib_id(calib_id_name)), detname
 
     @classmethod
     def construct_file_name(cls, calib_key, calib_dir=None):
@@ -373,7 +435,7 @@ class CalibFrame(datamodel.DataContainer):
             msgs.error('CODING ERROR: calib_key cannot be None when constructing the '
                        f'{cls.__name__} file name.')
         filename = f'{cls.calib_type}_{calib_key}.{cls.calib_file_format}'
-        return filename if calib_dir is None else Path(calib_dir).resolve() / filename
+        return filename if calib_dir is None else Path(calib_dir).absolute() / filename
 
     def get_path(self):
         """
@@ -433,7 +495,7 @@ class CalibFrame(datamodel.DataContainer):
             directory, None is returned.
         """
         # Check the path exists
-        _calib_dir = Path(calib_dir).resolve()
+        _calib_dir = Path(calib_dir).absolute()
         if not _calib_dir.exists():
             return None
 

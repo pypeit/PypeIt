@@ -246,7 +246,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             specflip        = True,
             spatflip        = False, # check
             platescale      = 0.389,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65000.,
             nonlinear       = 62./65.,
             mincounts       = -1e10, # cross-check
@@ -293,7 +293,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -470,7 +470,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             specflip        = False,
             spatflip        = False, # check
             platescale      = 0.293,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 45000.,
             nonlinear       = 40./45.,
             mincounts       = -1e10, # check
@@ -516,7 +516,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, 120]
@@ -525,7 +525,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         par['sensfunc']['algorithm'] = 'UVIS'
         par['sensfunc']['UVIS']['polycorrect'] = False
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

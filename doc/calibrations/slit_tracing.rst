@@ -19,11 +19,39 @@ task owing to the wide variety in:
 Developing a single algorithm to handle all of these edge cases (pun
 intended) is challenging if not impossible. Therefore, there are a number of
 user-input parameters that one may need to consider when running PypeIt (see
-below).
+below :ref:`slit_tracing_issues` and :ref:`slit_tracing_customizing`).
 
 Underlying the effort is the :class:`~pypeit.edgetrace.EdgeTraceSet` class; see
 :func:`~pypeit.edgetrace.EdgeTraceSet.auto_trace` for a description of the
 algorithm.
+
+Slit-mask design matching
+-------------------------
+
+PypeIt can incorporate information about the slit-mask design into the
+slit-tracing process. This is primarily performed by
+:func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`, which matches
+the slit edges traced by PypeIt to the slit edges predicted
+using the slit-mask design information stored in the observations.
+Moreover, :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`
+uses the predicted slit edges positions to add slit traces that have
+not been detected in the image.
+
+
+This functionality at the moment is implemented only for these
+:ref:`slitmask_info_instruments` and is switched on by setting
+``use_maskdesign`` flag in :ref:`edgetracepar` to True. Other parameters
+may need to be adjusted as well, depending on the instrument (see
+:ref:`slitmask_ids_report` and the relevant instrument documentation pages).
+
+.. _slitmask_info_instruments:
+
+Slit-mask design Spectrographs
+++++++++++++++++++++++++++++++
+- :doc:`../spectrographs/deimos`
+- :doc:`../spectrographs/mosfire`
+- :doc:`../spectrographs/lris` (limited)
+- :doc:`../spectrographs/gemini_gmos` (limited)
 
 Viewing
 =======
@@ -34,10 +62,13 @@ outputs related to `Slit Tracing`_.
 One can also run the :ref:`pypeit_parse_slits` script on the ``Slit`` output
 to get a terse description of the output.
 
+Scripts
+=======
+
 .. _pypeit_trace_edges:
 
-Script
-======
+pypeit_trace_edges
+------------------
 
 Slit tracing is one of the steps in PypeIt that can be run independently of
 the full reduction, using the ``pypeit_trace_edges`` script.  **If you're having
@@ -60,6 +91,77 @@ tracing after each main step in the process.  The ``--debug`` option provides
 additional output that can be used to diagnose the parameterized fits to the
 edge traces and the PCA decomposition.  Fair warning that, for images with many
 slits, these plots can be laborious to wade through...
+
+pypeit_edge_inspector
+---------------------
+
+We also provide a script that allows you to interact with and edit the traces by
+hand.
+
+.. important::
+    
+    **Direct, by-hand editing of the edge traces should only be used as a last
+    resort!**  The automated tracing is deterministic and reproducible, whereas
+    subjective by-eye adjustments to the traces are not.  If at all possible,
+    you should use the parameters to fix the performance of the automated
+    tracing.  Having said that, there will be cases where the limitations of the
+    automated tracing algorithm(s) affect the quality of data reduction in a way
+    that could be improved by simple by-hand adjustments.
+
+The ``pypeit_edge_inspector`` script provides a interactive window (using
+matplotlib) that allows you to move, add, and delete traces.  The script
+requires a valid ``Edges`` calibration file and will *overwrite* this file,
+regardless of whether or not you make any adjustments to the traces. For this
+reason, we recommend you make a copy of the ``Edges`` (and ``Slits``)
+calibration file(s) *before* executing the script.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: ../help/pypeit_edge_inspector.rst
+
+The interactive window looks like this:
+
+.. figure:: ../figures/edge_inspector.png
+   :width: 50%
+
+The trace image is shown in grayscale.  The left and right traces are green and
+magenta, respectively.  The orange horizontal line shows the "reference row"
+used when locating new traces.  Only the vertical line of the cursor (not shown)
+moves; the horizontal line always stays at the reference row.  Note that the
+vertical line marking the cursor may not appear if the typical matplotlib zoom
+or pan buttons are active.
+
+Pressing the ``?`` key anywhere in the window will print the key bindings to the
+terminal window:
+
+.. code-block:: console
+
+    --------------------------------------------------
+    Key bindings
+        m: Move the nearest trace to the cursor
+        d: Delete the nearest trace
+        l: Add a left trace
+        r: Add a right trace
+        U: Undo all changes since last save
+        ?: Print this list of key bindings
+    --------------------------------------------------
+
+The typical matplotlib buttons work as usual.  The "Data Range" slider allows
+you to change the range of data shown, and appropriately adjusts the colorbar.
+The "Image" button at the bottom right allows you to toggle between the trace
+image and the sobel-filtered image used to detect the slit edges.  The "Save"
+button consolidates all the changes you've made, saves them to the ``Edges``
+object, and attempts to synchronize left-right edges.  **Make sure you hit the
+save button before closing the matplotlib window.**  Otherwise, any changes you
+have made will not be saved.  After closing the window, the code **overwrites**
+the ``Edges`` and ``Slits`` calibration files to include your changes.  If you
+then re-execute ``run_pypeit``, the code should recognize that the files exist
+and use them instead of redoing the edge tracing **as long as you don't tell the
+code to do otherwise.**
+
+
+.. _slit_tracing_issues:
 
 Known Slit Tracing Issues
 =========================
@@ -189,6 +291,8 @@ For example:
 This will remove any slit on detector 2 that contains ``x_spat=2121``
 at ``y_spec=2000`` and similarly for the slit on ``det=3``.
 
+.. _slit_tracing_customizing:
+
 Slit Tracing Customizing
 ========================
 
@@ -207,7 +311,7 @@ Detection Threshold
 The detection threshold for identifying slits is set
 relatively low to err on the side of finding more as opposed to fewer slit edges.
 The algorithm can be fooled by scattered light and detector
-defects.  One can increase the threshold with the ``sigdetect``
+defects.  One can increase the threshold with the ``edge_thresh``
 parameter:
 
 .. code-block:: ini
@@ -219,11 +323,11 @@ parameter:
 Then monitor the number of slits detected by the algorithm.
 
 Presently, we recommend that you err on the conservative
-side regarding thresholds, i.e. higher values of ``sigdetect``,
+side regarding thresholds, i.e. higher values of ``edge_thresh``,
 unless you have especially faint trace flat frames.
 
 On the flip side, if slit defects (common) are being
-mistaken as slit edges then *increase* ``sigdetect``
+mistaken as slit edges then *increase* ``edge_thresh``
 and hope for the best.
 
 .. _trace-slit-mask_frac_thresh:
@@ -265,7 +369,7 @@ case for low-dispersion data, e.g. LRISb 300 grism spectra
 .. code-block:: ini
 
     [calibrations]
-        [[slits]]
+        [[slitedges]]
             smash_range = 0.5,1.
 
 Algorithm

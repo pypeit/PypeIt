@@ -317,7 +317,7 @@ class ParSet:
         columns and add a header (first row) and contents delimeter.
 
         Args:
-            data_table (:obj:`numpy.ndarray`):
+            data_table (`numpy.ndarray`_):
                 Array of string representations of the data to print.
 
         Returns:
@@ -345,7 +345,7 @@ class ParSet:
         return '\n'.join(row_string)+'\n'
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatim=False):
+    def _data_string(data, use_repr=False, verbatim=False):
         """
         Convert a single datum into a string
         
@@ -372,9 +372,11 @@ class ParSet:
                 return '..' if len(data) == 0 else '``' + data + '``'
             return data
         if isinstance(data, list):
-            # TODO: When the list is empty, should the return include the
-            # brackets?
-            return '[]' if len(data) == 0 \
+            # When the list is empty, return an empty string, which config_lines will append a "," to.
+            # This allows ConfigObj to interpret it as an empty list, instead of string, when re-reading the
+            # configuration lines into a ParSet
+            
+            return '' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
@@ -415,7 +417,7 @@ class ParSet:
                      exclude_defaults=False, include_descr=True):
         """
         Recursively generate the lines of a configuration file based on
-        the provided ParSet or dict (par).
+        the provided :class:`ParSet` or :obj:`dict` (see ``par``).
 
         Args:
             section_name (:obj:`str`, optional):
@@ -620,23 +622,22 @@ class ParSet:
 
         Args:
             cfg_file (:obj:`str`, optional):
-                The name of the file to write/append to.  If None
-                (default), the function will just return the list of
-                strings that would have been written to the file.  These
-                lines can be used to construct a :class:`ConfigObj`
-                instance.
+                The name of the file to write/append to.  If None (default), the
+                function will just return the list of strings that would have
+                been written to the file.  These lines can be used to construct
+                a `configobj`_ instance.
             section_name (:obj:`str`, optional):
                 The top-level name for the config section.  This must be
                 provided if :attr:`cfg_section` is None or any of the
-                parameters are not also ParSet instances themselves.
+                parameters are not also :class:`ParSet` instances themselves.
             section_comment (:obj:`str`, optional):
                 The top-level comment for the config section based on
-                this ParSet.
+                this :class:`ParSet`.
             section_level (:obj:`int`, optional):
-                The top level of this ParSet.  Used for recursive output
-                of nested ParSets.
+                The top level of this :class:`ParSet`.  Used for recursive output
+                of nested :class:`ParSet` instances.
             append (:obj:`bool`, optional):
-                Append this configuration output of this ParSet to the
+                Append this configuration output of this :class:`ParSet` to the
                 file.  False by default.  If not appending and the file
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
@@ -649,7 +650,7 @@ class ParSet:
 
         Raises:
             ValueError:
-                Raised if there are types other than ParSet in the
+                Raised if there are types other than :class:`ParSet` in the
                 parameter list, :attr:`cfg_section` is None, and no
                 section_name argument was provided.
         """
@@ -771,7 +772,7 @@ class ParSet:
         """
         Write the parameters to a fits header.
 
-        Any element that has a value of None or is a ParSet itself is
+        Any element that has a value of None or is a :class:`ParSet` itself is
         *not* written to the header.
 
         Args:
@@ -821,10 +822,9 @@ class ParSet:
     @classmethod
     def from_header(cls, hdr, prefix=None):
         """
-        Instantiate the ParSet using data parsed from a fits header.
+        Instantiate the :class:`ParSet` using data parsed from a fits header.
 
-        This is a simple wrapper for
-        :func:`ParSet.parse_par_from_hdr` and
+        This is a simple wrapper for :func:`ParSet.parse_par_from_hdr` and
         :func:`ParSet.from_dict`.
 
         .. warning::

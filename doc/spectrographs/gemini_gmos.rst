@@ -164,3 +164,36 @@ The two files provided must be located either:
  (1) in the path(s) of the raw files provided in the :ref:`data_block`,
  (2) the current working data, and/or
  (3) be named with the full path.
+
+Wavelength calibration
+----------------------
+
+Wavelength calibration for GMOS multi-object data is non trivial due to the
+wavelength solution changing non-linearly as a function of the location of the slit
+on the detector. To
+mitigate this, one can manually generate wavelength archives using
+:ref:`pypeit_identify`. However, this procedure would have to be repeated for each
+setup and sometimes for multiple slits per setup. To reduce tis tedium, we recommend using the ``reidentify`` method in the ``wavelengths`` section of the :ref:`pypeit_file`. This is possible through a compilation of all currently available wavelength solutions tabulated in it.
+
+The fits table should contain a single ``BinaryTable`` with the following columns:
+(1) wave: Each entry is a float array with wavelength in angstroms from the user generated wvarxiv.
+(2) flux: Each entry is an float array with the flux value from the user generated wvarxiv.
+(3) order: Each entry is 0 (int). See the ``pypeit/data/arc_lines/reid_arxiv/gemini_gmos_south_ham_b600_compiled.fits`` file for an example within the PypeIt installation.
+
+If one has a set of wvarxiv solutions from :ref:`pypeit_identify`, one can use the ``pypeit_compile_wvarxiv`` script to compile the fits file as follows:
+
+.. code-block:: bash
+
+    pypeit_compile_wvarxiv <path_to_wvarxiv_files> <instrument> <grating>
+
+Use the ``-h`` flag to see more details regarding usage. This script produces a fits file in the ````pypeit/data/arc_lines/reid_arxiv/`` folder.
+
+To use reidentify, add the following user-level parameters to the :ref:`pypeit_file`:
+
+.. code-block:: ini
+
+    [calibrations]
+        [[wavelengths]]
+            reid_arxiv = gemini_gmos_south_ham_b600_compiled.fits
+
+Currently, this method is only supported for the B600 grating on GMOS-S. If you have MOS data with a different grating, please consider compiling your wvarxiv solutions as described above to expand this feature for other users. Please submit a pull request (or contact the PypeIt team) to the PypeIt repository with the fits file.

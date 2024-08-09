@@ -4,6 +4,8 @@
 # -*- coding: utf-8 -*-
 """
 This module contains code for collating multiple 1d spectra source object.
+
+.. include:: ../include/links.rst
 """
 
 #TODO -- Consider moving this into the top-level, i.e. out of core
@@ -32,7 +34,7 @@ class SourceObject:
     Args:
         spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
             The initial spectra of the group as a SpecObj.
-        spec1d_header (:obj:`astropy.io.fits.Header`): 
+        spec1d_header (`astropy.io.fits.Header`_): 
             The header for the first spec1d file in the group.
         spec1d_file (str): Filename of the first spec1d file in the group.
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`): 
@@ -47,7 +49,7 @@ class SourceObject:
             The list of spectra in the group as SpecObj objects.
         spec1d_file_list (list of str): 
             The pathnames of the spec1d files in the group.
-        spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
+        spec1d_header_list: (list of `astropy.io.fits.Header`_):
             The headers of the spec1d files in the group
     """
     def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
@@ -66,23 +68,25 @@ class SourceObject:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
     @classmethod
-    def build_source_objects(cls, spec1d_files, match_type):
+    def build_source_objects(cls, specobjs_list, spec1d_files, match_type):
         """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
         Args:
-            spec1d_files (list of str): List of spec1d filenames
+            specobjs_list (list of :obj:`pypeit.specobjs.SpecObjs`): List of SpecObjs objects to build from.
+
+            spec1d_files (list of str): List of spec1d filenames corresponding to each SpecObjs object.
+
             match_type (str):           What type of matching the SourceObjects will be configured for.
                                         Must be either 'ra/dec' or 'pixel'
         Returns: 
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
         """
         result = []
-        for spec1d_file in spec1d_files:            
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+        for i, sobjs in enumerate(specobjs_list):
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
-                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
+                result.append(SourceObject(sobj, sobjs.header, spec1d_files[i], spectrograph, match_type))
     
         return result
 
@@ -92,7 +96,7 @@ class SourceObject:
         ones for this SourceObject.
 
         Args:
-            header (:obj:`astropy.io.fits.Header`):
+            header (`astropy.io.fits.Header`_):
                 Header from a spec1d file.
 
         Returns:
@@ -103,23 +107,17 @@ class SourceObject:
         if 'PYP_SPEC' not in header or header['PYP_SPEC'] != self._spectrograph.name:
             return False
 
-        first_header = self.spec1d_header_list[0]
+        # Build the config to compare against from the first header, 
+        # ignoring "decker" because it's valid to coadd spectra with different slit masks
+        first_config = {key: self.spec1d_header_list[0][key] 
+                            for key in self._spectrograph.configuration_keys() if key != 'decker'}
 
-        for key in self._spectrograph.configuration_keys():
-            # Ignore "decker" because it's valid to coadd spectra with different slit masks
-            if key != "decker":
-                if key not in first_header and key not in header:
-                    # Both are missing the key, this is ok
-                    continue
-                elif key not in first_header or key not in header:
-                    # One has a value and the other doesn't so they don't match
-                    return False
+        second_config = {key: header[key] 
+                            for key in self._spectrograph.configuration_keys() if key != 'decker'}
 
-                if first_header[key] != header[key]:
-                    return False
-
-        # No mismatches were found
-        return True
+        # Use spectrograph.same_configuration to compare the configurations, with check_keys set to False
+        # so only the keys in first_config are checked
+        return self._spectrograph.same_configuration([first_config, second_config],check_keys=False)
 
     def match(self, spec_obj, spec1d_header, tolerance, unit = u.arcsec):
         """Determine if a SpecObj matches this group within the given tolerance.
@@ -129,16 +127,13 @@ class SourceObject:
         Args:
             spec_obj (:obj:`pypeit.specobj.SpecObj`): 
                 The SpecObj to compare with this SourceObject.
-
-            spec1d_header (:obj:`astropy.io.fits.Header`):
+            spec1d_header (`astropy.io.fits.Header`_):
                 The header from the spec1d that dontains the SpecObj.
-                
             tolerance (float): 
                 Maximum distance that two spectra can be from each other to be 
                 considered to be from the same source. Measured in floating
                 point pixels or as an angular distance (see ``unit1`` argument).
-
-            unit (:obj:`astropy.units.Unit`):
+            unit (`astropy.units.Unit`_):
                 Units of ``tolerance`` argument if match_type is 'ra/dec'. 
                 Defaults to arcseconds. Igored if match_type is 'pixel'.
 
@@ -189,7 +184,7 @@ def collate_spectra_by_source(source_list, tolerance, unit=u.arcsec):
             Maximum distance that two spectra can be from each other to be 
             considered to be from the same source. Measured in floating
             point pixels or as an angular distance (see ``unit`` argument).
-        unit (:obj:`astropy.units.Unit`):
+        unit (`astropy.units.Unit`_):
             Units of ``tolerance`` argument if match_type is 'ra/dec'. 
             Defaults to arcseconds. Ignored if match_type is 'pixel'.
 

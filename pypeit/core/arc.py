@@ -18,8 +18,6 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
 from IPython import embed
 
@@ -71,7 +69,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
         utils.pyplot_rcparams()
         plt.figure(figsize=(7,5))
         msgs.info("Plot identified lines")
-        cm = plt.cm.get_cmap('RdYlBu_r')
+        cm = plt.get_cmap('RdYlBu_r')
         sc = plt.scatter(all_orders, all_pix,c=all_wv/10000., cmap=cm)
         cbar = plt.colorbar(sc)
         cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,
@@ -181,7 +179,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=300)
         plt.close()
     else:
         plt.show()
@@ -293,9 +291,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1, 0.9, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
-                ax0.text(0.1, 0.8, r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)), ha="left", va="top",
+                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)), ha="left", va="top",
                          transform=ax0.transAxes)
                 ax0.get_yaxis().set_label_coords(-0.15, 0.5)
 
@@ -313,7 +311,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     # Finish
     if outfile is not None:
-        plt.savefig(outfile, dpi=800)
+        plt.savefig(outfile, dpi=200)
         plt.close()
     else:
         plt.show()
@@ -419,8 +417,8 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
-def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
-                slit_bpm=None, slitIDs=None):
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
+                nonlinear_counts=1e10, slit_bpm=None, slitIDs=None, verbose=True):
     """
     Extract a boxcar spectrum with radius `box_rad` (pixels) from the input image using the 
     input trace.  By default, outliers within the box are clipped
@@ -430,25 +428,29 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     Parameters
     ----------
     slit_cen : `numpy.ndarray`_
-            Trace down the center of the slit
+        Trace down the center of the slit. Shape (nspec, nslits)
     slitmask : `numpy.ndarray`_
-            Image where pixel values identify its parent slit,
-            starting with 0. Pixels with -1 are not part of any slit.
-            Shape must match `arcimg`.
+        Image where pixel values identify its parent slit, starting with 0.
+        Pixels with -1 are not part of any slit.  Shape must match `arcimg`.
     arcimg : `numpy.ndarray`_
-            Image to extract the arc from. This should be an arcimage
-            or perhaps a frame with night sky lines.
+        Image to extract the arc from. This should be an arcimage or perhaps a
+        frame with night sky lines. Shape (nspec, nspat)
     gpm : `numpy.ndarray`_, optional
-            Input mask image with same shape as arcimg. Convention
-            True = good and False = bad. If None, all pixels are
-            considered good.
+        Input mask image with same shape as arcimg. Convention True = good and
+        False = bad. If None, all pixels are considered good. Shape must match
+        arcimg.
     box_rad : :obj:`float`, optional
-            Half-width of the boxcar (floating-point pixels) in the
-            spatial direction used to extract the arc.
+        Half-width of the boxcar (floating-point pixels) in the spatial
+        direction used to extract the arc.
     nonlinear_counts : :obj:`float`, optional
-            Values exceeding this input value are masked as bad.
+        Values exceeding this input value are masked as bad.
     slitIDs : :obj:`list`, optional
-            A list of the slit IDs to extract (if None, all slits will be extracted)
+        A list of the slit IDs to extract (if None, all slits will be extracted)
+    slit_bpm: `numpy.ndarray`_, bool, optional
+        Bad pixel mask for the slits. True = bad. Shape must be (nslits,). Arc
+        spectra are filled with np.nan for masked slits.
+    verbose : :obj:`bool`, optional
+        Print out verbose information?
 
     Returns
     -------
@@ -480,11 +482,12 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             continue
         # Check if this slit is masked
         if slit_bpm is not None and slit_bpm[islit]:
-            msgs.info('Ignoring masked slit {}'.format(islit))
+            msgs.info('Ignoring masked slit {}'.format(islit+1))
             # TODO -- Avoid using NaNs
             arc_spec[:,islit] = np.nan
             continue
-        msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))
+        if verbose:
+            msgs.info(f'Extracting approximate arc spectrum of slit {islit+1}/{nslits}')
         # Create a mask for the pixels that will contribue to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
@@ -493,11 +496,12 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             arc_spec[:,islit] = np.nan
             continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
+        
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.invert(arcmask[:,left:right]),
-                                                      sigma=3.0, axis=1)[1]
-
+                                                      sigma=3.0, axis=1, 
+                                                      cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
     # Get the mask, set the masked values to 0, and return
     arc_spec_bpm = np.isnan(arc_spec)
     arc_spec[arc_spec_bpm] = 0.0
@@ -953,7 +957,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
       The centroids of the line detections
     twid : `numpy.ndarray`_
       The 1sigma Gaussian widths of the line detections
-    centerr : `numpy.ndarray`_
+    center : `numpy.ndarray`_
       The variance on tcent
     w : `numpy.ndarray`_
       An index array indicating which detections are the most reliable.
@@ -993,8 +997,13 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = (censpec - cont_now)*np.logical_not(bpm_out)
     if input_thresh is None:
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask & np.logical_not(bpm_out)], 
+                                                        sigma_lower=3.0, sigma_upper=3.0, cenfunc= np.nanmedian,
+                                                        stdfunc = np.nanstd)
         thresh = med + sigdetect*stddev
+        if stddev == 0.0:
+            msgs.warn('stddev = 0.0, so resetting to 1.0')
+            stddev = 1.0
     else:
         med = 0.0
         if isinstance(input_thresh,(float, int)):
@@ -1019,7 +1028,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     # TODO: Why does this interpolate to pixt and not tcent?
     tampl_true = np.interp(pixt, xrng, censpec)
     tampl = np.interp(pixt, xrng, arc)
-
+    
     # Find the lines that meet the following criteria:
     #   - Amplitude is in the linear regime of the detector response
     #   - Center is within the limits of the spectrum
@@ -1029,7 +1038,6 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
-
     # Get the indices of the good measurements
     ww = np.where(good)[0]
     # Compute the significance of each line, set the significance of bad lines to be -1

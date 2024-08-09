@@ -8,8 +8,6 @@ Class usage examples
 
 .. include:: ../include/bitmask_usage.rst
 
-----
-
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 
@@ -218,11 +216,12 @@ class BitMask:
             return numpy.uint32 if asuint else numpy.int32
         return numpy.uint64 if asuint else numpy.int64
 
-    def flagged(self, value, flag=None):
+    def flagged(self, value, flag=None, exclude=None, and_not=None):
         """
-        Determine if a bit is on in the provided bitmask value.  The
-        function can be used to determine if any individual bit is on or
-        any one of many bits is on.
+
+        Determine if a bit is on in the provided integer(s).  The function can
+        be used to determine if any individual bit is on or any one of many bits
+        is on.
 
         Args:
             value (int, array-like):
@@ -231,28 +230,116 @@ class BitMask:
             flag (str, array-like, optional):
                 One or more bit names to check.  If None, then it checks
                 if *any* bit is on.
+            exclude (str, array-like, optional):
+                One or more bit names to *exclude* from the check.  If None, all
+                flags are included in the check.
+            and_not (str, array-like, optional):
+                One or more bit names to ensure are *not* selected by the check.
+                I.e., if this bit is flagged the returned value is false, even
+                if other selected bits *are* flagged.  See examples.  If None,
+                functionality ignored.
         
         Returns:
-            bool: Boolean flags that the provided flags (or any flag) is
-            on for the provided bitmask value.  Shape is the same as
-            `value`.
+            bool, `numpy.ndarray`_: Boolean flags that the provided flags (or
+            any flag) is on for the provided bitmask value.  If a numpy array,
+            the shape is the same as ``value``.
 
         Raises:
             KeyError: Raised by the dict data type if the input *flag*
                 is not one of the valid bitmask names.
             TypeError: Raised if the provided *flag* does not contain
                 one or more strings.
+
+        Example:
+
+            Let the BitMask object have two flags, 'A' and 'B', and a bit
+            array ``v``, such that:
+
+            >>> import numpy
+            >>> from pypeit.bitmask import BitMask
+            >>> bm = BitMask(['A', 'B'])
+            >>> v = numpy.arange(4).astype(numpy.int16)
+            >>> v
+            array([0, 1, 2, 3], dtype=int16)
+            >>> print([bm.flagged_bits(_v) for _v in v])
+            [[], ['A'], ['B'], ['A', 'B']]
+
+            This function will return a boolean array that indicates where flags
+            are turned on in each bit value.
+            
+            - To find if a specific bit is on:
+
+              >>> bm.flagged(v, flag='A')
+              array([False,  True, False,  True])
+
+            - To find if *any* bit is on:
+
+              >>> bm.flagged(v)
+              array([False,  True,  True,  True])
+
+              This is identical to:
+
+              >>> bm.flagged(v, flag=['A', 'B'])
+              array([False,  True,  True,  True])
+
+              or a logical-or combination of all the bits:
+
+              >>> bm.flagged(v, flag='A') | bm.flagged(v, flag='B') 
+              array([False,  True,  True,  True])
+
+            - To find if any bit is on except for a given subset, use the
+              ``exclude`` keyword:
+
+              >>> bm.flagged(v, exclude='A')
+              array([False, False,  True,  True])
+
+              This is identical to:
+
+              >>> bm.flagged(v, flag='B')
+              array([False, False,  True,  True])
+
+              Obviously, this is more useful when there are many flags and
+              you're only trying to exclude a few.
+
+            - To find if a set of bits are on *and* a different set of bits are
+              *not* on, use the ``and_not`` keyword:
+
+              >>> bm.flagged(v, and_not='B')
+              array([False,  True, False, False])
+
+              This is equivalent to:
+
+              >>> bm.flagged(v, flag=['A', 'B'], and_not='B')
+              array([False,  True, False, False])
+
+              and:
+
+              >>> bm.flagged(v) & numpy.logical_not(bm.flagged(v, flag='B'))
+              array([False,  True, False, False]) 
+
+              Note that the returned values are False if the bit indicates that
+              flag 'B' is on, even though flag 'B' was in the list provided to
+              the ``flag`` keyword; i.e., the use of ``and_not`` supersedes any
+              elements of ``flag``.
+
+            - Currently there is no functionality that performs a logical-and
+              combination of flags.
         """
         _flag = self._prep_flags(flag)
+        if exclude is not None:
+            # Remove the bits to exclude
+            _exclude = numpy.atleast_1d(exclude)
+            if not numpy.all(numpy.isin(_exclude, self.keys())):
+                raise ValueError(f'Not all exclude flags are valid: {exclude}')
+            _flag = numpy.setdiff1d(_flag, _exclude)
+
+        # Bits to expunge
+        _and_not = None if and_not is None else self.flagged(value, and_not)
 
         out = value & (1 << self.bits[_flag[0]]) != 0
-        if len(_flag) == 1:
-            return out
-
-        nn = len(_flag)
-        for i in range(1,nn):
+        for i in range(1,len(_flag)):
             out |= (value & (1 << self.bits[_flag[i]]) != 0)
-        return out
+        return out if _and_not is None else out & numpy.logical_not(_and_not)
 
     def flagged_bits(self, value):
         """
@@ -400,8 +487,9 @@ class BitMask:
             flag (:obj:`str`, :obj:`list`, optional):
                 The specific bits to unpack.  If None, all values are
                 unpacked.
+
         Returns:
-            tuple: A tuple of boolean numpy.ndarrays flagged according
+            tuple: A tuple of boolean `numpy.ndarray`_ objects flagged according
             to each bit.
         """
         _flag = self._prep_flags(flag)
@@ -533,5 +621,30 @@ class BitMask:
                 values += [i]
                 descr += [hdr.comments[k]]
         return keys, values, descr
+    
+    def correct_flag_order(self, flags):
+        """
+        Check if the provided flags are in the correct order compared to the
+        current definition of the object.
+
+        Args:
+            flags (:obj:`list`):
+                A list of strings that *must* be in the order of the bit
+                numbers.  I.e., bit 0 uses the string in the first element of
+                the list, bit 1 uses the second element, etc.  The number of
+                flags does not need to exactly match the current set of flags.
+                It can be longer or shorter, so long as it begins with the first
+                flag.
+
+        Returns:
+            :obj:`bool`: Indicates if the provides flags are in the correct order.
+        """
+        cls_flags = list(self.keys())
+        for i, flag in enumerate(flags):
+            if i >= self.nbits:
+                break
+            if cls_flags[i] != flag:
+                return False
+        return True
 
 

@@ -5,14 +5,16 @@
 Tutorials
 =========
 
+If you've landed here without first reading through the :ref:`cookbook`, you're
+encouraged to start there and come back.
+
 If this is your **first time using PypeIt**, you're encouraged to read through
 the :doc:`Shane Kast<kast_howto>` tutorial as a general example of how to use
-PypeIt; see also the :ref:`cookbook`.  **You are also encouraged to pull example
-data from the DevSuite for your instrument when learning how to use the
-software**; see :ref:`dev-suite`.
+PypeIt.  **You are also encouraged to pull example data from the DevSuite for
+your instrument when learning how to use the software**; see :ref:`dev-suite`.
 
-For examples of reductions for different types of data (long-slit, echelle,
-etc), we recommend the following starting points:
+For examples of reductions for different types of data, we recommend the
+following starting points:
 
     - **Long-slit data**: :doc:`Shane Kast<kast_howto>`
 
@@ -33,8 +35,10 @@ bottom of the :doc:`../spectrographs/spectrographs` page.
 
    Gemini GNIRS <gnirs_howto>
    Keck DEIMOS <deimos_howto>
+   Keck LRIS <lris_howto>
    Keck MOSFIRE <mosfire_howto>
    Keck NIRES <nires_howto>
+   Keck NIRSPEC <nirspec_high_howto>
    Shane Kast <kast_howto>
 
 ----

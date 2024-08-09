@@ -17,13 +17,13 @@ Derived classes must do the following:
 
     - Define a class attribute called ``datamodel``. See the examples
       below for their format.
-    - Provide an :func:`__init__` method that defines the
+    - Provide an ``__init__`` method that defines the
       instantiation calling sequence and passes the relevant
       dictionary to this base-class instantiation.
-    - Provide a :func:`_validate` method, if necessary, that
-      processes the data provided in the `__init__` into a complete
+    - Provide a ``_validate`` method, if necessary, that
+      processes the data provided in the ``__init__`` into a complete
       instantiation of the object. This method and the
-      :func:`__init__` method are the *only* places where attributes
+      ``__init__`` method are the *only* places where attributes
       can be added to the class.
     - Provide a :func:`_bundle` method that reorganizes the datamodel
       into partitions that can be written to one or more fits
@@ -39,7 +39,7 @@ Derived classes must do the following:
     The attributes of the class are *not required* to be a part of
     the ``datamodel``; however, it makes the object simpler when they
     are. Any attributes that are not part of the ``datamodel`` must
-    be defined in either the :func:`__init__` or :func:`_validate`
+    be defined in either the ``__init__`` or ``_validate``
     methods; otherwise, the class with throw an ``AttributeError``.
 
 Here are some examples of how to and how not to use them.
@@ -424,7 +424,7 @@ With this implementation:
 
     - The following instantiation is fine because
       ``DubiousInitContainer`` handles the fact that some of the
-      arguments to :func:`__init__` are not part of the datamodel::
+      arguments to ``__init__`` are not part of the datamodel::
 
         data = DubiousInitContainer(x,y)
         print(np.array_equal(data.out, data.inp1+data.inp2))
@@ -452,8 +452,6 @@ With this implementation:
         _data = ComplexInitContainer.from_hdu(data.to_hdu(add_primary=True))
         print(data.func == _data.func)
         # True
-
-----
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -493,13 +491,13 @@ class DataContainer:
     Derived classes must do the following:
 
         - Define a datamodel
-        - Provide an :func:`__init__` method that defines the
+        - Provide an ``__init__`` method that defines the
           instantiation calling sequence and passes the relevant
           dictionary to this base-class instantiation.
-        - Provide a :func:`_validate` method, if necessary, that
-          processes the data provided in the `__init__` into a
+        - Provide a ``_validate`` method, if necessary, that
+          processes the data provided in the ``__init__`` into a
           complete instantiation of the object. This method and the
-          :func:`__init__` method are the *only* places where
+          ``__init__`` method are the *only* places where
           attributes can be added to the class.
         - Provide a :func:`_bundle` method that reorganizes the
           datamodel into partitions that can be written to one or
@@ -515,8 +513,8 @@ class DataContainer:
         The attributes of the class are *not required* to be a part
         of the ``datamodel``; however, it makes the object simpler
         when they are. Any attributes that are not part of the
-        ``datamodel`` must be defined in either the :func:`__init__`
-        or :func:`_validate` methods; otherwise, the class with throw
+        ``datamodel`` must be defined in either the ``__init__``
+        or ``_validate`` methods; otherwise, the class with throw
         an ``AttributeError``.
 
     .. todo::
@@ -528,8 +526,8 @@ class DataContainer:
             Dictionary to copy to the internal attribute dictionary.
             All of the keys in the dictionary *must* be elements of
             the ``datamodel``. Any attributes that are not part of
-            the ``datamodel`` can be set in the :func:`__init__` or
-            :func:`_validate` methods of a derived class. If None,
+            the ``datamodel`` can be set in the ``__init__`` or
+            ``_validate`` methods of a derived class. If None,
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.
@@ -1131,6 +1129,30 @@ class DataContainer:
         return _d, dm_version_passed and found_data, dm_type_passed and found_data, \
                     np.unique(parsed_hdus).tolist()
 
+    @classmethod
+    def _check_parsed(cls, version_passed, type_passed, chk_version=True):
+        """
+        Convenience function that issues the warnings/errors caused by parsing a
+        file into a datamodel.
+
+        Args:
+            version_passed (:obj:`bool`):
+                Flag that the datamodel version is correct.
+            type_passed (:obj:`bool`):
+                Flag that the datamodel class type is correct.
+            chk_version (:obj:`bool`, optional):
+                Flag to impose strict version checking.
+        """
+        if not type_passed:
+            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
+                       cls='PypeItDataModelError')
+        if not version_passed:
+            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
+                  'does not match version used to write your HDU(s)!'
+            if chk_version:
+                msgs.error(msg, cls='PypeItDataModelError')
+            else:
+                msgs.warn(msg)
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1426,18 +1448,10 @@ class DataContainer:
             **kwargs:
                 Passed directly to :func:`_parse`.
         """
+        # Parse the data
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, **kwargs)
         # Check version and type?
-        if not dm_type_passed:
-            msgs.error(f'The HDU(s) cannot be parsed by a {cls.__name__} object!',
-                       cls='PypeItDataModelError')
-        if not dm_version_passed:
-            msg = f'Current version of {cls.__name__} object in code ({cls.version}) ' \
-                  'does not match version used to write your HDU(s)!'
-            if chk_version:
-                msgs.error(msg, cls='PypeItDataModelError')
-            else:
-                msgs.warn(msg)
+        cls._check_parsed(dm_version_passed, dm_type_passed, chk_version=chk_version)
 
         # Instantiate
         # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
@@ -1525,7 +1539,7 @@ class DataContainer:
             FileNotFoundError:
                 Raised if the specified file does not exist.
         """
-        _ifile = Path(ifile).resolve()
+        _ifile = Path(ifile).absolute()
         if not _ifile.exists():
             raise FileNotFoundError(f'{_ifile} does not exist!')
 

@@ -65,7 +65,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.125,  # arcsec per pixel
-            darkcurr        = 5.0,
+            darkcurr        = 5.0,  #e-/hr/pixel
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -100,16 +100,17 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip'] = False
-        par['calibrations']['standardframe']['exprng'] = [None, 180]
+        par['calibrations']['standardframe']['exprng'] = [None, 300]
         # Multiple arcs with different lamps, so can't median combine nor clip, also need to remove continuum
         par['calibrations']['arcframe']['process']['combine'] = 'mean'
         par['calibrations']['arcframe']['process']['subtract_continuum'] = True
@@ -173,22 +174,31 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             return binning
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['PRESSURE'] * 0.001  # Must be in astropy.units.bar
+                return headarr[0]['PRESSURE']  # Must be in astropy.units.mbar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                return 0.0
+                msgs.info("The default pressure will be assumed: 611 mbar")
+                return 611.0
         elif meta_key == 'temperature':
             try:
                 return headarr[0]['TAMBIENT']  # Must be in astropy.units.deg_C
             except KeyError:
                 msgs.warn("Temperature is not in header")
-                return 0.0
+                msgs.info("The default temperature will be assumed: 1.5 deg C")
+                return 1.5
         elif meta_key == 'humidity':
             try:
                 return headarr[0]['HUMIDITY']
             except KeyError:
                 msgs.warn("Humidity is not in header")
-                return 0.0
+                msgs.info("The default relative humidity will be assumed: 20 %")
+                return 20.0
+        elif meta_key == 'parangle':
+            try:
+                msgs.work("Parallactic angle is not available for MAAT - DAR correction may be incorrect")
+                return headarr[0]['PARANG']  # Must be expressed in radians
+            except KeyError:
+                msgs.error("Parallactic angle is not in header")
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         elif meta_key == 'gain':
@@ -288,7 +298,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname', 'bias': None, 'dark': None}
+        return {'standard': 'dispname', 'bias': 'binning', 'dark': 'binning'}
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -320,7 +330,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
 
         # Wavelength calibration and setup-dependent parameters
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
             par['reduce']['findobj']['find_min_max'] = [750, 2051]
             par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
@@ -330,7 +340,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             par['reduce']['cube']['wave_min'] = 3600.0
             par['reduce']['cube']['wave_max'] = 7200.0
         elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
             par['reduce']['findobj']['find_min_max'] = [750, 2051]
             par['calibrations']['slitedges']['det_min_spec_length'] = 0.25
@@ -340,41 +350,41 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
             par['reduce']['cube']['wave_min'] = 4800.0
             par['reduce']['cube']['wave_max'] = 10000.0
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
             par['reduce']['findobj']['find_min_max'] = [500, 2051]
             par['reduce']['cube']['wave_min'] = 3600.0
             par['reduce']['cube']['wave_max'] = 7200.0
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
             par['reduce']['findobj']['find_min_max'] = [450, 2051]
             par['reduce']['cube']['wave_min'] = 4800.0
             par['reduce']['cube']['wave_max'] = 10000.0
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
             par['calibrations']['wavelengths']['fwhm'] = 15.0
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
             par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,XeI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
@@ -430,7 +440,7 @@ class GTCOSIRISPlusSpectrograph(spectrograph.Spectrograph):
 
 
 class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
-    pypeline = 'IFU'
+    pypeline = 'SlicerIFU'
     name = 'gtc_maat'
 
     def init_meta(self):
@@ -439,6 +449,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['parangle'] = dict(card=None, compound=True, required=False)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -459,6 +470,13 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
         # Decrease the wave tilts order, given the shorter slits of the IFU
         par['calibrations']['tilts']['spat_order'] = 1
         par['calibrations']['tilts']['spec_order'] = 1
+
+        # Tweak the slit edges using the gradient method for SlicerIFU
+        par['calibrations']['slitedges']['pad'] = 0  # Do not pad the slits - this ensures that the tweak_edges method=gradient guarantees that the edges are defined at the maximum gradient.
+        par['calibrations']['flatfield']['tweak_slits'] = True  # Tweak the slit edges
+        par['calibrations']['flatfield']['tweak_method'] = 'gradient'  # The gradient method is better for SlicerIFU.
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
@@ -500,7 +518,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
                 Change in wavelength per spectral pixel.
 
         Returns:
-            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
+            `astropy.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
@@ -516,7 +534,7 @@ class GTCMAATSpectrograph(GTCOSIRISPlusSpectrograph):
             pxscl = spatial_scale / 3600.0  # 3600 is to convert arcsec to degrees
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitlength = int(np.round(np.median(slits.get_slitlengths(median=True))))
 
         # Get RA/DEC
         raval = self.get_meta_value([hdr], 'ra')
@@ -657,7 +675,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,  # arcsec per pixel
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -676,7 +694,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.127,
-            darkcurr        = 0.0,
+            darkcurr        = 0.0,  # e-/pixel/hour
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
             mincounts       = 0,
@@ -711,11 +729,12 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI','ArI']
+        par['calibrations']['wavelengths']['reid_cont_sub'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['scienceframe']['exprng'] = [90, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
@@ -874,7 +893,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'standard': 'dispname','bias': None, 'dark': None}
+        return {'standard': 'dispname','bias': 'binning', 'dark': 'binning'}
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -906,44 +925,44 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
             par['reduce']['findobj']['find_min_max']=[750,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
             par['reduce']['findobj']['find_min_max']=[750,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
             par['reduce']['findobj']['find_min_max']=[500,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
             par['reduce']['findobj']['find_min_max']=[450,2051]
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
+            par['calibrations']['wavelengths']['lamps'] = ['XeI','HgI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
             par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','HgI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            par['calibrations']['wavelengths']['lamps'] = ['ArI,XeI,NeI']
+            par['calibrations']['wavelengths']['lamps'] = ['ArI','XeI','NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
             par['sensfunc']['algorithm'] = 'IR'
-            par['sensfunc']['IR']['telgridfile'] = "TelFit_MaunaKea_3100_26100_R20000.fits"
+            par['sensfunc']['IR']['telgridfile'] = "TellPCA_3000_26000_R10000.fits"
         else:
             msgs.warn('gtc_osiris.py: template arc missing for this grism! Trying holy-grail...')
             par['calibrations']['wavelengths']['method'] = 'holy-grail'

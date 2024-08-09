@@ -2,10 +2,8 @@
 Dynamically build the rst documentation with the script help text.
 """
 
-import os
+from importlib import resources
 import time
-import importlib
-from pkg_resources import resource_filename
 
 from pypeit.scripts import script_classes
 
@@ -14,7 +12,7 @@ from pypeit.scripts import script_classes
 
 def write_help(script_cls, opath, width=80):
     exe = script_cls.name()
-    ofile = os.path.join(opath, '{0}.rst'.format(exe))
+    ofile = opath / f'{exe}.rst'
     lines = ['.. code-block:: console', '']
     lines += ['    $ {0} -h'.format(exe)]
     parser = script_cls.get_parser(width=80)
@@ -27,10 +25,10 @@ def write_help(script_cls, opath, width=80):
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    path = os.path.join(pypeit_root, 'doc', 'help')
-    if not os.path.isdir(path):
-        os.makedirs(path)
+    pypeit_root = resources.files('pypeit').parent
+    path = pypeit_root / 'doc' / 'help'
+    if not path.is_dir():
+        path.mkdir(parents=True)
 
     # Get the list of script names and script classes
     scr_clss = script_classes()

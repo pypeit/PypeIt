@@ -23,14 +23,15 @@ from pypeit.core import procimg
 from pypeit.core.moment import moment1d
 
 
-def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
+def extract_optimal(imgminsky, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, fwhmimg=None, base_var=None, count_scale=None, noise_floor=None):
 
     r"""
-    Perform optimal extraction `(Horne 1986) <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`_
-    for a single :class:`~pypeit.specobjs.SpecObj`.
+    Perform optimal extraction `(Horne 1986)
+    <https://ui.adsabs.harvard.edu/abs/1986PASP...98..609H/abstract>`__ for a
+    single :class:`~pypeit.specobj.SpecObj`.
 
-    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with optimal attributes
+    The :class:`~pypeit.specobj.SpecObj` object is changed in place with optimal attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
 
@@ -49,8 +50,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 
     Parameters
     ----------
-    sciimg : `numpy.ndarray`_
-        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    imgminsky : `numpy.ndarray`_
+        Floating-point science image minus skymodel (i.e., imgminsky = sciimg - skyimg)
+        with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
         The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
         (:math:`N_{\rm spat}`) is spatial.
     ivar : `numpy.ndarray`_
@@ -108,7 +110,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
         added.
     """
     # Setup
-    imgminsky = sciimg - skyimg
+    # imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
 
@@ -305,14 +307,14 @@ def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
         return flux_out, gpm_box, box_npix, ivar_out
 
 
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
+def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base_var=None,
                    count_scale=None, noise_floor=None):
     r"""
-    Perform boxcar extraction for a single :class:`~pypeit.specobjs.SpecObj`.
+    Perform boxcar extraction for a single :class:`~pypeit.specobj.SpecObj`.
     The size of the boxcar must be available as an attribute of the
     :class:`~pypeit.specobj.SpecObj` object.
 
-    The :class:`~pypeit.specobjs.SpecObj` object is changed in place with boxcar attributes
+    The :class:`~pypeit.specobj.SpecObj` object is changed in place with boxcar attributes
     being filled with the extraction parameters, and additional sky and noise estimates being added.
     The following are the attributes that are filled here:
     
@@ -329,8 +331,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
 
     Parameters
     ----------
-    sciimg : `numpy.ndarray`_
-        Floating-point science image with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
+    imgminsky : `numpy.ndarray`_
+        Floating-point science image minus skymodel (i.e., imgminsky = sciimg - skyimg)
+        with shape :math:`(N_{\rm spec}, N_{\rm spat})`.
         The first dimension (:math:`N_{\rm spec}`) is spectral, and second dimension
         (:math:`N_{\rm spat}`) is spatial.
     ivar : `numpy.ndarray`_
@@ -376,7 +379,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
         added.
     """
     # Setup
-    imgminsky = sciimg - skyimg
+    # imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
 
@@ -439,7 +442,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box*np.logical_not(bad_box)
-    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse( spec.BOX_COUNTS_IVAR))
+    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(spec.BOX_COUNTS_IVAR))
     spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box*np.logical_not(bad_box)
     spec.BOX_MASK = mask_box*np.logical_not(bad_box)
     spec.BOX_FWHM = fwhm_box  # Spectral FWHM (in Angstroms) for the boxcar extracted spectrum
@@ -448,6 +451,51 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, base
     # TODO - Confirm this should be float, not int
     # JFH: Yes it should be a float becuase moment1d can operate on sub-pixels
     spec.BOX_NPIX = pixtot-pixmsk
+
+
+def extract_hist_spectrum(waveimg, frame, gpm=None, bins=1000):
+    """
+    Generate a quick spectrum using the nearest grid point (histogram) algorithm.
+
+    Args:
+        waveimg (`numpy.ndarray`_):
+            A 2D image of the wavelength at each pixel.
+        frame (`numpy.ndarray`_):
+            The frame to use to extract a spectrum. Shape should be the same as waveimg
+        gpm (`numpy.ndarray`_, optional):
+            A boolean array indicating the pixels to include in the histogram (True = include)
+        bins (`numpy.ndarray`_, int, optional):
+            Either a 1D array indicating the bin edges to be used for the histogram,
+            or an integer that specifies the number of bin edges to generate
+
+    Returns:
+        A tuple containing the wavelength and spectrum at the centre of each histogram bin. Both
+        arrays returned in the tuple are `numpy.ndarray`_.
+    """
+    # Check the inputs
+    if waveimg.shape != frame.shape:
+        msgs.error("Wavelength image is not the same shape as the input frame")
+    # Check the GPM
+    _gpm = gpm if gpm is not None else waveimg > 0
+    if waveimg.shape != _gpm.shape:
+        msgs.error("Wavelength image is not the same shape as the GPM")
+    # Set the bins
+    if isinstance(bins, int):
+        _bins = np.linspace(np.min(waveimg[_gpm]), np.max(waveimg[_gpm]), bins)
+    elif isinstance(bins, np.ndarray):
+        _bins = bins
+    else:
+        msgs.error("Argument 'bins' should be an integer or a numpy array")
+
+    # Construct a histogram and the normalisation
+    hist, edge = np.histogram(waveimg[gpm], bins=_bins, weights=frame[gpm])
+    cntr, edge = np.histogram(waveimg[gpm], bins=_bins)
+    # Normalise
+    cntr = cntr.astype(float)
+    spec = hist * utils.inverse(cntr)
+    # Generate the corresponding wavelength array - set it to be the bin centre
+    wave = 0.5 * (_bins[1:] + _bins[:-1])
+    return wave, spec
 
 
 def findfwhm(model, sig_x):

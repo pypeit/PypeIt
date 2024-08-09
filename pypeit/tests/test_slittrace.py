@@ -8,14 +8,23 @@ from IPython import embed
 import numpy as np
 
 from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
-from pypeit.tests.tstutils import data_path
+from pypeit.tests.tstutils import data_output_path
 
 
 def test_bits():
     # Make sure bits are correct
     bm = SlitTraceBitMask()
+    assert bm.bits['SHORTSLIT'] == 0, 'Bits changed'
+    assert bm.bits['BOXSLIT'] == 1, 'Bits changed'
     assert bm.bits['USERIGNORE'] == 2, 'Bits changed'
-    assert bm.bits['BADFLATCALIB'] == 6, 'Bits changed'
+    assert bm.bits['BADWVCALIB'] == 3, 'Bits changed'
+    assert bm.bits['BADTILTCALIB'] == 4, 'Bits changed'
+    assert bm.bits['BADALIGNCALIB'] == 5, 'Bits changed'
+    assert bm.bits['SKIPFLATCALIB'] == 6, 'Bits changed'
+    assert bm.bits['BADFLATCALIB'] == 7, 'Bits changed'
+    assert bm.bits['BADREDUCE'] == 8, 'Bits changed'
+    assert bm.bits['BADSKYSUB'] == 9, 'Bits changed'
+    assert bm.bits['BADEXTRACT'] == 10, 'Bits changed'
 
 
 def test_init():
@@ -33,8 +42,8 @@ def test_io():
 
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
                          'MultiSlit', nspat=10, PYP_SPEC='dummy')
-    slits.set_paths(data_path(''), 'A', '1', 'DET01')
-    ofile = Path(slits.get_path()).resolve()
+    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    ofile = Path(slits.get_path()).absolute()
 
     # Try to save it
     slits.to_file(overwrite=True)
@@ -57,8 +66,8 @@ def test_io_single():
                          'MultiSlit',
                          nspat=10, PYP_SPEC='dummy',
                          maskfile=file)
-    slits.set_paths(data_path(''), 'A', '1', 'DET01')
-    ofile = Path(slits.get_path()).resolve()
+    slits.set_paths(data_output_path(''), 'A', '1', 'DET01')
+    ofile = Path(slits.get_path()).absolute()
 
     # Try to save it
     slits.to_file()

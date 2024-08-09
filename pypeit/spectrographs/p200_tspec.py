@@ -133,7 +133,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             specflip        = True,
             spatflip=False,
             platescale      = 0.37,
-            darkcurr        = 0.085,
+            darkcurr        = 306.0,  # e-/pixel/hour  (=0.085 e-/pixel/s)
             saturation      = 28000,
             nonlinear       = 0.9,
             mincounts       = -1e10,
@@ -158,9 +158,9 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.3
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.103
         par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 2.9  # As measured in DevSuite
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
@@ -215,7 +215,11 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
+
+        # Coadding
+        par['coadd1d']['wave_method'] = 'log10'
+
 
         return par
 

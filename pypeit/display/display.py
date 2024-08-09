@@ -43,7 +43,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             viewer if one is not already running.
 
     Returns:
-        RemoteClient: connection to ginga viewer.
+        `ginga.RemoteClient`_: connection to ginga viewer.
     """
     # Start
     viewer = grc.RemoteClient(host, port)
@@ -120,8 +120,8 @@ def show_image(inp, chname='Image', waveimg=None, mask=None, exten=0, cuts=None,
             image in other channels to it.
 
     Returns:
-        ginga.util.grc.RemoteClient, ginga.util.grc._channel_proxy: The
-        ginga remote client and the channel with the displayed image.
+        :obj:`tuple`: The ginga remote client object and the channel object with
+        the displayed image.
 
     Raises:
         ValueError:
@@ -253,21 +253,21 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
     Parameters
     ----------
-    viewer (ginga.util.grc.RemoteClient):
+    viewer : `ginga.RemoteClient`_
         Ginga RC viewer
-    ch (ginga.util.grc._channel_proxy):
+    ch : ``ginga.util.grc._channel_proxy``
         Ginga channel
-    spec (list):
+    spec : list
         List of spectral positions on image to plot
-    spat (list):
+    spat : list
         List of spatial positions on image to plot
-    color (str):
+    color : str
         Color for points
-    legend (str):
-        Label for a legeng
-    legend_spec (float):
+    legend : str
+        Label for a legend
+    legend_spec : float
         Spectral pixel loation for legend
-    legend_spat (float):
+    legend_spat : float
         Pixel loation for legend
 
     """
@@ -291,9 +291,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     Overplot slits on the image in Ginga in the given channel
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel
         left (`numpy.ndarray`_):
             Array with spatial position of left slit edges. Shape must be :math:`(N_{\rm
@@ -443,13 +443,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
 
 def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=None, clear=False,
-               rotate=False, pstep=50, yval=None):
+               rotate=False, pstep=3, yval=None, color='blue'):
     r"""
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer.
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel.
         trace (`numpy.ndarray`_):
             Array with spatial position of the object traces on the detector.
@@ -470,6 +470,8 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
             Array with spectral position of the object traces. Shape must be :math:`(N_{\rm spec},)`
             or :math:`(N_{\rm spec}, N_{\rm trace})`. If not passed in, the default of
             np.arange(:math:`(N_{\rm spec},)`) will be used.
+        color (str, optional):
+            Color for the trace
 
     """
     # Canvas
@@ -480,6 +482,10 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     if trace.ndim == 1:
         trace = trace.reshape(-1,1)
 
+    ntrace = trace.shape[1]
+    _maskdef_extr = ntrace*[False] if maskdef_extr is None else maskdef_extr
+    _manual_extr = ntrace*[False] if manual_extr is None else manual_extr
+
     # Show
     if yval is None:
         y = np.repeat(np.arange(trace.shape[0]).astype(float)[:, None], trace.shape[1], axis=1)
@@ -488,22 +494,22 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
 
     canvas_list = []
     for i in range(trace.shape[1]):
-        if maskdef_extr[i]:
-            color = '#f0e442'
-        elif manual_extr[i]:
-            color = '#33ccff'
+        if _maskdef_extr[i]:
+            _color = '#f0e442' if color is not None else color
+        elif _manual_extr[i]:
+            _color = '#33ccff' if color is not None else color
         else:
-            color = 'orange'
+            _color = 'orange' if color is not None else color
         canvas_list += [dict(type=str('path'),
                         args=(list(zip(y[::pstep,i].tolist(), trace[::pstep,i].tolist())),) if rotate
                         else (list(zip(trace[::pstep,i].tolist(), y[::pstep,i].tolist())),),
-                        kwargs=dict(color=color))]
+                        kwargs=dict(color=_color))]
         # Text
         ohf = len(trace[:,i])//2
         # Do it
         canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(trc_name[i])) if rotate
                              else (float(trace[ohf,i]), float(y[ohf,i]), str(trc_name[i])),
-                             kwargs=dict(color=color, fontsize=17., rot_deg=90.))]
+                             kwargs=dict(color=_color, fontsize=17., rot_deg=90.))]
 
     canvas.add('constructedcanvas', canvas_list)
 
@@ -543,9 +549,9 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     Show the arc tilts on the input channel
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):
+        viewer (`ginga.RemoteClient`_):
             Ginga RC viewer
-        ch (ginga.util.grc._channel_proxy):
+        ch (``ginga.util.grc._channel_proxy``):
             Ginga channel
         tilt_traces (`astropy.table.Table`_):
             Table containing the traced and fitted tilts
@@ -630,6 +636,32 @@ def show_tilts(viewer, ch, tilt_traces, yoff=0., xoff=0., points=True, nspec=Non
     canvas.add('constructedcanvas', canvas_list)
 
 
+def show_scattered_light(image_list, slits=None, wcs_match=True):
+    """
+    Interface to ginga to show the quality of the Scattered Light subtraction
 
-
+    Parameters
+    ----------
+    image_list : zip
+        A zip of the images to show, their names, and the scales
+    slits : :class:`~pypeit.slittrace.SlitTraceSet`, optional
+        The current slit traces
+    wcs_match : :obj:`bool`, optional
+        Use a reference image for the WCS and match all image in other channels to it.
+    """
+    connect_to_ginga(raise_err=True, allow_new=True)
+    if slits is not None:
+        left, right, mask = slits.select_edges()
+        gpm = mask == 0
+    # Loop me
+    clear = True
+    for img, name, cut in image_list:
+        if img is None:
+            continue
+        viewer, ch = show_image(img, chname=name, cuts=cut, wcs_match=wcs_match, clear=clear)
+        if slits is not None:
+            show_slits(viewer, ch, left[:, gpm], right[:, gpm], slit_ids=slits.spat_id[gpm])
+        # Turn off clear
+        if clear:
+            clear = False
 

@@ -3,12 +3,11 @@ Module for MMT/BINOSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
-
 import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import utils
 from pypeit import io
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -58,7 +57,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.24,
-                            darkcurr        = 3.0, #ToDO: To Be update
+                            darkcurr        = 3.6,  #e-/pixel/hour  (=0.001 e-/pixel/s)  --  pulled from the ETC
                             saturation      = 65535.,
                             nonlinear       = 0.95,  #ToDO: To Be update
                             mincounts       = -1e10,
@@ -176,9 +175,9 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.125
         par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['fwhm']= 4.0
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -215,7 +214,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -381,14 +380,11 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)), raw_file)
+        fil = utils.find_single_file(f'{raw_file}*', required=True)
 
         # Read
-        msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
-        hdu = io.fits_open(fil[0])
+        msgs.info(f'Reading BINOSPEC file: {fil}')
+        hdu = io.fits_open(fil)
         head1 = hdu[1].header
 
         # TOdO Store these parameters in the DetectorPar.

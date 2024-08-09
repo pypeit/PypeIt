@@ -5,8 +5,10 @@ Script to install quick-look calibration files into the user's pypeit installati
 .. include:: ../include/links.rst
 """
 
+# TODO: Do people actually use this script?  The directory on the Google drive
+# isn't actually called QL_CALIB, like we say in the documentation...
+
 from pypeit.scripts import scriptbase
-from pypeit import data
 
 
 class InstallQLCalibs(scriptbase.ScriptBase):
@@ -35,6 +37,7 @@ class InstallQLCalibs(scriptbase.ScriptBase):
         import os
         import zipfile
 
+        from pypeit.cache import __PYPEIT_DATA__
         from pypeit.io import create_symlink
 
         # Check that either the zip file or the directory is provided
@@ -70,7 +73,7 @@ class InstallQLCalibs(scriptbase.ScriptBase):
 
         # Create a symlink to the QL_CALIB directory in the pypeit/data
         # directory.
-        create_symlink(ql_dir, data.Paths.data, overwrite=True)
+        create_symlink(ql_dir, __PYPEIT_DATA__, overwrite=True)
 
         # Remove the zip file if the user requested
         if args.rmzip:

@@ -79,7 +79,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = True,
             spatflip        = False,
             platescale      = 0.1787,
-            darkcurr        = 0.5,
+            darkcurr        = 1800.0,  # e-/pixel/hour  (=0.5 e-/pixel/s)
             saturation      = 700000., #155400.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
@@ -109,9 +109,9 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
         par['calibrations']['wavelengths']['sigdetect']=5
-        par['calibrations']['wavelengths']['fwhm'] = 5
+        par['calibrations']['wavelengths']['fwhm'] = 5.
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
@@ -143,7 +143,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # TODO: replace the telluric grid file for Gemini-S site.
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_LasCampanas_3100_26100_R20000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
@@ -246,7 +246,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.15,
-            darkcurr        = 0.01,
+            darkcurr        = 1080.0,  # e-/hour/pixel    (=0.3 e-/pixel/s)
             saturation      = 320000., #155400.,
             nonlinear       = 0.875,
             mincounts       = -1e10,
@@ -276,9 +276,9 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         # Wavelengths
         # 1D wavelength solution with arc lines
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.05  # this needs to be updated
         par['calibrations']['wavelengths']['sigdetect']=3
-        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['fwhm'] = 20    # we don't know this value, no dataset in the repo
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
