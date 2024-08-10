@@ -860,7 +860,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             # Some properties of the image
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
             numamps = hdu[0].header['NVIDINP']
-            specflip = True if hdu[0].header['AMPID1'] == 2 else False
+            specflip = False if hdu[0].header['AMPMODE'] == 'ALL' else True
             gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
 #            dsecarr = np.array(['']*numamps)
