@@ -55,3 +55,4 @@ Bug Fixes
 - Fixed a fault caused when all frames in a pypeit file are identified as being
   part of ``all`` calibration groups.
 - Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
+- Fixed a bug in the ginga display function, when the user doesn't provide the `trc_name` argument.
