@@ -587,6 +587,7 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
     pypeline = 'SlicerIFU'
+    allowed_extensions = ['.fits', '.fits.bz2']
 
     def init_meta(self):
         super().init_meta()
