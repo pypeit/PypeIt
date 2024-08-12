@@ -301,7 +301,7 @@ class Spectrograph:
         if extension is None:
             _ext = cls.allowed_extensions
         else:
-            _ext = extension if hasattr(extension, '__len__') else [extension]
+            _ext = [extension] if isinstance(extension, str) else extension
             _ext = [e for e in _ext if e in cls.allowed_extensions]
             if len(_ext) == 0:
                 msgs.error(f'{extension} is not or does not include allowed extensions for '

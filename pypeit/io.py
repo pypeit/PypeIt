@@ -884,8 +884,8 @@ def files_from_extension(raw_path, extension='.fits'):
             _raw_path, prefix = _raw_path.parent, _raw_path.name
             if not _raw_path.is_dir():
                 msgs.error(f'{_raw_path} does not exist!')
-        ext = extension if isinstance(extension, list) else [extension]
-        files = numpy.concatenate([sorted(_raw_path.glob(f'{prefix}*{e}*')) for e in ext])
+        ext = [extension] if isinstance(extension, str) else extension
+        files = numpy.concatenate([sorted(_raw_path.glob(f'{prefix}*{e}')) for e in ext])
         return numpy.unique(files).tolist()
     
     if isinstance(raw_path, list):
