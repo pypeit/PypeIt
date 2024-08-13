@@ -4279,7 +4279,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if loc.size != ntrace:
             msgs.error('Number of sides does not match the number of insertion locations.')
 
-        msgs.info('Inserting {0} new traces.'.format(ntrace))
+        msgs.info(f'Inserting {ntrace} new traces.')
 
         # Nudge the traces
         if nudge:
@@ -4869,7 +4869,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if add_left is None or add_right is None:
             msgs.info('No additional orders found to add')
             return
-
+        
         if rmtraces is not None:
             self.remove_traces(rmtraces, rebuild_pca=True)
 
@@ -4977,7 +4977,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Save the list of good left edges in case we need to remove any
         left_gpm = gpm & self.is_left
         left = self.edge_fit[:,left_gpm]
-        right = self.edge_fit[:,gpm & self.is_right]
+        right_gpm = gpm & self.is_right
+        right = self.edge_fit[:,right_gpm]
 
         # Use the trace locations at the middle of the spectral shape of the
         # detector/mosaic
@@ -5002,7 +5003,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
                                      function='legendre', lower=3., upper=3., maxiter=5,
                                      sticky=True)
 
-        # Ideally, measured widths/gaps should be regected for one of the
+        # Ideally, measured widths/gaps should be rejected for one of the
         # following reasons:
         #   - The width is too large because gaps were missed (i.e. multiple
         #     orders were combined)
@@ -5050,7 +5051,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # Return the coordinates for the left and right edges to add
         add_width = width_fit.eval(order_cen[order_missing])
-        add_left, add_right = order_cen[order_missing] - add_width / 2, order_cen[order_missing] + add_width / 2
+        add_left = order_cen[order_missing] - add_width / 2
+        add_right = order_cen[order_missing] + add_width / 2
 
         # Join the added edges with the existing ones
         _left = np.append(add_left, left[individual_orders])
@@ -5076,9 +5078,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # There is no overlap, so just return the orders to add
             return add_left, add_right, rmtraces
 
-        # Loop sequentially so that each pair is updated as the loop progresses
+        # Used to remove orders that have too much overlap
         nord = _left.size
         good_order = np.ones(nord, dtype=bool)
+
+        # Loop sequentially so that each pair is updated as the loop progresses
         for i in range(1, nord):
             # *Negative* of the gap; i.e., positives values means there's
             # overlap
@@ -5093,6 +5097,18 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 _right[i-1] -= ngap
                 _left[i] += ngap
                 _right[i] -= ngap
+
+        # For any *existing* traces that were adjusted because of the overlap,
+        # this applies the adjustment to the `edge_fit` data.
+        # NOTE: This only adjusts the "fit" locations (edge_fit), *not* the
+        # measured centroid locations (edge_cen).  This should not cause
+        # problems because, e.g., the `get_slits` function uses `edge_fit`.
+        left_indx = np.where(left_gpm)[0][individual_orders]
+        offset = _left[isrt][add_left.size:] - left
+        self.edge_fit[:,left_indx] += offset[None,:]
+        right_indx = np.where(right_gpm)[0][individual_orders]
+        offset = _right[isrt][add_left.size:] - right
+        self.edge_fit[:,right_indx] += offset[None,:]
 
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
