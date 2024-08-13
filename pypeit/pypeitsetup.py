@@ -191,7 +191,11 @@ class PypeItSetup:
         # Spectrograph object
         spec = load_spectrograph(spectrograph).__class__
         files = spec.find_raw_files(root, extension=extension)
-        msgs.info(f'Found {len(files)} {spec.name} raw files.')
+        nfiles = len(files)
+        if nfiles == 0:
+            msgs.error(f'Unable to find any raw files for {spec.name} in {root}!')
+        else:
+            msgs.info(f'Found {nfiles} {spec.name} raw files.')
         return cls.from_rawfiles(files, spectrograph)
 
     @classmethod

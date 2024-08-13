@@ -125,7 +125,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
     name = 'wht_isis_blue'
     camera = 'ISISb'
     comment = 'Blue camera'
-    allowed_extensions = ['.fit.gz']
+    allowed_extensions = ['.fit', '.fit.gz']
     
     def get_detector_par(self, det, hdu=None):
         """
