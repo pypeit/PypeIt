@@ -485,6 +485,7 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
     ntrace = trace.shape[1]
     _maskdef_extr = ntrace*[False] if maskdef_extr is None else maskdef_extr
     _manual_extr = ntrace*[False] if manual_extr is None else manual_extr
+    _trc_name = ntrace*[''] if trc_name is None else trc_name
 
     # Show
     if yval is None:
@@ -507,8 +508,8 @@ def show_trace(viewer, ch, trace, trc_name=None, maskdef_extr=None, manual_extr=
         # Text
         ohf = len(trace[:,i])//2
         # Do it
-        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(trc_name[i])) if rotate
-                             else (float(trace[ohf,i]), float(y[ohf,i]), str(trc_name[i])),
+        canvas_list += [dict(type='text',args=(float(y[ohf,i]), float(trace[ohf,i]), str(_trc_name[i])) if rotate
+                             else (float(trace[ohf,i]), float(y[ohf,i]), str(_trc_name[i])),
                              kwargs=dict(color=_color, fontsize=17., rot_deg=90.))]
 
     canvas.add('constructedcanvas', canvas_list)
