@@ -1070,7 +1070,7 @@ def lst_to_array(lst, mask=None):
     Allows for a list of Quantity objects
 
     Args:
-        lst : list
+        lst (:obj:`list`):
             Should be number or Quantities
         mask (`numpy.ndarray`_, optional):
             Boolean array used to limit to a subset of the list.  True=good
@@ -1078,20 +1078,24 @@ def lst_to_array(lst, mask=None):
     Returns:
         `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
-    if mask is None:
-        mask = np.array([True]*len(lst))
+    _mask = np.ones(len(lst), dtype=bool) if mask is None else mask
+
+    # Return a Quantity array
     if isinstance(lst[0], units.Quantity):
-        return units.Quantity(lst)[mask]
-    else:
-        # if all the elements of lst have the same type, np.array(lst)[mask] will work
-        if len(set(map(type, lst))) == 1:
-            return np.array(lst)[mask]
-        else:
-            # if not, we need to use dtype="object"
-            return np.array(lst, dtype="object")[mask]
-        # TODO: The dtype="object" is needed for the case where one element of lst is not a list but None.
-        #  This would prevent the error "ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions..."
-        #  However, this is may introduce other issues, where an array of objects creates problems in other parts of the code.
-        #  I am using this workaround. Any suggestions/ideas?
+        return units.Quantity(lst)[_mask]
+
+    # If all the elements of lst have the same type, np.array(lst)[mask] will work
+    if len(set(map(type, lst))) == 1:
+        return np.array(lst)[_mask]
+
+    # Otherwise, we have to set the array type to object
+    return np.array(lst, dtype=object)[_mask]
+
+    # TODO: The dtype="object" is needed for the case where one element of lst
+    # is not a list but None.  This would prevent the error "ValueError: setting
+    # an array element with a sequence. The requested array has an inhomogeneous
+    # shape after 1 dimensions..." However, this is may introduce other issues,
+    # where an array of objects creates problems in other parts of the code.  I
+    # am using this workaround. Any suggestions/ideas?
 
 

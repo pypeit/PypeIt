@@ -15,7 +15,6 @@ from abc import ABCMeta
 
 from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import flatfield
 from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
@@ -326,7 +325,7 @@ class FindObjects:
 
         Parameters
         ----------
-        std_trace : `astropy.table.Table`_:, optional
+        std_trace : `astropy.table.Table`_, optional
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. For MultiSlit reduction,
             the table has a single column: `TRACE_SPAT`.
@@ -405,7 +404,7 @@ class FindObjects:
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `astropy.table.Table`_:, optional
+        std_trace : `astropy.table.Table`_, optional
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. For MultiSlit reduction,
             the table has a single column: `TRACE_SPAT`.
@@ -731,7 +730,7 @@ class MultiSlitFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `astropy.table.Table`_:, optional
+        std_trace : `astropy.table.Table`_, optional
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. For MultiSlit reduction,
             the table has a single column: `TRACE_SPAT`.
@@ -886,7 +885,7 @@ class EchelleFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `astropy.table.Table`_:, optional
+        std_trace : `astropy.table.Table`_, optional
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. For Echelle reduction,
             the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
