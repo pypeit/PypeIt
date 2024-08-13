@@ -72,7 +72,10 @@ Bug Fixes
 - Fixed a fault caused when all frames in a pypeit file are identified as being
   part of ``all`` calibration groups.
 - Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
-- Fix error "ValueError: setting an array element with a sequence. The requested
-  array has an inhomogeneous shape after 1 dimensions..." occurring when unpacking
-  the SpecObj spectrum but having an attribute of the SpecObj object that is None.
+- Fixed a bug in the ginga display function, when the user doesn't provide the `trc_name` argument.
+- Fix a MAJOR BUT SUBTLE bug in the use of ``numpy.argsort``. When using ``numpy.argsort``
+  the parameter kind='stable' should be used to ensure that a sorting algorithm more robust
+  than "quicksort" is used.
+
+
 
