@@ -32,6 +32,9 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
+- Changed the name of the multi-dimensional specdata to specdata_multi in pypeit_identify
+  and improved the robustness of the saving dialog when calibrating single trace spectra.
+- Fixed a read-in error for the high resolution A0V PHOENIX model.
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
@@ -58,3 +61,4 @@ Bug Fixes
 - Fixed a fault caused when all frames in a pypeit file are identified as being
   part of ``all`` calibration groups.
 - Allow for empty 2D wavecal solution in HDU extension of WaveCalib file
+- Fixed a bug in the ginga display function, when the user doesn't provide the `trc_name` argument.
