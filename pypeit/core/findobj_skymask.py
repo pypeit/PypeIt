@@ -239,7 +239,7 @@ def ech_findobj_ineach_order(
             Good-pixel mask for input image.  Must have the same shape as
             ``image``.  If None, all pixels in ``slitmask`` with non-negative
             values are considered good.
-        std_trace (`astropy.table.Table`_:, optional):
+        std_trace (`astropy.table.Table`_, optional):
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. The table has two columns:
             `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
@@ -489,7 +489,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
             ``np.arange(norders)`` (but this is *not* recommended).
         obj_id (`numpy.ndarray`_):
             Object IDs of the objects linked together.
-        std_trace (`astropy.table.Table`_:, optional):
+        std_trace (`astropy.table.Table`_, optional):
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. The table has two columns:
             `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
@@ -1136,7 +1136,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, slit_spat_id, order
             Plate scale in arcsec/pix. This can either be a single float for
             every order, or an array with shape (norders,) providing the plate
             scale of each order.
-        std_trace (`astropy.table.Table`_:, optional):
+        std_trace (`astropy.table.Table`_, optional):
             Table with the trace of the standard star on the input detector,
             which is used as a crutch for tracing. The table has two columns:
             `ECH_ORDER` and `TRACE_SPAT`. The shape of each row must be (nspec,).
