@@ -29,12 +29,13 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
-
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
 - The `grating_corr` column is now used to select the correct grating
   correction file for each spec2d file when generating the datacube.
+- Treatment of file names is now more formal.  Compression signatures are now
+  considered, and filename matching is now more strict.
 
 Datamodel Changes
 -----------------

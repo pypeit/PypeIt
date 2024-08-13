@@ -28,8 +28,11 @@ class Setup(scriptbase.ScriptBase):
                                  'directory  (e.g., /data/Kast) or the search string up through '
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
                                  'to set the types of files to search for.')
-        parser.add_argument('-e', '--extension', default='.fits',
-                            help='File extension; compression indicators (e.g. .gz) not required.')
+        parser.add_argument('-e', '--extension', default=None,
+                            help='File extension to use.  Must include the period (e.g., ".fits") '
+                                 'and it must be one of the allowed extensions for this '
+                                 'spectrograph.  If None, root directory will be searched for '
+                                 'all files with any of the allowed extensions.')
         parser.add_argument('-d', '--output_path', default='current working directory',
                             help='Path to top-level output directory.')
         parser.add_argument('-o', '--overwrite', default=False, action='store_true',

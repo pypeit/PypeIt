@@ -318,9 +318,9 @@ class Spectrograph:
         """
         if self.allowed_extensions is not None:
             _filename = Path(filename).absolute()
-            if _filename.suffix not in self.allowed_extensions:
+            if not any([_filename.name.endswith(ext) for ext in self.allowed_extensions]):
                 msgs.error(f'The input file ({_filename.name}) does not have a recognized '
-                           f'extension ({_filename.suffix}).  The allowed extensions for '
+                           f'extension.  The allowed extensions for '
                            f'{self.name} include {",".join(self.allowed_extensions)}.')
 
     def _check_telescope(self):

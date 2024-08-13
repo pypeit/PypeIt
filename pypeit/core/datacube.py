@@ -223,7 +223,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     Returns
     -------
-    sobjs : `pypeit.specobjs.SpecObjs`_
+    sobjs : :class:`pypeit.specobjs.SpecObjs`
         SpecObjs object containing the extracted spectrum
     """
     if whitelight_range is None:

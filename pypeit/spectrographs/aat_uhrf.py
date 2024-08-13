@@ -49,7 +49,7 @@ class AATUHRFSpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         # Retrieve the binning
-        binning = self.compound_meta(self.get_headarr(hdu), "binning")
+        binning = '1,1' if hdu is None else self.compound_meta(self.get_headarr(hdu), "binning")
         dsec = 1 + 1024//int(binning.split(',')[0])
         # Detector 1
         detector_dict = dict(
