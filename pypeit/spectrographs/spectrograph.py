@@ -1635,9 +1635,9 @@ class Spectrograph:
 
         Args:
             type_bits (`numpy.ndarray`_):
-                Array with the frame types assigned to each frame
-            fitstbl (`PypeItMetaData`_):
-                Table with the metadata for the frames to check.
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
 
         Returns:
             `numpy.ndarray`_: The updated frame types.

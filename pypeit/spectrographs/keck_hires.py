@@ -431,6 +431,12 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         it is not possible to use slitless_pixflat type for one calibration group
         and pixelflat for another.
 
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+
         Returns:
             `numpy.ndarray`_: The updated frame types.
 
