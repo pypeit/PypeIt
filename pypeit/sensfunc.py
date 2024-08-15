@@ -255,7 +255,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
-                = self.sobjs_std.unpack_object(ret_flam=False, extract_type=self.extr)
+                = self.sobjs_std.unpack_object(ret_flam=False, extract_type=self.extr, remove_missing=True)
 
         # Compute the blaze function
         # TODO Make the blaze function optional
