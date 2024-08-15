@@ -188,7 +188,7 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, extract_type='OPT'):
+    def unpack_object(self, ret_flam=False, extract_type='OPT', remove_missing=False):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -198,6 +198,11 @@ class SpecObjs:
         Args:
            ret_flam (:obj:`bool`, optional):
               If True return the FLAM, otherwise return COUNTS.
+           extract_type (:obj:`str`, optional):
+                Extraction type to use.  Default is 'OPT'.
+           remove_missing (:obj:`bool`, optional):
+                If True, remove any missing data (i.e. where the flux is None).
+                Default is False.
 
         Returns:
             tuple: Returns the following where all numpy arrays
@@ -217,15 +222,27 @@ class SpecObjs:
                   spec1d file
         """
         # Prep
-        norddet = self.nobj
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
 
-        if np.any([f is None for f in getattr(self, flux_key)]):
+        # Check for missing data
+        none_flux = [f is None for f in getattr(self, flux_key)]
+        if np.any(none_flux):
             other = 'OPT' if extract_type == 'BOX' else 'BOX'
-            msgs.error(f"Some or all fluxes are not available for {extract_type} extraction. Try {other} extraction.")
+            msg = f"{extract_type} extracted flux is not available for all slits/orders. " \
+                  f"Consider trying the {other} extraction."
+            if not remove_missing:
+                msgs.error(msg)
+            else:
+                msg += f"{msgs.newline()}-- The missing data will be removed --"
+                msgs.warn(msg)
+                # Remove missing data
+                r_indx = np.where(none_flux)[0]
+                self.remove_sobj(r_indx)
+
         #
+        norddet = self.nobj
         nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
