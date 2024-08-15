@@ -337,7 +337,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(126, 61, -1, dtype=int)
+        return np.arange(124, 59, -1, dtype=int)
 
     @property
     def order_spat_pos(self):
