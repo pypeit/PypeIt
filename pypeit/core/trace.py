@@ -1647,7 +1647,41 @@ def predicted_center_difference(lower_spat, spat, width_fit, gap_fit):
     return np.absolute(spat - test_spat)
 
 
-def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
+def extrapolate_prev_order(cen, width_fit, gap_fit, tol=0.01):
+    """
+    Predict the location of the order to the spatial left (lower spatial pixel
+    numbers) of the order center provided.
+
+    This is largely a support function for :func:`extrapolate_orders`.
+
+    Args:
+        cen (:obj:`float`):
+            Center of the known order.
+        width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order width as a function of the order center.
+        gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+            Model of the order gap *after* each order as a function of the order
+            center.
+        tol (:obj:`float`, optional):
+            Tolerance used when optimizing the order locations predicted toward
+            lower spatial pixels.
+
+    Returns:
+        :obj:`float`: Predicted center of the previous order.
+    """
+    # Guess the position of the previous order
+    w = width_fit.eval(cen)
+    guess = np.array([cen - w - gap_fit.eval(cen)])
+    # Set the bounds based on this guess and the expected order width
+    bounds = optimize.Bounds(lb=guess - w/2, ub=guess + w/2)
+    # Optimize the spatial position
+    res = optimize.minimize(predicted_center_difference, guess,
+                            args=(cen, width_fit, gap_fit),
+                            method='trust-constr', jac='2-point', bounds=bounds, tol=tol)    
+    return res.x[0]
+
+
+def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01, bracket=False):
     """
     Predict the locations of additional orders by extrapolation.
 
@@ -1676,6 +1710,9 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
         tol (:obj:`float`, optional):
             Tolerance used when optimizing the order locations predicted toward
             lower spatial pixels.
+        bracket (:obj:`bool`, optional):
+            Bracket the added orders with one additional order on either side.
+            This can be useful for dealing with predicted overlap.
 
     Returns:
         :obj:`tuple`: Two arrays with orders centers (1) below the first and (2)
@@ -1686,16 +1723,7 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
     # Extrapolate toward lower spatial positions
     lower_spat = [cen[0]]
     while lower_spat[-1] > min_spat:
-        # Guess the position of the previous order
-        l = width_fit.eval(lower_spat[-1])
-        guess = np.array([lower_spat[-1] - l - gap_fit.eval(lower_spat[-1])])
-        # Set the bounds based on this guess and the expected order width
-        bounds = optimize.Bounds(lb=guess - l/2, ub=guess + l/2)
-        # Optimize the spatial position
-        res = optimize.minimize(predicted_center_difference, guess,
-                                args=(lower_spat[-1], width_fit, gap_fit),
-                                method='trust-constr', jac='2-point', bounds=bounds, tol=tol)
-        lower_spat += [res.x[0]]
+        lower_spat += [extrapolate_prev_order(lower_spat[-1], width_fit, gap_fit, tol=tol)]
 
     # Extrapolate toward larger spatial positions
     upper_spat = [cen[-1]]
@@ -1703,8 +1731,12 @@ def extrapolate_orders(cen, width_fit, gap_fit, min_spat, max_spat, tol=0.01):
         upper_spat += [upper_spat[-1] + width_fit.eval(upper_spat[-1]) 
                         + gap_fit.eval(upper_spat[-1])]
 
-    # Return arrays after removing the first and last spatial position (which
-    # are either repeats of values in `cen` or outside the spatial range)
+    # Return arrays after removing the first spatial position because it is a
+    # repeat of the input.  If not bracketting, also remove the last point
+    # because it will be outside the minimum or maximum spatial position (set by
+    # min_spat, max_spat).
+    if bracket:
+        return np.array(lower_spat[-1:0:-1]), np.array(upper_spat[1:])
     return np.array(lower_spat[-2:0:-1]), np.array(upper_spat[1:-1])
     
 

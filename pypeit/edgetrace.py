@@ -4863,8 +4863,12 @@ class EdgeTraceSet(calibframe.CalibFrame):
             add_left, add_right = self.order_refine_fixed_format(reference_row, debug=debug)
             rmtraces = None
         else:
+            # TODO: `bracket` is hard-coded!  Currently I expect we always want
+            # to set bracket=True, but we should plan to revisit this and maybe
+            # expose as a user parameter.
+            bracket = True
             add_left, add_right, rmtraces \
-                    = self.order_refine_free_format(reference_row, debug=debug)
+                    = self.order_refine_free_format(reference_row, bracket=bracket, debug=debug)
 
         if add_left is None or add_right is None:
             msgs.info('No additional orders found to add')
@@ -4924,7 +4928,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         return add_left_edges, add_right_edges
 
     # NOTE: combined_order_tol is effectively hard-coded.
-    def order_refine_free_format(self, reference_row, combined_order_tol=1.8, debug=False):
+    def order_refine_free_format(self, reference_row, combined_order_tol=1.8, bracket=True,
+                                 debug=False):
         """
         Refine the order locations for "free-format" Echelles.
 
@@ -4962,6 +4967,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 ratio of the width of any given detected order to the polynomial
                 fit to the order width as a function of spatial position on the
                 detector.
+            bracket (:obj:`bool`, optional):
+                Bracket the added orders with one additional order on either side.
+                This can be useful for dealing with predicted overlap.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
 
@@ -5024,12 +5032,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
         order_cen, order_missing \
                 = trace.find_missing_orders(cen[individual_orders], width_fit, gap_fit)
 
-        # Extrapolate orders
+        # Extrapolate orders; this includes one additional order to either side
+        # of the spatial extent set by rng.
         rng = [0., float(self.nspat)] if self.par['order_spat_range'] is None \
                     else self.par['order_spat_range']
         lower_order_cen, upper_order_cen \
                     = trace.extrapolate_orders(cen[individual_orders], width_fit, gap_fit,
-                                               rng[0], rng[1])
+                                               rng[0], rng[1], bracket=bracket)
 
         # Combine the results
         order_cen = np.concatenate((lower_order_cen, order_cen, upper_order_cen))
@@ -5047,7 +5056,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if ofile is not None and not ofile.parent.is_dir():
             ofile.parent.mkdir(parents=True)
         self.order_refine_free_format_qa(cen, combined_orders, width, gap, width_fit, gap_fit,
-                                         order_cen, order_missing, ofile=ofile)
+                                         order_cen, order_missing, bracket=bracket, ofile=ofile)
 
         # Return the coordinates for the left and right edges to add
         add_width = width_fit.eval(order_cen[order_missing])
@@ -5113,24 +5122,87 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
         good_order = good_order[isrt][:add_left.size]
-        return _left[isrt][:add_left.size][good_order], \
-                _right[isrt][:add_left.size][good_order], \
-                rmtraces
-        
+        add_left = _left[isrt][:add_left.size][good_order]
+        add_right = _right[isrt][:add_left.size][good_order]
+
+        if bracket:
+            # Remove the bracketing orders
+            if add_left.size < 2:
+                # TODO: The code should not get here!  If it does, we need to
+                # figure out why and fix it.
+                msgs.error('CODING ERROR: Order bracketing failed!')
+            elif add_left.size == 2:
+                add_left = None
+                add_right = None
+            else:
+                add_left = add_left[1:-1]
+                add_right = add_right[1:-1]
+
+        return add_left, add_right, rmtraces
+    
     def order_refine_free_format_qa(self, cen, combined_orders, width, gap, width_fit, gap_fit,
-                                    order_cen, order_missing, ofile=None):
+                                    order_cen, order_missing, bracket=False, ofile=None):
         """
-        QA plot for order placements
+        Create the QA plot for order modeling.
+
+        Args:
+            cen (`numpy.ndarray`_):
+                Spatial centers of the detected orders.
+            combined_orders (`numpy.ndarray`_):
+                Boolean array selecting "orders" that have been flagged as
+                likely being the combination of multiple orders.
+            width (`numpy.ndarray`_):
+                Measured order spatial widths in pixels.
+            gap (`numpy.ndarray`_):
+                Measured order gaps in pixels.
+            width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+                Model of the order width as a function of the order center.
+            gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+                Model of the order gap *after* each order as a function of the order
+                center.
+            order_cen (`numpy.ndarray`_):
+                Spatial centers of all "individual" orders.
+            order_missing (`numpy.ndarray`_):
+                Boolean array selecting "individual" orders that were not traced
+                by the automated tracing and flagged as missing.  See
+                :func:`~pypeit.core.trace.find_missing_orders` and
+                :func:`~pypeit.core.trace.extrapolate_orders`.
+            bracket (:obj:`bool`, optional):
+                Flag that missing orders have been bracketed by additional
+                orders in an attempt to deal with overlap regions.
+            ofile (:obj:`str`, `Path`_, optional):
+                Path for the QA figure file.  If None, the plot is shown in a
+                matplotlib window.
         """
         w,h = plt.figaspect(1)
         fig = plt.figure(figsize=(1.5*w,1.5*h))
 
+        # Set the spatial limits based on the extent of the order centers and/or
+        # the detector spatial extent
+        sx = min(0, np.amin(order_cen))
+        ex = max(self.nspat, np.amax(order_cen))
+        buf = 1.1
+        xlim = [(sx * (1 + buf) + ex * (1 - buf))/2, (sx * (1 - buf) + ex * (1 + buf))/2]
+
+        # Sample the width and gap models
+        mod_cen = np.linspace(*xlim, 100)
+        mod_width = width_fit.eval(mod_cen)
+        mod_gap = gap_fit.eval(mod_cen)
+
+        # Plot the data and each fit
         ax = fig.add_axes([0.15, 0.35, 0.8, 0.6])
         ax.minorticks_on()
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
+        ax.set_xlim(xlim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
+
+        title = 'Order prediction model'
+        if bracket:
+            title += ' (bracketed)'
+        ax.text(0.5, 1.02, title, ha='center', va='center', transform=ax.transAxes)
 
         # TODO: Do something similar for the gaps?
         if np.any(combined_orders):
@@ -5147,15 +5219,16 @@ class EdgeTraceSet(calibframe.CalibFrame):
                        zorder=3)
         ax.scatter(order_cen[order_missing], width_fit.eval(order_cen[order_missing]),
                    marker='x', color='C0', s=80, lw=1, label='missing widths', zorder=3)
-        ax.plot(order_cen, width_fit.eval(order_cen), color='C0', alpha=0.3, lw=3, zorder=2)
+        ax.plot(mod_cen, mod_width, color='C0', alpha=0.3, lw=3, zorder=2)
         ax.scatter(cen[:-1], gap, marker='.', color='C2', s=50, lw=0, label='measured gaps',
                    zorder=3)
         ax.scatter(order_cen[order_missing], gap_fit.eval(order_cen[order_missing]),
                    marker='x', color='C2', s=80, lw=1, label='missing gaps', zorder=3)
-        ax.plot(order_cen, gap_fit.eval(order_cen), color='C2', alpha=0.3, lw=3, zorder=2)
+        ax.plot(mod_cen, mod_gap, color='C2', alpha=0.3, lw=3, zorder=2)
         ax.set_ylabel('Order Width/Gap [pix]')
         ax.legend()
 
+        # Calculate the fit residuals
         width_resid = width - width_fit.eval(cen)
         med_wr = np.median(width_resid)
         mad_wr = np.median(np.absolute(width_resid - med_wr))
@@ -5166,13 +5239,16 @@ class EdgeTraceSet(calibframe.CalibFrame):
         mad_gr = np.median(np.absolute(gap_resid - med_gr))
         gap_lim = [med_gr - 10*mad_gr, med_gr + 10*mad_gr]
 
+        # Plot the residuals
         ax = fig.add_axes([0.15, 0.25, 0.8, 0.1])
         ax.minorticks_on()
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
+        ax.set_xlim(xlim)
         ax.set_ylim(width_lim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
         if np.any(combined_orders):
             ax.scatter(cen[combined_orders], width_resid[combined_orders],
                        marker='^', color='C1', s=80, lw=0, zorder=3)
@@ -5187,8 +5263,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         ax.minorticks_on()
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
+        ax.set_xlim(xlim)
         ax.set_ylim(gap_lim)
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
         ax.scatter(cen[:-1], gap_resid, marker='.', color='C2', s=50, lw=0, zorder=3)
         ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
         ax.set_ylabel(r'$\Delta$Gap')
