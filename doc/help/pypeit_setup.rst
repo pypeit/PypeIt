@@ -11,7 +11,7 @@
     options:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
-                            A valid spectrograph identifier: bok_bc,
+                            A valid spectrograph identifier: aat_uhrf, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,
@@ -39,8 +39,11 @@
                             --extension option to set the types of files to search
                             for. (default: current working directory)
       -e EXTENSION, --extension EXTENSION
-                            File extension; compression indicators (e.g. .gz) not
-                            required. (default: .fits)
+                            File extension to use. Must include the period (e.g.,
+                            ".fits") and it must be one of the allowed extensions
+                            for this spectrograph. If None, root directory will be
+                            searched for all files with any of the allowed
+                            extensions. (default: None)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default: current
                             working directory)
