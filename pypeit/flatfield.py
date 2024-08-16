@@ -379,7 +379,7 @@ class FlatImages(calibframe.CalibFrame):
             spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
                                                       initial=initial,
                                                       slitid_img=_slitid_img,
-                                                      flexure_shift=spat_flexure)
+                                                      spat_flexure=spat_flexure)
             if finecorr:
                 spec_coo = np.where(onslit)[0] / (slits.nspec - 1)
                 illumflat[onslit] = spat_bsplines[slit_idx].eval(spat_coo[onslit], spec_coo)
@@ -1431,7 +1431,7 @@ class FlatField:
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        slitid_img=slitimg,
-                                                       flexure_shift=self.wavetilts.spat_flexure)
+                                                       spat_flexure=self.wavetilts.spat_flexure)
         # Generate the trimmed versions for fitting
         this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
         this_wave_trim = self.waveimg[this_slit_trim]
