@@ -354,9 +354,15 @@ class ProcessImagesPar(ParSet):
                                  '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
-        defaults['spat_flexure_correct'] = False
-        dtypes['spat_flexure_correct'] = bool
-        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+        defaults['spat_flexure_correct'] = 'none'
+        options['spat_flexure_correct'] = ProcessImagesPar.valid_spatial_flexure()
+        dtypes['spat_flexure_correct'] = str
+        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for spatial flexure. ' \
+                                        'Options are: {0}'.format(', '.join(options['spat_flexure_correct'])) + \
+                                        '"none" means no correction is performed. ' \
+                                        '"detector" means that a single shift is applied to all slits. ' \
+                                        '"slit" means that each slit is shifted independently.' \
+                                        '"edge" means that each slit edge is shifted independently.'
 
         defaults['spat_flexure_maxlag'] = 20
         dtypes['spat_flexure_maxlag'] = int
@@ -486,6 +492,13 @@ class ProcessImagesPar(ParSet):
         Return the valid methods for combining frames.
         """
         return ['median', 'mean' ]
+
+    @staticmethod
+    def valid_spatial_flexure():
+        """
+        Return the valid methods for combining frames.
+        """
+        return ['none', 'detector', 'slit', 'edge']
 
     @staticmethod
     def valid_saturation_handling():
