@@ -67,7 +67,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
         from pypeit.core.wavecal import autoid
-        from linetools.utils import jsonify
+        from pypeit.utils import jsonify
 
 
         chk_version = not args.try_old

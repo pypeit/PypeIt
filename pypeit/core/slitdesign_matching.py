@@ -74,7 +74,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
     for j in range(xlag.size):
         x_det_lag = x_det+xlag[j]
         join = np.ma.concatenate([x_det_lag, x_model_trim])
-        sind = np.argsort(join)
+        sind = np.argsort(join, kind='stable')
         nj = sind.size
         w1 = np.where(sind < x_det.size)
 
@@ -90,7 +90,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             offs = np.amin(np.absolute(x_det_lag[:, None] - x_model_trim[None, :]), axis=1)
 
             # use only nbest best matches
-            soffs = np.argsort(np.abs(offs))
+            soffs = np.argsort(np.abs(offs), kind='stable')
             nbest2 = nbest if nbest<x_det.size else x_det.size
             offs = offs[soffs[0:nbest2]]
 

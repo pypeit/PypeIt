@@ -253,28 +253,29 @@ class FindObjects:
             subtraction.  True = usable for sky subtraction, False = should be
             masked when sky subtracting.
         """
-        # Masking options
-        boxcar_rad_pix = None
-
+        # Instantiate the mask
         skymask = np.ones_like(self.sciImg.image, dtype=bool)
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
-        if sobjs_obj.nobj > 0:
-            for slit_idx in gdslits:
-                slit_spat = self.slits.spat_id[slit_idx]
-                qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
-                msgs.info(qa_title)
-                thismask = self.slitmask == slit_spat
-                this_sobjs = sobjs_obj.SLITID == slit_spat
-                # Boxcar mask?
-                if self.par['reduce']['skysub']['mask_by_boxcar']:
-                    boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
-                                     self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
-                # Do it
-                skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj[this_sobjs], thismask,
-                                                                   self.slits_left[:,slit_idx],
-                                                                   self.slits_right[:,slit_idx],
-                                                                   box_rad_pix=boxcar_rad_pix,
-                                                                   trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
+        if sobjs_obj.nobj == 0:
+            # No objects found, so entire image contains sky
+            return skymask
+
+        # Build the mask for each slit
+        boxcar_rad_pix = None
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
+        for slit_idx in gdslits:
+            slit_spat = self.slits.spat_id[slit_idx]
+            msgs.info(f'Generating skymask for slit # {slit_spat}')
+            thismask = self.slitmask == slit_spat
+            this_sobjs = sobjs_obj.SLITID == slit_spat
+            # Boxcar mask?
+            if self.par['reduce']['skysub']['mask_by_boxcar']:
+                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
+                                    self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
+            # Do it
+            skymask[thismask] = findobj_skymask.create_skymask(
+                                    sobjs_obj[this_sobjs], thismask, self.slits_left[:,slit_idx],
+                                    self.slits_right[:,slit_idx], box_rad_pix=boxcar_rad_pix,
+                                    trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
 
@@ -592,6 +593,7 @@ class FindObjects:
                 pos_mask=not self.bkg_redux and not objs_not_masked,
                 max_mask_frac=self.par['reduce']['skysub']['max_mask_frac'],
                 show_fit=show_fit)
+
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
                 msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_spat))
@@ -972,22 +974,6 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
     def __init__(self, sciImg, slits, spectrograph, par, objtype, **kwargs):
         super().__init__(sciImg, slits, spectrograph, par, objtype, **kwargs)
 
-    def initialize_slits(self, slits, initial=True):
-        """
-        Gather all the :class:`~pypeit.slittrace.SlitTraceSet` attributes that
-        we'll use here in :class:`FindObjects`. Identical to the parent but the
-        slits are not trimmed.
-
-        Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
-                SlitTraceSet object containing the slit boundaries that will be
-                initialized.
-            initial (:obj:`bool`, optional):
-                Use the initial definition of the slits. If False,
-                tweaked slits are used.
-        """
-        super().initialize_slits(slits, initial=True)
-
     def global_skysub(self, skymask=None, bkg_redux_sciimg=None, update_crmask=True,
                       previous_sky=None, show_fit=False, show=False, show_objs=False, objs_not_masked=False,
                       reinit_bpm: bool = True):
@@ -1074,7 +1060,7 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
 
         # Use the FWHM map determined from the arc lines to convert the science frame
         # to have the same effective spectral resolution.
-        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, initial=True, spat_flexure=self.spat_flexure_shift)
+        fwhm_map = self.wv_calib.build_fwhmimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
         thismask = thismask & (fwhm_map != 0.0)
         # Need to include S/N for deconvolution
         sciimg = skysub.convolve_skymodel(self.sciImg.image, fwhm_map, thismask)
@@ -1083,8 +1069,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, initial=True, flexure=self.spat_flexure_shift)
+        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
