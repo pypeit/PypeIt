@@ -867,7 +867,7 @@ class RawImage:
             illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
             illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
-                left, right = slits.select_edges(flexure=self.spat_flexure_shift)
+                left, right = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
