@@ -331,7 +331,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
 
         # Slitmask
-        slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
+        slitmask = spec2DObj.slits.slit_img(spat_flexure=spec2DObj.sci_spat_flexure,
                                             exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
@@ -661,7 +661,7 @@ class AllSpec2DObj:
                             msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
                         # Generate the slit "mask"
                         slitmask = _allspecobj[det].slits.slit_img(
-                            flexure=_allspecobj[det].sci_spat_flexure)
+                            spat_flexure=_allspecobj[det].sci_spat_flexure)
                         # Save the new one in a copy
                         new_Spec2DObj = deepcopy(self[det])
                         # Replace with the old

@@ -927,7 +927,7 @@ class PypeIt:
         # NOTE : Do not include spatial flexure here!
         #        It is included when generating the mask in the return statement below
         slits_left, slits_right, _ \
-            = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
+            = self.caliBrate.slits.select_edges(initial=initial_slits, spat_flexure=None)
 
         maxslitlength = np.max(slits_right-slits_left)
         # Get the regions

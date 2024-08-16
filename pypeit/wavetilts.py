@@ -206,8 +206,8 @@ class WaveTilts(calibframe.CalibFrame):
         cal_file = Path(self.calib_dir).absolute() / self.slits_filename
         if cal_file.exists():
             slits = slittrace.SlitTraceSet.from_file(cal_file, chk_version=chk_version)
-            _slitmask = slits.slit_img(initial=True, flexure=self.spat_flexure)
-            _left, _right, _mask = slits.select_edges(flexure=self.spat_flexure)
+            _slitmask = slits.slit_img(initial=True, spat_flexure=self.spat_flexure)
+            _left, _right, _mask = slits.select_edges(spat_flexure=self.spat_flexure)
             gpm = _mask == 0
             # resize
             slitmask = arc.resize_mask2arc(tilt_img_dict.image.shape, _slitmask)
@@ -332,7 +332,7 @@ class BuildWaveTilts:
         # TODO -- Tidy this up into one or two methods?
         # Load up all slits
         # TODO -- Discuss further with JFH
-        all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
+        all_left, all_right, mask = self.slits.select_edges(initial=True, spat_flexure=self.spat_flexure)  # Grabs all, initial slits
         # self.tilt_bpm = np.invert(mask == 0)
         # At this point of the reduction the only bitmask flags that may have been generated are 'USERIGNORE',
         # 'SHORTSLIT', 'BOXSLIT' and 'BADWVCALIB'. Here we use only 'USERIGNORE' and 'SHORTSLIT' to create the bpm mask
@@ -340,7 +340,7 @@ class BuildWaveTilts:
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
         # TODO -- Discuss further with JFH
-        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
+        self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
         # TODO: Should this be the bpm or *any* flag?
         gpm = self.mstilt.select_flag(flag='BPM', invert=True) if self.mstilt is not None \

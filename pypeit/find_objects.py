@@ -297,7 +297,7 @@ class FindObjects:
         # Select the edges to use
         # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
@@ -309,7 +309,7 @@ class FindObjects:
 
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
@@ -1069,8 +1069,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
+        slitmask = self.slits.slit_img(pad=0, spat_flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, spat_flexure=self.spat_flexure_shift)
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),

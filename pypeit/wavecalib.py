@@ -280,8 +280,8 @@ class WaveCalib(calibframe.CalibFrame):
         if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
             msgs.error("Spatial flexure must be None or float")
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
-        slitmask = slits.slit_img(pad=1, initial=initial, flexure=spat_flexure)
-        slits_left, slits_right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
+        slitmask = slits.slit_img(pad=1, initial=initial, spat_flexure=spat_flexure)
+        slits_left, slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
         # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
@@ -335,7 +335,7 @@ class WaveCalib(calibframe.CalibFrame):
         ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
-        slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
+        slitmask = slits.slit_img(spat_flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
         # Separate detectors for the 2D solutions?
         if self.par['ech_separate_2d']:
@@ -555,7 +555,7 @@ class BuildWaveCalib:
 
             # Load up slits
             # TODO -- Allow for flexure
-            slits_left, slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=None)  # Grabs all, init slits + flexure
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
@@ -567,7 +567,7 @@ class BuildWaveCalib:
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
-            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
+            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape

@@ -374,7 +374,7 @@ class FlatImages(calibframe.CalibFrame):
                 continue
             # Skip those without a bspline
             # DO it
-            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, flexure=spat_flexure)
+            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, spat_flexure=spat_flexure)
             onslit = _slitid_img == slits.spat_id[slit_idx]
             spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
                                                       initial=initial,
@@ -672,7 +672,7 @@ class FlatField:
         """
         msgs.info("Generating wavelength image")
         flex = self.wavetilts.spat_flexure
-        slitmask = self.slits.slit_img(initial=True, flexure=flex)
+        slitmask = self.slits.slit_img(initial=True, spat_flexure=flex)
         tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
         # Save to class attribute for inclusion in the Flat calibration frame
         self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
@@ -1421,7 +1421,7 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        left, right, msk = self.slits.select_edges(flexure=self.wavetilts.spat_flexure)
+        left, right, msk = self.slits.select_edges(spat_flexure=self.wavetilts.spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1929,8 +1929,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
     # Setup the slits
-    slitid_img = slits.slit_img(pad=0, flexure=flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, flexure=flexure)
+    slitid_img = slits.slit_img(pad=0, spat_flexure=flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, spat_flexure=flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits

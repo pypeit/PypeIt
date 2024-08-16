@@ -542,7 +542,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         decimg = np.zeros((self.nspec, self.nspat))
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
-        slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        slitid_img_init = self.slit_img(pad=0, initial=initial, spat_flexure=flexure)
         for slit_idx, spatid in enumerate(self.spat_id):
             if slit_idx not in slit_compute:
                 continue
@@ -563,7 +563,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             decimg[onslit] = world_dec.copy()
         return raimg, decimg, minmax
 
-    def select_edges(self, initial=False, flexure=None):
+    def select_edges(self, initial=False, spat_flexure=None):
         """
         Select between the initial or tweaked slit edges and allow for
         flexure correction.
@@ -578,7 +578,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             initial (:obj:`bool`, optional):
                 To use the initial edges regardless of the presence of
                 the tweaked edges, set this to True.
-            flexure (:obj:`float`, optional):
+            spat_flexure (:obj:`float`, optional):
                 If provided, offset each slit by this amount
 
         Returns:
@@ -593,15 +593,15 @@ class SlitTraceSet(calibframe.CalibFrame):
             left, right = self.left_init, self.right_init
 
         # Add in spatial flexure?
-        if flexure:
-            self.left_flexure = left + flexure
-            self.right_flexure = right + flexure
+        if spat_flexure is not None:
+            self.left_flexure = left + spat_flexure[:,0]
+            self.right_flexure = right + spat_flexure[:,1]
             left, right = self.left_flexure, self.right_flexure
 
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
+    def slit_img(self, pad=None, slitidx=None, initial=False, spat_flexure=None, exclude_flag=None,
                  use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
@@ -651,7 +651,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
-            flexure (:obj:`float`, optional):
+            spat_flexure (:obj:`float`, optional):
                 If provided, offset each slit by this amount
                 Done in select_edges()
 
@@ -673,7 +673,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         spat = np.arange(self.nspat)
         spec = np.arange(self.nspec)
 
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, spat_flexure=spat_flexure)
 
         # Choose the slits to use
         if slitidx is not None:
@@ -759,7 +759,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 msgs.error('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift)
+        left, right, _ = self.select_edges(initial=initial, spat_flexure=flexure_shift)
 
         # Slit width
         slitwidth = right - left
@@ -806,7 +806,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             spatial coordinates.
         """
         # TODO -- Confirm it makes sense to pass in flexure
-        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, spat_flexure=flexure)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod
@@ -880,9 +880,9 @@ class SlitTraceSet(calibframe.CalibFrame):
             cut_sobjs = sobjs
 
         # get slits edges init; includes flexure
-        left_init, _, _ = self.select_edges(initial=True, flexure=spat_flexure)
+        left_init, _, _ = self.select_edges(initial=True, spat_flexure=spat_flexure)
         # get slits edges tweaked; includes flexure
-        left_tweak, right_tweak, _ = self.select_edges(initial=False, flexure=spat_flexure)
+        left_tweak, right_tweak, _ = self.select_edges(initial=False, spat_flexure=spat_flexure)
 
         # midpoint in the spectral direction
         specmid = left_init[:,0].size//2
@@ -1029,7 +1029,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                   'Matching tolerance includes user-provided tolerance, slit tracing uncertainties and object size.')
 
         # get slits edges init
-        left_init, right_init, _ = self.select_edges(initial=True, flexure=spat_flexure)  # includes flexure
+        left_init, right_init, _ = self.select_edges(initial=True, spat_flexure=spat_flexure)  # includes flexure
 
         # midpoint in the spectral direction
         specmid = left_init[:, 0].size // 2
@@ -1290,7 +1290,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         align_maskdef_ids = obj_maskdef_id[flag_align == 1]
 
         # get slits edges init
-        left_init, _, _ = self.select_edges(initial=True, flexure=spat_flexure)  # includes flexure
+        left_init, _, _ = self.select_edges(initial=True, spat_flexure=spat_flexure)  # includes flexure
         # midpoint in the spectral direction
         specmid = left_init[:, 0].size // 2
 

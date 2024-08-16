@@ -42,7 +42,7 @@ from pypeit import wavemodel
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
+def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -54,14 +54,27 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     Args:
         sciimg (`numpy.ndarray`_):
+            Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        method (:obj:`str`, optional):
+            Method to use to calculate the spatial flexure shift. Options
+            are 'detector' (default), 'slit', and 'edge'. The 'detector'
+            method calculates the shift for all slits simultaneously, the
+            'slit' method calculates the shift for each slit independently,
+            and the 'edge' method calculates the shift for each slit edge
+            independently.
         maxlag (:obj:`int`, optional):
             Maximum flexure searched for
+        debug (:obj:`bool`, optional):
+            Run in debug mode
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
 
     """
+    # TODO :: Need to implement different methods
+
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
 
@@ -109,7 +122,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     if debug:
         # Now translate the slits in the tslits_dict
-        all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
+        all_left_flexure, all_right_flexure, mask = slits.select_edges(spat_flexure=lag_max[0])
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
