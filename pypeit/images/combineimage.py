@@ -198,14 +198,14 @@ class CombineImage:
         if self.par['scale_to_mean']:
             msgs.info("Scaling images to have the same mean before combining")
             # calculate the mean of the images
-            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nfiles, dtype=float)/self.nfiles,
+            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
                                                                   [img_stack],
                                                                   [rn2img_stack],
                                                                   # var_list is added because it is
                                                                   # required by the function but not used
-                                                                  gpm_stack, sigma_clip=sigma_clip,
+                                                                  gpm_stack, sigma_clip=self.par['clip'],
                                                                   sigma_clip_stack=img_stack,
-                                                                  sigrej=sigrej, maxiters=maxiters)
+                                                                  sigrej=self.par['comb_sigrej'], maxiters=maxiters)
 
             # scale factor
             # TODO: Chose the median over the whole frame to avoid outliers.  Is this the right choice?
