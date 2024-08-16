@@ -2562,7 +2562,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     # data shape
     nsetups=len(waves_arr_setup)
 
-    msgs.info(f'Number of setups is: {nsetups}')
+    msgs.info(f'Number of setups to cycle through is: {nsetups}')
 
     if setup_ids is None:
         setup_ids = list(string.ascii_uppercase[:nsetups])
@@ -2728,10 +2728,11 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     ivars_scale_arr_setup = utils.setup_list_to_arr_setup(ivars_scale_setup_list, norders, nexps)
     out_gpms_arr_setup = utils.setup_list_to_arr_setup(out_gpms_setup_list, norders, nexps)
 
-    msgs.info(f'nexps = {nexps}')
-    msgs.info(f'norders = {norders}')
-    msgs.info(f'Shape of setups is {np.shape(waves_setup_list[0])}')
-    msgs.info(f'median of first two orders of wave setup list is {np.median(waves_setup_list[0][0])} and {np.median(waves_setup_list[0][1])}')
+    #debugging for order stacks
+    #msgs.info(f'nexps = {nexps}')
+    #msgs.info(f'norders = {norders}')
+    #msgs.info(f'Shape of setups is {np.shape(waves_setup_list[0])}')
+    #msgs.info(f'median of first two orders of wave setup list is {np.median(waves_setup_list[0][0])} and {np.median(waves_setup_list[0][1])}')
     
 #    msgs.info(f'Shape of setups is {np.shape(waves_setup_list)}')
 
@@ -2757,8 +2758,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             #wave_grid_mid_ord = wave_grid_mid_ord[1:-1]
             #wave_grid_ord = wave_grid_ord[1:-1]
             # if the wavelength grid is non-monotonic, resample onto a loglam grid
-            msgs.info(f'wave_grid_mid_ord has the shape {np.shape(wave_grid_mid_ord)}')
-            msgs.info(f'wave_grid_mid_ord has values: {wave_grid_mid_ord}')
             if np.any(wave_grid_diff_ord < 0):
                 msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
                 #_, dloglam_data, _, _ = wvutils.get_sampling(wave_grid_ord)
@@ -2771,16 +2770,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin. This matches
                 # the convention in wavegrid above
                 wave_grid_mid_ord = wave_grid_mid_ord[:-1]
-                msgs.info(f'new wave_grid_mid_ord has shape {np.shape(wave_grid_mid_ord)}')
-            #msgs.info(f'Shape of setups is {np.shape(waves_setup_list)}')
-            #plt.figure()
-            #plt.plot(np.arange(len(wave_grid_ord)), wave_grid_ord, 'o-')
-            #plt.plot(np.arange(len(wave_grid_diff_ord)), wave_grid_diff_ord, 'o-')
-            #plt.show()
-            #plt.figure()
-            #plt.plot(np.arange(len(wave_grid_ord)), wave_grid_ord, 'o-')
-            #plt.plot(np.arange(len(wave_grid_diff_ord)), wave_grid_diff_ord, 'o-')
-            #plt.show()
             wave_order_stack_iord, flux_order_stack_iord, ivar_order_stack_iord, gpm_order_stack_iord, \
                 nused_order_stack_iord, outgpms_order_stack_iord = spec_reject_comb(
                 wave_grid_ord, wave_grid_mid_ord, waves_setup_list[isetup][ind_start:ind_end],
