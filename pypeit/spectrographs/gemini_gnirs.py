@@ -24,6 +24,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
+    allowed_extensions = ['.fits', '.fits.bz2']
 
     def __init__(self):
         super().__init__()
@@ -587,7 +588,6 @@ class GNIRSIFUSpectrograph(GeminiGNIRSSpectrograph):
     #   * Need to store a wavelength solution for different grating options (Note, the Holy Grail algorithm works pretty well, most of the time)
     name = 'gemini_gnirs_ifu'
     pypeline = 'SlicerIFU'
-    allowed_extensions = ['.fits', '.fits.bz2']
 
     def init_meta(self):
         super().init_meta()
