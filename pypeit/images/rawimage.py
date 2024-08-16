@@ -111,8 +111,12 @@ class RawImage:
         datasec_img (`numpy.ndarray`_):
             Image identifying which amplifier was used to read each section of
             the *processed* image.
-        spat_flexure_shift (:obj:`float`):
-            The spatial flexure shift in pixels, if calculated
+        spat_flexure_shift (`numpy.ndarray`_):
+            The spatial flexure shift in pixels, if calculated. This is a 2D array
+            of shape (nslits, 2) where spat_flexure_shift[i,0] is the shift in the
+            spatial direction for the left edge of slit i and spat_flexure_shift[i,1]
+            is the shift in the spatial direction for the right edge of slit i.
+
     """
     def __init__(self, ifile, spectrograph, det):
 
@@ -237,7 +241,7 @@ class RawImage:
         """
         if self.par is None:
             return False
-        return self.par['spat_flexure_correct'] or (self.use_flat and self.par['use_illumflat'])
+        return (self.par['spat_flexure_correct'] != "none") or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -542,7 +546,7 @@ class RawImage:
             msgs.error('No dark available for dark subtraction!')
         if self.par['subtract_scattlight'] and scattlight is None:
             msgs.error('Scattered light subtraction requested, but scattered light model not provided.')
-        if self.par['spat_flexure_correct'] and slits is None:
+        if (self.par['spat_flexure_correct'] != "none") and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
             msgs.error('Flat-field corrections requested but no flat-field images generated '
@@ -667,8 +671,9 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
-                                    if self.par['spat_flexure_correct'] else None
+        self.spat_flexure_shift = None if self.par['spat_flexure_correct'] == "none" else \
+            self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
+                                                                 maxlag=self.par['spat_flexure_maxlag'])
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -761,7 +766,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
+    def spatial_flexure_shift(self, slits, force=False, method="detector", maxlag=20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -774,11 +779,18 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            method (:obj:`str`, optional):
+                Method to use to calculate the spatial flexure shift. Options
+                are 'detector' (default), 'slit', and 'edge'. The 'detector'
+                method calculates the shift for all slits simultaneously, the
+                'slit' method calculates the shift for each slit independently,
+                and the 'edge' method calculates the shift for each slit edge
+                independently.
             maxlag (:obj:'float', optional):
                 Maximum range of lag values over which to compute the CCF.
 
         Return:
-            float: The calculated flexure correction
+            `numpy.ndarray`_: The calculated flexure correction for the edge of each slit shape is (nslits, 2)
 
         """
         step = inspect.stack()[0][3]
@@ -789,7 +801,7 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, maxlag = maxlag)
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
