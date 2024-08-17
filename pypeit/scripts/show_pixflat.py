@@ -13,11 +13,8 @@ class ShowPixFlat(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
         parser = super().get_parser(description='Show an archived pixel flat located in pypeit/data/static_calibs/',
                                     width=width)
-        parser.add_argument('spectrograph', type=str,
-                            help='A valid spectrograph identifier: {0}'.format(', '.join(available_spectrographs)))
         parser.add_argument("file", type=str, help="Pixel Flat filename, e.g. pixelflat_keck_lris_blue.fits.gz")
         parser.add_argument('--det', default=None, type=int, nargs='+',
                             help='Detector(s) to show.  If more than one, list the detectors as, e.g. --det 1 2 '
@@ -27,24 +24,19 @@ class ShowPixFlat(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
         import numpy as np
-        from pypeit import data
         from pypeit import msgs
         from pypeit import io
         from pypeit.display import display
+        from pypeit import dataPaths
 
         # check if the file exists
-        file = data.Paths.static_calibs / args.spectrograph / args.file
-        _file = file
-        if not file.is_file():
-            # check if it is cached
-            cached = data.search_cache(args.file)
-            if len(cached) != 0:
-                _file = cached[0]
-            else:
-                msgs.error(f"File {file} not found")
+        file_path = dataPaths.pixelflat.get_file_path(args.file, return_none=True)
+        if file_path is None:
+            msgs.error(f'Provided pixelflat file, {args.file} not found. It is not a direct path, '
+                       f'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
         # Load the image
-        with io.fits_open(_file) as hdu:
+        with io.fits_open(file_path) as hdu:
             # get all the available detectors in the file
             file_dets = [int(h.name.split('-')[0].split('DET')[1]) for h in hdu[1:]]
             # if detectors are provided, check if they are in the file

@@ -991,7 +991,7 @@ class FlatField:
 
             # Create the tilts image for this slit
             if self.slitless:
-                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[0], 1)).T
+                tilts = np.tile(np.arange(rawflat.shape[0]) / rawflat.shape[0], (rawflat.shape[1], 1)).T
             else:
                 # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
@@ -1699,22 +1699,26 @@ class SlitlessFlat:
     Args:
         fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
                 The class holding the metadata for all the frames.
-
-
-    Attributes:
-
-
+        slitless_rows (`numpy.ndarray`_):
+                Boolean array selecting the rows in the fitstbl that
+                correspond to the slitless frames.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+                The spectrograph object.
+        par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+            Parameter set defining optional parameters of PypeIt's algorithms
+            for Calibrations
+        qa_path (`Path`_):
+            Path for the QA diagnostics.
 
     """
 
-    def __init__(self, fitstbl, slitless_rows, spectrograph, par, pixel_flat_file=None, qa_path=None):
+    def __init__(self, fitstbl, slitless_rows, spectrograph, par, qa_path=None):
 
         self.fitstbl = fitstbl
         # Boolean array selecting the rows in the fitstbl that correspond to the slitless frames.
         self.slitless_rows = slitless_rows
         self.spectrograph = spectrograph
         self.par = par
-        self.pixel_flat_file = pixel_flat_file
         self.qa_path = qa_path
 
     def slitless_pixflat_fname(self):
@@ -1739,7 +1743,7 @@ class SlitlessFlat:
             f"_d{self.fitstbl[self.slitless_rows[0]]['dichroic']}"
         binning = self.fitstbl[self.slitless_rows[0]]['binning'].replace(',', 'x')
         # file name
-        return f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits.gz'
+        return f'pixelflat_{spec_name}{dispname}{dichroic}_{binning}_{date}.fits'
 
     def make_slitless_pixflat(self, msbias=None, msdark=None, calib_dir=None, write_qa=False, show=False):
         """
@@ -1750,28 +1754,41 @@ class SlitlessFlat:
         Since the slitless pixel flat images are saved to disc, this approach helps with the I/O
         This is a method is used in `~pypeit.calibrations.get_flats()`.
 
-        Note: pixel_flat_file is updated in this method.
         Note: par['flatfield']['pixelflat_file'] is updated in this method.
+
+        Args:
+            msbias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
+                Bias image for bias subtraction; passed to
+                :func:`~pypeit.images.buildimage.buildimage_fromlist()`
+            msdark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
+                Dark-current image; passed to
+                :func:`~pypeit.images.buildimage.buildimage_fromlist()`
+            calib_dir (`Path`_):
+                Path for the processed calibration files.
+            write_qa (:obj:`bool`, optional):
+                Write QA plots to disk?
+            show (:obj:`bool`, optional):
+                Show the diagnostic plots?
+
+        Returns:
+            :obj:`str`: The name of the slitless pixel flat file that was generated.
 
         """
 
         # First thing first, check if the user has provided slitless_pixflat frames
         if len(self.slitless_rows) == 0:
-            return
+            # return unchanged self.par['flatfield']['pixelflat_file']
+            return self.par['flatfield']['pixelflat_file']
 
         # all detectors of this spectrograph
         _detectors = np.array(self.spectrograph.select_detectors())
 
         # Check if a user-provided slitless pixelflat already exists for the current detectors
-        if self.pixel_flat_file is not None:
-            _pixel_flat_file = self.pixel_flat_file
-            # check if it was cached
-            if not self.pixel_flat_file.exists():
-                cached = cache.search_cache(self.pixel_flat_file.name)
-                if len(cached) != 0:
-                    _pixel_flat_file = cached[0]
+        if self.par['flatfield']['pixelflat_file'] is not None:
+            _pixel_flat_file = dataPaths.pixelflat.get_file_path(self.par['flatfield']['pixelflat_file'],
+                                                                 return_none=True)
 
-            if _pixel_flat_file.exists():
+            if _pixel_flat_file is not None:
                 # get detector names
                 detnames = np.array([self.spectrograph.get_det_name(_det) for _det in _detectors])
                 # open the file
@@ -1782,9 +1799,10 @@ class SlitlessFlat:
                     in_file = np.array([d in file_detnames for d in detnames])
                     # if all detectors are in the file, return
                     if np.all(in_file):
-                        msgs.info(f'Both slitless_pixflat frames and user-defined file found. '
-                                  f'The user-defined file will be used: {self.pixel_flat_file.name}')
-                        return
+                        msgs.info(f"Both slitless_pixflat frames and user-defined file found. "
+                                  f"The user-defined file will be used: {self.par['flatfield']['pixelflat_file']}")
+                        # return unchanged self.par['flatfield']['pixelflat_file']
+                        return self.par['flatfield']['pixelflat_file']
                     else:
                         # get the detectors that are not in the file
                         _detectors = _detectors[np.logical_not(in_file)]
@@ -1799,7 +1817,8 @@ class SlitlessFlat:
         for _det in _detectors:
             # Parse the raw slitless pixelflat frames. Note that this is spectrograph dependent.
             # If the method does not exist in the specific spectrograph class, nothing will happen
-            this_raw_idx = self.spectrograph.parse_raw_files(self.fitstbl[self.slitless_rows], det=_det, ftype='slitless_pixflat')
+            this_raw_idx = self.spectrograph.parse_raw_files(self.fitstbl[self.slitless_rows], det=_det,
+                                                             ftype='slitless_pixflat')
             if len(this_raw_idx) == 0:
                 msgs.warn(f'No raw slitless_pixflat frames found for {self.spectrograph.get_det_name(_det)}. '
                           f'Continuing...')
@@ -1858,23 +1877,21 @@ class SlitlessFlat:
 
         if len(detname_list) > 0:
             # get the pixel flat file name
-            if self.pixel_flat_file is not None and _pixel_flat_file.exists():
-                fname = self.pixel_flat_file.name
+            if self.par['flatfield']['pixelflat_file'] is not None and _pixel_flat_file is not None:
+                fname = self.par['flatfield']['pixelflat_file']
             else:
                 fname = self.slitless_pixflat_fname()
-                # file will be saved in the working directory, but also cached in the data/static_calibs folder
-                # therefore we update pixel_flat_file with the new file located in the cache
-                self.pixel_flat_file = dataPaths.static_calibs.path / self.spectrograph.name / fname
-                # we also update self.par['flatfield']['pixelflat_file'] to the new file,
-                # so that it can be used for the other files in the same run
-                self.par['flatfield']['pixelflat_file'] = self.pixel_flat_file.name
+                # file will be saved in the reduction directory, but also cached in the data/pixelflats folder
+                # therefore we update self.par['flatfield']['pixelflat_file'] to the new file,
+                # so that it can be used for the rest of the reduction and for the other files in the same run
+                self.par['flatfield']['pixelflat_file'] = fname
 
             # Save the result
             write_pixflat_to_fits(pixflat_norm_list, detname_list, self.spectrograph.name,
                                   calib_dir.parent if calib_dir is not None else Path('.').absolute(),
                                   fname, to_cache=True)
 
-        return self.pixel_flat_file, self.par['flatfield']['pixelflat_file']
+        return self.par['flatfield']['pixelflat_file']
 
 
 def spatillum_finecorr_qa(normed, finecorr, left, right, ypos, cut, outfile=None, title=None, half_slen=50):
@@ -2327,7 +2344,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
     """
     Write the pixel-to-pixel flat-field images to a FITS file.
     The FITS file will have an extension for each detector (never a mosaic).
-    The SlitlessFlat.load_pixflat method read this file and transform it into a mosaic if needed.
+    The `load_pixflat()` method read this file and transform it into a mosaic if needed.
     This image is generally used as a user-provided pixel flat-field image and ingested
     in the reduction using the `pixelflat_file` parameter in the PypeIt file.
 
@@ -2343,7 +2360,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
         pixelflat_name (:obj:`str`):
             Name of the output file to be written.
         to_cache (:obj:`bool`, optional):
-            If True, the file will be written to the cache directory pypeit/data/static_calibs.
+            If True, the file will be written to the cache directory pypeit/data/pixflats.
 
     """
 
@@ -2354,6 +2371,7 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
         msgs.error("The number of detectors does not match the number of pixelflat_norm arrays. "
                    "The pixelflat file cannot be written.")
 
+    # local output (reduction directory)
     pixelflat_file = outdir / pixelflat_name
 
     # Check if the file already exists
@@ -2410,20 +2428,18 @@ def write_pixflat_to_fits(pixflat_norm_list, detname_list, spec_name, outdir, pi
                f"     pixelflat_file = {pixelflat_name}{msgs.newline()}{msgs.newline()}{msgs.newline()}"  \
                f"Please consider sharing your Pixel Flat file with the PypeIt Developers.{msgs.newline()}"  \
 
-    cache_path = dataPaths.static_calibs.path / spec_name
-    if to_cache:
-        # Check if the directory exists
-        if not cache_path.is_dir():
-            cache_path.mkdir(parents=True)
 
-        cache.write_file_to_cache(pixelflat_file, pixelflat_name, f"static_calibs/{spec_name}")
+    if to_cache:
+        # NOTE that the file saved in the cache is gzipped, while the one saved in the outdir is not
+        # This prevents `dataPaths.pixelflat.get_file_path()` from returning the file saved in the outdir
+        cache.write_file_to_cache(pixelflat_file, pixelflat_name+'.gz', f"pixelflats")
         msgs.info(f"The slitless Pixel Flat file has also been saved to the PypeIt cache directory {msgs.newline()}"
-                  f"{str(cache_path)} {msgs.newline()}"
+                  f"{str(dataPaths.pixelflat)} {msgs.newline()}"
                   f"It will be automatically used in this run. "
                   f"If you want to use this file in future runs, {add_msgs}")
     else:
         msgs.info(f"To use this file, move it to the PypeIt data directory {msgs.newline()}"
-                  f"{str(cache_path)} {msgs.newline()} and {add_msgs}")
+                  f"{str(dataPaths.pixelflat)} {msgs.newline()} and {add_msgs}")
 
 
 def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None, chk_version=False):
@@ -2431,23 +2447,37 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
     Load a pixel flat from a file and add it to the flatimages object.
     The pixel flat file has one detector per extension, even in the case of a mosaic.
     Therefore, if this is a mosaic reduction, this script will construct a pixel flat
-    mosaic. self.msarc needs to be defined, since the mosaic parameters are pulled from it.
+    mosaic. The Edges file needs to exist in the Calibration Folder, since the mosaic
+    parameters are pulled from it.
     This is used in `~pypeit.calibrations.get_flats()`.
 
+    Args:
+        pixel_flat_file (:obj:`str`):
+            Name of the pixel flat file.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph object.
+        det (:obj:`int`, :obj:`tuple`):
+            The single detector or set of detectors in a mosaic to process.
+        flatimages (:class:`~pypeit.flatfield.FlatImages`):
+            The flat field images object.
+        calib_dir (:obj:`str`, optional):
+            The path to the calibration directory.
+        chk_version (:obj:`bool`, optional):
+            Check the version of the file.
+
+    Returns:
+        :class:`~pypeit.flatfield.FlatImages`: The flat images object with the pixel flat added.
 
     """
     # Check if the pixel flat file exists
     if pixel_flat_file is None:
         msgs.error('No pixel flat file defined. Cannot load the pixel flat!')
 
-    _pixel_flat_file = pixel_flat_file
-    if not pixel_flat_file.exists():
-        # check if the file has been cached in the data/static_calibs folder
-        cached = cache.search_cache(pixel_flat_file.name)
-        if len(cached) == 0:
-            msgs.error(f'Pixel flat file: {pixel_flat_file.name} not found. Cannot load the pixel flat!')
-        else:
-            _pixel_flat_file = cached[0]
+    # get the path
+    _pixel_flat_file = dataPaths.pixelflat.get_file_path(pixel_flat_file, return_none=True)
+    if _pixel_flat_file is None:
+        msgs.error(f'Cannot load the pixel flat file, {pixel_flat_file}. It is not a direct path, '
+                   f'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
     # If this is a mosaic, we need to construct the pixel flat mosaic
     if isinstance(det, tuple):
@@ -2474,7 +2504,7 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
             # check if all detectors required for the mosaic are in the list
             if not np.all(np.in1d(list(det), file_dets)):
                 msgs.error(f'Not all detectors in the mosaic are in the pixel flat file: '
-                           f'{pixel_flat_file.name}. Cannot load the pixel flat!')
+                           f'{pixel_flat_file}. Cannot load the pixel flat!')
 
             # get the pixel flat images of only the detectors in the mosaic
             pixflat_images = np.concatenate([hdu[f'DET{d:02d}-PIXELFLAT_NORM'].data[None,:,:] for d in det])
@@ -2484,7 +2514,7 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
             if pixflat_msc.shape != traceimg.image.shape:
                 msgs.error('The constructed pixel flat mosaic does not have the correct shape. '
                            'Cannot load this pixel flat as a mosaic!')
-            msgs.info(f'Using pixelflat file: {pixel_flat_file.name} '
+            msgs.info(f'Using pixelflat file: {pixel_flat_file} '
                       f'for {spectrograph.get_det_name(det)}.')
             nrm_image = FlatImages(pixelflat_norm=pixflat_msc)
 
@@ -2501,11 +2531,12 @@ def load_pixflat(pixel_flat_file, spectrograph, det, flatimages, calib_dir=None,
                 # get the index of the current detector
                 idx = file_detnames.index(detname)
                 # get the pixel flat image
-                msgs.info(f'Using pixelflat file: {pixel_flat_file.name} for {detname}.')
+                msgs.info(f'Using pixelflat file: {pixel_flat_file} for {detname}.')
                 nrm_image = FlatImages(pixelflat_norm=hdu[idx].data)
             else:
                 msgs.error(f'{detname} not found in the pixel flat file: '
-                           f'{pixel_flat_file.name}. Cannot load the pixel flat!')
+                           f'{pixel_flat_file}. Cannot load the pixel flat!')
                 nrm_image = None
 
     return merge(flatimages, nrm_image)
+

@@ -74,7 +74,6 @@ from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit import msgs
 from pypeit import dataPaths
-from pypeit import cache
 
 
 def tuple_force(par):
@@ -841,14 +840,12 @@ class FlatFieldPar(ParSet):
 
         # Check the frame exists
         # only the file name is provided, so we need to check if the file exists
-        # in the right place (data/static_calibs/<spectrograph_name>/)
-        find_it = list(dataPaths.static_calibs.glob(f'*/{self.data["pixelflat_file"]}'))
-        if len(find_it) == 0:
-            # check if it is cached
-            cached = cache.search_cache(self.data['pixelflat_file'])
-            if len(cached) == 0:
-                raise ValueError(f'Provided pixelflat file: {self.data["pixelflat_file"]} not found '
-                                 f'in {str(dataPaths.static_calibs.path)}/<spectrograph_name>/ not in the cache')
+        # in the right place (data/pixelflats)
+        file_path = dataPaths.pixelflat.get_file_path(self.data['pixelflat_file'], return_none=True)
+        if file_path is None:
+            msgs.error(
+                f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a direct path, '
+                'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
