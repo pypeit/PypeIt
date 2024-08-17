@@ -863,12 +863,6 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=
         result of griddata tilt fit
     func2d : str
         the 2d function used to fit the tilts
-    spat_shift : float, `numpy.ndarray`_, optional
-        Spatial shift to be added to image pixels before evaluation
-        If you are accounting for flexure, then you probably wish to
-        input -1*flexure_shift into this parameter. Note that this
-        should either be a float or a 1D array with two elements
-        (and both of these elements must be equal).
     spat_eval : `numpy.ndarray`_, optional
         1D array indicating how spatial pixel locations move across the
         image. If spat_eval is provided, spec_eval must also be provided.
@@ -879,6 +873,12 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=
     spec_eval : `numpy.ndarray`_, optional
         1D array indicating how spectral pixel locations move across the
         image. If spec_eval is provided, spat_eval must also be provided.
+    spat_shift : float, `numpy.ndarray`_, optional
+        Spatial shift to be added to image pixels before evaluation
+        If you are accounting for flexure, then you probably wish to
+        input -1*flexure_shift into this parameter. Note that this
+        should either be a float or a 1D array with two elements
+        (and both of these elements must be equal).
 
     Returns
     -------
