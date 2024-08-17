@@ -158,7 +158,7 @@ class Identify(scriptbase.ScriptBase):
                 else:
                     slits_inds = np.array(list(slits.strip('[]').split(",")), dtype=int)
             fits_dicts = []
-            specdata = []
+            specdata_multi = []
             wv_fits_arr = []
             lines_pix_arr = []
             lines_wav_arr = []
@@ -203,7 +203,7 @@ class Identify(scriptbase.ScriptBase):
                     return arcfitter, msarc
                 final_fit = arcfitter.get_results()
                 fits_dicts.append(arcfitter._fitdict)
-                specdata.append(arccen[:,slit_val])
+                specdata_multi.append(arccen[:,slit_val])
                 # Build here to avoid circular import
                 #  Note:  This needs to be duplicated in test_scripts.py
                 # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
@@ -268,6 +268,9 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
 
+            # convert specdata into an array, since it's currently a list
+            specdata_multi = np.array(specdata_multi)
+
         # If we just want the normal one-trace output
         else:
             arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
@@ -308,8 +311,7 @@ class Identify(scriptbase.ScriptBase):
                 waveCalib = None
 
             fits_dicts = None
-            specdata = None
-            slits = None 
+            specdata_multi = None
             lines_pix_arr = None
             lines_wav_arr = None
             lines_fit_ord = None 
@@ -323,7 +325,7 @@ class Identify(scriptbase.ScriptBase):
                                 rmstol=args.rmstol,
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
-                                specdata = np.array(specdata),
+                                specdata_multi = specdata_multi,
                                 slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,

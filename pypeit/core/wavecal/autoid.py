@@ -1150,7 +1150,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, slit_
         ncomb = temp_spec.size
         # Remove the continuum before adding the padding to obs_spec_i
         _, _, _, _, obs_spec_cont_sub = wvutils.arc_lines_from_spec(obs_spec_i)
-        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
+        _, _, _, _, templ_spec_cont_sub = wvutils.arc_lines_from_spec(temp_spec.reshape(-1))
         # Pad
         pad_spec = np.zeros_like(temp_spec)
         nspec = len(obs_spec_i)
