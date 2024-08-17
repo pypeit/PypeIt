@@ -1223,8 +1223,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         new_slitshift = self.slitshift + this_slitshift
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
-                                                                                              self.slitshift[slit_idx]))
+            msgs.info("Spectral flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+                                                                                                       new_slitshift[slit_idx]))
         # Save QA
         # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
         #         out of the find_objects() class.
