@@ -339,7 +339,7 @@ class Reduce:
         else:
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
         #
 
         # First pass object finding
@@ -391,7 +391,7 @@ class Reduce:
         else:
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")

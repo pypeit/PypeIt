@@ -123,7 +123,7 @@ class WaveTilts(calibframe.CalibFrame):
             msgs.error('Your tilt solutions are out of sync with your slits.  Remove calibrations '
                        'and restart from scratch.')
 
-    def fit2tiltimg(self, slitmask, flexure=None):
+    def fit2tiltimg(self, slitmask, spat_flexure=None):
         """
         Generate a tilt image from the fit parameters
 
@@ -132,7 +132,7 @@ class WaveTilts(calibframe.CalibFrame):
         Args:
             slitmask (`numpy.ndarray`_):
                 ??
-            flexure (float, optional):
+            spat_flexure (float, optional):
                 Spatial shift of the tilt image onto the desired frame
                 (typically a science image)
 
@@ -142,16 +142,21 @@ class WaveTilts(calibframe.CalibFrame):
         """
         msgs.info("Generating a tilts image from the fit parameters")
 
-        _flexure = 0. if flexure is None else flexure
+        _flexure = 0. if spat_flexure is None else spat_flexure
 
         final_tilts = np.zeros_like(slitmask).astype(float)
         gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)
         # Loop
         for slit_spat in gdslit_spat:
             slit_idx = self.spatid_to_zero(slit_spat)
+            # Determine the spatial flexure to use
+            if spat_flexure is None:
+                this_spat_shift = np.zeros(2)
+            else:
+                this_spat_shift = -1*_flexure[slit_idx, :]
             # Calculate
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx]
-            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*_flexure)
+            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=this_spat_shift)
             # Fill
             thismask_science = slitmask == slit_spat
             final_tilts[thismask_science] = _tilts[thismask_science]
@@ -165,9 +170,10 @@ class WaveTilts(calibframe.CalibFrame):
 
         Args:
             spat_id (int):
+                Slit spat_id
 
         Returns:
-            int:
+            int: index of slit corresponding to spat_id
 
         """
         mtch = self.spat_id == spat_id
@@ -223,7 +229,7 @@ class WaveTilts(calibframe.CalibFrame):
             wv_calib_name = wavecalib.WaveCalib.construct_file_name(self.calib_key, calib_dir=self.calib_dir)
             if Path(wv_calib_name).absolute().exists():
                 wv_calib = wavecalib.WaveCalib.from_file(wv_calib_name, chk_version=chk_version)
-                tilts = self.fit2tiltimg(slitmask, flexure=self.spat_flexure)
+                tilts = self.fit2tiltimg(slitmask, spat_flexure=self.spat_flexure)
                 waveimg = wv_calib.build_waveimg(tilts, slits, spat_flexure=self.spat_flexure)
             else:
                 msgs.warn('Could not load Wave image to show with tilts image.')

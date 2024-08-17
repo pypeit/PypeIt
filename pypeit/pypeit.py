@@ -811,17 +811,23 @@ class PypeIt:
         spat_flexure = None
         # use the flexure correction in the "shift" column
         manual_flexure = self.fitstbl[frames[0]]['shift']
-        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
+        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none") or \
                     manual_flexure:
-            if (manual_flexure or manual_flexure == 0) and not (np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer)):
-                msgs.info(f'Implementing manual flexure of {manual_flexure}')
-                spat_flexure = np.float64(manual_flexure)
+            if (manual_flexure != self.fitstbl.MASKED_VALUE) and np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer):
+                msgs.info(f'Implementing manual spatial flexure of {manual_flexure}')
+                spat_flexure = np.full((self.caliBrate.slits.nslits, 2), np.float64(manual_flexure))
                 sciImg.spat_flexure = spat_flexure
             else:
-                msgs.info(f'Using auto-computed flexure')
+                msgs.info(f'Using auto-computed spatial flexure')
                 spat_flexure = sciImg.spat_flexure
-        msgs.info(f'Flexure being used is: {spat_flexure}')
+        # Print the flexure values
+        if np.all(spat_flexure == spat_flexure[0, 0]):
+            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]}')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(spat_flexure.shape[0]):
+                msgs.info(f'Spatial flexure for slit {self.caliBrate.slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} right={spat_flexure[slit, 1]}')
         # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)

@@ -348,15 +348,20 @@ class FlatImages(calibframe.CalibFrame):
                 zeroth order correction (finecorr=False)
             initial (bool, optional):
                 If True, the initial slit edges will be used
-            spat_flexure (float, optional):
-                Spatial flexure in pixels
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
 
         Returns:
             `numpy.ndarray`_: An image of the spatial illumination profile for all slits.
         """
         # Check spatial flexure type
-        if spat_flexure is not None and not isinstance(spat_flexure, float):
-            msgs.error('Spatial flexure must be None or float.')
+        if spat_flexure is not None and not isinstance(spat_flexure, np.ndarray):
+            msgs.error('Spatial flexure must be None or a 2D numpy array.')
         # Initialise the returned array
         illumflat = np.ones(self.shape, dtype=float)
         # Load spatial bsplines
@@ -673,7 +678,7 @@ class FlatField:
         msgs.info("Generating wavelength image")
         flex = self.wavetilts.spat_flexure
         slitmask = self.slits.slit_img(initial=True, spat_flexure=flex)
-        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=flex)
         # Save to class attribute for inclusion in the Flat calibration frame
         self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
 

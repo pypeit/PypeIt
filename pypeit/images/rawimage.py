@@ -671,9 +671,12 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = None if self.par['spat_flexure_correct'] == "none" else \
-            self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
-                                                                 maxlag=self.par['spat_flexure_maxlag'])
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
+                                                                 maxlag=self.par['spat_flexure_maxlag']) \
+            if self.par['spat_flexure_correct'] != "none" else None
+
+        # self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag=self.par['spat_flexure_maxlag']) \
+        #                             if self.par['spat_flexure_correct'] else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:

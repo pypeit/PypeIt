@@ -92,7 +92,13 @@ class FindObjects:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Objects found
-        spat_flexure_shift (:obj:`float`):
+        spat_flexure_shift (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to
+            apply to each slit. This is used to correct for spatial
+            flexure. The shape of the array should be (nslits, 2),
+            where the first column is the shift to apply to the
+            left edge of each slit and the second column is the
+            shift to apply to the right edge of each slit.
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
@@ -153,8 +159,8 @@ class FindObjects:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none"):
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
@@ -222,14 +228,15 @@ class FindObjects:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
             #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-                _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct'] != "none":
+                _spat_flexure = np.zeros((slits.nslits, 2)) if self.spat_flexure_shift is None \
+                    else self.spat_flexure_shift
                 # If they both shifted the same, there will be no reason to shift the tilts
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             msgs.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             msgs.info("Using user input tilts image")
             self.tilts = tilts
