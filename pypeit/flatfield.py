@@ -676,11 +676,12 @@ class FlatField:
         Generate an image of the wavelength of each pixel.
         """
         msgs.info("Generating wavelength image")
-        flex = self.wavetilts.spat_flexure
-        slitmask = self.slits.slit_img(initial=True, spat_flexure=flex)
-        tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=flex)
+        spat_flexure = self.wavetilts.spat_flexure
+        left, right, msk = self.slits.select_edges(spat_flexure=spat_flexure)
+        slitmask = self.slits.slit_img(initial=True, spat_flexure=spat_flexure)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, left, right, spat_flexure=spat_flexure)
         # Save to class attribute for inclusion in the Flat calibration frame
-        self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
+        self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=spat_flexure)
 
     def show(self, wcs_match=True):
         """

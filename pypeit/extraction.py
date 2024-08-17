@@ -219,7 +219,8 @@ class Extract:
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             msgs.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, self.slits_left, self.slits_right,
+                                                    spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             msgs.info("Using user input tilts image")
             self.tilts = tilts

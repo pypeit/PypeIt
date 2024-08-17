@@ -851,6 +851,55 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
+def fit2tilts_prepareSlit(img_shape, slit_left, slit_right, thismask_science, spat_flexure=None):
+    """
+    Prepare the slit for the fit2tilts function
+
+    Parameters
+    ----------
+    img_shape : :obj:`tuple`
+        Shape of the science image
+    slit_left : `numpy.ndarray`_
+        Left slit edge
+    slit_right : `numpy.ndarray`_
+        Right slit edge
+    thismask_science : `numpy.ndarray`_
+        Boolean mask for the science pixels in this slit (True = on slit)
+    spat_flexure : `numpy.ndarray`_, optional
+        Spatial flexure in pixels. This should be a two element array with the first element being the flexure at the
+        left edge of the slit and the second element being the flexure at the right edge of the slit. If None, no
+        flexure is applied.
+
+    Returns
+    -------
+    :obj:`tuple` of two `numpy.ndarray`_
+        Tuple containing the spectral and spatial coordinates of the slit, including spatial flexure.
+        These variables are to be used in the fit2tilts function.
+    """
+    # Check the spatial flexure input
+    if spat_flexure is not None and len(spat_flexure) != 2:
+        msgs.error('Spatial flexure must be a two element array')
+    _spat_flexure = np.zeros(2) if spat_flexure is None else spat_flexure
+    # Check dimensions
+    if len(slit_left) != len(slit_right):
+        msgs.error('Slit left and right edges must have the same length')
+    if len(slit_left) != img_shape[0]:
+        msgs.error('Slit edges must have the same length as the spectral dimension of the image')
+
+    # Prepare the spatial and spectral coordinates
+    nspec, nspat = img_shape
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+    # Evaluate the slit coordinates
+    _spec_eval = spec_img[thismask_science] / (nspec - 1)
+    flex_coord = (spat_img - slit_left[:, None]) / (slit_right - slit_left)[:, None]
+    # Linearly interpolate the spatial flexure over the slit coordinates
+    spat_eval = spat_img + _spat_flexure[0] + flex_coord * (_spat_flexure[1] - _spat_flexure[0])
+    _spat_eval = spat_eval[thismask_science] / (nspat - 1)
+    return _spec_eval, _spat_eval
+
+
 def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=None):
     """
     Evaluate the wavelength tilt model over the full image.
@@ -883,15 +932,9 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=
     Returns
     -------
     tilts : `numpy.ndarray`_, float
-        Image indicating how spectral pixel locations move across the
-        image. This output is used in the pipeline.
-
+        Image indicating how spectral pixel locations move across the image.
     """
-    # Init
-    # TODO :: Need to deal with the spatial flexure here...
-    #      :: One possibility is to add another function that evaluates the tilts
-    #      :: only at the slit locations. This might require that the slit edges
-    #      :: are provided as input as well (possibly to another function)?.
+    # Determine which mode to run this function
     if spec_eval is not None and spat_eval is not None:
         if spat_shift is not None:
             msgs.warn('spat_shift is ignored when spec_eval and spat_eval are provided.')

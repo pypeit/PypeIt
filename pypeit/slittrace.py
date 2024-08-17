@@ -599,8 +599,8 @@ class SlitTraceSet(calibframe.CalibFrame):
 
         # Add in spatial flexure?
         if spat_flexure is not None:
-            self.left_flexure = left + spat_flexure[:,0]
-            self.right_flexure = right + spat_flexure[:,1]
+            self.left_flexure = left + spat_flexure[:, 0]
+            self.right_flexure = right + spat_flexure[:, 1]
             left, right = self.left_flexure, self.right_flexure
 
         # Return
@@ -828,14 +828,14 @@ class SlitTraceSet(calibframe.CalibFrame):
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
-        # TODO -- Confirm it makes sense to pass in flexure
+        # TODO -- Confirm it makes sense to pass in spatial flexure
         left, right, _ = self.select_edges(initial=initial, spat_flexure=spat_flexure)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod
     def slit_spat_pos(left, right, nspat):
         r"""
-        Return a fidicial, normalized spatial coordinate for each slit.
+        Return a fiducial, normalized spatial coordinate for each slit.
 
         The fiducial coordinates are given by::
    
