@@ -270,15 +270,20 @@ class WaveCalib(calibframe.CalibFrame):
                 Properties of the slits
             initial (bool, optional):
                 If True, the initial slit locations will be used. Otherwise, the tweaked edges will be used.
-            spat_flexure (float, optional):
-                Spatial flexure correction in pixels.
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
 
         Returns:
             `numpy.ndarray`_: The spectral FWHM image.
         """
         # Check spatial flexure type
-        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
-            msgs.error("Spatial flexure must be None or float")
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
+            msgs.error("Spatial flexure must be None or numpy.ndarray.")
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
         slitmask = slits.slit_img(pad=1, initial=initial, spat_flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
@@ -303,8 +308,13 @@ class WaveCalib(calibframe.CalibFrame):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
                 Properties of the slits
-            spat_flexure (float, optional):
-                Spatial flexure correction in pixels.
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
             spec_flexure (float, `numpy.ndarray`_, optional):
                 Spectral flexure correction in pixels. If a float,
                 the same spectral flexure correction will be applied
@@ -317,8 +327,8 @@ class WaveCalib(calibframe.CalibFrame):
             `numpy.ndarray`_: The wavelength image.
         """
         # Check spatial flexure type
-        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
-            msgs.error("Spatial flexure must be None or float")
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
+            msgs.error("Spatial flexure must be None or numpy.ndarray")
         # Check spectral flexure type
         if spec_flexure is None: spec_flex = np.zeros(slits.nslits)
         elif isinstance(spec_flexure, float): spec_flex = spec_flexure*np.ones(slits.nslits)
