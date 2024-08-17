@@ -91,13 +91,12 @@ This image should largely resemble the `Raw Flat`_.
 pypeit_show_pixflat
 -------------------
 
-In addition to ``pypeit_chk_flats``, if a slitless pixel flat is generated,
-another script ``pypeit_show_pixflat`` is available to inspect it. The file must be
-stored in in ``data/static_calibs/{spectrograph_name}`` and the script is called as follows:
+In addition to ``pypeit_chk_flats``, if a custom pixel flat is provided by the user,
+another script ``pypeit_show_pixflat`` is available to inspect it. The script is called as follows:
 
 .. code-block:: console
 
-        pypeit_show_pixflat keck_lris_blue PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
+        pypeit_show_pixflat PYPEIT_LRISb_pixflat_B600_2x2_17sep2009_specflip.fits.gz
 
 The script usage can be displayed by calling the script with the ``-h`` option:
 

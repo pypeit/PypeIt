@@ -230,19 +230,22 @@ types that have ``use_pixelflat=True``.
 The slitless pixel flat is generated separately for each detector
 (even in the case of a mosaic reduction) and it is stored in a FITS
 file in the reduction directory, with one extension per detector.
-The file will also be saved to the PypeIt cache
-directory ``data/static_calibs/{spectrograph_name}`` and will be
-automatically used during the current reduction. To use this file in future reductions,
-the user should add the slitless pixel flat file name to the :ref:`pypeit_file`
-as shown in `Feed a PixelFlat`_.
+In addition to saving the file in your reduction directory,
+the constructed pixelflat is saved to the PypeIt cache (see ref:`data_installation`).
+This allows you to use the file for both current and future reductions.
+To use this file in future reductions, the user should add the slitless
+pixel flat file name to the :ref:`pypeit_file` as shown in `Feed a PixelFlat`_.
+
+If you generate your own slitless pixel flat, and you think it is generally
+applicable for your instrument, please consider sharing it with the PypeIt Developers.
+
 
 Feed a PixelFlat
 ----------------
 
 If you have generated your own pixel flat (or were provided one)
 and it is trimmed and oriented following the expected :ref:`pypeit-orientation`,
-then you may feed this into PypeIt.  The PixelFlat file should be
-stored in ``data/static_calibs/{spectrograph_name}``.
+then you may feed this into PypeIt.
 
 To use the available PixelFlat, you need to modify the :ref:`parameter_block` like, e.g.:
 

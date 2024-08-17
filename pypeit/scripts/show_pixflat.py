@@ -13,7 +13,7 @@ class ShowPixFlat(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Show an archived pixel flat located in pypeit/data/static_calibs/',
+        parser = super().get_parser(description='Show an archived Pixel Flat image in a ginga window.',
                                     width=width)
         parser.add_argument("file", type=str, help="Pixel Flat filename, e.g. pixelflat_keck_lris_blue.fits.gz")
         parser.add_argument('--det', default=None, type=int, nargs='+',

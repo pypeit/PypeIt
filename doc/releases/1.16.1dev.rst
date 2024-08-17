@@ -21,7 +21,7 @@ Functionality/Performance Improvements and Additions
 - Added the functionality to use slitless flats to create pixelflats. Note: new frametype
   `slitless_pixflat` is added to the PypeIt frametype list.
 - The created pixelflats are stored in the reduction directory and in the PypeIt cache directory
-  `data/static_calibs/{spectrograph_name}`.
+  `data/pixelflats`.
 - Added a functionality that allows, when multiple frames are combined, to scale each
   frame to have the same mean value before combining. To use this
   functionality, the new parameter ``scale_mean`` should be set to ``True``.
@@ -45,7 +45,7 @@ Script Changes
 - The `grating_corr` column is now used to select the correct grating
   correction file for each spec2d file when generating the datacube.
 - Added ``pypeit_show_pixflat`` script to inspect the (slitless) pixel flat
-  generated during the reduction and stored in ``data/static_calibs/{spectrograph_name}``
+  generated during the reduction and stored in ``data/pixelflats``.
 
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
