@@ -1599,7 +1599,7 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            self['shift'] = self.MASKED_VALUE
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
