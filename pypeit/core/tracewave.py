@@ -851,7 +851,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts(shape, coeff2, func2d, spat_shift=None):
+def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=None):
     """
     Evaluate the wavelength tilt model over the full image.
 
@@ -863,10 +863,22 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
         result of griddata tilt fit
     func2d : str
         the 2d function used to fit the tilts
-    spat_shift : float, optional
+    spat_shift : float, `numpy.ndarray`_, optional
         Spatial shift to be added to image pixels before evaluation
         If you are accounting for flexure, then you probably wish to
-        input -1*flexure_shift into this parameter.
+        input -1*flexure_shift into this parameter. Note that this
+        should either be a float or a 1D array with two elements
+        (and both of these elements must be equal).
+    spat_eval : `numpy.ndarray`_, optional
+        1D array indicating how spatial pixel locations move across the
+        image. If spat_eval is provided, spec_eval must also be provided.
+        spat_shift is ignored when spat_eval and spec_eval are provided.
+        If you wish to account for spatial flexure, then you should include
+        the spatial flexure into this parameter. spat_eval should be given
+        as spatial_coordinates + spatial_flexure.
+    spec_eval : `numpy.ndarray`_, optional
+        1D array indicating how spectral pixel locations move across the
+        image. If spec_eval is provided, spat_eval must also be provided.
 
     Returns
     -------
@@ -876,18 +888,53 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
 
     """
     # Init
-    _spat_shift = 0. if spat_shift is None else spat_shift
+    # TODO :: Need to deal with the spatial flexure here...
+    #      :: One possibility is to add another function that evaluates the tilts
+    #      :: only at the slit locations. This might require that the slit edges
+    #      :: are provided as input as well (possibly to another function)?.
+    if spec_eval is not None and spat_eval is not None:
+        if spat_shift is not None:
+            msgs.warn('spat_shift is ignored when spec_eval and spat_eval are provided.')
+        _spec_eval = spec_eval
+        _spat_eval = spat_eval
+    else:
+        # Print a warning just in case only one was provided
+        if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
+            msgs.warn('Both spec_eval and spat_eval must be provided.' + msgs.newline() +
+                      'Only one variable provided, so a new (full) grid will be generated.')
+        # Check the flexure
+        if spat_shift is None:
+            _spat_shift = 0.
+        elif isinstance(spat_shift, (int, float)):
+            _spat_shift = spat_shift
+        elif isinstance(spat_shift, np.ndarray):
+            if spat_shift.size != 2:
+                msgs.error('spat_shift must be a 2-element array.')
+            elif spat_shift[0] != spat_shift[1]:
+                msgs.error('The two elements of spat_shift must be equal.' + msgs.newline() +
+                           'To include different spatial shifts at the two ends of the slit, ' + msgs.newline() +
+                           'you must provide the variables spec_eval and spat_eval instead of spat_shift.')
+            else:
+                _spat_shift = spat_shift[0]
+        else:
+            msgs.error('spat_shift must be either None, a float, or a 1D array with two identical elements.' + msgs.newline() +
+                       'To include different spatial shifts at the two ends of the slit, ' + msgs.newline() +
+                       'you must provide the variables spec_eval and spat_eval instead of spat_shift.')
+
+        # Setup the evaluation grid
+        nspec, nspat = shape
+        xnspecmin1 = float(nspec - 1)
+        xnspatmin1 = float(nspat - 1)
+        spec_vec = np.arange(nspec)
+        spat_vec = np.arange(nspat) - _spat_shift
+        spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
+        _spec_eval = spec_img / xnspecmin1
+        _spat_eval = spat_img / xnspatmin1
+
     # Compute the tilts image
-    nspec, nspat = shape
-    xnspecmin1 = float(nspec - 1)
-    xnspatmin1 = float(nspat - 1)
-    spec_vec = np.arange(nspec)
-    spat_vec = np.arange(nspat) - _spat_shift
-    spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-    #
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                   minx2=0.0, maxx2=1.0, func=func2d)
-    tilts = pypeitFit.eval(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
+    tilts = pypeitFit.eval(_spec_eval, x2=_spat_eval)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
     return np.fmax(np.fmin(tilts, 1.2), -0.2)
