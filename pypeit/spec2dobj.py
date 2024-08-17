@@ -85,9 +85,12 @@ class Spec2DObj(datamodel.DataContainer):
                                descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
-                 'sci_spat_flexure': dict(otype=float,
-                                          descr='Shift, in spatial pixels, between this image '
-                                                'and SlitTrace'),
+                 'sci_spat_flexure': dict(otype=table.Table,
+                                      descr='Shift, in spatial pixels, between this image '
+                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
                  'sci_spec_flexure': dict(otype=table.Table,
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
@@ -244,6 +247,9 @@ class Spec2DObj(datamodel.DataContainer):
             # maskdef_designtab
             elif key == 'maskdef_designtab':
                 d.append(dict(maskdef_designtab=self.maskdef_designtab))
+            # Spatial flexure
+            elif key == 'sci_spat_flexure':
+                d.append(dict(sci_spat_flexure=self.sci_spat_flexure))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))

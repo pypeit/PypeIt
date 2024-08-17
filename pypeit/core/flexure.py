@@ -98,9 +98,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
-        return 0.
-    
+        return np.zeros((slits.nslits, 2), dtype=float)
+
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
@@ -128,7 +127,7 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         #embed(header='83 of flexure.py')
 
-    return lag_max[0]
+    return np.full((slits.nslits, 2), lag_max[0])
 
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,

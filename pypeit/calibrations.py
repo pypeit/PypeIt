@@ -1143,8 +1143,8 @@ class Calibrations:
             return self.wavetilts
 
         # Get flexure
-        _spat_flexure = self.mstilt.spat_flexure \
-            if self.par['tiltframe']['process']['spat_flexure_correct'] else None
+        _spat_flexure = self.mstilt.spat_flexure if self.par['tiltframe']['process']['spat_flexure_correct'] != "none" \
+            else None
 
         # Build
         buildwaveTilts = wavetilts.BuildWaveTilts(
