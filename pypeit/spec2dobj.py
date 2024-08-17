@@ -48,7 +48,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.1'
+    version = '1.1.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -85,7 +85,7 @@ class Spec2DObj(datamodel.DataContainer):
                                descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
-                 'sci_spat_flexure': dict(otype=table.Table,
+                 'sci_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
                                             'and SlitTrace. Shape is (nslits, 2), where'
                                             'spat_flexure[i,0] is the spatial shift of the left '
