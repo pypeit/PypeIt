@@ -45,7 +45,7 @@ class WaveTilts(calibframe.CalibFrame):
     included in the output.
 
     """
-    version = '1.2.0'
+    version = '1.2.1'
 
     # Calibration frame attributes
     calib_type = 'Tilts'
@@ -71,7 +71,12 @@ class WaveTilts(calibframe.CalibFrame):
                  'spec_order': dict(otype=np.ndarray, atype=np.integer,
                                     descr='Order for spectral fit (nslit)'),
                  'func2d': dict(otype=str, descr='Function used for the 2D fit'),
-                 'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage'),
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Spatial flexure shift, in spatial pixels, between TiltImage '
+                                            'and SlitTrace. Shape is (nslits, 2), where '
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
                  'slits_filename': dict(otype=str, descr='Path to SlitTraceSet file. This helps to '
                                                          'find the Slits calibration file when running '
                                                          'pypeit_chk_tilts()'),
@@ -151,7 +156,7 @@ class WaveTilts(calibframe.CalibFrame):
         msgs.info("Generating a tilts image from the fit parameters")
 
         # Check the optional inputs
-        _flexure = np.zeros_like((slits_left.shape[1], 2)) if spat_flexure is None else spat_flexure
+        _spat_flexure = np.zeros((slits_left.shape[1], 2)) if spat_flexure is None else spat_flexure
 
         # Setup the output image
         final_tilts = np.zeros_like(slitmask).astype(float)
@@ -166,7 +171,7 @@ class WaveTilts(calibframe.CalibFrame):
             thismask_science = (slitmask == slit_spat)
             _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slitmask.shape,
                                                                      slits_left[:, slit_idx], slits_right[:, slit_idx],
-                                                                     thismask_science, spat_flexure[slit_idx, :])
+                                                                     thismask_science, _spat_flexure[slit_idx, :])
             # Calculate the tilts
             final_tilts[thismask_science] = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,
                                                                 spec_eval=_spec_eval, spat_eval=_spat_eval)
@@ -331,7 +336,7 @@ class BuildWaveTilts:
         self.slits = slits
         self.det = det
         self.qa_path = qa_path
-        self.spat_flexure = spat_flexure
+        self.spat_flexure = spat_flexure if spat_flexure is not None else np.zeros((slits.nslits, 2), dtype=float)
 
         # Get the non-linear count level
         # TODO: This is currently hacked to deal with Mosaics
@@ -794,10 +799,8 @@ class BuildWaveTilts:
             _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slitmask_science.shape,
                                                                      slits_left[:, slit_idx], slits_right[:, slit_idx],
                                                                      thismask_science, self.spat_flexure[slit_idx, :])
-            self.tilts[thismask_science] = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out, self.par['func2d'],
+            self.final_tilts[thismask_science] = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out, self.par['func2d'],
                                                                spec_eval=_spec_eval, spat_eval=_spat_eval)
-            # Save to final image
-            self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
         if show:
             viewer, ch = display.show_image(self.mstilt.image * (self.slitmask > -1), chname='tilts')

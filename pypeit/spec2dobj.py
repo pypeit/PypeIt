@@ -72,8 +72,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'tilts': dict(otype=np.ndarray, atype=np.floating,
                                descr='2D tilts image (float64)'),
                  'scaleimg': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='2D multiplicative scale image [or a single scalar as an array] that has been applied to '
-                                        'the science image (float32)'),
+                                  descr='2D multiplicative scale image [or a single scalar as an array] '
+                                        'that has been applied to the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
                  'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
@@ -87,13 +87,13 @@ class Spec2DObj(datamodel.DataContainer):
                                            descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'and SlitTrace. Shape is (nslits, 2), where '
                                             'spat_flexure[i,0] is the spatial shift of the left '
                                             'edge of slit i and spat_flexure[i,1] is the spatial '
                                             'shift of the right edge of slit i.'),
                  'sci_spec_flexure': dict(otype=table.Table,
-                                          descr='Global shift of the spectrum to correct for spectral'
-                                                'flexure (pixels). This is based on the sky spectrum at'
+                                          descr='Global shift of the spectrum to correct for spectral '
+                                                'flexure (pixels). This is based on the sky spectrum at '
                                                 'the center of each slit'),
                  'vel_type': dict(otype=str, descr='Type of reference frame correction (if any). '
                                                    'Options are listed in the routine: '
