@@ -1108,11 +1108,12 @@ def lst_to_array(lst, mask=None):
     # Otherwise, we have to set the array type to object
     return np.array(lst, dtype=object)[_mask]
 
-    # TODO: The dtype="object" is needed for the case where one element of lst
-    # is not a list but None.  This would prevent the error "ValueError: setting
-    # an array element with a sequence. The requested array has an inhomogeneous
-    # shape after 1 dimensions..." However, this is may introduce other issues,
-    # where an array of objects creates problems in other parts of the code.  I
-    # am using this workaround. Any suggestions/ideas?
+    # NOTE: The dtype="object" is needed for the case where one element of lst
+    # is not a list but None. For example, if trying to unpack SpecObjs OPT fluxes
+    # and for one slit/order the OPT extraction failed (but not the BOX extraction),
+    # OPT_COUNTS is None for that slit/order, and lst would be something like
+    # [array, array, array, None, array], which makes np.array to fail and give the error
+    # "ValueError: setting an array element with a sequence. The requested array has an
+    # inhomogeneous shape after 1 dimensions..."
 
 
