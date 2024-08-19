@@ -592,7 +592,7 @@ class PypeIt:
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
-            spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
+            spat_flexure = [ss.spat_flexure for ss in sciImg_list]
             # Grab platescale with binning
             bin_spec, bin_spat = parse.parse_binning(self.binning)
             platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
@@ -808,7 +808,7 @@ class PypeIt:
             sciImg = bkg_redux_sciimg.sub(bgimg)
 
         # Flexure
-        spat_flexure = np.zeros((self.caliBrate.slits.nslits,1))  # No spatial flexure, unless we find it below
+        spat_flexure = np.zeros((self.caliBrate.slits.nslits, 2))  # No spatial flexure, unless we find it below
         # use the flexure correction in the "shift" column
         manual_flexure = self.fitstbl[frames[0]]['shift']
         if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \

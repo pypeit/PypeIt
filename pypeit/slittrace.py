@@ -598,9 +598,12 @@ class SlitTraceSet(calibframe.CalibFrame):
             left, right = self.left_init, self.right_init
 
         # Add in spatial flexure?
+        self.left_flexure = left.copy()
+        self.right_flexure = right.copy()
         if spat_flexure is not None:
-            self.left_flexure = left + spat_flexure[:, 0]
-            self.right_flexure = right + spat_flexure[:, 1]
+            for slit in range(self.nslits):
+                self.left_flexure[:,slit] += spat_flexure[slit, 0]
+                self.right_flexure[:,slit] += spat_flexure[slit, 1]
             left, right = self.left_flexure, self.right_flexure
 
         # Return
@@ -1609,9 +1612,9 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
             List of SpecObj that have been found and traced
         calib_slits (:obj:`list`):
             List of `SlitTraceSet` with information on the traced slit edges
-        spat_flexure (`numpy.ndarray`_, optional):
-            If provided, this is the shift, in spatial pixels, to
-            apply to each slit. This is used to correct for spatial
+        spat_flexure (:obj:`list`, optional):
+            If provided, this is a list of the shifts, in spatial pixels,
+            to apply to each slit. This is used to correct for spatial
             flexure. The shape of the array should be (nslits, 2),
             where the first column is the shift to apply to the
             left edge of each slit and the second column is the
