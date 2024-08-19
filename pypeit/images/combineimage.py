@@ -159,10 +159,9 @@ class CombineImage:
                 rn2img_stack = np.zeros(shape, dtype=float)
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
-                exptime = np.zeros(shape, dtype=float)
+                exptime = np.zeros(self.nimgs, dtype=float)
                 spat_flexure = np.zeros(shape, dtype=float)
-                exptime = np.zeros(shape, dtype=float)
-
+                
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = rawImage.exptime
             # Processed image
