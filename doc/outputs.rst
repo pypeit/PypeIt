@@ -102,6 +102,7 @@ See:
    :maxdepth: 1
 
    out_onespec
+   out_orderstack
 
 ----
 

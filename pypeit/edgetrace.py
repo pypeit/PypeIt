@@ -513,7 +513,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.maskdef_id = None                          # Slit ID number from slit-mask design
                                                         # matched to traced slits
         # Directory for QA plots
-        self.qa_path = None if qa_path is None else Path(qa_path).resolve()
+        self.qa_path = None if qa_path is None else Path(qa_path).absolute()
 
         # Inherit the calibration frame attributes from the trace image:
         self.copy_calib_internals(self.traceimg)
@@ -1305,7 +1305,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         self.spectrograph = load_spectrograph(hdu['SOBELSIG'].header['PYP_SPEC'])
         self.spectrograph.dispname = self.dispname
         self.par = EdgeTracePar.from_header(hdu['SOBELSIG'].header)
-        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).resolve()
+        self.qa_path = Path(hdu['SOBELSIG'].header['QAPATH']).absolute()
 
         # Check the bitmasks
         hdr_bitmask = BitMask.from_header(hdu['SOBELSIG'].header)
@@ -4563,7 +4563,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Append the missing indices and re-sort all
             ind_b = np.append(ind_b, needind_b)
             sortind_b = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
-                                                         self.slitmask.slitid[ind_b], strict=True))
+                                                         self.slitmask.slitid[ind_b], strict=True), kind='stable')
             ind_b = ind_b[sortind_b]
             for i in range(bot_edge_pred[needind_b].size):
                 # check if the trace that will be added is off detector
@@ -4596,7 +4596,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             # Append the missing indices and re-sort all
             ind_t = np.append(ind_t, needind_t)
             sortind_t = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
-                                                         self.slitmask.slitid[ind_t], strict=True))
+                                                         self.slitmask.slitid[ind_t], strict=True), kind='stable')
             ind_t = ind_t[sortind_t]
             for i in range(top_edge_pred[needind_t].size):
                 # check if the trace that will be added is off detector
@@ -5352,7 +5352,11 @@ class EdgeTraceSet(calibframe.CalibFrame):
         right = self.edge_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.traceimg.detector.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
-        if self.spectrograph.spec_min_max is None or ech_order is None:
+        if self.par['trim_spec'] is not None:
+            trim_low, trim_high = self.par['trim_spec']
+            specmin = np.asarray([trim_low]*nslit,dtype=np.float64)
+            specmax = np.asarray([self.nspec-trim_high]*nslit,dtype=np.float64)
+        elif self.spectrograph.spec_min_max is None or ech_order is None:
             specmin = np.asarray([-np.inf]*nslit)
             specmax = np.asarray([np.inf]*nslit)
         else:

@@ -95,7 +95,7 @@ class SpecObjs:
                 slf.calibs['DIR'] = slf.header['CLBS_DIR']
                 for key in slf.header.keys():
                     if key.startswith('CLBS_') \
-                            and (Path(slf.calibs['DIR']).resolve() / slf.header[key]).exists():
+                            and (Path(slf.calibs['DIR']).absolute() / slf.header[key]).exists():
                         slf.calibs['_'.join(key.split('_')[1:])] = slf.header[key]
 
             detector_hdus = {}
@@ -221,7 +221,6 @@ class SpecObjs:
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        # Test
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #
@@ -237,7 +236,6 @@ class SpecObjs:
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
-        # TODO make the extraction that is desired OPT vs BOX an optional input variable.
         for iorddet in range(norddet):
             wave[:, iorddet] = getattr(self, wave_key)[iorddet]
             flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]
@@ -245,7 +243,7 @@ class SpecObjs:
             if self[0].PYPELINE == 'Echelle':
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
-            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
+            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
             trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
             trace_spec[:, iorddet] = self[iorddet].trace_spec
 
@@ -720,16 +718,23 @@ class SpecObjs:
 
         Args:
             subheader (:obj:`dict`):
+                Dictionary with header keywords and values to be added to the
+                primary header of the output file.
             outfile (str):
+                Name of the output file
             overwrite (bool, optional):
+                Overwrite the output file if it exists?
+            update_det (int or list, optional):
+              If provided, do not clobber the existing file but only update
+              the indicated detectors.  Useful for re-running on a subset of detectors
             slitspatnum (:obj:`str` or :obj:`list`, optional):
               Restricted set of slits for reduction.
               If provided, do not clobber the existing file but only update
               the indicated slits.  Useful for re-running on a subset of slits
-            update_det (int or list, optional):
-              If provided, do not clobber the existing file but only update
-              the indicated detectors.  Useful for re-running on a subset of detectors
-
+            history (:obj:`str`, optional):
+                String to be added to the header HISTORY keyword.
+            debug (:obj:`bool`, optional):
+                If True, run in debug mode.
         """
         if os.path.isfile(outfile) and not overwrite:
             msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')

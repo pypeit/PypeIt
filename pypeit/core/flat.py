@@ -16,44 +16,8 @@ import matplotlib.pyplot as plt
 from IPython import embed
 
 from pypeit import msgs
-from pypeit.core import parse
-from pypeit.core import pixels
-from pypeit.core import tracewave
 from pypeit.core import coadd
 from pypeit import utils
-from pypeit.core import pydl
-
-# TODO: Put this in utils
-def linear_interpolate(x1, y1, x2, y2, x):
-    r"""
-    Interplate or extrapolate between two points.
-
-    Given a line defined two points, :math:`(x_1,y_1)` and
-    :math:`(x_2,y_2)`, return the :math:`y` value of a new point on
-    the line at coordinate :math:`x`.
-
-    This function is meant for speed. No type checking is performed and
-    the only check is that the two provided ordinate coordinates are not
-    numerically identical. By definition, the function will extrapolate
-    without any warning.
-
-    Args:
-        x1 (:obj:`float`):
-            First abscissa position
-        y1 (:obj:`float`):
-            First ordinate position
-        x2 (:obj:`float`):
-            Second abscissa position
-        y3 (:obj:`float`):
-            Second ordinate position
-        x (:obj:`float`):
-            Abcissa for new value
-
-    Returns:
-        :obj:`float`: Interpolated/extrapolated value of ordinate at
-        :math:`x`.
-    """
-    return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
 
 
 # TODO: Make this function more general and put it in utils.
@@ -103,7 +67,7 @@ def sorted_flat_data(data, coo, gpm=None):
     # np.argsort sorts the data over the last axis. To avoid coo[gpm]
     # returning an array (which will happen if the gpm is not provided
     # as an argument), all the arrays are explicitly flattened.
-    srt = np.argsort(coo[gpm].ravel())
+    srt = np.argsort(coo[gpm].ravel(), kind='stable')
     coo_data = coo[gpm].ravel()[srt]
     flat_data = data[gpm].ravel()[srt]
     return gpm, srt, coo_data, flat_data
@@ -277,7 +241,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         plt.show()
 
     # Include the rejected data in the full image good-pixel mask
-    _spat_gpm[_spat_gpm] = spat_gpm_data_raw[np.argsort(spat_srt)]
+    _spat_gpm[_spat_gpm] = spat_gpm_data_raw[np.argsort(spat_srt, kind='stable')]
     # Recreate the illumination profile data
     _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw \
             = sorted_flat_data(norm_spec, spat_coo, gpm=_spat_gpm)
@@ -470,7 +434,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     slitmask_spatid = np.sort(slitmask_spatid[slitmask_spatid > 0])
 
     # Create a spline between the raw data and the error
-    flxsrt = np.argsort(np.ravel(rawimg))
+    flxsrt = np.argsort(np.ravel(rawimg), kind='stable')
     spl = scipy.interpolate.interp1d(np.ravel(rawimg)[flxsrt], np.ravel(rawivar)[flxsrt], kind='linear',
                                      bounds_error=False, fill_value=0.0, assume_sorted=True)
     modelmap = np.ones_like(rawimg)
@@ -505,10 +469,120 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     return modelmap, relscale
 
 
+def tweak_slit_edges_gradient(left, right, spat_coo, norm_flat, maxfrac=0.1, debug=False):
+    r""" Adjust slit edges based on the gradient of the normalized
+    flat-field illumination profile.
+
+    Args:
+        left (`numpy.ndarray`_):
+            Array with the left slit edge for a single slit. Shape is
+            :math:`(N_{\rm spec},)`.
+        right (`numpy.ndarray`_):
+            Array with the right slit edge for a single slit. Shape
+            is :math:`(N_{\rm spec},)`.
+        spat_coo (`numpy.ndarray`_):
+            Spatial pixel coordinates in fractions of the slit width
+            at each spectral row for the provided normalized flat
+            data. Coordinates are relative to the left edge (with the
+            left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
+            Function assumes the coordinate array is sorted.
+        norm_flat (`numpy.ndarray`_)
+            Normalized flat data that provide the slit illumination
+            profile. Shape is :math:`(N_{\rm flat},)`.
+        maxfrac (:obj:`float`, optional):
+            The maximum fraction of the slit width that the slit edge
+            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+            this means the maximum change in the slit width (either
+            narrowing or broadening) is 20% (i.e., 10% for either
+            edge).
+        debug (:obj:`bool`, optional):
+            If True, the function will output plots to test if the
+            fitting is working correctly.
+
+    Returns:
+        tuple: Returns six objects:
+
+            - The threshold used to set the left edge
+            - The fraction of the slit that the left edge is shifted to
+              the right
+            - The adjusted left edge
+            - The threshold used to set the right edge
+            - The fraction of the slit that the right edge is shifted to
+              the left
+            - The adjusted right edge
+    """
+    # Check input
+    nspec = len(left)
+    if len(right) != nspec:
+        msgs.error('Input left and right traces must have the same length!')
+
+    # Median slit width
+    slitwidth = np.median(right - left)
+
+    # Calculate the gradient of the normalized flat profile
+    grad_norm_flat = np.gradient(norm_flat)
+    # Smooth with a Gaussian kernel
+    # The standard deviation of the kernel is set to be one detector pixel. Since the norm_flat array is oversampled,
+    # we need to set the kernel width (sig_res) to be the oversampling factor.
+    sig_res = norm_flat.size / slitwidth
+    # The scipy.ndimage module is faster than the astropy convolution module
+    grad_norm_flat_smooth = scipy.ndimage.gaussian_filter1d(grad_norm_flat, sig_res, mode='nearest')
+
+    # Find the location of the minimum/maximum gradient - this is the amount of shift required
+    left_shift = spat_coo[np.argmax(grad_norm_flat_smooth)]
+    right_shift = spat_coo[np.argmin(grad_norm_flat_smooth)]-1.0
+
+    # Check if the shift is within the allowed range
+    if np.abs(left_shift) > maxfrac:
+        msgs.warn('Left slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*left_shift, 100*maxfrac) + msgs.newline() +
+                  'The left edge will not be tweaked.')
+        left_shift = 0.0
+    else:
+        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100 * left_shift) +
+                  ' ({0:.2f} pixels)'.format(left_shift * slitwidth))
+    if np.abs(right_shift) > maxfrac:
+        msgs.warn('Right slit edge shift of {0:.1f}% exceeds the maximum allowed of {1:.1f}%'.format(
+                  100*right_shift, 100*maxfrac) + msgs.newline() +
+                  'The right edge will not be tweaked.')
+        right_shift = 0.0
+    else:
+        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100 * right_shift) +
+                  ' ({0:.2f} pixels)'.format(right_shift * slitwidth))
+
+    # Calculate the tweak for the left edge
+    new_left = left + left_shift * slitwidth
+    new_right = right + right_shift * slitwidth
+
+    # Calculate the value of the threshold at the new slit edges
+    left_thresh = np.interp(left_shift, spat_coo, norm_flat)
+    right_thresh = np.interp(1+right_shift, spat_coo, norm_flat)
+
+    if debug:
+        plt.subplot(211)
+        plt.plot(spat_coo, norm_flat, 'k-')
+        plt.axvline(0.0, color='b', linestyle='-', label='initial')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-', label='tweak (gradient)')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.axhline(left_thresh, xmax=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.axhline(right_thresh, xmin=0.5, color='lightgreen', linewidth=3.0, zorder=10)
+        plt.legend()
+        plt.subplot(212)
+        plt.plot(spat_coo, grad_norm_flat, 'k-')
+        plt.plot(spat_coo, grad_norm_flat_smooth, 'm-')
+        plt.axvline(0.0, color='b', linestyle='-')
+        plt.axvline(1.0, color='b', linestyle='-')
+        plt.axvline(left_shift, color='g', linestyle='-')
+        plt.axvline(1+right_shift, color='g', linestyle='-')
+        plt.show()
+    return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
+
+
 # TODO: See pypeit/deprecated/flat.py for the previous version. We need
 # to continue to vet this algorithm to make sure there are no
 # unforeseen corner cases that cause errors.
-def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
+def tweak_slit_edges_threshold(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
     r"""
     Adjust slit edges based on the normalized slit illumination profile.
 
@@ -614,10 +688,10 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
                         100*maxfrac))
             left_shift = maxfrac
         else:
-            left_shift = linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
-                                           spat_coo[i+1], left_thresh)
+            left_shift = utils.linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
+                                                  spat_coo[i+1], left_thresh)
         msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
-                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
 
     # ------------------------------------------------------------------
@@ -668,15 +742,15 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
                         100*maxfrac))
             right_shift = maxfrac
         else:
-            right_shift = 1-linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
-                                               spat_coo[i], right_thresh)
+            right_shift = 1-utils.linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
+                                                     spat_coo[i], right_thresh)
         msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
-                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))
+                  ' ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
-#def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, snframe=None, varframe=None):
+
 def flatfield(sciframe, flatframe, varframe=None):
     r"""
     Field flatten the input image.

@@ -245,7 +245,7 @@ class PypeIt:
         # isolate where the name of the standard-star spec1d file is defined.
         std_outfile = self.par['reduce']['findobj']['std_spec1d']
         if std_outfile is not None:
-            if not Path(std_outfile).resolve().exists():
+            if not Path(std_outfile).absolute().exists():
                 msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
             return std_outfile
 
@@ -705,8 +705,8 @@ class PypeIt:
 
         msgs.info(f'Building/loading calibrations for detector {det}')
         # Instantiate Calibrations class
-        user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
-                                             self.par['rdx']['maskIDs'])
+        user_slits = slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                               self.par['rdx']['maskIDs'])
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
             self.calibrations_path, qadir=self.qa_path,
@@ -760,7 +760,8 @@ class PypeIt:
 
         # Is this a standard star?
         self.std_redux = self.objtype == 'standard'
-        frame_par = self.par['calibrations']['standardframe'] if self.std_redux else self.par['scienceframe']
+        frame_par = self.par['calibrations']['standardframe'] \
+                        if self.std_redux else self.par['scienceframe']
         # Get the standard trace if need be
 
         if self.std_redux is False and std_outfile is not None:
@@ -789,6 +790,9 @@ class PypeIt:
             bkg_redux_sciimg = sciImg
             # Build the background image
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
+            # TODO I think we should create a separate self.par['bkgframe'] parameter set to hold the image
+            # processing parameters for the background frames.  This would allow the user to specify different
+            # parameters for the background frames than for the science frames.  
             bgimg = buildimage.buildimage_fromlist(self.spectrograph, det, frame_par, bg_file_list,
                                                    bpm=self.caliBrate.msbpm,
                                                    bias=self.caliBrate.msbias,
@@ -805,9 +809,19 @@ class PypeIt:
 
         # Flexure
         spat_flexure = None
+        # use the flexure correction in the "shift" column
+        manual_flexure = self.fitstbl[frames[0]]['shift']
         if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
-            spat_flexure = sciImg.spat_flexure
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
+                    manual_flexure:
+            if (manual_flexure or manual_flexure == 0) and not (np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer)):
+                msgs.info(f'Implementing manual flexure of {manual_flexure}')
+                spat_flexure = np.float64(manual_flexure)
+                sciImg.spat_flexure = spat_flexure
+            else:
+                msgs.info(f'Using auto-computed flexure')
+                spat_flexure = sciImg.spat_flexure
+        msgs.info(f'Flexure being used is: {spat_flexure}')
         # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
@@ -898,7 +912,7 @@ class PypeIt:
             regfile = buildimage.SkyRegions.construct_file_name(calib_key,
                                                                 calib_dir=self.calibrations_path,
                                                                 basename=io.remove_suffix(scifile))
-            regfile = Path(regfile).resolve()
+            regfile = Path(regfile).absolute()
             if not regfile.exists():
                 msgs.error(f'Unable to find SkyRegions file: {regfile} . Create a SkyRegions '
                            'frame using pypeit_skysub_regions, or change the user_regions to '

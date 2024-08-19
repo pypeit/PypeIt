@@ -575,7 +575,7 @@ class BitMask:
         # Fill in any missing bits
         keys, values, descr = cls._fill_sequence(keys, values, descr=descr)
         # Make sure the bits are sorted
-        srt = numpy.argsort(values)
+        srt = numpy.argsort(values, kind='stable')
         # Instantiate the BitMask
         return cls(keys[srt], descr=descr[srt])
 

@@ -10,7 +10,7 @@ import json
 import numpy as np
 from matplotlib import pyplot as plt
 
-from linetools.utils import jsonify
+from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
 
@@ -217,7 +217,8 @@ class WaveCalib(calibframe.CalibFrame):
         # Parse all the WAVE2DFIT extensions
         # TODO: It would be good to have the WAVE2DFIT extensions follow the
         # same naming convention as the WAVEFIT extensions...
-        wave2d_fits = [fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
+        wave2d_fits = [fitting.PypeItFit() if len(hdu[e].data) == 0 
+                            else fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
                             for e in ext if 'WAVE2DFIT' in e]
         if len(wave2d_fits) > 0:
             d['wv_fit2d'] = np.asarray(wave2d_fits)
@@ -350,7 +351,7 @@ class WaveCalib(calibframe.CalibFrame):
             thismask = (slitmask == slit_spat)
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
-            if self.par['echelle']:
+            if self.par['echelle'] and self.par['ech_2dfit']:
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
                     ordr_det = slits.det_of_slit(
@@ -687,12 +688,18 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
+            final_fit, order_vec = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
                                              self.binspectral, slit_ids=self.slits.slitord_id,
                                              measured_fwhms=self.measured_fwhms,
                                              nonlinear_counts=self.nonlinear_counts,
-                                             nsnippet=self.par['nsnippet'])#,
-                                             #debug=True, debug_reid=True, debug_xcorr=True)
+                                             nsnippet=self.par['nsnippet'], 
+                                             x_percentile=self.par['cc_percent_ceil'])
+
+            # Grab arxiv for redo later?
+            if self.par['echelle']: 
+                # Hold for later usage
+                self.slits.ech_order = order_vec[:self.slits.nslits]
+                self.arccen = arccen
         elif self.par['method'] == 'echelle':
             # Echelle calibration files
             angle_fits_file, composite_arc_file = self.spectrograph.get_echelle_angle_files()
@@ -705,7 +712,8 @@ class BuildWaveCalib:
                     self.meta_dict['dispname'],
                     angle_fits_file,
                     composite_arc_file,
-                    pad=3, debug=False)
+                    pad=self.par['echelle_pad'],
+                    cc_percent_ceil = self.par['cc_percent_ceil'], debug=False)
             # Put the order numbers in the slit object
             self.slits.ech_order = order_vec
             msgs.info(f"The observation covers the following orders: {order_vec}")
@@ -1121,7 +1129,7 @@ class BuildWaveCalib:
             prev_wvcalib=prev_wvcalib)
 
         # Fit 2D?
-        if self.par['echelle']:
+        if self.par['echelle'] and self.par['ech_2dfit']:
             # Assess the fits
             rms = np.array([999. if wvfit.rms is None else wvfit.rms for wvfit in self.wv_calib.wv_fits])
             # get used FWHM

@@ -59,6 +59,14 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_cache_github_data.rst
 
+pypeit_clean_cache
+------------------
+
+View/Remove files from the PypeIt data cache.  The script usage can be displayed
+by calling the script with the ``-h`` option:
+
+.. include:: help/pypeit_clean_cache.rst
+
 pypeit_install_telluric
 -----------------------
 
@@ -478,6 +486,8 @@ The MaskID will be populated only if the instrument includes
 mask design (e.g. Keck/DEIMOS).  The Flags column describes
 failure modes or reasons why the slit was not reduced.
 *None* is the preferred state for a science slit.
+
+.. _pypeit_chk_wavecalib:
 
 pypeit_chk_wavecalib
 --------------------

@@ -1,0 +1,7 @@
+# Kast-b: Needed for test_scripts.py::test_coadd1d_1()
+cp -rp $PYPEIT_DEV/REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A/Science/spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits spec1d_b27.fits
+cp -rp $PYPEIT_DEV/REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A/Science/spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits spec1d_b28.fits
+# Kast-r: Needed for test_load.py::test_load_specobjs()
+cp -rp $PYPEIT_DEV/REDUX_OUT/shane_kast_red/600_7500_d55_ret/Science/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits .
+# Pisco: Needed for test_scripts.py::test_coadd1d_2()
+cp -rp $PYPEIT_DEV/REDUX_OUT/gemini_gnirs/32_SB_SXD/Science/spec1d_*-pisco_GNIRS*.fits .

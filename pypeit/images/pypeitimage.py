@@ -91,6 +91,9 @@ class PypeItImage(datamodel.DataContainer):
             :class:`~pypeit.images.rawimage.RawImage.process`.
     """
 
+    # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
+    # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
+    # documented here and instead we have the odd Args documentation above. 
     version = '1.3.0'
     """Datamodel version number"""
 
@@ -127,7 +130,8 @@ class PypeItImage(datamodel.DataContainer):
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace')}
+                                            'and SlitTrace'), 
+                 'filename': dict(otype=str, descr='Filename for the image'),}
     """Data model components."""
 
     internals = ['process_steps', 'files', 'rawheadlist']
@@ -160,10 +164,11 @@ class PypeItImage(datamodel.DataContainer):
         # Done
         return self
 
+    # TODO This init method needs proper docs, which includes every optional argument. See my comment above. 
     def __init__(self, image, ivar=None, nimg=None, amp_img=None, det_img=None, rn2img=None,
                  base_var=None, img_scale=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None, units=None, exptime=None, noise_floor=None, shot_noise=None,
-                 bpm=None, crmask=None, usermask=None, clean_mask=False):
+                 filename=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None, 
+                 shot_noise=None, bpm=None, crmask=None, usermask=None, clean_mask=False):
 
         if image is None:
             msgs.error('Must provide an image when instantiating PypeItImage.')
@@ -779,7 +784,7 @@ class PypeItImage(datamodel.DataContainer):
         if other.spat_flexure is not None and spat_flexure is not None \
                 and other.spat_flexure != spat_flexure:
             msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {spat_flexure}.')
+                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below
