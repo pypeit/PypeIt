@@ -188,7 +188,7 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, extract_type='OPT'):
+    def unpack_object(self, ret_flam=False, log10blaze=False, min_blaze_value=1e-3, extract_type='OPT'):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -196,8 +196,14 @@ class SpecObjs:
         the relevant indices for the object.
 
         Args:
-           ret_flam (:obj:`bool`, optional):
-              If True return the FLAM, otherwise return COUNTS.
+            ret_flam (:obj:`bool`, optional):
+               If True return the FLAM, otherwise return COUNTS.
+            log10blaze (:obj:`bool`, optional):
+                If True return the log10 of the blaze function.
+            min_blaze_value (:obj:`float`, optional):
+                Minimum value of the blaze function to consider as good.
+            extract_type (:obj:`str`, optional):
+                The extraction type to use for the extraction.
 
         Returns:
             tuple: Returns the following where all numpy arrays
@@ -210,6 +216,7 @@ class SpecObjs:
                   Flambda or counts)
                 - flux_gpm (`numpy.ndarray`_): Good pixel mask.
                   True=Good
+                - blaze (`numpy.ndarray`_): Blaze function
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
                   spectrograph.parse_spec_header()
@@ -221,6 +228,7 @@ class SpecObjs:
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
+        blaze_key = '{}_FLAT'.format(extract_type)
         if getattr(self, flux_key)[0] is None:
             msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
         #
@@ -230,6 +238,7 @@ class SpecObjs:
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        blaze = np.zeros((nspec, norddet), dtype=float)
         trace_spec = np.zeros((nspec, norddet))
         trace_spat = np.zeros((nspec, norddet))
 
@@ -244,8 +253,17 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
+            blaze[:, iorddet] = getattr(self, blaze_key)[iorddet]
             trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
             trace_spec[:, iorddet] = self[iorddet].trace_spec
+
+        # Log10 blaze
+        blaze_function = np.copy(blaze)
+        if log10blaze:
+            for iorddet in range(norddet):
+                blaze_function_smooth = utils.fast_running_median(blaze[:, iorddet], 5)
+                blaze_function_norm = blaze_function_smooth / blaze_function_smooth.max()
+                blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])
@@ -261,10 +279,10 @@ class SpecObjs:
         if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), blaze_function.reshape(nspec), meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
-            return wave, flux, flux_ivar, flux_gpm, trace_spec, trace_spat, meta_spec, self.header
+            return wave, flux, flux_ivar, flux_gpm, blaze_function, meta_spec, self.header
 
     def get_std(self, multi_spec_det=None):
         """
