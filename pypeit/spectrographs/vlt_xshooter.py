@@ -573,8 +573,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
         
         # Grab the gain and read noise from the header.
-        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        # If hdu not present, use typical defaults
+        gain = np.atleast_1d(0.64) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
+        ronoise = np.atleast_1d(3.4) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
 
         # Detector 1
         detector_dict = dict(
@@ -759,15 +760,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             `numpy.ndarray`_: An array with the platescale for each order
             provided by ``order``.
         """
-        # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
-
-        # ToDO Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
-
-        # Right now I just assume a simple linear trend
-        plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
+        
+        # TODO: Figure out the order-dependence of the updated plate scale
+        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
+        plate_scale = 0.154*np.ones_like(order_vec)
+        
         return plate_scale*binspatial
 
     @property
@@ -868,8 +866,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
         
         # Grab the gain and read noise from the header.
-        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        gain = np.atleast_1d(0.63) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
+        ronoise = np.atleast_1d(2.4) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
 
         # Detector 1
         detector_dict = dict(
@@ -1071,15 +1069,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         """
         binspectral, binspatial = parse.parse_binning(binning)
 
-        # ToDO Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # UVB: 65.9 pixels (0.167“/pix) at order 14 to 70.8 pixels (0.155”/pix) at order 24
+        # TODO: Figure out the order-dependence of the updated plate scale
+        # From the X-Shooter P113 manual, average over all orders. No order-dependent values given.
+        plate_scale = 0.164*np.ones_like(order_vec)
 
-        # Assume a simple linear trend
-        plate_scale = 0.155 + (order_vec - 24)*(0.155-0.167)/(24 - 14)
-
-        # Right now I just took the average
-        return np.full(self.norders, 0.161)*binspatial
+        return plate_scale*binspatial
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
