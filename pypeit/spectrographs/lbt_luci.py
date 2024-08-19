@@ -556,11 +556,11 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         # Parameters should work for long-slit N1.8 camera exposures
         # N3.75 camera and/or multi-slit may require careful adjustment
         par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_maxlag'] = 100
         par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
         par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
         par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
-        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxlag'] = 100
         par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
         par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
 
@@ -787,11 +787,11 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         # Flexure
         par['flexure']['spec_method'] = 'skip'
         par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['scienceframe']['process']['spat_flexure_maxshift'] = 100
+        par['scienceframe']['process']['spat_flexure_maxlag'] = 100
         par['scienceframe']['process']['spat_flexure_cont_samp'] = 2
         par['scienceframe']['process']['spat_flexure_sigdetect'] = 2.
         par['calibrations']['tiltframe']['process']['spat_flexure_correct'] = True
-        par['calibrations']['tiltframe']['process']['spat_flexure_maxshift'] = 100
+        par['calibrations']['tiltframe']['process']['spat_flexure_maxlag'] = 100
         par['calibrations']['tiltframe']['process']['spat_flexure_cont_samp'] = 2
         par['calibrations']['tiltframe']['process']['spat_flexure_sigdetect'] = 2.
 

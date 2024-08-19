@@ -220,7 +220,7 @@ class ProcessImagesPar(ParSet):
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
-                 spat_flexure_correct=None, spat_flexure_maxshift=None,
+                 spat_flexure_correct=None, spat_flexure_maxlag=None,
                  spat_flexure_cont_samp=None, spat_flexure_sigdetect=None):
 
         # Grab the parameter names and values from the function
@@ -359,9 +359,9 @@ class ProcessImagesPar(ParSet):
         dtypes['spat_flexure_correct'] = bool
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
         
-        defaults['spat_flexure_maxshift'] = 20
-        dtypes['spat_flexure_maxshift'] = int
-        descr['spat_flexure_maxshift'] = 'Maximum allowed spatial flexure shift in pixels.'
+        defaults['spat_flexure_maxlag'] = 20
+        dtypes['spat_flexure_maxlag'] = int
+        descr['spat_flexure_maxlag'] = 'Maximum allowed spatial flexure shift in pixels.'
         
         defaults['spat_flexure_cont_samp'] = 30
         dtypes['spat_flexure_cont_samp'] = int
@@ -464,7 +464,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
-                   'spat_flexure_correct', 'spat_flexure_maxshift',
+                   'spat_flexure_correct', 'spat_flexure_maxlag',
                    'spat_flexure_cont_samp', 'spat_flexure_sigdetect',
                    'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
