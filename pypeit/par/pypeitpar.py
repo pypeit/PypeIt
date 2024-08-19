@@ -1950,7 +1950,7 @@ class SensFuncPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
-                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1967,6 +1967,11 @@ class SensFuncPar(ParSet):
         descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
                             'function computed from a flat field file in the Calibrations directory, e.g.' \
                             'Calibrations/Flat_A_0_DET01.fits'
+
+        defaults['extr'] = 'OPT'
+        dtypes['extr'] = str
+        descr['extr'] = 'Extraction method to use for the sensitivity function.  Options are: ' \
+                        '\'OPT\' (optimal extraction), \'BOX\' (boxcar extraction). Default is \'OPT\'.'
 
         defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
@@ -2057,7 +2062,7 @@ class SensFuncPar(ParSet):
                                           options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-#        self.validate()
+        self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
@@ -2065,7 +2070,7 @@ class SensFuncPar(ParSet):
 
         # Single element parameters
         parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
@@ -2086,6 +2091,14 @@ class SensFuncPar(ParSet):
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        allowed_extractions = ['BOX', 'OPT']
+        if self.data['extr'] not in allowed_extractions:
+            msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
 
     @staticmethod
     def valid_algorithms():
@@ -4081,7 +4094,8 @@ class FindObjPar(ParSet):
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None, fof_link = None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None,
+                 use_std_trace=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4204,14 +4218,21 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        defaults['use_std_trace'] = True
+        dtypes['use_std_trace'] = bool
+        descr['use_std_trace'] = 'If True, the trace of the standard star spectrum is used as a crutch for ' \
+                                 'tracing the object spectra. This is useful when a direct trace is not possible ' \
+                                 '(i.e., faint sources). Note that a standard star exposure must be included in your ' \
+                                 'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
+
+
         defaults['std_spec1d'] = None
         dtypes['std_spec1d'] = str
-        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
-                              'trace of the standard star spectrum is used as a crutch for ' \
-                              'tracing the object spectra, when a direct trace is not possible ' \
-                              '(i.e., faint sources).  If provided, this overrides use of any ' \
-                              'standards included in your pypeit file; the standard exposures ' \
-                              'will still be reduced.'
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star. ' \
+                               'This can be used to trace the object spectra, but the ``use_std_trace`` ' \
+                               'parameter must be set to True. If provided, this overrides use of ' \
+                               'any standards included in your pypeit file; the standard exposures ' \
+                               'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -4232,7 +4253,7 @@ class FindObjPar(ParSet):
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d', 'fof_link']
+                   'std_spec1d', 'use_std_trace', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4244,9 +4265,11 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        if self.data['std_spec1d'] is not None \
-                and not Path(self.data['std_spec1d']).absolute().exists():
-            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
+        if self.data['std_spec1d'] is not None:
+            if not self.data['use_std_trace']:
+                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+            elif not Path(self.data['std_spec1d']).absolute().exists():
+                msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
