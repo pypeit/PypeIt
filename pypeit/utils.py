@@ -646,7 +646,7 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
         end -= 1
 
     # Set the full range and multiply it by the provided factor
-    srt = np.ma.argsort(_a)
+    srt = np.ma.argsort(_a, kind='stable')
     Da = (_a[srt[end]] - _a[srt[start]]) * fac
 
     # Set the midpoint
@@ -887,7 +887,7 @@ def index_of_x_eq_y(x, y, strict=False):
     """
     if y.ndim != 1 or y.ndim != 1:
         raise ValueError('Arrays must be 1D.')
-    srt = np.argsort(x)
+    srt = np.argsort(x, kind='stable')
     indx = np.searchsorted(x[srt], y)
     x2y = np.take(srt, indx, mode='clip')
     if strict and not np.array_equal(x[x2y], y):
@@ -1380,6 +1380,38 @@ def find_nearest(array, values):
     return idxs
 
 
+def linear_interpolate(x1, y1, x2, y2, x):
+    r"""
+    Interplate or extrapolate between two points.
+
+    Given a line defined two points, :math:`(x_1,y_1)` and
+    :math:`(x_2,y_2)`, return the :math:`y` value of a new point on
+    the line at coordinate :math:`x`.
+
+    This function is meant for speed. No type checking is performed and
+    the only check is that the two provided ordinate coordinates are not
+    numerically identical. By definition, the function will extrapolate
+    without any warning.
+
+    Args:
+        x1 (:obj:`float`):
+            First abscissa position
+        y1 (:obj:`float`):
+            First ordinate position
+        x2 (:obj:`float`):
+            Second abscissa position
+        y3 (:obj:`float`):
+            Second ordinate position
+        x (:obj:`float`):
+            Abcissa for new value
+
+    Returns:
+        :obj:`float`: Interpolated/extrapolated value of ordinate at
+        :math:`x`.
+    """
+    return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
+
+
 def replace_bad(frame, bpm):
     """ Find all bad pixels, and replace the bad pixels with the nearest good pixel
 
@@ -1442,7 +1474,7 @@ def yamlify(obj, debug=False):
         obj = bool(obj)
     #    elif isinstance(obj, bytes):
     #        obj = obj.decode('utf-8')
-    elif isinstance(obj, (np.string_, str)):
+    elif isinstance(obj, (np.str_, str)):
         obj = str(obj)
         # Worry about colons!
         if ':' in obj:
@@ -1484,6 +1516,64 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
+def jsonify(obj, debug=False):
+    """ Recursively process an object so it can be serialised in json
+    format. Taken from linetools.
+
+    WARNING - the input object may be modified if it's a dictionary or
+    list!
+
+    Parameters
+    ----------
+    obj : any object
+    debug : bool, optional
+
+    Returns
+    -------
+    obj - the same obj is json_friendly format (arrays turned to
+    lists, np.int64 converted to int, np.float64 to float, and so on).
+
+    """
+    if isinstance(obj, np.float64):
+        obj = float(obj)
+    elif isinstance(obj, np.float32):
+        obj = float(obj)
+    elif isinstance(obj, np.int32):
+        obj = int(obj)
+    elif isinstance(obj, np.int64):
+        obj = int(obj)
+    elif isinstance(obj, np.int16):
+        obj = int(obj)
+    elif isinstance(obj, np.bool_):
+        obj = bool(obj)
+    elif isinstance(obj, np.str_):
+        obj = str(obj)
+    elif isinstance(obj, units.Quantity):
+        if obj.size == 1:
+            obj = dict(value=obj.value, unit=obj.unit.to_string())
+        else:
+            obj = dict(value=obj.value.tolist(), unit=obj.unit.to_string())
+    elif isinstance(obj, np.ndarray):  # Must come after Quantity
+        obj = obj.tolist()
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            obj[key] = jsonify(value, debug=debug)
+    elif isinstance(obj, list):
+        for i,item in enumerate(obj):
+            obj[i] = jsonify(item, debug=debug)
+    elif isinstance(obj, tuple):
+        obj = list(obj)
+        for i,item in enumerate(obj):
+            obj[i] = jsonify(item, debug=debug)
+        obj = tuple(obj)
+    elif isinstance(obj, units.Unit):
+        obj = obj.name
+    elif obj is units.dimensionless_unscaled:
+        obj = 'dimensionless_unit'
+
+    if debug:
+        print(type(obj))
+    return obj
 
 def add_sub_dict(d, key):
     """

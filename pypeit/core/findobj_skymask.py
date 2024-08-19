@@ -66,57 +66,68 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
         global sky subtraction (True means the pixel is usable for sky
         subtraction, False means it should be masked when subtracting sky).
     """
+    # Number of objects
     nobj = len(sobjs)
-    ximg, _ = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
-    # How many pixels wide is the slit at each Y?
-    xsize = slit_righ - slit_left
-    #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
-    nsamp = np.ceil(xsize.max())
-
-    # Objmask
-    skymask_objsnr = np.copy(thismask)
     if nobj == 0:
-        msgs.info('No objects were detected. The entire slit will be used to determine the sky subtraction.')
-    else:
-        # Compute some inputs for the object mask
-        xtmp = (np.arange(nsamp) + 0.5)/nsamp
-        # threshold for object finding
-        for iobj in range(nobj):
-            # this will skip also sobjs with THRESHOLD=0, because are the same that have smash_snr=0.
-            if (sobjs[iobj].smash_snr != 0.) and (sobjs[iobj].smash_snr != None):
-                qobj = np.zeros_like(xtmp)
-                sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
-                sep_inc = sobjs[iobj].maskwidth/nsamp
-                close = sep <= sep_inc
-                # This is an analytical SNR profile with a Gaussian shape.
-                # JFH modified to use SNR here instead of smash peakflux. I believe that the 2.77 is supposed to be
-                # 2.355**2/2, i.e. the argument of a gaussian with sigma = FWHM/2.35
-                qobj[close] = sobjs[iobj].smash_snr * \
-                               np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2, -9.0))
-                skymask_objsnr[thismask] &= np.interp(ximg[thismask], xtmp, qobj) < skymask_snr_thresh
-    # FWHM
-    skymask_fwhm = np.copy(thismask)
-    if nobj > 0:
-        nspec, nspat = thismask.shape
-        # spatial position everywhere along image
-        spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
-        # Boxcar radius?
-        if box_rad_pix is not None:
-            msgs.info("Using boxcar radius for masking")
-        # Loop me
-        for iobj in range(nobj):
-            # Create a mask for the pixels that will contribute to the object
-            skymask_radius = box_rad_pix if box_rad_pix is not None else sobjs[iobj].FWHM
-            msgs.info(f"Masking around object {iobj+1} within a radius = {skymask_radius} pixels")
-            slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
-            objmask_now = thismask & (spat_img > (slit_img - skymask_radius)) & (spat_img < (slit_img + skymask_radius))
-            skymask_fwhm &= np.invert(objmask_now)
+        msgs.info('No objects were detected. The entire slit will be used for sky subtraction.')
+        return thismask[thismask]
 
-        # Check that we have not performed too much masking
-        if (np.sum(skymask_fwhm)/np.sum(thismask) < 0.10):
-            msgs.warn('More than 90% of  usable area on this slit would be masked and not used by global sky subtraction. '
-                      'Something is probably wrong with object finding for this slit. Not masking object for global sky subtraction.')
-            skymask_fwhm = np.copy(thismask)
+    # Compute the object mask
+    skymask_objsnr = np.copy(thismask)
+    # Create an image with pixel values equal to the fraction of the spatial
+    # position along the slit, ranging from 0 -> 1
+    ximg, _ = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
+    # Maximum spatial width rounded up
+    nsamp = np.ceil(np.amax(slit_righ - slit_left))
+    # Fractional position within the maximum spatial width
+    xtmp = (np.arange(nsamp) + 0.5)/nsamp
+    # threshold for object finding
+    for iobj in range(nobj):
+        # this will skip also sobjs with THRESHOLD=0, because are the same that have smash_snr=0.
+        if sobjs[iobj].smash_snr is None or sobjs[iobj].smash_snr <= 0.:
+            continue
+        # Select pixels within the defined width of the object
+        sep = np.absolute(xtmp-sobjs[iobj].SPAT_FRACPOS)
+        sep_inc = sobjs[iobj].maskwidth/nsamp
+        close = sep <= sep_inc
+        # This is an analytical SNR profile with a Gaussian shape.
+        # JFH modified to use SNR here instead of smash peakflux. I believe that
+        # the 2.77 is supposed to be 2.355**2/2, i.e. the argument of a gaussian
+        # with sigma = FWHM/2.35
+        qobj = np.zeros_like(xtmp)
+        qobj[close] = sobjs[iobj].smash_snr * \
+                        np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2, -9.0))
+        skymask_objsnr[thismask] &= np.interp(ximg[thismask], xtmp, qobj) < skymask_snr_thresh
+
+    # Compute the FWHM mask
+    skymask_fwhm = np.copy(thismask)
+    nspec, nspat = thismask.shape
+    # spatial position everywhere along image
+#    spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
+    spat_img = np.tile(np.arange(nspat, dtype=int), (nspec,1))
+    # Boxcar radius?
+    if box_rad_pix is not None:
+        msgs.info("Using boxcar radius for masking")
+    # Loop me
+    for iobj in range(nobj):
+        # Create a mask for the pixels that will contribute to the object
+        skymask_radius = box_rad_pix if box_rad_pix is not None else sobjs[iobj].FWHM
+        msgs.info(f"Masking around object {iobj+1} within a radius = {skymask_radius} pixels")
+#        slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
+        slit_img = np.tile(sobjs[iobj].TRACE_SPAT, (nspat,1)).T
+        objmask_now = thismask \
+                        & (spat_img > slit_img - skymask_radius) \
+                        & (spat_img < slit_img + skymask_radius)
+        skymask_fwhm &= np.logical_not(objmask_now)
+
+    # Check that we have not performed too much masking
+    # TODO: There is this hard-coded check here, and then there is a similar
+    # check in skysub.global_skysub.  Do we need both?
+    if np.sum(skymask_fwhm)/np.sum(thismask) < 0.10:
+        msgs.warn('More than 90% of  usable area on this slit would be masked and not used by '
+                  'global sky subtraction. Something is probably wrong with object finding for '
+                  'this slit. Not masking object for global sky subtraction.')
+        skymask_fwhm = np.copy(thismask)
 
     # Still have to make the skymask
     # # TODO -- Make sure this is right
@@ -135,8 +146,10 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # computation from objs_in_slit is not necessarily that reliable and when large amounts of masking are performed
     # on narrow slits/orders, we have problems. We should revisit this after object finding is refactored since
     # maybe then the fwhm estimates will be more robust.
-    if box_rad_pix is None and np.all([sobj.smash_snr is not None for sobj in sobjs]) \
-            and np.all([sobj.smash_snr != 0. for sobj in sobjs]) and not np.all(skymask_objsnr == thismask):
+    if box_rad_pix is None \
+            and np.all([sobj.smash_snr is not None for sobj in sobjs]) \
+            and np.all([sobj.smash_snr != 0. for sobj in sobjs]) \
+            and not np.all(skymask_objsnr == thismask):
         # TODO This is a kludge until we refactor this routine. Basically mask design objects that are not auto-ID
         # always have smash_snr undefined. If there is a hybrid situation of auto-ID and maskdesign, the logic
         # here does not really make sense. Soution would be to compute thershold and smash_snr for all objects.
@@ -510,7 +523,7 @@ def ech_fill_in_orders(sobjs:specobjs.SpecObjs,
     uni_frac = gfrac[uni_ind]
 
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
+    isort_frac = uni_frac.argsort(kind='stable')
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
 
@@ -775,7 +788,7 @@ def ech_cutobj_on_snr(
 
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0), kind='stable')[::-1]
     for iobj in isort_SNR_max:
         hand_ap_flag = hand_flag[iobj]
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (
@@ -787,7 +800,7 @@ def ech_cutobj_on_snr(
             sobjs_keep = sobjs_align[ikeep].copy()
             sobjs_keep.ECH_OBJID = iobj_keep
             sobjs_keep.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.SLITID, kind='stable')])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
@@ -1687,7 +1700,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
     uni_frac = gfrac[uni_ind]
 
     # Sort with respect to fractional slit location to guarantee that we have a similarly sorted list of objects later
-    isort_frac = uni_frac.argsort()
+    isort_frac = uni_frac.argsort(kind='stable')
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
 
@@ -1852,7 +1865,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
 
     ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
     # objects requested exit, except keep the hand apertures that were requested.
-    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0), kind='stable')[::-1]
     for iobj in isort_SNR_max:
         hand_ap_flag = int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac
         SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr)
@@ -1866,7 +1879,7 @@ def orig_ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, mas
 #            for spec in sobjs_keep:
 #                spec.ECH_OBJID = iobj_keep
 #                #spec.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX, kind='stable')])
             iobj_keep += 1
             if not hand_ap_flag:
                 iobj_keep_not_hand += 1
@@ -2671,7 +2684,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     # Sort objects according to their spatial location
     nobj = len(sobjs)
     spat_pixpos = sobjs.SPAT_PIXPOS
-    sobjs = sobjs[spat_pixpos.argsort()]
+    sobjs = sobjs[spat_pixpos.argsort(kind='stable')]
     # Assign integer objids
     sobjs.OBJID = np.arange(nobj) + 1
 

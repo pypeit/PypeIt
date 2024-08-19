@@ -716,7 +716,7 @@ class Identify:
 
     def store_solution(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None, multi=False,
-                       fits_dicts=None, specdata=None, slits=None,
+                       fits_dicts=None, specdata_multi=None, slits=None,
                        lines_pix_arr=None, lines_wav_arr=None, lines_fit_ord=None,
                        custom_wav=None, custom_wav_ind=None):
         """Check if the user wants to store this solution in the reid arxiv, when doing the wavelength solution
@@ -737,8 +737,9 @@ class Identify:
             Flag if the template has multiple slits/traces.
         fits_dict : list, optional
             List of dictionaries containing the _fitdict of previous calls, if multi-trace data
-        specdata : array, optional
-            Numpy array containing the flux information from all the traces
+        specdata_multi : array, optional
+            Numpy array containing the flux information from all the traces, if multiple traces are 
+            being fit. 
         wvcalib : :class:`pypeit.wavecalib.WaveCalib`, optional
             Wavelength solution
         lines_pix_arr : array, optional
@@ -782,7 +783,7 @@ class Identify:
             if ans == 'y':
                 # Arxiv solution
                 # prompt the user to give the orders that were used here
-                if '"echelle": true' in wvcalib.strpar:
+                if wvcalib is not None and '"echelle": true' in wvcalib.strpar:
                     while True:
                         try:
                             print('')
@@ -818,15 +819,15 @@ class Identify:
                 if make_arxiv != 'n':
                     if multi:
                         # check that specdata is defined
-                        if specdata is None:
+                        if specdata_multi is None:
                             msgs.warn('Skipping arxiv save because arc line spectra are not defined by pypeit/scripts/identify.py')
                         # check that the number of spectra in specdata is the same as the number of wvcalib solutions
-                        elif specdata is not None and np.shape(specdata)[0] != len(wvcalib.wv_fits):
+                        elif specdata_multi is not None and np.shape(specdata_multi)[0] != len(wvcalib.wv_fits):
                             msgs.warn('Skipping arxiv save because there are not enough orders for full template')
                             msgs.warn('To generate a valid arxiv to save, please rerun with the "--slits all" option.')
                         else:
-                            norder = np.shape(specdata)[0]
-                            wavelengths = np.copy(specdata)
+                            norder = np.shape(specdata_multi)[0]
+                            wavelengths = np.copy(specdata_multi)
                             for iord in range(norder):
                                 if fits_dicts is not None:
                                     fitdict = fits_dicts[iord]
@@ -834,8 +835,8 @@ class Identify:
                                     msgs.warn('skipping saving fits because fits_dicts is not defined by pypeit/scripts/identify.py')
                                     fitdict = None
                                 if fitdict is not None and fitdict['full_fit'] is not None:
-                                    wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata[iord,:].size) /
-                                                                            (specdata[iord,:].size - 1))
+                                    wavelengths[iord,:] = fitdict['full_fit'].eval(np.arange(specdata_multi[iord,:].size) /
+                                                                            (specdata_multi[iord,:].size - 1))
                                 elif wvcalib is not None and wvcalib.wv_fits[iord] is None and iord in custom_wav_ind:
                                     wavelengths[iord,:] = custom_wav[np.where(iord == custom_wav_ind)[0]]
                     else:
@@ -858,7 +859,7 @@ class Identify:
                             wvarxiv_name = wvarxiv_name_new
 
                     # Write the wvarxiv file
-                    _specdata = specdata if specdata is not None else self.specdata
+                    _specdata = specdata_multi if specdata_multi is not None else self.specdata
                     order_vec = np.flip(order_vec, axis=0) if order_vec is not None else None
                     wvutils.write_template(wavelengths, _specdata, binspec, './',
                                         wvarxiv_name, to_cache=True, order = order_vec,
@@ -870,43 +871,44 @@ class Identify:
                     wvcalib.to_file(outfname, overwrite=True)
                     msgs.info("A WaveCalib container was written to wvcalib.fits")
 
-                # Ask if overwrite the existing WVCalib file only if force_save=False, otherwise don't overwrite
-                ow_wvcalib = ''
-                if not force_save:
-                    while ow_wvcalib != 'y' and ow_wvcalib != 'n':
-                        print('')
-                        msgs.warn('Do you want to overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
-                                  'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibrations/ ' + msgs.newline() +
-                                  ' and re-run run_pypeit. ')
-                        print('')
-                        ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
-
-                if ow_wvcalib == 'y':
-                    wvcalib.to_file()
-                    if multi:
-                        slit_list_str = ''; slit_list = np.arange(np.shape(specdata)[0])
-                        for islit in slit_list:
-                            if islit < len(slit_list) - 1:
-                                slit_list_str += str(islit) + ','
-                            else: slit_list_str += str(islit)
-
-                        if slits:
-                            print('               ')
-                            msgs.info('Unflagging Slits from WaveCalib: ')
-                            slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
-                            slits.ech_order = order_vec
-                            slits.to_file()
-                            print('               ')
-                    print('         ')
-                    # ask to clean up the Calibrations directory only if force_save=False, otherwise don't clean up
+                    # Ask if overwrite the existing WVCalib file only if force_save=False, otherwise don't overwrite
+                    ow_wvcalib = ''
                     if not force_save:
-                        clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
-                                            ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
-                        if clean_calib == 'y':
-                            cal_root = Path('Calibrations').resolve()
-                            for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:
-                                for f in cal_root.glob(f'{cal}*'):
-                                    f.unlink()
+                        while ow_wvcalib != 'y' and ow_wvcalib != 'n':
+                            print('')
+                            msgs.warn('Do you want to overwrite existing Calibrations/WaveCalib*.fits file? ' + msgs.newline() +
+                                    'NOTE: To use this WaveCalib file the user will need to delete the other files in Calibrations/ ' + msgs.newline() +
+                                    ' and re-run run_pypeit. ')
+                            print('')
+                            ow_wvcalib = input('Proceed with overwrite? (y/[n]): ')
+
+                    if ow_wvcalib == 'y':
+                        wvcalib.to_file()
+                        if multi:
+                            slit_list_str = ''
+                            slit_list = np.arange(np.shape(specdata_multi)[0])
+                            for islit in slit_list:
+                                if islit < len(slit_list) - 1:
+                                    slit_list_str += str(islit) + ','
+                                else: slit_list_str += str(islit)
+
+                            if slits:
+                                print(' '*10)
+                                msgs.info('Unflagging Slits from WaveCalib: ')
+                                slits.mask = np.zeros(slits.nslits, dtype=slits.bitmask.minimum_dtype())
+                                slits.ech_order = order_vec
+                                slits.to_file()
+                                print(' '*10)
+                        print(' '*10)
+                        # ask to clean up the Calibrations directory only if force_save=False, otherwise don't clean up
+                        if not force_save:
+                            clean_calib = input('Clean up the Calibrations/ directory? This will delete all of the existing'
+                                                ' calibrations except the Arcs and WaveCalib files. y/[n]: ')
+                            if clean_calib == 'y':
+                                cal_root = Path('Calibrations').resolve()
+                                for cal in ['Tilt', 'Flat', 'Edge', 'Slit']:
+                                    for f in cal_root.glob(f'{cal}*'):
+                                        f.unlink()
 
                 # Print some helpful information
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")

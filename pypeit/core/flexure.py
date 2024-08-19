@@ -1219,7 +1219,8 @@ def calculate_image_phase(imref, imshift, gpm_ref=None, gpm_shift=None, maskval=
     if gpm_shift is None:
         gpm_shift = np.ones(imshift.shape, dtype=bool) if maskval is None else imshift != maskval
     # Get a crude estimate of the shift
-    shift = phase_cross_correlation(imref, imshift, reference_mask=gpm_ref, moving_mask=gpm_shift).astype(int)
+    shift, _, _ = phase_cross_correlation(imref, imshift, reference_mask=gpm_ref, moving_mask=gpm_shift)
+    shift = shift.astype(int)
     # Extract the overlapping portion of the images
     exref = imref.copy()
     exshf = imshift.copy()
