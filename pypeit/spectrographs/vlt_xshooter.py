@@ -574,8 +574,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         
         # Grab the gain and read noise from the header.
         # If hdu not present, use typical defaults
-        gain = np.atleast_1d(0.64) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = np.atleast_1d(3.4) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
+        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
 
         # Detector 1
         detector_dict = dict(
@@ -866,8 +866,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
         
         # Grab the gain and read noise from the header.
-        gain = np.atleast_1d(0.63) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = np.atleast_1d(2.4) if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
+        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
 
         # Detector 1
         detector_dict = dict(
