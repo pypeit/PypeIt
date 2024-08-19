@@ -154,7 +154,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3, 3]
-        # Continnum order for determining thresholds
+        # number of objects
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
