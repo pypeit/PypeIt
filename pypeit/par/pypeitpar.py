@@ -464,7 +464,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
                    'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
-                   'spat_flexure_correct', 'spat_flexure_maxlag', 'spat_flexure_maxshift',
+                   'spat_flexure_correct', 'spat_flexure_maxshift',
                    'spat_flexure_cont_samp', 'spat_flexure_sigdetect',
                    'use_illumflat', 'use_specillum',
                    'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
