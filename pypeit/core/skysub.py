@@ -147,7 +147,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
-    isrt = np.argsort(piximg[thismask])
+    isrt = np.argsort(piximg[thismask], kind='stable')
     pix = piximg[thismask][isrt]
     sky = image[thismask][isrt]
     sky_ivar = ivar[thismask][isrt]
@@ -301,7 +301,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
         whether a pixel is good (True) or was masked (False).
     """
 
-    sortpix = piximg.argsort()
+    sortpix = piximg.argsort(kind='stable')
 
     nx = data.size
     nc = oprof.shape[0]
@@ -327,7 +327,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     indx, = np.where(ivar[sortpix] > 0.0)
     ngood = indx.size
     good = sortpix[indx]
-    good = good[piximg[good].argsort()]
+    good = good[piximg[good].argsort(kind='stable')]
     relative, = np.where(relative_mask[good])
 
     gpm = np.zeros(piximg.shape, dtype=bool)
@@ -427,7 +427,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
     """
 
     pix = piximg[sampmask]
-    isrt = pix.argsort()
+    isrt = pix.argsort(kind='stable')
     pix = pix[isrt]
     piximg_min = pix.min()
     piximg_max = pix.max()
@@ -1318,11 +1318,11 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Compute the average SNR and find the brightest object
     snr_bar = np.mean(order_snr,axis=0)
-    srt_obj = snr_bar.argsort()[::-1]
+    srt_obj = snr_bar.argsort(kind='stable')[::-1]
     ibright = srt_obj[0] # index of the brightest object
 
     # Now extract the orders in descending order of S/N for the brightest object
-    srt_order_snr = order_snr[:,ibright].argsort()[::-1]
+    srt_order_snr = order_snr[:,ibright].argsort(kind='stable')[::-1]
     fwhm_here = np.zeros(norders)
     fwhm_was_fit = np.zeros(norders,dtype=bool)
 
