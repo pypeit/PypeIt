@@ -67,7 +67,7 @@ def sorted_flat_data(data, coo, gpm=None):
     # np.argsort sorts the data over the last axis. To avoid coo[gpm]
     # returning an array (which will happen if the gpm is not provided
     # as an argument), all the arrays are explicitly flattened.
-    srt = np.argsort(coo[gpm].ravel())
+    srt = np.argsort(coo[gpm].ravel(), kind='stable')
     coo_data = coo[gpm].ravel()[srt]
     flat_data = data[gpm].ravel()[srt]
     return gpm, srt, coo_data, flat_data
@@ -241,7 +241,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         plt.show()
 
     # Include the rejected data in the full image good-pixel mask
-    _spat_gpm[_spat_gpm] = spat_gpm_data_raw[np.argsort(spat_srt)]
+    _spat_gpm[_spat_gpm] = spat_gpm_data_raw[np.argsort(spat_srt, kind='stable')]
     # Recreate the illumination profile data
     _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw \
             = sorted_flat_data(norm_spec, spat_coo, gpm=_spat_gpm)
@@ -434,7 +434,7 @@ def poly_map(rawimg, rawivar, waveimg, slitmask, slitmask_trim, modelimg, deg=3,
     slitmask_spatid = np.sort(slitmask_spatid[slitmask_spatid > 0])
 
     # Create a spline between the raw data and the error
-    flxsrt = np.argsort(np.ravel(rawimg))
+    flxsrt = np.argsort(np.ravel(rawimg), kind='stable')
     spl = scipy.interpolate.interp1d(np.ravel(rawimg)[flxsrt], np.ravel(rawivar)[flxsrt], kind='linear',
                                      bounds_error=False, fill_value=0.0, assume_sorted=True)
     modelmap = np.ones_like(rawimg)
