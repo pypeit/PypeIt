@@ -1605,6 +1605,8 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     mask : `numpy.ndarray`_
         Boolean mask containing sky regions
     """
+    # Check the input
+    _spat_flexure = np.zeros((slits.nslits, 2)) if spat_flexure is None else spat_flexure
     # Grab the resolution that was used to generate skyreg
     resolution = skyreg[0].size
     # Using the left/right slit edge traces, generate a series of traces that mark the
@@ -1617,8 +1619,8 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
     # Create a dummy spatial flexure that determines the spatial flexure at the edge of each sky region
     skyreg_spat_flexure = np.zeros((0, 2))
     for sl in range(slits.nslits):
-        this_spat_flexure_left = spat_flexure[sl, 0]
-        this_spat_flexure_diff = spat_flexure[sl, 1] - spat_flexure[sl, 0]
+        this_spat_flexure_left = _spat_flexure[sl, 0]
+        this_spat_flexure_diff = _spat_flexure[sl, 1] - _spat_flexure[sl, 0]
         # Calculate the slit width
         diff = slits_right[:, sl] - slits_left[:, sl]
         # Break up the slit into `resolution` subpixels
