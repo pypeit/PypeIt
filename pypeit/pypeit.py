@@ -901,8 +901,12 @@ class PypeIt:
         frame : :obj:`int`, optional
             The index of the frame used to construct the calibration key.  Only
             used if ``user_regions = user``.
-        spat_flexure : :obj:`float`, None, optional
-            The spatial flexure (measured in pixels) of the science frame relative to the trace frame.
+        spat_flexure (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to apply to each slit.
+            This is used to correct for spatial flexure. The shape of the array should
+            be (nslits, 2), where the first column is the shift to apply to the left
+            edge of each slit and the second column is the shift to apply to the
+            right edge of each slit.
 
         Returns
         -------

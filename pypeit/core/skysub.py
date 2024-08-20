@@ -1593,10 +1593,12 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
         A 2D array containing the pixel coordinates of the left slit edges
     slits_right : `numpy.ndarray`_
         A 2D array containing the pixel coordinates of the right slit edges
-    resolution: int, optional
-        The percentage regions will be scaled to the specified resolution. The
-        resolution should probably correspond to the number of spatial pixels
-        on the slit.
+    spat_flexure (`numpy.ndarray`_, optional):
+        If provided, this is the shift, in spatial pixels, to apply to each slit.
+        This is used to correct for spatial flexure. The shape of the array should
+        be (nslits, 2), where the first column is the shift to apply to the left
+        edge of each slit and the second column is the shift to apply to the
+        right edge of each slit.
 
     Returns
     -------
