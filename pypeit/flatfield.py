@@ -1032,7 +1032,7 @@ class FlatField:
 
             if sticky:
                 # Add rejected pixels to gpm
-                gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt)]
+                gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt, kind='stable')]
 
             # Construct the model of the flat-field spectral shape
             # including padding on either side of the slit.
@@ -1279,8 +1279,8 @@ class FlatField:
                           'flat-field corrections included in model of slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
             else:
-                twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
-                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt)]
+                twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt, kind='stable')]
+                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt, kind='stable')]
 
 
             # Construct the full flat-field model
@@ -1947,7 +1947,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
     # Sort the central wavelengths by those that are closest to the reference slit
-    wvsrt = np.argsort(np.abs(wavecen - wavecen[slit_illum_ref_idx]))
+    wvsrt = np.argsort(np.abs(wavecen - wavecen[slit_illum_ref_idx]), kind='stable')
 
     # Prepare wavelength array for all spectra
     dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
