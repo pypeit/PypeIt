@@ -27,6 +27,11 @@ Functionality/Performance Improvements and Additions
 Instrument-specific Updates
 ---------------------------
 
+- GMOS-South: PypeIt reductions of GMOS-South MOS observations now properly
+  account for tilted slits in the mask design file. Previously, these data
+  could only be reduced without including any information from the slitmask
+  design.
+
 Script Changes
 --------------
 
