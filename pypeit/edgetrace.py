@@ -5112,26 +5112,28 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # NOTE: This only adjusts the "fit" locations (edge_fit), *not* the
         # measured centroid locations (edge_cen).  This should not cause
         # problems because, e.g., the `get_slits` function uses `edge_fit`.
+        nadd = add_left.size
         left_indx = np.where(left_gpm)[0][individual_orders]
-        offset = _left[isrt][add_left.size:] - left
+        offset = _left[isrt][nadd:] - left
         self.edge_fit[:,left_indx] += offset[None,:]
         right_indx = np.where(right_gpm)[0][individual_orders]
-        offset = _right[isrt][add_left.size:] - right
+        offset = _right[isrt][nadd:] - right
         self.edge_fit[:,right_indx] += offset[None,:]
 
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
-        good_order = good_order[isrt][:add_left.size]
-        add_left = _left[isrt][:add_left.size][good_order]
-        add_right = _right[isrt][:add_left.size][good_order]
+        good_order = good_order[isrt][:nadd]
+        add_left = _left[isrt][:nadd][good_order]
+        add_right = _right[isrt][:nadd][good_order]
 
         if bracket:
-            # Remove the bracketing orders
-            if add_left.size < 2:
+            # Deal with the bracketing orders
+            nadd = add_left.size
+            if nadd < 2:
                 # TODO: The code should not get here!  If it does, we need to
                 # figure out why and fix it.
                 msgs.error('CODING ERROR: Order bracketing failed!')
-            elif add_left.size == 2:
+            elif nadd == 2:
                 add_left = None
                 add_right = None
             else:
