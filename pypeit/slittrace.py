@@ -685,6 +685,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         spat = np.arange(self.nspat)
         spec = np.arange(self.nspec)
 
+        # Get the edges
         left, right, _ = self.select_edges(initial=initial, spat_flexure=spat_flexure)
 
         # Choose the slits to use
