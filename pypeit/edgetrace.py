@@ -4927,7 +4927,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         
         return add_left_edges, add_right_edges
 
-    # NOTE: combined_order_tol is effectively hard-coded.
+    # NOTE: combined_order_tol is effectively hard-coded; i.e., the current code
+    # always uses the default when calling this function.
     def order_refine_free_format(self, reference_row, combined_order_tol=1.8, bracket=True,
                                  debug=False):
         """
@@ -5084,6 +5085,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # are adjusted equally on both sides to avoid changing the order center
         # and exclude the overlap regions from the reduction.
         if np.all(_left[1:] - _right[:-1] > 0):
+            if bracket:
+                add_left, add_right = self._handle_bracketing_orders(add_left, add_right)
             # There is no overlap, so just return the orders to add
             return add_left, add_right, rmtraces
 
@@ -5127,20 +5130,33 @@ class EdgeTraceSet(calibframe.CalibFrame):
         add_right = _right[isrt][:nadd][good_order]
 
         if bracket:
-            # Deal with the bracketing orders
-            nadd = add_left.size
-            if nadd < 2:
-                # TODO: The code should not get here!  If it does, we need to
-                # figure out why and fix it.
-                msgs.error('CODING ERROR: Order bracketing failed!')
-            elif nadd == 2:
-                add_left = None
-                add_right = None
-            else:
-                add_left = add_left[1:-1]
-                add_right = add_right[1:-1]
-
+            add_left, add_right = self._handle_bracketing_orders(add_left, add_right)
         return add_left, add_right, rmtraces
+
+    @staticmethod
+    def _handle_bracketing_orders(add_left, add_right):
+        """
+        Utility function to remove added orders that bracket the left and right
+        edge of the detector, used to handle overlap.
+
+        Args:
+            add_left (`numpy.ndarray`_):
+                List of left edges to add
+            add_right (`numpy.ndarray`_):
+                List of right edges to add
+
+        Returns:
+            :obj:`tuple`: The two `numpy.ndarray`_ objects after removing the
+            bracketing orders.
+        """
+        nadd = add_left.size
+        if nadd < 2:
+            # TODO: The code should not get here!  If it does, we need to
+            # figure out why and fix it.
+            msgs.error('CODING ERROR: Order bracketing failed!')
+        if nadd == 2:
+            return None, None
+        return add_left[1:-1], add_right[1:-1]
     
     def order_refine_free_format_qa(self, cen, combined_orders, width, gap, width_fit, gap_fit,
                                     order_cen, order_missing, bracket=False, ofile=None):
