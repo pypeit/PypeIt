@@ -255,11 +255,11 @@ class SpecObj(datamodel.DataContainer):
 
     @classmethod
     def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
-                    mode='OPT', DET='DET01', SLITID=0, **kwargs):
+                    flat:np.ndarray, mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
         slf = cls(PYPELINE, DET, SLITID=SLITID)
         # Add in arrays
-        for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+        for item, attr in zip([wave, counts, ivar, flat], ['_WAVE', '_COUNTS', '_COUNTS_IVAR', '_FLAT']):
             setattr(slf, mode+attr, item.astype(float))
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
