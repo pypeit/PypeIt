@@ -1459,7 +1459,7 @@ class FlatField:
             illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
-            return
+            return illumflat_finecorr
 
         # Prepare QA
         if doqa:
