@@ -282,9 +282,14 @@ class WaveCalib(calibframe.CalibFrame):
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
         slitmask = slits.slit_img(pad=1, initial=initial, flexure=spat_flexure)
         slits_left, slits_right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
+        # need to exclude slits that are masked (are bad)
+        bad_slits = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
+        ok_spat_ids = slits.spat_id[np.logical_not(bad_slits)]
         # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
+            if spat_id not in ok_spat_ids:
+                continue
             this_mask = slitmask == spat_id
             spec, spat = np.where(this_mask)
             spat_loc = (spat - slits_left[spec, sl]) / (slits_right[spec, sl] - slits_left[spec, sl])
