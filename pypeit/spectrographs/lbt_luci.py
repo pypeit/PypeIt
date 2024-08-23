@@ -424,7 +424,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
  # MER 	  6.31 	 6.31
 
 
-
 class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
     """
     Child to handle LBT/LUCI1 specific code
@@ -571,7 +570,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MountGraham_9000_25000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
 
         return par
@@ -801,7 +800,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MountGraham_9000_25000_R15000.fits'
+        par['sensfunc']['IR']['telgridfile'] = 'TellPCA_3000_26000_R10000.fits'
 
         return par
 
