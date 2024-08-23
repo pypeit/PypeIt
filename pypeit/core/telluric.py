@@ -334,6 +334,7 @@ def conv_telluric(tell_model, dloglam, res):
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
     return conv_model
 
+
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
     Routine to apply a shift to the telluric model. Note that the shift can be sub-pixel, i.e this routine interpolates.
@@ -363,6 +364,7 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     #loglam_shift = loglam + shift*dloglam
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
+
 
 def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
