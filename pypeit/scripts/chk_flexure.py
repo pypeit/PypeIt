@@ -19,8 +19,6 @@ class ChkFlexure(scriptbase.ScriptBase):
         inp = parser.add_mutually_exclusive_group(required=True)
         inp.add_argument('--spec', default=False, action='store_true', help='Check the spectral flexure')
         inp.add_argument('--spat', default=False, action='store_true', help='Check the spatial flexure')
-        # parser.add_argument('type', type=str,
-        #                     help='Type of flexure to check. Options are: spat, spec')
         parser.add_argument('--try_old', default=False, action='store_true',
                             help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
