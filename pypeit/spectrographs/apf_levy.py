@@ -44,7 +44,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['calibrations']['slitedges']['edge_thresh'] = 3.
+        par['calibrations']['slitedges']['edge_thresh'] = 2.
         par['calibrations']['slitedges']['fit_order'] = 4
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
@@ -53,14 +53,14 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
 
-
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'apf_levy_ech.fits'
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_HARPS']
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['fwhm'] = 2.0
-        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.1
+        par['calibrations']['wavelengths']['rms_thresh_frac_fwhm'] = 0.2
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -243,7 +243,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         else:
             bin_spat = 1
 
-        plate_scale = np.zeros_like(order_vec)
+        plate_scale = np.zeros_like(order_vec, dtype=float)
         plate_scale += (0.43346 + 0.43767 + 0.43551 + 0.42944 + 0.42552 + 0.43146)/6.0
 
         return plate_scale*bin_spat
@@ -345,7 +345,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         Return the expected spatial position of each echelle order.
         """
         ord_spat_pos = np.array(
-        [0.08327305, 0.09882858, 0.11422751, 0.1294643 ,
+        [0.06748562, 0.08327305, 0.09882858, 0.11422751, 0.1294643 ,
         0.14456395, 0.15949527, 0.17425991, 0.18887026, 0.20333023,
         0.21763396, 0.23178534, 0.2457807 , 0.25963618, 0.27333362,
         0.28688716, 0.30029984, 0.31356982, 0.32669448, 0.33967947,
@@ -357,8 +357,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         0.63325607, 0.64306738, 0.65280306, 0.66246134, 0.672025  ,
         0.68153262, 0.69093696, 0.70028011, 0.70953112, 0.71869543,
         0.72783612, 0.73692905, 0.74593691, 0.75489132, 0.76384089,
-        0.77268862, 0.781545  , 0.79036394, 0.79922398, 0.80807998,
-        0.81680164])
+        0.77268862, 0.781545  , 0.79036394, 0.79922398, 0.80807998])
+        #0.81680164])
 
         return ord_spat_pos
 
