@@ -246,7 +246,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         plate_scale = np.zeros_like(order_vec, dtype=float)
         plate_scale += (0.43346 + 0.43767 + 0.43551 + 0.42944 + 0.42552 + 0.43146)/6.0
 
-        return plate_scale*bin_spat
+        return plate_scale*float(bin_spat)
 
     def init_meta(self):
         """
