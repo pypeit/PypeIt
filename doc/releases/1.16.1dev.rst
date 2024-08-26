@@ -26,8 +26,11 @@ Functionality/Performance Improvements and Additions
 
 Instrument-specific Updates
 ---------------------------
-- Added support for the (decommissioned) AAT/UHRF instrument
 
+- Added support for the (decommissioned) AAT/UHRF instrument
+- Updated the requirements of a spectral flip for KCWI (blue) data. If all amplifiers are
+  used, the data will be flipped. If all amplifiers are used, the data will not be flipped.
+  Otherwise, the data will be flipped.
 - Updated X-Shooter detector gain and read noise to come from header, and
   updated plate scales to the most recent values from the manual.  Detailed
   changes are:
