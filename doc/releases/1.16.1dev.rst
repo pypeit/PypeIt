@@ -28,6 +28,21 @@ Instrument-specific Updates
 ---------------------------
 - Added support for the (decommissioned) AAT/UHRF instrument
 
+- Updated X-Shooter detector gain and read noise to come from header, and
+  updated plate scales to the most recent values from the manual.  Detailed
+  changes are:
+    - NIR arm:
+        - Platescale updated from 0.197 to 0.245 arcsec/pixel
+        - Dark current updated from 0. to 72. e-/pixel/hr
+        - Gain updated from 2.12 to 2.29 e-/DN
+    - VIS arm:
+        - Platescale updated from an order-dependent value, to being 0.154
+          arcsec/pixel for all orders
+    - UVB arm:
+        - Platescale updated from an order-dependent value, to being 0.164
+          arcsec/pixel for all orders
+
+
 Script Changes
 --------------
 
