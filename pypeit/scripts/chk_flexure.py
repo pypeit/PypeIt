@@ -40,7 +40,7 @@ class ChkFlexure(scriptbase.ScriptBase):
         # Loop over the input files
         for in_file in args.input_file:
 
-            print(f'\nCheck fluxure for file: {in_file}')
+            msgs.info(f'Checking fluxure for file: {in_file}')
 
             # What kind of file are we??
             hdul = fits.open(in_file)
@@ -98,7 +98,9 @@ class ChkFlexure(scriptbase.ScriptBase):
                 spec_flex.pprint_all()
                 # return the table
                 return_tables.append(spec_flex)
-
+                
+            #  space between files for clarity
+            print('')
         return return_tables
 
 
