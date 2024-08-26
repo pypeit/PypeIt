@@ -96,7 +96,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         """
         # Detector 1
 
-        binning = 1
+        binning = "1,1"
         if hdu:
             # the CCD can only be binned 1x1 or 2x2
             # the square binning means both keywords will be the same
@@ -161,7 +161,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
                 msgs.error(f"Unrecognized decker {decker_str}")
 
         if meta_key == 'binning':
-            binning = headarr[0]['RBIN']
+            binning = f"{headarr[0]['RBIN']},{headarr[0]['CBIN']}"
             return binning
 
         msgs.error("Not ready for this compound meta")
@@ -239,7 +239,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # 124 0.43146
 
         if binning:
-            bin_spat = binning
+            bin_spat,_ = binning.split(",")
+            bin_spat = int(bin_spat)
         else:
             bin_spat = 1
 
