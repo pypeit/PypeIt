@@ -29,7 +29,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
 from pypeit.core import wave
 from pypeit import dataPaths
-from pypeit import data
+
 
 
 # TODO: Put these in the relevant functions

@@ -2728,13 +2728,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
     ivars_scale_arr_setup = utils.setup_list_to_arr_setup(ivars_scale_setup_list, norders, nexps)
     out_gpms_arr_setup = utils.setup_list_to_arr_setup(out_gpms_setup_list, norders, nexps)
 
-    #debugging for order stacks
-    #msgs.info(f'nexps = {nexps}')
-    #msgs.info(f'norders = {norders}')
-    #msgs.info(f'Shape of setups is {np.shape(waves_setup_list[0])}')
-    #msgs.info(f'median of first two orders of wave setup list is {np.median(waves_setup_list[0][0])} and {np.median(waves_setup_list[0][1])}')
-    
-#    msgs.info(f'Shape of setups is {np.shape(waves_setup_list)}')
 
     ############################
     # Order Stack computation -- These are returned. CURRENTLY NOT USED FOR ANYTHING
@@ -2748,6 +2741,10 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             ind_start = iord*nexps[isetup]
             ind_end = (iord+1)*nexps[isetup]
             wave_grid_ord = waves_setup_list[isetup][ind_start]
+            # if the wavelength grid is non-monotonic, resample onto a loglam grid
+            if np.any(wave_grid_diff_ord < 0):
+                msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
+                wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
             wave_grid_diff_ord = np.diff(wave_grid_ord)
             wave_grid_diff_ord = np.append(wave_grid_diff_ord, wave_grid_diff_ord[-1])
             wave_grid_mid_ord = wave_grid_ord + wave_grid_diff_ord / 2.0
@@ -2755,16 +2752,6 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             # the convention in wavegrid above
             wave_grid_mid_ord = wave_grid_mid_ord[:-1]
             #trim off first and last pixel in case of edge effects in wavelength calibration
-            # if the wavelength grid is non-monotonic, resample onto a loglam grid
-            if np.any(wave_grid_diff_ord < 0):
-                msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
-                wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
-                wave_grid_diff_ord = np.diff(wave_grid_ord)
-                wave_grid_diff_ord = np.append(wave_grid_diff_ord, wave_grid_diff_ord[-1])
-                wave_grid_mid_ord = wave_grid_ord + wave_grid_diff_ord / 2.0
-                # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin. This matches
-                # the convention in wavegrid above
-                wave_grid_mid_ord = wave_grid_mid_ord[:-1]
             wave_order_stack_iord, flux_order_stack_iord, ivar_order_stack_iord, gpm_order_stack_iord, \
                 nused_order_stack_iord, outgpms_order_stack_iord = spec_reject_comb(
                 wave_grid_ord, wave_grid_mid_ord, waves_setup_list[isetup][ind_start:ind_end],

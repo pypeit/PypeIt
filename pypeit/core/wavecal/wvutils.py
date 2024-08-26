@@ -284,7 +284,6 @@ def get_wave_grid(waves=None, gpms=None, wave_method='linear', iref=0, wave_grid
             msgs.info(f'iref for the list is set to {iref}')
             msgs.info(f'The shape of the list is: {np.shape(waves)}')
             msgs.info(f'shape of the first wave_grid in the list is: {np.shape(waves[iref])}')
-            msgs.info(f'The median wavelength in orders 0, 37, 74 is {np.median(waves[0])}, {np.median(waves[0])}, {np.median(waves[0])}')
             wave_tmp = waves[iref]
             wave_grid = wave_tmp[wave_tmp > 1.0]
             if spec_samp_fact != 1: # adjust sampling via internal interpolation
