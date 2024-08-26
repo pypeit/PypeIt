@@ -2755,14 +2755,9 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             # the convention in wavegrid above
             wave_grid_mid_ord = wave_grid_mid_ord[:-1]
             #trim off first and last pixel in case of edge effects in wavelength calibration
-            #wave_grid_mid_ord = wave_grid_mid_ord[1:-1]
-            #wave_grid_ord = wave_grid_ord[1:-1]
             # if the wavelength grid is non-monotonic, resample onto a loglam grid
             if np.any(wave_grid_diff_ord < 0):
                 msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
-                #_, dloglam_data, _, _ = wvutils.get_sampling(wave_grid_ord)
-                #wave_grid_ord, wave_grid_mid_ord, _ = wvutils.wavegrid(np.min(wave_grid_ord), np.max(wave_grid_ord), dloglam_data,
-                #                    spec_samp_fact=spec_samp_fact, log10=True)
                 wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
                 wave_grid_diff_ord = np.diff(wave_grid_ord)
                 wave_grid_diff_ord = np.append(wave_grid_diff_ord, wave_grid_diff_ord[-1])
@@ -2777,7 +2772,7 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
                 gpms_setup_list[isetup][ind_start:ind_end], weights_setup_list[isetup][ind_start:ind_end],
                 sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug_order_stack,
                 title='order_stacks')
-            waves_order_stack.append(wave_order_stack_iord)
+            waves_order_stack.append(wave_grid_mid_ord)
             fluxes_order_stack.append(flux_order_stack_iord)
             ivars_order_stack.append(ivar_order_stack_iord)
             gpms_order_stack.append(gpm_order_stack_iord)
