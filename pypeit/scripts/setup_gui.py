@@ -27,8 +27,11 @@ class SetupGUI(scriptbase.ScriptBase):
                                  'the wildcard (.e.g, /data/Kast/b).  Use the --extension option '
                                  'to set the types of files to search for.  Default is the '
                                  'current working directory.')
-        parser.add_argument('-e', '--extension', default='.fits',
-                            help='File extension; compression indicators (e.g. .gz) not required.')
+        parser.add_argument('-e', '--extension', default=None,
+                            help='File extension to use.  Must include the period (e.g., ".fits") '
+                                 'and it must be one of the allowed extensions for this '
+                                 'spectrograph.  If None, root directory will be searched for '
+                                 'all files with any of the allowed extensions.')
         parser.add_argument('-l', '--logfile', type=str, default=None, 
                             help="Write the PypeIt logs to the given file. If the file exists it will be renamed.")
         parser.add_argument('-v', '--verbosity', type=int, default=2,
