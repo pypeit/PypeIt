@@ -60,7 +60,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             # was just instantiated for a maximum number of iterations.
             # If the connection is remains unsuccessful, an error is
             # thrown stating that the connection timed out.
-            maxiter = int(1e6)
+            maxiter = int(3e4)
             for i in range(maxiter):
                 try:
                     viewer = grc.RemoteClient(host, port)
@@ -72,8 +72,9 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                     break
             if i == maxiter-1:
                 msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either case, wait for '
-                           'the ginga viewer to open and try the pypeit command again.')
+                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either '
+                           'case, wait for the ginga viewer to open and try the pypeit command '
+                           'again.')
             return viewer
 
         if raise_err:
