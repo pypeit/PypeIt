@@ -1763,16 +1763,8 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     gpm_smash = npix_smash > 0.3*nsmash
     flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
-    # Mask around the peaks
-    peak_bpm = arc.mask_around_peaks(flux_smash, np.logical_not(gpm_smash))
-    # Check that the peak mask is not empty
-    if np.sum(np.logical_not(peak_bpm))/peak_bpm.size < 0.05:  # 95% masked!
-        msgs.warn('Peak masking was too aggressive. Attempting to sigma clip.')
-        smash_mask = np.logical_not(gpm_smash)
-    else:
-        smash_mask = np.logical_not(gpm_smash) | peak_bpm
     flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
-        flux_smash, mask=smash_mask, sigma_lower=3.0, sigma_upper=3.0)
+        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0)
     flux_smash_recen = flux_smash - flux_smash_med
 
     # Return if none found and no hand extraction
