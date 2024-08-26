@@ -239,7 +239,7 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         # 124 0.43146
 
         if binning:
-            bin_spat,_ = binning.split(",")
+            _,bin_spat = binning.split(",")
             bin_spat = int(bin_spat)
         else:
             bin_spat = 1
@@ -307,8 +307,10 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if ftype in ['trace', 'illumflat']:
             return good_exp & ((fitstbl['idname'] == 'WideFlat') |
                                    (fitstbl['idname'] == 'NarrowFlat'))
-        if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'ThAr')
+        if ftype in ['tilt']:
+            return good_exp & (fitstbl['idname'] == 'ThAr') & fitstbl['decker'] == '3.0'
+        if ftype in ['arc']:
+            return good_exp & (fitstbl['idname'] == 'ThAr') & fitstbl['decker'] == 'Pinhole'
 
         msgs.warn(f'Cannot determine if frames are of type {ftype}.')
         return np.zeros(len(fitstbl), dtype=bool)
