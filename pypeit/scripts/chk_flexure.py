@@ -27,15 +27,11 @@ class ChkFlexure(scriptbase.ScriptBase):
     def main(args):
 
         from IPython import embed
-        import numpy as np
         from astropy.io import fits
-        from astropy.table import Table
-        from pypeit import spec2dobj, specobjs, msgs
+        from pypeit import msgs
+        from pypeit.core import flexure
 
         chk_version = not args.try_old
-
-        # tables to return
-        return_tables = []
 
         # Loop over the input files
         for in_file in args.input_file:
@@ -47,61 +43,18 @@ class ChkFlexure(scriptbase.ScriptBase):
             head0 = hdul[0].header
             file_type = None
             if 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
-                file_type = 'AllSpec2D'
+                file_type = 'spec2d'
             elif 'DMODCLS' in head0.keys() and head0['DMODCLS'].strip() == 'SpecObjs':
-                file_type = 'SpecObjs'
+                file_type = 'spec1d'
             else:
                 msgs.error("Bad file type input!")
 
-            if file_type == 'AllSpec2D':
-                # load the spec2d file
-                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=chk_version)
-                # Loop on Detectors
-                for det in allspec2D.detectors:
-                    print('')
-                    print('='*50 + f'{det:^7}' + '='*51)
-                    # get and print the spectral flexure
-                    if args.spec:
-                        spec_flex = allspec2D[det].sci_spec_flexure
-                        spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
-                        if np.all(spec_flex['global_spec_shift'] != None):
-                            spec_flex['global_spec_shift'].format = '0.3f'
-                        # print the table
-                        spec_flex.pprint_all()
-                        # return the table
-                        return_tables.append(spec_flex)
-                    # get and print the spatial flexure
-                    if args.spat:
-                        spat_flex = allspec2D[det].sci_spat_flexure
-                        # print the value
-                        print(f'Spat shift: {spat_flex}')
-                        # return the value
-                        return_tables.append(spat_flex)
-            elif file_type == 'SpecObjs':
-                # no spat flexure in spec1d file
-                if args.spat:
-                    msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
-                # load the spec1d file
-                sobjs = specobjs.SpecObjs.from_fitsfile(in_file, chk_version=chk_version)
-                spec_flex = Table()
-                spec_flex['NAME'] = sobjs.NAME
-                spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
-                if np.all(spec_flex['global_spec_shift'] != None):
-                    spec_flex['global_spec_shift'].format = '0.3f'
-                spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
-                if np.all(spec_flex['local_spec_shift'] != None):
-                    spec_flex['local_spec_shift'].format = '0.3f'
-                spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
-                if np.all(spec_flex['total_spec_shift'] != None):
-                    spec_flex['total_spec_shift'].format = '0.3f'
-                # print the table
-                spec_flex.pprint_all()
-                # return the table
-                return_tables.append(spec_flex)
-                
+            # Check the flexure
+            flexure.flexure_diagnostic(in_file, file_type=file_type, flexure_type='spat' if args.spat else 'spec',
+                                       chk_version=chk_version)
+
             #  space between files for clarity
             print('')
-        return return_tables
 
 
 
