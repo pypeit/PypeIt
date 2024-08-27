@@ -9,6 +9,7 @@ from pypeit.scripts import clean_cache
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
+from pypeit.scripts import chk_flexure
 from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
