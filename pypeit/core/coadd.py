@@ -2742,10 +2742,12 @@ def ech_combspec(waves_arr_setup, fluxes_arr_setup, ivars_arr_setup, gpms_arr_se
             ind_end = (iord+1)*nexps[isetup]
             wave_grid_ord = waves_setup_list[isetup][ind_start]
             # if the wavelength grid is non-monotonic, resample onto a loglam grid
+            wave_grid_diff_ord = np.diff(wave_grid_ord)
             if np.any(wave_grid_diff_ord < 0):
                 msgs.warn(f'This order ({iord}) has a non-monotonic wavelength solution. Resampling now: ')
                 wave_grid_ord = np.linspace(np.min(wave_grid_ord), np.max(wave_grid_ord), len(wave_grid_ord))
-            wave_grid_diff_ord = np.diff(wave_grid_ord)
+                wave_grid_diff_ord = np.diff(wave_grid_ord)
+
             wave_grid_diff_ord = np.append(wave_grid_diff_ord, wave_grid_diff_ord[-1])
             wave_grid_mid_ord = wave_grid_ord + wave_grid_diff_ord / 2.0
             # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin. This matches
