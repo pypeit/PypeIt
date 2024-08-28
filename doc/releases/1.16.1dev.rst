@@ -63,6 +63,8 @@ Script Changes
 - Added the ``--extr`` parameter in the ``pypeit_sensfunc`` script (also as a SensFuncPar)
   to allow the user to specify the extraction method to use when computing the sensitivity
   function (before only optimal extraction was used).
+- Added ``pypeit_chk_flexure`` script to check both spatial and spectral flexure applied to
+  the reduced data.
 
 Datamodel Changes
 -----------------
