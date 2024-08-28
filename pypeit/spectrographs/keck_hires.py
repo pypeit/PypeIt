@@ -113,6 +113,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
         par['calibrations']['slitedges']['order_gap_poly'] = 3
+        par['calibrations']['slitedges']['order_outlier'] = 10.
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15

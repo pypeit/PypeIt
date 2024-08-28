@@ -2620,10 +2620,19 @@ class EdgeTraceSet(calibframe.CalibFrame):
 #                      ' changes along the dispersion direction.')
 #            self.remove_traces(dl_flag, rebuild_pca=_rebuild_pca)
 
-        # Get the slits that have been flagged as abnormally short.  This should
-        # be the same as the definition above, it's just redone here to ensure
-        # `short` is defined when `length_rtol` is None.
-        short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT')
+        # Try to detect overlap between adjacent slits by finding abnormally
+        # short slits.
+        #   - Find abnormally short slits that *do not* include inserted edges;
+        #     i.e., these must be *detected* edges, not inserted ones.
+        #   - *Both* edges in the fit must be flagged because of this
+        #     requirement that the trace not be inserted.  This means that we
+        #     set mode='neither' when running synced_selection.  I also set
+        #     assume_synced=True: the traces should be synced if the code has
+        #     made it this far.  Any flags that would indicate otherwise will
+        #     have been set by this function.
+        short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT',
+                                         exclude=self.bitmask.insert_flags)
+        short = self.synced_selection(short, mode='neither', assume_synced=True)
         if self.par['overlap'] and np.any(short):
             msgs.info('Assuming slits flagged as abnormally short are actually due to '
                       'overlapping slit edges.')
@@ -2827,7 +2836,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         if not assume_synced and not self.is_synced:
             msgs.error('To synchronize the trace selection, it is expected that the traces have '
-                       'been left-right synchronized.  Either run sync() to sychronize, ignore '
+                       'been left-right synchronized.  Either run sync() to sychronize or ignore '
                        'the synchronization (which may raise an exception) by setting '
                        'assume_synced=True.')
         if mode == 'both':
@@ -4108,6 +4117,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             i += 1
             if i == maxiter:
                 msgs.error('Fatal left-right trace de-synchronization error.')
+
         if self.log is not None:
             self.log += [inspect.stack()[0][3]]
         return True
@@ -5000,18 +5010,14 @@ class EdgeTraceSet(calibframe.CalibFrame):
         gap = left[1:] - right[:-1]
 
         # Create the polynomial models.
-        # TODO:
-        #   - Expose the rejection parameters to the user?
-        #   - Be more strict with upper rejection, to preferentially ignore
-        #     measurements biased by missing orders and/or combined orders?
         width_fit = fitting.robust_fit(cen, width, self.par['order_width_poly'],
-                                       function='legendre', lower=3., upper=3., maxiter=5,
-                                       sticky=True)
+                                       function='legendre', lower=self.par['order_fitrej'],
+                                       upper=self.par['order_fitrej'], maxiter=5, sticky=True)
         # Connection of center to gap uses the gap spatially *after* the order.
         gap_fit = fitting.robust_fit(cen[:-1], gap, self.par['order_gap_poly'],
-                                     function='legendre', lower=3., upper=3., maxiter=5,
-                                     sticky=True)
-
+                                     function='legendre', lower=self.par['order_fitrej'],
+                                     upper=self.par['order_fitrej'], maxiter=5, sticky=True)
+        
         # Ideally, measured widths/gaps should be rejected for one of the
         # following reasons:
         #   - The width is too large because gaps were missed (i.e. multiple
@@ -5019,26 +5025,43 @@ class EdgeTraceSet(calibframe.CalibFrame):
         #   - The width is too small because order overlap was detected and
         #     removed.
         #   - The gap is too large because orders were missed
-        # This finds cases where multiple orders have been combined
-        combined_orders = width / width_fit.eval(cen) > combined_order_tol
+
+        # In the case when the user does not reject "outliers", we still reject
+        # orders that we expected to be cases where multiple orders have been
+        # combined
+        bad_order = width / width_fit.eval(cen) > combined_order_tol
+        if self.par['order_outlier'] is not None:
+            # Exclude "outliers"
+            resid = np.absolute(width_fit.yval - width_fit.eval(width_fit.xval))
+            bad_order |= (resid/width_fit.calc_fit_rms() > self.par['order_outlier'])
+            # TODO: The gaps for HIRES can have *very* large residuals.  Using
+            # the gaps to identify outliers would remove many orders that
+            # probably shouldn't be removed.
+#            resid = np.absolute(gap_fit.yval - gap_fit.eval(gap_fit.xval))
+#            bad_order[:-1] |= (resid/gap_fit.calc_fit_rms() > self.par['order_outlier'])
+
         # And sets flags used to remove them, in favor of replacing them with
         # the predicted locations of the individual orders.
         rmtraces = np.zeros(left_gpm.size, dtype=bool)
-        rmtraces[np.where(left_gpm)[0][combined_orders]] = True
+        rmtraces[np.where(left_gpm)[0][bad_order]] = True
         rmtraces = self.synced_selection(rmtraces, mode='both')
         
         # Interpolate any missing orders
         # TODO: Expose tolerances to the user?
-        individual_orders = np.logical_not(combined_orders)
+        good_order = np.logical_not(bad_order)
         order_cen, order_missing \
-                = trace.find_missing_orders(cen[individual_orders], width_fit, gap_fit)
+                = trace.find_missing_orders(cen[good_order], width_fit, gap_fit)
+        if np.sum(order_missing) > order_missing.size // 2:
+            msgs.warn('Found more missing orders than detected orders.  Check the order '
+                      'refinement QA file!  The code will continue, but you likely need to adjust '
+                      'your edge-tracing parameters.')
 
         # Extrapolate orders; this includes one additional order to either side
         # of the spatial extent set by rng.
         rng = [0., float(self.nspat)] if self.par['order_spat_range'] is None \
                     else self.par['order_spat_range']
         lower_order_cen, upper_order_cen \
-                    = trace.extrapolate_orders(cen[individual_orders], width_fit, gap_fit,
+                    = trace.extrapolate_orders(cen[good_order], width_fit, gap_fit,
                                                rng[0], rng[1], bracket=bracket)
 
         # Combine the results
@@ -5056,7 +5079,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # TODO: Making this directory should probably be done elsewhere
         if ofile is not None and not ofile.parent.is_dir():
             ofile.parent.mkdir(parents=True)
-        self.order_refine_free_format_qa(cen, combined_orders, width, gap, width_fit, gap_fit,
+        self.order_refine_free_format_qa(cen, bad_order, width, gap, width_fit, gap_fit,
                                          order_cen, order_missing, bracket=bracket, ofile=ofile)
 
         # Return the coordinates for the left and right edges to add
@@ -5065,13 +5088,13 @@ class EdgeTraceSet(calibframe.CalibFrame):
         add_right = order_cen[order_missing] + add_width / 2
 
         # Join the added edges with the existing ones
-        _left = np.append(add_left, left[individual_orders])
+        _left = np.append(add_left, left[good_order])
         # Create a sorting vector
         srt = np.argsort(_left)
         # Create a vector that will reverse the sorting
         isrt = np.argsort(srt)
         # Join and sort the right edges
-        _right = np.append(add_right, right[individual_orders])[srt]
+        _right = np.append(add_right, right[good_order])[srt]
         # Sort the left edges
         _left = _left[srt]
 
@@ -5116,10 +5139,10 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # measured centroid locations (edge_cen).  This should not cause
         # problems because, e.g., the `get_slits` function uses `edge_fit`.
         nadd = add_left.size
-        left_indx = np.where(left_gpm)[0][individual_orders]
+        left_indx = np.where(left_gpm)[0][good_order]
         offset = _left[isrt][nadd:] - left
         self.edge_fit[:,left_indx] += offset[None,:]
-        right_indx = np.where(right_gpm)[0][individual_orders]
+        right_indx = np.where(right_gpm)[0][good_order]
         offset = _right[isrt][nadd:] - right
         self.edge_fit[:,right_indx] += offset[None,:]
 
@@ -5158,7 +5181,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             return None, None
         return add_left[1:-1], add_right[1:-1]
     
-    def order_refine_free_format_qa(self, cen, combined_orders, width, gap, width_fit, gap_fit,
+    def order_refine_free_format_qa(self, cen, bad_order, width, gap, width_fit, gap_fit,
                                     order_cen, order_missing, bracket=False, ofile=None):
         """
         Create the QA plot for order modeling.
@@ -5166,9 +5189,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
         Args:
             cen (`numpy.ndarray`_):
                 Spatial centers of the detected orders.
-            combined_orders (`numpy.ndarray`_):
+            bad_order (`numpy.ndarray`_):
                 Boolean array selecting "orders" that have been flagged as
-                likely being the combination of multiple orders.
+                outliers.
             width (`numpy.ndarray`_):
                 Measured order spatial widths in pixels.
             gap (`numpy.ndarray`_):
@@ -5192,8 +5215,28 @@ class EdgeTraceSet(calibframe.CalibFrame):
                 Path for the QA figure file.  If None, the plot is shown in a
                 matplotlib window.
         """
-        w,h = plt.figaspect(1)
-        fig = plt.figure(figsize=(1.5*w,1.5*h))
+        # Setup
+        w_resid = width - width_fit.eval(cen)
+        w_rms = width_fit.calc_fit_rms()
+        med_wr = np.median(w_resid)
+        mad_wr = np.median(np.absolute(w_resid - med_wr))
+
+        w_out = bad_order & width_fit.gpm.astype(bool)
+        w_rej = np.logical_not(bad_order) & np.logical_not(width_fit.gpm)
+        w_outrej = bad_order & np.logical_not(width_fit.gpm)
+        w_good = np.logical_not(w_out | w_rej | w_outrej)
+
+        g_cen = cen[:-1]
+        g_bad_order = bad_order[:-1]
+        g_resid = gap - gap_fit.eval(g_cen)
+        g_rms = gap_fit.calc_fit_rms()
+        med_gr = np.median(g_resid)
+        mad_gr = np.median(np.absolute(g_resid - med_gr))
+
+        g_out = g_bad_order & gap_fit.gpm.astype(bool)
+        g_rej = np.logical_not(g_bad_order) & np.logical_not(gap_fit.gpm)
+        g_outrej = g_bad_order & np.logical_not(gap_fit.gpm)
+        g_good = np.logical_not(g_out | g_rej | g_outrej)
 
         # Set the spatial limits based on the extent of the order centers and/or
         # the detector spatial extent
@@ -5202,94 +5245,161 @@ class EdgeTraceSet(calibframe.CalibFrame):
         buf = 1.1
         xlim = [(sx * (1 + buf) + ex * (1 - buf))/2, (sx * (1 - buf) + ex * (1 + buf))/2]
 
-        # Sample the width and gap models
+        # Set the residual plot limits based on the median and median absolute
+        # deviation
+        width_lim = np.array([med_wr - 20*mad_wr, med_wr + 20*mad_wr])
+        gap_lim = np.array([med_gr - 20*mad_gr, med_gr + 20*mad_gr])
+
+        # Sample the width and gap models over the full width of the plots
         mod_cen = np.linspace(*xlim, 100)
         mod_width = width_fit.eval(mod_cen)
         mod_gap = gap_fit.eval(mod_cen)
 
+        # Create the plot
+        w,h = plt.figaspect(1)
+        fig = plt.figure(figsize=(1.5*w,1.5*h))
+
         # Plot the data and each fit
-        ax = fig.add_axes([0.15, 0.35, 0.8, 0.6])
+        ax = fig.add_axes([0.10, 0.35, 0.8, 0.6])
         ax.minorticks_on()
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
         ax.set_xlim(xlim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
-        ax.axvline(0, color='k', ls='--', lw=2)
-        ax.axvline(self.nspat, color='k', ls='--', lw=2)
 
+        # Set the plot title
         title = 'Order prediction model'
         if bracket:
             title += ' (bracketed)'
         ax.text(0.5, 1.02, title, ha='center', va='center', transform=ax.transAxes)
 
-        # TODO: Do something similar for the gaps?
-        if np.any(combined_orders):
-            individual_orders = np.logical_not(combined_orders)
-            ax.scatter(cen[combined_orders], width[combined_orders], 
-                       marker='^', color='C1', s=80, lw=0, label='combined orders flag',
-                       zorder=3)
-            ax.scatter(cen[individual_orders], width[individual_orders], 
-                       marker='.', color='C0', s=50, lw=0, label='measured widths',
-                       zorder=3)
-        else:
-            ax.scatter(cen, width, 
-                       marker='.', color='C0', s=50, lw=0, label='measured widths',
-                       zorder=3)
+        # Plot the detector bounds
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
+
+        # Models
+        ax.plot(mod_cen, mod_width, color='C0', alpha=0.3, lw=3, zorder=3)
+        ax.plot(mod_cen, mod_gap, color='C2', alpha=0.3, lw=3, zorder=3)
+
+        # Measurements included in the fit
+        ax.scatter(cen[w_good], width[w_good],
+                   marker='.', color='C0', s=50, lw=0, label='fitted widths', zorder=4)
+        if np.any(w_rej):
+            # Rejected but not considered an outlier
+            ax.scatter(cen[w_rej], width[w_rej],
+                       marker='x', color='C1', s=50, lw=1, label='rej widths', zorder=4)
+        if np.any(w_out):
+            # Outlier but not rejected
+            ax.scatter(cen[w_out], width[w_out],
+                       marker='^', facecolor='none', edgecolor='C1', s=50, lw=1,
+                       label='outlier widths', zorder=4)
+        if np.any(w_outrej):
+            # Both outlier and rejected
+            ax.scatter(cen[w_outrej], width[w_outrej],
+                       marker='^', facecolor='C1', s=50, lw=1, label='rej,outlier widths', zorder=4)
+        # Orders to add
         ax.scatter(order_cen[order_missing], width_fit.eval(order_cen[order_missing]),
-                   marker='x', color='C0', s=80, lw=1, label='missing widths', zorder=3)
-        ax.plot(mod_cen, mod_width, color='C0', alpha=0.3, lw=3, zorder=2)
-        ax.scatter(cen[:-1], gap, marker='.', color='C2', s=50, lw=0, label='measured gaps',
-                   zorder=3)
+                   marker='s', facecolor='none', edgecolor='C0', s=80, lw=1,
+                   label='missing widths', zorder=3)
+
+        # Same as above but for gaps
+        ax.scatter(g_cen[g_good], gap[g_good],
+                   marker='.', color='C2', s=50, lw=0, label='fitted gaps', zorder=4)
+        if np.any(g_rej):
+            ax.scatter(g_cen[g_rej], gap[g_rej],
+                       marker='x', color='C4', s=50, lw=1, label='rej gaps', zorder=4)
+        if np.any(g_out):
+            ax.scatter(g_cen[g_out], gap[g_out],
+                       marker='^', facecolor='none', edgecolor='C4', s=50, lw=1,
+                       label='outlier gaps', zorder=4)
+        if np.any(g_outrej):
+            ax.scatter(g_cen[g_outrej], gap[g_outrej],
+                       marker='^', facecolor='C4', s=50, lw=1, label='rej,outlier gaps', zorder=4)
         ax.scatter(order_cen[order_missing], gap_fit.eval(order_cen[order_missing]),
-                   marker='x', color='C2', s=80, lw=1, label='missing gaps', zorder=3)
-        ax.plot(mod_cen, mod_gap, color='C2', alpha=0.3, lw=3, zorder=2)
+                   marker='s', facecolor='none', edgecolor='C2', s=80, lw=1,
+                   label='missing gaps', zorder=3)
+
+        # Add the y label and legend
         ax.set_ylabel('Order Width/Gap [pix]')
         ax.legend()
 
-        # Calculate the fit residuals
-        width_resid = width - width_fit.eval(cen)
-        med_wr = np.median(width_resid)
-        mad_wr = np.median(np.absolute(width_resid - med_wr))
-        width_lim = [med_wr - 10*mad_wr, med_wr + 10*mad_wr]
-
-        gap_resid = gap - gap_fit.eval(cen[:-1])
-        med_gr = np.median(gap_resid)
-        mad_gr = np.median(np.absolute(gap_resid - med_gr))
-        gap_lim = [med_gr - 10*mad_gr, med_gr + 10*mad_gr]
-
-        # Plot the residuals
-        ax = fig.add_axes([0.15, 0.25, 0.8, 0.1])
+        # Plot the width residuals
+        ax = fig.add_axes([0.10, 0.25, 0.8, 0.1])
         ax.minorticks_on()
-        ax.tick_params(which='both', direction='in', top=True, right=True)
-        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        ax.tick_params(which='both', direction='in', top=True, right=False)
         ax.set_xlim(xlim)
         ax.set_ylim(width_lim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
+
+        # Plot the detector bounds
         ax.axvline(0, color='k', ls='--', lw=2)
         ax.axvline(self.nspat, color='k', ls='--', lw=2)
-        if np.any(combined_orders):
-            ax.scatter(cen[combined_orders], width_resid[combined_orders],
-                       marker='^', color='C1', s=80, lw=0, zorder=3)
-            ax.scatter(cen[individual_orders], width_resid[individual_orders],
-                       marker='.', color='C0', s=50, lw=0, zorder=3)
-        else:
-            ax.scatter(cen, width_resid, marker='.', color='C0', s=50, lw=0, zorder=3)
+
+        # Model is at 0 residual
         ax.axhline(0, color='C0', alpha=0.3, lw=3, zorder=2)
+        # Measurements included in the fit
+        ax.scatter(cen[w_good], w_resid[w_good], marker='.', color='C0', s=50, lw=0, zorder=4)
+        # Rejected but not considered an outlier
+        ax.scatter(cen[w_rej], w_resid[w_rej], marker='x', color='C1', s=50, lw=1, zorder=4)
+        # Outlier but not rejected
+        ax.scatter(cen[w_out], w_resid[w_out],
+                   marker='^', facecolor='none', edgecolor='C1', s=50, lw=1, zorder=4)
+        # Both outlier and rejected
+        ax.scatter(cen[w_outrej], w_resid[w_outrej],
+                   marker='^', facecolor='C1', s=50, lw=1, zorder=4)
+
+        # Add the label
         ax.set_ylabel(r'$\Delta$Width')
 
-        ax = fig.add_axes([0.15, 0.15, 0.8, 0.1])
+        # Add a right axis that gives the residuals normalized by the rms; use
+        # this to set the grid.
+        axt = ax.twinx()
+        axt.minorticks_on()
+        axt.tick_params(which='both', direction='in')
+        axt.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        axt.set_xlim(xlim)
+        axt.set_ylim(width_lim / w_rms)
+        axt.set_ylabel(r'$\Delta$/RMS')
+
+        # Plot the gap residuals
+        ax = fig.add_axes([0.10, 0.15, 0.8, 0.1])
         ax.minorticks_on()
-        ax.tick_params(which='both', direction='in', top=True, right=True)
-        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        ax.tick_params(which='both', direction='in', top=True, right=False)
         ax.set_xlim(xlim)
         ax.set_ylim(gap_lim)
+
+        # Plot the detector bounds
         ax.axvline(0, color='k', ls='--', lw=2)
         ax.axvline(self.nspat, color='k', ls='--', lw=2)
-        ax.scatter(cen[:-1], gap_resid, marker='.', color='C2', s=50, lw=0, zorder=3)
-        ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
-        ax.set_ylabel(r'$\Delta$Gap')
 
+        # Model is at 0 residual
+        ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
+        # Measurements included in the fit
+        ax.scatter(g_cen[g_good], g_resid[g_good],
+                   marker='.', color='C2', s=50, lw=0, zorder=4)
+        # Rejected but not considered an outlier
+        ax.scatter(g_cen[g_rej], g_resid[g_rej],
+                   marker='x', color='C4', s=50, lw=1, zorder=4)
+        # Outlier but not rejected
+        ax.scatter(g_cen[g_out], g_resid[g_out],
+                   marker='^', facecolor='none', edgecolor='C4', s=50, lw=1, zorder=4)
+        # Both outlier and rejected
+        ax.scatter(g_cen[g_outrej], g_resid[g_outrej],
+                   marker='^', facecolor='C4', s=50, lw=1, zorder=4)
+        
+        # Add the axis labels
+        ax.set_ylabel(r'$\Delta$Gap')
         ax.set_xlabel('Spatial pixel')
+
+        # Add a right axis that gives the residuals normalized by the rms; use
+        # this to set the grid.
+        axt = ax.twinx()
+        axt.minorticks_on()
+        axt.tick_params(which='both', direction='in')
+        axt.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        axt.set_xlim(xlim)
+        axt.set_ylim(gap_lim / g_rms)
+        axt.set_ylabel(r'$\Delta$/RMS')
 
         if ofile is None:
             plt.show()
