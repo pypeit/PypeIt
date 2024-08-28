@@ -85,9 +85,9 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``vlt_fors2``                 1    1         False     False     1         0.7                         2.9                     2.1       -1.0e+10  200000.0      0.8000     0.1260    
 ...                           2    1         False     False     1         0.7                         3.15                    1.4       -1.0e+10  200000.0      0.8000     0.1260    
 ``vlt_sinfoni``               1    0         True      False     1         2.42                        7.0                     540.0     -1.0e+10  1000000000.0  1.0000     0.0125    
-``vlt_xshooter_nir``          1    1         False     False     1         2.12                        8.0                     0.0       -1.0e+10  200000.0      0.8600     0.1970    
-``vlt_xshooter_uvb``          1    0         True      True      1         1.61                        2.6                     0.0       -1.0e+10  65000.0       0.8600     0.1610    
-``vlt_xshooter_vis``          1    0         False     False     1         0.595                       3.1                     0.0       -1.0e+10  65535.0       0.8600     0.1600    
+``vlt_xshooter_nir``          1    1         False     False     1         2.29                        8.0                     72.0      -1.0e+10  200000.0      0.8600     0.2450    
+``vlt_xshooter_uvb``          1    0         True      True      1         ``None``                    ``None``                0.0       -1.0e+10  65000.0       0.8600     0.1640    
+``vlt_xshooter_vis``          1    0         False     False     1         ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.8600     0.1540    
 ``wht_isis_blue``             1    0         False     False     1         1.2                         5.0                     0.0       -1.0e+10  65535.0       0.7600     0.2000    
 ``wht_isis_red``              1    0         False     False     1         0.98                        4.0                     0.0       -1.0e+10  65535.0       0.7600     0.2200    
 ============================  ===  ========  ========  ========  ========  ==========================  ======================  ========  ========  ============  =========  ==========
