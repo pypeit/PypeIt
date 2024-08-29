@@ -728,3 +728,44 @@ class AllSpec2DObj:
         txt += ') >'
         return txt
 
+    def flexure_diagnostics(self, flexure_type='spat'):
+        """
+        Print the spectral or spatial flexure of a spec2d or spec1d file.
+
+        Args:
+            flexure_type (:obj:`str`, optional):
+                Type of flexure to check. Options are 'spec' or 'spat'. Default
+                is 'spec'.
+
+        Returns:
+            :obj:`astropy.table.Table`, :obj:`float`:  If flexure_type is
+            'spec', return a table with the spectral flexure. If flexure_type is
+            'spat', return the spatial flexure
+        """
+        if flexure_type not in ['spat', 'spec']:
+            msgs.error(f'flexure_type must be spat or spec, not {flexure_type}')
+        # Loop on Detectors
+        for det in self.detectors:
+            print('')
+            print('=' * 50 + f'{det:^7}' + '=' * 51)
+            # get and print the spectral flexure
+            if flexure_type == 'spec':
+                spec_flex = self[det].sci_spec_flexure
+                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
+                if np.all(spec_flex['global_spec_shift'] != None):
+                    spec_flex['global_spec_shift'].format = '0.3f'
+                # print the table
+                spec_flex.pprint_all()
+                # return the table
+                return_flex = spec_flex
+            # get and print the spatial flexure
+            if flexure_type == 'spat':
+                spat_flex = self[det].sci_spat_flexure
+                # print the value
+                print(f'Spat shift: {spat_flex}')
+                # return the value
+                return_flex = spat_flex
+
+        # TODO: Was this supposed to be a list for all detectors, or just the last detector?
+        return return_flex
+

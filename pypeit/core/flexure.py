@@ -37,7 +37,7 @@ from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobj, specobjs, spec2dobj
+from pypeit import specobj, specobjs #, spec2dobj
 from pypeit import wavemodel
 
 from IPython import embed
@@ -1395,85 +1395,85 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     return dwave[m], diff[m], diff_err[m], los[m], los_err[m]
 
 
-def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
-    """
-    Print the spectral or spatial flexure of a spec2d or spec1d file.
-
-    Args:
-        file (:obj:`str`, `Path`_):
-            Filename of the spec2d or spec1d file to check
-        file_type (:obj:`str`, optional):
-            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default is 'spec2d'.
-        flexure_type (:obj:`str`, optional):
-            Type of flexure to check. Options are 'spec' or 'spat'. Default is 'spec'.
-        chk_version (:obj:`bool`, optional):
-            If True, raise an error if the datamodel version or type check failed.
-            If False, throw a warning only. Default is False.
-
-    Returns:
-        :obj:`astropy.table.Table`, :obj:`float`:  Type depends on the keyword
-        arguments:
-
-            - If file_type is 'spec2d' and flexure_type is 'spec', return a
-              table with the spectral flexure
-
-            - If file_type is 'spec2d' and flexure_type is 'spat', return the
-              spatial flexure
-
-            - If file_type is 'spec1d', return a table with the spectral flexure
-
-    """
-
-    # value to return
-    return_flex = None
-
-    if file_type == 'spec2d':
-        # load the spec2d file
-        allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
-        # Loop on Detectors
-        for det in allspec2D.detectors:
-            print('')
-            print('=' * 50 + f'{det:^7}' + '=' * 51)
-            # get and print the spectral flexure
-            if flexure_type == 'spec':
-                spec_flex = allspec2D[det].sci_spec_flexure
-                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
-                if np.all(spec_flex['global_spec_shift'] != None):
-                    spec_flex['global_spec_shift'].format = '0.3f'
-                # print the table
-                spec_flex.pprint_all()
-                # return the table
-                return_flex = spec_flex
-            # get and print the spatial flexure
-            if flexure_type == 'spat':
-                spat_flex = allspec2D[det].sci_spat_flexure
-                # print the value
-                print(f'Spat shift: {spat_flex}')
-                # return the value
-                return_flex = spat_flex
-    elif file_type == 'spec1d':
-        # no spat flexure in spec1d file
-        if flexure_type == 'spat':
-            msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
-        # load the spec1d file
-        sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
-        spec_flex = Table()
-        spec_flex['NAME'] = sobjs.NAME
-        spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
-        if np.all(spec_flex['global_spec_shift'] != None):
-            spec_flex['global_spec_shift'].format = '0.3f'
-        spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
-        if np.all(spec_flex['local_spec_shift'] != None):
-            spec_flex['local_spec_shift'].format = '0.3f'
-        spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
-        if np.all(spec_flex['total_spec_shift'] != None):
-            spec_flex['total_spec_shift'].format = '0.3f'
-        # print the table
-        spec_flex.pprint_all()
-        # return the table
-        return_flex = spec_flex
-
-    return return_flex
+#def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
+#    """
+#    Print the spectral or spatial flexure of a spec2d or spec1d file.
+#
+#    Args:
+#        file (:obj:`str`, `Path`_):
+#            Filename of the spec2d or spec1d file to check
+#        file_type (:obj:`str`, optional):
+#            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default is 'spec2d'.
+#        flexure_type (:obj:`str`, optional):
+#            Type of flexure to check. Options are 'spec' or 'spat'. Default is 'spec'.
+#        chk_version (:obj:`bool`, optional):
+#            If True, raise an error if the datamodel version or type check failed.
+#            If False, throw a warning only. Default is False.
+#
+#    Returns:
+#        :obj:`astropy.table.Table`, :obj:`float`:  Type depends on the keyword
+#        arguments:
+#
+#            - If file_type is 'spec2d' and flexure_type is 'spec', return a
+#              table with the spectral flexure
+#
+#            - If file_type is 'spec2d' and flexure_type is 'spat', return the
+#              spatial flexure
+#
+#            - If file_type is 'spec1d', return a table with the spectral flexure
+#
+#    """
+#
+#    # value to return
+#    return_flex = None
+#
+#    if file_type == 'spec2d':
+#        # load the spec2d file
+#        allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
+#        # Loop on Detectors
+#        for det in allspec2D.detectors:
+#            print('')
+#            print('=' * 50 + f'{det:^7}' + '=' * 51)
+#            # get and print the spectral flexure
+#            if flexure_type == 'spec':
+#                spec_flex = allspec2D[det].sci_spec_flexure
+#                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
+#                if np.all(spec_flex['global_spec_shift'] != None):
+#                    spec_flex['global_spec_shift'].format = '0.3f'
+#                # print the table
+#                spec_flex.pprint_all()
+#                # return the table
+#                return_flex = spec_flex
+#            # get and print the spatial flexure
+#            if flexure_type == 'spat':
+#                spat_flex = allspec2D[det].sci_spat_flexure
+#                # print the value
+#                print(f'Spat shift: {spat_flex}')
+#                # return the value
+#                return_flex = spat_flex
+#    elif file_type == 'spec1d':
+#        # no spat flexure in spec1d file
+#        if flexure_type == 'spat':
+#            msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
+#        # load the spec1d file
+#        sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
+#        spec_flex = Table()
+#        spec_flex['NAME'] = sobjs.NAME
+#        spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
+#        if np.all(spec_flex['global_spec_shift'] != None):
+#            spec_flex['global_spec_shift'].format = '0.3f'
+#        spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
+#        if np.all(spec_flex['local_spec_shift'] != None):
+#            spec_flex['local_spec_shift'].format = '0.3f'
+#        spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
+#        if np.all(spec_flex['total_spec_shift'] != None):
+#            spec_flex['total_spec_shift'].format = '0.3f'
+#        # print the table
+#        spec_flex.pprint_all()
+#        # return the table
+#        return_flex = spec_flex
+#
+#    return return_flex
 
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations
