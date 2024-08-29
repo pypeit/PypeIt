@@ -1027,6 +1027,29 @@ class SpecObjs:
 
         return groups
 
+    def flexure_diagnostics(self):
+        """
+        Print and return the spectral flexure of a spec1d file.
+
+        Returns:
+            :obj:`astropy.table.Table`: Table with the spectral flexure.
+        """    
+        spec_flex = Table()
+        spec_flex['NAME'] = self.NAME
+        spec_flex['global_spec_shift'] = self.FLEX_SHIFT_GLOBAL
+        if np.all(spec_flex['global_spec_shift'] != None):
+            spec_flex['global_spec_shift'].format = '0.3f'
+        spec_flex['local_spec_shift'] = self.FLEX_SHIFT_LOCAL
+        if np.all(spec_flex['local_spec_shift'] != None):
+            spec_flex['local_spec_shift'].format = '0.3f'
+        spec_flex['total_spec_shift'] = self.FLEX_SHIFT_TOTAL
+        if np.all(spec_flex['total_spec_shift'] != None):
+            spec_flex['total_spec_shift'].format = '0.3f'
+        # print the table
+        spec_flex.pprint_all()
+        # return the table
+        return spec_flex
+
 
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile, chk_version=True):
