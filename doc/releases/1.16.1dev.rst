@@ -36,6 +36,20 @@ Instrument-specific Updates
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 - Improved HIRES frame typing and configuration setup.
+- Updated X-Shooter detector gain and read noise to come from header, and
+  updated plate scales to the most recent values from the manual.  Detailed
+  changes are:
+    - NIR arm:
+        - Platescale updated from 0.197 to 0.245 arcsec/pixel
+        - Dark current updated from 0. to 72. e-/pixel/hr
+        - Gain updated from 2.12 to 2.29 e-/DN
+    - VIS arm:
+        - Platescale updated from an order-dependent value, to being 0.154
+          arcsec/pixel for all orders
+    - UVB arm:
+        - Platescale updated from an order-dependent value, to being 0.164
+          arcsec/pixel for all orders
+
 
 Script Changes
 --------------
@@ -57,6 +71,8 @@ Script Changes
   function (before only optimal extraction was used).
 - Added ``pypeit_show_pixflat`` script to inspect the (slitless) pixel flat
   generated during the reduction and stored in ``data/pixelflats``.
+- Added ``pypeit_chk_flexure`` script to check both spatial and spectral flexure applied to
+  the reduced data.
 
 Datamodel Changes
 -----------------
