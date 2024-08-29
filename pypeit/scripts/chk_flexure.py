@@ -46,17 +46,17 @@ class ChkFlexure(scriptbase.ScriptBase):
             # What kind of file are we??
             hdul = fits.open(in_file)
             head0 = hdul[0].header
-            file_type = None
+
             if 'PYP_CLS' in head0.keys() and head0['PYP_CLS'].strip() == 'AllSpec2DObj':
                 # load the spec2d file
-                allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
+                allspec2D = spec2dobj.AllSpec2DObj.from_fits(in_file, chk_version=chk_version)
                 allspec2D.flexure_diagnostics(flexure_type=flexure_type)
             elif 'DMODCLS' in head0.keys() and head0['DMODCLS'].strip() == 'SpecObjs':
                 if flexure_type == 'spat':
                     msgs.error("Spat flexure not available in the spec1d file, try with a "
                                "spec2d file")
                 # load the spec1d file
-                sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
+                sobjs = specobjs.SpecObjs.from_fitsfile(in_file, chk_version=chk_version)
                 sobjs.flexure_diagnostics()
             else:
                 msgs.error("Bad file type input!")

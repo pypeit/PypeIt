@@ -1029,7 +1029,7 @@ class SpecObjs:
 
     def flexure_diagnostics(self):
         """
-        Print the spectral or spatial flexure of a spec2d or spec1d file.
+        Print and return the spectral flexure of a spec1d file.
 
         Returns:
             :obj:`astropy.table.Table`: Table with the spectral flexure.

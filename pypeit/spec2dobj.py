@@ -730,7 +730,7 @@ class AllSpec2DObj:
 
     def flexure_diagnostics(self, flexure_type='spat'):
         """
-        Print the spectral or spatial flexure of a spec2d or spec1d file.
+        Print and return the spectral or spatial flexure of a spec2d file.
 
         Args:
             flexure_type (:obj:`str`, optional):
@@ -738,12 +738,14 @@ class AllSpec2DObj:
                 is 'spec'.
 
         Returns:
-            :obj:`astropy.table.Table`, :obj:`float`:  If flexure_type is
-            'spec', return a table with the spectral flexure. If flexure_type is
-            'spat', return the spatial flexure
+            :obj:`dict`: Dictionary with the flexure values for each detector. If
+            flexure_type is 'spec', the spectral flexure is stored in an astropy table.
+            If flexure_type is 'spat', the spatial flexure is stored in a float.
+
         """
         if flexure_type not in ['spat', 'spec']:
             msgs.error(f'flexure_type must be spat or spec, not {flexure_type}')
+        return_flex = {}
         # Loop on Detectors
         for det in self.detectors:
             print('')
@@ -757,15 +759,14 @@ class AllSpec2DObj:
                 # print the table
                 spec_flex.pprint_all()
                 # return the table
-                return_flex = spec_flex
+                return_flex[det] = spec_flex
             # get and print the spatial flexure
             if flexure_type == 'spat':
                 spat_flex = self[det].sci_spat_flexure
                 # print the value
                 print(f'Spat shift: {spat_flex}')
                 # return the value
-                return_flex = spat_flex
+                return_flex[det] = spat_flex
 
-        # TODO: Was this supposed to be a list for all detectors, or just the last detector?
         return return_flex
 
