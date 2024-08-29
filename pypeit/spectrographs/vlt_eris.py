@@ -1,5 +1,5 @@
 """
-Module for VLT/SINFONI specific methods.
+Module for VLT/ERIS specific methods.
 
 .. include:: ../include/links.rst
 """
@@ -14,16 +14,17 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-class VLTSINFONISpectrograph(spectrograph.Spectrograph):
+class VLTERISSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle VLT/SINFONI specific code
+    Child to handle VLT/ERIS specific code
     """
     ndet = 1
-    name = 'vlt_sinfoni'
+    name = 'vlt_eris'
     telescope = telescopes.VLTTelescopePar()
-    camera = 'SINFONI'
-    url = 'https://www.eso.org/sci/facilities/paranal/decommissioned/sinfoni.html'
-    header_name = 'SINFONI'
+    pypeline = 'SlicerIFU'
+    camera = 'ERIS'
+    url = 'https://www.eso.org/sci/facilities/paranal/instruments/eris.html'
+    header_name = 'ERIS'
     supported = True
     comment = 'Gratings tested: K'
 
@@ -178,13 +179,16 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
+        # TODO Must change for ERIS
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI1 NAME')
         self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS FILT1 NAME')
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRAT1 NAME')
-        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET IMGNAME')
+
+        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET1 IMGNAME')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
+        # TODO Must change for ERIS
         self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
                                    required_ftypes=['science', 'standard'])
 
@@ -202,6 +206,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
+        # TODO Change to match above (init_meta)
         if meta_key == 'decker':
             try:  # Science
                 decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
@@ -248,6 +253,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             :obj:`list`: List of keywords from the raw data files that should
             be propagated in output files.
         """
+        # TODO Change to match above (init_meta)
         return ['HIERARCH ESO INS OPTI1 NAME', 'HIERARCH ESO INS GRAT1 NAME',
                 'HIERARCH ESO INS FILT1 NAME']
 
@@ -291,7 +297,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
         if ftype == 'science':
-            return good_exp & ((fitstbl['idname'] == 'SINFONI_IFS_OBS')
+            return good_exp & ((fitstbl['idname'] == 'ERIS_IFS_OBS') #TODO Enter Science frame info
                                 | (fitstbl['target'] == 'STD,TELLURIC')
                                 | (fitstbl['target'] == 'SKY,STD'))
         if ftype == 'standard':
@@ -307,11 +313,11 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         #    # Don't type pinhole
         #    return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['target'] == 'WAVE,LAMP') | (fitstbl['idname'] == 'SINFONI_IFS_OBS') |
-                               (fitstbl['idname'] == 'SINFONI_IFS_SKY'))
+            return good_exp & ((fitstbl['target'] == 'WAVE,LAMP') | (fitstbl['idname'] == 'ERIS_IFS_OBS') |
+                               (fitstbl['idname'] == 'ERIS_IFS_SKY'))
         # Putting this in now in anticipation of the sky class
         if ftype in ['sky']:
-            return good_exp & (fitstbl['idname'] == 'SINFONI_IFS_SKY')
+            return good_exp & (fitstbl['idname'] == 'ERIS_IFS_SKY')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
