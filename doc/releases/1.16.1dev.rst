@@ -36,6 +36,7 @@ Instrument-specific Updates
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 - Improved HIRES frame typing and configuration setup.
+- Added support for Keck/KCWI BH3 grating configuration.
 - Updated X-Shooter detector gain and read noise to come from header, and
   updated plate scales to the most recent values from the manual.  Detailed
   changes are:

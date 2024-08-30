@@ -134,6 +134,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'BH3':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
@@ -825,7 +827,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCWI'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
     header_name = 'KCWI'
-    comment = 'Supported setups: BL, BM, BH2; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: BL, BM, BH2, BH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
