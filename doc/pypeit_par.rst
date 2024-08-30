@@ -185,6 +185,9 @@ Current PypeItPar Parameter Hierarchy
 |         ``[[lampoffflatsframe]]``: :ref:`framegrouppar`
 |             ``[[[process]]]``: :ref:`processimagespar`
 |                 ``[[[[scattlight]]]]``: :ref:`scatteredlightpar`
+|         ``[[slitless_pixflatframe]]``: :ref:`framegrouppar`
+|             ``[[[process]]]``: :ref:`processimagespar`
+|                 ``[[[[scattlight]]]]``: :ref:`scatteredlightpar`
 |         ``[[scattlightframe]]``: :ref:`framegrouppar`
 |             ``[[[process]]]``: :ref:`processimagespar`
 |                 ``[[[[scattlight]]]]``: :ref:`scatteredlightpar`
@@ -252,32 +255,33 @@ CalibrationsPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.CalibrationsPar`
 
-=====================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
-Key                    Type                                                  Options  Default                            Description                                                                                                                                                                                                                                      
-=====================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
-``alignframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                                                                            
-``alignment``          :class:`~pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                                                                                 
-``arcframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                                                                                  
-``biasframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                                                                         
-``bpm_usebias``        bool                                                  ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                                                                            
-``calib_dir``          str                                                   ..       ``Calibrations``                   The name of the directory for the processed calibration frames.  The host path for the directory is set by the redux_path (see :class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success when changing the default value is not well tested!
-``darkframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                                                                                 
-``flatfield``          :class:`~pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                                                                                  
-``illumflatframe``     :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                                                                                       
-``lampoffflatsframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                                                                          
-``pinholeframe``       :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                                                                                
-``pixelflatframe``     :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                                                                              
-``raise_chk_error``    bool                                                  ..       True                               Raise an error if the calibration check fails                                                                                                                                                                                                    
-``scattlight_pad``     int                                                   ..       5                                  Number of unbinned pixels to extend the slit edges by when masking the slits.                                                                                                                                                                    
-``scattlightframe``    :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the scattered light frames                                                                                                                                                                                  
-``skyframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                                                                             
-``slitedges``          :class:`~pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                                                                                     
-``standardframe``      :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                                                                                
-``tiltframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                                                                        
-``tilts``              :class:`~pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                                                                        
-``traceframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                                                                                
-``wavelengths``        :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                                                                                
-=====================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
+=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
+Key                        Type                                                  Options  Default                            Description                                                                                                                                                                                                                                      
+=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
+``alignframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                                                                            
+``alignment``              :class:`~pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                                                                                 
+``arcframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                                                                                  
+``biasframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                                                                         
+``bpm_usebias``            bool                                                  ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                                                                            
+``calib_dir``              str                                                   ..       ``Calibrations``                   The name of the directory for the processed calibration frames.  The host path for the directory is set by the redux_path (see :class:`~pypeit.par.pypeitpar.ReduxPar`).  Beware that success when changing the default value is not well tested!
+``darkframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                                                                                 
+``flatfield``              :class:`~pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                                                                                  
+``illumflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                                                                                       
+``lampoffflatsframe``      :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the lamp off flats                                                                                                                                                                                          
+``pinholeframe``           :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                                                                                
+``pixelflatframe``         :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                                                                              
+``raise_chk_error``        bool                                                  ..       True                               Raise an error if the calibration check fails                                                                                                                                                                                                    
+``scattlight_pad``         int                                                   ..       5                                  Number of unbinned pixels to extend the slit edges by when masking the slits.                                                                                                                                                                    
+``scattlightframe``        :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the scattered light frames                                                                                                                                                                                  
+``skyframe``               :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the sky background observations                                                                                                                                                                             
+``slitedges``              :class:`~pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                                                                                     
+``slitless_pixflatframe``  :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the slitless pixel flat                                                                                                                                                                                     
+``standardframe``          :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                                                                                
+``tiltframe``              :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                                                                        
+``tilts``                  :class:`~pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                                                                        
+``traceframe``             :class:`~pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                                                                                
+``wavelengths``            :class:`~pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                                                                                
+=========================  ====================================================  =======  =================================  =================================================================================================================================================================================================================================================
 
 
 ----
@@ -849,14 +853,14 @@ FrameGroupPar Keywords
 
 Class Instantiation: :class:`~pypeit.par.pypeitpar.FrameGroupPar`
 
-=============  ===============================================  ============================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-Key            Type                                             Options                                                                                                                                                                       Default                       Description                                                                                                                                                                                                                                                    
-=============  ===============================================  ============================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``exprng``     list                                             ..                                                                                                                                                                            None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
-``frametype``  str                                              ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``illumflat``, ``lampoffflats``, ``scattlight``, ``science``, ``standard``, ``trace``, ``tilt``, ``sky``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, illumflat, lampoffflats, scattlight, science, standard, trace, tilt, sky                                                                                                                 
-``process``    :class:`~pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                                                                            `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                           
-``useframe``   str                                              ..                                                                                                                                                                            ..                            A calibrations file to use if it exists.                                                                                                                                                                                                                       
-=============  ===============================================  ============================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+=============  ===============================================  ==================================================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+Key            Type                                             Options                                                                                                                                                                                             Default                       Description                                                                                                                                                                                                                                                    
+=============  ===============================================  ==================================================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+``exprng``     list                                             ..                                                                                                                                                                                                  None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
+``frametype``  str                                              ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``illumflat``, ``lampoffflats``, ``slitless_pixflat``, ``scattlight``, ``science``, ``standard``, ``trace``, ``tilt``, ``sky``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, illumflat, lampoffflats, slitless_pixflat, scattlight, science, standard, trace, tilt, sky                                                                                               
+``process``    :class:`~pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                                                                                                  `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                           
+``useframe``   str                                              ..                                                                                                                                                                                                  ..                            A calibrations file to use if it exists.                                                                                                                                                                                                                       
+=============  ===============================================  ==================================================================================================================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -889,6 +893,7 @@ Key                       Type                                              Opti
 ``overscan_par``          int, list                                         ..                                                                   5, 65                          Parameters for the overscan subtraction.  For 'chebyshev' or 'polynomial', set overcan_par = order; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                                                                                                                                                                    
 ``rmcompact``             bool                                              ..                                                                   True                           Remove compact detections in LA cosmics routine                                                                                                                                                                                                                                                                                                                                         
 ``satpix``                str                                               ``reject``, ``force``, ``nothing``                                   ``reject``                     Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                                                                                                                                                      
+``scale_to_mean``         bool                                              ..                                                                   False                          If True, scale the input images to have the same mean before combining.                                                                                                                                                                                                                                                                                                                 
 ``scattlight``            :class:`~pypeit.par.pypeitpar.ScatteredLightPar`  ..                                                                   `ScatteredLightPar Keywords`_  Scattered light subtraction parameters.                                                                                                                                                                                                                                                                                                                                                 
 ``shot_noise``            bool                                              ..                                                                   True                           Use the bias- and dark-subtracted image to calculate and include electron count shot noise in the image processing error budget                                                                                                                                                                                                                                                         
 ``sigclip``               int, float                                        ..                                                                   4.5                            Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                                                                                                                                         
@@ -1135,6 +1140,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -1258,6 +1271,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -1391,6 +1412,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -1503,6 +1532,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -1589,6 +1624,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -1681,6 +1722,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -1767,6 +1814,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -1881,6 +1934,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -2015,6 +2076,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -2140,6 +2209,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -2257,6 +2332,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -2356,6 +2437,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -2443,6 +2530,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -2534,6 +2627,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -2645,6 +2744,13 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -2742,6 +2848,12 @@ Alterations to the default parameters are:
               subtract_scattlight = True
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -2875,6 +2987,15 @@ Alterations to the default parameters are:
           [[[process]]]
               overscan_method = median
               satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3017,6 +3138,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -3130,6 +3257,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -3193,7 +3326,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_blue
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
+          exprng = None, 1,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3243,6 +3376,14 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          exprng = 0, 60,
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -3253,11 +3394,13 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
       [[standardframe]]
-          exprng = 1, 61,
+          exprng = 1, 901,
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
               spat_flexure_correct = True
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           sigdetect = 10.0
           rms_thresh_frac_fwhm = 0.06
@@ -3295,7 +3438,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_blue_orig
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
+          exprng = None, 1,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3345,6 +3488,14 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          exprng = 0, 60,
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -3355,11 +3506,13 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
       [[standardframe]]
-          exprng = 1, 61,
+          exprng = 1, 901,
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
               spat_flexure_correct = True
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           sigdetect = 10.0
           rms_thresh_frac_fwhm = 0.06
@@ -3397,7 +3550,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
+          exprng = None, 1,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3419,7 +3572,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3432,12 +3585,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3445,6 +3598,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          exprng = 0, 60,
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
@@ -3462,6 +3623,8 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
               spat_flexure_correct = True
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           sigdetect = 10.0
           rms_thresh_frac_fwhm = 0.05
@@ -3510,7 +3673,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red_mark4
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
+          exprng = None, 1,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3532,7 +3695,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3545,12 +3708,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3558,6 +3721,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          exprng = 0, 60,
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
@@ -3575,6 +3746,8 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
               spat_flexure_correct = True
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           sigdetect = 10.0
           rms_thresh_frac_fwhm = 0.05
@@ -3623,7 +3796,7 @@ Alterations to the default parameters are:
       spectrograph = keck_lris_red_orig
   [calibrations]
       [[biasframe]]
-          exprng = None, 0.001,
+          exprng = None, 1,
           [[[process]]]
               combine = median
               use_biasimage = False
@@ -3645,7 +3818,7 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3658,12 +3831,12 @@ Alterations to the default parameters are:
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
-          exprng = None, 60,
+          exprng = 0, 60,
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -3671,6 +3844,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          exprng = 0, 60,
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              scale_to_mean = True
               use_pixelflat = False
               use_illumflat = False
       [[scattlightframe]]
@@ -3688,6 +3869,8 @@ Alterations to the default parameters are:
               mask_cr = True
               noise_floor = 0.01
               spat_flexure_correct = True
+      [[flatfield]]
+          slit_illum_finecorr = False
       [[wavelengths]]
           sigdetect = 10.0
           rms_thresh_frac_fwhm = 0.05
@@ -3797,6 +3980,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -3925,6 +4116,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -4075,6 +4274,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -4215,6 +4422,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -4364,6 +4579,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -4494,6 +4717,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -4609,6 +4840,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -4743,6 +4982,14 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = odd_even
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               overscan_method = odd_even
@@ -4864,6 +5111,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               overscan_method = odd_even
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = odd_even
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
@@ -4999,6 +5254,14 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = odd_even
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               overscan_method = odd_even
@@ -5120,6 +5383,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               overscan_method = odd_even
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = odd_even
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
@@ -5250,6 +5521,14 @@ Alterations to the default parameters are:
           [[[process]]]
               overscan_method = chebyshev
               overscan_par = 1
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = chebyshev
+              overscan_par = 1
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -5401,6 +5680,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -5545,6 +5832,14 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -5653,6 +5948,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -5770,6 +6071,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -5856,6 +6163,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -5966,6 +6279,14 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = odd_even
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               overscan_method = odd_even
@@ -6066,6 +6387,13 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
@@ -6188,6 +6516,13 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -6303,6 +6638,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -6440,6 +6783,13 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -6548,6 +6898,13 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -6633,6 +6990,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -6735,6 +7098,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -6825,6 +7194,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -6937,6 +7312,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -7070,6 +7453,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -7171,6 +7560,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -7260,6 +7655,12 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -7358,6 +7759,13 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
@@ -7465,6 +7873,13 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -7566,6 +7981,12 @@ Alterations to the default parameters are:
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -7651,6 +8072,13 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -7770,6 +8198,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -7906,6 +8342,14 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_overscan = False
@@ -8068,6 +8512,14 @@ Alterations to the default parameters are:
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               overscan_method = median
@@ -8209,6 +8661,14 @@ Alterations to the default parameters are:
       [[lampoffflatsframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              overscan_method = median
+              combine = median
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
@@ -8356,6 +8816,13 @@ Alterations to the default parameters are:
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[scattlightframe]]
           [[[process]]]
               satpix = nothing
@@ -8457,6 +8924,13 @@ Alterations to the default parameters are:
               use_illumflat = False
       [[lampoffflatsframe]]
           [[[process]]]
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[slitless_pixflatframe]]
+          [[[process]]]
+              combine = median
               satpix = nothing
               use_overscan = False
               use_pixelflat = False

@@ -52,6 +52,7 @@ Submodules
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv
+   pypeit.scripts.show_pixflat
    pypeit.scripts.show_wvcalib
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit

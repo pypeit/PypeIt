@@ -36,14 +36,15 @@
       --exclude EXCLUDE [EXCLUDE ...]
                             A subset of the directories to *exclude* from the list
                             of files to download. Options are: tests, reid_arxiv,
-                            nist, standards, skisim, sensfunc. This option is
-                            mutually exclusive with --include. (default: ['tests'])
+                            nist, standards, skisim, sensfunc, pixelflat. This
+                            option is mutually exclusive with --include. (default:
+                            ['tests'])
       --include INCLUDE [INCLUDE ...]
                             The directories to *include* in the list of files to
                             download. Use "--include all" to include all
                             directories. Options are: all, tests, reid_arxiv, nist,
-                            standards, skisim, sensfunc. This option is mutually
-                            exclusive with --exclude. (default: None)
+                            standards, skisim, sensfunc, pixelflat. This option is
+                            mutually exclusive with --exclude. (default: None)
       --spec_dependent_only
                             Only include files that are specific to the provided
                             list of spectrographs. By default, the script also
