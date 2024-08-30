@@ -22,9 +22,10 @@ class CombineImage:
     Process and combine detector images. 
 
     Args:
-        rawImages (:obj:`list`, :class:`~pypeit.images.pypeitimage.PypeItImage):  
-            Either a single :class:`~pypeit.images.pypeitimage.PypeItImage` object or a list of one or more 
-            of these objects to be combined into a an image.
+        rawImages (:obj:`list`, :class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Either a single :class:`~pypeit.images.pypeitimage.PypeItImage`
+            object or a list of one or more of these objects to be combined into
+            an image.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
 

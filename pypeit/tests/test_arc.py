@@ -2,9 +2,11 @@
 Module to run tests on ararclines
 """
 import pytest
+import numpy as np
 
 from pypeit.core import arc
 from pypeit import io
+
 
 def test_detect_lines():
     # Using Paranal night sky as an 'arc'
