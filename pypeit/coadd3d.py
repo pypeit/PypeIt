@@ -179,7 +179,7 @@ class DataCube(datamodel.DataContainer):
 
         Over-load :func:`~pypeit.datamodel.DataContainer.from_file`
         to deal with the header
-        
+
         Args:
             ifile (:obj:`str`, `Path`_):
                 Fits file with the data to read

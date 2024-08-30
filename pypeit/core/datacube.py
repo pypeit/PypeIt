@@ -224,7 +224,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     Returns
     -------
-    sobjs : `pypeit.specobjs.SpecObjs`_
+    sobjs : :class:`pypeit.specobjs.SpecObjs`
         SpecObjs object containing the extracted spectrum
     """
     if whitelight_range is None:
@@ -1447,7 +1447,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
         # Subpixellate
         img, _, _ = subpixellate(image_wcs, bins, _sciImg, _ivarImg, _waveImg, _slitid_img_gpm, _wghtImg,
                                  _all_wcs, _tilts, _slits, _astrom_trans, _all_dar, _ra_offset, _dec_offset,
-                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+                                 spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
+                                 skip_subpix_weights=True, correct_dar=correct_dar)
         return img[:, :, 0]
     else:
         # Prepare the array of white light images to be stored
@@ -1461,7 +1462,8 @@ def generate_image_subpixel(image_wcs, bins, sciImg, ivarImg, waveImg, slitid_im
             # Subpixellate
             img, _, _ = subpixellate(image_wcs, bins, _sciImg[fr], _ivarImg[fr], _waveImg[fr], _slitid_img_gpm[fr], _wghtImg[fr],
                                      _all_wcs[fr], _tilts[fr], _slits[fr], _astrom_trans[fr], _all_dar[fr], _ra_offset[fr], _dec_offset[fr],
-                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel)
+                                     spec_subpixel=spec_subpixel, spat_subpixel=spat_subpixel, slice_subpixel=slice_subpixel,
+                                     skip_subpix_weights=True, correct_dar=correct_dar)
             all_wl_imgs[:, :, fr] = img[:, :, 0]
         # Return the constructed white light images
         return all_wl_imgs

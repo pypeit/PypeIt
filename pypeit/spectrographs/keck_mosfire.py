@@ -335,7 +335,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             FLATSPEC = headarr[0].get('FLATSPEC')
             PWSTATA7 = headarr[0].get('PWSTATA7')
             PWSTATA8 = headarr[0].get('PWSTATA8')
-            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0 and headarr[0].get('FILTER') != 'Dark':
                 if 'Flat' in headarr[0].get('OBJECT'):
                     return 'flatlampoff'
                 else:

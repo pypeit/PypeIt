@@ -7,11 +7,11 @@
     ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.16.1.dev109+g885cb1823[0m
     ##  
     ##  Available spectrographs include:
-    ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,
-    ##   gemini_gmos_north_ham, gemini_gmos_north_ham_ns,
-    ##   gemini_gmos_south_ham, gemini_gnirs_echelle, gemini_gnirs_ifu,
-    ##   gtc_maat, gtc_osiris, gtc_osiris_plus, jwst_nircam, jwst_nirspec,
-    ##   keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
+    ##   aat_uhrf, bok_bc, gemini_flamingos1, gemini_flamingos2,
+    ##   gemini_gmos_north_e2v, gemini_gmos_north_ham,
+    ##   gemini_gmos_north_ham_ns, gemini_gmos_south_ham, gemini_gnirs_echelle,
+    ##   gemini_gnirs_ifu, gtc_maat, gtc_osiris, gtc_osiris_plus, jwst_nircam,
+    ##   jwst_nirspec, keck_deimos, keck_esi, keck_hires, keck_kcrm, keck_kcwi,
     ##   keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
     ##   keck_lris_red_mark4, keck_lris_red_orig, keck_mosfire, keck_nires,
     ##   keck_nirspec_high, keck_nirspec_high_old, keck_nirspec_low, lbt_luci1,

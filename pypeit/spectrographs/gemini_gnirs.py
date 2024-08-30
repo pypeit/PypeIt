@@ -24,6 +24,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     url = 'https://www.gemini.edu/instrumentation/gnirs'
     header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
+    allowed_extensions = ['.fits', '.fits.bz2']
 
     def __init__(self):
         super().__init__()

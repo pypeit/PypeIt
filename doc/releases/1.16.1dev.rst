@@ -23,10 +23,23 @@ Functionality/Performance Improvements and Additions
   This is done by setting the parameter ``use_std_trace`` in FindObjPar.
 - Now PypeIt can handle the case where "Standard star trace does not match the number of orders in the echelle data"
   both in `run_pypeit` and in `pypeit_coadd_1dspec`.
+- Added the functionality to use slitless flats to create pixelflats. Note: new frametype
+  `slitless_pixflat` is added to the PypeIt frametype list.
+- The created pixelflats are stored in the reduction directory and in the PypeIt cache directory
+  `data/pixelflats`.
+- Added a functionality that allows, when multiple frames are combined, to scale each
+  frame to have the same mean value before combining. To use this
+  functionality, the new parameter ``scale_mean`` should be set to ``True``.
 
 Instrument-specific Updates
 ---------------------------
 
+- Improved LRIS frame typing, including the typing of slitless flats and sky flats.
+- Improved HIRES frame typing and configuration setup.
+- Added support for the (decommissioned) AAT/UHRF instrument
+- Updated the requirements of a spectral flip for KCWI (blue) data. If all amplifiers are
+  used, the data will be flipped. If all amplifiers are used, the data will not be flipped.
+  Otherwise, the data will be flipped.
 - Updated X-Shooter detector gain and read noise to come from header, and
   updated plate scales to the most recent values from the manual.  Detailed
   changes are:
@@ -49,6 +62,9 @@ Script Changes
   expansion of and changes to the cache system.
 - Added ``pypeit_clean_cache`` script to facilitate both viewing and removing
   files in the cache.
+- Changed the name of the multi-dimensional specdata to specdata_multi in pypeit_identify
+  and improved the robustness of the saving dialog when calibrating single trace spectra.
+- Fixed a read-in error for the high resolution A0V PHOENIX model.
 - A new script, called `pypeit_extract_datacube`, allows 1D spectra of point
   sources to be extracted from datacubes.
 - The sensitivity function is now generated outside of datacube generation.
@@ -57,6 +73,12 @@ Script Changes
 - Added the ``--extr`` parameter in the ``pypeit_sensfunc`` script (also as a SensFuncPar)
   to allow the user to specify the extraction method to use when computing the sensitivity
   function (before only optimal extraction was used).
+- Added ``pypeit_show_pixflat`` script to inspect the (slitless) pixel flat
+  generated during the reduction and stored in ``data/pixelflats``.
+- Added ``pypeit_chk_flexure`` script to check both spatial and spectral flexure applied to
+  the reduced data.
+- Treatment of file names is now more formal.  Compression signatures are now
+  considered, and filename matching is now more strict.
 
 Datamodel Changes
 -----------------
@@ -79,6 +101,10 @@ Bug Fixes
 - Fix a MAJOR BUT SUBTLE bug in the use of ``numpy.argsort``. When using ``numpy.argsort``
   the parameter kind='stable' should be used to ensure that a sorting algorithm more robust
   than "quicksort" is used.
+- Fix error "ValueError: setting an array element with a sequence. The requested
+  array has an inhomogeneous shape after 1 dimensions..." occurring when unpacking
+  the SpecObj spectrum but having an attribute of the SpecObj object that is None.
+
 
 
 

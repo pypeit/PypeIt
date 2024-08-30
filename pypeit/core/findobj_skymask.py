@@ -1764,8 +1764,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ,
     flux_sum_smash = np.sum((image_rect*gpm_sigclip)[find_min_max_out[0]:find_min_max_out[1]], axis=0)
     flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
     flux_smash_mean, flux_smash_med, flux_smash_std = astropy.stats.sigma_clipped_stats(
-        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0
-    )
+        flux_smash, mask=np.logical_not(gpm_smash), sigma_lower=3.0, sigma_upper=3.0)
     flux_smash_recen = flux_smash - flux_smash_med
 
     # Return if none found and no hand extraction
