@@ -9,7 +9,7 @@
     Script to download/cache PypeIt github data
     
     positional arguments:
-      spectrograph          A valid spectrograph identifier: bok_bc,
+      spectrograph          A valid spectrograph identifier: aat_uhrf, bok_bc,
                             gemini_flamingos1, gemini_flamingos2,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
                             gemini_gmos_north_ham_ns, gemini_gmos_south_ham,

@@ -1650,12 +1650,15 @@ class FlatField:
                 profile. Shape is :math:`(N_{\rm flat},)`.
             method (:obj:`str`, optional):
                 Method to use for tweaking the slit edges. Options are:
-                    - 'threshold': Use the threshold to set the slit edge
+
+                    - ``'threshold'``: Use the threshold to set the slit edge
                       and then shift it to the left or right based on the
                       illumination profile.
-                    - 'gradient': Use the gradient of the illumination
-                      profile to set the slit edge and then shift it to
-                      the left or right based on the illumination profile.
+
+                    - ``'gradient'``: Use the gradient of the illumination
+                      profile to set the slit edge and then shift it to the left
+                      or right based on the illumination profile.
+
             thresh (:obj:`float`, optional):
                 Threshold of the normalized flat profile at which to
                 place the two slit edges.
@@ -1674,12 +1677,12 @@ class FlatField:
             tuple: Returns six objects:
 
                 - The threshold used to set the left edge
-                - The fraction of the slit that the left edge is shifted to
-                  the right
+                - The fraction of the slit that the left edge is shifted to the
+                  right
                 - The adjusted left edge
                 - The threshold used to set the right edge
-                - The fraction of the slit that the right edge is shifted to
-                  the left
+                - The fraction of the slit that the right edge is shifted to the
+                  left
                 - The adjusted right edge
 
         """

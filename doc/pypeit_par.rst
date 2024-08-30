@@ -893,7 +893,6 @@ Key                       Type                                              Opti
 ``overscan_par``          int, list                                         ..                                                                   5, 65                          Parameters for the overscan subtraction.  For 'chebyshev' or 'polynomial', set overcan_par = order; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                                                                                                                                                                    
 ``rmcompact``             bool                                              ..                                                                   True                           Remove compact detections in LA cosmics routine                                                                                                                                                                                                                                                                                                                                         
 ``satpix``                str                                               ``reject``, ``force``, ``nothing``                                   ``reject``                     Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                                                                                                                                                      
-``scale_to_mean``         bool                                              ..                                                                   False                          If True, scale the input images to have the same mean before combining.                                                                                                                                                                                                                                                                                                                 
 ``scattlight``            :class:`~pypeit.par.pypeitpar.ScatteredLightPar`  ..                                                                   `ScatteredLightPar Keywords`_  Scattered light subtraction parameters.                                                                                                                                                                                                                                                                                                                                                 
 ``shot_noise``            bool                                              ..                                                                   True                           Use the bias- and dark-subtracted image to calculate and include electron count shot noise in the image processing error budget                                                                                                                                                                                                                                                         
 ``sigclip``               int, float                                        ..                                                                   4.5                            Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                                                                                                                                         
@@ -1057,6 +1056,98 @@ provided above for each instrument.  That is, if one were to include
 these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
 :class:`~pypeit.spectrographs.spectrograph.Spectrograph` class.
+
+.. _instr_par-aat_uhrf:
+
+AAT UHRF (``aat_uhrf``)
+-----------------------
+Alterations to the default parameters are:
+
+.. code-block:: ini
+
+  [rdx]
+      spectrograph = aat_uhrf
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 60.0,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = None, 60.0,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 60.0,
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[lampoffflatsframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[scattlightframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[wavelengths]]
+          lamps = ThAr,
+          n_final = 3
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+      [[tilts]]
+          spat_order = 4
+          spec_order = 1
+  [scienceframe]
+      exprng = 61, None,
+      [[process]]
+          mask_cr = True
+          sigclip = 10.0
+          noise_floor = 0.01
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 3.0
+          no_poly = True
+          user_regions = :10,75:
 
 .. _instr_par-bok_bc:
 

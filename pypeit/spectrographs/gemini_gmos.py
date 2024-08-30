@@ -108,6 +108,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 3
     url = 'http://www.gemini.edu/instrumentation/gmos'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
 
     def __init__(self):
         super().__init__()
@@ -1045,6 +1046,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiNTelescopePar()
     camera = 'GMOS-N'
     header_name = 'GMOS-N'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
