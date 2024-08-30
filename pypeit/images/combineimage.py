@@ -195,6 +195,33 @@ class CombineImage:
         else:
             comb_texp = exptime[0]
 
+        # scale the images to their mean, if requested, before combining
+        if self.par['scale_to_mean']:
+            msgs.info("Scaling images to have the same mean before combining")
+            # calculate the mean of the images
+            [mean_img], _, mean_gpm, _ = combine.weighted_combine(np.ones(self.nimgs, dtype=float)/self.nimgs,
+                                                                  [img_stack],
+                                                                  [rn2img_stack],
+                                                                  # var_list is added because it is
+                                                                  # required by the function but not used
+                                                                  gpm_stack, sigma_clip=self.par['clip'],
+                                                                  sigma_clip_stack=img_stack,
+                                                                  sigrej=self.par['comb_sigrej'], maxiters=maxiters)
+
+            # scale factor
+            # TODO: Chose the median over the whole frame to avoid outliers.  Is this the right choice?
+            _mscale = np.nanmedian(mean_img[None, mean_gpm]/img_stack[:, mean_gpm], axis=1)
+            # reshape the scale factor
+            mscale = _mscale[:, None, None]
+            # scale the images
+            img_stack *= mscale
+            # scale the scales
+            scl_stack *= mscale
+
+            # scale the variances
+            rn2img_stack *= mscale**2
+            basev_stack *= mscale**2
+
         # Coadd them
         if self.par['combine'] == 'mean':
             weights = np.ones(self.nimgs, dtype=float)/self.nimgs
