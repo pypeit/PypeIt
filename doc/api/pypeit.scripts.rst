@@ -26,6 +26,7 @@ Submodules
    pypeit.scripts.compare_sky
    pypeit.scripts.compile_wvarxiv
    pypeit.scripts.edge_inspector
+   pypeit.scripts.extract_datacube
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify

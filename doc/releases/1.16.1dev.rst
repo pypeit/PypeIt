@@ -36,6 +36,10 @@ Instrument-specific Updates
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 - Improved HIRES frame typing and configuration setup.
+- Added support for the (decommissioned) AAT/UHRF instrument
+- Updated the requirements of a spectral flip for KCWI (blue) data. If all amplifiers are
+  used, the data will be flipped. If all amplifiers are used, the data will not be flipped.
+  Otherwise, the data will be flipped.
 - Updated X-Shooter detector gain and read noise to come from header, and
   updated plate scales to the most recent values from the manual.  Detailed
   changes are:
@@ -73,6 +77,8 @@ Script Changes
   generated during the reduction and stored in ``data/pixelflats``.
 - Added ``pypeit_chk_flexure`` script to check both spatial and spectral flexure applied to
   the reduced data.
+- Treatment of file names is now more formal.  Compression signatures are now
+  considered, and filename matching is now more strict.
 
 Datamodel Changes
 -----------------
