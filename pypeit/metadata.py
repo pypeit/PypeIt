@@ -20,7 +20,6 @@ from astropy import table, time
 from pypeit import msgs
 from pypeit import inputfiles
 from pypeit.core import framematch
-from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.io import dict_to_lines
@@ -1449,28 +1448,10 @@ class PypeItMetaData:
             indx = self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
             # Turn on the relevant bits
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
-    
-        # Find the nearest standard star to each science frame
-        # TODO: Should this be 'standard' or 'science' or both?
-        if 'ra' not in self.keys() or 'dec' not in self.keys():
-            msgs.warn('Cannot associate standard with science frames without sky coordinates.')
-        else:
-            # TODO: Do we want to do this here?
-            indx = self.type_bitmask.flagged(type_bits, flag='standard')
-            for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
-                                     self['dec'][indx]):
-                if ra == 'None' or dec == 'None':
-                    msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
-                    msgs.warn('The above file could be a twilight flat frame that was'
-                              + msgs.newline() + 'missed by the automatic identification.')
-                    b = self.type_bitmask.turn_off(b, flag='standard')
-                    continue
 
-                # If an object exists within 20 arcmins of a listed standard,
-                # then it is probably a standard star
-                foundstd = flux_calib.find_standard_file(ra, dec, check=True)
-                b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
-    
+        # Vet assigned frame types (this can be spectrograph dependent)
+        self.spectrograph.vet_assigned_ftypes(type_bits, self)
+
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))
         if np.any(indx):
