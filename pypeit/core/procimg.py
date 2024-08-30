@@ -1157,7 +1157,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
         - :math:`C` is the observed number of sky + object counts,
         - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
           from the (inverse of the) flat-field frames plus the number
-          of frames contributing to the object counts (see ``count_scale``),
+          of frames contributing to the object counts plus a scaling
+          factor applied if the counts of each frame are scaled to the
+          mean counts of all frames (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
@@ -1229,8 +1231,9 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
             A scale factor that *has already been applied* to the provided
             counts. It accounts for the number of frames contributing to
             the provided counts, and the relative throughput factors that
-            can be measured from flat-field frames. For example, if the image
-            has been flat-field corrected, this is the inverse of the flat-field counts.
+            can be measured from flat-field frames plus a scaling factor applied
+            if the counts of each frame are scaled to the mean counts of all frames.
+            For example, if the image has been flat-field corrected, this is the inverse of the flat-field counts.
             If None, set to 1. If a single float, assumed to be constant across the full image.
             If an array, the shape must match ``rn_var``.  The variance will be 0
             wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
@@ -1287,7 +1290,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
         - :math:`C` is the observed number of sky + object counts,
         - :math:`s=s\prime / N_{\rm frames}` is a scale factor derived
           from the (inverse of the) flat-field frames plus the number
-          of frames contributing to the object counts (see ``count_scale``),
+          of frames contributing to the object counts plus a scaling factor
+          applied if the counts of each frame are scaled to the mean counts
+          of all frames (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour**,
         - :math:`t_{\rm exp}` is the effective exposure time in seconds,
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
@@ -1347,7 +1352,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None):
             A scale factor that *has already been applied* to the provided
             counts; see :math:`s` in the equations above.  It accounts for
             the number of frames contributing to  the provided counts, and
-            the relative throughput factors that  can be measured from flat-field frames.
+            the relative throughput factors that can be measured from flat-field frames
+            plus a scaling factor applied if the counts of each frame are
+            scaled to the mean counts of all frames.
             For example, if the image has been flat-field corrected, this is the inverse
             of the flat-field counts.  If None, no scaling is expected, meaning
             ``counts`` are exactly the observed detector counts.  If a single

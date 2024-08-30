@@ -384,7 +384,8 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
         A scale factor, :math:`s`, that *has already been applied* to the
         provided science image. It accounts for the number of frames contributing to
         the provided counts, and the relative throughput factors that can be measured
-        from flat-field frames. For example, if the image has been flat-field
+        from flat-field frames plus a scaling factor applied if the counts of each frame are
+        scaled to the mean counts of all frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
