@@ -1,12 +1,9 @@
-"""
-Module to run tests on FlatField class
-Requires files in Development suite and an Environmental variable
-"""
 from pathlib import Path
-import os
 import yaml
 import pytest
 import shutil
+
+from IPython import embed
 
 import numpy as np
 
@@ -16,9 +13,8 @@ from pypeit import pypeitsetup
 from pypeit.images import buildimage
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from IPython import embed
 
-from pypeit.tests.tstutils import dummy_fitstbl, data_output_path
+from pypeit.tests.tstutils import data_output_path
 
 @pytest.fixture
 def fitstbl():

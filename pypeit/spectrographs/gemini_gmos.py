@@ -108,6 +108,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 3
     url = 'http://www.gemini.edu/instrumentation/gmos'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
 
     def __init__(self):
         super().__init__()
@@ -460,7 +461,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             return detectors[0], array[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, array, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -481,7 +482,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -535,7 +536,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_order)
+                      np.array(msc_tfm), msc_ord)
 
     @property
     def allowed_mosaics(self):
@@ -864,7 +865,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -885,7 +886,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -907,7 +908,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             else:
                 self.detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
 
-        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1045,6 +1046,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiNTelescopePar()
     camera = 'GMOS-N'
     header_name = 'GMOS-N'
+    allowed_extensions = ['.fits', '.fits.bz2', '.fits.gz']
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
@@ -1142,7 +1144,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -1163,7 +1165,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -1174,7 +1176,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         # Detector ID (it is used to identify the correct mosaic geometry)
         self.detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
 
-        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -1410,7 +1412,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -1431,7 +1433,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -1443,7 +1445,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         # TODO: Check this is correct
         self.detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
 
-        return super().get_mosaic_par(mosaic, hdu=hdu, msc_order=msc_order)
+        return super().get_mosaic_par(mosaic, hdu=hdu, msc_ord=msc_ord)
 
     def config_specific_par(self, scifile, inp_par=None):
         """

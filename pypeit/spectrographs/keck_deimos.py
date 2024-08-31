@@ -824,7 +824,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=5):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=5):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -845,7 +845,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -892,7 +892,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_order)
+                      np.array(msc_tfm), msc_ord)
 
     @property
     def allowed_mosaics(self):

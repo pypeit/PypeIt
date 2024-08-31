@@ -1,9 +1,9 @@
 .. code-block:: console
 
     $ pypeit_sensfunc -h
-    usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
-                           [-s SENS_FILE] [-f FLATFILE] [--debug]
-                           [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
+    usage: pypeit_sensfunc [-h] [--extr {OPT,BOX}] [--algorithm {UVIS,IR}]
+                           [--multi MULTI] [-o OUTFILE] [-s SENS_FILE] [-f FLATFILE]
+                           [--debug] [--par_outfile PAR_OUTFILE] [-v VERBOSITY]
                            spec1dfile
     
     Compute a sensitivity function
@@ -14,6 +14,16 @@
     
     options:
       -h, --help            show this help message and exit
+      --extr {OPT,BOX}      Override the default extraction method used for
+                            computing the sensitivity function.  Note that it is not
+                            possible to set --extr and simultaneously use a .sens
+                            file with the --sens_file option. If you are using a
+                            .sens file, set the algorithm there via:
+                             
+                                [sensfunc]
+                                     extr = BOX
+                             
+                            The extraction options are: OPT or BOX
       --algorithm {UVIS,IR}
                             Override the default algorithm for computing the
                             sensitivity function.  Note that it is not possible to
@@ -62,11 +72,13 @@
       -s SENS_FILE, --sens_file SENS_FILE
                             Configuration file with sensitivity function parameters
       -f FLATFILE, --flatfile FLATFILE
-                            Use the flat file for computing the sensitivity
-                            function.  Note that it is not possible to set
-                            --flatfile and simultaneously use a .sens file with the
-                            --sens_file option. If you are using a .sens file, set
-                            the flatfile there via e.g.:
+                            Use a flat calibration file to compute the blaze
+                            function when generating the sensitivity function.  This
+                            is helpful to account for small scale undulations in the
+                            sensitivity function.  Note that it is not possible to
+                            set --flatfile and simultaneously use a .sens file with
+                            the --sens_file option. If you are using a .sens file,
+                            set the flatfile there via e.g.:
                              
                                 [sensfunc]
                                      flatfile = Calibrations/Flat_A_0_DET01.fits
