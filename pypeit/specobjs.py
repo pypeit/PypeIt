@@ -188,7 +188,8 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, log10blaze=False, min_blaze_value=1e-3, extract_type='OPT', remove_missing=False):
+    def unpack_object(self, ret_flam=False, log10blaze=False, min_blaze_value=1e-3, extract_type='OPT',
+                      extract_blaze=False, remove_missing=False):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -202,9 +203,11 @@ class SpecObjs:
                 If True return the log10 of the blaze function.
             min_blaze_value (:obj:`float`, optional):
                 Minimum value of the blaze function to consider as good.
-           extract_type (:obj:`str`, optional):
+            extract_type (:obj:`str`, optional):
                 Extraction type to use.  Default is 'OPT'.
-           remove_missing (:obj:`bool`, optional):
+            extract_blaze (:obj:`bool`, optional):
+                If True, extract the blaze function.  Default is False.
+            remove_missing (:obj:`bool`, optional):
                 If True, remove any missing data (i.e. where the flux is None).
                 Default is False.
 
@@ -219,7 +222,7 @@ class SpecObjs:
                   Flambda or counts)
                 - flux_gpm (`numpy.ndarray`_): Good pixel mask.
                   True=Good
-                - blaze (`numpy.ndarray`_): Blaze function
+                - blaze (`numpy.ndarray`_, None): Blaze function
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
                   spectrograph.parse_spec_header()
@@ -255,9 +258,8 @@ class SpecObjs:
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
-        blaze = np.zeros((nspec, norddet), dtype=float)
-        trace_spec = np.zeros((nspec, norddet))
-        trace_spat = np.zeros((nspec, norddet))
+        if extract_blaze:
+            blaze = np.zeros((nspec, norddet), dtype=float)
 
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
@@ -270,17 +272,19 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
-            blaze[:, iorddet] = getattr(self, blaze_key)[iorddet]
-            trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
-            trace_spec[:, iorddet] = self[iorddet].trace_spec
+            if extract_blaze:
+                blaze[:, iorddet] = getattr(self, blaze_key)[iorddet]
 
         # Log10 blaze
-        blaze_function = np.copy(blaze)
-        if log10blaze:
-            for iorddet in range(norddet):
-                blaze_function_smooth = utils.fast_running_median(blaze[:, iorddet], 5)
-                blaze_function_norm = blaze_function_smooth / blaze_function_smooth.max()
-                blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
+        if extract_blaze:
+            blaze_function = np.copy(blaze)
+            if log10blaze:
+                for iorddet in range(norddet):
+                    blaze_function_smooth = utils.fast_running_median(blaze[:, iorddet], 5)
+                    blaze_function_norm = blaze_function_smooth / blaze_function_smooth.max()
+                    blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
+        else:
+            blaze_function = None
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])

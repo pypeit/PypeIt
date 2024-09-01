@@ -255,7 +255,8 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header \
-            = self.sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_type=self.extr, remove_missing=True)
+            = self.sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=par['use_blaze'],
+                                           extract_type=self.extr, remove_missing=True)
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
