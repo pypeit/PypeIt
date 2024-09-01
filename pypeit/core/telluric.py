@@ -189,6 +189,8 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
+    if dloglam == 0.0:
+        msgs.error('The telluric PCA method has zero spacing in log wavelength. This is not supported.')
 
     return dict(wave_grid=wave_grid, dloglam=dloglam,
                 tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
@@ -251,6 +253,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
+    if dloglam == 0.0:
+        msgs.error('The telluric grid has zero spacing in log wavelength. This is not supported.')
 
     return dict(wave_grid=wave_grid, dloglam=dloglam, tell_pad_pix=tell_pad_pix,
                 pressure_grid=pg, temp_grid=tg, h2o_grid=hg, airmass_grid=ag,
@@ -316,8 +320,11 @@ def conv_telluric(tell_model, dloglam, res):
             Resolution convolved telluric model. Shape = same size as input tell_model.
 
     """
-
-
+    # Check the input values
+    if res <= 0.0:
+        msgs.error('Resolution must be positive.')
+    if dloglam == 0.0:
+        msgs.error('The telluric model grid has zero spacing in log wavelength. This is not supported.')
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
     if sig2pix > 2.0:
