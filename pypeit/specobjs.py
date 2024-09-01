@@ -299,8 +299,9 @@ class SpecObjs:
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
+            blaze_ret = blaze_function.reshape(nspec) if extract_blaze else None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), blaze_function.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), blaze_ret, meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
             return wave, flux, flux_ivar, flux_gpm, blaze_function, meta_spec, self.header
