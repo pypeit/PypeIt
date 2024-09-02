@@ -460,11 +460,11 @@ def extract_boxcar(imgminsky, ivar, mask, waveimg, skyimg, spec, fwhmimg=None, f
     # Calculate the Angstroms/pixel and the final spectral FWHM value
     if fwhm_box is not None:
         ang_per_pix = np.gradient(wave_box)
-        fwhm_box *= ang_per_pix / (pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
+        fwhm_box *= ang_per_pix * utils.inverse(pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
     # Normalize the blaze function
     if blaze_box is not None:
-        blaze_box /= (pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
-        blaze_box /= np.nanmax(blaze_box[mask_box])  # Now normalize to the peak value
+        blaze_box *= utils.inverse(pixtot - pixmsk)  # Need to divide by total number of unmasked pixels
+        blaze_box *= utils.inverse(np.nanmax(blaze_box[mask_box]))  # Now normalize to the peak value
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
