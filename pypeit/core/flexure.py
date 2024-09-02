@@ -1454,16 +1454,16 @@ def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_versio
                 spat_flexure = allspec2D[det].sci_spat_flexure
                 if np.all(spat_flexure == spat_flexure[0, 0]):
                     # print the value
-                    print(f'Spat shift: {spat_flexure}')
+                    print(f'Spatial shift: {spat_flexure}')
                 elif np.array_equal(spat_flexure[:,0],spat_flexure[:,1]):
                     # print the value of each slit
                     for ii in range(spat_flexure.shape[0]):
-                        print(f'  Slit {ii+1} shift: {spat_flexure[ii,0]}')
+                        print(f'  Slit {ii+1} spatial shift: {spat_flexure[ii,0]}')
                 else:
                     # print the value for the edge of each slit
                     for ii in range(spat_flexure.shape[0]):
-                        print('  Slit {0:2d} ---  left edge shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
-                        print('          ---  right edge shift: {0:f}'.format(spat_flexure[ii,1]))
+                        print('  Slit {0:2d} --  left edge spatial shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
+                        print('          --  right edge spatial shift: {0:f}'.format(spat_flexure[ii,1]))
                 # return the value
                 # TODO :: This return_flex is in a for loop, so the return will be the last value.
                 #      :: Also, the return_flex is not used in the code. So, perhaps this can be removed?
