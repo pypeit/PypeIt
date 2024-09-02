@@ -339,11 +339,11 @@ class BuildWaveTilts:
         self.spat_flexure = spat_flexure if spat_flexure is not None else np.zeros((slits.nslits, 2), dtype=float)
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.mstilt.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            self.nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.mstilt.detector.detectors])
+        else:
             self.nonlinear_counts = self.mstilt.detector.nonlinear_counts()
-        except:
-            self.nonlinear_counts = 1e10
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that

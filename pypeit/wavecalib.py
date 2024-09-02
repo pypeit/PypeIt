@@ -536,11 +536,11 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.msarc.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            self.nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.msarc.detector.detectors])
+        else:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
-        except:
-            self.nonlinear_counts = 1e10
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
