@@ -1354,7 +1354,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         wline = [line-noff,line+noff] 
         mw    = (wave > wline[0]) & (wave < wline[1]) & good_ivar
         
-        # Reuire minimum number
+        # Require minimum number
         if np.sum(mw) <= nfit_min:
             continue
 
@@ -1422,7 +1422,7 @@ def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_versio
             If False, throw a warning only. Default is False.
 
     Returns:
-        :obj:`astropy.table.Table` or :obj:`float`:
+        :obj:`astropy.table.Table` or :obj:`float` or None:
         - If file_type is 'spec2d' and flexure_type is 'spec', return a table with the spectral flexure
         - If file_type is 'spec2d' and flexure_type is 'spat', return the spatial flexure
         - If file_type is 'spec1d', return a table with the spectral flexure
@@ -1451,11 +1451,23 @@ def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_versio
                 return_flex = spec_flex
             # get and print the spatial flexure
             if flexure_type == 'spat':
-                spat_flex = allspec2D[det].sci_spat_flexure
-                # print the value
-                print(f'Spat shift: {spat_flex}')
+                spat_flexure = allspec2D[det].sci_spat_flexure
+                if np.all(spat_flexure == spat_flexure[0, 0]):
+                    # print the value
+                    print(f'Spat shift: {spat_flexure}')
+                elif np.array_equal(spat_flexure[:,0],spat_flexure[:,1]):
+                    # print the value of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print(f'  Slit {ii+1} shift: {spat_flexure[ii,0]}')
+                else:
+                    # print the value for the edge of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print('  Slit {0:2d} ---  left edge shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
+                        print('          ---  right edge shift: {0:f}'.format(spat_flexure[ii,1]))
                 # return the value
-                return_flex = spat_flex
+                # TODO :: This return_flex is in a for loop, so the return will be the last value.
+                #      :: Also, the return_flex is not used in the code. So, perhaps this can be removed?
+                return_flex = spat_flexure
     elif file_type == 'spec1d':
         # no spat flexure in spec1d file
         if flexure_type == 'spat':
