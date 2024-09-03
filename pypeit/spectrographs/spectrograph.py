@@ -1251,7 +1251,7 @@ class Spectrograph:
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        required_dim = 2
+        require_dim = 2
 
         # Read the image(s)
         raw_img = [None]*nimg
@@ -1285,8 +1285,7 @@ class Spectrograph:
                     if image_sections is not None:  # and image_sections[i] is not None:
                         # Convert the (FITS) data section from a string to a slice
                         datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
-                                                  include_end=include_last,
-                                                  require_dim=required_dim,
+                                                  include_end=include_last, require_dim=require_dim,
                                                   binning=binning_raw)
                         # Assign the amplifier
                         pix_img[datasec] = j+1
