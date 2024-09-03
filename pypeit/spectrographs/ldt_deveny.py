@@ -566,8 +566,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
 
         For LDT/DeVeny, the LOIS control system automatically adjusts the
         ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning

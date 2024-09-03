@@ -171,10 +171,10 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
 
-        For P200/DBSP, the the ``DATASEC`` and ``OSCANSEC`` regions are read
+        For P200/DBSP, the ``DATASEC`` and ``OSCANSEC`` regions are read
         directly from the file header and are automatically adjusted to account
         for the on-chip binning.  This is a simple wrapper for
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage` that

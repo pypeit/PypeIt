@@ -1248,6 +1248,11 @@ class Spectrograph:
             else:
                 binning_raw = binning
 
+        # Always assume normal FITS header formatting
+        one_indexed = True
+        include_last = True
+        required_dim = 2
+
         # Read the image(s)
         raw_img = [None]*nimg
         rawdatasec_img = [None]*nimg
@@ -1272,10 +1277,6 @@ class Spectrograph:
                 # Get the data sections from the detector object (see get_detector_par above)
                 # TODO: Add ability to incude user windowing (e.g., Kast Red)
                 image_sections = detectors[i][section]
-                # Always assume normal FITS header formatting
-                one_indexed = True
-                include_last = True
-                required_dim = 2
 
                 # Initialize the image (0 means no amplifier)
                 pix_img = np.zeros(raw_img[i].shape, dtype=int)
@@ -1284,7 +1285,8 @@ class Spectrograph:
                     if image_sections is not None:  # and image_sections[i] is not None:
                         # Convert the (FITS) data section from a string to a slice
                         datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
-                                                  include_end=include_last, require_dim=2,
+                                                  include_end=include_last,
+                                                  require_dim=required_dim,
                                                   binning=binning_raw)
                         # Assign the amplifier
                         pix_img[datasec] = j+1
