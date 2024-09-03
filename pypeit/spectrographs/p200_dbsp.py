@@ -169,9 +169,20 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-    
+
     def get_rawimage(self, raw_file, det):
-        return LDTDeVenySpectrograph.get_rawimage(self, raw_file, det)
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        For P200/DBSP, the the ``DATASEC`` and ``OSCANSEC`` regions are read
+        directly from the file header and are automatically adjusted to account
+        for the on-chip binning.  This is a simple wrapper for
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage` that
+        sets ``sec_includes_binning`` to True.  See the base-class function for
+        the detailed descriptions of the input parameters and returned objects.
+        """
+        return super().get_rawimage(raw_file, det, sec_includes_binning=True)
 
 
 class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
