@@ -579,6 +579,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                 'D68': {
                     7600: 'p200_dbsp_red_1200_7100_d68.fits',
                     8200: 'p200_dbsp_red_1200_7100_d68.fits'
+                },
+                'D55': {
+                    6680: 'p200_dbsp_red_1200_7100_d55_6680.fits'
                 }
             },
             '1200/9400': {
