@@ -10,7 +10,7 @@ import json
 import numpy as np
 from matplotlib import pyplot as plt
 
-from linetools.utils import jsonify
+from pypeit.utils import jsonify
 from astropy.table import Table
 from astropy.io import fits
 
@@ -217,7 +217,8 @@ class WaveCalib(calibframe.CalibFrame):
         # Parse all the WAVE2DFIT extensions
         # TODO: It would be good to have the WAVE2DFIT extensions follow the
         # same naming convention as the WAVEFIT extensions...
-        wave2d_fits = [fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
+        wave2d_fits = [fitting.PypeItFit() if len(hdu[e].data) == 0 
+                            else fitting.PypeItFit.from_hdu(hdu[e], chk_version=chk_version)
                             for e in ext if 'WAVE2DFIT' in e]
         if len(wave2d_fits) > 0:
             d['wv_fit2d'] = np.asarray(wave2d_fits)
@@ -525,11 +526,11 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.msarc.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            self.nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.msarc.detector.detectors])
+        else:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
-        except:
-            self.nonlinear_counts = 1e10
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both

@@ -9,6 +9,7 @@ from pypeit.scripts import clean_cache
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
+from pypeit.scripts import chk_flexure
 from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
@@ -21,6 +22,7 @@ from pypeit.scripts import coadd_datacube
 from pypeit.scripts import collate_1d
 from pypeit.scripts import compare_sky
 from pypeit.scripts import edge_inspector
+from pypeit.scripts import extract_datacube
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
@@ -50,6 +52,7 @@ from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
 from pypeit.scripts import compile_wvarxiv
+from pypeit.scripts import show_pixflat
 
 
 # Build the list of script classes
@@ -64,5 +67,3 @@ def script_classes():
     return dict([ (n,c) for n,c in zip(scr_n[srt],scr_c[srt])])
 
 pypeit_scripts = list(script_classes().keys())
-
-

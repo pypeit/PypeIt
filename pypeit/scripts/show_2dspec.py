@@ -64,8 +64,11 @@ def show_trace(sobjs, det, viewer, ch):
         maskdef_extr_list.append(maskdef_extr_flag is True)
         manual_extr_list.append(manual_extr_flag is True)
 
-    display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
-                       maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    if len(trace_list) > 0:
+        display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
+                           maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    else:
+        msgs.warn('spec1d file found, but no objects were extracted for this detector.')
 
 
 class Show2DSpec(scriptbase.ScriptBase):
@@ -248,6 +251,9 @@ class Show2DSpec(scriptbase.ScriptBase):
             waveimg = spec2DObj.waveimg
 
             img_gpm = spec2DObj.select_flag(invert=True)
+            if not np.any(img_gpm):
+                msgs.warn('The full science image is masked!')
+
             model_gpm = img_gpm.copy()
             if args.ignore_extract_mask:
                 model_gpm |= spec2DObj.select_flag(flag='EXTRACT')
@@ -306,6 +312,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
             chname_sci = args.prefix+f'sciimg-{detname}'
+                
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(sciimg, chname=chname_sci, waveimg=waveimg, 
                                                 clear=_clear, cuts=(cut_min, cut_max))

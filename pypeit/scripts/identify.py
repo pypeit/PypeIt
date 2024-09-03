@@ -67,7 +67,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit import slittrace
         from pypeit.images.buildimage import ArcImage
         from pypeit.core.wavecal import autoid
-        from linetools.utils import jsonify
+        from pypeit.utils import jsonify
 
 
         chk_version = not args.try_old
@@ -158,7 +158,7 @@ class Identify(scriptbase.ScriptBase):
                 else:
                     slits_inds = np.array(list(slits.strip('[]').split(",")), dtype=int)
             fits_dicts = []
-            specdata = []
+            specdata_multi = []
             wv_fits_arr = []
             lines_pix_arr = []
             lines_wav_arr = []
@@ -180,12 +180,14 @@ class Identify(scriptbase.ScriptBase):
 
                 arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[slit_val])
 
-                # Launch the identify window
-                # TODO -- REMOVE THIS HACK
-                try:
+                # Get the non-linear count level
+                if msarc.is_mosaic:
+                    # if this is a mosaic we take the maximum value among all the detectors
+                    nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in msarc.detector.detectors])
+                else:
                     nonlinear_counts = msarc.detector.nonlinear_counts()
-                except AttributeError:
-                    nonlinear_counts = None
+
+                # Launch the identify window
                 arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(slit_val), par=par,
                                                 wv_calib_all=wv_calib_slit, wavelim=[args.wmin, args.wmax],
                                                 nonlinear_counts=nonlinear_counts,
@@ -201,7 +203,7 @@ class Identify(scriptbase.ScriptBase):
                     return arcfitter, msarc
                 final_fit = arcfitter.get_results()
                 fits_dicts.append(arcfitter._fitdict)
-                specdata.append(arccen[:,slit_val])
+                specdata_multi.append(arccen[:,slit_val])
                 # Build here to avoid circular import
                 #  Note:  This needs to be duplicated in test_scripts.py
                 # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
@@ -266,15 +268,21 @@ class Identify(scriptbase.ScriptBase):
             if args.new_sol:
                 wv_calib.copy_calib_internals(msarc)
 
+            # convert specdata into an array, since it's currently a list
+            specdata_multi = np.array(specdata_multi)
+
         # If we just want the normal one-trace output
         else:
             arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[int(args.slits)])
-            # Launch the identify window
-            # TODO -- REMOVE THIS HACK
-            try:
+            
+            # Get the non-linear count level
+            if msarc.is_mosaic:
+                # if this is a mosaic we take the maximum value among all the detectors
+                nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in msarc.detector.detectors])
+            else:
                 nonlinear_counts = msarc.detector.nonlinear_counts()
-            except AttributeError:
-                nonlinear_counts = None
+
+            # Launch the identify window
             arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slits), par=par,
                                             wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                             nonlinear_counts=nonlinear_counts,
@@ -303,8 +311,7 @@ class Identify(scriptbase.ScriptBase):
                 waveCalib = None
 
             fits_dicts = None
-            specdata = None
-            slits = None 
+            specdata_multi = None
             lines_pix_arr = None
             lines_wav_arr = None
             lines_fit_ord = None 
@@ -318,7 +325,7 @@ class Identify(scriptbase.ScriptBase):
                                 rmstol=args.rmstol,
                                 force_save=args.force_save, 
                                 multi = args.multi, fits_dicts = fits_dicts,
-                                specdata = np.array(specdata),
+                                specdata_multi = specdata_multi,
                                 slits = slits,
                                 lines_pix_arr = lines_pix_arr,
                                 lines_wav_arr = lines_wav_arr,

@@ -33,6 +33,7 @@ instrument-specific details for running PypeIt.
    :caption: Spectrographs
    :maxdepth: 1
 
+   aat_uhrf
    gemini_flamingos2
    gemini_gmos
    gemini_gnirs

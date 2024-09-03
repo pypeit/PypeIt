@@ -177,6 +177,7 @@ class RawImage:
         self.steps = dict(apply_gain=False,
                           subtract_pattern=False,
                           subtract_overscan=False,
+                          correct_nonlinear=False,
                           subtract_continuum=False,
                           subtract_scattlight=False,
                           trim=False,
@@ -303,6 +304,26 @@ class RawImage:
         var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
+
+    def correct_nonlinear(self):
+        """
+        Apply a non-linear correction to the image.
+
+        This is a simple wrapper for :func:`~pypeit.core.procimg.nonlinear_counts`.
+        """
+        step = inspect.stack()[0][3]
+        if self.steps[step]:
+            # Already applied
+            msgs.warn('Non-linear correction was already applied.')
+            return
+
+        inim = self.image.copy()
+        for ii in range(self.nimg):
+            # Correct the image for non-linearity. Note that the variance image is not changed here.
+            self.image[ii, ...] = procimg.nonlinear_counts(self.image[ii, ...], self.datasec_img[ii, ...]-1,
+                                                           self.par['correct_nonlinear'])
+
+        self.steps[step] = True
 
     def estimate_readnoise(self):
         r"""
@@ -613,7 +634,12 @@ class RawImage:
             self.subtract_bias(bias)
 
         # TODO: Checking for count (well-depth) saturation should be done here.
-        # TODO :: Non-linearity correction should be done here.
+
+        #   - Perform a non-linearity correction.  This is done before the
+        #     flat-field and dark correction because the flat-field modifies
+        #     the counts.
+        if self.par['correct_nonlinear'] is not None:
+            self.correct_nonlinear()
 
         #   - Create the dark current image(s).  The dark-current image *always*
         #     includes the tabulated dark current and the call below ensures
@@ -676,7 +702,8 @@ class RawImage:
                                               exptime=self.exptime,
                                               noise_floor=self.par['noise_floor'],
                                               shot_noise=self.par['shot_noise'],
-                                              bpm=_bpm.astype(bool))
+                                              bpm=_bpm.astype(bool), 
+                                              filename=self.filename)
 
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
@@ -1192,7 +1219,7 @@ class RawImage:
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1217,7 +1244,7 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
                 pad = msscattlight.pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
@@ -1241,11 +1268,11 @@ class RawImage:
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(initial=True, flexure=None)
+                    left, right, _ = slits.select_edges(flexure=None)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
@@ -1331,7 +1358,7 @@ class RawImage:
         # Transform the image data to the mosaic frame.  This call determines
         # the shape of the mosaic image and adjusts the relative transforms to
         # the absolute mosaic frame.
-        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_order)
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_ord)
         shape = self.image.shape
         # Maintain dimensionality
         self.image = np.expand_dims(self.image, 0)
@@ -1342,7 +1369,7 @@ class RawImage:
 
         # Transform the BPM and maintain its type
         bpm_type = self.bpm.dtype
-        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         # Include pixels that have no contribution from the original image in
         # the bad pixel mask of the mosaic.
         self._bpm[_img_npix < 1] = 1
@@ -1357,29 +1384,29 @@ class RawImage:
 
         # Get the pixels associated with each amplifier
         self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,
-                                              mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                              mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.datasec_img = np.expand_dims(np.round(self.datasec_img).astype(int), 0)
 
         # Get the pixels associated with each detector
         self.det_img = build_image_mosaic(self.det_img.astype(float), _tforms,
-                                          mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                          mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.det_img = np.expand_dims(np.round(self.det_img).astype(int), 0)
 
         # Transform all the variance arrays, as necessary
         if self.rn2img is not None:
-            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
         if self.dark is not None:
-            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark = np.expand_dims(self.dark, 0)
         if self.dark_var is not None:
-            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark_var = np.expand_dims(self.dark_var, 0)
         if self.proc_var is not None:
-            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.proc_var = np.expand_dims(self.proc_var, 0)
         if self.base_var is not None:
-            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.base_var = np.expand_dims(self.base_var, 0)
 
         # TODO: Mosaicing means that many of the internals are no longer

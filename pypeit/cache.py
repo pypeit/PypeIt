@@ -63,13 +63,22 @@ __PYPEIT_DATA__ = resources.files('pypeit') / 'data'
 def git_branch():
     """
     Return the name/hash of the currently checked out branch
-
+    
     Returns:
-        :obj:`str`: Branch name or hash
+        :obj:`str`: Branch name or hash. Defaults to "develop" if PypeIt is not currently in a repository
+        or pygit2 is inot installed.
+    
     """
-    if Repository is None:
+    if Repository is not None:
+        try:
+            repo = Repository(resources.files('pypeit'))
+        except Exception as e:
+            # PypeIt not in a git repo
+            repo = None
+
+    if Repository is None or repo is None:
         return 'develop' if '.dev' in __version__ else __version__
-    repo = Repository(resources.files('pypeit'))
+
     return str(repo.head.target) if repo.head_is_detached else str(repo.head.shorthand)
 
 
@@ -153,6 +162,7 @@ def fetch_remote_file(
     install_script: bool=False,
     force_update: bool=False,
     full_url: str=None,
+    return_none: bool=False,
 ) -> pathlib.Path:
     """
     Use `astropy.utils.data`_ to fetch file from remote or cache
@@ -182,6 +192,8 @@ def fetch_remote_file(
         full_url (:obj:`str`, optional):
             The full url.  If None, use :func:`_build_remote_url`).  Defaults to
             None.
+        return_none (:obj:`bool`, optional):
+            Return None if the file is not found.  Defaults to False.
 
     Returns:
         `Path`_: The local path to the desired file in the cache
@@ -238,6 +250,9 @@ def fetch_remote_file(
                 f"your custom extinction file into the cache.  See instructions at{msgs.newline()}"
                 "https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction"
             )
+
+        elif return_none:
+            return None
 
         else:
             err_msg = (
