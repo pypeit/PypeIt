@@ -19,7 +19,6 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-from pypeit.spectrographs.ldt_deveny import LDTDeVenySpectrograph
 
 
 def flip_fits_slice(s: str) -> str:
