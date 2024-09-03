@@ -1045,6 +1045,12 @@ class PypeIt:
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             msgs.info(f"Extraction begins for {self.basename} on det={det}")
+            # set the flatimg, if it exists
+            try:
+                flatimg = self.caliBrate.flatimages.pixelflat_model
+            except AttributeError:
+                msgs.warn("No flat image was found. The blaze will not be extracted!")
+                flatimg = None
             # Instantiate Reduce object
             # Required for pipeline specific object
             # At instantiation, the fullmask in self.sciImg is modified
@@ -1052,7 +1058,7 @@ class PypeIt:
             self.exTract = extraction.Extract.get_instance(
                 sciImg, slits, sobjs_obj, self.spectrograph,
                 self.par, self.objtype, global_sky=final_global_sky, bkg_redux_global_sky=bkg_redux_global_sky,
-                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
+                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimg=flatimg,
                 bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
                 std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction

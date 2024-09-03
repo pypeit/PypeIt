@@ -181,7 +181,8 @@ def extinction_correction_tester(algorithm):
     wave = np.linspace(4000, 6000)
     counts = np.ones_like(wave)
     ivar = np.ones_like(wave)
-    sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, counts, ivar)
+    flat = np.ones_like(wave)
+    sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, counts, ivar, flat)
     sobjs = specobjs.SpecObjs([sobj])
 
     # choice of PYP_SPEC, DISPNAME and EXPTIME are unimportant here
