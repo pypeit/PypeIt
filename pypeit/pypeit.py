@@ -245,7 +245,9 @@ class PypeIt:
         # isolate where the name of the standard-star spec1d file is defined.
         std_outfile = self.par['reduce']['findobj']['std_spec1d']
         if std_outfile is not None:
-            if not Path(std_outfile).absolute().exists():
+            if not self.par['reduce']['findobj']['use_std_trace']:
+                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True')
+            elif not Path(std_outfile).absolute().exists():
                 msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
             return std_outfile
 
@@ -254,7 +256,8 @@ class PypeIt:
         # standard associated with a given science frame.  Below, I
         # just use the first standard
 
-        std_frame = None if len(standard_frames) == 0 else standard_frames[0]
+        std_frame = None if (len(standard_frames) == 0 or not self.par['reduce']['findobj']['use_std_trace']) \
+            else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = self.spec_output_file(std_frame) \
@@ -592,7 +595,7 @@ class PypeIt:
         # slitmask stuff
         if len(calibrated_det) > 0 and self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
-            spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
+            spat_flexure = [ss.spat_flexure for ss in sciImg_list]
             # Grab platescale with binning
             bin_spec, bin_spat = parse.parse_binning(self.binning)
             platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
@@ -808,20 +811,32 @@ class PypeIt:
             sciImg = bkg_redux_sciimg.sub(bgimg)
 
         # Flexure
-        spat_flexure = None
+        spat_flexure = np.zeros((self.caliBrate.slits.nslits, 2))  # No spatial flexure, unless we find it below
         # use the flexure correction in the "shift" column
         manual_flexure = self.fitstbl[frames[0]]['shift']
-        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']) or \
+        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none") or \
                     manual_flexure:
-            if (manual_flexure or manual_flexure == 0) and not (np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer)):
-                msgs.info(f'Implementing manual flexure of {manual_flexure}')
-                spat_flexure = np.float64(manual_flexure)
+            if (manual_flexure != self.fitstbl.MASKED_VALUE) and np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer):
+                msgs.info(f'Implementing manual spatial flexure of {manual_flexure}')
+                spat_flexure = np.full((self.caliBrate.slits.nslits, 2), np.float64(manual_flexure))
                 sciImg.spat_flexure = spat_flexure
             else:
-                msgs.info(f'Using auto-computed flexure')
-                spat_flexure = sciImg.spat_flexure
-        msgs.info(f'Flexure being used is: {spat_flexure}')
+                if sciImg.spat_flexure is not None:
+                    msgs.info(f'Using auto-computed spatial flexure')
+                    spat_flexure = sciImg.spat_flexure
+                else:
+                    msgs.info('Assuming no spatial flexure correction')
+        else:
+            msgs.info('Assuming no spatial flexure correction')
+
+        # Print the flexure values
+        if np.all(spat_flexure == spat_flexure[0, 0]):
+            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]}')
+        else:
+            # Print the flexure values for each slit separately
+            for slit in range(spat_flexure.shape[0]):
+                msgs.info(f'Spatial flexure for slit {self.caliBrate.slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} right={spat_flexure[slit, 1]}')
         # Build the initial sky mask
         initial_skymask = self.load_skyregions(initial_slits=self.spectrograph.pypeline != 'SlicerIFU',
                                                scifile=sciImg.files[0], frame=frames[0], spat_flexure=spat_flexure)
@@ -889,8 +904,12 @@ class PypeIt:
         frame : :obj:`int`, optional
             The index of the frame used to construct the calibration key.  Only
             used if ``user_regions = user``.
-        spat_flexure : :obj:`float`, None, optional
-            The spatial flexure (measured in pixels) of the science frame relative to the trace frame.
+        spat_flexure (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to apply to each slit.
+            This is used to correct for spatial flexure. The shape of the array should
+            be (nslits, 2), where the first column is the shift to apply to the left
+            edge of each slit and the second column is the shift to apply to the
+            right edge of each slit.
 
         Returns
         -------
@@ -927,7 +946,7 @@ class PypeIt:
         # NOTE : Do not include spatial flexure here!
         #        It is included when generating the mask in the return statement below
         slits_left, slits_right, _ \
-            = self.caliBrate.slits.select_edges(initial=initial_slits, flexure=None)
+            = self.caliBrate.slits.select_edges(initial=initial_slits, spat_flexure=None)
 
         maxslitlength = np.max(slits_right-slits_left)
         # Get the regions
@@ -1026,6 +1045,12 @@ class PypeIt:
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             msgs.info(f"Extraction begins for {self.basename} on det={det}")
+            # set the flatimg, if it exists
+            try:
+                flatimg = self.caliBrate.flatimages.pixelflat_model
+            except AttributeError:
+                msgs.warn("No flat image was found. The blaze will not be extracted!")
+                flatimg = None
             # Instantiate Reduce object
             # Required for pipeline specific object
             # At instantiation, the fullmask in self.sciImg is modified
@@ -1033,7 +1058,7 @@ class PypeIt:
             self.exTract = extraction.Extract.get_instance(
                 sciImg, slits, sobjs_obj, self.spectrograph,
                 self.par, self.objtype, global_sky=final_global_sky, bkg_redux_global_sky=bkg_redux_global_sky,
-                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib,
+                waveTilts=self.caliBrate.wavetilts, wv_calib=self.caliBrate.wv_calib, flatimg=flatimg,
                 bkg_redux=self.bkg_redux, return_negative=self.par['reduce']['extraction']['return_negative'],
                 std_redux=self.std_redux, basename=self.basename, show=self.show)
             # Perform the extraction

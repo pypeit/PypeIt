@@ -137,7 +137,7 @@ class SkySubGUI:
         self._fitr = []  # Matplotlib shaded fit region
         self._fita = None
 
-        self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, flexure=flexure)
+        self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, spat_flexure=flexure)
         self.initialize_menu()
         self.reset_regions()
 
@@ -178,7 +178,7 @@ class SkySubGUI:
         # NOTE: SlitTraceSet objects always store the left and right
         # traces as 2D arrays, even if there's only one slit.
         nslit = slits.nslits
-        lordloc, rordloc, _ = slits.select_edges(initial=initial, flexure=flexure)
+        lordloc, rordloc, _ = slits.select_edges(initial=initial, spat_flexure=flexure)
 
         # Determine the scale of the image
         med = np.median(frame)

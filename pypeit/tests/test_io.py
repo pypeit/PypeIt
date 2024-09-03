@@ -48,5 +48,5 @@ def test_grab_rawfiles():
 
     _raw_files = inputfiles.grab_rawfiles(raw_paths=[str(root)], extension='.fits.gz')
     assert len(_raw_files) == 9, 'Found the wrong number of files'
-    assert all([str(root / f) in _raw_files for f in tbl['filename']]), 'Missing expected files'
+    assert all([root / f in _raw_files for f in tbl['filename']]), 'Missing expected files'
 

@@ -22,6 +22,7 @@ from pypeit import utils
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import flux_calib
 from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
@@ -80,13 +81,20 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.001]
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
-        par['calibrations']['traceframe']['exprng'] = [None, 60]
-        par['calibrations']['illumflatframe']['exprng'] = [None, 60]
+        par['calibrations']['pixelflatframe']['exprng'] = [0, 60]
+        par['calibrations']['traceframe']['exprng'] = [0, 60]
+        par['calibrations']['illumflatframe']['exprng'] = [0, 60]
+        par['calibrations']['slitless_pixflatframe']['exprng'] = [0, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
+
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
+
+        # Turn off flat illumination fine correction (it's more often bad than good)
+        par['calibrations']['flatfield']['slit_illum_finecorr'] = False
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
@@ -94,8 +102,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Always correct for spatial flexure on science images
         # TODO -- Decide whether to make the following defaults
         #   May not want to do them for LongSlit
-        par['scienceframe']['process']['spat_flexure_correct'] = True
-        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_correct'] = "detector"
+        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = "detector"
 
         par['scienceframe']['exprng'] = [61, None]
 
@@ -153,8 +161,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['ra'] = dict(card=None, compound=True)
+        self.meta['dec'] = dict(card=None, compound=True)
         self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
@@ -174,6 +182,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Extras for pypeit file
         self.meta['dateobs'] = dict(card=None, compound=True)
         self.meta['amp'] = dict(ext=0, card='NUMAMPS')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
 
         # Lamps
         # similar approach to DEIMOS
@@ -193,7 +202,20 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'binning':
+        # LRIS sometime misses RA and/or Dec in the header. When this happens, set them to 0
+        if meta_key == 'ra':
+            if headarr[0].get('RA') is None:
+                msgs.warn('Keyword RA not found in header. Setting to 0')
+                return '00:00:00.00'
+            else:
+                return headarr[0]['RA']
+        elif meta_key == 'dec':
+            if headarr[0].get('DEC') is None:
+                msgs.warn('Keyword DEC not found in header. Setting to 0')
+                return '+00:00:00.0'
+            else:
+                return headarr[0]['DEC']
+        elif meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
@@ -292,7 +314,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             keywords that can be used to assign the frames to a configuration
             group.
         """
-        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs']}
+        return {'bias': ['amp', 'binning', 'dateobs'], 'dark': ['amp', 'binning', 'dateobs'],
+                'slitless_pixflat': ['amp', 'binning', 'dateobs', 'dispname', 'dichroic']}
 
     def pypeit_file_keys(self):
         """
@@ -324,20 +347,49 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # good exposures
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng) & (fitstbl['decker'] != 'GOH_LRIS')
+        # no images
         no_img = np.array([d not in ['Mirror', 'mirror', 'clear'] for d in fitstbl['dispname']])
+
+        # Check frame type
         if ftype == 'science':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
         if ftype == 'standard':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img
+            std = np.zeros(len(fitstbl), dtype=bool)
+            if 'ra' in fitstbl.keys() and 'dec' in fitstbl.keys():
+                std = np.array([flux_calib.find_standard_file(ra, dec, toler=10.*units.arcmin, check=True)
+                                for ra, dec in zip(fitstbl['ra'], fitstbl['dec'])])
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open') & no_img & std
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
+        if ftype == 'slitless_pixflat':
+            # these are sky flats, like science but without the slitmask
+            return (good_exp & self.lamps(fitstbl, 'off') &
+                    (fitstbl['hatch'] == 'open') & no_img & (fitstbl['decker'] == 'direct'))
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Allow for dome or internal
             good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
             good_internal = self.lamps(fitstbl, 'internal') & (fitstbl['hatch'] == 'closed')
+            # attempt at identifying sky flats (not robust, but better than nothing)
+            # they are basically science frames, so we look for "sky" words in the header
+            is_sky = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+            # look for specific words in the target or object header keywords
+            words_to_search = ['sky', 'blank', 'twilight', 'twiflat', 'twi flat']
+            for i, row in enumerate(fitstbl):
+                in_target = False
+                if row['target'] is not None:
+                    if np.any([w in row['target'].lower() for w in words_to_search]):
+                        in_target = True
+                in_object = False
+                if row['object'] is not None:
+                    if np.any([w in row['object'].lower() for w in words_to_search]):
+                        in_object = True
+                is_sky[i] = in_target or in_object
+            # put together the sky flats requirement
+            sky_flat = is_sky & (fitstbl['decker'] != 'direct')
             # Flats and trace frames are typed together
-            return good_exp & (good_dome + good_internal) & no_img
+            return good_exp & (good_dome + good_internal + sky_flat) & no_img
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -346,6 +398,59 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
+
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        return type_bits
   
     def lamps(self, fitstbl, status):
         """
@@ -852,6 +957,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
         par['calibrations']['traceframe']['exprng'] = [None, 300]
         par['calibrations']['illumflatframe']['exprng'] = [None, 300]
+
+        par['calibrations']['standardframe']['exprng'] = [1, 901]
 
         return par
 
@@ -1927,38 +2034,48 @@ def lris_read_amp(inp, ext):
     return data, predata, postdata, x1, y1
 
 
-def convert_lowredux_pixelflat(infil, outfil):
+def convert_lowredux_pixelflat(infil, outfil, specflip=False, separate_extensions=False):
     """ Convert LowRedux pixelflat to PYPIT format
     Returns
     -------
 
     """
     # Read
-    hdu = io.fits_open(infil)
-    data = hdu[0].data
+    hdu0 = io.fits_open(infil)
+    data = hdu0[0].data
 
     #
     prihdu = fits.PrimaryHDU()
     hdus = [prihdu]
-    prihdu.header['FRAMETYP'] = 'pixelflat'
+    prihdu.header['CALIBTYP'] = ('Flat', 'PypeIt: Calibration frame type')
 
     # Detector 1
-    img1 = data[:,:data.shape[1]//2]
+    if separate_extensions:
+        img1 = hdu0['DET1'].data
+    else:
+        img1 = data[:, :data.shape[1] // 2]
+    if specflip:
+        img1 = np.flip(img1, axis=0)
     hdu = fits.ImageHDU(img1)
-    hdu.name = 'DET1'
-    prihdu.header['EXT0001'] = 'DET1-pixelflat'
+    hdu.name = 'DET01-PIXELFLAT_NORM'
+    prihdu.header['EXT0001'] = hdu.name
     hdus.append(hdu)
 
     # Detector 2
-    img2 = data[:,data.shape[1]//2:]
+    if separate_extensions:
+        img2 = hdu0['DET2'].data
+    else:
+        img2 = data[:, data.shape[1] // 2:]
+    if specflip:
+        img2 = np.flip(img2, axis=0)
     hdu = fits.ImageHDU(img2)
-    hdu.name = 'DET2'
-    prihdu.header['EXT0002'] = 'DET2-pixelflat'
+    hdu.name = 'DET02-PIXELFLAT_NORM'
+    prihdu.header['EXT0002'] = hdu.name
     hdus.append(hdu)
 
     # Finish
     hdulist = fits.HDUList(hdus)
-    hdulist.writeto(outfil, clobber=True)
+    hdulist.writeto(outfil, overwrite=True)
     print('Wrote {:s}'.format(outfil))
 
 

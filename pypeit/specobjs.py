@@ -188,7 +188,8 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, extract_type='OPT'):
+    def unpack_object(self, ret_flam=False, log10blaze=False, min_blaze_value=1e-3, extract_type='OPT',
+                      extract_blaze=False, remove_missing=False):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -196,8 +197,19 @@ class SpecObjs:
         the relevant indices for the object.
 
         Args:
-           ret_flam (:obj:`bool`, optional):
-              If True return the FLAM, otherwise return COUNTS.
+            ret_flam (:obj:`bool`, optional):
+               If True return the FLAM, otherwise return COUNTS.
+            log10blaze (:obj:`bool`, optional):
+                If True return the log10 of the blaze function.
+            min_blaze_value (:obj:`float`, optional):
+                Minimum value of the blaze function to consider as good.
+            extract_type (:obj:`str`, optional):
+                Extraction type to use.  Default is 'OPT'.
+            extract_blaze (:obj:`bool`, optional):
+                If True, extract the blaze function.  Default is False.
+            remove_missing (:obj:`bool`, optional):
+                If True, remove any missing data (i.e. where the flux is None).
+                Default is False.
 
         Returns:
             tuple: Returns the following where all numpy arrays
@@ -210,6 +222,7 @@ class SpecObjs:
                   Flambda or counts)
                 - flux_gpm (`numpy.ndarray`_): Good pixel mask.
                   True=Good
+                - blaze (`numpy.ndarray`_, None): Blaze function
                 - meta_spec (dict:) Dictionary containing meta data.
                   The keys are defined by
                   spectrograph.parse_spec_header()
@@ -217,21 +230,36 @@ class SpecObjs:
                   spec1d file
         """
         # Prep
-        norddet = self.nobj
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        if getattr(self, flux_key)[0] is None:
-            msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
+        blaze_key = '{}_FLAT'.format(extract_type)
+
+        # Check for missing data
+        none_flux = [f is None for f in getattr(self, flux_key)]
+        if np.any(none_flux):
+            other = 'OPT' if extract_type == 'BOX' else 'BOX'
+            msg = f"{extract_type} extracted flux is not available for all slits/orders. " \
+                  f"Consider trying the {other} extraction."
+            if not remove_missing:
+                msgs.error(msg)
+            else:
+                msg += f"{msgs.newline()}-- The missing data will be removed --"
+                msgs.warn(msg)
+                # Remove missing data
+                r_indx = np.where(none_flux)[0]
+                self.remove_sobj(r_indx)
+
         #
+        norddet = self.nobj
         nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
-        trace_spec = np.zeros((nspec, norddet))
-        trace_spat = np.zeros((nspec, norddet))
+        if extract_blaze:
+            blaze = np.zeros((nspec, norddet), dtype=float)
 
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
@@ -244,8 +272,19 @@ class SpecObjs:
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
             flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
-            trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
-            trace_spec[:, iorddet] = self[iorddet].trace_spec
+            if extract_blaze:
+                blaze[:, iorddet] = getattr(self, blaze_key)[iorddet]
+
+        # Log10 blaze
+        if extract_blaze:
+            blaze_function = np.copy(blaze)
+            if log10blaze:
+                for iorddet in range(norddet):
+                    blaze_function_smooth = utils.fast_running_median(blaze[:, iorddet], 5)
+                    blaze_function_norm = blaze_function_smooth / blaze_function_smooth.max()
+                    blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
+        else:
+            blaze_function = None
 
         # Populate meta data
         spectrograph = load_spectrograph(self.header['PYP_SPEC'])
@@ -260,11 +299,12 @@ class SpecObjs:
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'SlicerIFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
+            blaze_ret = blaze_function.reshape(nspec) if extract_blaze else None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
-                   flux_gpm.reshape(nspec), trace_spec.reshape(nspec), trace_spat.reshape(nspec), meta_spec, self.header
+                   flux_gpm.reshape(nspec), blaze_ret, meta_spec, self.header
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
-            return wave, flux, flux_ivar, flux_gpm, trace_spec, trace_spat, meta_spec, self.header
+            return wave, flux, flux_ivar, flux_gpm, blaze_function, meta_spec, self.header
 
     def get_std(self, multi_spec_det=None):
         """
@@ -772,6 +812,15 @@ class SpecObjs:
                         header[key.upper()] = line
             else:
                 header[key.upper()] = subheader[key]
+                # Also store the datetime in ISOT format
+                if key.upper() == 'MJD':
+                    if isinstance(subheader[key], (list, tuple)):
+                        mjdval = subheader[key][0]
+                    elif isinstance(subheader[key], float):
+                        mjdval = subheader[key]
+                    else:
+                        raise ValueError('Header card must be a float or a FITS header tuple')
+                    header['DATETIME'] = (Time(mjdval, format='mjd').isot, "Date and time of the observation in ISOT format")
         # Add calibration associations to Header
         if self.calibs is not None:
             for key, val in self.calibs.items():
@@ -1008,6 +1057,7 @@ class SpecObjs:
 
         return groups
 
+
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile, chk_version=True):
     """
@@ -1020,9 +1070,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              Filename with the standard star spec1d file.  Can be None.
 
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
-         be None if ``std_outfile`` is None, or if the selected detector/mosaic
-         is not available in the provided spec1d file.
+         `astropy.table.Table`_: Table with the trace of the standard star on the input detector.
+         If this is a MultiSlit reduction, the table will have a single column: `TRACE_SPAT`.
+         If this is an Echelle reduction, the table will have two columns: `ECH_ORDER` and `TRACE_SPAT`.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file, or for SlicerIFU reductions.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -1039,20 +1091,24 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         # No standard extracted on this detector??
         if sobjs_std is None:
             return None
-        std_trace = sobjs_std.TRACE_SPAT
+
+        # create table that contains the trace of the standard
+        std_tab = Table()
         # flatten the array if this multislit
         if 'MultiSlit' in pypeline:
-            std_trace = std_trace.flatten()
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'Echelle' in pypeline:
-            std_trace = std_trace.T
+            std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'SlicerIFU' in pypeline:
-            std_trace = None
+            std_tab = None
         else:
             msgs.error('Unrecognized pypeline')
     else:
-        std_trace = None
+        std_tab = None
 
-    return std_trace
+    return std_tab
+
 
 def lst_to_array(lst, mask=None):
     """
@@ -1061,7 +1117,7 @@ def lst_to_array(lst, mask=None):
     Allows for a list of Quantity objects
 
     Args:
-        lst : list
+        lst (:obj:`list`):
             Should be number or Quantities
         mask (`numpy.ndarray`_, optional):
             Boolean array used to limit to a subset of the list.  True=good
@@ -1069,10 +1125,25 @@ def lst_to_array(lst, mask=None):
     Returns:
         `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
-    if mask is None:
-        mask = np.array([True]*len(lst))
+    _mask = np.ones(len(lst), dtype=bool) if mask is None else mask
+
+    # Return a Quantity array
     if isinstance(lst[0], units.Quantity):
-        return units.Quantity(lst)[mask]
-    else:
-        return np.array(lst)[mask]
+        return units.Quantity(lst)[_mask]
+
+    # If all the elements of lst have the same type, np.array(lst)[mask] will work
+    if len(set(map(type, lst))) == 1:
+        return np.array(lst)[_mask]
+
+    # Otherwise, we have to set the array type to object
+    return np.array(lst, dtype=object)[_mask]
+
+    # NOTE: The dtype="object" is needed for the case where one element of lst
+    # is not a list but None. For example, if trying to unpack SpecObjs OPT fluxes
+    # and for one slit/order the OPT extraction failed (but not the BOX extraction),
+    # OPT_COUNTS is None for that slit/order, and lst would be something like
+    # [array, array, array, None, array], which makes np.array to fail and give the error
+    # "ValueError: setting an array element with a sequence. The requested array has an
+    # inhomogeneous shape after 1 dimensions..."
+
 

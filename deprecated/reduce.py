@@ -222,10 +222,10 @@ class Reduce:
         self.slits = self.caliBrate.slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
@@ -339,7 +339,7 @@ class Reduce:
         else:
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
         #
 
         # First pass object finding
@@ -375,7 +375,7 @@ class Reduce:
                           (np.invert(self.slits.bitmask.flagged(self.slits.mask,
                                                                 flag=self.slits.bitmask.exclude_for_reducing)))
         # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # use the tweaked traces if they exist - DP: I'm not sure this is necessary
         self.sciImg.update_mask_slitmask(self.slitmask)
@@ -391,7 +391,7 @@ class Reduce:
         else:
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, spat_flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")
@@ -1605,7 +1605,7 @@ class IFUReduce(MultiSlitReduce):
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
         gpm = self.sciImg.select_flag(invert=True)
-        slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+        slitid_img_init = self.slits.slit_img(pad=0, initial=True, spat_flexure=self.spat_flexure_shift)
         spatScaleImg = np.ones_like(self.sciImg.image)
         # For each slit, grab the spatial coordinates and a spline
         # representation of the spatial profile from the illumflat

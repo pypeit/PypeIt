@@ -48,7 +48,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.1.1'
+    version = '1.1.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -72,8 +72,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'tilts': dict(otype=np.ndarray, atype=np.floating,
                                descr='2D tilts image (float64)'),
                  'scaleimg': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='2D multiplicative scale image [or a single scalar as an array] that has been applied to '
-                                        'the science image (float32)'),
+                                  descr='2D multiplicative scale image [or a single scalar as an array] '
+                                        'that has been applied to the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
                  'bpmmask': dict(otype=imagebitmask.ImageBitMaskArray,
@@ -85,12 +85,15 @@ class Spec2DObj(datamodel.DataContainer):
                                descr='Table with WaveCalib diagnostic info'),
                  'maskdef_designtab': dict(otype=table.Table,
                                            descr='Table with slitmask design and object info'),
-                 'sci_spat_flexure': dict(otype=float,
-                                          descr='Shift, in spatial pixels, between this image '
-                                                'and SlitTrace'),
+                 'sci_spat_flexure': dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Shift, in spatial pixels, between this image '
+                                            'and SlitTrace. Shape is (nslits, 2), where '
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
                  'sci_spec_flexure': dict(otype=table.Table,
-                                          descr='Global shift of the spectrum to correct for spectral'
-                                                'flexure (pixels). This is based on the sky spectrum at'
+                                          descr='Global shift of the spectrum to correct for spectral '
+                                                'flexure (pixels). This is based on the sky spectrum at '
                                                 'the center of each slit'),
                  'vel_type': dict(otype=str, descr='Type of reference frame correction (if any). '
                                                    'Options are listed in the routine: '
@@ -244,6 +247,9 @@ class Spec2DObj(datamodel.DataContainer):
             # maskdef_designtab
             elif key == 'maskdef_designtab':
                 d.append(dict(maskdef_designtab=self.maskdef_designtab))
+            # Spatial flexure
+            elif key == 'sci_spat_flexure':
+                d.append(dict(sci_spat_flexure=self.sci_spat_flexure))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
@@ -331,7 +337,7 @@ class Spec2DObj(datamodel.DataContainer):
         self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
 
         # Slitmask
-        slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
+        slitmask = spec2DObj.slits.slit_img(spat_flexure=spec2DObj.sci_spat_flexure,
                                             exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
         # Fill in the image
         for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
@@ -661,7 +667,7 @@ class AllSpec2DObj:
                             msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
                         # Generate the slit "mask"
                         slitmask = _allspecobj[det].slits.slit_img(
-                            flexure=_allspecobj[det].sci_spat_flexure)
+                            spat_flexure=_allspecobj[det].sci_spat_flexure)
                         # Save the new one in a copy
                         new_Spec2DObj = deepcopy(self[det])
                         # Replace with the old

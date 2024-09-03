@@ -17,6 +17,7 @@ import matplotlib
 from astropy import stats
 from astropy import units
 from astropy.io import ascii
+from astropy.table import Table
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -36,13 +37,13 @@ from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobj, specobjs
+from pypeit import specobj, specobjs, spec2dobj
 from pypeit import wavemodel
 
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
+def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -54,14 +55,27 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     Args:
         sciimg (`numpy.ndarray`_):
+            Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            Slits object
+        method (:obj:`str`, optional):
+            Method to use to calculate the spatial flexure shift. Options
+            are 'detector' (default), 'slit', and 'edge'. The 'detector'
+            method calculates the shift for all slits simultaneously, the
+            'slit' method calculates the shift for each slit independently,
+            and the 'edge' method calculates the shift for each slit edge
+            independently.
         maxlag (:obj:`int`, optional):
             Maximum flexure searched for
+        debug (:obj:`bool`, optional):
+            Run in debug mode
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
 
     """
+    # TODO :: Need to implement different methods
+
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
     slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
 
@@ -85,9 +99,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
-        return 0.
-    
+        return np.zeros((slits.nslits, 2), dtype=float)
+
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
@@ -109,13 +122,13 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     if debug:
         # Now translate the slits in the tslits_dict
-        all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
+        all_left_flexure, all_right_flexure, mask = slits.select_edges(spat_flexure=lag_max[0])
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         #embed(header='83 of flexure.py')
 
-    return lag_max[0]
+    return np.full((slits.nslits, 2), lag_max[0])
 
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
@@ -1341,7 +1354,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         wline = [line-noff,line+noff] 
         mw    = (wave > wline[0]) & (wave < wline[1]) & good_ivar
         
-        # Reuire minimum number
+        # Require minimum number
         if np.sum(mw) <= nfit_min:
             continue
 
@@ -1392,6 +1405,92 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     m=(diff_err < 0.1) & (diff_err > 0.0)
     # Return
     return dwave[m], diff[m], diff_err[m], los[m], los_err[m]
+
+
+def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
+    """
+    Print the spectral or spatial flexure of a spec2d or spec1d file
+    Args:
+        file (:obj:`str`, `Path`_):
+            Filename of the spec2d or spec1d file to check
+        file_type (:obj:`str`, optional):
+            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default is 'spec2d'.
+        flexure_type (:obj:`str`, optional):
+            Type of flexure to check. Options are 'spec' or 'spat'. Default is 'spec'.
+        chk_version (:obj:`bool`, optional):
+            If True, raise an error if the datamodel version or type check failed.
+            If False, throw a warning only. Default is False.
+
+    Returns:
+        :obj:`astropy.table.Table` or :obj:`float` or None:
+        - If file_type is 'spec2d' and flexure_type is 'spec', return a table with the spectral flexure
+        - If file_type is 'spec2d' and flexure_type is 'spat', return the spatial flexure
+        - If file_type is 'spec1d', return a table with the spectral flexure
+
+    """
+
+    # value to return
+    return_flex = None
+
+    if file_type == 'spec2d':
+        # load the spec2d file
+        allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
+        # Loop on Detectors
+        for det in allspec2D.detectors:
+            print('')
+            print('=' * 50 + f'{det:^7}' + '=' * 51)
+            # get and print the spectral flexure
+            if flexure_type == 'spec':
+                spec_flex = allspec2D[det].sci_spec_flexure
+                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
+                if np.all(spec_flex['global_spec_shift'] != None):
+                    spec_flex['global_spec_shift'].format = '0.3f'
+                # print the table
+                spec_flex.pprint_all()
+                # return the table
+                return_flex = spec_flex
+            # get and print the spatial flexure
+            if flexure_type == 'spat':
+                spat_flexure = allspec2D[det].sci_spat_flexure
+                if np.all(spat_flexure == spat_flexure[0, 0]):
+                    # print the value
+                    print(f'Spatial shift: {spat_flexure}')
+                elif np.array_equal(spat_flexure[:,0],spat_flexure[:,1]):
+                    # print the value of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print(f'  Slit {ii+1} spatial shift: {spat_flexure[ii,0]}')
+                else:
+                    # print the value for the edge of each slit
+                    for ii in range(spat_flexure.shape[0]):
+                        print('  Slit {0:2d} --  left edge spatial shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
+                        print('          --  right edge spatial shift: {0:f}'.format(spat_flexure[ii,1]))
+                # return the value
+                # TODO :: This return_flex is in a for loop, so the return will be the last value.
+                #      :: Also, the return_flex is not used in the code. So, perhaps this can be removed?
+                return_flex = spat_flexure
+    elif file_type == 'spec1d':
+        # no spat flexure in spec1d file
+        if flexure_type == 'spat':
+            msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
+        # load the spec1d file
+        sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
+        spec_flex = Table()
+        spec_flex['NAME'] = sobjs.NAME
+        spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
+        if np.all(spec_flex['global_spec_shift'] != None):
+            spec_flex['global_spec_shift'].format = '0.3f'
+        spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
+        if np.all(spec_flex['local_spec_shift'] != None):
+            spec_flex['local_spec_shift'].format = '0.3f'
+        spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
+        if np.all(spec_flex['total_spec_shift'] != None):
+            spec_flex['total_spec_shift'].format = '0.3f'
+        # print the table
+        spec_flex.pprint_all()
+        # return the table
+        return_flex = spec_flex
+
+    return return_flex
 
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations

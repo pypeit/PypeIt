@@ -507,6 +507,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
     arc_spec[arc_spec_bpm] = 0.0
     return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
+
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
@@ -644,7 +645,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         ind = np.delete(ind, np.where(dx < threshold)[0])
     # detect small peaks closer than minimum peak distance
     if ind.size and mpd > 1:
-        ind = ind[np.argsort(x[ind])][::-1]  # sort ind by peak height
+        ind = ind[np.argsort(x[ind], kind='stable')][::-1]  # sort ind by peak height
         idel = np.zeros(ind.size, dtype=bool)
         for i in range(ind.size):
             if not idel[i]:
@@ -783,7 +784,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
     max_nmask = int(np.ceil((max_mask_frac)*nspec_available))
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
-        mask_sigclip = np.invert(cont_mask & gpm)
+        mask_sigclip = np.logical_not(cont_mask & gpm)
         (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
@@ -808,7 +809,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
             #cont_mask = np.ones_like(cont_mask) & gpm
             # Short circuit the masking and just mask the 0.70 most offending pixels
             peak_mask_ind = np.where(np.logical_not(peak_mask) & gpm)[0]
-            isort = np.argsort(np.abs(spec[peak_mask_ind]))[::-1]
+            isort = np.argsort(np.abs(spec[peak_mask_ind]), kind='stable')[::-1]
             peak_mask_new = np.ones_like(peak_mask)
             peak_mask_new[peak_mask_ind[isort[0:max_nmask]]] = False
             cont_mask = peak_mask_new & gpm

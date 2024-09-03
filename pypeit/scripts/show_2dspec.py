@@ -64,8 +64,11 @@ def show_trace(sobjs, det, viewer, ch):
         maskdef_extr_list.append(maskdef_extr_flag is True)
         manual_extr_list.append(manual_extr_flag is True)
 
-    display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
-                       maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    if len(trace_list) > 0:
+        display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
+                           maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    else:
+        msgs.warn('spec1d file found, but no objects were extracted for this detector.')
 
 
 class Show2DSpec(scriptbase.ScriptBase):
@@ -258,7 +261,7 @@ class Show2DSpec(scriptbase.ScriptBase):
             if spec2DObj.sci_spat_flexure is not None:
                 msgs.info(f'Offseting slits by {spec2DObj.sci_spat_flexure}')
             slit_left, slit_right, slit_mask \
-                    = spec2DObj.slits.select_edges(flexure=spec2DObj.sci_spat_flexure)
+                    = spec2DObj.slits.select_edges(spat_flexure=spec2DObj.sci_spat_flexure)
             slit_spat_id = spec2DObj.slits.spat_id
             slit_mask_id = spec2DObj.slits.maskdef_id
             slit_slid_IDs = spec2DObj.slits.slitord_id

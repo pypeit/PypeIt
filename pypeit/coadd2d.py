@@ -1065,7 +1065,7 @@ class CoAdd2D:
             skymodel_stack.append(s2dobj.skymodel)
             sciivar_stack.append(s2dobj.ivarmodel)
             mask_stack.append(s2dobj.bpmmask.mask)
-            slitmask_stack.append(s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure))
+            slitmask_stack.append(s2dobj.slits.slit_img(spat_flexure=s2dobj.sci_spat_flexure))
 
         # check if exptime is consistent for all images
         exptime_coadd = np.percentile(exptime_stack, 50., method='higher')
@@ -1589,7 +1589,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # get maskdef_objpos
                 # find left edge
                 slits_left, _, _ = \
-                    self.stack_dict['slits_list'][iexp].select_edges(flexure=self.stack_dict['spat_flexure_list'][iexp])
+                    self.stack_dict['slits_list'][iexp].select_edges(
+                        spat_flexure=self.stack_dict['spat_flexure_list'][iexp])
                 # targeted object spat pix
                 maskdef_obj_pixpos = \
                     self.stack_dict['slits_list'][iexp].maskdef_objpos[slit_idx] + self.maskdef_offset[iexp] \

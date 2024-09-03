@@ -270,18 +270,23 @@ class WaveCalib(calibframe.CalibFrame):
                 Properties of the slits
             initial (bool, optional):
                 If True, the initial slit locations will be used. Otherwise, the tweaked edges will be used.
-            spat_flexure (float, optional):
-                Spatial flexure correction in pixels.
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
 
         Returns:
             `numpy.ndarray`_: The spectral FWHM image.
         """
         # Check spatial flexure type
-        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
-            msgs.error("Spatial flexure must be None or float")
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
+            msgs.error("Spatial flexure must be None or numpy.ndarray.")
         # Generate the slit mask and slit edges - pad slitmask by 1 for edge effects
-        slitmask = slits.slit_img(pad=1, initial=initial, flexure=spat_flexure)
-        slits_left, slits_right, _ = slits.select_edges(initial=initial, flexure=spat_flexure)
+        slitmask = slits.slit_img(pad=1, initial=initial, spat_flexure=spat_flexure)
+        slits_left, slits_right, _ = slits.select_edges(initial=initial, spat_flexure=spat_flexure)
         # Build a map of the spectral FWHM
         fwhmimg = np.zeros(tilts.shape)
         for sl, spat_id in enumerate(slits.spat_id):
@@ -303,8 +308,13 @@ class WaveCalib(calibframe.CalibFrame):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
                 Properties of the slits
-            spat_flexure (float, optional):
-                Spatial flexure correction in pixels.
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
             spec_flexure (float, `numpy.ndarray`_, optional):
                 Spectral flexure correction in pixels. If a float,
                 the same spectral flexure correction will be applied
@@ -317,8 +327,8 @@ class WaveCalib(calibframe.CalibFrame):
             `numpy.ndarray`_: The wavelength image.
         """
         # Check spatial flexure type
-        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
-            msgs.error("Spatial flexure must be None or float")
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, np.ndarray)):
+            msgs.error("Spatial flexure must be None or numpy.ndarray")
         # Check spectral flexure type
         if spec_flexure is None: spec_flex = np.zeros(slits.nslits)
         elif isinstance(spec_flexure, float): spec_flex = spec_flexure*np.ones(slits.nslits)
@@ -335,7 +345,7 @@ class WaveCalib(calibframe.CalibFrame):
         ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
-        slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
+        slitmask = slits.slit_img(spat_flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
         # Separate detectors for the 2D solutions?
         if self.par['ech_separate_2d']:
@@ -526,11 +536,11 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        # TODO: This is currently hacked to deal with Mosaics
-        try:
+        if self.msarc.is_mosaic:
+            # if this is a mosaic we take the maximum value among all the detectors
+            self.nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.msarc.detector.detectors])
+        else:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
-        except:
-            self.nonlinear_counts = 1e10
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -555,7 +565,7 @@ class BuildWaveCalib:
 
             # Load up slits
             # TODO -- Allow for flexure
-            slits_left, slits_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
+            slits_left, slits_right, mask = self.slits.select_edges(initial=True, spat_flexure=None)  # Grabs all, init slits + flexure
             self.orders = self.slits.ech_order  # Can be None
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
@@ -567,7 +577,7 @@ class BuildWaveCalib:
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
-            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
+            self.slitmask_science = self.slits.slit_img(initial=True, spat_flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape

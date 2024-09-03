@@ -950,7 +950,7 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             msgs.info("Using slit edges for astrometric transform")
         # If nothing better was provided, use the slit edges
         if alignments is None:
-            left, right, _ = slits.select_edges(flexure=spat_flexure)
+            left, right, _ = slits.select_edges(spat_flexure=spat_flexure)
             locations = [0.0, 1.0]
             traces = np.append(left[:, None, :], right[:, None, :], axis=1)
         else:
@@ -1015,8 +1015,8 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             # Initialise the slit edges
             msgs.info("Constructing slit image")
             slits = spec2DObj.slits
-            slitid_img = slits.slit_img(pad=0, flexure=spat_flexure)
-            slits_left, slits_right, _ = slits.select_edges(flexure=spat_flexure)
+            slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+            slits_left, slits_right, _ = slits.select_edges(spat_flexure=spat_flexure)
 
             # The order of operations below proceeds as follows:
             #  (1) Get science image
@@ -1116,11 +1116,11 @@ class SlicerIFUCoAdd3D(CoAdd3D):
             dwav_ext = dwaveimg[onslit_gpm]
 
             # For now, work in sorted wavelengths
-            wvsrt = np.argsort(wave_ext)
+            wvsrt = np.argsort(wave_ext, kind='stable')
             wave_sort = wave_ext[wvsrt]
             dwav_sort = dwav_ext[wvsrt]
             # Here's an array to get back to the original ordering
-            resrt = np.argsort(wvsrt)
+            resrt = np.argsort(wvsrt, kind='stable')
 
             # Compute the DAR correction
             cosdec = np.cos(self.ifu_dec[ff] * np.pi / 180.0)

@@ -15,7 +15,6 @@ from abc import ABCMeta
 
 from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import flatfield
 from pypeit.display import display
 from pypeit.core import skysub, qa, parse, flat, flexure
 from pypeit.core import procimg
@@ -92,7 +91,13 @@ class FindObjects:
         slits (:class:`~pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Objects found
-        spat_flexure_shift (:obj:`float`):
+        spat_flexure_shift (`numpy.ndarray`_, optional):
+            If provided, this is the shift, in spatial pixels, to
+            apply to each slit. This is used to correct for spatial
+            flexure. The shape of the array should be (nslits, 2),
+            where the first column is the shift to apply to the
+            left edge of each slit and the second column is the
+            shift to apply to the right edge of each slit.
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
@@ -153,8 +158,8 @@ class FindObjects:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none"):
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
@@ -222,14 +227,16 @@ class FindObjects:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
             #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-                _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct'] != "none":
+                _spat_flexure = np.zeros((slits.nslits, 2)) if self.spat_flexure_shift is None \
+                    else self.spat_flexure_shift
                 # If they both shifted the same, there will be no reason to shift the tilts
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             msgs.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, self.slits_left, self.slits_right,
+                                                    spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             msgs.info("Using user input tilts image")
             self.tilts = tilts
@@ -297,7 +304,7 @@ class FindObjects:
         # Select the edges to use
         # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
@@ -309,7 +316,7 @@ class FindObjects:
 
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
@@ -326,8 +333,13 @@ class FindObjects:
 
         Parameters
         ----------
-        std_trace : `numpy.ndarray`_, optional
-            Trace of the standard star
+        std_trace : `astropy.table.Table`_, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            For Echelle reduction, the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). For SlicerIFU reduction, std_trace is None.
+            If None, the slit boundaries are used as the crutch.
         show_peaks : :obj:`bool`, optional
             Show peaks in find_objects methods
         show_skysub_fit : :obj:`bool`, optional
@@ -400,11 +412,13 @@ class FindObjects:
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            For Echelle reduction, the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). For SlicerIFU reduction, std_trace is None.
+            If None, the slit boundaries are used as the crutch.
         show_peaks : :obj:`bool`, optional
             Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
@@ -724,11 +738,12 @@ class MultiSlitFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For MultiSlit reduction,
+            the table has a single column: `TRACE_SPAT`.
+            The shape of each row must be (nspec,). If None,
+            the slit boundaries are used as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
@@ -792,13 +807,17 @@ class MultiSlitFindObjects(FindObjects):
 
             maxnumber =  self.par['reduce']['findobj']['maxnumber_std'] if self.std_redux \
                 else self.par['reduce']['findobj']['maxnumber_sci']
+            # standard star
+            std_in = std_trace[0]['TRACE_SPAT'] if std_trace is not None else None
+
+            # Find objects
             sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, ivar, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-                                std_trace=std_trace,
+                                std_trace=std_in,
                                 snr_thresh=snr_thresh,
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -874,11 +893,12 @@ class EchelleFindObjects(FindObjects):
             Image to search for objects from. This floating-point image has shape
             (nspec, nspat) where the first dimension (nspec) is
             spectral, and second dimension (nspat) is spatial.
-        std_trace : `numpy.ndarray`_, optional
-            This is a one dimensional float array with shape = (nspec,) containing the standard star
-            trace which is used as a crutch for tracing. If the no
-            standard star is provided the code uses the the slit
-            boundaries as the crutch.
+        std_trace : `astropy.table.Table`_, optional
+            Table with the trace of the standard star on the input detector,
+            which is used as a crutch for tracing. For Echelle reduction,
+            the table has two columns: `ECH_ORDER` and `TRACE_SPAT`.
+            The shape of each row must be (nspec,). If None,
+            the slit boundaries are used as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
@@ -1069,8 +1089,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         model_ivar = self.sciImg.ivar
         sl_ref = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         # Prepare the slitmasks for the relative spectral illumination
-        slitmask = self.slits.slit_img(pad=0, flexure=self.spat_flexure_shift)
-        slitmask_trim = self.slits.slit_img(pad=-3, flexure=self.spat_flexure_shift)
+        slitmask = self.slits.slit_img(pad=0, spat_flexure=self.spat_flexure_shift)
+        slitmask_trim = self.slits.slit_img(pad=-3, spat_flexure=self.spat_flexure_shift)
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             # TODO trim_edg is in the parset so it should be passed in here via trim_edg=tuple(self.par['reduce']['trim_edge']),
@@ -1216,8 +1236,8 @@ class SlicerIFUFindObjects(MultiSlitFindObjects):
         new_slitshift = self.slitshift + this_slitshift
         # Now report the flexure values
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            msgs.info("Flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
-                                                                                              self.slitshift[slit_idx]))
+            msgs.info("Spectral flexure correction, slit {0:d} (spat id={1:d}): {2:.3f} pixels".format(1+slit_idx, slit_spat,
+                                                                                                       new_slitshift[slit_idx]))
         # Save QA
         # TODO :: Need to implement QA once the flexure code has been tidied up, and this routine has been moved
         #         out of the find_objects() class.

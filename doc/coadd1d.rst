@@ -303,3 +303,45 @@ and launches a GUI from the `linetools`_ package. e.g.:
 
     lt_xspec J1217p3905_coadd.fits
 
+UVES_popler coaddition
+======================
+
+If you prefer to use a GUI for the coaddition (to manually remove
+bad pixels, ghosts, cosmic rays etc.), then you can use the UVES_popler tool.
+This tool is developed by Michael Murphy and is available at
+`this link <https://github.com/MTMurphy77/UVES_popler/>`__.
+Here is an example of a coadded spectrum using UVES_popler:
+
+.. image:: ../figures/uves_popler.png
+   :scale: 60%
+
+UVES_popler was originally written to coadd ESO/UVES echelle spectra
+that were reduced by the ESO pipeline, and it has been recently modified
+to support the reduction of PypeIt longslit and echelle data. If you
+require some support on how to use UVES_popler with PypeIt data, please
+join the `PypeIt Users Slack <https://pypeit-users.slack.com>`__ and
+ask for help in the #coadd1d channel. All are welcome to join using
+`this invitation link <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__.
+
+For details on how to use the tool, please refer to the
+`UVES_popler documentation <https://astronomy.swin.edu.au/~mmurphy/UVES_popler/>`__.
+To get you started with reading in PypeIt :doc:`out_spec1D` files,
+you need to generate a text file that lists the absolute paths to the
+:doc:`out_spec1D` files. Here is an example of how to generate this file:
+
+.. code-block:: console
+
+    ls -1 /path/to/your/pypeit_output/Science/spec1d/*.fits > /path/to/your/pypeit_output/pypeit_spec1d_files.txt
+
+Then you can use this file as input to UVES_popler, by using the following command:
+
+.. code-block:: console
+
+    cd /path/to/your/pypeit_output/
+    UVES_popler -disp 50 -filetype 11 pypeit_spec1d_files.txt
+
+This will launch the GUI, where you can interactively coadd your spectra. The
+``-disp 50`` option is used to set the pixel sampling of the spectra to 50 km/s,
+and the ``-filetype 11`` option is used to specify that the input files are PypeIt
+:doc:`out_spec1D` files. For more information on the options available, you can
+specify the ``-h`` option.

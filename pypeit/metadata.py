@@ -20,7 +20,6 @@ from astropy import table, time
 from pypeit import msgs
 from pypeit import inputfiles
 from pypeit.core import framematch
-from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.io import dict_to_lines
@@ -665,6 +664,10 @@ class PypeItMetaData:
             msgs.error('Configurations not defined by PypeItMetaData object.  Execute '
                        'unique_configurations first.')
         return len(list(self.configs.keys()))
+
+    @property
+    def MASKED_VALUE(self):
+        return -9999
 
     def unique_configurations(self, force=False, copy=False, rm_none=False):
         """
@@ -1449,28 +1452,10 @@ class PypeItMetaData:
             indx = self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
             # Turn on the relevant bits
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
-    
-        # Find the nearest standard star to each science frame
-        # TODO: Should this be 'standard' or 'science' or both?
-        if 'ra' not in self.keys() or 'dec' not in self.keys():
-            msgs.warn('Cannot associate standard with science frames without sky coordinates.')
-        else:
-            # TODO: Do we want to do this here?
-            indx = self.type_bitmask.flagged(type_bits, flag='standard')
-            for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
-                                     self['dec'][indx]):
-                if ra == 'None' or dec == 'None':
-                    msgs.warn('RA and DEC must not be None for file:' + msgs.newline() + f)
-                    msgs.warn('The above file could be a twilight flat frame that was'
-                              + msgs.newline() + 'missed by the automatic identification.')
-                    b = self.type_bitmask.turn_off(b, flag='standard')
-                    continue
 
-                # If an object exists within 20 arcmins of a listed standard,
-                # then it is probably a standard star
-                foundstd = flux_calib.find_standard_file(ra, dec, check=True)
-                b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
-    
+        # Vet assigned frame types (this can be spectrograph dependent)
+        self.spectrograph.vet_assigned_ftypes(type_bits, self)
+
         # Find the files without any types
         indx = np.logical_not(self.type_bitmask.flagged(type_bits))
         if np.any(indx):
@@ -1489,7 +1474,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False, write_shift = False):
+    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False, write_shift=False):
         """
         Generate the list of columns to be included in the fitstbl
         (nearly the complete list).
@@ -1559,7 +1544,7 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            self['shift'] = self.MASKED_VALUE
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1595,7 +1580,7 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = 0
+            self['shift'] = self.MASKED_VALUE
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):

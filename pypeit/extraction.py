@@ -64,7 +64,7 @@ class Extract:
     @classmethod
     def get_instance(cls, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
                      bkg_redux_global_sky=None, waveTilts=None, tilts=None, wv_calib=None, waveimg=None,
-                     bkg_redux=False, return_negative=False, std_redux=False, show=False, basename=None):
+                     flatimg=None, bkg_redux=False, return_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Extract subclass appropriate for the provided
         spectrograph.
@@ -101,6 +101,9 @@ class Extract:
                 This is the waveCalib object which is optional, but either wv_calib or waveimg must be provided.
             waveimg (`numpy.ndarray`_, optional):
                 Wave image. Either a wave image or wv_calib object (above) must be provided
+            flatimg (`numpy.ndarray`_, optional):
+                Flat image. This is optional, but if provided, it is used to extract the
+                normalized blaze profile. Same shape as ``sciImg``.
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -128,12 +131,12 @@ class Extract:
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
             sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=global_sky,
             bkg_redux_global_sky=bkg_redux_global_sky, waveTilts=waveTilts, tilts=tilts,
-            wv_calib=wv_calib, waveimg=waveimg, bkg_redux=bkg_redux, return_negative=return_negative,
+            wv_calib=wv_calib, waveimg=waveimg, flatimg=flatimg, bkg_redux=bkg_redux, return_negative=return_negative,
             std_redux=std_redux, show=show, basename=basename)
 
     def __init__(self, sciImg, slits, sobjs_obj, spectrograph, par, objtype, global_sky=None,
                  bkg_redux_global_sky=None, waveTilts=None, tilts=None, wv_calib=None, waveimg=None,
-                 bkg_redux=False, return_negative=False, std_redux=False, show=False,
+                 flatimg=None, bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -146,6 +149,7 @@ class Extract:
         self.par = par
         self.global_sky = global_sky if global_sky is not None else np.zeros_like(sciImg.image)
         self.bkg_redux_global_sky = bkg_redux_global_sky
+        self.flatimg = flatimg
 
         self.basename = basename
         # Parse
@@ -219,7 +223,8 @@ class Extract:
             else:
                 tilt_flexure_shift = self.spat_flexure_shift
             msgs.info("Generating tilts image from fit in waveTilts")
-            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+            self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, self.slits_left, self.slits_right,
+                                                    spat_flexure=tilt_flexure_shift)
         elif waveTilts is None and tilts is not None:
             msgs.info("Using user input tilts image")
             self.tilts = tilts
@@ -297,7 +302,7 @@ class Extract:
 
         # TODO JFH: his is an ugly hack for the present moment until we get the slits object sorted out
         self.slits_left, self.slits_right, _ \
-            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, spat_flexure=self.spat_flexure_shift)
         # This matches the logic below that is being applied to the slitmask. Better would be to clean up slits to
         # to return a new slits object with the desired selection criteria which would remove the ambiguity
         # about whether the slits and the slitmask are in sync.
@@ -308,7 +313,7 @@ class Extract:
         #self.slits_right = slits_right[:, gpm]
 
         # Slitmask
-        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+        self.slitmask = self.slits.slit_img(initial=initial, spat_flexure=self.spat_flexure_shift,
                                             exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
@@ -776,7 +781,7 @@ class MultiSlitExtract(Extract):
                                               self.slits_right[:, slit_idx],
                                               self.sobjs[thisobj], ingpm=ingpm,
                                               bkg_redux_global_sky=bkg_redux_global_sky,
-                                              fwhmimg=self.fwhmimg, spat_pix=spat_pix,
+                                              fwhmimg=self.fwhmimg, flatimg=self.flatimg, spat_pix=spat_pix,
                                               model_full_slit=model_full_slit,
                                               sigrej=sigrej, model_noise=model_noise,
                                               std=self.std_redux, bsp=bsp,
@@ -888,6 +893,7 @@ class EchelleExtract(Extract):
                                               self.slits_right[:, gdorders], self.slitmask, sobjs,
                                               bkg_redux_global_sky=bkg_redux_global_sky,
                                               spat_pix=spat_pix,
+                                              fwhmimg=self.fwhmimg, flatimg=self.flatimg,
                                               std=self.std_redux, fit_fwhm=fit_fwhm,
                                               min_snr=min_snr, bsp=bsp, sigrej=sigrej,
                                               force_gauss=force_gauss, sn_gauss=sn_gauss,

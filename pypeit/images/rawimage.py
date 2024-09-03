@@ -111,8 +111,12 @@ class RawImage:
         datasec_img (`numpy.ndarray`_):
             Image identifying which amplifier was used to read each section of
             the *processed* image.
-        spat_flexure_shift (:obj:`float`):
-            The spatial flexure shift in pixels, if calculated
+        spat_flexure_shift (`numpy.ndarray`_):
+            The spatial flexure shift in pixels, if calculated. This is a 2D array
+            of shape (nslits, 2) where spat_flexure_shift[i,0] is the shift in the
+            spatial direction for the left edge of slit i and spat_flexure_shift[i,1]
+            is the shift in the spatial direction for the right edge of slit i.
+
     """
     def __init__(self, ifile, spectrograph, det):
 
@@ -237,7 +241,7 @@ class RawImage:
         """
         if self.par is None:
             return False
-        return self.par['spat_flexure_correct'] or (self.use_flat and self.par['use_illumflat'])
+        return (self.par['spat_flexure_correct'] != "none") or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -542,7 +546,7 @@ class RawImage:
             msgs.error('No dark available for dark subtraction!')
         if self.par['subtract_scattlight'] and scattlight is None:
             msgs.error('Scattered light subtraction requested, but scattered light model not provided.')
-        if self.par['spat_flexure_correct'] and slits is None:
+        if (self.par['spat_flexure_correct'] != "none") and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
             msgs.error('Flat-field corrections requested but no flat-field images generated '
@@ -667,8 +671,12 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag = self.par['spat_flexure_maxlag']) \
-                                    if self.par['spat_flexure_correct'] else None
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
+                                                                 maxlag=self.par['spat_flexure_maxlag']) \
+            if self.par['spat_flexure_correct'] != "none" else None
+
+        # self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag=self.par['spat_flexure_maxlag']) \
+        #                             if self.par['spat_flexure_correct'] else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
@@ -761,7 +769,7 @@ class RawImage:
         return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
-    def spatial_flexure_shift(self, slits, force=False, maxlag = 20):
+    def spatial_flexure_shift(self, slits, force=False, method="detector", maxlag=20):
         """
         Calculate a spatial shift in the edge traces due to flexure.
 
@@ -774,11 +782,18 @@ class RawImage:
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
+            method (:obj:`str`, optional):
+                Method to use to calculate the spatial flexure shift. Options
+                are 'detector' (default), 'slit', and 'edge'. The 'detector'
+                method calculates the shift for all slits simultaneously, the
+                'slit' method calculates the shift for each slit independently,
+                and the 'edge' method calculates the shift for each slit edge
+                independently.
             maxlag (:obj:'float', optional):
                 Maximum range of lag values over which to compute the CCF.
 
         Return:
-            float: The calculated flexure correction
+            `numpy.ndarray`_: The calculated flexure correction for the edge of each slit shape is (nslits, 2)
 
         """
         step = inspect.stack()[0][3]
@@ -789,7 +804,7 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, maxlag = maxlag)
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
@@ -855,7 +870,7 @@ class RawImage:
             illum_flat = flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=False)
             illum_flat *= flatimages.fit2illumflat(slits, spat_flexure=self.spat_flexure_shift, finecorr=True)
             if debug:
-                left, right = slits.select_edges(flexure=self.spat_flexure_shift)
+                left, right = slits.select_edges(spat_flexure=self.spat_flexure_shift)
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
@@ -1219,7 +1234,7 @@ class RawImage:
                                f"               {tmp[13]}, {tmp[14]}, {tmp[15]}])  # Polynomial terms (coefficients of spec**index)\n"
                     print(strprint)
                     pad = msscattlight.pad // spatbin
-                    offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                    offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
                     from matplotlib import pyplot as plt
                     _frame = self.image[ii, ...]
                     vmin, vmax = 0, np.max(scatt_img)
@@ -1244,7 +1259,7 @@ class RawImage:
             elif self.par["scattlight"]["method"] == "frame":
                 # Calculate a model specific for this frame
                 pad = msscattlight.pad // spatbin
-                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
                 # Get starting parameters for the scattered light model
                 x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
                 # Perform a fit to the scattered light
@@ -1268,11 +1283,11 @@ class RawImage:
             # Check if a fine correction to the scattered light should be applied
             if do_finecorr:
                 pad = self.par['scattlight']['finecorr_pad'] // spatbin
-                offslitmask = slits.slit_img(pad=pad, flexure=None) == -1
+                offslitmask = slits.slit_img(pad=pad, spat_flexure=None) == -1
                 # Check if the user wishes to mask some inter-slit regions
                 if self.par['scattlight']['finecorr_mask'] is not None:
                     # Get the central trace of each slit
-                    left, right, _ = slits.select_edges(flexure=None)
+                    left, right, _ = slits.select_edges(spat_flexure=None)
                     centrace = 0.5*(left+right)
                     # Now mask user-defined inter-slit regions
                     offslitmask = scattlight.mask_slit_regions(offslitmask, centrace,
@@ -1358,7 +1373,7 @@ class RawImage:
         # Transform the image data to the mosaic frame.  This call determines
         # the shape of the mosaic image and adjusts the relative transforms to
         # the absolute mosaic frame.
-        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_order)
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_ord)
         shape = self.image.shape
         # Maintain dimensionality
         self.image = np.expand_dims(self.image, 0)
@@ -1369,7 +1384,7 @@ class RawImage:
 
         # Transform the BPM and maintain its type
         bpm_type = self.bpm.dtype
-        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         # Include pixels that have no contribution from the original image in
         # the bad pixel mask of the mosaic.
         self._bpm[_img_npix < 1] = 1
@@ -1384,29 +1399,29 @@ class RawImage:
 
         # Get the pixels associated with each amplifier
         self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,
-                                              mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                              mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.datasec_img = np.expand_dims(np.round(self.datasec_img).astype(int), 0)
 
         # Get the pixels associated with each detector
         self.det_img = build_image_mosaic(self.det_img.astype(float), _tforms,
-                                          mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                          mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.det_img = np.expand_dims(np.round(self.det_img).astype(int), 0)
 
         # Transform all the variance arrays, as necessary
         if self.rn2img is not None:
-            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
         if self.dark is not None:
-            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark = np.expand_dims(self.dark, 0)
         if self.dark_var is not None:
-            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark_var = np.expand_dims(self.dark_var, 0)
         if self.proc_var is not None:
-            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.proc_var = np.expand_dims(self.proc_var, 0)
         if self.base_var is not None:
-            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.base_var = np.expand_dims(self.base_var, 0)
 
         # TODO: Mosaicing means that many of the internals are no longer

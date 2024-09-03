@@ -21,6 +21,14 @@ class SensFunc(scriptbase.ScriptBase):
         parser.add_argument("spec1dfile", type=str,
                             help='spec1d file for the standard that will be used to compute '
                                  'the sensitivity function')
+        parser.add_argument("--extr", type=str, default=None, choices=['OPT', 'BOX'],
+                            help="R|Override the default extraction method used for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --extr and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the algorithm there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         extr = BOX\n"
+                                 "\nThe extraction options are: OPT or BOX")
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
                             help="R|Override the default algorithm for computing the sensitivity "
                                  "function.  Note that it is not possible to set --algorithm and "
@@ -58,17 +66,6 @@ class SensFunc(scriptbase.ScriptBase):
                                  'provided but with .fits trimmed off if it is in the filename.')
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
-        parser.add_argument("-f", "--flatfile", type=str,
-                            help="R|Use a flat calibration file to compute the blaze function when generating "
-                                 "the sensitivity function.  This is helpful to account for small scale undulations "
-                                 "in the sensitivity function.  Note that it is not possible to set --flatfile and "
-                                 "simultaneously use a .sens file with the --sens_file option. If "
-                                 "you are using a .sens file, set the flatfile there via e.g.:\n\n"
-                                 "F|    [sensfunc]\n"
-                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n\n"
-                                 "Where Flat_A_0_DET01.fits is the flat file in your "
-                                 "Calibrations directory\n")
-
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -103,14 +100,6 @@ class SensFunc(scriptbase.ScriptBase):
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
                        "\n")
-        if args.flatfile is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --flatfile and simultaneously use a .sens "
-                       "file via the --sens_file option. If you are using a .sens file set the "
-                       "flatfile there via:\n"
-                       "\n"
-                       "    [sensfunc]\n"
-                       "       flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
-                       "\n")
 
         if args.multi is not None and args.sens_file is not None:
             msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
@@ -119,6 +108,15 @@ class SensFunc(scriptbase.ScriptBase):
                        "\n"
                        "         [sensfunc]\n"
                        "              multi_spec_det = 3,7\n"
+                       "\n")
+
+        if args.extr is not None and args.sens_file is not None:
+            msgs.error("It is not possible to set --extr and simultaneously use a .sens file via "
+                       "the --sens_file option. If you are using a .sens file set the extraction "
+                       "method there via:\n"
+                       "\n"
+                       "         [sensfunc]\n"
+                       "              extr = BOX\n"
                        "\n")
 
 
@@ -155,17 +153,17 @@ class SensFunc(scriptbase.ScriptBase):
         if args.algorithm is not None:
             par['sensfunc']['algorithm'] = args.algorithm
 
-        # If flatfile was provided override defaults. Note this does undo .sens
-        # file since they cannot both be passed
-        if args.flatfile is not None:
-            par['sensfunc']['flatfile'] = args.flatfile
-
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed
         if args.multi is not None:
             # parse
             multi_spec_det  = [int(item) for item in args.multi.split(',')]
             par['sensfunc']['multi_spec_det'] = multi_spec_det
+
+        # If extr was provided override defaults. Note this does undo .sens
+        # file since they cannot both be passed
+        if args.extr is not None:
+            par['sensfunc']['extr'] = args.extr
 
         # TODO Add parsing of detectors here. If detectors passed from the
         # command line, overwrite the parset values read in from the .sens file

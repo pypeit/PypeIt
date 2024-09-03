@@ -78,6 +78,7 @@ class SensFunc(datamodel.DataContainer):
                  'pypeline': dict(otype=str, descr='PypeIt pipeline reduction path'),
                  'spec1df': dict(otype=str,
                                  descr='PypeIt spec1D file used to for sensitivity function'),
+                 'extr': dict(otype=str, descr='Extraction method used for the standard star (OPT or BOX)'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
                                  descr='File name (or shorthand) with the standard flux data'),
@@ -213,6 +214,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Input and Output files
         self.spec1df = spec1dfile
+        self.extr = par['extr']
         self.sensfile = sensfile
         self.par = par
         self.chk_version = chk_version
@@ -252,13 +254,9 @@ class SensFunc(datamodel.DataContainer):
             msgs.error(f'There is a problem with your standard star spec1d file: {self.spec1df}')
 
         # Unpack standard
-        wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
-                = self.sobjs_std.unpack_object(ret_flam=False)
-
-        # Compute the blaze function
-        # TODO Make the blaze function optional
-        log10_blaze_function = self.compute_blaze(wave, trace_spec, trace_spat, par['flatfile']) \
-                                    if par['flatfile'] is not None else None
+        wave, counts, counts_ivar, counts_mask, log10_blaze_function, self.meta_spec, header \
+            = self.sobjs_std.unpack_object(ret_flam=False, log10blaze=True, extract_blaze=par['use_blaze'],
+                                           extract_type=self.extr, remove_missing=True)
 
         # Perform any instrument tweaks
         wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk, log10_blaze_function_twk = \
@@ -278,64 +276,6 @@ class SensFunc(datamodel.DataContainer):
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'],
                                                          star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
-
-    def compute_blaze(self, wave, trace_spec, trace_spat, flatfile, box_radius=10.0,
-                      min_blaze_value=1e-3, debug=False):
-        """
-        Compute the blaze function from a flat field image.
-
-        Args:
-            wave (`numpy.ndarray`_):
-                Wavelength array. Shape = (nspec, norddet)
-            trace_spec (`numpy.ndarray`_):
-                Spectral pixels for the trace of the spectrum. Shape = (nspec, norddet)
-            trace_spat (`numpy.ndarray`_):
-                Spatial pixels for the trace of the spectrum. Shape = (nspec, norddet)
-            flatfile (:obj:`str`):
-                Filename for the flat field calibration image
-            box_radius (:obj:`float`, optional):
-                Radius of the boxcar extraction region used to extract the blaze function in pixels
-            min_blaze_value (:obj:`float`, optional):
-                Minimum value of the blaze function. Values below this are clipped and set to this value. Default=1e-3
-            debug (:obj:`bool`, optional):
-                Show plots useful for debugging. Default=False
-
-        Returns:
-            `numpy.ndarray`_: The log10 blaze function. Shape = (nspec, norddet)
-            if norddet > 1, else shape = (nspec,)
-        """
-        flatImages = flatfield.FlatImages.from_file(flatfile, chk_version=self.chk_version)
-
-        pixelflat_raw = flatImages.pixelflat_raw
-        pixelflat_norm = flatImages.pixelflat_norm
-        pixelflat_proc, flat_bpm = flat.flatfield(pixelflat_raw, pixelflat_norm)
-
-        flux_box = moment1d(pixelflat_proc * np.logical_not(flat_bpm), trace_spat, 2 * box_radius, row=trace_spec)[0]
-
-        pixtot = moment1d(pixelflat_proc*0 + 1.0, trace_spat, 2 * box_radius, row=trace_spec)[0]
-        pixmsk = moment1d(flat_bpm, trace_spat, 2 * box_radius, row=trace_spec)[0]
-
-        mask_box = (pixmsk != pixtot) & np.isfinite(wave) & (wave > 0.0)
-
-        # TODO This is ugly and redundant with spec_atleast_2d, but the order of operations compels me to do it this way
-        blaze_function = (np.clip(flux_box*mask_box, 1e-3, 1e9)).reshape(-1,1) \
-                            if flux_box.ndim == 1 else flux_box*mask_box
-        wave_debug = wave.reshape(-1,1) if wave.ndim == 1 else wave
-        log10_blaze_function = np.zeros_like(blaze_function)
-        norddet = log10_blaze_function.shape[1]
-        for iorddet in range(norddet):
-            blaze_function_smooth = utils.fast_running_median(blaze_function[:, iorddet], 5)
-            blaze_function_norm = blaze_function_smooth/blaze_function_smooth.max()
-            log10_blaze_function[:, iorddet] = np.log10(np.clip(blaze_function_norm, min_blaze_value, None))
-            if debug:
-                plt.plot(wave_debug[:, iorddet], log10_blaze_function[:,iorddet])
-        if debug:
-            plt.show()
-
-
-        # TODO It would probably better to just return an array of shape (nspec, norddet) even if norddet = 1, i.e.
-        # to get rid of this .squeeze()
-        return log10_blaze_function.squeeze()
 
     def _bundle(self):
         """
@@ -469,8 +409,8 @@ class SensFunc(datamodel.DataContainer):
         # TODO assign this to the data model
 
         # Unpack the fluxed standard
-        _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ \
-                = self.sobjs_std.unpack_object(ret_flam=True)
+        _wave, _flam, _flam_ivar, _flam_mask, _blaze, _, _ \
+            = self.sobjs_std.unpack_object(ret_flam=True, extract_type=self.extr)
         # Reshape to 2d arrays
         wave, flam, flam_ivar, flam_mask, _, _, _ \
                 = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
@@ -805,7 +745,7 @@ class SensFunc(datamodel.DataContainer):
 
 
     @classmethod
-    def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True, chk_version=True):
+    def sensfunc_weights(cls, sensfile, waves, ech_order_vec=None, debug=False, extrap_sens=True, chk_version=True):
         """
         Get the weights based on the sensfunc
 
@@ -815,8 +755,12 @@ class SensFunc(datamodel.DataContainer):
             waves (`numpy.ndarray`_):
                 wavelength grid for your output weights.  Shape is (nspec,
                 norders, nexp) or (nspec, norders).
+            ech_order_vec (`numpy.ndarray`_, optional):
+                Vector of echelle orders.  Only used for echelle data.
             debug (bool): default=False
                 show the weights QA
+            extrap_sens (bool): default=True
+                Extrapolate the sensitivity function
             chk_version (:obj:`bool`, optional):
                 When reading in existing files written by PypeIt, perform strict
                 version checking to ensure a valid file.  If False, the code
@@ -831,6 +775,10 @@ class SensFunc(datamodel.DataContainer):
 
         if waves.ndim == 2:
             nspec, norder = waves.shape
+            if ech_order_vec.size != norder:
+                msgs.warn('The number of orders in the wave grid does not match the '
+                          'number of orders in the unpacked sobjs. Echelle order vector not used.')
+                ech_order_vec = None
             nexp = 1
             waves_stack = np.reshape(waves, (nspec, norder, 1))
         elif waves.ndim == 3:
@@ -843,16 +791,29 @@ class SensFunc(datamodel.DataContainer):
         else:
             msgs.error('Unrecognized dimensionality for waves')
 
-        weights_stack = np.zeros_like(waves_stack)
+        weights_stack = np.ones_like(waves_stack)
 
-        if norder != sens.zeropoint.shape[1]:
+        if norder != sens.zeropoint.shape[1] and ech_order_vec is None:
             msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+        elif norder != sens.zeropoint.shape[1] and ech_order_vec is not None:
+            msgs.warn('The number of orders in {:} does not match the number of orders in the data. '
+                      'Using only the matching orders.'.format(sensfile))
 
-        for iord in range(norder):
+        # array of order to loop through
+        orders = np.arange(norder) if ech_order_vec is None else ech_order_vec
+        for iord,this_ord in enumerate(orders):
+            if ech_order_vec is None:
+                isens = iord
+            # find the index of the sensfunc for this order
+            elif ech_order_vec is not None and np.any(sens.sens['ECH_ORDERS'].value == this_ord):
+                isens = np.where(sens.sens['ECH_ORDERS'].value == this_ord)[0][0]
+            else:
+                # if the order is not in the sensfunc file, skip it
+                continue
             for iexp in range(nexp):
                 sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:,iord,iexp],
-                                                               sens.wave[:,iord],
-                                                               sens.zeropoint[:,iord], 1.0,
+                                                               sens.wave[:,isens],
+                                                               sens.zeropoint[:,isens], 1.0,
                                                                extrap_sens=extrap_sens)
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 

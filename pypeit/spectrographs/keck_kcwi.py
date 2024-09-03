@@ -134,6 +134,8 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
+        elif self.get_meta_value(headarr, 'dispname') == 'BH3':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH3.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BL':
@@ -317,7 +319,7 @@ class KeckKCWIKCRMSpectrograph(spectrograph.Spectrograph):
         # Illumination corrections
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
+        par['scienceframe']['process']['spat_flexure_correct'] = "none"  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = True  # Need to use bias frames for KCWI, because the bias level varies monotonically with spatial and spectral direction
         par['scienceframe']['process']['use_darkimage'] = False
 
@@ -825,7 +827,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
     camera = 'KCWI'
     url = 'https://www2.keck.hawaii.edu/inst/kcwi/'
     header_name = 'KCWI'
-    comment = 'Supported setups: BL, BM, BH2; see :doc:`keck_kcwi`'
+    comment = 'Supported setups: BL, BM, BH2, BH3; see :doc:`keck_kcwi`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -860,7 +862,7 @@ class KeckKCWISpectrograph(KeckKCWIKCRMSpectrograph):
             # Some properties of the image
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
             numamps = hdu[0].header['NVIDINP']
-            specflip = True if hdu[0].header['AMPID1'] == 2 else False
+            specflip = False if hdu[0].header['AMPMODE'] == 'ALL' else True
             gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
 #            dsecarr = np.array(['']*numamps)

@@ -128,9 +128,12 @@ class PypeItImage(datamodel.DataContainer):
                  'exptime': dict(otype=(int, float), descr='Effective exposure time (s)'),
                  'noise_floor': dict(otype=float, descr='Noise floor included in variance'),
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
-                 'spat_flexure': dict(otype=float,
+                 'spat_flexure': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Shift, in spatial pixels, between this image '
-                                            'and SlitTrace'), 
+                                            'and SlitTrace. Shape is (nslits, 2), where'
+                                            'spat_flexure[i,0] is the spatial shift of the left '
+                                            'edge of slit i and spat_flexure[i,1] is the spatial '
+                                            'shift of the right edge of slit i.'),
                  'filename': dict(otype=str, descr='Filename for the image'),}
     """Data model components."""
 
@@ -782,9 +785,10 @@ class PypeItImage(datamodel.DataContainer):
         # Spatial flexure
         spat_flexure = self.spat_flexure
         if other.spat_flexure is not None and spat_flexure is not None \
-                and other.spat_flexure != spat_flexure:
-            msgs.warn(f'Spatial flexure different for images being subtracted ({spat_flexure} '
-                      f'vs. {other.spat_flexure}).  Adopting {np.max(np.abs([spat_flexure, other.spat_flexure]))}.')
+                and np.array_equal(other.spat_flexure, spat_flexure):
+            msgs.warn(f'Spatial flexure different for images being subtracted. Adopting ' \
+                      f'the maximum spatial flexure of each individual edge.')
+            spat_flexure = np.maximum(spat_flexure, other.spat_flexure)
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below
