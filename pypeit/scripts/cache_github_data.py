@@ -130,7 +130,7 @@ class CacheGithubData(scriptbase.ScriptBase):
             files = np.array(contents[path])[to_download[path]]
             if len(files) == 0:
                 continue
-            data_path = PypeItDataPath(path)
+            data_path = PypeItDataPath(path, remote_host="github")
             # NOTE: I'm using POSIX path here because I'm unsure what will
             # happen on Windows if the file is in a subdirectory.
             root = pathlib.PurePosixPath(f'pypeit/data/{path}')
