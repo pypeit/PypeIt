@@ -189,7 +189,7 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
         # TODO Must change for ERIS
-        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
+        self.meta['dithoff'] = dict(ext=0, card='HIERARCH ESO OCS CUMOFFS Y ',
                                    required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
