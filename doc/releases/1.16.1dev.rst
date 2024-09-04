@@ -17,7 +17,6 @@ Dependency Changes
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
-- Added support for data coaddition with the UVES_popler GUI tool.
 
 - Added the possibility to decide if the extracted standard star spectrum should be
   used as a crutch for tracing the object in the science frame (before it was done as default).
@@ -88,6 +87,7 @@ Datamodel Changes
 -----------------
 
 - Spatial flexure is now stored as a 2D numpy array.
+- Added support for data coaddition with the UVES_popler GUI tool.
 
 Under-the-hood Improvements
 ---------------------------
