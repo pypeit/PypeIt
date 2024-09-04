@@ -1524,9 +1524,8 @@ class FlatField:
             msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
             return illumflat_finecorr
 
-        # If corrections are above the tolerance, then clip them to the level of the tolerance
-        illumflat_finecorr[np.where(illumflat_finecorr < 1-tolerance)] = 1-tolerance
-        illumflat_finecorr[np.where(illumflat_finecorr > 1+tolerance)] = 1+tolerance
+        # If corrections exceed the tolerance, then clip them to the level of the tolerance
+        illumflat_finecorr = np.clip(illumflat_finecorr, 1-tolerance, 1+tolerance)
 
         # Prepare QA
         if doqa:

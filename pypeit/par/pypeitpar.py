@@ -1949,7 +1949,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`parameters`.
     """
-    def __init__(self, use_blaze=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+    def __init__(self, use_flat=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
                  IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
@@ -1962,9 +1962,9 @@ class SensFuncPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['use_blaze'] = False
-        dtypes['use_blaze'] = bool
-        descr['use_blaze'] = 'If True, the blaze will be used when computing the sensitivity function.'
+        defaults['use_flat'] = False
+        dtypes['use_flat'] = bool
+        descr['use_flat'] = 'If True, the flatfield spectrum will be used when computing the sensitivity function.'
 
         defaults['extr'] = 'OPT'
         dtypes['extr'] = str
@@ -2067,7 +2067,7 @@ class SensFuncPar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Single element parameters
-        parkeys = ['use_blaze', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
+        parkeys = ['use_flat', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
                    'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 

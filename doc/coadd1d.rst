@@ -317,12 +317,7 @@ Here is an example of a coadded spectrum using UVES_popler:
 
 UVES_popler was originally written to coadd ESO/UVES echelle spectra
 that were reduced by the ESO pipeline, and it has been recently modified
-to support the reduction of PypeIt longslit and echelle data. If you
-require some support on how to use UVES_popler with PypeIt data, please
-join the `PypeIt Users Slack <https://pypeit-users.slack.com>`__ and
-ask for help in the #coadd1d channel. All are welcome to join using
-`this invitation link <https://join.slack.com/t/pypeit-users/shared_invite/zt-1kc4rxhsj-vKU1JnUA~8PZE~tPlu~aTg>`__.
-
+to support the reduction of PypeIt longslit and echelle data.
 For details on how to use the tool, please refer to the
 `UVES_popler documentation <https://astronomy.swin.edu.au/~mmurphy/UVES_popler/>`__.
 To get you started with reading in PypeIt :doc:`out_spec1D` files,

@@ -1033,7 +1033,7 @@ class PypeIt:
             try:
                 flatimg = self.caliBrate.flatimages.pixelflat_model
             except AttributeError:
-                msgs.warn("No flat image was found. The blaze will not be extracted!")
+                msgs.warn("No flat image was found. A spectrum of the flatfield will not be extracted!")
                 flatimg = None
             # Instantiate Reduce object
             # Required for pipeline specific object

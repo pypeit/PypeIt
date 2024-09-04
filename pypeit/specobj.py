@@ -255,11 +255,20 @@ class SpecObj(datamodel.DataContainer):
 
     @classmethod
     def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
-                    flat:np.ndarray, mode='OPT', DET='DET01', SLITID=0, **kwargs):
+                    flat=None, mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
         slf = cls(PYPELINE, DET, SLITID=SLITID)
+        # Check the type of the flat field if it's not None
+        if flat is not None:
+            if not isinstance(flat, np.ndarray):
+                msgs.error('Flat must be a numpy array')
+            if flat.shape != counts.shape:
+                msgs.error('Flat and counts must have the same shape')
         # Add in arrays
         for item, attr in zip([wave, counts, ivar, flat], ['_WAVE', '_COUNTS', '_COUNTS_IVAR', '_FLAT']):
+            # Check if any of the arrays are None. If so, skip
+            if item is None:
+                continue
             setattr(slf, mode+attr, item.astype(float))
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
