@@ -128,7 +128,7 @@
 .. _pip: https://pip.pypa.io/en/stable/
 .. _anaconda: https://www.anaconda.com/products/individual
 .. _conda: https://docs.conda.io/projects/conda/en/latest/index.html
-.. _virtualenv: https://virtualenv.pypa.io/en/latest/
+.. _venv: https://docs.python.org/3/library/venv.html
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/

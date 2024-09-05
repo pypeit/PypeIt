@@ -8029,6 +8029,7 @@ Alterations to the default parameters are:
           ech_sigrej = 3.0
           lamps = OH_XSHOOTER,
           sigdetect = 10.0
+          fwhm_fromlines = False
           reid_arxiv = vlt_xshooter_nir.fits
           cc_thresh = 0.5
           cc_local_thresh = 0.5
@@ -8057,7 +8058,7 @@ Alterations to the default parameters are:
           use_illumflat = False
   [reduce]
       [[findobj]]
-          trace_npoly = 8
+          trace_npoly = 10
           maxnumber_sci = 2
           maxnumber_std = 1
       [[skysub]]
