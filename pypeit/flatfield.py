@@ -1314,30 +1314,28 @@ class FlatField:
                                         * np.fmax(self.msillumflat[onslit_tweak], 0.05) \
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
-            # Construct the pixel flat
-            #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
-            #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
-            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak] * utils.inverse(self.flat_model[onslit_tweak])
-            # TODO: Add some code here to treat the edges and places where fits
-            #  go bad?
-
-            # Check for infinities and NaNs
+            # Check for infinities and NaNs in the flat-field model
             winfnan = np.where(np.logical_not(np.isfinite(self.flat_model[onslit_tweak])))
             if winfnan[0].size != 0:
                 msgs.warn('There are {0:d} pixels with non-finite values in the flat-field model '
                           'for slit {1:d}!'.format(winfnan[0].size, slit_spat) + msgs.newline() +
                           'These model pixel values will be set to the raw pixel value.')
                 self.flat_model[np.where(onslit_tweak)[0][winfnan]] = rawflat[np.where(onslit_tweak)[0][winfnan]]
-                self.mspixelflat[np.where(onslit_tweak)[0][winfnan]] = 1.0
             # Check for unrealistically high or low values of the model
             whilo = np.where((self.flat_model[onslit_tweak] >= nonlinear_counts) |
                              (self.flat_model[onslit_tweak] <= 0.0))
             if whilo[0].size != 0:
-                msgs.warn('There are {0:d} pixels with non-finite values in the flat-field model '
+                msgs.warn('There are {0:d} pixels with unrealistically high or low values in the flat-field model '
                           'for slit {1:d}!'.format(whilo[0].size, slit_spat) + msgs.newline() +
                           'These model pixel values will be set to the raw pixel value.')
                 self.flat_model[np.where(onslit_tweak)[0][whilo]] = rawflat[np.where(onslit_tweak)[0][whilo]]
-                self.mspixelflat[np.where(onslit_tweak)[0][whilo]] = 1.0
+
+            # Construct the pixel flat
+            #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
+            #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
+            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak] * utils.inverse(self.flat_model[onslit_tweak])
+            # TODO: Add some code here to treat the edges and places where fits
+            #  go bad?
 
             # Minimum wavelength?
             if self.flatpar['pixelflat_min_wave'] is not None and self.waveimg is not None:
