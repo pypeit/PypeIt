@@ -1163,10 +1163,10 @@ class Spectrograph:
             msgs.error(f'Provided det must have type tuple or integer, not {type(det)}.')
         return 1, (det,)
 
-    def get_rawimage(self, raw_file, det):
+    def get_rawimage(self, raw_file, det, sec_includes_binning=False):
         """
-        Read raw images and generate a few other bits and pieces that are key
-        for image processing.
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
 
         .. warning::
 
@@ -1181,6 +1181,14 @@ class Spectrograph:
             1-indexed detector(s) to read.  An image mosaic is selected using a
             :obj:`tuple` with the detectors in the mosaic, which must be one of
             the allowed mosaics returned by :func:`allowed_mosaics`.
+        sec_includes_binning : :obj:`bool`, optional
+            Some instruments use hard-coded image-section strings to define the
+            data and overscan regions, which are then automatically adjusted by
+            the on-chip binning read from the header.  Others read the data and
+            overscan sections directly from the header.  If these sections
+            *include* the on-chip binning automatically when the image is
+            written, this flag should be set to true so that this reader returns
+            the correct image sections.
 
         Returns
         -------
@@ -1207,7 +1215,8 @@ class Spectrograph:
         """
         # Check extension and then open
         self._check_extensions(raw_file)
-        hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify = 'ignore', ignore_blank=True)
+        hdu = io.fits_open(raw_file, ignore_missing_end=True, output_verify='ignore',
+                           ignore_blank=True)
 
         # Validate the entered (list of) detector(s)
         nimg, _det = self.validate_det(det)
@@ -1225,15 +1234,26 @@ class Spectrograph:
         # NOTE: This *must* be (converted to) seconds.
         exptime = self.get_meta_value(headarr, 'exptime')
 
-        # Rawdatasec, oscansec images
-        binning = self.get_meta_value(headarr, 'binning')
-        # NOTE: This means that `specaxis` must be the same for all detectors in
-        # a mosaic
-        if detectors[0]['specaxis'] == 1:
-            binning_raw = (',').join(binning.split(',')[::-1])
+        # Binning
+        if sec_includes_binning:
+            # The section in the header includes the binning, so set it to None
+            # here.
+            binning_raw = None
         else:
-            binning_raw = binning
+            binning = self.get_meta_value(headarr, 'binning')
+            # NOTE: This means that `specaxis` must be the same for all detectors in
+            # a mosaic
+            if detectors[0]['specaxis'] == 1:
+                binning_raw = (',').join(binning.split(',')[::-1])
+            else:
+                binning_raw = binning
 
+        # Always assume normal FITS header formatting
+        one_indexed = True
+        include_last = True
+        require_dim = 2
+
+        # Read the image(s)
         raw_img = [None]*nimg
         rawdatasec_img = [None]*nimg
         oscansec_img = [None]*nimg
@@ -1254,28 +1274,18 @@ class Spectrograph:
 
             for section in ['datasec', 'oscansec']:
 
-                # Get the data section
-                # Try using the image sections as header keywords
-                # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
-                #  Code like the following maybe useful
-                #hdr = hdu[detector[det - 1]['dataext']].header
-                #image_sections = [hdr[key] for key in detector[det - 1][section]]
-                # Grab from Detector
+                # Get the data sections from the detector object (see get_detector_par above)
+                # TODO: Add ability to incude user windowing (e.g., Kast Red)
                 image_sections = detectors[i][section]
-                #if not isinstance(image_sections, list):
-                #    image_sections = [image_sections]
-                # Always assume normal FITS header formatting
-                one_indexed = True
-                include_last = True
 
                 # Initialize the image (0 means no amplifier)
                 pix_img = np.zeros(raw_img[i].shape, dtype=int)
                 for j in range(detectors[i]['numamplifiers']):
 
                     if image_sections is not None:  # and image_sections[i] is not None:
-                        # Convert the data section from a string to a slice
+                        # Convert the (FITS) data section from a string to a slice
                         datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
-                                                  include_end=include_last, require_dim=2,
+                                                  include_end=include_last, require_dim=require_dim,
                                                   binning=binning_raw)
                         # Assign the amplifier
                         pix_img[datasec] = j+1
