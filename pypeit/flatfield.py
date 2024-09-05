@@ -957,6 +957,12 @@ class FlatField:
             onslit_padded = padded_slitid_img == slit_spat
             onslit_trimmed = trimmed_slitid_img == slit_spat
 
+            if onslit_trimmed.sum() == 0:
+                msgs.warn('No pixels on slit {0} after trimming.  Skipping this slit.'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+                
+
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
