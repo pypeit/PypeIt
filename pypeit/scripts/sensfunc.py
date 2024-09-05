@@ -111,7 +111,7 @@ class SensFunc(scriptbase.ScriptBase):
                        "         algorithm = IR\n"
                        "\n")
 
-        if not args.use_flat and args.sens_file is not None:
+        if args.use_flat and args.sens_file is not None:
             msgs.error("It is not possible to set --use_flat and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
                        "use_flat flag in your .sens file using the argument:\n"
