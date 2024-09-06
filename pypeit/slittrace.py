@@ -68,7 +68,7 @@ class SlitTraceBitMask(BitMask):
     def exclude_for_flexure(self):
         # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
-        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB', 'BADALIGNCALIB',
+        return ['SHORTSLIT', 'BOXSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB', 'BADALIGNCALIB',
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADSKYSUB', 'BADEXTRACT']
 
 
