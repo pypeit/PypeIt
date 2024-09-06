@@ -147,7 +147,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         return np.zeros(np.sum(thismask))
 
     # Sub arrays
-    isrt = np.argsort(piximg[thismask])
+    isrt = np.argsort(piximg[thismask], kind='stable')
     pix = piximg[thismask][isrt]
     sky = image[thismask][isrt]
     sky_ivar = ivar[thismask][isrt]
@@ -248,7 +248,6 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     return ythis
 
 
-
 def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None, fullbkpt=None):
     """
     Utility routine used by local_skysub_extract that performs the joint b-spline fit for sky-background
@@ -302,7 +301,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
         whether a pixel is good (True) or was masked (False).
     """
 
-    sortpix = piximg.argsort()
+    sortpix = piximg.argsort(kind='stable')
 
     nx = data.size
     nc = oprof.shape[0]
@@ -328,7 +327,7 @@ def skyoptimal(piximg, data, ivar, oprof, sigrej=3.0, npoly=1, spatial_img=None,
     indx, = np.where(ivar[sortpix] > 0.0)
     ngood = indx.size
     good = sortpix[indx]
-    good = good[piximg[good].argsort()]
+    good = good[piximg[good].argsort(kind='stable')]
     relative, = np.where(relative_mask[good])
 
     gpm = np.zeros(piximg.shape, dtype=bool)
@@ -428,7 +427,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
     """
 
     pix = piximg[sampmask]
-    isrt = pix.argsort()
+    isrt = pix.argsort(kind='stable')
     pix = pix[isrt]
     piximg_min = pix.min()
     piximg_max = pix.max()
@@ -703,7 +702,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         A scale factor, :math:`s`, that *has already been applied* to the
         provided science image. It accounts for the number of frames contributing to
         the provided counts, and the relative throughput factors that can be measured
-        from flat-field frames. For example, if the image has been flat-field
+        from flat-field frames plus a scaling factor applied if the counts of each frame are
+        scaled to the mean counts of all frames. For example, if the image has been flat-field
         corrected, this is the inverse of the flat-field counts.  If None, set
         to 1.  If a single float, assumed to be constant across the full image.
         If an array, the shape must match ``base_var``.  The variance will be 0
@@ -914,7 +914,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                 isub, = np.where(localmask.flatten())
                 #sortpix = (piximg.flat[isub]).argsort()
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
-                skymask = outmask & np.invert(edgmask)
+                skymask = outmask & np.logical_not(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(
                         piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
                         obj_profiles_flat[isub, :], spatial_img=spatial_img.flat[isub],
@@ -973,10 +973,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             else:
                 msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
                 msgs.warn('       Moving on......')
-                obj_profiles = np.zeros_like(obj_profiles)
+                # obj_profiles = np.zeros_like(obj_profiles)
                 isub, = np.where(localmask.flatten())
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
+                if iiter == niter:
+                    msgs.warn('WARNING: LOCAL SKY SUBTRACTION NOT PERFORMED')
 
         outmask_extract = outmask if use_2dmodel_mask else inmask
 
@@ -1227,7 +1229,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
         A scale factor that *has already been applied* to the provided science
         image. It accounts for the number of frames contributing to
         the provided counts, and the relative throughput factors that can be measured
-        from flat-field frames. For example, if the image has been flat-field corrected,
+        from flat-field frames plus a scaling factor applied if the counts of each frame are
+        scaled to the mean counts of all frames. For example, if the image has been flat-field corrected,
         this is the inverse of the flat-field counts.  If None, set to 1.  If a single
         float, assumed to be constant across the full image.  If an array, the
         shape must match ``base_var``.  The variance will be 0 wherever this
@@ -1319,11 +1322,11 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
 
     # Compute the average SNR and find the brightest object
     snr_bar = np.mean(order_snr,axis=0)
-    srt_obj = snr_bar.argsort()[::-1]
+    srt_obj = snr_bar.argsort(kind='stable')[::-1]
     ibright = srt_obj[0] # index of the brightest object
 
     # Now extract the orders in descending order of S/N for the brightest object
-    srt_order_snr = order_snr[:,ibright].argsort()[::-1]
+    srt_order_snr = order_snr[:,ibright].argsort(kind='stable')[::-1]
     fwhm_here = np.zeros(norders)
     fwhm_was_fit = np.zeros(norders,dtype=bool)
 

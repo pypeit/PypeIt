@@ -1358,7 +1358,7 @@ class RawImage:
         # Transform the image data to the mosaic frame.  This call determines
         # the shape of the mosaic image and adjusts the relative transforms to
         # the absolute mosaic frame.
-        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_order)
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform, order=self.mosaic.msc_ord)
         shape = self.image.shape
         # Maintain dimensionality
         self.image = np.expand_dims(self.image, 0)
@@ -1369,7 +1369,7 @@ class RawImage:
 
         # Transform the BPM and maintain its type
         bpm_type = self.bpm.dtype
-        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         # Include pixels that have no contribution from the original image in
         # the bad pixel mask of the mosaic.
         self._bpm[_img_npix < 1] = 1
@@ -1384,29 +1384,29 @@ class RawImage:
 
         # Get the pixels associated with each amplifier
         self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,
-                                              mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                              mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.datasec_img = np.expand_dims(np.round(self.datasec_img).astype(int), 0)
 
         # Get the pixels associated with each detector
         self.det_img = build_image_mosaic(self.det_img.astype(float), _tforms,
-                                          mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+                                          mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
         self.det_img = np.expand_dims(np.round(self.det_img).astype(int), 0)
 
         # Transform all the variance arrays, as necessary
         if self.rn2img is not None:
-            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.rn2img = np.expand_dims(self.rn2img, 0)
         if self.dark is not None:
-            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark = np.expand_dims(self.dark, 0)
         if self.dark_var is not None:
-            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.dark_var = np.expand_dims(self.dark_var, 0)
         if self.proc_var is not None:
-            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.proc_var = np.expand_dims(self.proc_var, 0)
         if self.base_var is not None:
-            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_order)[0]
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape, order=self.mosaic.msc_ord)[0]
             self.base_var = np.expand_dims(self.base_var, 0)
 
         # TODO: Mosaicing means that many of the internals are no longer

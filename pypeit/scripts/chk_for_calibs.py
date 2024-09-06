@@ -21,8 +21,11 @@ class ChkForCalibs(scriptbase.ScriptBase):
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                     ', '.join(available_spectrographs)))
-        parser.add_argument('-e', '--extension', default='.fits',
-                            help='File extension; compression indicators (e.g. .gz) not required.')
+        parser.add_argument('-e', '--extension', default=None,
+                            help='File extension to use.  Must include the period (e.g., ".fits") '
+                                 'and it must be one of the allowed extensions for this '
+                                 'spectrograph.  If None, root directory will be searched for '
+                                 'all files with any of the allowed extensions.')
         parser.add_argument('--save_setups', default=False, action='store_true',
                             help='If not toggled, remove setup_files/ folder and its files.')
         return parser

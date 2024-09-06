@@ -30,7 +30,7 @@ def test_read_combid():
     # Generate the pypeit file with the comb_id
     droot = tstutils.data_output_path('b')
     pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-b',
-                             '--extension', 'fits.gz', '--output_path', f'{config_dir.parent}'])
+                              '--output_path', f'{config_dir.parent}'])
     Setup.main(pargs)
 
     pypeit_file = config_dir / 'shane_kast_blue_A.pypeit'

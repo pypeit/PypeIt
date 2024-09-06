@@ -223,7 +223,7 @@ def extract_point_source(wave, flxcube, ivarcube, bpmcube, wcscube, exptime,
 
     Returns
     -------
-    sobjs : `pypeit.specobjs.SpecObjs`_
+    sobjs : :class:`pypeit.specobjs.SpecObjs`
         SpecObjs object containing the extracted spectrum
     """
     if whitelight_range is None:
@@ -1754,7 +1754,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             yspl = this_tilts[wpix] * (this_slits.nspec - 1)
             tiltpos = np.add.outer(yspl, spec_y).flatten()
             wspl = this_wav[this_sl]
-            asrt = np.argsort(yspl)
+            asrt = np.argsort(yspl, kind='stable')
             wave_spl = interp1d(yspl[asrt], wspl[asrt], kind='linear', bounds_error=False, fill_value='extrapolate')
             # Calculate the wavelength at each subpixel
             this_wave_subpix = wave_spl(tiltpos)
@@ -1769,7 +1769,7 @@ def subpixellate(output_wcs, bins, sciImg, ivarImg, waveImg, slitid_img_gpm, wgh
             # Transform this to spatial location
             spatpos_subpix = _astrom_trans[fr].transform(sl, spat_xx, spec_yy)
             spatpos = _astrom_trans[fr].transform(sl, wpix[1], wpix[0])
-            ssrt = np.argsort(spatpos)
+            ssrt = np.argsort(spatpos, kind='stable')
             # Initialize the voxel coordinates for each spec2D pixel
             vox_coord = np.full((numpix, num_all_subpixels, 3), -1, dtype=float)
             # Loop over the subslices

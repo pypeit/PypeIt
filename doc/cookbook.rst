@@ -70,7 +70,8 @@ what we recommend:
  - We will refer to that folder as ``RAWDIR``
 
 The raw images can be gzip-compressed, although this means opening files will be
-slower.
+slower.  See :ref:`setup-file-searching` for specific comments about the files
+in your raw directory.
 
 A word on calibration data
 --------------------------

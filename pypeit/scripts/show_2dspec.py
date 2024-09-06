@@ -69,8 +69,11 @@ def show_trace(sobjs, det, viewer, ch):
         maskdef_extr_list.append(maskdef_extr_flag is True)
         manual_extr_list.append(manual_extr_flag is True)
 
-    display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
-                       maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    if len(trace_list) > 0:
+        display.show_trace(viewer, ch, np.swapaxes(trace_list, 1,0), np.array(trc_name_list),
+                           maskdef_extr=np.array(maskdef_extr_list), manual_extr=np.array(manual_extr_list))
+    else:
+        msgs.warn('spec1d file found, but no objects were extracted for this detector.')
 
 
 class Show2DSpec(scriptbase.ScriptBase):
