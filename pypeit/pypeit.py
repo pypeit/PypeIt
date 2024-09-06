@@ -245,7 +245,9 @@ class PypeIt:
         # isolate where the name of the standard-star spec1d file is defined.
         std_outfile = self.par['reduce']['findobj']['std_spec1d']
         if std_outfile is not None:
-            if not Path(std_outfile).absolute().exists():
+            if not self.par['reduce']['findobj']['use_std_trace']:
+                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True')
+            elif not Path(std_outfile).absolute().exists():
                 msgs.error(f'Provided standard spec1d file does not exist: {std_outfile}')
             return std_outfile
 
@@ -254,7 +256,8 @@ class PypeIt:
         # standard associated with a given science frame.  Below, I
         # just use the first standard
 
-        std_frame = None if len(standard_frames) == 0 else standard_frames[0]
+        std_frame = None if (len(standard_frames) == 0 or not self.par['reduce']['findobj']['use_std_trace']) \
+            else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
             std_outfile = self.spec_output_file(std_frame) \

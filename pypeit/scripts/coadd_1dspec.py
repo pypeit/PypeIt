@@ -22,69 +22,6 @@ from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 
 
-## TODO: This is basically the exact same code as read_fluxfile in the fluxing
-## script. Consolidate them? Make this a standard method in parse or io.
-#def read_coaddfile(ifile):
-#    """
-#    Read a ``PypeIt`` coadd1d file, akin to a standard PypeIt file.
-#
-#    The top is a config block that sets ParSet parameters.  The name of the
-#    spectrograph is required.
-#
-#    Args:
-#        ifile (:obj:`str`):
-#            Name of the coadd file
-#
-#    Returns:
-#        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
-#        configuration entries used to modify the relevant
-#        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` the names
-#        of spec1d files to be coadded, and a :obj:`list` with the object IDs
-#        aligned with each of the spec1d files.
-#    """
-#    # Read in the pypeit reduction file
-#    msgs.info('Loading the coadd1d file')
-#    lines = inputfiles.read_pypeit_file_lines(ifile)
-#    is_config = np.ones(len(lines), dtype=bool)
-#
-#
-#    # Parse the fluxing block
-#    spec1dfiles = []
-#    objids_in = []
-#    s, e = inputfiles.InputFile.find_block(lines, 'coadd1d')
-#    if s >= 0 and e < 0:
-#        msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
-#    elif (s < 0) or (s==e):
-#        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
-#    else:
-#        for ctr, line in enumerate(lines[s:e]):
-#            prs = line.split(' ')
-#            spec1dfiles.append(prs[0])
-#            if ctr == 0 and len(prs) != 2:
-#                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
-#                           'You must have specify a spec1dfile and objid on the first line of the coadd1d block')
-#            if len(prs) > 1:
-#                objids_in.append(prs[1])
-#        is_config[s-1:e+1] = False
-#
-#    # Chck the sizes of the inputs
-#    nspec = len(spec1dfiles)
-#    if len(objids_in) == 1:
-#        objids = nspec*objids_in
-#    elif len(objids_in) == nspec:
-#        objids = objids_in
-#    else:
-#        msgs.error('Invalid format for .flux file.' + msgs.newline() +
-#                   'You must specify a single objid on the first line of the coadd1d block,' + msgs.newline() +
-#                   'or specify am objid for every spec1dfile in the coadd1d block.' + msgs.newline() +
-#                   'Run pypeit_coadd_1dspec --help for information on the format')
-#    # Construct config to get spectrograph
-#    cfg_lines = list(lines[is_config])
-#
-#    # Return
-#    return cfg_lines, spec1dfiles, objids
-
-
 def build_coadd_file_name(spec1dfiles, spectrograph):
     """Build the output file name for coadding.
     The filename convention is coadd1d_<target>_<instrument name>_<YYYYMMDD>.fits or
@@ -115,6 +52,7 @@ def build_coadd_file_name(spec1dfiles, spectrograph):
     target = fits.getheader(spec1dfiles[0])['TARGET']
     path = os.path.dirname(os.path.abspath(spec1dfiles[0]))
     return os.path.join(path, f'coadd1d_{target}_{instrument_name}_{date_portion}.fits')
+
 
 class CoAdd1DSpec(scriptbase.ScriptBase):
 

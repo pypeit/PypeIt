@@ -39,10 +39,13 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.core import scattlight as core_scattlight
+from pypeit.core.mosaic import build_image_mosaic
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit import io
 from pypeit import utils
+from pypeit import cache
+from pypeit import dataPaths
 
 
 class Calibrations:
@@ -666,7 +669,7 @@ class Calibrations:
 
         spatbin = parse.parse_binning(binning)[1]
         pad = self.par['scattlight_pad'] // spatbin
-        offslitmask = self.slits.slit_img(pad=pad, initial=True, flexure=None) == -1
+        offslitmask = self.slits.slit_img(pad=pad, flexure=None) == -1
 
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
@@ -732,21 +735,50 @@ class Calibrations:
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
-        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
-                = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+        # generate the slitless pixel flat (if frames available).
+        slitless_rows = self.fitstbl.find_frames('slitless_pixflat', calib_ID=self.calib_ID, index=True)
+        if len(slitless_rows) > 0:
+            sflat = flatfield.SlitlessFlat(self.fitstbl, slitless_rows, self.spectrograph,
+                                           self.par, qa_path=self.qa_path)
+            # A pixel flat will be saved to disc and self.par['flatfield']['pixelflat_file'] will be updated
+            self.par['flatfield']['pixelflat_file'] =  \
+                sflat.make_slitless_pixflat(msbias=self.msbias, msdark=self.msdark, calib_dir=self.calib_dir,
+                                            write_qa=self.write_qa, show=self.show)
 
+        # get illumination flat frames
         illum_frame = {'type': 'illumflat', 'class': flatfield.FlatImages}
         raw_illum_files, illum_cal_file, illum_calib_key, illum_setup, illum_calib_id, detname \
                 = self.find_calibrations(illum_frame['type'], illum_frame['class'])
 
+        # get pixel flat frames
+        pixel_frame = {'type': 'pixelflat', 'class': flatfield.FlatImages}
+        raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+            = [], None, None, illum_setup, None, detname
+        # read in the raw pixelflat frames only if the user has not provided a pixelflat_file
+        if self.par['flatfield']['pixelflat_file'] is None:
+            raw_pixel_files, pixel_cal_file, pixel_calib_key, pixel_setup, pixel_calib_id, detname \
+                = self.find_calibrations(pixel_frame['type'], pixel_frame['class'])
+
+        # get lamp off flat frames
         raw_lampoff_files = self.fitstbl.find_frame_files('lampoffflats', calib_ID=self.calib_ID)
 
+        # Check if we have any calibration frames to work with
         if len(raw_pixel_files) == 0 and pixel_cal_file is None \
                 and len(raw_illum_files) == 0 and illum_cal_file is None:
-            msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found and '
-                      'unable to identify a relevant processed calibration frame.  Continuing...')
-            self.flatimages = None
+            # if no calibration frames are found, check if the user has provided a pixel flat file
+            if self.par['flatfield']['pixelflat_file'] is not None:
+                msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found but a '
+                          'user-defined pixel flat file was provided. Using that file.')
+                self.flatimages = flatfield.FlatImages(PYP_SPEC=self.spectrograph.name, spat_id=self.slits.spat_id)
+                self.flatimages.calib_key = flatfield.FlatImages.construct_calib_key(self.fitstbl['setup'][self.frame],
+                                                                                     self.calib_ID, detname)
+                self.flatimages = flatfield.load_pixflat(self.par['flatfield']['pixelflat_file'], self.spectrograph,
+                                                         self.det, self.flatimages, calib_dir=self.calib_dir,
+                                                         chk_version=self.chk_version)
+            else:
+                msgs.warn(f'No raw {pixel_frame["type"]} or {illum_frame["type"]} frames found and '
+                          'unable to identify a relevant processed calibration frame.  Continuing...')
+                self.flatimages = None
             return self.flatimages
 
         # If a processed calibration frame exists and we want to reuse it, do
@@ -768,10 +800,9 @@ class Calibrations:
             # Load user defined files
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
-                msgs.info(f'Using user-defined file: {self.par["flatfield"]["pixelflat_file"]}')
-                with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
-                    nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
-                    self.flatimages = flatfield.merge(self.flatimages, nrm_image)
+                self.flatimages = flatfield.load_pixflat(self.par['flatfield']['pixelflat_file'], self.spectrograph,
+                                                         self.det, self.flatimages, calib_dir=self.calib_dir,
+                                                         chk_version=self.chk_version)
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -817,8 +848,8 @@ class Calibrations:
 
             # Initialise the pixel flat
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, qa_path=self.qa_path,
+                                                 self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+                                                 wv_calib=self.wv_calib, qa_path=self.qa_path,
                                                  calib_key=calib_key)
             # Generate
             pixelflatImages = pixelFlatField.run(doqa=self.write_qa, show=self.show)
@@ -837,6 +868,7 @@ class Calibrations:
             msgs.info('Creating slit-illumination flat calibration frame using files: ')
             for f in raw_illum_files:
                 msgs.prindent(f'{Path(f).name}')
+
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'], raw_illum_files,
                                                         dark=self.msdark, bias=self.msbias, scattlight=self.msscattlight,
@@ -862,8 +894,8 @@ class Calibrations:
 
             # Initialise the illum flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
-                                                 self.par['flatfield'], self.slits, self.wavetilts,
-                                                 self.wv_calib, spat_illum_only=True,
+                                                 self.par['flatfield'], self.slits, wavetilts=self.wavetilts,
+                                                 wv_calib=self.wv_calib, spat_illum_only=True,
                                                  qa_path=self.qa_path, calib_key=calib_key)
             # Generate
             illumflatImages = illumFlatField.run(doqa=self.write_qa, show=self.show)
@@ -898,10 +930,9 @@ class Calibrations:
         # Should we allow that?
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
-            msgs.info(f'Using user-defined file: {self.par["flatfield"]["pixelflat_file"]}')
-            with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
-                self.flatimages = flatfield.merge(self.flatimages,
-                                        flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+            self.flatimages = flatfield.load_pixflat(self.par['flatfield']['pixelflat_file'], self.spectrograph,
+                                                     self.det, self.flatimages, calib_dir=self.calib_dir,
+                                                     chk_version=self.chk_version)
 
         return self.flatimages
 
@@ -1277,6 +1308,7 @@ class Calibrations:
                               'pixelflat': [flatfield.FlatImages],
                               'illumflat': [flatfield.FlatImages],
                               'lampoffflats': [flatfield.FlatImages],
+                              'slitless_pixflat': [flatfield.FlatImages],
                               'trace': [edgetrace.EdgeTraceSet, slittrace.SlitTraceSet],
                               'tilt': [buildimage.TiltImage, wavetilts.WaveTilts]
                              }
@@ -1312,7 +1344,8 @@ class Calibrations:
             indx = fitstbl.find_frames(frametype) & in_grp
             if not any(indx):
                 continue
-            if not all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]):
+            if not (all(fitstbl['calib'][indx] == fitstbl['calib'][indx][0]) or
+                    all([fitstbl['calib'][indx][0] in cc.split(',') for cc in fitstbl['calib'][indx]])):
                 msgs.error(f'CODING ERROR: All {frametype} frames in group {calib_ID} '
                            'are not all associated with the same subset of calibration '
                            'groups; calib for the first file is '
@@ -1538,8 +1571,13 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
                         if ftype == 'pixelflat' \
                                 and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
+                        # Allow for no pixelflat but slitless_pixflat needs to exist
+                        elif ftype == 'pixelflat' \
+                                and len(fitstbl.find_frame_files('slitless_pixflat', calib_ID=calib_ID)) > 0:
+                            continue
                         # Otherwise fail
-                        msg = f'No frames of type={ftype} provide for the *{key}* processing ' \
+                        add_msg = ' or slitless_pixflat' if ftype == 'pixelflat' else ''
+                        msg = f'No frames of type={ftype}{add_msg} provided for the *{key}* processing ' \
                               'step. Add them to your PypeIt file!'
                         pass_calib = False
                         if raise_error:

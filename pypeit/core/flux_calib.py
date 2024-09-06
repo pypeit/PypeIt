@@ -431,7 +431,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         elif 'PHOENIX' in star_type:
             msgs.info('Getting PHOENIX 10000 K, logg = 4.0 spectrum')
             ## Vega model from TSPECTOOL
-            vega_file = data.Paths.standards / 'PHOENIX_10000K_4p0.fits'
+            vega_file = dataPaths.standards.get_file_path('PHOENIX_10000K_4p0.fits')
             vega_data = table.Table.read(vega_file, format='fits')
             std_dict = dict(cal_file='PHOENIX_10000K_4p0', name=star_type, Vmag=star_mag,
                             std_ra=ra, std_dec=dec)
@@ -696,15 +696,9 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
     Returns:
-        Tuple: Returns:
-
-    Returns
-    -------
-    meta_table: `astropy.table.Table`_
-        Table containing meta data for the sensitivity function
-    out_table: `astropy.table.Table`_
-        Table containing the sensitivity function
-
+        tuple: Returns the following:
+        - meta_table: `astropy.table.Table`_ Table containing meta data for the sensitivity function
+        - out_table: `astropy.table.Table`_ Table containing the sensitivity function
     """
 
     wave_arr, counts_arr, ivar_arr, mask_arr, log10_blaze_func, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
@@ -755,9 +749,9 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     return meta_table, out_table
 
-def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, 
-                         extrap_sens=False):
+
+def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, delta_wave=None, extinct_correct=False,
+                         airmass=None, longitude=None, latitude=None, extinctfilepar=None, extrap_sens=False):
     """
     Get the final sensitivity function factor that will be multiplied into a spectrum in units of counts to flux calibrate it.
     This code interpolates the sensitivity function and can also multiply in extinction and telluric corrections.
@@ -766,27 +760,30 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     Args:
         wave (float `numpy.ndarray`_): shape = (nspec,)
-           Senstivity
+            Wavelength vector for the spectrum to be flux calibrated
         wave_zp (float `numpy.ndarray`_):
-           Zerooint wavelength vector shape = (nsens,)
+            Zeropoint wavelength vector shape = (nsens,)
         zeropoint (float `numpy.ndarray`_): shape = (nsens,)
-           Zeropoint, i.e. sensitivity function
+            Zeropoint, i.e. sensitivity function
         exptime (float):
-        tellmodel (float  `numpy.ndarray`_, optional): shape = (nspec,)
-           Apply telluric correction if it is passed it. Note this is deprecated.
+            Exposure time in seconds
+        tellmodel (float, `numpy.ndarray`_, optional):
+            Apply telluric correction if it is passed it (shape = (nspec,)). Note this is deprecated.
+        delta_wave (float, `numpy.ndarray`_, optional):
+            The wavelength sampling of the spectrum to be flux calibrated.
         extinct_correct (bool, optional)
-           If True perform an extinction correction. Deafult = False
+            If True perform an extinction correction. Default = False
         airmass (float, optional):
-           Airmass used if extinct_correct=True. This is required if extinct_correct=True
+            Airmass used if extinct_correct=True. This is required if extinct_correct=True
         longitude (float, optional):
             longitude in degree for observatory
             Required for extinction correction
         latitude:
             latitude in degree for observatory
-            Required  for extinction correction
+            Required for extinction correction
         extinctfilepar (str):
-                [sensfunc][UVIS][extinct_file] parameter
-                Used for extinction correction
+            [sensfunc][UVIS][extinct_file] parameter
+            Used for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
 
@@ -796,10 +793,23 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
         This quantity is defined to be sensfunc_interp/exptime/delta_wave. shape = (nspec,)
 
     """
-
+    # Initialise some variables
     zeropoint_obs = np.zeros_like(wave)
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
-    delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+    if delta_wave is not None:
+        # Check that the delta_wave is the same size as the wave vector
+        if isinstance(delta_wave, float):
+            _delta_wave = delta_wave
+        elif isinstance(delta_wave, np.ndarray):
+            if wave.size != delta_wave.size:
+                msgs.error('The wavelength vector and delta_wave vector must be the same size')
+            _delta_wave = delta_wave
+        else:
+            msgs.warn('Invalid type for delta_wave - using a default value')
+            _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+    else:
+        # If delta_wave is not passed in, then we will use the native wavelength sampling of the spectrum
+        _delta_wave = wvutils.get_delta_wave(wave, wave_mask)
 
 #    print(f'get_sensfunc_factor: {np.amin(wave_zp):.1f}, {np.amax(wave_zp):.1f}, '
 #          f'{np.amin(wave[wave_mask]):.1f}, {np.amax(wave[wave_mask]):.1f}')
@@ -829,9 +839,9 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     # Did the user request a telluric correction?
     if tellmodel is not None:
         # This assumes there is a separate telluric key in this dict.
+        msgs.warn("Telluric corrections via this method are deprecated")
         msgs.info('Applying telluric correction')
         sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
-
 
     if extinct_correct:
         if longitude is None or latitude is None:
@@ -848,7 +858,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     # senstot is the conversion from N_lam to F_lam, and the division by exptime and delta_wave are to convert
     # the spectrum in counts/pixel into units of N_lam = counts/sec/angstrom
-    return senstot/exptime/delta_wave
+    return senstot/exptime/_delta_wave
 
 
 def counts2Nlam(wave, counts, counts_ivar, counts_mask, exptime, airmass, longitude, latitude, extinctfilepar):
@@ -1302,6 +1312,7 @@ def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     factor[gpm] = np.power(10.0, -0.4*(zeropoint[gpm] - ZP_UNIT_CONST))/np.square(wave[gpm])
     return factor
 
+
 def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     r"""
     The factor that when multiplied into F_lam converts to N_lam, 
@@ -1390,7 +1401,7 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
     """
 
     eff_aperture_m2 = eff_aperture*units.m**2
-    S_lam_units = 1e-17*units.erg/units.cm**2
+    S_lam_units = PYPEIT_FLUX_SCALE*units.erg/units.cm**2
     # Set the throughput to be -1 in places where it is not defined.
     throughput = np.full_like(zeropoint, -1.0)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)

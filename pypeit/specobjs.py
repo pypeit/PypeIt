@@ -188,7 +188,7 @@ class SpecObjs:
         """
         return len(self.specobjs)
 
-    def unpack_object(self, ret_flam=False, extract_type='OPT'):
+    def unpack_object(self, ret_flam=False, extract_type='OPT', remove_missing=False):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -198,6 +198,11 @@ class SpecObjs:
         Args:
            ret_flam (:obj:`bool`, optional):
               If True return the FLAM, otherwise return COUNTS.
+           extract_type (:obj:`str`, optional):
+                Extraction type to use.  Default is 'OPT'.
+           remove_missing (:obj:`bool`, optional):
+                If True, remove any missing data (i.e. where the flux is None).
+                Default is False.
 
         Returns:
             tuple: Returns the following where all numpy arrays
@@ -217,13 +222,27 @@ class SpecObjs:
                   spec1d file
         """
         # Prep
-        norddet = self.nobj
         flux_attr = 'FLAM' if ret_flam else 'COUNTS'
         flux_key = '{}_{}'.format(extract_type, flux_attr)
         wave_key = '{}_WAVE'.format(extract_type)
-        if getattr(self, flux_key)[0] is None:
-            msgs.error("Flux not available for {}.  Try the other ".format(flux_key))
+
+        # Check for missing data
+        none_flux = [f is None for f in getattr(self, flux_key)]
+        if np.any(none_flux):
+            other = 'OPT' if extract_type == 'BOX' else 'BOX'
+            msg = f"{extract_type} extracted flux is not available for all slits/orders. " \
+                  f"Consider trying the {other} extraction."
+            if not remove_missing:
+                msgs.error(msg)
+            else:
+                msg += f"{msgs.newline()}-- The missing data will be removed --"
+                msgs.warn(msg)
+                # Remove missing data
+                r_indx = np.where(none_flux)[0]
+                self.remove_sobj(r_indx)
+
         #
+        norddet = self.nobj
         nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
@@ -236,7 +255,6 @@ class SpecObjs:
         detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
-        # TODO make the extraction that is desired OPT vs BOX an optional input variable.
         for iorddet in range(norddet):
             wave[:, iorddet] = getattr(self, wave_key)[iorddet]
             flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]
@@ -244,7 +262,7 @@ class SpecObjs:
             if self[0].PYPELINE == 'Echelle':
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
             flux[:, iorddet] = getattr(self, flux_key)[iorddet]
-            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
+            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet]
             trace_spat[:, iorddet] = self[iorddet].TRACE_SPAT
             trace_spec[:, iorddet] = self[iorddet].trace_spec
 
@@ -719,16 +737,23 @@ class SpecObjs:
 
         Args:
             subheader (:obj:`dict`):
+                Dictionary with header keywords and values to be added to the
+                primary header of the output file.
             outfile (str):
+                Name of the output file
             overwrite (bool, optional):
+                Overwrite the output file if it exists?
+            update_det (int or list, optional):
+              If provided, do not clobber the existing file but only update
+              the indicated detectors.  Useful for re-running on a subset of detectors
             slitspatnum (:obj:`str` or :obj:`list`, optional):
               Restricted set of slits for reduction.
               If provided, do not clobber the existing file but only update
               the indicated slits.  Useful for re-running on a subset of slits
-            update_det (int or list, optional):
-              If provided, do not clobber the existing file but only update
-              the indicated detectors.  Useful for re-running on a subset of detectors
-
+            history (:obj:`str`, optional):
+                String to be added to the header HISTORY keyword.
+            debug (:obj:`bool`, optional):
+                If True, run in debug mode.
         """
         if os.path.isfile(outfile) and not overwrite:
             msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')
@@ -1002,6 +1027,7 @@ class SpecObjs:
 
         return groups
 
+
 #TODO Should this be a classmethod on specobjs??
 def get_std_trace(detname, std_outfile, chk_version=True):
     """
@@ -1014,9 +1040,11 @@ def get_std_trace(detname, std_outfile, chk_version=True):
              Filename with the standard star spec1d file.  Can be None.
 
      Returns:
-         `numpy.ndarray`_: Trace of the standard star on input detector.  Will
-         be None if ``std_outfile`` is None, or if the selected detector/mosaic
-         is not available in the provided spec1d file.
+         `astropy.table.Table`_: Table with the trace of the standard star on the input detector.
+         If this is a MultiSlit reduction, the table will have a single column: `TRACE_SPAT`.
+         If this is an Echelle reduction, the table will have two columns: `ECH_ORDER` and `TRACE_SPAT`.
+         Will be None if ``std_outfile`` is None, or if the selected detector/mosaic
+         is not available in the provided spec1d file, or for SlicerIFU reductions.
      """
 
     sobjs = SpecObjs.from_fitsfile(std_outfile, chk_version=chk_version)
@@ -1033,20 +1061,24 @@ def get_std_trace(detname, std_outfile, chk_version=True):
         # No standard extracted on this detector??
         if sobjs_std is None:
             return None
-        std_trace = sobjs_std.TRACE_SPAT
+
+        # create table that contains the trace of the standard
+        std_tab = Table()
         # flatten the array if this multislit
         if 'MultiSlit' in pypeline:
-            std_trace = std_trace.flatten()
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'Echelle' in pypeline:
-            std_trace = std_trace.T
+            std_tab['ECH_ORDER'] = sobjs_std.ECH_ORDER
+            std_tab['TRACE_SPAT'] = sobjs_std.TRACE_SPAT
         elif 'SlicerIFU' in pypeline:
-            std_trace = None
+            std_tab = None
         else:
             msgs.error('Unrecognized pypeline')
     else:
-        std_trace = None
+        std_tab = None
 
-    return std_trace
+    return std_tab
+
 
 def lst_to_array(lst, mask=None):
     """
@@ -1055,7 +1087,7 @@ def lst_to_array(lst, mask=None):
     Allows for a list of Quantity objects
 
     Args:
-        lst : list
+        lst (:obj:`list`):
             Should be number or Quantities
         mask (`numpy.ndarray`_, optional):
             Boolean array used to limit to a subset of the list.  True=good
@@ -1063,10 +1095,25 @@ def lst_to_array(lst, mask=None):
     Returns:
         `numpy.ndarray`_, `astropy.units.Quantity`_:  Converted list
     """
-    if mask is None:
-        mask = np.array([True]*len(lst))
+    _mask = np.ones(len(lst), dtype=bool) if mask is None else mask
+
+    # Return a Quantity array
     if isinstance(lst[0], units.Quantity):
-        return units.Quantity(lst)[mask]
-    else:
-        return np.array(lst)[mask]
+        return units.Quantity(lst)[_mask]
+
+    # If all the elements of lst have the same type, np.array(lst)[mask] will work
+    if len(set(map(type, lst))) == 1:
+        return np.array(lst)[_mask]
+
+    # Otherwise, we have to set the array type to object
+    return np.array(lst, dtype=object)[_mask]
+
+    # NOTE: The dtype="object" is needed for the case where one element of lst
+    # is not a list but None. For example, if trying to unpack SpecObjs OPT fluxes
+    # and for one slit/order the OPT extraction failed (but not the BOX extraction),
+    # OPT_COUNTS is None for that slit/order, and lst would be something like
+    # [array, array, array, None, array], which makes np.array to fail and give the error
+    # "ValueError: setting an array element with a sequence. The requested array has an
+    # inhomogeneous shape after 1 dimensions..."
+
 

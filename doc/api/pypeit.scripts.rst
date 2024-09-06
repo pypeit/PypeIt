@@ -12,6 +12,7 @@ Submodules
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
    pypeit.scripts.chk_flats
+   pypeit.scripts.chk_flexure
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
@@ -26,6 +27,7 @@ Submodules
    pypeit.scripts.compare_sky
    pypeit.scripts.compile_wvarxiv
    pypeit.scripts.edge_inspector
+   pypeit.scripts.extract_datacube
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify
@@ -50,6 +52,7 @@ Submodules
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv
+   pypeit.scripts.show_pixflat
    pypeit.scripts.show_wvcalib
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit

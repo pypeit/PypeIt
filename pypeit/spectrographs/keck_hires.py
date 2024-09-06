@@ -62,9 +62,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     ech_fixed_format = False
     supported = False
     # TODO before support = True
-    # 1. Implement flat fielding
-    # 2. Test on several different setups
-    # 3. Implement PCA extrapolation into the blue 
+    # 1. Implement flat fielding - DONE
+    # 2. Test on several different setups - DONE
+    # 3. Implement PCA extrapolation into the blue
+
+    comment = 'Post detector upgrade (~ August 2004). See :doc:`keck_hires`'
 
 
     # TODO: Place holder parameter set taken from X-shooter VIS for now.
@@ -98,6 +100,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['illumflatframe']['exprng'] = [None, 60]
         par['calibrations']['standardframe']['exprng'] = [1, 600]
         par['scienceframe']['exprng'] = [601, None]
+
+        # Set default processing for slitless_pixflat
+        par['calibrations']['slitless_pixflatframe']['process']['scale_to_mean'] = True
 
         # Slit tracing
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
@@ -154,7 +159,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True
         # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_trim_edge'] = [3, 3]
-        # Continnum order for determining thresholds
+        # number of objects
+        par['reduce']['findobj']['maxnumber_sci'] = 2  # Assume that there is max two object in each order.
+        par['reduce']['findobj']['maxnumber_std'] = 1  # Assume that there is only one object in each order.
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -219,22 +226,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
         self.meta['binning'] = dict(card=None, compound=True)
         self.meta['mjd'] = dict(card=None, compound=True)
         # This may depend on the old/new detector
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
-        #self.meta['dispname'] = dict(ext=0, card='ECHNAME')
+
         # Extras for config and frametyping
         self.meta['hatch'] = dict(ext=0, card='HATOPEN')
         self.meta['dispname'] = dict(ext=0, card='XDISPERS')
         self.meta['filter1'] = dict(ext=0, card='FIL1NAME')
         self.meta['echangle'] = dict(ext=0, card='ECHANGL', rtol=1e-3, atol=1e-2)
         self.meta['xdangle'] = dict(ext=0, card='XDANGL', rtol=1e-2)
-#        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
-        # NOTE: This is the native keyword.  IMAGETYP is from KOA.
+        self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
@@ -275,22 +281,28 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 return 'off'
 
         elif meta_key == 'idname':
-            if not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
+            xcovopen = headarr[0].get('XCOVOPEN')
+            collcoveropen = (headarr[0].get('XDISPERS') == 'RED' and headarr[0].get('RCCVOPEN')) or \
+                        (headarr[0].get('XDISPERS') == 'UV' and headarr[0].get('BCCVOPEN'))
+
+            if xcovopen and collcoveropen and \
+                    not headarr[0].get('LAMPCAT1') and not headarr[0].get('LAMPCAT2') and \
                     not headarr[0].get('LAMPQTZ2') and not (headarr[0].get('LAMPNAME') == 'quartz1'):
                 if headarr[0].get('HATOPEN') and headarr[0].get('AUTOSHUT'):
                     return 'Object'
                 elif not headarr[0].get('HATOPEN'):
                     return 'Bias' if not headarr[0].get('AUTOSHUT') else 'Dark'
-            elif headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
-                if (headarr[0].get('XDISPERS') == 'RED' and not headarr[0].get('RCCVOPEN')) or \
-                        (headarr[0].get('XDISPERS') == 'UV' and not headarr[0].get('BCCVOPEN')):
+            elif xcovopen and collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and (headarr[0].get('LAMPCAT1') or headarr[0].get('LAMPCAT2')):
+                return 'Line'
+            elif collcoveropen and \
+                    headarr[0].get('AUTOSHUT') and \
+                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) and \
+                    not headarr[0].get('HATOPEN'):
+                if not xcovopen:
                     return 'slitlessFlat'
                 else:
-                    return 'Line'
-            elif headarr[0].get('AUTOSHUT') and \
-                    (headarr[0].get('LAMPQTZ2') or (headarr[0].get('LAMPNAME') == 'quartz1')) \
-                    and not headarr[0].get('HATOPEN'):
-                return 'IntFlat'
+                    return 'IntFlat'
 
         else:
             msgs.error("Not ready for this compound meta")
@@ -309,7 +321,26 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['decker', 'dispname', 'filter1', 'echangle', 'xdangle', 'binning']
+        return ['dispname', 'decker', 'filter1', 'echangle', 'xdangle', 'binning']
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'bias': ['dispname', 'binning'], 'dark': ['dispname', 'binning'],
+                'slitless_pixflat': ['dispname', 'binning']}
 
     def raw_header_cards(self):
         """
@@ -342,9 +373,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         """
         return super().pypeit_file_keys() + ['hatch', 'lampstat01', 'frameno']
 
-
-
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -367,14 +395,14 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
         # 'science' category
-        if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'Object')
-        if ftype == 'standard':
+        if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'Object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
+        if ftype == 'slitless_pixflat':
+            return good_exp & (fitstbl['idname'] == 'slitlessFlat')
         if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat')
@@ -385,6 +413,117 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def vet_assigned_ftypes(self, type_bits, fitstbl):
+        """
+
+        NOTE: this function should only be called when running pypeit_setup,
+        in order to not overwrite any user-provided frame types.
+
+        This method checks the assigned frame types for consistency.
+        For frames that are assigned both the science and standard types,
+        this method chooses the one that is most likely, by checking if the
+        frames are within 10 arcmin of a listed standard star.
+
+        In addition, for this instrument, if a frame is assigned both a
+        pixelflat and slitless_pixflat type, the pixelflat type is removed.
+        NOTE: if the same frame is assigned to multiple configurations, this
+        method will remove the pixelflat type for all configurations, i.e.,
+        it is not possible to use slitless_pixflat type for one calibration group
+        and pixelflat for another.
+
+        Args:
+            type_bits (`numpy.ndarray`_):
+                Array with the frame types assigned to each frame.
+            fitstbl (:class:`~pypeit.metadata.PypeItMetaData`):
+                The class holding the metadata for all the frames.
+
+        Returns:
+            `numpy.ndarray`_: The updated frame types.
+
+        """
+        type_bits = super().vet_assigned_ftypes(type_bits, fitstbl)
+
+        # If both pixelflat and slitless_pixflat are assigned to the same frame, remove pixelflat
+
+        # where slitless_pixflat is assigned
+        slitless_idx = fitstbl.type_bitmask.flagged(type_bits, flag='slitless_pixflat')
+        # where pixelflat is assigned
+        pixelflat_idx = fitstbl.type_bitmask.flagged(type_bits, flag='pixelflat')
+
+        # find configurations where both pixelflat and slitless_pixflat are assigned
+        pixflat_match = np.zeros(len(fitstbl), dtype=bool)
+
+        for f, frame in enumerate(fitstbl):
+            if pixelflat_idx[f]:
+                match_config_values = []
+                for slitless in fitstbl[slitless_idx]:
+                    match_config_values.append(np.all([frame[c] == slitless[c]
+                                                       for c in self.config_independent_frames()['slitless_pixflat']]))
+                pixflat_match[f] = np.any(match_config_values)
+
+        # remove pixelflat from the type_bits
+        type_bits[pixflat_match] = fitstbl.type_bitmask.turn_off(type_bits[pixflat_match], 'pixelflat')
+
+        return type_bits
+
+    def parse_raw_files(self, fitstbl, det=1, ftype=None):
+        """
+        Parse the list of raw files with given frame type and detector.
+        This is spectrograph-specific, and it is not defined for all
+        spectrographs.
+        Since different slitless_pixflat frames are usually taken for
+        each of the three detectors, this method parses the slitless_pixflat
+        frames and returns the correct one for the requested detector.
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                Table with metadata of the raw files to parse.
+            det (:obj:`int`, optional):
+                1-indexed detector number to parse.
+            ftype (:obj:`str`, optional):
+                Frame type to parse. If None, no frames are parsed
+                and the indices of all frames are returned.
+
+        Returns:
+            `numpy.ndarray`_: The indices of the raw files in the fitstbl that are parsed.
+
+        """
+
+        if ftype == 'slitless_pixflat':
+            # Check for the required info
+            if len(fitstbl) == 0:
+                msgs.warn('Fitstbl provided is emtpy. No parsing done.')
+                # return empty array
+                return np.array([], dtype=int)
+            elif det is None:
+                msgs.warn('Detector number must be provided to parse slitless_pixflat frames.  No parsing done.')
+                # return index array of length of fitstbl
+                return np.arange(len(fitstbl))
+
+            # how many unique xdangle values are there?
+            # If they are 3, then we have a different slitless flat file per detector
+            xdangles = np.unique(np.int32(fitstbl['xdangle'].value))
+            if len(xdangles) == 3:
+                sort_xdagles = np.argsort(xdangles)
+                # xdagles: -5 for red(det=3), -4 for green (det=2), -3 for blue (det=1) dets
+                # select the corresponding files for the requested detector
+                if det == 1:
+                    # blue detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -3)[0]
+                elif det == 2:
+                    # green detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -4)[0]
+                elif det == 3:
+                    # red detector
+                    return np.where(np.int32(fitstbl['xdangle'].value) == -5)[0]
+            else:
+                msgs.warn('The provided list of slitless_pixflat frames does not have exactly 3 unique XDANGLE values. '
+                          'Pypeit cannot determine which slitless_pixflat frame corresponds to the requested detector. '
+                          'All frames will be used.')
+                return np.arange(len(fitstbl))
+
+        else:
+            return super().parse_raw_files(fitstbl, det=det, ftype=ftype)
 
     def get_rawimage(self, raw_file, det, spectrim=20):
         """
@@ -500,7 +639,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
 
 
-    def get_mosaic_par(self, mosaic, hdu=None, msc_order=0):
+    def get_mosaic_par(self, mosaic, hdu=None, msc_ord=0):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -521,7 +660,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 default.  BEWARE: If ``hdu`` is not provided, the binning is
                 assumed to be `1,1`, which will cause faults if applied to
                 binned images!
-            msc_order (:obj:`int`, optional):
+            msc_ord (:obj:`int`, optional):
                 Order of the interpolation used to construct the mosaic.
 
         Returns:
@@ -572,7 +711,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], tuple(reversed(binning)))
 
         return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
-                      np.array(msc_tfm), msc_order)
+                      np.array(msc_tfm), msc_ord)
 
 
     @property

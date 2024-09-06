@@ -78,6 +78,7 @@ class SensFunc(datamodel.DataContainer):
                  'pypeline': dict(otype=str, descr='PypeIt pipeline reduction path'),
                  'spec1df': dict(otype=str,
                                  descr='PypeIt spec1D file used to for sensitivity function'),
+                 'extr': dict(otype=str, descr='Extraction method used for the standard star (OPT or BOX)'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
                                  descr='File name (or shorthand) with the standard flux data'),
@@ -213,6 +214,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Input and Output files
         self.spec1df = spec1dfile
+        self.extr = par['extr']
         self.sensfile = sensfile
         self.par = par
         self.chk_version = chk_version
@@ -253,7 +255,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, trace_spec, trace_spat, self.meta_spec, header \
-                = self.sobjs_std.unpack_object(ret_flam=False)
+                = self.sobjs_std.unpack_object(ret_flam=False, extract_type=self.extr, remove_missing=True)
 
         # Compute the blaze function
         # TODO Make the blaze function optional
@@ -336,7 +338,6 @@ class SensFunc(datamodel.DataContainer):
         # TODO It would probably better to just return an array of shape (nspec, norddet) even if norddet = 1, i.e.
         # to get rid of this .squeeze()
         return log10_blaze_function.squeeze()
-
 
     def _bundle(self):
         """
@@ -471,7 +472,7 @@ class SensFunc(datamodel.DataContainer):
 
         # Unpack the fluxed standard
         _wave, _flam, _flam_ivar, _flam_mask, _, _,  _, _ \
-                = self.sobjs_std.unpack_object(ret_flam=True)
+                = self.sobjs_std.unpack_object(ret_flam=True, extract_type=self.extr)
         # Reshape to 2d arrays
         wave, flam, flam_ivar, flam_mask, _, _, _ \
                 = utils.spec_atleast_2d(_wave, _flam, _flam_ivar, _flam_mask)
@@ -480,7 +481,6 @@ class SensFunc(datamodel.DataContainer):
         self.sens['SENS_FLUXED_STD_FLAM'] = flam.T
         self.sens['SENS_FLUXED_STD_FLAM_IVAR'] = flam_ivar.T
         self.sens['SENS_FLUXED_STD_MASK'] = flam_mask.T
-
 
     def eval_zeropoint(self, wave, iorddet):
         """
@@ -807,7 +807,7 @@ class SensFunc(datamodel.DataContainer):
 
 
     @classmethod
-    def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True, chk_version=True):
+    def sensfunc_weights(cls, sensfile, waves, ech_order_vec=None, debug=False, extrap_sens=True, chk_version=True):
         """
         Get the weights based on the sensfunc
 
@@ -817,8 +817,12 @@ class SensFunc(datamodel.DataContainer):
             waves (`numpy.ndarray`_):
                 wavelength grid for your output weights.  Shape is (nspec,
                 norders, nexp) or (nspec, norders).
+            ech_order_vec (`numpy.ndarray`_, optional):
+                Vector of echelle orders.  Only used for echelle data.
             debug (bool): default=False
                 show the weights QA
+            extrap_sens (bool): default=True
+                Extrapolate the sensitivity function
             chk_version (:obj:`bool`, optional):
                 When reading in existing files written by PypeIt, perform strict
                 version checking to ensure a valid file.  If False, the code
@@ -833,6 +837,10 @@ class SensFunc(datamodel.DataContainer):
 
         if waves.ndim == 2:
             nspec, norder = waves.shape
+            if ech_order_vec.size != norder:
+                msgs.warn('The number of orders in the wave grid does not match the '
+                          'number of orders in the unpacked sobjs. Echelle order vector not used.')
+                ech_order_vec = None
             nexp = 1
             waves_stack = np.reshape(waves, (nspec, norder, 1))
         elif waves.ndim == 3:
@@ -845,16 +853,29 @@ class SensFunc(datamodel.DataContainer):
         else:
             msgs.error('Unrecognized dimensionality for waves')
 
-        weights_stack = np.zeros_like(waves_stack)
+        weights_stack = np.ones_like(waves_stack)
 
-        if norder != sens.zeropoint.shape[1]:
+        if norder != sens.zeropoint.shape[1] and ech_order_vec is None:
             msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+        elif norder != sens.zeropoint.shape[1] and ech_order_vec is not None:
+            msgs.warn('The number of orders in {:} does not match the number of orders in the data. '
+                      'Using only the matching orders.'.format(sensfile))
 
-        for iord in range(norder):
+        # array of order to loop through
+        orders = np.arange(norder) if ech_order_vec is None else ech_order_vec
+        for iord,this_ord in enumerate(orders):
+            if ech_order_vec is None:
+                isens = iord
+            # find the index of the sensfunc for this order
+            elif ech_order_vec is not None and np.any(sens.sens['ECH_ORDERS'].value == this_ord):
+                isens = np.where(sens.sens['ECH_ORDERS'].value == this_ord)[0][0]
+            else:
+                # if the order is not in the sensfunc file, skip it
+                continue
             for iexp in range(nexp):
                 sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:,iord,iexp],
-                                                               sens.wave[:,iord],
-                                                               sens.zeropoint[:,iord], 1.0,
+                                                               sens.wave[:,isens],
+                                                               sens.zeropoint[:,isens], 1.0,
                                                                extrap_sens=extrap_sens)
                 weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
 

@@ -73,6 +73,7 @@ from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
 from pypeit import msgs
+from pypeit import dataPaths
 
 
 def tuple_force(par):
@@ -209,6 +210,7 @@ class ProcessImagesPar(ParSet):
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
                  mask_cr=None, clip=None,
+                 scale_to_mean=None,
                  #cr_sigrej=None, 
                  n_lohi=None, #replace=None,
                  lamaxiter=None, grow=None,
@@ -216,7 +218,7 @@ class ProcessImagesPar(ParSet):
 #                 calib_setup_and_bit=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
-                 dark_expscale=None,
+                 dark_expscale=None, correct_nonlinear=None,
                  empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, subtract_scattlight=None, scattlight=None, subtract_continuum=None,
@@ -272,6 +274,15 @@ class ProcessImagesPar(ParSet):
                                 '\'chebyshev\' or \'polynomial\', set overcan_par = order; ' \
                                 'for \'savgol\', set overscan_par = order, window size ; ' \
                                 'for \'median\', set overscan_par = None or omit the keyword.'
+
+        defaults['correct_nonlinear'] = None
+        dtypes['correct_nonlinear'] = list
+        descr['correct_nonlinear'] = 'Correct for non-linear response of the detector.  If None, ' \
+                                     'no correction is performed. If a list, then the list should be ' \
+                                     'the non-linear correction parameter (alpha), where the functional ' \
+                                     'form is given by Ct = Cm (1 + alpha x Cm), with Ct and Cm the true ' \
+                                     'and measured counts. This parameter is usually ' \
+                                     'hard-coded for a given spectrograph, and should otherwise be left as None.' \
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
@@ -363,6 +374,10 @@ class ProcessImagesPar(ParSet):
         dtypes['clip'] = bool
         descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=mean'
 
+        defaults['scale_to_mean'] = False
+        dtypes['scale_to_mean'] = bool
+        descr['scale_to_mean'] = 'If True, scale the input images to have the same mean before combining.'
+
         defaults['comb_sigrej'] = None
         dtypes['comb_sigrej'] = float
         descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
@@ -443,14 +458,14 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum', 'subtract_scattlight',
-                   'scattlight', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par',
-                   'use_darkimage', 'dark_expscale', 'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat',
-                   'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
-                   'satpix', #'calib_setup_and_bit',
-                   'n_lohi', 'mask_cr',
-                   'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
-                   'sigfrac', 'objlim']
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'subtract_continuum',
+                   'subtract_scattlight', 'scattlight', 'use_pattern', 'use_overscan',
+                   'overscan_method', 'overscan_par', 'use_darkimage', 'dark_expscale',
+                   'spat_flexure_correct', 'spat_flexure_maxlag', 'use_illumflat', 'use_specillum',
+                   'empirical_rn', 'shot_noise', 'noise_floor', 'use_pixelflat', 'combine',
+                   'scale_to_mean', 'correct_nonlinear', 'satpix', #'calib_setup_and_bit',
+                   'n_lohi', 'mask_cr', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact',
+                   'sigclip', 'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -577,7 +592,7 @@ class FlatFieldPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
-                 spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
+                 spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_method=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None, slit_illum_smooth_npix=None,
@@ -642,6 +657,17 @@ class FlatFieldPar(ParSet):
         dtypes['tweak_slits'] = bool
         descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
                                'This will work even if illumflatten is set to False '
+
+        defaults['tweak_method'] = 'threshold'
+        options['tweak_method'] = FlatFieldPar.valid_tweak_methods()
+        dtypes['tweak_method'] = str
+        descr['tweak_method'] = 'Method used to tweak the slit edges (when "tweak_slits" is set to True).  ' \
+                                'Options include: {0:s}. '.format(', '.join(options['tweak_method'])) + \
+                                'The "threshold" method determines when the left and right slit edges ' \
+                                'fall below a threshold relative to the peak illumination. ' \
+                                'The "gradient" method determines where the gradient is the highest at ' \
+                                'the left and right slit edges. This method performs better when there is ' \
+                                'systematic vignetting in the spatial direction. ' \
 
         defaults['tweak_slits_thresh'] = 0.93
         dtypes['tweak_slits_thresh'] = float
@@ -760,7 +786,7 @@ class FlatFieldPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
-                   'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
+                   'tweak_slits', 'tweak_method', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits',
                    'slit_illum_ref_idx', 'slit_illum_smooth_npix', 'slit_illum_finecorr', 'fit_2d_det_response']
@@ -780,6 +806,13 @@ class FlatFieldPar(ParSet):
         Return the valid flat-field methods
         """
         return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+
+    @staticmethod
+    def valid_tweak_methods():
+        """
+        Return the valid options for tweaking slits.
+        """
+        return ['threshold', 'gradient']
 
     @staticmethod
     def valid_saturated_slits_methods():
@@ -806,9 +839,13 @@ class FlatFieldPar(ParSet):
             return
 
         # Check the frame exists
-        if not os.path.isfile(self.data['pixelflat_file']):
-            raise ValueError('Provided frame file name does not exist: {0}'.format(
-                                self.data['pixelflat_file']))
+        # only the file name is provided, so we need to check if the file exists
+        # in the right place (data/pixelflats)
+        file_path = dataPaths.pixelflat.get_file_path(self.data['pixelflat_file'], return_none=True)
+        if file_path is None:
+            msgs.error(
+                f'Provided pixelflat file, {self.data["pixelflat_file"]} not found. It is not a direct path, '
+                'a cached file, or a file that can be downloaded from a PypeIt repository.')
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
@@ -1565,9 +1602,9 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, weight_method=None, align=None, combine=None, output_filename=None,
-                 standard_cube=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
+                 sensfile=None, reference_image=None, save_whitelight=None, whitelight_range=None, method=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None, scale_corr=None,
+                 spatial_delta=None, wave_delta=None, astrometric=None, scale_corr=None,
                  skysub_frame=None, spec_subpixel=None, spat_subpixel=None, slice_subpixel=None,
                  correct_dar=None):
 
@@ -1635,11 +1672,11 @@ class CubePar(ParSet):
                                    'the combined datacube. If combine=False, the output filenames will be ' \
                                    'prefixed with ``spec3d_*``'
 
-        defaults['standard_cube'] = None
-        dtypes['standard_cube'] = str
-        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct ' \
-                                 'the relative scales of the slits, and to flux calibrate the science ' \
-                                 'datacube.'
+        defaults['sensfile'] = None
+        dtypes['sensfile'] = str
+        descr['sensfile'] = 'Filename of a sensitivity function to use to flux calibrate your datacube. ' \
+                            'The sensitivity function file will also be used to correct the relative scales ' \
+                            'of the slits.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1753,13 +1790,6 @@ class CubePar(ParSet):
         dtypes['astrometric'] = bool
         descr['astrometric'] = 'If true, an astrometric correction will be applied using the alignment frames.'
 
-        defaults['grating_corr'] = True
-        dtypes['grating_corr'] = bool
-        descr['grating_corr'] = 'This option performs a small correction for the relative blaze function of all ' \
-                                'input frames that have (even slightly) different grating angles, or if you are ' \
-                                'flux calibrating your science data with a standard star that was observed with ' \
-                                'a slightly different setup.'
-
         defaults['scale_corr'] = None
         dtypes['scale_corr'] = str
         descr['scale_corr'] = 'This option performs a small correction for the relative spectral illumination ' \
@@ -1798,10 +1828,10 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image', 'save_whitelight',
+        parkeys = ['slit_spec', 'output_filename', 'sensfile', 'reference_image', 'save_whitelight',
                    'method', 'spec_subpixel', 'spat_subpixel', 'slice_subpixel', 'ra_min', 'ra_max', 'dec_min', 'dec_max',
                    'wave_min', 'wave_max', 'spatial_delta', 'wave_delta', 'weight_method', 'align', 'combine',
-                   'astrometric', 'grating_corr', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
+                   'astrometric', 'scale_corr', 'skysub_frame', 'whitelight_range', 'correct_dar']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1826,7 +1856,6 @@ class CubePar(ParSet):
         allowed_weight_methods = Coadd1DPar.valid_weight_methods()
         if self.data['weight_method'] not in allowed_weight_methods:
             raise ValueError("'weight_method' must be one of:\n" + ", ".join(allowed_weight_methods))
-
 
 
 class FluxCalibratePar(ParSet):
@@ -1921,7 +1950,7 @@ class SensFuncPar(ParSet):
     see :ref:`parameters`.
     """
     def __init__(self, flatfile=None, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
-                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None, extr=None,
                  star_dec=None, mask_hydrogen_lines=None, mask_helium_lines=None, hydrogen_mask_wid=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1938,6 +1967,11 @@ class SensFuncPar(ParSet):
         descr['flatfile'] = 'Flat field file to be used if the sensitivity function model will utilize the blaze ' \
                             'function computed from a flat field file in the Calibrations directory, e.g.' \
                             'Calibrations/Flat_A_0_DET01.fits'
+
+        defaults['extr'] = 'OPT'
+        dtypes['extr'] = str
+        descr['extr'] = 'Extraction method to use for the sensitivity function.  Options are: ' \
+                        '\'OPT\' (optimal extraction), \'BOX\' (boxcar extraction). Default is \'OPT\'.'
 
         defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
@@ -2028,7 +2062,7 @@ class SensFuncPar(ParSet):
                                           options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-#        self.validate()
+        self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
@@ -2036,7 +2070,7 @@ class SensFuncPar(ParSet):
 
         # Single element parameters
         parkeys = ['flatfile', 'extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
-                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'extr',
                    'mask_hydrogen_lines', 'mask_helium_lines', 'hydrogen_mask_wid']
 
         # All parameters, including nested ParSets
@@ -2057,6 +2091,14 @@ class SensFuncPar(ParSet):
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        allowed_extractions = ['BOX', 'OPT']
+        if self.data['extr'] not in allowed_extractions:
+            msgs.error("'extr' must be one of:\n" + ", ".join(allowed_extractions))
 
     @staticmethod
     def valid_algorithms():
@@ -4052,7 +4094,8 @@ class FindObjPar(ParSet):
                  find_maxdev=None, find_extrap_npoly=None, maxnumber_sci=None, maxnumber_std=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
                  ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None,
-                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None, fof_link = None):
+                 skip_skysub=None, find_negative=None, find_min_max=None, std_spec1d=None,
+                 use_std_trace=None, fof_link = None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -4175,14 +4218,21 @@ class FindObjPar(ParSet):
                                 'detector. It only used for object finding. This parameter is helpful if your object only ' \
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
 
+        defaults['use_std_trace'] = True
+        dtypes['use_std_trace'] = bool
+        descr['use_std_trace'] = 'If True, the trace of the standard star spectrum is used as a crutch for ' \
+                                 'tracing the object spectra. This is useful when a direct trace is not possible ' \
+                                 '(i.e., faint sources). Note that a standard star exposure must be included in your ' \
+                                 'pypeit file, or the ``std_spec1d`` parameter must be set for this to work. '
+
+
         defaults['std_spec1d'] = None
         dtypes['std_spec1d'] = str
-        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star.  The ' \
-                              'trace of the standard star spectrum is used as a crutch for ' \
-                              'tracing the object spectra, when a direct trace is not possible ' \
-                              '(i.e., faint sources).  If provided, this overrides use of any ' \
-                              'standards included in your pypeit file; the standard exposures ' \
-                              'will still be reduced.'
+        descr['std_spec1d'] = 'A PypeIt spec1d file of a previously reduced standard star. ' \
+                               'This can be used to trace the object spectra, but the ``use_std_trace`` ' \
+                               'parameter must be set to True. If provided, this overrides use of ' \
+                               'any standards included in your pypeit file; the standard exposures ' \
+                               'will still be reduced.'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -4203,7 +4253,7 @@ class FindObjPar(ParSet):
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find',
                    'skip_final_global', 'skip_skysub', 'find_negative', 'find_min_max',
-                   'std_spec1d', 'fof_link']
+                   'std_spec1d', 'use_std_trace', 'fof_link']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4215,9 +4265,11 @@ class FindObjPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        if self.data['std_spec1d'] is not None \
-                and not Path(self.data['std_spec1d']).absolute().exists():
-            msgs.error(f'{self.data["std_spec1d"]} does not exist!')
+        if self.data['std_spec1d'] is not None:
+            if not self.data['use_std_trace']:
+                msgs.error('If you provide a standard star spectrum for tracing, you must set use_std_trace=True.')
+            elif not Path(self.data['std_spec1d']).absolute().exists():
+                msgs.error(f'{self.data["std_spec1d"]} does not exist!')
 
 
 class SkySubPar(ParSet):
@@ -4453,7 +4505,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, calib_dir=None, bpm_usebias=None, biasframe=None, darkframe=None,
                  arcframe=None, tiltframe=None, pixelflatframe=None, pinholeframe=None,
                  alignframe=None, alignment=None, traceframe=None, illumflatframe=None,
-                 lampoffflatsframe=None, scattlightframe=None, skyframe=None, standardframe=None,
+                 lampoffflatsframe=None, slitless_pixflatframe=None, scattlightframe=None, skyframe=None, standardframe=None,
                  scattlight_pad=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -4538,6 +4590,15 @@ class CalibrationsPar(ParSet):
                                                                               use_specillum=False))
         dtypes['lampoffflatsframe'] = [ ParSet, dict ]
         descr['lampoffflatsframe'] = 'The frames and combination rules for the lamp off flats'
+
+        defaults['slitless_pixflatframe'] = FrameGroupPar(frametype='slitless_pixflat',
+                                                          process=ProcessImagesPar(satpix='nothing',
+                                                                                   use_pixelflat=False,
+                                                                                   use_illumflat=False,
+                                                                                   use_specillum=False,
+                                                                                   combine='median'))
+        dtypes['slitless_pixflatframe'] = [ ParSet, dict ]
+        descr['slitless_pixflatframe'] = 'The frames and combination rules for the slitless pixel flat'
 
         defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
@@ -4630,7 +4691,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'calib_dir', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'illumflatframe', 'lampoffflatsframe', 'scattlightframe',
+                             'illumflatframe', 'lampoffflatsframe', 'slitless_pixflatframe', 'scattlightframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
                              'scattlight_pad', 'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = np.array([pk not in allkeys for pk in k])
@@ -4656,6 +4717,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('illumflat', cfg[pk]) if pk in k else None
         pk = 'lampoffflatsframe'
         kwargs[pk] = FrameGroupPar.from_dict('lampoffflats', cfg[pk]) if pk in k else None
+        pk = 'slitless_pixflatframe'
+        kwargs[pk] = FrameGroupPar.from_dict('slitless_pixflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'scattlightframe'
@@ -5230,7 +5293,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
+        return ['AAT', 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT',
                 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT', 'JWST', 'HILTNER']
 
     def validate(self):
