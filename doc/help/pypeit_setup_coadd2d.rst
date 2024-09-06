@@ -9,6 +9,8 @@
                                 [--exclude_slits EXCLUDE_SLITS [EXCLUDE_SLITS ...]]
                                 [--spat_toler SPAT_TOLER] [--offsets OFFSETS]
                                 [--weights WEIGHTS]
+                                [--spec_samp_fact SPEC_SAMP_FACT]
+                                [--spat_samp_fact SPAT_SAMP_FACT]
     
     Prepare a configuration file for performing 2D coadds
     
@@ -68,4 +70,12 @@
                             or auto. If not specified, the (spectrograph-specific)
                             default is used. Other options exist but must be entered
                             by directly editing the coadd2d file. (default: None)
+      --spec_samp_fact SPEC_SAMP_FACT
+                            Make the wavelength grid finer (spec_samp_fact < 1.0) or
+                            coarser (spec_samp_fact > 1.0) by this sampling factor,
+                            i.e. units of spec_samp_fact are pixels. (default: 1.0)
+      --spat_samp_fact SPAT_SAMP_FACT
+                            Make the spatial grid finer (spat_samp_fact < 1.0) or
+                            coarser (spat_samp_fact > 1.0) by this sampling factor,
+                            i.e. units of spat_samp_fact are pixels. (default: 1.0)
     
