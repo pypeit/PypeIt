@@ -24,7 +24,7 @@ The general procedure used to assign frames a given type is described
 here: :ref:`frame_types`.
 
 HIRES frame typing
------------------
+------------------
 
 The primary typing of HIRES frames is performed by
 :func:`pypeit.spectrographs.keck_hires.KECKHIRESSpectrograph.check_frame_type`.
