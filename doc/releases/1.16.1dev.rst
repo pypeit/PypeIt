@@ -105,6 +105,9 @@ Bug Fixes
 - Fix error "ValueError: setting an array element with a sequence. The requested
   array has an inhomogeneous shape after 1 dimensions..." occurring when unpacking
   the SpecObj spectrum but having an attribute of the SpecObj object that is None.
+- Fixed an hidden bug that was causing the spatial flexure to fail. The bug was in the
+  `SlitTraceBitMask` class, where the function `exclude_for_flexure()` was not returning
+  the 'BOXSLIT' flag.
 
 
 
