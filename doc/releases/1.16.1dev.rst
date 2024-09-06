@@ -14,6 +14,9 @@ Dependency Changes
 ------------------
 
 - Support added for numpy>=2.0.0; numpy<=2.0.0 should still be supported
+- Deprecated support for python 3.10
+- General update to dependencies to be roughly consistent with release of python
+  3.11
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
