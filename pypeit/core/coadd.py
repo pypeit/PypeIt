@@ -688,12 +688,12 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, log10_blaze_function=None,
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], log10_blazes_inter[:,ii] \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
-                                  log10_blaze_function = log10_blaze_function[:, ii], sensfunc=sensfunc, kind=kind)
+                                  log10_blaze_function=log10_blaze_function[:, ii], sensfunc=sensfunc, kind=kind)
         else:
             for ii in range(nexp):
                 fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii], _ \
                     = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii], sensfunc=sensfunc, kind=kind)
-            log10_blazes_inter=None
+            log10_blazes_inter = None
 
         return fluxes_inter, ivars_inter, gpms_inter, log10_blazes_inter
 
