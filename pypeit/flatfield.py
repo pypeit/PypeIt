@@ -1314,10 +1314,26 @@ class FlatField:
                                         * np.fmax(self.msillumflat[onslit_tweak], 0.05) \
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
+            # Check for infinities and NaNs in the flat-field model
+            winfnan = np.where(np.logical_not(np.isfinite(self.flat_model[onslit_tweak])))
+            if winfnan[0].size != 0:
+                msgs.warn('There are {0:d} pixels with non-finite values in the flat-field model '
+                          'for slit {1:d}!'.format(winfnan[0].size, slit_spat) + msgs.newline() +
+                          'These model pixel values will be set to the raw pixel value.')
+                self.flat_model[np.where(onslit_tweak)[0][winfnan]] = rawflat[np.where(onslit_tweak)[0][winfnan]]
+            # Check for unrealistically high or low values of the model
+            whilo = np.where((self.flat_model[onslit_tweak] >= nonlinear_counts) |
+                             (self.flat_model[onslit_tweak] <= 0.0))
+            if whilo[0].size != 0:
+                msgs.warn('There are {0:d} pixels with unrealistically high or low values in the flat-field model '
+                          'for slit {1:d}!'.format(whilo[0].size, slit_spat) + msgs.newline() +
+                          'These model pixel values will be set to the raw pixel value.')
+                self.flat_model[np.where(onslit_tweak)[0][whilo]] = rawflat[np.where(onslit_tweak)[0][whilo]]
+
             # Construct the pixel flat
             #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
             #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
-            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak]/self.flat_model[onslit_tweak]
+            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak] * utils.inverse(self.flat_model[onslit_tweak])
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
@@ -1409,7 +1425,8 @@ class FlatField:
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm, slit_trim=3, doqa=False):
+    def spatial_fit_finecorr(self, normed, onslit_tweak, slit_idx, slit_spat, gpm,
+                             slit_trim=3, tolerance=0.1, doqa=False):
         """
         Generate a relative scaling image for a slicer IFU. All
         slits are scaled relative to a reference slit, specified in
@@ -1433,6 +1450,10 @@ class FlatField:
             Trim the slit edges by this number of pixels during the fitting. Note that the
             fit will be evaluated on the pixels indicated by onslit_tweak.
             A positive number trims the slit edges, a negative number pads the slit edges.
+        tolerance : float, optional
+            Tolerance for the relative scaling of the slits. A value of 0.1 means that the
+            relative scaling of the slits must be within 10% of unity. Any data outside of
+            this tolerance will be masked.
         doqa : :obj:`bool`, optional:
             Save the QA?
 
@@ -1485,6 +1506,10 @@ class FlatField:
         if xfrac * slitlen < slit_trim:
             xfrac = slit_trim/slitlen
         gpmfit[np.where((xpos_fit < xfrac) | (xpos_fit > 1-xfrac))] = False
+        # If the data deviate too much from unity, mask them. We're only interested in a
+        # relative correction that's less than ~10% from unity.
+        gpmfit[np.where((normed[this_slit_trim] < 1-tolerance) | (normed[this_slit_trim] > 1 + tolerance))] = False
+        # Perform the full fit
         fullfit = fitting.robust_fit(xpos_fit, normed[this_slit_trim], fit_order, x2=ypos_fit,
                                      in_gpm=gpmfit, function='legendre2d', upper=2, lower=2, maxdev=1.0,
                                      minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
@@ -1495,7 +1520,10 @@ class FlatField:
             illumflat_finecorr[this_slit] = fullfit.eval(xpos, ypos)
         else:
             msgs.warn(f"Fine correction to the spatial illumination failed for {slit_txt} {slit_ordid}")
-            return
+            return illumflat_finecorr
+
+        # If corrections exceed the tolerance, then clip them to the level of the tolerance
+        illumflat_finecorr = np.clip(illumflat_finecorr, 1-tolerance, 1+tolerance)
 
         # Prepare QA
         if doqa:

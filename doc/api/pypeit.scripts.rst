@@ -12,6 +12,7 @@ Submodules
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
    pypeit.scripts.chk_flats
+   pypeit.scripts.chk_flexure
    pypeit.scripts.chk_for_calibs
    pypeit.scripts.chk_noise_1dspec
    pypeit.scripts.chk_noise_2dspec
@@ -51,6 +52,7 @@ Submodules
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
    pypeit.scripts.show_arxiv
+   pypeit.scripts.show_pixflat
    pypeit.scripts.show_wvcalib
    pypeit.scripts.skysub_regions
    pypeit.scripts.tellfit

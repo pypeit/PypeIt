@@ -1964,19 +1964,22 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False, split=True)
     # Generate SpecObj
     if not split:
         sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
-                                    idl_spec['COUNTS'].data[0:npix], 
-                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                    DET='MSC03')
+                                            idl_spec['COUNTS'].data[0:npix],
+                                            1./(idl_spec['COUNTS'].data[0:npix]),
+                                            np.ones(idl_spec['COUNTS'].data[0:npix].size),
+                                            DET='MSC03')
     else:
         sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
-                                    idl_spec['COUNTS'].data[0:npix], 
-                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                    DET='DET03')
+                                            idl_spec['COUNTS'].data[0:npix],
+                                            1./(idl_spec['COUNTS'].data[0:npix]),
+                                            np.ones(idl_spec['COUNTS'].data[0:npix].size),
+                                            DET='DET03')
         
         sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
-                                    idl_spec['COUNTS'].data[npix:], 
-                                    1./(idl_spec['COUNTS'].data[npix:]), 
-                                    DET='DET07')
+                                            idl_spec['COUNTS'].data[npix:],
+                                            1./(idl_spec['COUNTS'].data[npix:]),
+                                            np.ones(idl_spec['COUNTS'].data[npix:].size),
+                                            DET='DET07')
 
     # SpecObjs
     sobjs = specobjs.SpecObjs()

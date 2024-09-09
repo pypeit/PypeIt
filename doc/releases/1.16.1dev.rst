@@ -14,6 +14,9 @@ Dependency Changes
 ------------------
 
 - Support added for numpy>=2.0.0; numpy<=2.0.0 should still be supported
+- Deprecated support for python 3.10
+- General update to dependencies to be roughly consistent with release of python
+  3.11
 
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
@@ -44,14 +47,20 @@ Instrument-specific Updates
 - Updated X-Shooter detector gain and read noise to come from header, and
   updated plate scales to the most recent values from the manual.  Detailed
   changes are:
+
     - NIR arm:
+
         - Platescale updated from 0.197 to 0.245 arcsec/pixel
         - Dark current updated from 0. to 72. e-/pixel/hr
         - Gain updated from 2.12 to 2.29 e-/DN
+
     - VIS arm:
+
         - Platescale updated from an order-dependent value, to being 0.154
           arcsec/pixel for all orders
+
     - UVB arm:
+
         - Platescale updated from an order-dependent value, to being 0.164
           arcsec/pixel for all orders
 
@@ -83,6 +92,8 @@ Script Changes
 
 Datamodel Changes
 -----------------
+
+- Adjusted spec1d datamodel to enable use with UVES_popler GUI tool
 
 Under-the-hood Improvements
 ---------------------------
