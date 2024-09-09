@@ -9,6 +9,7 @@ from pypeit.scripts import clean_cache
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
+from pypeit.scripts import chk_flexure
 from pypeit.scripts import chk_tilts
 from pypeit.scripts import chk_for_calibs
 from pypeit.scripts import chk_noise_1dspec
@@ -51,6 +52,7 @@ from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
 from pypeit.scripts import compile_wvarxiv
+from pypeit.scripts import show_pixflat
 
 
 # Build the list of script classes

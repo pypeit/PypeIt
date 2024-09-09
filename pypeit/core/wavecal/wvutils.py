@@ -136,9 +136,13 @@ def get_sampling(waves, pix_per_R=3.0):
         wave_diff_flat += np.diff(wave_good).tolist()
         dloglam_flat += np.diff(np.log10(wave_good)).tolist()
 
-
+    # Compute the median wavelength spacing
     dwave = np.median(wave_diff_flat)
     dloglam = np.median(dloglam_flat)
+    # Check that this won't introduce a divide by zero
+    if dloglam == 0.0:
+        msgs.error('The wavelength sampling has zero spacing in log wavelength. This is not supported.')
+    # Compute a guess of the resolution
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
     return dwave, dloglam, resln_guess, pix_per_sigma

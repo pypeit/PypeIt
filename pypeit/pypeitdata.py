@@ -224,7 +224,7 @@ class PypeItDataPath:
         return _f.suffix.replace('.','').lower()
 
     def get_file_path(self, data_file, force_update=False, to_pkg=None, return_format=False,
-                      quiet=False):
+                      return_none=False, quiet=False):
         """
         Return the path to a file.
 
@@ -266,6 +266,9 @@ class PypeItDataPath:
                 If True, the returned object is a :obj:`tuple` that includes the
                 file path and its format (e.g., ``'fits'``).  If False, only the
                 file path is returned.
+            return_none (:obj:`bool`, optional):
+                If True, return None if the file does not exist.  If False, an
+                error is raised if the file does not exist.
             quiet (:obj:`bool`, optional):
                 Suppress messages
 
@@ -300,7 +303,10 @@ class PypeItDataPath:
         # if the file exists in the cache and force_update is False.
         subdir = str(self.path.relative_to(self.data))
         _cached_file = cache.fetch_remote_file(data_file, subdir, remote_host=self.host,
-                                               force_update=force_update)
+                                               force_update=force_update, return_none=return_none)
+        if _cached_file is None:
+            msgs.warn(f'File {data_file} not found in the cache.')
+            return None
 
         # If we've made it this far, the file is being pulled from the cache.
         if to_pkg is None:
@@ -359,6 +365,8 @@ class PypeItDataPaths:
                      'skisim': {'path': 'skisim', 'host': 'github'},
                      'filters': {'path': 'filters', 'host': None},
                      'sensfunc': {'path': 'sensfuncs', 'host': 'github'},
+                     # Pixel Flats
+                     'pixelflat': {'path': 'pixelflats', 'host': 'github'},
                      # Other
                      'sky_spec': {'path': 'sky_spec', 'host': None},
                      'static_calibs': {'path': 'static_calibs', 'host': None},

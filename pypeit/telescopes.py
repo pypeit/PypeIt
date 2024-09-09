@@ -10,6 +10,18 @@ from astropy import units
 
 #TODO: Remove 'Par' from class name?
 
+
+class AATTelescopePar(TelescopePar):
+    def __init__(self):
+        loc = EarthLocation.of_site('Siding Spring Observatory')
+        super(AATTelescopePar, self).__init__(name='AAT',
+                                              longitude=loc.lon.to(units.deg).value,
+                                              latitude=loc.lat.to(units.deg).value,
+                                              elevation=loc.height.to(units.m).value,
+                                              diameter=3.9,
+                                              eff_aperture=12.0)
+
+
 class GTCTelescopePar(TelescopePar):
     def __init__(self):
         loc = EarthLocation.of_site('Roque de los Muchachos')

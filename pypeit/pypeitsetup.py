@@ -163,30 +163,40 @@ class PypeItSetup:
                    cfg_lines=pypeItFile.cfg_lines, 
                    pypeit_file=filename)
 
-    # TODO: Make the default here match the default used by
-    # io.files_from_extension?
     @classmethod
-    def from_file_root(cls, root, spectrograph, extension='.fits'):
+    def from_file_root(cls, root, spectrograph, extension=None):
         """
         Instantiate the :class:`~pypeit.pypeitsetup.PypeItSetup` object by
         providing a file root.
         
         Args:
-            root (:obj:`str`):
-                String used to find the raw files; see
+            root (:obj:`str`, `Path`_, :obj:`list`):
+                One or more paths within which to search for files; see
                 :func:`~pypeit.io.files_from_extension`.
-            spectrograph (:obj:`str`):
+            spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
                 The PypeIt name of the spectrograph used to take the
                 observations.  This should be one of the available options in
                 :attr:`~pypeit.spectrographs.available_spectrographs`.
-            extension (:obj:`str`, optional):
+            extension (:obj:`str`, :obj:`list`, optional):
                 The extension common to all the fits files to reduce; see
-                :func:`~pypeit.io.files_from_extension`.
-        
+                :func:`~pypeit.io.files_from_extension`.  If None, uses the
+                ``allowed_extensions`` of the spectrograph class.  Otherwise,
+                this *must* be a subset of the allowed extensions for the
+                selected spectrograph.
+
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        return cls.from_rawfiles(io.files_from_extension(root, extension=extension), spectrograph)
+        # NOTE: This works if `spectrograph` is either a string or a
+        # Spectrograph object
+        spec = load_spectrograph(spectrograph).__class__
+        files = spec.find_raw_files(root, extension=extension)
+        nfiles = len(files)
+        if nfiles == 0:
+            msgs.error(f'Unable to find any raw files for {spec.name} in {root}!')
+        else:
+            msgs.info(f'Found {nfiles} {spec.name} raw files.')
+        return cls.from_rawfiles(files, spectrograph)
 
     @classmethod
     def from_rawfiles(cls, data_files:list, spectrograph:str, frametype=None):
