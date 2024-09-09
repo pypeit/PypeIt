@@ -55,7 +55,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.10'
+    version = '1.1.11'
     """
     Current datamodel version number.
     """
@@ -87,6 +87,8 @@ class SpecObj(datamodel.DataContainer):
                  'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Optimally extracted noise variance, sky+read '
                                                 'noise only (counts^2)'),
+                 'OPT_FLAT': dict(otype=np.ndarray, atype=float,
+                                  descr='Optimally extracted flatfield spectrum, normalised to the peak value.'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for optimally extracted flux. True=good'),
                  'OPT_FWHM': dict(otype=np.ndarray, atype=float,
@@ -120,6 +122,8 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
+                 'BOX_FLAT': dict(otype=np.ndarray, atype=float,
+                                   descr='Boxcar extracted flatfield spectrum, normalized to the peak value.'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
                                   descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_FWHM': dict(otype=np.ndarray, atype=float,
@@ -251,11 +255,20 @@ class SpecObj(datamodel.DataContainer):
 
     @classmethod
     def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
-                    mode='OPT', DET='DET01', SLITID=0, **kwargs):
+                    flat=None, mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
         slf = cls(PYPELINE, DET, SLITID=SLITID)
+        # Check the type of the flat field if it's not None
+        if flat is not None:
+            if not isinstance(flat, np.ndarray):
+                msgs.error('Flat must be a numpy array')
+            if flat.shape != counts.shape:
+                msgs.error('Flat and counts must have the same shape')
         # Add in arrays
-        for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+        for item, attr in zip([wave, counts, ivar, flat], ['_WAVE', '_COUNTS', '_COUNTS_IVAR', '_FLAT']):
+            # Check if any of the arrays are None. If so, skip
+            if item is None:
+                continue
             setattr(slf, mode+attr, item.astype(float))
         # Mask. Watch out for places where ivar is infinite due to a divide by 0
         slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
