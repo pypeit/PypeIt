@@ -66,17 +66,16 @@ class SensFunc(scriptbase.ScriptBase):
                                  'provided but with .fits trimmed off if it is in the filename.')
         parser.add_argument("-s", "--sens_file", type=str,
                             help='Configuration file with sensitivity function parameters')
-        parser.add_argument("-f", "--flatfile", type=str,
-                            help="R|Use a flat calibration file to compute the blaze function when generating "
-                                 "the sensitivity function.  This is helpful to account for small scale undulations "
-                                 "in the sensitivity function.  Note that it is not possible to set --flatfile and "
-                                 "simultaneously use a .sens file with the --sens_file option. If "
-                                 "you are using a .sens file, set the flatfile there via e.g.:\n\n"
+        parser.add_argument("-f", "--use_flat", default=False, action="store_true",
+                            help="R|Use the extracted spectrum of the flatfield calibration to estimate the blaze "
+                                 "function when generating the sensitivity function. This is helpful to account for "
+                                 "small scale undulations in the sensitivity function. The spec1dfile must contain the "
+                                 "extracted flatfield response in order to use this option. This spectrum is extracted "
+                                 "by default, unless you did not compute a pixelflat frame. Note that it is not "
+                                 "possible to set --use_flat and simultaneously use a .sens file with the --sens_file "
+                                 "option. If you are using a .sens file, set the use_flat flag with the argument:\n\n"
                                  "F|    [sensfunc]\n"
-                                 "F|         flatfile = Calibrations/Flat_A_0_DET01.fits\n\n"
-                                 "Where Flat_A_0_DET01.fits is the flat file in your "
-                                 "Calibrations directory\n")
-
+                                 "F|         use_flat = True")
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='sensfunc.par',
@@ -111,13 +110,14 @@ class SensFunc(scriptbase.ScriptBase):
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
                        "\n")
-        if args.flatfile is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --flatfile and simultaneously use a .sens "
+
+        if args.use_flat and args.sens_file is not None:
+            msgs.error("It is not possible to set --use_flat and simultaneously use a .sens "
                        "file via the --sens_file option. If you are using a .sens file set the "
-                       "flatfile there via:\n"
+                       "use_flat flag in your .sens file using the argument:\n"
                        "\n"
                        "    [sensfunc]\n"
-                       "       flatfile = Calibrations/Flat_A_0_DET01.fits'\n"
+                       "       use_flat = True\n"
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
@@ -172,10 +172,10 @@ class SensFunc(scriptbase.ScriptBase):
         if args.algorithm is not None:
             par['sensfunc']['algorithm'] = args.algorithm
 
-        # If flatfile was provided override defaults. Note this does undo .sens
+        # If use_flat was flagged in the input, set use_flat to True. Note this does undo .sens
         # file since they cannot both be passed
-        if args.flatfile is not None:
-            par['sensfunc']['flatfile'] = args.flatfile
+        if args.use_flat:
+            par['sensfunc']['use_flat'] = True
 
         # If multi was set override defaults. Note this does undo .sens file
         # since they cannot both be passed
