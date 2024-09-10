@@ -5115,7 +5115,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # Used to remove orders that have too much overlap
         nord = _left.size
-        good_order = np.ones(nord, dtype=bool)
+        ok_overlap = np.ones(nord, dtype=bool)
 
         # Loop sequentially so that each pair is updated as the loop progresses
         for i in range(1, nord):
@@ -5124,8 +5124,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
             ngap = _right[i-1] - _left[i]
             if ngap > 0:
                 if self.par['max_overlap'] is not None:
-                    good_order[i-1] = 2*ngap/(_right[i-1] - _left[i-1]) < self.par['max_overlap']
-                    good_order[i] = 2*ngap/(_right[i] - _left[i]) < self.par['max_overlap']
+                    ok_overlap[i-1] = 2*ngap/(_right[i-1] - _left[i-1]) < self.par['max_overlap']
+                    ok_overlap[i] = 2*ngap/(_right[i] - _left[i]) < self.par['max_overlap']
                 # Adjust both order edges to avoid the overlap region but
                 # keep the same center coordinate
                 _left[i-1] += ngap
@@ -5148,9 +5148,9 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
-        good_order = good_order[isrt][:nadd]
-        add_left = _left[isrt][:nadd][good_order]
-        add_right = _right[isrt][:nadd][good_order]
+        ok_overlap = ok_overlap[isrt][:nadd]
+        add_left = _left[isrt][:nadd][ok_overlap]
+        add_right = _right[isrt][:nadd][ok_overlap]
 
         if bracket:
             add_left, add_right = self._handle_bracketing_orders(add_left, add_right)
