@@ -63,7 +63,7 @@ Instrument-specific Updates
 
         - Platescale updated from an order-dependent value, to being 0.164
           arcsec/pixel for all orders
-
+- Add new P200/DBSP reid_arxiv template for 1200/7100 with D55 dichroic
 
 Script Changes
 --------------
@@ -101,6 +101,9 @@ Under-the-hood Improvements
 - Introduced :class:`~pypeit.pypeitdata.PypeItDataPaths` to handle all
   interactions with the ``pypeit/data`` directory, which provides a unified
   interface for accessing on-disk and cached files.
+- Updated general raw image reader so that it correctly accounts for
+  spectrographs that read the data and overscan sections directly from the file
+  headers.
 
 Bug Fixes
 ---------
