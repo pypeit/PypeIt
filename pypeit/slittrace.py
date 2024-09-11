@@ -1011,7 +1011,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         # Return
         return sobjs
 
-    def assign_maskinfo(self, sobjs, plate_scale, spat_flexure, TOLER=1.):
+    def assign_maskinfo(self, sobjs, plate_scale, spat_flexure, tolerance=1.):
         """
         Assign RA, DEC, Name to objects.
         Modified in place.
@@ -1030,7 +1030,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 shift to apply to the right edge of each slit.
             det_buffer (:obj:`int`):
                 Minimum separation between detector edges and a slit edge.
-            TOLER (:obj:`float`, optional):
+            tolerance (:obj:`float`, optional):
                 Matching tolerance in arcsec.
 
         Returns:
@@ -1124,7 +1124,7 @@ class SlitTraceSet(calibframe.CalibFrame):
                 obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
             else:
                 obj_fwhm = 0.
-            in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
+            in_toler = np.abs(separ*plate_scale) < (tolerance + cc_rms + obj_fwhm / 2)
             if np.any(in_toler):
                 # Find positive peakflux
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
@@ -1780,7 +1780,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
         if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
             sobjs = calib_slits[i].assign_maskinfo(sobjs, platescale[i], spat_flexure[i],
-                                                   TOLER=slitmask_par['obj_toler'])
+                                                   tolerance=slitmask_par['obj_toler'])
 
             if slitmask_par['extract_missing_objs']:
                 # Set the FWHM for the extraction of missing objects

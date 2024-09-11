@@ -838,7 +838,7 @@ class CoAdd2D:
             platescale = sciImage.detector.platescale * self.spat_samp_fact
 
             # Assign slitmask design information to detected objects
-            slits.assign_maskinfo(sobjs_obj, platescale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+            slits.assign_maskinfo(sobjs_obj, platescale, None, tolerance=parcopy['reduce']['slitmask']['obj_toler'])
 
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects

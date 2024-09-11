@@ -290,7 +290,7 @@ def illum_profile_spectral(self, global_sky, skymask=None):
     # relative spectral sensitivity is calculated at a given wavelength for all slits simultaneously.
     scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                 slit_illum_ref_idx=sl_ref, model=global_sky, gpmask=gpm,
-                                                skymask=skymask, trim=trim, flexure=self.spat_flexure_shift,
+                                                skymask=skymask, trim=trim, spat_flexure=self.spat_flexure_shift,
                                                 smooth_npix=smooth_npix)
     # Now apply the correction to the science frame
     self.apply_relative_scale(scaleImg)

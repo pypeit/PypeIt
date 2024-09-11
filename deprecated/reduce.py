@@ -1701,7 +1701,7 @@ class IFUReduce(MultiSlitReduce):
         gpm = self.sciImg.select_flag(invert=True)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
-                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
+                                                    skymask=skymask, trim=trim, spat_flexure=self.spat_flexure_shift)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 

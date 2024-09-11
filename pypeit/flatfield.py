@@ -856,10 +856,6 @@ class FlatField:
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
-        # Build wavelength image -- not always used, but for convenience done here
-        # TODO :: This was deleted in a recent PR -- figure out why? I think it was moved to the init method
-        if self.waveimg is None: self.build_waveimg()
-
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
         rawflat = self.rawflatimg.image
@@ -1487,8 +1483,8 @@ class FlatField:
         onslit_tweak_trim = self.slits.slit_img(pad=-slit_trim, slitidx=slit_idx, initial=False) == slit_spat
         # Setup
         slitimg = (slit_spat + 1) * onslit_tweak.astype(int) - 1  # Need to +1 and -1 so that slitimg=-1 when off the slit
-        # TODO :: need to fix the 0.0 value on the next line, and the same one a few lines below.
-        left, right, msk = self.slits.select_edges(spat_flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
+        spat_flexure = self.wavetilts.spat_flexure if self.wavetilts is not None else np.zeros((self.slits.nslits, 2))
+        left, right, msk = self.slits.select_edges(spat_flexure=spat_flexure)
         this_left = left[:, slit_idx]
         this_right = right[:, slit_idx]
         slitlen = int(np.median(this_right - this_left))
@@ -1498,7 +1494,7 @@ class FlatField:
         this_wave = self.waveimg[this_slit]
         xpos_img = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                        slitid_img=slitimg,
-                                                       spat_flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0)
+                                                       spat_flexure=spat_flexure)
         # Generate the trimmed versions for fitting
         this_slit_trim = np.where(onslit_tweak_trim & self.rawflatimg.select_flag(invert=True))
         this_wave_trim = self.waveimg[this_slit_trim]
@@ -1595,11 +1591,11 @@ class FlatField:
         # Now fit the spectral profile
         # TODO: Should this be *any* flag, or just BPM?
         gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
-        # TODO :: Need to fix the flexure 0.0 value below, and also rename this argument to spat_flexure for consistency
+        spat_flexure = self.wavetilts.spat_flexure if self.wavetilts is not None else np.zeros((self.slits.nslits, 2))
         scale_model = illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                              slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                              model=None, gpmask=gpm, skymask=None, trim=self.flatpar['slit_trim'],
-                                             flexure=self.wavetilts.spat_flexure if self.wavetilts is not None else 0.0,
+                                             spat_flexure=spat_flexure,
                                              smooth_npix=self.flatpar['slit_illum_smooth_npix'])
         # Trim the edges by a few pixels to avoid edge effects
         onslits_trim = gpm & (self.slits.slit_img(pad=-slit_trim, initial=False) != -1)
@@ -1648,8 +1644,7 @@ class FlatField:
         # check if the waveimg is available
         if self.waveimg is None:
             msgs.warn("Cannot perform the spectral illumination without the wavelength image.")
-            # TODO :: Should this really be None? Probably it should be ones.
-            return None
+            return np.ones_like(self.rawflatimg.image)
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
@@ -1660,13 +1655,11 @@ class FlatField:
             gpm = self.rawflatimg.select_flag(flag='BPM', invert=True)
 
         # Obtain relative spectral illumination
-        # TODO :: fix the 0.0 value for the flexure argument. Also, rename flexure to spat_flexure for consistency
+        spat_flexure = self.wavetilts.spat_flexure if self.wavetilts is not None else np.zeros((self.slits.nslits, 2))
         return illum_profile_spectral(rawflat, self.waveimg, self.slits,
                                       slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                      model=None, gpmask=gpm, skymask=None, trim=trim,
-                                      flexure=self.wavetilts.spat_flexure  if self.wavetilts is not None else 0.0,
-                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'],
-                                      debug=debug)
+                                      model=None, gpmask=gpm, skymask=None, trim=trim, spat_flexure=spat_flexure,
+                                      smooth_npix=self.flatpar['slit_illum_smooth_npix'], debug=debug)
 
     def tweak_slit_edges(self, left, right, spat_coo, norm_flat, method='threshold', thresh=0.93,
                          maxfrac=0.1, debug=False):
@@ -2164,7 +2157,7 @@ def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
 
 # TODO :: This could possibly be moved to core.flat
 def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, polydeg=None,
-                           model=None, gpmask=None, skymask=None, trim=3, flexure=None, maxiter=5, debug=False):
+                           model=None, gpmask=None, skymask=None, trim=3, spat_flexure=None, maxiter=5, debug=False):
     """
     Determine the relative spectral illumination of all slits.
     Currently only used for image slicer IFUs.
@@ -2184,17 +2177,22 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     polydeg : int, optional
         Degree of polynomial to be used for determining relative spectral sensitivity. If None,
         coadd.smooth_weights will be used, with the smoothing length set to smooth_npix.
-    model : `numpy.ndarray`_, None
+    model : `numpy.ndarray`_, optional
         A model of the rawimg data. If None, rawimg will be used.
-    gpmask : `numpy.ndarray`_, None
+    gpmask : `numpy.ndarray`_, optional
         Good pixel mask
-    skymask : `numpy.ndarray`_, None
+    skymask : `numpy.ndarray`_, optional
         Sky mask
     trim : int
         Number of pixels to trim from the edges of the slit
         when deriving the spectral illumination
-    flexure : float, None
-        Spatial flexure
+    spat_flexure : `numpy.ndarray`_, optional
+        If provided, this is the shift, in spatial pixels, to
+        apply to each slit. This is used to correct for spatial
+        flexure. The shape of the array should be (nslits, 2),
+        where the first column is the shift to apply to the
+        left edge of each slit and the second column is the
+        shift to apply to the right edge of each slit.
     maxiter : :obj:`int`
         Maximum number of iterations to perform
     debug : :obj:`bool`
@@ -2215,8 +2213,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
     modelimg = model if (model is not None) else rawimg.copy()
     # Setup the slits
-    slitid_img = slits.slit_img(pad=0, spat_flexure=flexure)
-    slitid_img_trim = slits.slit_img(pad=-trim, spat_flexure=flexure)
+    slitid_img = slits.slit_img(pad=0, spat_flexure=spat_flexure)
+    slitid_img_trim = slits.slit_img(pad=-trim, spat_flexure=spat_flexure)
     scaleImg = np.ones_like(rawimg)
     modelimg_copy = modelimg.copy()
     # Obtain the minimum and maximum wavelength of all slits
