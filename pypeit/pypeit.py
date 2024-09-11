@@ -1046,11 +1046,9 @@ class PypeIt:
         if not self.par['reduce']['extraction']['skip_extraction']:
             msgs.info(f"Extraction begins for {self.basename} on det={det}")
             # set the flatimg, if it exists
-            try:
-                flatimg = self.caliBrate.flatimages.pixelflat_model
-            except AttributeError:
-                msgs.warn("No flat image was found. The blaze will not be extracted!")
-                flatimg = None
+            flatimg = None if self.caliBrate.flatimages is None else self.caliBrate.flatimages.pixelflat_model
+            if flatimg is None:
+                msgs.warn("No flat image was found. A spectrum of the flatfield will not be extracted!")
             # Instantiate Reduce object
             # Required for pipeline specific object
             # At instantiation, the fullmask in self.sciImg is modified

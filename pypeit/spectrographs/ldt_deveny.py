@@ -566,79 +566,17 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Read raw spectrograph image files and return data and relevant metadata
+        needed for image processing.
 
         For LDT/DeVeny, the LOIS control system automatically adjusts the
-        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning other
-        than 1x1.  The :meth:`~pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage`
-        method in the base class assumes these sections are fixed and adjusts
-        them based on the binning -- an incorrect assumption for this instrument.
-
-        This method is a stripped-down version of the base class method and
-        additionally does *NOT* send the binning to :func:`~pypeit.core.parse.sec2slice`.
-
-        Parameters
-        ----------
-        raw_file : :obj:`str`
-            File to read
-        det : :obj:`int`
-            1-indexed detector to read
-
-        Returns
-        -------
-        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`
-            Detector metadata parameters.
-        raw_img : `numpy.ndarray`_
-            Raw image for this detector.
-        hdu : `astropy.io.fits.HDUList`_
-            Opened fits file
-        exptime : :obj:`float`
-            Exposure time *in seconds*.
-        rawdatasec_img : `numpy.ndarray`_
-            Data (Science) section of the detector as provided by setting the
-            (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
-        oscansec_img : `numpy.ndarray`_
-            Overscan section of the detector as provided by setting the
-            (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
+        ``DATASEC`` and ``OSCANSEC`` regions if the CCD is used in a binning
+        other than 1x1.  This is a simple wrapper for
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.get_rawimage` that
+        sets ``sec_includes_binning`` to True.  See the base-class function for
+        the detailed descriptions of the input parameters and returned objects.
         """
-        # Open
-        hdu = io.fits_open(raw_file)
-
-        # Grab the DetectorContainer and extract the raw image
-        detector = self.get_detector_par(det, hdu=hdu)
-        raw_img = hdu[detector['dataext']].data.astype(float)
-
-        # Exposure time (used by RawImage) from the header
-        headarr = self.get_headarr(hdu)
-        exptime = self.get_meta_value(headarr, 'exptime')
-
-        for section in ['datasec', 'oscansec']:
-            # Get the data section from Detector
-            image_sections = detector[section]
-
-            # Initialize the image (0 means no amplifier)
-            pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(detector['numamplifiers']):
-
-                if image_sections is not None:
-                    # Convert the (FITS) data section from a string to a slice
-                    # DO NOT send the binning (default: None)
-                    datasec = parse.sec2slice(image_sections[i], one_indexed=True,
-                                              include_end=True, require_dim=2)
-                    # Assign the amplifier
-                    pix_img[datasec] = i+1
-
-            # Finish
-            if section == 'datasec':
-                rawdatasec_img = pix_img.copy()
-            else:
-                oscansec_img = pix_img.copy()
-
-        # Return
-        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return super().get_rawimage(raw_file, det, sec_includes_binning=True)
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         """

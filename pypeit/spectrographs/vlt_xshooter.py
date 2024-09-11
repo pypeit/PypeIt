@@ -574,8 +574,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         
         # Grab the gain and read noise from the header.
         # If hdu not present, use typical defaults
-        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        gain = None if hdu is None else np.atleast_1d(hdu[0].header['HIERARCH ESO DET OUT1 CONAD'])
+        ronoise = None if hdu is None else np.atleast_1d(hdu[0].header['HIERARCH ESO DET OUT1 RON'])
 
         # Detector 1
         detector_dict = dict(
@@ -591,8 +591,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             nonlinear       = 0.86,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(gain),
-            ronoise         = np.atleast_1d(ronoise),
+            gain            = gain,
+            ronoise         = ronoise,
             datasec=np.atleast_1d('[:,11:2058]'),    # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
             oscansec=np.atleast_1d('[:,2059:2106]'), # raw unbinned images are (4000,2106) (spec, spat)
         )                                            # pre and oscan are in the spatial direction
@@ -866,8 +866,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
         
         # Grab the gain and read noise from the header.
-        gain = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 CONAD']
-        ronoise = None if hdu is None else hdu[0].header['HIERARCH ESO DET OUT1 RON']
+        gain = None if hdu is None else np.atleast_1d(hdu[0].header['HIERARCH ESO DET OUT1 CONAD'])
+        ronoise = None if hdu is None else np.atleast_1d(hdu[0].header['HIERARCH ESO DET OUT1 RON'])
 
         # Detector 1
         detector_dict = dict(
@@ -883,8 +883,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
             nonlinear       = 0.86,  
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(gain),
-            ronoise         = np.atleast_1d(ronoise),
+            gain            = gain,
+            ronoise         = ronoise,
             datasec         = np.atleast_1d('[:,49:2096]'), # '[49:2000,1:2999]',
             oscansec        = np.atleast_1d('[:,1:48]'), # '[1:48, 1:2999]',
             )

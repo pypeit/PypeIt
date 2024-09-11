@@ -1410,23 +1410,26 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
 def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
     """
     Print the spectral or spatial flexure of a spec2d or spec1d file
+
     Args:
         file (:obj:`str`, `Path`_):
             Filename of the spec2d or spec1d file to check
         file_type (:obj:`str`, optional):
-            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default is 'spec2d'.
+            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default
+            is 'spec2d'.
         flexure_type (:obj:`str`, optional):
-            Type of flexure to check. Options are 'spec' or 'spat'. Default is 'spec'.
+            Type of flexure to check. Options are 'spec' or 'spat'. Default is
+            'spec'.
         chk_version (:obj:`bool`, optional):
-            If True, raise an error if the datamodel version or type check failed.
-            If False, throw a warning only. Default is False.
+            If True, raise an error if the datamodel version or type check
+            failed.  If False, throw a warning only. Default is False.
 
     Returns:
-        :obj:`astropy.table.Table` or :obj:`float` or None:
-        - If file_type is 'spec2d' and flexure_type is 'spec', return a table with the spectral flexure
-        - If file_type is 'spec2d' and flexure_type is 'spat', return the spatial flexure
-        - If file_type is 'spec1d', return a table with the spectral flexure
-
+        :obj:`astropy.table.Table`, :obj:`float`, None: If file_type is 'spec2d' and
+        flexure_type is 'spec', return a table with the spectral flexure.  If
+        file_type is 'spec2d' and flexure_type is 'spat', return the spatial
+        flexure.  If file_type is 'spec1d', return a table with the spectral
+        flexure.
     """
 
     # value to return

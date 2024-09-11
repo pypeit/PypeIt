@@ -189,8 +189,6 @@ def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
-    if dloglam == 0.0:
-        msgs.error('The telluric PCA method has zero spacing in log wavelength. This is not supported.')
 
     return dict(wave_grid=wave_grid, dloglam=dloglam,
                 tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
@@ -253,8 +251,6 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
 
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
-    if dloglam == 0.0:
-        msgs.error('The telluric grid has zero spacing in log wavelength. This is not supported.')
 
     return dict(wave_grid=wave_grid, dloglam=dloglam, tell_pad_pix=tell_pad_pix,
                 pressure_grid=pg, temp_grid=tg, h2o_grid=hg, airmass_grid=ag,
