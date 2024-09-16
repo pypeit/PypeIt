@@ -316,8 +316,11 @@ def conv_telluric(tell_model, dloglam, res):
             Resolution convolved telluric model. Shape = same size as input tell_model.
 
     """
-
-
+    # Check the input values
+    if res <= 0.0:
+        msgs.error('Resolution must be positive.')
+    if dloglam == 0.0:
+        msgs.error('The telluric model grid has zero spacing in log wavelength. This is not supported.')
     pix_per_sigma = 1.0/res/(dloglam*np.log(10.0))/(2.0 * np.sqrt(2.0 * np.log(2))) # number of dloglam pixels per 1 sigma dispersion
     sig2pix = 1.0/pix_per_sigma # number of sigma per 1 pix
     if sig2pix > 2.0:
@@ -333,6 +336,7 @@ def conv_telluric(tell_model, dloglam, res):
     g /= g.sum()
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
     return conv_model
+
 
 def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
@@ -363,6 +367,7 @@ def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     #loglam_shift = loglam + shift*dloglam
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
+
 
 def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
@@ -2410,18 +2415,12 @@ class Telluric(datamodel.DataContainer):
         self.disp = disp or debug
         self.sensfunc = sensfunc
         self.debug = debug
-        self.log10_blaze_func_in_arr = None
 
         # 2) Reshape all spectra to be (nspec, norders)
-        if log10_blaze_function is not None:
+        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
+            self.nspec_in, self.norders = utils.spec_atleast_2d(
+            wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)
 
-            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.log10_blaze_func_in_arr, \
-                self.nspec_in, self.norders = utils.spec_atleast_2d(
-                wave, flux, ivar, gpm, log10_blaze_function=log10_blaze_function)
-        else:
-            self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, _, \
-                self.nspec_in, self.norders = utils.spec_atleast_2d(
-                wave, flux, ivar, gpm)
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
         if self.teltype == 'pca':
