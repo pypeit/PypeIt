@@ -333,13 +333,11 @@ class WaveCalib(calibframe.CalibFrame):
         spec_flex /= (slits.nspec - 1)
 
         # Setup
-        #ok_slits = slits.mask == 0
-#        bpm = slits.mask.astype(bool)
-#        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
         bpm = slits.bitmask.flagged(slits.mask, and_not=slits.bitmask.exclude_for_reducing)
         ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
+        # Grab slit_img
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
         # Separate detectors for the 2D solutions?
@@ -347,9 +345,7 @@ class WaveCalib(calibframe.CalibFrame):
             # Error checking
             if self.det_img is None:
                 msgs.error("This WaveCalib object was not generated with ech_separate_2d=True")
-            # Grab slit_img
-            slit_img = slits.slit_img()
-        
+
         # Unpack some 2-d fit parameters if this is echelle
         for islit in np.where(ok_slits)[0]:
             slit_spat = slits.spat_id[islit]
@@ -359,9 +355,7 @@ class WaveCalib(calibframe.CalibFrame):
             if self.par['echelle'] and self.par['ech_2dfit']:
                 # evaluate solution --
                 if self.par['ech_separate_2d']:
-                    ordr_det = slits.det_of_slit(
-                        slit_spat, self.det_img,
-                        slit_img=slit_img)
+                    ordr_det = slits.det_of_slit(slit_spat, self.det_img, slit_img=slitmask)
                     # There are ways for this to go sour..
                     #  if the seperate solutions are not aligned with the detectors
                     #  or if one reruns with a different number of detectors
