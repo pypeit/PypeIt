@@ -18,6 +18,7 @@ from astropy import stats
 from astropy import units
 from astropy.io import ascii
 from astropy.table import Table
+from astropy.stats import sigma_clipped_stats
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -34,6 +35,7 @@ from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
 from pypeit.core import qa
+from pypeit.core import trace
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -68,31 +70,92 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag = 20):
 
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
                 else arc.resize_mask2arc(slitmask.shape, sciimg) 
-    onslits = slitmask > -1
-    corr_slits = onslits.astype(float).flatten()
+    onslits = (slitmask > -1).astype(float)
 
-    # Compute
-    mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
-    thresh =  med_sci + 5.0*stddev_sci
-    corr_sci = np.fmin(_sciimg.flatten(), thresh)
-    lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
+    # sci_smash_mean, sci_smash_median, sci_smash_sig = sigma_clipped_stats(_sciimg, axis=0, sigma=4.0)
+    # slit_smash_mean, slit_smash_median, slit_smash_sig = sigma_clipped_stats(onslits, axis=0, sigma=4.0)
+    #
+    # lags, xcorr = utils.cross_correlate(sci_smash_median, slit_smash_median, slit_smash_median.size)
+    # xcorr_denom = np.sqrt(np.sum(sci_smash_median*sci_smash_median)*np.sum(slit_smash_median*slit_smash_median))
+    # xcorr_norm = xcorr / xcorr_denom
+    #
+    # tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
+    #         = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
+    #                            cont_frac_fwhm=1.0, cont_samp=30, debug=debug)
+
+    sobelsig, edge_img = trace.detect_slit_edges(_sciimg, sobel_enhance=2)
+    slit_sobelsig, slit_img = trace.detect_slit_edges(slitmask, sobel_enhance=2)
+    sci_smash_mean, sci_smash_median, sci_smash_sig = sigma_clipped_stats(edge_img, axis=0, sigma=4.0)
+    slit_smash_mean, slit_smash_median, slit_smash_sig = sigma_clipped_stats(slit_img, axis=0, sigma=4.0)
+    corr_sci, corr_slits = sci_smash_mean[1:-1], slit_smash_mean[1:-1]
+    lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, corr_sci.size)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom
-    # TODO -- Generate a QA plot
 
-    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
-            = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
-                               cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(xcorr_norm,
+                                                                                     cont_subtract=False,
+                                                                                     input_thresh=0.1, debug=debug)
+
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
-        
+
         return 0.
-    
+    lag0_idx = np.where(lags == 0)[0][0]
+    pix_max = np.atleast_1d(pix_max)
+
+    peaks = pix_max - lag0_idx
+    maxpeaks = np.abs(peaks) <= maxlag
+    lag_max = peaks[maxpeaks]
+    xcorr_max = tampl_true[maxpeaks]
+    if not np.any(maxpeaks):
+        msgs.warn('No peak found within the maximum lag.  Assuming there is none...')
+        return 0.
+    elif np.sum(maxpeaks) > 1:
+        msgs.warn('Multiple peaks found within the maximum lag. Using the peak detected with the highest xcross value.')
+        maxsig = np.argmax(xcorr_max)
+        lag_max = np.atleast_1d(lag_max[maxsig])
+        xcorr_max = np.atleast_1d(tampl_true[maxpeaks][maxsig])
+
     # Find the peak
-    xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
-    lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
+
+    if debug:
+        xvals = np.arange(corr_slits.size)
+        plt.clf()
+        ax = plt.gca()
+        scale = np.abs(corr_slits).max() / np.abs(corr_sci).max()
+        ax.plot(xvals, corr_slits, 'k', label='slitmask edge peaks')
+        ax.plot(xvals, corr_sci*scale, 'g', label='original science edge peaks')
+        ax.plot(xvals, np.roll(corr_sci*scale, -int(lag_max[0])), '--r', label='shifted science edge peaks')
+        ax.legend()
+        plt.show()
+
+
+    # corr_slits = onslits.astype(float).flatten()
+    #
+    # # Compute
+    # mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
+    # thresh =  med_sci + 5.0*stddev_sci
+    # corr_sci = np.fmin(_sciimg.flatten(), thresh)
+    # lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
+    # xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
+    # xcorr_norm = xcorr / xcorr_denom
+    # # TODO -- Generate a QA plot
+    # embed()
+    # tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
+    #         = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
+    #                            cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
+    # # No peak? -- e.g. data fills the entire detector
+    # if len(tampl) == 0:
+    #     msgs.warn('No peak found in spatial flexure.  Assuming there is none...')
+    #
+    #     return 0.
+    #
+    # # Find the peak
+    # xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
+    # lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
+    # msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
 
     if debug:
         plt.figure(figsize=(14, 6))

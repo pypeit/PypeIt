@@ -1055,6 +1055,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             tampl_true = tampl_true[ikeep]
             tampl = tampl[ikeep]
             tcent = tcent[ikeep]
+            pixt = pixt[ikeep]
             twid = twid[ikeep]
             centerr = centerr[ikeep]
             ww = np.where(good[ikeep])[0]
