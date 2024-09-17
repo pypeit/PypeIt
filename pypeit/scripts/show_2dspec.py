@@ -154,13 +154,6 @@ class Show2DSpec(scriptbase.ScriptBase):
             else: 
                 detname = DetectorContainer.get_name(det)
 
-        #try:
-        #    det = int(args.det)
-        #except:
-        #    detname = args.det
-        #else:
-        #    detname = DetectorContainer.get_name(det)
-
         # Find the set of channels to show
         show_channels = [0,1,2,3] if args.channels is None \
                             else [int(item) for item in args.channels.split(',')]

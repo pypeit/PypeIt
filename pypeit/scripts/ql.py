@@ -714,7 +714,7 @@ class QL(scriptbase.ScriptBase):
                             help='If standard star observations are automatically detected, '
                                  'ignore those frames.  Otherwise, they are included with the '
                                  'reduction of the science frames.')
-        parser.add_argument('--skip_display', dest='skip_display', default=False, action='store_true',
+        parser.add_argument('--skip_display', default=False, action='store_true',
                             help='Run the quicklook without displaying any results. The default skip_display=False will show the results.') 
         parser.add_argument('--removetrace', default=False, action='store_true',
                             help='When the image is shown, do not overplot traces in the skysub, sky_resid, and resid '

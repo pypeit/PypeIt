@@ -28,8 +28,6 @@ from pypeit.core import findobj_skymask
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import parse 
-#from pypeit.core import parse
-from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
@@ -210,6 +208,7 @@ class CoAdd2D:
         self.pseudo_dict = None
 
         self.objid_bri = None
+        self.spat_pixpos_bri = None
         self.slitidx_bri = None
         self.snr_bar_bri = None
         self.use_weights = None # This is a list of length self.nexp that is assigned by the compute_weights method
@@ -836,21 +835,20 @@ class CoAdd2D:
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
-            # Get plate scale
-            platescale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale*self.spat_samp_fact
-            #platescale = sciImage.detector.platescale * self.spat_samp_fact
+            # Get pixel scale, binned and resampled (if requested), i.e., pixel scale of the pseudo image
+            resampled_pixscale = parse.parse_binning(sciImage.detector.binning)[1]*sciImage.detector.platescale*self.spat_samp_fact
 
             # Assign slitmask design information to detected objects
-            slits.assign_maskinfo(sobjs_obj, platescale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+            slits.assign_maskinfo(sobjs_obj, resampled_pixscale, None, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
 
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects
-                fwhm = slits.get_maskdef_extract_fwhm(sobjs_obj, platescale,
+                fwhm = slits.get_maskdef_extract_fwhm(sobjs_obj, resampled_pixscale,
                                                       parcopy['reduce']['slitmask']['missing_objs_fwhm'],
                                                       parcopy['reduce']['findobj']['find_fwhm'])
                 # Assign undetected objects
                 sobjs_obj = slits.mask_add_missing_obj(sobjs_obj, None, fwhm,
-                                                       parcopy['reduce']['slitmask']['missing_objs_boxcar_rad']/platescale)
+                                                       parcopy['reduce']['slitmask']['missing_objs_boxcar_rad']/resampled_pixscale)
 
         # Initiate Extract object
         exTract = extraction.Extract.get_instance(sciImage, pseudo_dict['slits'], sobjs_obj, self.spectrograph, parcopy,
@@ -873,19 +871,18 @@ class CoAdd2D:
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
-
-    def offsets_report(self, offsets, platescale, offsets_method):
+    @staticmethod
+    def offsets_report(offsets, pixscale, offsets_method):
         """
-        Print out a report on the offsets
+        Print out a report on the offsets of the frames to be coadded
 
         Args:
             offsets (`numpy.ndarray`_)
                 Array of offsets
-            platescale (float):
-                the plate scale for this detector
+            pixscale (float):
+                The (binned) pixelscale in arcsec/pixel.
             offsets_method (str):
                 A string describing the method used to determine the offsets
-        Returns:
 
         """
 
@@ -895,7 +892,7 @@ class CoAdd2D:
             msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
             msg_string += msgs.newline() + '           exp#      offset (pixels)    offset (arcsec)'
             for iexp, off in enumerate(offsets):
-                msg_string += msgs.newline() + '            {:2d}            {:6.2f}              {:6.3f}'.format(iexp, off, off*platescale)
+                msg_string += msgs.newline() + '            {:2d}            {:6.2f}              {:6.3f}'.format(iexp, off, off*pixscale)
             msg_string += msgs.newline() + '---------------------------------------------------------------------------------'
             msgs.info(msg_string)
 
@@ -1108,8 +1105,8 @@ class CoAdd2D:
 
         """
         msgs.info('Get Offsets')
-        platescale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
-        #platescale = self.stack_dict['detectors'][0].platescale
+        # binned pixel scale of the frames to be coadded
+        pixscale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
         # 1) offsets are provided in the header of the spec2d files
         if offsets == 'header':
             msgs.info('Using offsets from header')
@@ -1117,9 +1114,9 @@ class CoAdd2D:
             if None in dithoffs:
                 msgs.error('Dither offsets keyword not found for one or more spec2d files. '
                            'Choose another option for `offsets`')
-            dithoffs_pix = - np.array(dithoffs) / platescale
+            dithoffs_pix = - np.array(dithoffs) / pixscale
             self.offsets = dithoffs_pix[0] - dithoffs_pix
-            self.offsets_report(self.offsets, platescale, 'header keyword')
+            self.offsets_report(self.offsets, pixscale, 'header keyword')
 
         elif self.objid_bri is None and offsets == 'auto':
             msgs.error('Offsets cannot be computed because no unique reference object '
@@ -1130,7 +1127,7 @@ class CoAdd2D:
             msgs.info('Using user input offsets')
             # use them
             self.offsets = self.check_input(offsets, 'offsets')
-            self.offsets_report(self.offsets, platescale, 'user input')
+            self.offsets_report(self.offsets, pixscale, 'user input')
 
         # 3) parset `offsets` is = 'maskdef_offsets' (no matter if we have a bright object or not)
         elif offsets == 'maskdef_offsets':
@@ -1138,7 +1135,7 @@ class CoAdd2D:
                 # the offsets computed during the main reduction (`run_pypeit`) are used
                 msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
                 self.offsets = self.maskdef_offset[0] - self.maskdef_offset
-                self.offsets_report(self.offsets, platescale, 'maskdef_offset')
+                self.offsets_report(self.offsets, pixscale, 'maskdef_offset')
             else:
                 # if maskdef_offsets were not computed during the main reduction, we cannot continue
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
@@ -1192,7 +1189,6 @@ class CoAdd2D:
             pass
         else:
             msgs.error('Invalid value for `weights`')
-
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
         """
@@ -1292,13 +1288,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
         # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
             _slitidx_bri = np.where(np.abs(self.spat_ids - user_slit) <= self.par['coadd2d']['spat_toler'])[0][0]
-            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
-                np.repeat(user_objid, self.nexp), _slitidx_bri, user_slit, None
+            self.objid_bri, self.spat_pixpos_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
+                np.repeat(user_objid, self.nexp), None, _slitidx_bri, user_slit, None
         elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
             self.objid_bri, self.spat_pixpos_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
-        else:
-            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = (None,)*4
 
         # get self.use_weights
         self.compute_weights(weights)
@@ -1385,8 +1379,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 plt.show()
 
             self.offsets = offsets
-            platescale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
-            self.offsets_report(self.offsets, platescale, offsets_method)
+            # binned pixel scale of the frames to be coadded
+            pixscale = parse.parse_binning(self.stack_dict['detectors'][0].binning)[1]*self.stack_dict['detectors'][0].platescale
+            self.offsets_report(self.offsets, pixscale, offsets_method)
 
     def compute_weights(self, weights):
         """
