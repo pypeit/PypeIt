@@ -48,6 +48,7 @@ Instrument-specific Updates
 
 - Improved LRIS frame typing, including the typing of slitless flats and sky flats.
 - Improved HIRES frame typing and configuration setup.
+- Added support for Keck/KCWI BH3 grating configuration.
 - Added support for the (decommissioned) AAT/UHRF instrument
 - Updated the requirements of a spectral flip for KCWI (blue) data. If all amplifiers are
   used, the data will be flipped. If all amplifiers are used, the data will not be flipped.
