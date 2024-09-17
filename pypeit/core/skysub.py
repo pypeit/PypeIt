@@ -1067,7 +1067,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
                              count_scale=None, no_local_sky:bool=False):
-    """
+    r"""
     Perform local sky subtraction, profile fitting, and optimal extraction slit
     by slit. Objects are sky/subtracted extracted in order of the highest
     average (across all orders) S/N ratio object first, and then for a given
@@ -1090,7 +1090,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     Parameters
     ----------
     sciimg : `numpy.ndarray`_
-        science image, usually with a global sky subtracted.
+        Science image, usually with a global sky subtracted.
         shape = (nspec, nspat)
     sciivar : `numpy.ndarray`_
         inverse variance of science image.
@@ -1181,9 +1181,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             fullbkpt = bset.breakpoints
 
     force_gauss : bool, default = False
-        If True, a Gaussian profile will always be assumed for the
-        optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
-        profile.
+        If True, a Gaussian profile will always be assumed for the optimal
+        extraction using the FWHM determined from object finding (or provided by
+        the user) for the spatial profile.
     sn_gauss : int or float, default = 4.0
         The signal to noise threshold above which optimal extraction
         with non-parametric b-spline fits to the objects spatial

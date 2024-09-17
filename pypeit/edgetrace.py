@@ -877,13 +877,15 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_empty and self.par['add_missed_orders']:
             # Refine the order traces
             self.order_refine(debug=debug)
-            # Check that the edges are still sinked
+            # Check that the edges are still synced
             if not self.is_synced:
                 msgs.error('Traces are no longer synced after adding in missed orders.')
 
-#           KBW: This was the old code that resynced.  The comment suggests
-#           this may be necessary if orders are missed, so I need to test if
-#           that's true.
+#           KBW: Keep this code around for a while.  It is the old code that
+#           resynced the edges just after adding in new orders.  Nominally, this
+#           shouldn't be necessary, but the comment suggests this may be
+#           necessary if orders are missed.  We should keep this around until
+#           we're sure it's not needed.
 #            # Check that the edges are still sinked (not overkill if orders are
 #            # missed)
 #            self.success = self.sync(debug=True)
