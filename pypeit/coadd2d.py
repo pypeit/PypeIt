@@ -1190,6 +1190,43 @@ class CoAdd2D:
         else:
             msgs.error('Invalid value for `weights`')
 
+    @staticmethod
+    def unpack_specobj(spec, spatord_id=None):
+        """
+        Utility routine to unpack flux, ivar, and gpm from a single SpecObj object.
+        Args:
+            spec (:class:`~pypeit.specobj.SpecObj`):
+                SpecObj object to unpack.
+            spatord_id (:obj:`int`, optional):
+                Slit/order ID to unpack. If None, the Slit/order ID
+                of the SpecObj object is used.
+
+        Returns:
+            :obj:`tuple`: Returns the following: flux (`numpy.ndarray`_), ivar
+            (`numpy.ndarray`_), gpm (`numpy.ndarray`_).
+
+        """
+        # Get the slit/order ID if not provided
+        if spatord_id is None:
+            spatord_id = spec.ECH_ORDER if spec.ECH_ORDER is not None else spec.SLITID
+
+        # get OBJID, which is different for Echelle and MultiSlit
+        objid = spec.ECH_OBJID if spec.ECH_OBJID is not None else spec.OBJID
+
+        # check if OPT_COUNTS is available
+        if spec.has_opt_ext() and np.any(spec.OPT_MASK):
+            _, flux, ivar, gpm = spec.get_opt_ext()
+        # check if BOX_COUNTS is available
+        elif spec.has_box_ext() and np.any(spec.BOX_MASK):
+            _, flux, ivar, gpm = spec.get_box_ext()
+            msgs.warn(f'Optimal extraction not available for obj {objid} '
+                      f'in slit/order {spatord_id}. Using box extraction.')
+        else:
+            msgs.warn(f'Optimal and Boxcar extraction not available for obj {objid} in slit/order {spatord_id}.')
+            _, flux, ivar, gpm = None, None, None, None
+
+        return flux, ivar, gpm
+
     def get_brightest_obj(self, specobjs_list, spat_ids):
         """
         Dummy method to identify the brightest object. Overloaded by child methods.
@@ -1271,25 +1308,40 @@ class MultiSlitCoAdd2D(CoAdd2D):
         wave_method = 'linear' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
-        # Check if the user-input object to compute offsets and weights exists
-        if self.par['coadd2d']['user_obj'] is not None:
+        # If a user-input object to compute offsets and weights is provided, check if it exists and get the needed info
+        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
             if len(self.par['coadd2d']['user_obj']) != 2:
                 msgs.error('Parameter `user_obj` must include both SLITID and OBJID.')
             else:
                 user_slit, user_objid = self.par['coadd2d']['user_obj']
                 # does it exists?
-                user_obj_exist = []
-                for sobjs in self.stack_dict['specobjs_list']:
-                    user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(user_slit, user_objid,
-                                                                               toler=self.par['coadd2d']['spat_toler'])))
+                user_obj_exist = np.zeros(self.nexp, dtype=bool)
+                # get the flux, ivar, gpm, and spatial pixel position of the user object
+                fluxes, ivars, gpms, spat_pixpos = [], [], [], []
+                for i, sobjs in enumerate(self.stack_dict['specobjs_list']):
+                    user_idx = sobjs.slitorder_objid_indices(user_slit, user_objid,
+                                                             toler=self.par['coadd2d']['spat_toler'])
+                    if np.any(user_idx):
+                        this_sobj = sobjs[user_idx][0]
+                        flux_iobj, ivar_iobj, gpm_iobj = self.unpack_specobj(this_sobj)
+                        spat_pixpos_iobj = this_sobj.SPAT_PIXPOS
+                        if flux_iobj is not None and ivar_iobj is not None and gpm_iobj is not None:
+                            fluxes.append(flux_iobj)
+                            ivars.append(ivar_iobj)
+                            gpms.append(gpm_iobj)
+                            spat_pixpos.append(spat_pixpos_iobj)
+                            user_obj_exist[i] = True
+                # check if the user object exists in all the exposures
                 if not np.all(user_obj_exist):
                     msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
+                # get the needed info about the user object
+                self.objid_bri = np.repeat(user_objid, self.nexp)
+                self.spat_pixpos_bri = spat_pixpos
+                self.slitidx_bri = np.where(np.abs(self.spat_ids - user_slit) <= self.par['coadd2d']['spat_toler'])[0][0]
+                self.spatid_bri = user_slit
+                self.snr_bar_bri, _ = coadd.calc_snr(fluxes, ivars, gpms)
 
-        # find if there is a bright object we could use
-        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
-            _slitidx_bri = np.where(np.abs(self.spat_ids - user_slit) <= self.par['coadd2d']['spat_toler'])[0][0]
-            self.objid_bri, self.spat_pixpos_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
-                np.repeat(user_objid, self.nexp), None, _slitidx_bri, user_slit, None
+        # otherwise, find if there is a bright object we could use
         elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
             self.objid_bri, self.spat_pixpos_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
@@ -1406,10 +1458,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, weight_method='constant')
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} provided by the user')
-                # TODO Should we not still printo out a report for this usage case?
             else:
                 msgs.info(f'Weights computed using a unique reference object in slit={self.spatid_bri} with the highest S/N')
-                self.snr_report(self.spatid_bri, self.spat_pixpos_bri, self.snr_bar_bri)
+            self.snr_report(self.spatid_bri, self.spat_pixpos_bri, self.snr_bar_bri)
 
     def get_brightest_obj(self, specobjs_list, slit_spat_ids):
 
@@ -1456,26 +1507,13 @@ class MultiSlitCoAdd2D(CoAdd2D):
                     objid_this = sobjs[ithis].OBJID
                     spat_pixpos_this = sobjs[ithis].SPAT_PIXPOS
                     fluxes, ivars, gpms = [], [], []
-                    for iobj, spec in enumerate(sobjs[ithis]):
-                        # check if OPT_COUNTS is available
-                        if spec.has_opt_ext() and np.any(spec.OPT_MASK):
-                            _, flux_iobj, ivar_iobj, gpm_iobj = spec.get_opt_ext()
+                    for spec in sobjs[ithis]:
+                        flux_iobj, ivar_iobj, gpm_iobj = self.unpack_specobj(spec, spatord_id=spat_id)
+                        if flux_iobj is not None and ivar_iobj is not None and gpm_iobj is not None:
                             fluxes.append(flux_iobj)
                             ivars.append(ivar_iobj)
                             gpms.append(gpm_iobj)
-                        # check if BOX_COUNTS is available
-                        elif spec.has_box_ext() and np.any(spec.BOX_MASK):
-                            _, flux_iobj, ivar_iobj, gpm_iobj = spec.get_box_ext()
-                            fluxes.append(flux_iobj)
-                            ivars.append(ivar_iobj)
-                            gpms.append(gpm_iobj)
-                            msgs.warn(f'Optimal extraction not available for obj {spec.OBJID} '
-                                      f'in slit {spat_id}. Using box extraction.')
-                        # if both are not available, we remove the object in this slit,
-                        # because otherwise coadd.sn_weights will crash
-                        else:
-                            msgs.warn(f'Optimal and Boxcar extraction not available for obj {spec.OBJID} in slit {spat_id}.')
-                            #remove_indx.append(iobj)
+
                     # if there are objects on this slit left, we can proceed with computing rms_sn
                     if len(fluxes) > 0:
                         rms_sn, _ = coadd.calc_snr(fluxes, ivars, gpms)
@@ -1508,7 +1546,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
             spat_pixpos = spat_pixpos_max[slitid, :]
 
         return objid, spat_pixpos, slitid, slit_spat_ids[slitid], snr_bar
-
 
     def snr_report(self, slitid, spat_pixpos, snr_bar):
         """
@@ -1669,28 +1706,30 @@ class EchelleCoAdd2D(CoAdd2D):
         wave_method = 'log10' if self.par['coadd2d']['wave_method'] is None else self.par['coadd2d']['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(wave_method)
 
-        # Check if the user-input object to compute offsets and weights exists
-        if self.par['coadd2d']['user_obj'] is not None:
+        # If a user-input object to compute offsets and weights is provided, check if it exists and get the needed info
+        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
             if not isinstance(self.par['coadd2d']['user_obj'], int):
                 msgs.error('Parameter `user_obj` must include only the object OBJID.')
             else:
                 user_objid = self.par['coadd2d']['user_obj']
                 # does it exists?
-                user_obj_exist = []
-                for sobjs in self.stack_dict['specobjs_list']:
+                user_obj_exist = np.zeros((self.nexp,self.nslits_single), dtype=bool)
+                for i, sobjs in enumerate(self.stack_dict['specobjs_list']):
                     for iord in range(self.nslits_single):
-                        user_obj_exist.append(np.any(sobjs.slitorder_objid_indices(sobjs.ECH_ORDER[iord], user_objid)))
+                        # check if the object exists in this exposure
+                        ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == user_objid)
+                        flux, ivar, mask = self.unpack_specobj(sobjs[ind][0])
+                        if flux is not None and ivar is not None and mask is not None:
+                            user_obj_exist[i, iord] = True
                 if not np.all(user_obj_exist):
                     msgs.error('Object provided through `user_obj` does not exist in all the exposures.')
 
-        # find if there is a bright object we could use
-        if len(self.stack_dict['specobjs_list']) > 0 and self.par['coadd2d']['user_obj'] is not None:
-            self.objid_bri, self.slitidx_bri, self.snr_bar_bri = np.repeat(user_objid, self.nexp), None, None
+                # get the needed info about the user object
+                self.objid_bri, self.slitidx_bri, self.snr_bar_bri = np.repeat(user_objid, self.nexp), None, None
+
         elif len(self.stack_dict['specobjs_list']) > 0 and (offsets == 'auto' or weights == 'auto'):
             self.objid_bri, self.slitidx_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
-        else:
-            self.objid_bri, self.slitidx_bri, self.snr_bar_bri = (None,)*3
 
         # get self.use_weights
         self.compute_weights(weights)
@@ -1747,6 +1786,7 @@ class EchelleCoAdd2D(CoAdd2D):
                 self.use_weights.append(iweights)
             if self.par['coadd2d']['user_obj'] is not None:
                 msgs.info('Weights computed using a unique reference object provided by the user')
+                # TODO: implement something here to print out the snr_report
             else:
                 msgs.info('Weights computed using a unique reference object with the highest S/N')
                 self.snr_report(self.snr_bar_bri)
@@ -1781,21 +1821,10 @@ class EchelleCoAdd2D(CoAdd2D):
             bpm = np.ones((nslits, nobjs), dtype=bool)
             for iord in range(nslits):
                 for iobj in range(nobjs):
-                    flux = None
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-                    # check if OPT_COUNTS is available
-                    if sobjs[ind][0].has_opt_ext() and np.any(sobjs[ind][0].OPT_MASK):
-                        _, flux, ivar, mask = sobjs[ind][0].get_opt_ext()
-                    # check if BOX_COUNTS is available
-                    elif sobjs[ind][0].has_box_ext() and np.any(sobjs[ind][0].BOX_MASK):
-                        _, flux, ivar, mask = sobjs[ind][0].get_box_ext()
-                        msgs.warn(f'Optimal extraction not available for object {sobjs[ind][0].ECH_OBJID} '
-                                  f'in order {sobjs[ind][0].ECH_ORDER}. Using box extraction.')
-                    else:
-                        msgs.warn(f'Optimal and Boxcar extraction not available for '
-                                  f'object {sobjs[ind][0].ECH_OBJID} in order {sobjs[ind][0].ECH_ORDER}.')
-                        continue
-                    if flux is not None:
+                    flux, ivar, mask = self.unpack_specobj(sobjs[ind][0], spatord_id=sobjs[ind][0].ECH_ORDER)
+
+                    if flux is not None and ivar is not None and mask is not None:
                         rms_sn, _ = coadd.calc_snr([flux], [ivar], [mask])
                         order_snr[iord, iobj] = rms_sn[0]
                         bpm[iord, iobj] = False
