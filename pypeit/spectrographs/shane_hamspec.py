@@ -296,7 +296,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             specaxis=1,
             specflip=False,
             spatflip=True,
-            platescale=0.43, # TO BE FIXED
+            platescale=0.5, # arcsec
             saturation=65535.,
             mincounts=-1e10,
             nonlinear=0.86,
