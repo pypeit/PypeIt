@@ -1193,7 +1193,9 @@ class CoAdd2D:
     @staticmethod
     def unpack_specobj(spec, spatord_id=None):
         """
-        Utility routine to unpack flux, ivar, and gpm from a single SpecObj object.
+        Utility routine to unpack flux, ivar, and gpm from a single SpecObj
+        object.
+
         Args:
             spec (:class:`~pypeit.specobj.SpecObj`):
                 SpecObj object to unpack.

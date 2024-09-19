@@ -312,7 +312,7 @@ This tool is developed by Michael Murphy and is available at
 `this link <https://github.com/MTMurphy77/UVES_popler/>`__.
 Here is an example of a coadded spectrum using UVES_popler:
 
-.. image:: ../figures/uves_popler.png
+.. image:: figures/uves_popler.png
    :scale: 60%
 
 UVES_popler was originally written to coadd ESO/UVES echelle spectra

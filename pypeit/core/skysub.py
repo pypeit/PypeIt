@@ -1067,7 +1067,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
                              count_scale=None, no_local_sky:bool=False):
-    """
+    r"""
     Perform local sky subtraction, profile fitting, and optimal extraction slit
     by slit. Objects are sky/subtracted extracted in order of the highest
     average (across all orders) S/N ratio object first, and then for a given
