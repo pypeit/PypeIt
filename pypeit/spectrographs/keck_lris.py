@@ -1465,9 +1465,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Slit tracing
         # This might only be required for det=2, but we'll see..
         if 'long' in self.get_meta_value(scifile, 'decker'):
-            par['calibrations']['slitedges']['edge_thresh'] = 1000.
+            par['calibrations']['slitedges']['edge_thresh'] = 50.
             par['calibrations']['slitedges']['clip'] = False
-            par['calibrations']['slitedges']['bound_detector'] = True
 
 
         # Return
