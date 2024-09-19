@@ -139,11 +139,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-            # This might only be required for det=2, but we'll see..
-            # TODO: Why is this here and not in KeckLRISRSpectrograph???
-            if self.name == 'keck_lris_red':
-                par['calibrations']['slitedges']['edge_thresh'] = 1000.
-
+            
         # Wave FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
@@ -1465,6 +1461,14 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_R1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # Slit tracing
+        # This might only be required for det=2, but we'll see..
+        if 'long' in self.get_meta_value(scifile, 'decker'):
+            par['calibrations']['slitedges']['edge_thresh'] = 1000.
+            par['calibrations']['slitedges']['clip'] = False
+            par['calibrations']['slitedges']['bound_detector'] = True
+
 
         # Return
         return par
