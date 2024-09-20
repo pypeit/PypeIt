@@ -1867,12 +1867,7 @@ def spec_reject_comb(wave_grid, wave_grid_mid, waves_list, fluxes_list, ivars_li
             fluxes, ivars, this_gpms, flux_stack_nat,  ivar_stack_nat, gpm_stack_nat, sn_clip=sn_clip)
         this_gpms, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=this_gpms, inmask=gpms, invvar=rejivars,
                                           lower=lower,upper=upper, maxrej=maxrej, sticky=False)
-        #rejivars, sigma_corrs, outchi, chigpm = update_errors(
-        #    fluxes, ivars, this_gpms, flux_stack_nat,  ivar_stack_nat, gpm_stack_nat, sn_clip=sn_clip)
-        #this_gpms, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=this_gpms, inmask=gpms, invvar=rejivars,
-        #                                  lower=lower,upper=upper, maxrej=maxrej, sticky=False) 
         iter += 1
-
 
     if (iter == maxiter_reject) & (maxiter_reject != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in spec_reject_comb')

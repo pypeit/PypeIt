@@ -1011,8 +1011,6 @@ class QL(scriptbase.ScriptBase):
             # Run the coadding
             coadd2dFile = inputfiles.Coadd2DFile.from_file(coadd_file)
             CoAdd2DSpec.main(CoAdd2DSpec.parse_args([str(coadd_file)]))
-            #                                         '--spec_samp_fact', str(args.spec_samp_fact),
-            #                                         '--spat_samp_fact', str(args.spat_samp_fact)]))
 
             # Get the output file name
             spectrograph, par, _ = coadd2dFile.get_pypeitpar()
