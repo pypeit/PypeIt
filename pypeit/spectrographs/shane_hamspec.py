@@ -155,11 +155,7 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Additional ones, generally for configuration determination or time
         self.meta['filter1'] = dict(ext=0, card='DFILTNAM')
-        #self.meta['instrument'] = dict(ext=0, card='VERSION')
-        lamp_names = [ '1', '2', '3', '4', '5',
-                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPPOS')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -224,12 +220,12 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             return good_exp # & (fitstbl['target'] == 'Bias')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
+            return good_exp & self.lamps(fitstbl, 'flat')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
+            return good_exp & self.lamps(fitstbl, 'arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -257,17 +253,18 @@ class ShaneHamspecSpectrograph(spectrograph.Spectrograph):
             # Check if all are off
             return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
                                         for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
+        elif status == 'arcs':
             # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(6,17) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,2) ]
+            return np.any(np.array([ fitstbl[k] == 'Thorium-Argon' for k in fitstbl.keys()
                                             if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
+        elif status == 'flat':
             # Check if any dome lamps are on
-            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,2) ]
+            return np.any(np.array([ fitstbl[k] == 'PolarQuartz' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
-        raise ValueError('No implementation for status = {0}'.format(status))
+        else:
+            raise ValueError('No implementation for status = {0}'.format(status))
 
 
 
