@@ -9,7 +9,7 @@ Parameter                 Default    ``bias``   ``dark``   ``trace``  ``arc``   
 ``orient``                ``True``                                                                                                                                      
 ``use_biasimage``         ``True``   ``False``                                                                                                                          
 ``use_darkimage``         ``False``                                                                                                                                     
-``spat_flexure_correct``  ``False``                                                                                                                                     
+``spat_flexure_correct``  ``none``                                                                                                                                      
 ``use_pixelflat``         ``True``   ``False``  ``False``  ``False``  ``False``  ``False``  ``False``  ``False``      ``False``                                         
 ``use_illumflat``         ``True``   ``False``  ``False``  ``False``  ``False``  ``False``  ``False``  ``False``      ``False``                                         
 ``use_specillum``         ``False``                                                                                                                                     

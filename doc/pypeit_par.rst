@@ -895,7 +895,7 @@ Key                       Type                                              Opti
 ``shot_noise``            bool                                              ..                                                                   True                           Use the bias- and dark-subtracted image to calculate and include electron count shot noise in the image processing error budget                                                                                                                                                                                                                                                         
 ``sigclip``               int, float                                        ..                                                                   4.5                            Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                                                                                                                                         
 ``sigfrac``               int, float                                        ..                                                                   0.3                            Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                                                                                                                                                        
-``spat_flexure_correct``  bool                                              ..                                                                   False                          Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                                                                                                                                                                      
+``spat_flexure_correct``  str                                               ``none``, ``detector``, ``slit``, ``edge``                           ``none``                       Correct slits, illumination flat, etc. for spatial flexure. Options are: none, detector, slit, edge"none" means no correction is performed. "detector" means that a single shift is applied to all slits. "slit" means that each slit is shifted independently."edge" means that each slit edge is shifted independently.                                                               
 ``spat_flexure_maxlag``   int                                               ..                                                                   20                             Maximum of possible spatial flexure correction, in pixels                                                                                                                                                                                                                                                                                                                               
 ``subtract_continuum``    bool                                              ..                                                                   False                          Subtract off the continuum level from an image. This parameter should only be set to True to combine arcs with multiple different lamps. For all other cases, this parameter should probably be False.                                                                                                                                                                                  
 ``subtract_scattlight``   bool                                              ..                                                                   False                          Subtract off the scattered light from an image. This parameter should only be set to True for spectrographs that have dedicated methods to subtract scattered light. For all other cases, this parameter should be False.                                                                                                                                                               
@@ -948,7 +948,6 @@ Key                      Type                                            Options
 ``extr``                 str                                             ..                ``OPT``                      Extraction method to use for the sensitivity function.  Options are: 'OPT' (optimal extraction), 'BOX' (boxcar extraction). Default is 'OPT'.                                                                                                                                                                                                                                               
 ``extrap_blu``           float                                           ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction (`i.e.`, if the standard star spectrum cuts off at ``wave_min``) the sensfunc will be extrapolated to cover down to  (1.0 - ``extrap_blu``) * ``wave_min``                                                                                                      
 ``extrap_red``           float                                           ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction (`i.e.`, if the standard star spectrumcuts off at ``wave_max``) the sensfunc will be extrapolated to cover up to  (1.0 + ``extrap_red``) * ``wave_max``                                                                                                          
-``flatfile``             str                                             ..                ..                           Flat field file to be used if the sensitivity function model will utilize the blaze function computed from a flat field file in the Calibrations directory, e.g.Calibrations/Flat_A_0_DET01.fits                                                                                                                                                                                            
 ``hydrogen_mask_wid``    float                                           ..                10.0                         Mask width from line center for hydrogen recombination lines in Angstroms (total mask width is 2x this value).                                                                                                                                                                                                                                                                              
 ``mask_helium_lines``    bool                                            ..                False                        Mask certain ``HeII`` recombination lines prominent in O-type stars in the sensitivity function fit A region equal to 0.5 * ``hydrogen_mask_wid`` on either side of the line center is masked.                                                                                                                                                                                              
 ``mask_hydrogen_lines``  bool                                            ..                True                         Mask hydrogen Balmer, Paschen, Brackett, and Pfund recombination lines in the sensitivity function fit. A region equal to ``hydrogen_mask_wid`` on either side of the line center is masked.                                                                                                                                                                                                
@@ -959,6 +958,7 @@ Key                      Type                                            Options
 ``star_mag``             float                                           ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                         
 ``star_ra``              float                                           ..                ..                           RA of the standard star. This will override values in the header (`i.e.`, if they are wrong or absent)                                                                                                                                                                                                                                                                                      
 ``star_type``            str                                             ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                                     
+``use_flat``             bool                                            ..                False                        If True, the flatfield spectrum will be used when computing the sensitivity function.                                                                                                                                                                                                                                                                                                       
 =======================  ==============================================  ================  ===========================  ============================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -3492,7 +3492,7 @@ Alterations to the default parameters are:
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
-              spat_flexure_correct = True
+              spat_flexure_correct = detector
       [[flatfield]]
           slit_illum_finecorr = False
       [[wavelengths]]
@@ -3513,7 +3513,7 @@ Alterations to the default parameters are:
       [[process]]
           mask_cr = True
           noise_floor = 0.01
-          spat_flexure_correct = True
+          spat_flexure_correct = detector
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -3604,7 +3604,7 @@ Alterations to the default parameters are:
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
-              spat_flexure_correct = True
+              spat_flexure_correct = detector
       [[flatfield]]
           slit_illum_finecorr = False
       [[wavelengths]]
@@ -3625,7 +3625,7 @@ Alterations to the default parameters are:
       [[process]]
           mask_cr = True
           noise_floor = 0.01
-          spat_flexure_correct = True
+          spat_flexure_correct = detector
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -3716,7 +3716,7 @@ Alterations to the default parameters are:
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
-              spat_flexure_correct = True
+              spat_flexure_correct = detector
       [[flatfield]]
           slit_illum_finecorr = False
       [[wavelengths]]
@@ -3743,7 +3743,7 @@ Alterations to the default parameters are:
           sigclip = 5.0
           objlim = 5.0
           noise_floor = 0.01
-          spat_flexure_correct = True
+          spat_flexure_correct = detector
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -3839,7 +3839,7 @@ Alterations to the default parameters are:
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
-              spat_flexure_correct = True
+              spat_flexure_correct = detector
       [[flatfield]]
           slit_illum_finecorr = False
       [[wavelengths]]
@@ -3866,7 +3866,7 @@ Alterations to the default parameters are:
           sigclip = 5.0
           objlim = 5.0
           noise_floor = 0.01
-          spat_flexure_correct = True
+          spat_flexure_correct = detector
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -3962,7 +3962,7 @@ Alterations to the default parameters are:
           [[[process]]]
               mask_cr = True
               noise_floor = 0.01
-              spat_flexure_correct = True
+              spat_flexure_correct = detector
       [[flatfield]]
           slit_illum_finecorr = False
       [[wavelengths]]
@@ -3989,7 +3989,7 @@ Alterations to the default parameters are:
           sigclip = 5.0
           objlim = 5.0
           noise_floor = 0.01
-          spat_flexure_correct = True
+          spat_flexure_correct = detector
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
