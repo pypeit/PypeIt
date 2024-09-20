@@ -1003,7 +1003,8 @@ class FlatField:
                 _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slits.left_init[:, slit_idx],
                                                                          self.slits.right_init[:, slit_idx],
                                                                          onslit_init, _flexure)
-                tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
+                tilts = np.zeros(rawflat.shape, dtype=float)
+                tilts[onslit_init] = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
                                             self.wavetilts['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
