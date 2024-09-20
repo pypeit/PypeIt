@@ -1425,11 +1425,11 @@ def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_versio
             failed.  If False, throw a warning only. Default is False.
 
     Returns:
-        :obj:`astropy.table.Table`, :obj:`float`, None: If file_type is 'spec2d' and
+        :obj:`astropy.table.Table`, :obj:`float`: If file_type is 'spec2d' and
         flexure_type is 'spec', return a table with the spectral flexure.  If
         file_type is 'spec2d' and flexure_type is 'spat', return the spatial
         flexure.  If file_type is 'spec1d', return a table with the spectral
-        flexure.
+        flexure. If the file_type is neither 'spec2d' nor 'spec1d', return None.
     """
 
     # value to return

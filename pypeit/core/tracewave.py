@@ -851,14 +851,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts_prepareSlit(img_shape, slit_left, slit_right, thismask_science, spat_flexure=None):
+def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=None):
     """
     Prepare the slit for the fit2tilts function
 
     Parameters
     ----------
-    img_shape : :obj:`tuple`
-        Shape of the science image
     slit_left : `numpy.ndarray`_
         Left slit edge
     slit_right : `numpy.ndarray`_
@@ -876,6 +874,8 @@ def fit2tilts_prepareSlit(img_shape, slit_left, slit_right, thismask_science, sp
         Tuple containing the spectral and spatial coordinates of the slit, including spatial flexure.
         These variables are to be used in the fit2tilts function.
     """
+    # Get the image shape
+    img_shape = thismask_science.shape
     # Check the spatial flexure input
     if spat_flexure is not None and len(spat_flexure) != 2:
         msgs.error('Spatial flexure must be a two element array')
@@ -900,7 +900,7 @@ def fit2tilts_prepareSlit(img_shape, slit_left, slit_right, thismask_science, sp
     return _spec_eval, _spat_eval
 
 
-def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=None):
+def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None):
     """
     Evaluate the wavelength tilt model over the full image.
 
@@ -922,22 +922,14 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=
     spec_eval : `numpy.ndarray`_, optional
         1D array indicating how spectral pixel locations move across the
         image. If spec_eval is provided, spat_eval must also be provided.
-    spat_shift : float, `numpy.ndarray`_, optional
-        Spatial shift to be added to image pixels before evaluation
-        If you are accounting for flexure, then you probably wish to
-        input -1*flexure_shift into this parameter. Note that this
-        should either be a float or a 1D array with two elements
-        (and both of these elements must be equal).
 
     Returns
     -------
     tilts : `numpy.ndarray`_, float
         Image indicating how spectral pixel locations move across the image.
     """
-    # Determine which mode to run this function
+    # Determine if coordinates have been supplied that include the spatial flexure.
     if spec_eval is not None and spat_eval is not None:
-        if spat_shift is not None:
-            msgs.warn('spat_shift is ignored when spec_eval and spat_eval are provided.')
         _spec_eval = spec_eval
         _spat_eval = spat_eval
     else:
@@ -945,25 +937,8 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None, spat_shift=
         if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
             msgs.warn('Both spec_eval and spat_eval must be provided.' + msgs.newline() +
                       'Only one variable provided, so a new (full) grid will be generated.')
-        # Check the flexure
-        if spat_shift is None:
-            _spat_shift = 0.
-        elif isinstance(spat_shift, (int, float)):
-            _spat_shift = spat_shift
-        elif isinstance(spat_shift, np.ndarray):
-            if spat_shift.size != 2:
-                msgs.error('spat_shift must be a 2-element array.')
-            elif spat_shift[0] != spat_shift[1]:
-                msgs.error('The two elements of spat_shift must be equal.' + msgs.newline() +
-                           'To include different spatial shifts at the two ends of the slit, ' + msgs.newline() +
-                           'you must provide the variables spec_eval and spat_eval instead of spat_shift.')
-            else:
-                _spat_shift = spat_shift[0]
-        else:
-            msgs.error('spat_shift must be either None, a float, or a 1D array with two identical elements.' + msgs.newline() +
-                       'To include different spatial shifts at the two ends of the slit, ' + msgs.newline() +
-                       'you must provide the variables spec_eval and spat_eval instead of spat_shift.')
-
+        msgs.warn("Assuming no spatial flexure.")
+        _spat_shift = 0.0
         # Setup the evaluation grid
         nspec, nspat = shape
         xnspecmin1 = float(nspec - 1)

@@ -94,7 +94,7 @@ class PypeItImage(datamodel.DataContainer):
     # TODO These docs are confusing. The __init__ method needs to be documented just as it is for
     # every other class that we have written in PypeIt, i.e. the arguments all need to be documented. They are not
     # documented here and instead we have the odd Args documentation above. 
-    version = '1.3.0'
+    version = '1.3.1'
     """Datamodel version number"""
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),

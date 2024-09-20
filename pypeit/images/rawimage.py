@@ -675,9 +675,6 @@ class RawImage:
                                                                  maxlag=self.par['spat_flexure_maxlag']) \
             if self.par['spat_flexure_correct'] != "none" else None
 
-        # self.spat_flexure_shift = self.spatial_flexure_shift(slits, maxlag=self.par['spat_flexure_maxlag']) \
-        #                             if self.par['spat_flexure_correct'] else None
-
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:
             self.subtract_scattlight(scattlight, slits)

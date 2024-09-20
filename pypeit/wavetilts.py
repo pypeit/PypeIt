@@ -169,8 +169,7 @@ class WaveTilts(calibframe.CalibFrame):
             coeff_out = self.coeffs[:self.spec_order[slit_idx]+1, :self.spat_order[slit_idx]+1, slit_idx]
             # Extract the spectral and spatial coordinates for this slit
             thismask_science = (slitmask == slit_spat)
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slitmask.shape,
-                                                                     slits_left[:, slit_idx], slits_right[:, slit_idx],
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx], slits_right[:, slit_idx],
                                                                      thismask_science, _spat_flexure[slit_idx, :])
             # Calculate the tilts
             final_tilts[thismask_science] = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d,
@@ -796,8 +795,7 @@ class BuildWaveTilts:
             # which corresonds to the same binning as the science
             # images, trace images, and pixelflats etc.
             thismask_science = self.slitmask_science == slit_spat
-            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slitmask_science.shape,
-                                                                     slits_left[:, slit_idx], slits_right[:, slit_idx],
+            _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(slits_left[:, slit_idx], slits_right[:, slit_idx],
                                                                      thismask_science, self.spat_flexure[slit_idx, :])
             self.final_tilts[thismask_science] = tracewave.fit2tilts(self.slitmask_science.shape, coeff_out, self.par['func2d'],
                                                                spec_eval=_spec_eval, spat_eval=_spat_eval)

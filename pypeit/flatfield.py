@@ -999,10 +999,12 @@ class FlatField:
             if self.slitless:
                 tilts = np.tile(np.arange(rawflat.shape[0]) / (rawflat.shape[0]-1), (rawflat.shape[1], 1)).T
             else:
-                # TODO -- JFH Confirm the sign of this shift is correct!
                 _flexure = np.zeros(2) if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure[slit_idx,:]
+                _spec_eval, _spat_eval = tracewave.fit2tilts_prepareSlit(self.slits.left_init[:, slit_idx],
+                                                                         self.slits.right_init[:, slit_idx],
+                                                                         onslit_init, _flexure)
                 tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'], spat_shift=-1*_flexure)
+                                            self.wavetilts['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
