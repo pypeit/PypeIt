@@ -7,7 +7,7 @@ import os
 import glob
 import numpy as np
 import yaml
-from datetime import datetime
+import datetime
 import io
 import warnings
 from collections.abc import Sequence
@@ -528,7 +528,7 @@ class InputFile:
                 documentation purposes only!**
         """
         _version = __version__ if version_override is None else version_override
-        _date = datetime.now(__UTC__).isoformat(timespec='milliseconds') \
+        _date = datetime.datetime.now(__UTC__).isoformat(timespec='milliseconds') \
                     if date_override is None else date_override
 
         # Here we go

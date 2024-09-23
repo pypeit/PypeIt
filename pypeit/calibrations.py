@@ -6,7 +6,7 @@ Class for guiding calibration object generation in PypeIt.
 """
 import os
 from pathlib import Path
-from datetime import datetime
+import datetime
 from copy import deepcopy
 from abc import ABCMeta
 from collections import Counter
@@ -1462,7 +1462,7 @@ class Calibrations:
         with open(_ofile, 'w') as ff:
             ff.write('# Auto-generated calibration association file using PypeIt version: '
                      f' {__version__}\n')
-            ff.write(f'# UTC {datetime.now(__UTC__).isoformat(timespec="milliseconds")}\n')
+            ff.write(f'# UTC {datetime.datetime.now(__UTC__).isoformat(timespec="milliseconds")}\n')
             if det is None:
                 ff.write(f'# NOTE: {detname} is a placeholder for the reduced detectors/mosaics\n')
             ff.write(yaml.dump(utils.yamlify(asn)))
