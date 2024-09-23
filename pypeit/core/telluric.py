@@ -774,6 +774,7 @@ def general_spec_reader(specfile, ret_flam=False, chk_version=False, ret_order_s
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
         wave, counts, counts_ivar, counts_gpm = unpack_orders(sobjs, ret_flam=ret_flam)
+        wave_grid_mid = None
         # Made a change to the if statement to account for unpack_orders now squeezing returned arrays
         #if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1)
         if (head['PYPELINE'] !='Echelle') and (wave.ndim>1):

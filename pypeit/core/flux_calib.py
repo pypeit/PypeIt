@@ -31,6 +31,7 @@ from pypeit.core import wave
 from pypeit import dataPaths
 
 
+
 # TODO: Put these in the relevant functions
 TINY = 1e-15
 SN2_MAX = (20.0) ** 2

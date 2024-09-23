@@ -741,6 +741,8 @@ class SensFunc(datamodel.DataContainer):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
             model_flux_sav[iorddet][wave_gpm] = model_interp_func(self.sens['SENS_FLUXED_STD_WAVE'][iorddet][wave_gpm])
 
+        self.sens['SENS_STD_MODEL_FLAM'] = model_flux_sav
+
 
 
 
