@@ -1044,6 +1044,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Find the set of trace IDs; left traces are negative, right
         # traces are positive
         self.traceid = np.unique(trace_id_img.compressed())
+        embed()
 
         # Initialize the mask bits array for the trace coordinates and
         # just begin by setting them all as having no edge.
@@ -2489,6 +2490,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         # Check the slits are synced
         if not self.is_synced:
+            embed()
             msgs.error('Edge traces are not yet (or improperly) synced.  Either sync() failed '
                        'or has not yet been executed.')
 
@@ -4141,7 +4143,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Reformat the user-defined input into an array of spectral and spatial
         # coordiates for the new traces
         new_trace_coo = np.array(user_traces, dtype=float)
-        new_trace_coo = np.insert(new_trace_coo, 2, new_trace_coo[:,0], axis=1).reshape(-1,2)
+        new_trace_coo = np.insert(new_trace_coo[:,:2], (0,1), new_trace_coo[0,2], axis=1).reshape(-1,2)
         if method == 'straight':
             # Just repeat the spatial positions
             new_traces = np.tile(new_trace_coo[:,1], (self.nspec,1))
@@ -4187,6 +4189,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Insert
         self.insert_traces(side, new_traces, mode='user')
         # Sync
+        print('Add User Traces')
+        embed()
         self.check_synced(rebuild_pca=False)
 
     def insert_traces(self, side, trace_cen, loc=None, mode='user', resort=True, nudge=True):
