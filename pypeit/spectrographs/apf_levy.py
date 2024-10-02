@@ -302,15 +302,15 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
         if ftype in ['pixelflat','illumflat']:
-            # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'WideFlat')
-        if ftype in ['trace', 'illumflat']:
-            return good_exp & ((fitstbl['idname'] == 'WideFlat') |
-                                   (fitstbl['idname'] == 'NarrowFlat'))
+        if ftype in ['trace']:
+            return good_exp & (fitstbl['idname'] == 'NarrowFlat') & (fitstbl['decker'] == '3.0')
         if ftype in ['tilt']:
-            return good_exp & (fitstbl['idname'] == 'ThAr') & fitstbl['decker'] == '8.0'
+            return good_exp & (fitstbl['idname'] == 'ThAr') & (fitstbl['decker'] == '8.0')
         if ftype in ['arc']:
-            return good_exp & (fitstbl['idname'] == 'ThAr') & fitstbl['decker'] == 'Pinhole'
+            return good_exp & (fitstbl['idname'] == 'ThAr') & (fitstbl['decker'] == 'Pinhole')
+        if ftype in ['pinhole']:
+            return good_exp & (fitstbl['idname'] == 'NarrowFlat') & (fitstbl['decker'] == 'Pinhole')
 
         msgs.warn(f'Cannot determine if frames are of type {ftype}.')
         return np.zeros(len(fitstbl), dtype=bool)
