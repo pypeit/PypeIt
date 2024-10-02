@@ -451,7 +451,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             return np.where(self.spat_id == slitord)[0][0]
         if self.pypeline == 'Echelle':
             return np.where(self.ech_order == slitord)[0][0]
-        msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+        msgs.error(f'Unrecognized Pypeline: {self.pypeline}')
 
     def get_slitlengths(self, initial=False, median=False):
         """
