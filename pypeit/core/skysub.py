@@ -1090,7 +1090,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
     Parameters
     ----------
     sciimg : `numpy.ndarray`_
-        science image, usually with a global sky subtracted.
+        Science image, usually with a global sky subtracted.
         shape = (nspec, nspat)
     sciivar : `numpy.ndarray`_
         inverse variance of science image.
@@ -1181,9 +1181,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg,
             fullbkpt = bset.breakpoints
 
     force_gauss : bool, default = False
-        If True, a Gaussian profile will always be assumed for the
-        optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
-        profile.
+        If True, a Gaussian profile will always be assumed for the optimal
+        extraction using the FWHM determined from object finding (or provided by
+        the user) for the spatial profile.
     sn_gauss : int or float, default = 4.0
         The signal to noise threshold above which optimal extraction
         with non-parametric b-spline fits to the objects spatial

@@ -877,11 +877,21 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if not self.is_empty and self.par['add_missed_orders']:
             # Refine the order traces
             self.order_refine(debug=debug)
-            # Check that the edges are still sinked (not overkill if orders are
-            # missed)
-            self.success = self.sync()
-            if not self.success:
-                return
+            # Check that the edges are still synced
+            if not self.is_synced:
+                msgs.error('Traces are no longer synced after adding in missed orders.')
+
+#           KBW: Keep this code around for a while.  It is the old code that
+#           resynced the edges just after adding in new orders.  Nominally, this
+#           shouldn't be necessary, but the comment suggests this may be
+#           necessary if orders are missed.  We should keep this around until
+#           we're sure it's not needed.
+#            # Check that the edges are still sinked (not overkill if orders are
+#            # missed)
+#            self.success = self.sync(debug=True)
+#            if not self.success:
+#                return
+
             if show_stages:
                 self.show(title='After adding in missing orders')
 
@@ -2612,10 +2622,19 @@ class EdgeTraceSet(calibframe.CalibFrame):
 #                      ' changes along the dispersion direction.')
 #            self.remove_traces(dl_flag, rebuild_pca=_rebuild_pca)
 
-        # Get the slits that have been flagged as abnormally short.  This should
-        # be the same as the definition above, it's just redone here to ensure
-        # `short` is defined when `length_rtol` is None.
-        short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT')
+        # Try to detect overlap between adjacent slits by finding abnormally
+        # short slits.
+        #   - Find abnormally short slits that *do not* include inserted edges;
+        #     i.e., these must be *detected* edges, not inserted ones.
+        #   - *Both* edges in the fit must be flagged because of this
+        #     requirement that the trace not be inserted.  This means that we
+        #     set mode='neither' when running synced_selection.  I also set
+        #     assume_synced=True: the traces should be synced if the code has
+        #     made it this far.  Any flags that would indicate otherwise will
+        #     have been set by this function.
+        short = self.fully_masked_traces(flag='ABNORMALSLIT_SHORT',
+                                         exclude=self.bitmask.insert_flags)
+        short = self.synced_selection(short, mode='neither', assume_synced=True)
         if self.par['overlap'] and np.any(short):
             msgs.info('Assuming slits flagged as abnormally short are actually due to '
                       'overlapping slit edges.')
@@ -2819,7 +2838,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
         if not assume_synced and not self.is_synced:
             msgs.error('To synchronize the trace selection, it is expected that the traces have '
-                       'been left-right synchronized.  Either run sync() to sychronize, ignore '
+                       'been left-right synchronized.  Either run sync() to sychronize or ignore '
                        'the synchronization (which may raise an exception) by setting '
                        'assume_synced=True.')
         if mode == 'both':
@@ -4090,7 +4109,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
 
             if debug:
                 msgs.info('Show instance includes inserted traces but before checking the sync.')
-                self.show(flag='any')
+                self.show(title='includes inserted traces before checking the sync', flag='any')
 
             # Check the full synchronized list and log completion of the
             # method
@@ -4100,6 +4119,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
             i += 1
             if i == maxiter:
                 msgs.error('Fatal left-right trace de-synchronization error.')
+
         if self.log is not None:
             self.log += [inspect.stack()[0][3]]
         return True
@@ -4271,7 +4291,7 @@ class EdgeTraceSet(calibframe.CalibFrame):
         if loc.size != ntrace:
             msgs.error('Number of sides does not match the number of insertion locations.')
 
-        msgs.info('Inserting {0} new traces.'.format(ntrace))
+        msgs.info(f'Inserting {ntrace} new traces.')
 
         # Nudge the traces
         if nudge:
@@ -4855,13 +4875,17 @@ class EdgeTraceSet(calibframe.CalibFrame):
             add_left, add_right = self.order_refine_fixed_format(reference_row, debug=debug)
             rmtraces = None
         else:
+            # TODO: `bracket` is hard-coded!  Currently I expect we always want
+            # to set bracket=True, but we should plan to revisit this and maybe
+            # expose as a user parameter.
+            bracket = True
             add_left, add_right, rmtraces \
-                    = self.order_refine_free_format(reference_row, debug=debug)
+                    = self.order_refine_free_format(reference_row, bracket=bracket, debug=debug)
 
         if add_left is None or add_right is None:
             msgs.info('No additional orders found to add')
             return
-
+        
         if rmtraces is not None:
             self.remove_traces(rmtraces, rebuild_pca=True)
 
@@ -4915,12 +4939,58 @@ class EdgeTraceSet(calibframe.CalibFrame):
         
         return add_left_edges, add_right_edges
 
-    # NOTE: combined_order_tol is effectively hard-coded.
-    def order_refine_free_format(self, reference_row, combined_order_tol=1.8, debug=False):
+    # NOTE: combined_order_tol is effectively hard-coded; i.e., the current code
+    # always uses the default when calling this function.
+    def order_refine_free_format(self, reference_row, combined_order_tol=1.8, bracket=True,
+                                 debug=False):
         """
         Refine the order locations for "free-format" Echelles.
 
-        Traces must be synced before reaching here.
+        Traces must be synced before calling this function.
+
+        The procedure is as follows:
+
+            - The function selects the good traces and calculates the width of
+              each order and the gap between each order and fits them with
+              Legendre polynomials (using the polynomial orders set by the
+              ``order_width_poly`` and ``order_gap_poly`` parameters); 5-sigma
+              outliers are removed from the fit.
+
+            - Based on this fit, the code adds missed orders, both interspersed
+              with detected orders and extrapolated over the full spatial range
+              of the detector/mosaic.  The spatial extent over which this
+              prediction is performed is set by ``order_spat_range`` and can be
+              limited by any resulting overlap in the prediction, as set by
+              ``max_overlap``.
+
+            - Any detected "orders" that are actually the adjoining of one or
+              more orders are flagged for rejection.
+
+        Args:
+            reference_row (:obj:`int`):
+                The index of the spectral pixel (row) in the set of left and
+                right traces at which to predict the positions of the missed
+                orders.  Nominally, this is the reference row used for the
+                construction of the trace PCA.
+            combined_order_tol (:obj:`float`, optional):
+                For orders that are very nearly overlapping, the automated edge
+                tracing can often miss the right and left edges of two adjacent
+                orders.  This leads to the detected edges of two adjacent orders
+                being combined into a single order.  This value sets the maximum
+                ratio of the width of any given detected order to the polynomial
+                fit to the order width as a function of spatial position on the
+                detector.
+            bracket (:obj:`bool`, optional):
+                Bracket the added orders with one additional order on either side.
+                This can be useful for dealing with predicted overlap.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ objects that provide (1,2) the
+            left and right edges of orders to be added to the set of edge traces
+            and (3) a boolean array indicating which of the existing traces
+            should be removed.
         """
         # Select the left/right traces
         # TODO: This is pulled from get_slits.  Maybe want a function for this.
@@ -4928,7 +4998,8 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # Save the list of good left edges in case we need to remove any
         left_gpm = gpm & self.is_left
         left = self.edge_fit[:,left_gpm]
-        right = self.edge_fit[:,gpm & self.is_right]
+        right_gpm = gpm & self.is_right
+        right = self.edge_fit[:,right_gpm]
 
         # Use the trace locations at the middle of the spectral shape of the
         # detector/mosaic
@@ -4941,45 +5012,59 @@ class EdgeTraceSet(calibframe.CalibFrame):
         gap = left[1:] - right[:-1]
 
         # Create the polynomial models.
-        # TODO:
-        #   - Expose the rejection parameters to the user?
-        #   - Be more strict with upper rejection, to preferentially ignore
-        #     measurements biased by missing orders and/or combined orders?
         width_fit = fitting.robust_fit(cen, width, self.par['order_width_poly'],
-                                       function='legendre', lower=3., upper=3., maxiter=5,
-                                       sticky=True)
+                                       function='legendre', lower=self.par['order_fitrej'],
+                                       upper=self.par['order_fitrej'], maxiter=5, sticky=True)
         # Connection of center to gap uses the gap spatially *after* the order.
         gap_fit = fitting.robust_fit(cen[:-1], gap, self.par['order_gap_poly'],
-                                     function='legendre', lower=3., upper=3., maxiter=5,
-                                     sticky=True)
-
-        # Ideally, measured widths/gaps should be regected for one of the
+                                     function='legendre', lower=self.par['order_fitrej'],
+                                     upper=self.par['order_fitrej'], maxiter=5, sticky=True)
+        
+        # Ideally, measured widths/gaps should be rejected for one of the
         # following reasons:
         #   - The width is too large because gaps were missed (i.e. multiple
         #     orders were combined)
         #   - The width is too small because order overlap was detected and
         #     removed.
         #   - The gap is too large because orders were missed
-        # This finds cases where multiple orders have been combined
-        combined_orders = width / width_fit.eval(cen) > combined_order_tol
+
+        # In the case when the user does not reject "outliers", we still reject
+        # orders that we expected to be cases where multiple orders have been
+        # combined
+        bad_order = width / width_fit.eval(cen) > combined_order_tol
+        if self.par['order_outlier'] is not None:
+            # Exclude "outliers"
+            resid = np.absolute(width_fit.yval - width_fit.eval(width_fit.xval))
+            bad_order |= (resid/width_fit.calc_fit_rms() > self.par['order_outlier'])
+            # TODO: The gaps for HIRES can have *very* large residuals.  Using
+            # the gaps to identify outliers would remove many orders that
+            # probably shouldn't be removed.
+#            resid = np.absolute(gap_fit.yval - gap_fit.eval(gap_fit.xval))
+#            bad_order[:-1] |= (resid/gap_fit.calc_fit_rms() > self.par['order_outlier'])
+
         # And sets flags used to remove them, in favor of replacing them with
         # the predicted locations of the individual orders.
         rmtraces = np.zeros(left_gpm.size, dtype=bool)
-        rmtraces[np.where(left_gpm)[0][combined_orders]] = True
+        rmtraces[np.where(left_gpm)[0][bad_order]] = True
         rmtraces = self.synced_selection(rmtraces, mode='both')
         
         # Interpolate any missing orders
         # TODO: Expose tolerances to the user?
-        individual_orders = np.logical_not(combined_orders)
+        good_order = np.logical_not(bad_order)
         order_cen, order_missing \
-                = trace.find_missing_orders(cen[individual_orders], width_fit, gap_fit)
+                = trace.find_missing_orders(cen[good_order], width_fit, gap_fit)
+        if np.sum(order_missing) > order_missing.size // 2:
+            msgs.warn('Found more missing orders than detected orders.  Check the order '
+                      'refinement QA file!  The code will continue, but you likely need to adjust '
+                      'your edge-tracing parameters.')
 
-        # Extrapolate orders
+        # Extrapolate orders; this includes one additional order to either side
+        # of the spatial extent set by rng.
         rng = [0., float(self.nspat)] if self.par['order_spat_range'] is None \
                     else self.par['order_spat_range']
         lower_order_cen, upper_order_cen \
-                    = trace.extrapolate_orders(cen[individual_orders], width_fit, gap_fit,
-                                               rng[0], rng[1])
+                    = trace.extrapolate_orders(cen[good_order], width_fit, gap_fit,
+                                               rng[0], rng[1], bracket=bracket)
 
         # Combine the results
         order_cen = np.concatenate((lower_order_cen, order_cen, upper_order_cen))
@@ -4996,122 +5081,327 @@ class EdgeTraceSet(calibframe.CalibFrame):
         # TODO: Making this directory should probably be done elsewhere
         if ofile is not None and not ofile.parent.is_dir():
             ofile.parent.mkdir(parents=True)
-        self.order_refine_free_format_qa(cen, combined_orders, width, gap, width_fit, gap_fit,
-                                         order_cen, order_missing, ofile=ofile)
+        self.order_refine_free_format_qa(cen, bad_order, width, gap, width_fit, gap_fit,
+                                         order_cen, order_missing, bracket=bracket, ofile=ofile)
 
         # Return the coordinates for the left and right edges to add
         add_width = width_fit.eval(order_cen[order_missing])
-        add_left, add_right = order_cen[order_missing] - add_width / 2, order_cen[order_missing] + add_width / 2
+        add_left = order_cen[order_missing] - add_width / 2
+        add_right = order_cen[order_missing] + add_width / 2
 
         # Join the added edges with the existing ones
-        _left = np.append(add_left, left[individual_orders])
+        _left = np.append(add_left, left[good_order])
         # Create a sorting vector
         srt = np.argsort(_left)
         # Create a vector that will reverse the sorting
         isrt = np.argsort(srt)
         # Join and sort the right edges
-        _right = np.append(add_right, right[individual_orders])[srt]
+        _right = np.append(add_right, right[good_order])[srt]
         # Sort the left edges
         _left = _left[srt]
+
+        # NOTE: Although I haven't tested this, I think this approach works best
+        # under the assumption that the overlap *decreases* from small pixel
+        # numbers to large pixel numbers.  This should be true if the pypeit
+        # convention is maintained with blue orders toward small pixel values
+        # and red orders at large pixel values.
 
         # Deal with overlapping orders among the ones to be added.  The edges
         # are adjusted equally on both sides to avoid changing the order center
         # and exclude the overlap regions from the reduction.
-        if np.any(_left[1:] - _right[:-1] < 0):
-            # Loop sequentially so that each pair is updated as the loop progresses
-            for i in range(1, _left.size):
-                # *Negative* of the gap; i.e., positives values means there's
-                # overlap
-                ngap = _right[i-1] - _left[i]
-                if ngap > 0:
-                    # Adjust both order edges to avoid the overlap region but
-                    # keep the same center coordinate
-                    _left[i-1] += ngap
-                    _right[i-1] -= ngap
-                    _left[i] += ngap
-                    _right[i] -= ngap
+        if np.all(_left[1:] - _right[:-1] > 0):
+            if bracket:
+                add_left, add_right = self._handle_bracketing_orders(add_left, add_right)
+            # There is no overlap, so just return the orders to add
+            return add_left, add_right, rmtraces
+
+        # Used to remove orders that have too much overlap
+        nord = _left.size
+        ok_overlap = np.ones(nord, dtype=bool)
+
+        # Loop sequentially so that each pair is updated as the loop progresses
+        for i in range(1, nord):
+            # *Negative* of the gap; i.e., positives values means there's
+            # overlap
+            ngap = _right[i-1] - _left[i]
+            if ngap > 0:
+                if self.par['max_overlap'] is not None:
+                    ok_overlap[i-1] = 2*ngap/(_right[i-1] - _left[i-1]) < self.par['max_overlap']
+                    ok_overlap[i] = 2*ngap/(_right[i] - _left[i]) < self.par['max_overlap']
+                # Adjust both order edges to avoid the overlap region but
+                # keep the same center coordinate
+                _left[i-1] += ngap
+                _right[i-1] -= ngap
+                _left[i] += ngap
+                _right[i] -= ngap
+
+        # For any *existing* traces that were adjusted because of the overlap,
+        # this applies the adjustment to the `edge_fit` data.
+        # NOTE: This only adjusts the "fit" locations (edge_fit), *not* the
+        # measured centroid locations (edge_cen).  This should not cause
+        # problems because, e.g., the `get_slits` function uses `edge_fit`.
+        nadd = add_left.size
+        left_indx = np.where(left_gpm)[0][good_order]
+        offset = _left[isrt][nadd:] - left
+        self.edge_fit[:,left_indx] += offset[None,:]
+        right_indx = np.where(right_gpm)[0][good_order]
+        offset = _right[isrt][nadd:] - right
+        self.edge_fit[:,right_indx] += offset[None,:]
 
         # Get the adjusted traces to add.  Note this currently does *not* change
         # the original traces
-        return _left[isrt][:add_left.size], _right[isrt][:add_right.size], rmtraces
-        
-    def order_refine_free_format_qa(self, cen, combined_orders, width, gap, width_fit, gap_fit,
-                                    order_cen, order_missing, ofile=None):
+        ok_overlap = ok_overlap[isrt][:nadd]
+        add_left = _left[isrt][:nadd][ok_overlap]
+        add_right = _right[isrt][:nadd][ok_overlap]
+
+        if bracket:
+            add_left, add_right = self._handle_bracketing_orders(add_left, add_right)
+        return add_left, add_right, rmtraces
+
+    @staticmethod
+    def _handle_bracketing_orders(add_left, add_right):
         """
-        QA plot for order placements
+        Utility function to remove added orders that bracket the left and right
+        edge of the detector, used to handle overlap.
+
+        Args:
+            add_left (`numpy.ndarray`_):
+                List of left edges to add
+            add_right (`numpy.ndarray`_):
+                List of right edges to add
+
+        Returns:
+            :obj:`tuple`: The two `numpy.ndarray`_ objects after removing the
+            bracketing orders.
         """
+        nadd = add_left.size
+        if nadd < 2:
+            # TODO: The code should not get here!  If it does, we need to
+            # figure out why and fix it.
+            msgs.error('CODING ERROR: Order bracketing failed!')
+        if nadd == 2:
+            return None, None
+        return add_left[1:-1], add_right[1:-1]
+    
+    def order_refine_free_format_qa(self, cen, bad_order, width, gap, width_fit, gap_fit,
+                                    order_cen, order_missing, bracket=False, ofile=None):
+        """
+        Create the QA plot for order modeling.
+
+        Args:
+            cen (`numpy.ndarray`_):
+                Spatial centers of the detected orders.
+            bad_order (`numpy.ndarray`_):
+                Boolean array selecting "orders" that have been flagged as
+                outliers.
+            width (`numpy.ndarray`_):
+                Measured order spatial widths in pixels.
+            gap (`numpy.ndarray`_):
+                Measured order gaps in pixels.
+            width_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+                Model of the order width as a function of the order center.
+            gap_fit (:class:`~pypeit.core.fitting.PypeItFit`):
+                Model of the order gap *after* each order as a function of the order
+                center.
+            order_cen (`numpy.ndarray`_):
+                Spatial centers of all "individual" orders.
+            order_missing (`numpy.ndarray`_):
+                Boolean array selecting "individual" orders that were not traced
+                by the automated tracing and flagged as missing.  See
+                :func:`~pypeit.core.trace.find_missing_orders` and
+                :func:`~pypeit.core.trace.extrapolate_orders`.
+            bracket (:obj:`bool`, optional):
+                Flag that missing orders have been bracketed by additional
+                orders in an attempt to deal with overlap regions.
+            ofile (:obj:`str`, `Path`_, optional):
+                Path for the QA figure file.  If None, the plot is shown in a
+                matplotlib window.
+        """
+        # Setup
+        w_resid = width - width_fit.eval(cen)
+        w_rms = width_fit.calc_fit_rms()
+        med_wr = np.median(w_resid)
+        mad_wr = np.median(np.absolute(w_resid - med_wr))
+
+        w_out = bad_order & width_fit.gpm.astype(bool)
+        w_rej = np.logical_not(bad_order) & np.logical_not(width_fit.gpm)
+        w_outrej = bad_order & np.logical_not(width_fit.gpm)
+        w_good = np.logical_not(w_out | w_rej | w_outrej)
+
+        g_cen = cen[:-1]
+        g_bad_order = bad_order[:-1]
+        g_resid = gap - gap_fit.eval(g_cen)
+        g_rms = gap_fit.calc_fit_rms()
+        med_gr = np.median(g_resid)
+        mad_gr = np.median(np.absolute(g_resid - med_gr))
+
+        g_out = g_bad_order & gap_fit.gpm.astype(bool)
+        g_rej = np.logical_not(g_bad_order) & np.logical_not(gap_fit.gpm)
+        g_outrej = g_bad_order & np.logical_not(gap_fit.gpm)
+        g_good = np.logical_not(g_out | g_rej | g_outrej)
+
+        # Set the spatial limits based on the extent of the order centers and/or
+        # the detector spatial extent
+        sx = min(0, np.amin(order_cen))
+        ex = max(self.nspat, np.amax(order_cen))
+        buf = 1.1
+        xlim = [(sx * (1 + buf) + ex * (1 - buf))/2, (sx * (1 - buf) + ex * (1 + buf))/2]
+
+        # Set the residual plot limits based on the median and median absolute
+        # deviation
+        width_lim = np.array([med_wr - 20*mad_wr, med_wr + 20*mad_wr])
+        gap_lim = np.array([med_gr - 20*mad_gr, med_gr + 20*mad_gr])
+
+        # Sample the width and gap models over the full width of the plots
+        mod_cen = np.linspace(*xlim, 100)
+        mod_width = width_fit.eval(mod_cen)
+        mod_gap = gap_fit.eval(mod_cen)
+
+        # Create the plot
         w,h = plt.figaspect(1)
         fig = plt.figure(figsize=(1.5*w,1.5*h))
 
-        ax = fig.add_axes([0.15, 0.35, 0.8, 0.6])
+        # Plot the data and each fit
+        ax = fig.add_axes([0.10, 0.35, 0.8, 0.6])
         ax.minorticks_on()
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
+        ax.set_xlim(xlim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
 
-        # TODO: Do something similar for the gaps?
-        if np.any(combined_orders):
-            individual_orders = np.logical_not(combined_orders)
-            ax.scatter(cen[combined_orders], width[combined_orders], 
-                       marker='^', color='C1', s=80, lw=0, label='combined orders flag',
-                       zorder=3)
-            ax.scatter(cen[individual_orders], width[individual_orders], 
-                       marker='.', color='C0', s=50, lw=0, label='measured widths',
-                       zorder=3)
-        else:
-            ax.scatter(cen, width, 
-                       marker='.', color='C0', s=50, lw=0, label='measured widths',
-                       zorder=3)
+        # Set the plot title
+        title = 'Order prediction model'
+        if bracket:
+            title += ' (bracketed)'
+        ax.text(0.5, 1.02, title, ha='center', va='center', transform=ax.transAxes)
+
+        # Plot the detector bounds
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
+
+        # Models
+        ax.plot(mod_cen, mod_width, color='C0', alpha=0.3, lw=3, zorder=3)
+        ax.plot(mod_cen, mod_gap, color='C2', alpha=0.3, lw=3, zorder=3)
+
+        # Measurements included in the fit
+        ax.scatter(cen[w_good], width[w_good],
+                   marker='.', color='C0', s=50, lw=0, label='fitted widths', zorder=4)
+        if np.any(w_rej):
+            # Rejected but not considered an outlier
+            ax.scatter(cen[w_rej], width[w_rej],
+                       marker='x', color='C1', s=50, lw=1, label='rej widths', zorder=4)
+        if np.any(w_out):
+            # Outlier but not rejected
+            ax.scatter(cen[w_out], width[w_out],
+                       marker='^', facecolor='none', edgecolor='C1', s=50, lw=1,
+                       label='outlier widths', zorder=4)
+        if np.any(w_outrej):
+            # Both outlier and rejected
+            ax.scatter(cen[w_outrej], width[w_outrej],
+                       marker='^', facecolor='C1', s=50, lw=1, label='rej,outlier widths', zorder=4)
+        # Orders to add
         ax.scatter(order_cen[order_missing], width_fit.eval(order_cen[order_missing]),
-                   marker='x', color='C0', s=80, lw=1, label='missing widths', zorder=3)
-        ax.plot(order_cen, width_fit.eval(order_cen), color='C0', alpha=0.3, lw=3, zorder=2)
-        ax.scatter(cen[:-1], gap, marker='.', color='C2', s=50, lw=0, label='measured gaps',
-                   zorder=3)
+                   marker='s', facecolor='none', edgecolor='C0', s=80, lw=1,
+                   label='missing widths', zorder=3)
+
+        # Same as above but for gaps
+        ax.scatter(g_cen[g_good], gap[g_good],
+                   marker='.', color='C2', s=50, lw=0, label='fitted gaps', zorder=4)
+        if np.any(g_rej):
+            ax.scatter(g_cen[g_rej], gap[g_rej],
+                       marker='x', color='C4', s=50, lw=1, label='rej gaps', zorder=4)
+        if np.any(g_out):
+            ax.scatter(g_cen[g_out], gap[g_out],
+                       marker='^', facecolor='none', edgecolor='C4', s=50, lw=1,
+                       label='outlier gaps', zorder=4)
+        if np.any(g_outrej):
+            ax.scatter(g_cen[g_outrej], gap[g_outrej],
+                       marker='^', facecolor='C4', s=50, lw=1, label='rej,outlier gaps', zorder=4)
         ax.scatter(order_cen[order_missing], gap_fit.eval(order_cen[order_missing]),
-                   marker='x', color='C2', s=80, lw=1, label='missing gaps', zorder=3)
-        ax.plot(order_cen, gap_fit.eval(order_cen), color='C2', alpha=0.3, lw=3, zorder=2)
+                   marker='s', facecolor='none', edgecolor='C2', s=80, lw=1,
+                   label='missing gaps', zorder=3)
+
+        # Add the y label and legend
         ax.set_ylabel('Order Width/Gap [pix]')
         ax.legend()
 
-        width_resid = width - width_fit.eval(cen)
-        med_wr = np.median(width_resid)
-        mad_wr = np.median(np.absolute(width_resid - med_wr))
-        width_lim = [med_wr - 10*mad_wr, med_wr + 10*mad_wr]
-
-        gap_resid = gap - gap_fit.eval(cen[:-1])
-        med_gr = np.median(gap_resid)
-        mad_gr = np.median(np.absolute(gap_resid - med_gr))
-        gap_lim = [med_gr - 10*mad_gr, med_gr + 10*mad_gr]
-
-        ax = fig.add_axes([0.15, 0.25, 0.8, 0.1])
+        # Plot the width residuals
+        ax = fig.add_axes([0.10, 0.25, 0.8, 0.1])
         ax.minorticks_on()
-        ax.tick_params(which='both', direction='in', top=True, right=True)
-        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
+        ax.tick_params(which='both', direction='in', top=True, right=False)
+        ax.set_xlim(xlim)
         ax.set_ylim(width_lim)
         ax.xaxis.set_major_formatter(ticker.NullFormatter())
-        if np.any(combined_orders):
-            ax.scatter(cen[combined_orders], width_resid[combined_orders],
-                       marker='^', color='C1', s=80, lw=0, zorder=3)
-            ax.scatter(cen[individual_orders], width_resid[individual_orders],
-                       marker='.', color='C0', s=50, lw=0, zorder=3)
-        else:
-            ax.scatter(cen, width_resid, marker='.', color='C0', s=50, lw=0, zorder=3)
+
+        # Plot the detector bounds
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
+
+        # Model is at 0 residual
         ax.axhline(0, color='C0', alpha=0.3, lw=3, zorder=2)
+        # Measurements included in the fit
+        ax.scatter(cen[w_good], w_resid[w_good], marker='.', color='C0', s=50, lw=0, zorder=4)
+        # Rejected but not considered an outlier
+        ax.scatter(cen[w_rej], w_resid[w_rej], marker='x', color='C1', s=50, lw=1, zorder=4)
+        # Outlier but not rejected
+        ax.scatter(cen[w_out], w_resid[w_out],
+                   marker='^', facecolor='none', edgecolor='C1', s=50, lw=1, zorder=4)
+        # Both outlier and rejected
+        ax.scatter(cen[w_outrej], w_resid[w_outrej],
+                   marker='^', facecolor='C1', s=50, lw=1, zorder=4)
+
+        # Add the label
         ax.set_ylabel(r'$\Delta$Width')
 
-        ax = fig.add_axes([0.15, 0.15, 0.8, 0.1])
-        ax.minorticks_on()
-        ax.tick_params(which='both', direction='in', top=True, right=True)
-        ax.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
-        ax.set_xlim([0, self.nspat])
-        ax.set_ylim(gap_lim)
-        ax.scatter(cen[:-1], gap_resid, marker='.', color='C2', s=50, lw=0, zorder=3)
-        ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
-        ax.set_ylabel(r'$\Delta$Gap')
+        # Add a right axis that gives the residuals normalized by the rms; use
+        # this to set the grid.
+        axt = ax.twinx()
+        axt.minorticks_on()
+        axt.tick_params(which='both', direction='in')
+        axt.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        axt.set_xlim(xlim)
+        axt.set_ylim(width_lim / w_rms)
+        axt.set_ylabel(r'$\Delta$/RMS')
 
+        # Plot the gap residuals
+        ax = fig.add_axes([0.10, 0.15, 0.8, 0.1])
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in', top=True, right=False)
+        ax.set_xlim(xlim)
+        ax.set_ylim(gap_lim)
+
+        # Plot the detector bounds
+        ax.axvline(0, color='k', ls='--', lw=2)
+        ax.axvline(self.nspat, color='k', ls='--', lw=2)
+
+        # Model is at 0 residual
+        ax.axhline(0, color='C2', alpha=0.3, lw=3, zorder=2)
+        # Measurements included in the fit
+        ax.scatter(g_cen[g_good], g_resid[g_good],
+                   marker='.', color='C2', s=50, lw=0, zorder=4)
+        # Rejected but not considered an outlier
+        ax.scatter(g_cen[g_rej], g_resid[g_rej],
+                   marker='x', color='C4', s=50, lw=1, zorder=4)
+        # Outlier but not rejected
+        ax.scatter(g_cen[g_out], g_resid[g_out],
+                   marker='^', facecolor='none', edgecolor='C4', s=50, lw=1, zorder=4)
+        # Both outlier and rejected
+        ax.scatter(g_cen[g_outrej], g_resid[g_outrej],
+                   marker='^', facecolor='C4', s=50, lw=1, zorder=4)
+        
+        # Add the axis labels
+        ax.set_ylabel(r'$\Delta$Gap')
         ax.set_xlabel('Spatial pixel')
+
+        # Add a right axis that gives the residuals normalized by the rms; use
+        # this to set the grid.
+        axt = ax.twinx()
+        axt.minorticks_on()
+        axt.tick_params(which='both', direction='in')
+        axt.grid(True, which='major', color='0.7', zorder=0, linestyle='-')
+        axt.set_xlim(xlim)
+        axt.set_ylim(gap_lim / g_rms)
+        axt.set_ylabel(r'$\Delta$/RMS')
 
         if ofile is None:
             plt.show()

@@ -37,7 +37,6 @@ class CombineImage:
         rawImages (:obj:`list`):
             A list of one or more :class:`~pypeit.images.rawimage.RawImage` objects 
             to be combined.             
-
     """
     def __init__(self, rawImages, par):
         if not isinstance(par, pypeitpar.ProcessImagesPar):
