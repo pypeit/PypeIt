@@ -25,7 +25,7 @@ def write_imgproc_def_table(ofile, spec=None):
                 'orient',
                 'use_biasimage',
                 'use_darkimage',
-                'spat_flexure_correct',
+                'spat_flexure_method',
                 'use_pixelflat',
                 'use_illumflat',
                 'use_specillum',

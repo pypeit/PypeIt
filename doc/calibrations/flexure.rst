@@ -26,12 +26,22 @@ Spatial Flexure
 The code has a simple yet relatively robust method to cross-correlate
 the slits against any input image to determine a rigid, spatial offset.
 This algorithm is performed for any frame type by setting
-``spat_flexure_correct = True`` in the ``process`` block
-of :ref:`processimagespar`.
+``spat_flexure_method = <method>`` in the ``process`` block
+of :ref:`processimagespar`, where you should replace ``<method>`` with one of the
+following valid methods:
+``skip`` - this will skip the spatial flexure correction
+``detector`` - this will calculate one spatial flexure value for all slits on the detector
+``slit`` - this will calculate the spatial flexure for each slit separately
+``edge`` - this will calculate the spatial flexure for each slit edge separately
 
 We have made our own determinations for which instruments to enable this as the
 default. Inspect the :ref:`instr_par` list to see if your instrument is included
-(search for the value of ``spat_flexure_correct``).
+(search for the value of ``spat_flexure_method``). We recommend that you use the
+``detector`` method for most instruments, unless you have good reason to believe
+that the spatial flexure is different for different slits or slit edges. Also note
+that some spectrographs post-process the spatial flexure values when using the ``slit``
+or ``edge`` methods (e.g. perform a linear fit to the spatial flexure values) to improve
+the result. Consult the documentation for your instrument to see if this is the case.
 
 Depending on what frame types you choose to correct, the
 code will behave somewhat differently.  Here we describe
@@ -49,11 +59,11 @@ add this to your PypeIt file:
 
     [scienceframe]
         [[process]]
-            spat_flexure_correct = True
+            spat_flexure_method = detector
     [calibrations]
         [[standardframe]]
             [[[process]]]
-                spat_flexure_correct = True
+                spat_flexure_method = detector
 
 This will:
 
@@ -75,7 +85,7 @@ following to your :doc:`../pypeit_file`:
     [calibrations]
         [[tiltframe]]
             [[[process]]]
-                spat_flexure_correct = True
+                spat_flexure_method = detector
 
 This will:
 
