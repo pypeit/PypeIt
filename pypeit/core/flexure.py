@@ -17,7 +17,6 @@ import matplotlib
 from astropy import stats
 from astropy import units
 from astropy.io import ascii
-from astropy.table import Table
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -1405,95 +1404,6 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     m=(diff_err < 0.1) & (diff_err > 0.0)
     # Return
     return dwave[m], diff[m], diff_err[m], los[m], los_err[m]
-
-
-def flexure_diagnostic(file, file_type='spec2d', flexure_type='spec', chk_version=False):
-    """
-    Print the spectral or spatial flexure of a spec2d or spec1d file
-
-    Args:
-        file (:obj:`str`, `Path`_):
-            Filename of the spec2d or spec1d file to check
-        file_type (:obj:`str`, optional):
-            Type of the file to check. Options are 'spec2d' or 'spec1d'. Default
-            is 'spec2d'.
-        flexure_type (:obj:`str`, optional):
-            Type of flexure to check. Options are 'spec' or 'spat'. Default is
-            'spec'.
-        chk_version (:obj:`bool`, optional):
-            If True, raise an error if the datamodel version or type check
-            failed.  If False, throw a warning only. Default is False.
-
-    Returns:
-        :obj:`astropy.table.Table`, :obj:`float`: If file_type is 'spec2d' and
-        flexure_type is 'spec', return a table with the spectral flexure.  If
-        file_type is 'spec2d' and flexure_type is 'spat', return the spatial
-        flexure.  If file_type is 'spec1d', return a table with the spectral
-        flexure. If the file_type is neither 'spec2d' nor 'spec1d', return None.
-    """
-
-    # value to return
-    return_flex = None
-
-    if file_type == 'spec2d':
-        # load the spec2d file
-        allspec2D = spec2dobj.AllSpec2DObj.from_fits(file, chk_version=chk_version)
-        # Loop on Detectors
-        for det in allspec2D.detectors:
-            print('')
-            print('=' * 50 + f'{det:^7}' + '=' * 51)
-            # get and print the spectral flexure
-            if flexure_type == 'spec':
-                spec_flex = allspec2D[det].sci_spec_flexure
-                spec_flex.rename_column('sci_spec_flexure', 'global_spec_shift')
-                if np.all(spec_flex['global_spec_shift'] != None):
-                    spec_flex['global_spec_shift'].format = '0.3f'
-                # print the table
-                spec_flex.pprint_all()
-                # return the table
-                return_flex = spec_flex
-            # get and print the spatial flexure
-            if flexure_type == 'spat':
-                spat_flexure = allspec2D[det].sci_spat_flexure
-                if np.all(spat_flexure == spat_flexure[0, 0]):
-                    # print the value
-                    print(f'Spatial shift: {spat_flexure}')
-                elif np.array_equal(spat_flexure[:,0],spat_flexure[:,1]):
-                    # print the value of each slit
-                    for ii in range(spat_flexure.shape[0]):
-                        print(f'  Slit {ii+1} spatial shift: {spat_flexure[ii,0]}')
-                else:
-                    # print the value for the edge of each slit
-                    for ii in range(spat_flexure.shape[0]):
-                        print('  Slit {0:2d} --  left edge spatial shift: {1:f}'.format(ii+1, spat_flexure[ii,0]))
-                        print('          --  right edge spatial shift: {0:f}'.format(spat_flexure[ii,1]))
-                # return the value
-                # TODO :: This return_flex is in a for loop, so the return will be the last value.
-                #      :: Also, the return_flex is not used in the code. So, perhaps this can be removed?
-                return_flex = spat_flexure
-    elif file_type == 'spec1d':
-        # no spat flexure in spec1d file
-        if flexure_type == 'spat':
-            msgs.error("Spat flexure not available in the spec1d file, try with a spec2d file")
-        # load the spec1d file
-        sobjs = specobjs.SpecObjs.from_fitsfile(file, chk_version=chk_version)
-        spec_flex = Table()
-        spec_flex['NAME'] = sobjs.NAME
-        spec_flex['global_spec_shift'] = sobjs.FLEX_SHIFT_GLOBAL
-        if np.all(spec_flex['global_spec_shift'] != None):
-            spec_flex['global_spec_shift'].format = '0.3f'
-        spec_flex['local_spec_shift'] = sobjs.FLEX_SHIFT_LOCAL
-        if np.all(spec_flex['local_spec_shift'] != None):
-            spec_flex['local_spec_shift'].format = '0.3f'
-        spec_flex['total_spec_shift'] = sobjs.FLEX_SHIFT_TOTAL
-        if np.all(spec_flex['total_spec_shift'] != None):
-            spec_flex['total_spec_shift'].format = '0.3f'
-        # print the table
-        spec_flex.pprint_all()
-        # return the table
-        return_flex = spec_flex
-
-    return return_flex
 
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations
