@@ -1381,12 +1381,23 @@ class FlatField:
 
         Args:
             norm_spec (`numpy.ndarray`_):
+                Flat-field image (2D array) with the spectral response normalized out.
             spat_coo (`numpy.ndarray`_):
-                Spatial coordinate array
+                An image with the slit spatial coordinates, expected to
+                be with respect to a single slit and span the full image
+                region selected by the good-pixel mask (``spat_gpm``).
+                Shape must match ``norm_spec``.
             median_slit_width (:obj:`float`):
+                Fiducial slit width used to set the median-filter window size.
             spat_gpm (`numpy.ndarray`_):
+                The good-pixel mask that selects the pixels to include in
+                the slit illumination profile calculation. If None, **all
+                pixels in the provided images are used**. For virtually
+                all practical purposes, this array should be provided.
             gpm (`numpy.ndarray`_):
+                TODO :: This parameter is not used -- I think this is a bug, and the GPM is not being updated from the call to this function?
             debug (bool, optional):
+                If True, show plots useful for debugging.
 
         Returns:
             tuple: 7 objects
