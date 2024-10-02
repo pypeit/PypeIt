@@ -37,7 +37,7 @@ from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
-from pypeit import specobj, specobjs, spec2dobj
+from pypeit import specobj, specobjs
 from pypeit import wavemodel
 
 from IPython import embed

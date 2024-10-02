@@ -21,9 +21,18 @@ Dependency Changes
 Functionality/Performance Improvements and Additions
 ----------------------------------------------------
 
+- Added the ``max_overlap`` parameter, which limits the set of new order traces
+  added, to compensate for orders missed during automated edge-tracing, to those
+  that have less than a given fractional overlap with adjacent orders.
+- Added the ``order_fitrej`` and ``order_outlier`` parameters used to set the
+  sigma-clipping threshold used when fitting Legendre functions to the order
+  widths and gaps.
 - Added the possibility to decide if the extracted standard star spectrum should be
   used as a crutch for tracing the object in the science frame (before it was done as default).
   This is done by setting the parameter ``use_std_trace`` in FindObjPar.
+- Now PypeIt can handle the case where "Standard star trace does not match the
+  number of orders in the echelle data" both in `run_pypeit` and in
+  `pypeit_coadd_1dspec`.
 - Now PypeIt can handle the case where "Standard star trace does not match the number of orders in the echelle data"
   both in `run_pypeit` and in `pypeit_coadd_1dspec`.
 - The spatial flexure can now take a constant value for every slit, independent values for each slit,
@@ -112,6 +121,14 @@ Under-the-hood Improvements
 - Introduced :class:`~pypeit.pypeitdata.PypeItDataPaths` to handle all
   interactions with the ``pypeit/data`` directory, which provides a unified
   interface for accessing on-disk and cached files.
+- When adding missing orders, the full syncing procedure is no longer performed.
+  The code now only checks that the edges are still synced after the missed
+  orders are added.
+- When detecting overlapping orders/slits, the code now forces each edge used to
+  have been directly detected; i.e., if an edge is inserted, the fact that the
+  resulting slit is abnormally short should not trigger the overlap detection.
+- Improved the QA plot resulting from fitting order widths and gaps as a
+  function of spatial position.
 - Updated general raw image reader so that it correctly accounts for
   spectrographs that read the data and overscan sections directly from the file
   headers.
