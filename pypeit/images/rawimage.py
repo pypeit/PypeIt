@@ -801,7 +801,8 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, method=method, maxlag=maxlag)
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits, gpm=np.logical_not(self._bpm),
+                                                             method=method, maxlag=maxlag)
         self.steps[step] = True
         # Return
         return self.spat_flexure_shift
