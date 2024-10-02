@@ -957,6 +957,12 @@ class FlatField:
             onslit_padded = padded_slitid_img == slit_spat
             onslit_trimmed = trimmed_slitid_img == slit_spat
 
+            if onslit_trimmed.sum() == 0:
+                msgs.warn('No pixels on slit {0} after trimming.  Skipping this slit.'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+                
+
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
             # TODO: Put this stuff in a self.spectral_fit method?
@@ -2018,7 +2024,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_
         if max(abs(1/minv), abs(maxv)) < 1.005:  # Relative accuracy of 0.5% is sufficient
             break
     if debug:
-        embed()
+        
         ricp = rawimg.copy()
         for ss in range(slits.spat_id.size):
             onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now

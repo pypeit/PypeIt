@@ -89,7 +89,7 @@ class VLTERISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['nsnippet'] = 1
 
         # Reidentification parameters
-        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        #par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['rm_slits'] = '1:1024:983' # Remove the center slit that is not illuminated
 
