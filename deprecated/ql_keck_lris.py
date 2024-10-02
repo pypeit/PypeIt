@@ -59,7 +59,7 @@ def config_lines(args):
     cfg_lines += ['        refframe = observed']
     cfg_lines += ['[scienceframe]']
     cfg_lines += ['    [[process]]']
-    cfg_lines += ['        spat_flexure_correct = False']
+    cfg_lines += ['        spat_flexure_method = skip']
     if not args.mask_cr:
         cfg_lines += ['        mask_cr = False']
     cfg_lines += ['[reduce]']

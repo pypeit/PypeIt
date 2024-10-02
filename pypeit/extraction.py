@@ -162,8 +162,8 @@ class Extract:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip"):
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
@@ -216,7 +216,7 @@ class Extract:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
             #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip":
                 _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
                 # If they both shifted the same, there will be no reason to shift the tilts
                 tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure

@@ -158,8 +158,8 @@ class FindObjects:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
-           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none"):
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip"):
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
@@ -227,7 +227,7 @@ class FindObjects:
             self.waveTilts = waveTilts
             self.waveTilts.is_synced(self.slits)
             #   Deal with Flexure
-            if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct'] != "none":
+            if self.par['calibrations']['tiltframe']['process']['spat_flexure_method'] != "skip":
                 _spat_flexure = np.zeros((slits.nslits, 2)) if self.spat_flexure_shift is None \
                     else self.spat_flexure_shift
                 # If they both shifted the same, there will be no reason to shift the tilts
