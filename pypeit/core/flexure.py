@@ -32,6 +32,7 @@ from pypeit.core.wavecal import autoid
 from pypeit.core import arc
 from pypeit.core import extract
 from pypeit.core import fitting
+from pypeit.core import flat
 from pypeit.core import qa
 from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
@@ -42,13 +43,14 @@ from pypeit import wavemodel
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False):
+def spat_flexure_shift(sciimg, slits, gpm=None, method="detector", maxlag=20, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
 
-    It is *important* to use original=True when defining the
+    It is *important* to use initial=True when defining the
     slitmask as everything should be relative to the initial slits
+    TODO :: Check the above statement... I think it might be relative to the tweaked slits.
 
     Otherwise, the WaveTilts could get out of sync with science images
 
@@ -57,6 +59,8 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
             Science image
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slits object
+        gpm (`numpy.ndarray`_, optional):
+            Good pixel mask (True = Good)
         method (:obj:`str`, optional):
             Method to use to calculate the spatial flexure shift. Options
             are 'detector' (default), 'slit', and 'edge'. The 'detector'
@@ -73,10 +77,9 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
         float:  The spatial flexure shift relative to the initial slits
 
     """
-    # TODO :: Need to implement different methods
-
+    initial = True  # TODO :: Set this to True, for now.
     # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
-    slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
+    slitmask = slits.slit_img(initial=initial, exclude_flag=slits.bitmask.exclude_for_flexure)
 
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
                 else arc.resize_mask2arc(slitmask.shape, sciimg) 
@@ -103,7 +106,10 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
     # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
-    msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
+    msgs.info('Detector spatial flexure measured: {}'.format(lag_max[0]))
+
+    # So far we have calculated the global flexure (method = detector)
+    total_flexure = np.full((slits.nslits, 2), lag_max[0])
 
     if debug:
         plt.figure(figsize=(14, 6))
@@ -113,22 +119,60 @@ def spat_flexure_shift(sciimg, slits, method="detector", maxlag=20, debug=False)
         plt.legend()
         plt.show()
 
-    #tslits_shift = trace_slits.shift_slits(tslits_dict, lag_max)
-    # Now translate the tilts
-
-    #slitmask_shift = pixels.tslits2mask(tslits_shift)
-    #slitmask_shift = slits.slit_img(flexure=lag_max[0])
-
-    if debug:
         # Now translate the slits in the tslits_dict
-        all_left_flexure, all_right_flexure, mask = slits.select_edges(spat_flexure=lag_max[0])
+        all_left_flexure, all_right_flexure, mask = slits.select_edges(initial=initial, spat_flexure=total_flexure)
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         #embed(header='83 of flexure.py')
 
-    return np.full((slits.nslits, 2), lag_max[0])
+    # If we're only calculating the detector flexure, return now
+    if method == "detector":
+        return total_flexure
 
+    # Compute the small correction to the flexure for each slit edge
+    if method in ["slit", "edge"]:
+        # Store an array of the small correction to the flexure for each slit
+        delta_flexure = np.zeros((slits.nslits, 2))
+        # Setup the slits and image properties
+        left, right = slits.select_edges(initial=initial, spat_flexure=total_flexure)
+        # Loop through all slits and calculate the flexure of each slit edge.
+        for slit_idx in range(slits.nslits):
+            slit_width = np.median(right[:, slit_idx] - left[:, slit_idx])
+            spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=initial, spat_flexure=total_flexure)
+            # Construct the empirical illumination profile
+            _spat_gpm, spat_srt, spat_coo_data, spat_img_data_raw, spat_img_data \
+                = flat.construct_illum_profile(_sciimg, spat_coo, slit_width, spat_gpm=gpm)
+                                               # spat_samp=self.flatpar['spat_samp'],
+                                               # illum_iter=self.flatpar['illum_iter'],
+                                               # illum_rej=self.flatpar['illum_rej'])
+            # Calculate the point where the gradient is the highest
+            _, left_shift, _, _, right_shift, _ = \
+                flat.tweak_slit_edges_gradient(left[:,slit_idx], right[:,slit_idx], spat_coo_data, spat_img_data)
+            # These values are the fraction of the slit width, so convert to pixels
+            delta_flexure[slit_idx, 0] = left_shift * slit_width
+            delta_flexure[slit_idx, 1] = right_shift * slit_width
+        # If the method is slit, average the flexure for each edge
+        if method == "slit":
+            # use the average flexure for each edge as the flexure for the slit
+            delta_flexure = np.mean(delta_flexure, axis=1).reshape((slits.nslits, 1)).repeat(2, axis=1)
+        # Add the delta_flexure to the total_flexure
+        total_flexure += delta_flexure
+        # print the flexure for each slit
+        for slit_idx in range(slits.nslits):
+            if method == "slit":
+                msgs.info("Slit {0:d}: Spatial flexure = {1:5.3f}".format(slit_idx + 1, total_flexure[slit_idx, 0]))
+            elif method == "edge":
+                msgs.info("Slit {0:d}: Left/right spatial flexure = {1:5.3f} / {2:5.3f}".format(slit_idx + 1,
+                                                                                                total_flexure[slit_idx, 0],
+                                                                                                total_flexure[slit_idx, 1]))
+    else:
+        msgs.error("Not ready for this method")
+
+    # TODO :: Should we include the possibility of post-processing the slit edges according to the spectrograph (e.g. fit linear relationship to total_flexure)?
+
+    # Return the total flexure
+    return total_flexure
 
 def spec_flex_shift(obj_skyspec, sky_file=None, arx_skyspec=None, arx_fwhm_pix=None,
                     spec_fwhm_pix=None, mxshft=20, excess_shft="crash",
