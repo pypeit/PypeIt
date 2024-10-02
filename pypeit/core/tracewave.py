@@ -900,18 +900,20 @@ def fit2tilts_prepareSlit(slit_left, slit_right, thismask_science, spat_flexure=
     return _spec_eval, _spat_eval
 
 
-def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None):
+def fit2tilts(coeff2, func2d, shape=None, spec_eval=None, spat_eval=None):
     """
-    Evaluate the wavelength tilt model over the full image.
+    Evaluate the wavelength tilt model over the full image. Note that this function
+    requires either shape or both spec_eval and spat_eval to be provided. If all three
+    are provided, spec_eval and spat_eval will be used.
 
     Parameters
     ----------
-    shape : tuple of ints,
-        shape of image
     coeff2 : `numpy.ndarray`_, float
         result of griddata tilt fit
     func2d : str
         the 2d function used to fit the tilts
+    shape : tuple of ints, optional
+        Shape of image. Only used if spat_eval and spec_eval are not provided.
     spat_eval : `numpy.ndarray`_, optional
         1D array indicating how spatial pixel locations move across the
         image. If spat_eval is provided, spec_eval must also be provided.
@@ -937,6 +939,14 @@ def fit2tilts(shape, coeff2, func2d, spec_eval=None, spat_eval=None):
         if (spec_eval is None and spat_eval is not None) or (spec_eval is not None and spat_eval is None):
             msgs.warn('Both spec_eval and spat_eval must be provided.' + msgs.newline() +
                       'Only one variable provided, so a new (full) grid will be generated.')
+        # Print a warning if neither are provided
+        if spec_eval is None and spat_eval is None:
+            msgs.warn('No spatial and spectral coordinates provided.' + msgs.newline() +
+                      'A new (full) grid will be generated.')
+        # Print a warning is shape is not provided
+        if shape is None:
+            msgs.error('No shape provided for the image.' + msgs.newline() +
+                       'You must provide either `shape` or both `spat_eval` and `spec_eval`.')
         msgs.warn("Assuming no spatial flexure.")
         _spat_shift = 0.0
         # Setup the evaluation grid

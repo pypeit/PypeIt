@@ -785,10 +785,16 @@ class PypeItImage(datamodel.DataContainer):
         # Spatial flexure
         spat_flexure = self.spat_flexure
         if other.spat_flexure is not None and spat_flexure is not None \
-                and np.array_equal(other.spat_flexure, spat_flexure):
-            msgs.warn(f'Spatial flexure different for images being subtracted. Adopting ' \
+                and not np.array_equal(other.spat_flexure, spat_flexure):
+            msgs.warn(f'Spatial flexure different for images being subtracted. Adopting '
                       f'the maximum spatial flexure of each individual edge.')
-            spat_flexure = np.maximum(spat_flexure, other.spat_flexure)
+            # Loop through all slit edges and find the largest flexure
+            for ii in range(spat_flexure.shape[0]):
+                # Assign the largest flexure (irrespective of sign) for each edge
+                if np.abs(other.spat_flexure[ii,0]) > np.abs(spat_flexure[ii,0]):
+                    spat_flexure[ii,0] = other.spat_flexure[ii,0]
+                if np.abs(other.spat_flexure[ii,1]) > np.abs(spat_flexure[ii,1]):
+                    spat_flexure[ii,1] = other.spat_flexure[ii,1]
 
         # Create a copy of the detector, if it is defined, to be used when
         # creating the new pypeit image below

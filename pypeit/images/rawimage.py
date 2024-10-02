@@ -241,7 +241,7 @@ class RawImage:
         """
         if self.par is None:
             return False
-        return (self.par['spat_flexure_correct'] != "none") or (self.use_flat and self.par['use_illumflat'])
+        return (self.par['spat_flexure_method'] != "skip") or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -506,7 +506,7 @@ class RawImage:
                 Bias image for bias subtraction.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
                 Used to calculate spatial flexure between the image and the
-                slits, if requested via the ``spat_flexure_correct`` parameter
+                slits, if requested via the ``spat_flexure_method`` parameter
                 in :attr:`par`; see
                 :func:`~pypeit.core.flexure.spat_flexure_shift`.  Also used to
                 construct the slit illumination profile, if requested via the
@@ -546,7 +546,7 @@ class RawImage:
             msgs.error('No dark available for dark subtraction!')
         if self.par['subtract_scattlight'] and scattlight is None:
             msgs.error('Scattered light subtraction requested, but scattered light model not provided.')
-        if (self.par['spat_flexure_correct'] != "none") and slits is None:
+        if (self.par['spat_flexure_method'] != "skip") and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
             msgs.error('Flat-field corrections requested but no flat-field images generated '
@@ -671,9 +671,9 @@ class RawImage:
         # bias and dark subtraction) and before field flattening.  Also the
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
-        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_correct'],
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_method'],
                                                                  maxlag=self.par['spat_flexure_maxlag']) \
-            if self.par['spat_flexure_correct'] != "none" else None
+            if self.par['spat_flexure_method'] != "skip" else None
 
         #   - Subtract scattered light... this needs to be done before flatfielding.
         if self.par['subtract_scattlight']:

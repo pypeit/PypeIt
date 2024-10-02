@@ -711,7 +711,7 @@ class FlatField:
             msgs.error("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
         else:
             spat_flexure = self.wavetilts.spat_flexure
-            left, right, msk = self.slits.select_edges(spat_flexure=spat_flexure)
+            left, right, msk = self.slits.select_edges(initial=True, spat_flexure=spat_flexure)
             slitmask = self.slits.slit_img(initial=True, spat_flexure=spat_flexure)
             tilts = self.wavetilts.fit2tiltimg(slitmask, left, right, spat_flexure=spat_flexure)
             # Save to class attribute for inclusion in the Flat calibration frame
@@ -1004,8 +1004,9 @@ class FlatField:
                                                                          self.slits.right_init[:, slit_idx],
                                                                          onslit_init, _flexure)
                 tilts = np.zeros(rawflat.shape, dtype=float)
-                tilts[onslit_init] = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                            self.wavetilts['func2d'], spec_eval=_spec_eval, spat_eval=_spat_eval)
+                tilts[onslit_init] = tracewave.fit2tilts(self.wavetilts['coeffs'][:,:,slit_idx],
+                                                         self.wavetilts['func2d'],
+                                                         spec_eval=_spec_eval, spat_eval=_spat_eval)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 

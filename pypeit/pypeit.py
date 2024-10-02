@@ -814,11 +814,11 @@ class PypeIt:
         spat_flexure = np.zeros((self.caliBrate.slits.nslits, 2))  # No spatial flexure, unless we find it below
         # use the flexure correction in the "shift" column
         manual_flexure = self.fitstbl[frames[0]]['shift']
-        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct'] != "none") or \
-                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct'] != "none") or \
+        if (self.objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_method'] != "skip") or \
+                (self.objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_method'] != "skip") or \
                     manual_flexure:
             if (manual_flexure != self.fitstbl.MASKED_VALUE) and np.issubdtype(self.fitstbl[frames[0]]["shift"], np.integer):
-                msgs.info(f'Implementing manual spatial flexure of {manual_flexure}')
+                msgs.info(f'Implementing manual spatial flexure of {manual_flexure} pixels')
                 spat_flexure = np.full((self.caliBrate.slits.nslits, 2), np.float64(manual_flexure))
                 sciImg.spat_flexure = spat_flexure
             else:
