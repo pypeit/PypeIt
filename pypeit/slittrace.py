@@ -453,7 +453,7 @@ class SlitTraceSet(calibframe.CalibFrame):
             return np.where(self.ech_order == slitord)[0][0]
         msgs.error(f'Unrecognized Pypeline: {self.pypeline}')
 
-    def get_slitlengths(self, initial=False, median=False):
+    def get_slitlengths(self, initial=False, spat_flexure=None, median=False):
         """
         Get the length of each slit in pixels.
 
@@ -467,6 +467,13 @@ class SlitTraceSet(calibframe.CalibFrame):
             initial (:obj:`bool`, optional):
                 To use the initial edges regardless of the presence of
                 the tweaked edges, set this to True.
+            spat_flexure (`numpy.ndarray`_, optional):
+                If provided, this is the shift, in spatial pixels, to
+                apply to each slit. This is used to correct for spatial
+                flexure. The shape of the array should be (nslits, 2),
+                where the first column is the shift to apply to the
+                left edge of each slit and the second column is the
+                shift to apply to the right edge of each slit.
             median (:obj:`bool`, optional):
                 The default is to return the slit length as a function
                 of the spectral coordinate. If median is set to true,
@@ -475,7 +482,7 @@ class SlitTraceSet(calibframe.CalibFrame):
         Returns:
             `numpy.ndarray`_: Slit lengths.
         """
-        left, right, _ = self.select_edges(initial=initial)
+        left, right, _ = self.select_edges(initial=initial, spat_flexure=spat_flexure)
         slitlen = right - left
         return np.median(slitlen, axis=1) if median else slitlen
 
