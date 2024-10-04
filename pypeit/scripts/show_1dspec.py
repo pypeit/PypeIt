@@ -116,7 +116,7 @@ class Show1DSpec(scriptbase.ScriptBase):
         if args.extract == 'OPT':
             if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
                     msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
-        
+
         if args.ginga:
             # show the 1d spectrum in Ginga
             from pypeit.display.display import show_1dspec
