@@ -333,14 +333,14 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         Number of orders for this spectograph. Should only defined for
         echelle spectrographs, and it is undefined for the base class.
         """
-        return 65
+        return 63
 
     @property
     def orders(self):
         """
         Return the order number for each echelle order.
         """
-        return np.arange(124, 59, -1, dtype=int)
+        return np.arange(122, 59, -1, dtype=int)
 
     @property
     def order_spat_pos(self):
@@ -348,7 +348,8 @@ class APFLevySpectrograph(spectrograph.Spectrograph):
         Return the expected spatial position of each echelle order.
         """
         ord_spat_pos = np.array(
-        [0.06748562, 0.08327305, 0.09882858, 0.11422751, 0.1294643 ,
+        #[0.06748562, 0.08327305, 0.09882858, 0.11422751, 0.1294643 ,
+        [0.09882858, 0.11422751, 0.1294643 ,
         0.14456395, 0.15949527, 0.17425991, 0.18887026, 0.20333023,
         0.21763396, 0.23178534, 0.2457807 , 0.25963618, 0.27333362,
         0.28688716, 0.30029984, 0.31356982, 0.32669448, 0.33967947,
