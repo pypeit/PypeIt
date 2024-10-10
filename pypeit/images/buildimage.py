@@ -247,6 +247,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         # NOTE: This should not be necessary because FrameGroupPar explicitly
         # requires frametype to be valid
         msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+    manual_spatflex = manual_spat_flexure if manual_spat_flexure is not None else [np.ma.masked]*len(file_list)
 
     # Should the detectors be reformatted into a single image mosaic?
     if mosaic is None:
@@ -261,7 +262,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
             bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
-            manual_spat_flexure=manual_spat_flexure[ii]))
+            manual_spat_flexure=manual_spatflex[ii]))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])

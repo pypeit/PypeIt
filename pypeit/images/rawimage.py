@@ -672,7 +672,8 @@ class RawImage:
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
         self.spat_flexure_shift = None
-        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure):
+        if slits is not None and \
+                (self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure)):
             self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_method'],
                                                                  manual_spat_flexure=manual_spat_flexure,
                                                                  maxlag=self.par['spat_flexure_maxlag'])
@@ -820,12 +821,12 @@ class RawImage:
 
         # Print the flexure values
         if np.all(spat_flexure == spat_flexure[0, 0]):
-            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]}')
+            msgs.info(f'Spatial flexure is: {spat_flexure[0, 0]} pixels')
         else:
             # Print the flexure values for each slit separately
             for slit in range(spat_flexure.shape[0]):
                 msgs.info(
-                    f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} right={spat_flexure[slit, 1]}')
+                    f'Spatial flexure for slit {slits.spat_id[slit]} is: left={spat_flexure[slit, 0]} pixels; right={spat_flexure[slit, 1]} pixels')
 
         self.steps[step] = True
         # Return
