@@ -160,7 +160,7 @@ All of these **must** subclass from
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
                         scattlight=None, flatimages=None, maxiters=5, ignore_saturation=True,
-                        slits=None, mosaic=None, calib_dir=None, setup=None, calib_id=None):
+                        slits=None, mosaic=None, manual_spat_flexure=None, calib_dir=None, setup=None, calib_id=None):
     """
     Perform basic image processing on a list of images and combine the results. All
     core processing steps for each image are handled by :class:`~pypeit.images.rawimage.RawImage` and
@@ -254,13 +254,14 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
     rawImage_list = []
     # Loop on the files
-    for ifile in file_list:
+    for ii, ifile in enumerate(file_list):
         # Load raw image
         rawImage = rawimage.RawImage(ifile, spectrograph, det)
         # Process
         rawImage_list.append(rawImage.process(
             frame_par['process'], scattlight=scattlight, bias=bias,
-            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic))
+            bpm=bpm, dark=dark, flatimages=flatimages, slits=slits, mosaic=mosaic,
+            manual_spat_flexure=manual_spat_flexure[ii]))
 
     # Do it
     combineImage = combineimage.CombineImage(rawImage_list, frame_par['process'])

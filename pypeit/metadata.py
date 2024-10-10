@@ -1309,9 +1309,30 @@ class PypeItMetaData:
         Returns:
             list: List of the full paths of one or more frames.
         """
-        if isinstance(indx, (int,np.integer)):
+        if isinstance(indx, (int, np.integer)):
             return os.path.join(self['directory'][indx], self['filename'][indx])
         return [os.path.join(d,f) for d,f in zip(self['directory'][indx], self['filename'][indx])]
+
+    def get_shifts(self, indx):
+        """
+        Return the shifts for the provided rows.
+
+        Args:
+            indx (:obj:`int`, array-like):
+                One or more 0-indexed rows in the table with the frames
+                to return.  Can be an array of indices or a boolean
+                array of the correct length.
+
+        Returns:
+            `numpy.ndarray`_: Array with the shifts.
+        """
+        # Make indx an array
+        _indx = np.atleast_1d(indx)
+        # Check if shifts are defined, if not, return a masked array
+        if 'shift' not in self.keys():
+            return np.ma.array(np.zeros(_indx.shape), mask=np.ones(_indx.shape, dtype=bool))
+        # Otherwise, return the shifts
+        return self['shift'][indx]
 
     def set_frame_types(self, type_bits, merge=True):
         """
