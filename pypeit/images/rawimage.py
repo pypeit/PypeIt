@@ -672,8 +672,7 @@ class RawImage:
         # function checks that the slits exist if running the spatial flexure
         # correction, so no need to do it again here.
         self.spat_flexure_shift = None
-        if slits is not None and \
-                (self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure)):
+        if self.par['spat_flexure_method'] != "skip" or not np.ma.is_masked(manual_spat_flexure):
             self.spat_flexure_shift = self.spatial_flexure_shift(slits, method=self.par['spat_flexure_method'],
                                                                  manual_spat_flexure=manual_spat_flexure,
                                                                  maxlag=self.par['spat_flexure_maxlag'])
@@ -777,7 +776,7 @@ class RawImage:
         :func:`~pypeit.core.flexure.spat_flexure_shift`.
 
         Args:
-            slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit edge traces
             force (:obj:`bool`, optional):
                 Force the image to be field flattened, even if the step log
@@ -811,6 +810,14 @@ class RawImage:
         if self.nimg > 1:
             msgs.error('CODING ERROR: Must use a single image (single detector or detector '
                        'mosaic) to determine spatial flexure.')
+
+        # Check if the slits are provided
+        if slits is None:
+            if not np.ma.is_masked(manual_spat_flexure):
+                msgs.warn('Manual spatial flexure provided without slits - assuming no spatial flexure.')
+            else:
+                msgs.warn('Cannot calculate spatial flexure without slits - assuming no spatial flexure.')
+            return
 
         # First check for manual flexure
         if not np.ma.is_masked(manual_spat_flexure):
