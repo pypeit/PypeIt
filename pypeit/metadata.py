@@ -665,10 +665,6 @@ class PypeItMetaData:
                        'unique_configurations first.')
         return len(list(self.configs.keys()))
 
-    @property
-    def MASKED_VALUE(self):
-        return -9999
-
     def unique_configurations(self, force=False, copy=False, rm_none=False):
         """
         Return the unique instrument configurations.
@@ -1544,7 +1540,7 @@ class PypeItMetaData:
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
         if 'shift' not in self.keys():
-            self['shift'] = self.MASKED_VALUE
+            self['shift'] = np.ma.masked
 
         # NOTE: Importantly, this if statement means that, if the user has
         # defined any non-negative combination IDs in their pypeit file, none of
@@ -1580,7 +1576,8 @@ class PypeItMetaData:
         if 'manual' not in self.keys():
             self['manual'] = ''
         if 'shift' not in self.keys():
-            self['shift'] = self.MASKED_VALUE
+            # Instantiate a masked array
+            self['shift'] = np.ma.array(np.zeros(len(self)), mask=np.ones(len(self), dtype=bool))
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
@@ -1665,7 +1662,7 @@ class PypeItMetaData:
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
                      write_bkg_pairs=False, write_manual=False,
-                     write_shift = False,
+                     write_shift=False,
                      configs=None, config_subdir=True,
                      version_override=None, date_override=None):
         """
@@ -1745,7 +1742,7 @@ class PypeItMetaData:
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual,
-                                           write_shift = write_shift)
+                                           write_shift=write_shift)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
@@ -1797,7 +1794,7 @@ class PypeItMetaData:
             pypeItFile = inputfiles.PypeItFile(cfg_lines, paths, subtbl, setup_dict)
             # Write
             pypeItFile.write(ofiles[j], version_override=version_override,
-                             date_override=date_override) 
+                             date_override=date_override)
 
         # Return
         return ofiles

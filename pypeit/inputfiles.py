@@ -380,14 +380,14 @@ class InputFile:
 
         ## Recast each as "object" in case the user has mucked with the Table
         ##  e.g. a mix of floats and None
-        ##  Also handle Masked columns -- fill with ''
         for key in tbl.keys():
             # Object
             tbl[key] = tbl[key].data.astype(object)
-            if isinstance(tbl[key], column.MaskedColumn):
+            # RJC -- Not sure why we need to fill masked columns with empty data. Let's just retain the masked values.
+            # if isinstance(tbl[key], column.MaskedColumn):
                 # Fill with empty string
-                tbl[key].fill_value = ''
-                tbl[key] = tbl[key].filled()
+                # tbl[key].fill_value = np.ma.masked
+                # tbl[key] = tbl[key].filled()
 
         # Build the table -- Old code
         #  Because we allow (even encourage!) the users to modify entries by hand, 
