@@ -823,7 +823,7 @@ class PypeIt:
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
-            row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
+            row['filename'], row['manual'], self.spectrograph) if not np.ma.is_masked(row['manual']) else None
 
         # Instantiate Reduce object
         # Required for pypeline specific object

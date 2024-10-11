@@ -481,20 +481,21 @@ class InputFile:
         ## Build full paths to file and set frame types
         data_files = []
         for row in self.data:
+            rowkey = '' if np.ma.is_masked(row[key]) else row[key]
 
             # Skip Empty entries?
-            if skip_blank and row[key].strip() in ['', 'none', 'None']:
+            if skip_blank and rowkey.strip() in ['', 'none', 'None']:
                 continue
 
             # Skip commented out entries
-            if row[key].strip().startswith("#"):
+            if rowkey.strip().startswith("#"):
                 if not include_commented_out:
                     continue
                 # Strip the comment character and any whitespace following it
                 # from the filename
-                name = row[key].strip("# ")
+                name = rowkey.strip("# ")
             else:
-                name = row[key]
+                name = rowkey
 
             # Searching..
             if len(self.file_paths) > 0:
@@ -503,7 +504,7 @@ class InputFile:
                     if os.path.isfile(filename):
                         break
             else:
-                filename = row[key]
+                filename = rowkey
 
             # Check we got a good hit
             if check_exists and not os.path.isfile(filename):
