@@ -1596,7 +1596,7 @@ class PypeItMetaData:
 
         """
         if 'manual' not in self.keys():
-            self['manual'] = ''
+            self['manual'] = np.ma.array(np.zeros(len(self)), mask=np.ones(len(self), dtype=bool))
         if 'shift' not in self.keys():
             # Instantiate a masked array
             self['shift'] = np.ma.array(np.zeros(len(self)), mask=np.ones(len(self), dtype=bool))
